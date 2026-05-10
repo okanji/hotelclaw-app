@@ -31,6 +31,9 @@ import { PropertySwitcher } from "./property-switcher";
 import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
 import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
 import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
+import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
+import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
+import { NotificationsToggle } from "./notifications-toggle";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -107,6 +110,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <InboxSidebarLink propertyId={currentPropertyId} />
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href={`/p/${currentPropertyId}/threads`} />}
@@ -164,6 +168,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
                     {user.name ?? user.email}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <NotificationsToggle />
                   <DropdownMenuItem
                     onClick={() => {
                       void signOut();
@@ -188,6 +193,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         open={dmOpen}
         onOpenChange={setDmOpen}
       />
+      <BrowserNotifications />
     </Sidebar>
   );
 }
