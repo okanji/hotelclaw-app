@@ -53,10 +53,11 @@ export function ChannelView({ channelId, channelType, channelName }: Props) {
     );
   }
 
-  // Stream's recommended layout: parent must be a fixed-height flex container
-  // so MessageList scrolls internally and MessageComposer stays pinned.
+  // Stream's recommended layout: parent must be a fixed-height block (or
+  // column flex) so .str-chat__channel — which is itself `display: flex;
+  // flex-direction: column; height: 100%` — fills both axes.
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <Channel channel={channel}>
         <Window>
           <ChannelHeader />

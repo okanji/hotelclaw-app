@@ -128,3 +128,26 @@
     @apply font-sans;
   }
 }
+
+/* Stream Chat theming overrides.
+   The chat already lives in a sized SidebarInset column, so we don't want
+   Stream's default centered ~1120px column. Per Stream's theming docs, these
+   variables are the supported customization point.
+   https://getstream.io/chat/docs/sdk/react/theming/css-and-theming/
+
+   `!important` is needed because Stream's CSS is imported AFTER ours (so
+   shadcn/Tailwind base layer keeps priority over Stream's unlayered base
+   resets); without it, our overrides at the same selectors lose source-order. */
+.str-chat {
+  --str-chat__message-composer-max-width: 100% !important;
+  --str-chat__message-max-width: 60ch !important;
+}
+.str-chat__message-list-main-panel {
+  --str-chat__message-list-scroll-max-width: 100% !important;
+}
+/* Hide Stream's sticky/floating date pill — keep only the inline date separator
+   that sits between message groups. The `--floating` modifier is Stream's
+   intended CSS hook for exactly this kind of opt-out. */
+.str-chat__date-separator--floating {
+  display: none !important;
+}
