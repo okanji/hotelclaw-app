@@ -1,0 +1,111 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { Channel, EventTypes } from "stream-chat";
+import { useChannelPreviewInfo, useChatContext } from "stream-chat-react";
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { Hash, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  channel: Channel;
+  propertyId: string;
+  channelKind: "team" | "messaging";
+};
+
+export function ChannelPreviewRow({
+  channel,
+  propertyId,
+  channelKind,
+}: Props) {
+  const { client, channel: activeChannel } = useChatContext();
+  const { displayTitle } = useChannelPreviewInfo({ channel });
+
+  const [unread, setUnread] = useState(channel.countUnread());
+
+  useEffect(() => {
+    function bump() {
+      setUnread(channel.countUnread());
+    }
+    const events: EventTypes[] = [
+      "message.new",
+      "message.read",
+      "notification.mark_read",
+      "notification.mark_unread",
+      "channel.updated",
+    ];
+    const subs = events.map((e) => channel.on(e, bump));
+    return () => subs.forEach((s) => s.unsubscribe());
+  }, [channel]);
+
+  const isActive = activeChannel?.cid === channel.cid;
+  const isPrivate =
+    (channel.data as { is_private?: boolean } | undefined)?.is_private ?? false;
+  const Icon = channelKind === "team" ? (isPrivate ? Lock : Hash) : null;
+
+  // For DMs, show the other user's name; for groups, comma-separated.
+  const title =
+    channelKind === "messaging"
+      ? dmTitle(channel, client?.user?.id)
+      : displayTitle ?? channel.id ?? "Untitled";
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        render={
+          <Link href={`/p/${propertyId}/chat/${channel.id}`} />
+        }
+        isActive={isActive}
+        tooltip={title}
+        className={cn(unread > 0 && !isActive && "font-semibold text-foreground")}
+      >
+        {Icon ? <Icon /> : <DmAvatar channel={channel} currentUserId={client?.user?.id} />}
+        <span className="truncate">{title}</span>
+        {unread > 0 && !isActive ? (
+          <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        ) : null}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function dmTitle(channel: Channel, currentUserId: string | undefined) {
+  const members = Object.values(channel.state.members ?? {});
+  const others = members
+    .map((m) => m.user)
+    .filter((u): u is NonNullable<typeof u> => !!u && u.id !== currentUserId);
+  if (others.length === 0) return "(empty conversation)";
+  if (others.length === 1) return others[0].name ?? others[0].id;
+  return others.map((u) => u.name ?? u.id).join(", ");
+}
+
+function DmAvatar({
+  channel,
+  currentUserId,
+}: {
+  channel: Channel;
+  currentUserId: string | undefined;
+}) {
+  const members = Object.values(channel.state.members ?? {});
+  const other = members
+    .map((m) => m.user)
+    .find((u) => u && u.id !== currentUserId);
+  const initials = (other?.name ?? other?.id ?? "?")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <span className="flex size-4 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+      {initials || "?"}
+    </span>
+  );
+}

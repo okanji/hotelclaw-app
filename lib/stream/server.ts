@@ -57,3 +57,28 @@ export async function createPropertyChannel(args: {
   await channel.create();
   return channel;
 }
+
+/**
+ * Add a user to every public team channel in the property. Called when a new
+ * member accepts an invite — gives them access to existing public channels
+ * the way Slack does. Private channels require explicit invitation.
+ */
+export async function addUserToPublicChannels(args: {
+  propertyId: string;
+  userId: string;
+  streamChannelIds: string[];
+}) {
+  if (args.streamChannelIds.length === 0) return;
+  const stream = getStreamServer();
+  // Process in parallel; Stream's addMembers is idempotent (no-op if already in).
+  await Promise.all(
+    args.streamChannelIds.map(async (id) => {
+      try {
+        const channel = stream.channel("team", id);
+        await channel.addMembers([args.userId]);
+      } catch (e) {
+        console.error(`addMembers failed for channel ${id}`, e);
+      }
+    }),
+  );
+}

@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,6 @@ type Props = {
 
 export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
   const router = useRouter();
-  const qc = useQueryClient();
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -40,7 +38,8 @@ export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
       toast.success(`#${name} created`);
       setName("");
       onOpenChange(false);
-      qc.invalidateQueries({ queryKey: ["channels", propertyId] });
+      // Stream's <ChannelList> picks up the new channel via WebSocket events;
+      // no manual invalidation needed.
       router.push(`/p/${propertyId}/chat/${result.streamChannelId}`);
     });
   }

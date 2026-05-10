@@ -11,6 +11,18 @@ type Props = {
   children: React.ReactNode;
 };
 
+/**
+ * Client-side Stream Chat provider.
+ *
+ * Per Stream's strict-mode rules (.agents/skills/stream/RULES.md):
+ *   - Use `new StreamChat(apiKey)` on the client, NOT `getInstance()`
+ *     (singletons survive strict-mode unmount→remount and keep stale state).
+ *   - Wrap connectUser() in `setTimeout(50ms)` + `let mounted` guard so the
+ *     synchronous-then-async flow can be cancelled mid-flight when the second
+ *     mount tears the first down.
+ *   - Do NOT use `useRef` "run-once" guards — refs persist across the strict
+ *     unmount, so the second mount would skip init entirely.
+ */
 export function StreamProvider({
   userId,
   userName,
@@ -18,45 +30,60 @@ export function StreamProvider({
   children,
 }: Props) {
   const [client, setClient] = useState<StreamChat | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
+  // Step 1: fetch the token once when identity is known.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/stream/token", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`token ${r.status}`))))
+      .then((j: { token: string }) => {
+        if (!cancelled) setToken(j.token);
+      })
+      .catch((e) => console.error("Stream token fetch failed", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Step 2: once token arrives, connect — strict-mode safe.
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
-    if (!apiKey) {
-      console.warn("NEXT_PUBLIC_STREAM_API_KEY not set; chat is disabled.");
-      return;
-    }
-    // Bump default 3s axios timeout — same fix as on the server. 3s is too tight
-    // for cross-region calls; channel.watch() and connectUser were intermittently
-    // exceeding it.
-    const c = StreamChat.getInstance(apiKey, { timeout: 15000 });
-    let cancelled = false;
+    if (!apiKey || !token || !userId) return;
 
-    async function connect() {
-      const res = await fetch("/api/stream/token", { cache: "no-store" });
-      if (!res.ok) {
-        console.error("Stream token request failed", res.status);
-        return;
-      }
-      const { token } = (await res.json()) as { token: string };
+    let mounted = true;
+    let connectedClient: StreamChat | null = null;
+
+    const timer = setTimeout(async () => {
+      if (!mounted) return;
+      const c = new StreamChat(apiKey, { timeout: 15000 });
       const user: User = {
         id: userId,
         name: userName,
         image: avatarUrl ?? undefined,
       };
-      await c.connectUser(user, token);
-      if (!cancelled) setClient(c);
-    }
+      try {
+        await c.connectUser(user, token);
+      } catch (e) {
+        console.error("Stream connectUser failed", e);
+        return;
+      }
+      if (!mounted) {
+        c.disconnectUser().catch(() => {});
+        return;
+      }
+      connectedClient = c;
+      setClient(c);
+    }, 50);
 
-    connect();
     return () => {
-      cancelled = true;
-      c.disconnectUser().catch(() => {});
+      mounted = false;
+      clearTimeout(timer);
+      connectedClient?.disconnectUser().catch(() => {});
+      setClient(null);
     };
-  }, [userId, userName, avatarUrl]);
+  }, [token, userId, userName, avatarUrl]);
 
-  if (!client) {
-    return <>{children}</>;
-  }
-
+  if (!client) return <>{children}</>;
   return <Chat client={client}>{children}</Chat>;
 }

@@ -15,14 +15,28 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // RLS on memberships allows reading rows for properties the user is a member of.
   const { data, error } = await supabase
-    .from("chat_channels")
-    .select("id, stream_channel_id, name, is_private")
-    .eq("property_id", propertyId)
-    .order("created_at", { ascending: true });
+    .from("memberships")
+    .select("user_id, role, profile:profiles!inner(id, full_name, avatar_url)")
+    .eq("property_id", propertyId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(data ?? []);
+
+  type Row = {
+    user_id: string;
+    role: string;
+    profile: { id: string; full_name: string | null; avatar_url: string | null };
+  };
+
+  const members = ((data ?? []) as unknown as Row[]).map((m) => ({
+    id: m.user_id,
+    role: m.role,
+    name: m.profile.full_name,
+    avatarUrl: m.profile.avatar_url,
+  }));
+
+  return NextResponse.json(members);
 }

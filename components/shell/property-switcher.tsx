@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -15,7 +16,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Plus, UserPlus } from "lucide-react";
+import { InviteDialog } from "./invite-dialog";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -26,7 +28,9 @@ export function PropertySwitcher({
   memberships: Membership[];
 }) {
   const router = useRouter();
+  const [inviteOpen, setInviteOpen] = useState(false);
   const current = memberships.find((m) => m.property_id === currentPropertyId);
+  const canInvite = current?.role === "owner" || current?.role === "manager";
 
   return (
     <SidebarMenu>
@@ -73,6 +77,15 @@ export function PropertySwitcher({
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              {canInvite ? (
+                <DropdownMenuItem
+                  onClick={() => setInviteOpen(true)}
+                  className="gap-2"
+                >
+                  <UserPlus className="size-4" />
+                  Invite people
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 onClick={() => router.push("/onboarding")}
                 className="gap-2"
@@ -84,6 +97,11 @@ export function PropertySwitcher({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+      <InviteDialog
+        propertyId={currentPropertyId}
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+      />
     </SidebarMenu>
   );
 }

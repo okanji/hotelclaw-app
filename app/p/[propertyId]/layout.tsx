@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { LiveblocksProviders } from "@/lib/liveblocks/room-provider";
+import { InfoPanelProvider } from "@/components/chat/info-panel/context";
 
 export default async function PropertyLayout({
   children,
@@ -39,19 +40,21 @@ export default async function PropertyLayout({
       avatarUrl={profile.data?.avatar_url ?? null}
     >
       <LiveblocksProviders propertyId={propertyId}>
-        <SidebarProvider>
-          <AppSidebar
-            currentPropertyId={propertyId}
-            memberships={memberships}
-            user={{
-              id: user.id,
-              email: user.email ?? "",
-              name: profile.data?.full_name ?? null,
-              avatarUrl: profile.data?.avatar_url ?? null,
-            }}
-          />
-          <SidebarInset>{children}</SidebarInset>
-        </SidebarProvider>
+        <InfoPanelProvider>
+          <SidebarProvider>
+            <AppSidebar
+              currentPropertyId={propertyId}
+              memberships={memberships}
+              user={{
+                id: user.id,
+                email: user.email ?? "",
+                name: profile.data?.full_name ?? null,
+                avatarUrl: profile.data?.avatar_url ?? null,
+              }}
+            />
+            <SidebarInset>{children}</SidebarInset>
+          </SidebarProvider>
+        </InfoPanelProvider>
       </LiveblocksProviders>
     </StreamProvider>
   );

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -24,9 +26,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronsUpDown, ListChecks, LogOut } from "lucide-react";
+import { ChevronsUpDown, ListChecks, LogOut, MessageSquareText, Plus } from "lucide-react";
 import { PropertySwitcher } from "./property-switcher";
-import { ChannelSidebarList } from "@/components/chat/channel-sidebar-list";
+import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
+import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
+import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -43,6 +47,9 @@ type Props = {
 
 export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
   const pathname = usePathname();
+  const [channelOpen, setChannelOpen] = useState(false);
+  const [dmOpen, setDmOpen] = useState(false);
+
   const initials = (user.name ?? user.email ?? "?")
     .split(/\s+/)
     .map((p) => p[0])
@@ -61,11 +68,38 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center justify-between pr-1">
-            Channels
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Channels</SidebarGroupLabel>
+          <SidebarGroupAction
+            onClick={() => setChannelOpen(true)}
+            title="New channel"
+          >
+            <Plus />
+          </SidebarGroupAction>
           <SidebarGroupContent>
-            <ChannelSidebarList propertyId={currentPropertyId} />
+            <ChannelListSection
+              propertyId={currentPropertyId}
+              userId={user.id}
+              channelKind="team"
+              emptyState="No channels yet"
+            />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Direct messages</SidebarGroupLabel>
+          <SidebarGroupAction
+            onClick={() => setDmOpen(true)}
+            title="New direct message"
+          >
+            <Plus />
+          </SidebarGroupAction>
+          <SidebarGroupContent>
+            <ChannelListSection
+              propertyId={currentPropertyId}
+              userId={user.id}
+              channelKind="messaging"
+              emptyState="No direct messages"
+            />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -73,6 +107,18 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href={`/p/${currentPropertyId}/threads`} />}
+                  isActive={pathname.startsWith(
+                    `/p/${currentPropertyId}/threads`,
+                  )}
+                  tooltip="Threads"
+                >
+                  <MessageSquareText />
+                  <span>Threads</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href={`/p/${currentPropertyId}/tasks`} />}
@@ -132,6 +178,16 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <CreateChannelDialog
+        propertyId={currentPropertyId}
+        open={channelOpen}
+        onOpenChange={setChannelOpen}
+      />
+      <CreateDmDialog
+        propertyId={currentPropertyId}
+        open={dmOpen}
+        onOpenChange={setDmOpen}
+      />
     </Sidebar>
   );
 }

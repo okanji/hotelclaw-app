@@ -140,7 +140,7 @@
    resets); without it, our overrides at the same selectors lose source-order. */
 .str-chat {
   --str-chat__message-composer-max-width: 100% !important;
-  --str-chat__message-max-width: 60ch !important;
+  --str-chat__message-max-width: 80ch !important;
 }
 .str-chat__message-list-main-panel {
   --str-chat__message-list-scroll-max-width: 100% !important;
@@ -150,4 +150,50 @@
    intended CSS hook for exactly this kind of opt-out. */
 .str-chat__date-separator--floating {
   display: none !important;
+}
+/* Hide Stream's "Chats" header above the ChannelList. We render channels
+   inside our own shadcn SidebarGroup which already has a label, so the
+   built-in header is redundant. The default header is hardcoded in the
+   ChannelList component (no prop to disable it). */
+.str-chat__channel-list__header {
+  display: none !important;
+}
+/* /threads page layout fixes:
+   - Pin thread list width (Stream defaults to 30% via channel-list width).
+   - In Stream's <ChatView> the right pane on /threads is rendered via
+     <ChatView.ThreadAdapter>, which wraps the thread inside a <Channel>.
+     That means the DOM is:
+       .str-chat__chat-view__threads
+         > .str-chat__thread-list-container
+         > .str-chat__channel              <-- new wrapper, no flex:1
+           > .str-chat__container
+             > .str-chat__thread-container.str-chat__thread
+     Stream's stylesheet only flexes the direct `> .str-chat__thread-container`
+     child, so the wrapping `.str-chat__channel` collapses to its content
+     width and the chat ends up narrow. We grow that wrapper here. */
+.str-chat {
+  --str-chat__thread-list-width: 320px;
+}
+.str-chat__chat-view__threads > .str-chat__channel {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+.str-chat__chat-view__threads > .str-chat__channel > .str-chat__container,
+.str-chat__chat-view__threads
+  > .str-chat__channel
+  > .str-chat__container
+  > .str-chat__thread-container {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+/* Force the message list inside the thread to fill the (now wide) pane.
+   Default Stream caps it at composer-max-width via this var. */
+.str-chat__thread .str-chat__message-list,
+.str-chat__thread .str-chat__message-list .str-chat__message-list-scroll {
+  --str-chat__message-list-scroll-max-width: 100% !important;
+  max-width: 100% !important;
+  width: 100%;
 }
