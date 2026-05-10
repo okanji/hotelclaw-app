@@ -101,8 +101,9 @@ export function ChannelSettingsDialog({
                 Delete #{data?.name ?? channel.id}?
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                This removes the channel for every member and erases its
-                message history. There's no undo.
+                The channel disappears for every member and stops accepting
+                new messages. History is preserved and an admin can restore
+                it from "Archived channels".
               </p>
             </div>
             <DialogFooter>
@@ -120,7 +121,7 @@ export function ChannelSettingsDialog({
                 onClick={destroy}
                 disabled={busy}
               >
-                {busy ? "Deleting…" : "Delete forever"}
+                {busy ? "Deleting…" : "Delete channel"}
               </Button>
             </DialogFooter>
           </div>

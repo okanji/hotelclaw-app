@@ -5,6 +5,7 @@ import { useChatContext } from "stream-chat-react";
 import type { MessageResponse, SearchAPIResponse } from "stream-chat";
 import { MentionRow } from "./mention-row";
 import { Inbox as InboxIcon } from "lucide-react";
+import { useMarkMentionsSeenOnMount } from "./use-unread-mentions";
 
 type Hit = SearchAPIResponse["results"][number];
 
@@ -19,6 +20,9 @@ export function InboxView({ propertyId }: { propertyId: string }) {
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Visiting the inbox = "I've seen these". Clears the sidebar badge.
+  useMarkMentionsSeenOnMount(client?.user?.id ?? "");
 
   useEffect(() => {
     if (!client?.user) return;

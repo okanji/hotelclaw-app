@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Archive,
   ChevronsUpDown,
   ListChecks,
   LogOut,
@@ -37,12 +38,15 @@ import {
 import { PropertySwitcher } from "./property-switcher";
 import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
 import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
+import { ArchivedChannelsDialog } from "@/components/chat/archived-channels-dialog";
 import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
 import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { NotificationsToggle } from "./notifications-toggle";
 import { EditProfileDialog } from "./edit-profile-dialog";
 import { SearchButton } from "./search-button";
+import { NotificationsBell } from "./notifications-bell";
+import { ThemeToggle } from "./theme-toggle";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -62,6 +66,12 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
   const [channelOpen, setChannelOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+
+  const currentRole = memberships.find(
+    (m) => m.property_id === currentPropertyId,
+  )?.role;
+  const isChannelAdmin = currentRole === "owner" || currentRole === "manager";
 
   const initials = (user.name ?? user.email ?? "?")
     .split(/\s+/)
@@ -84,6 +94,10 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SearchButton />
+              <NotificationsBell
+                userId={user.id}
+                propertyId={currentPropertyId}
+              />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -102,6 +116,19 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
               channelKind="team"
               emptyState="No channels yet"
             />
+            {isChannelAdmin ? (
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setArchivedOpen(true)}
+                    tooltip="Archived channels"
+                  >
+                    <Archive />
+                    <span>Archived channels</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            ) : null}
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -127,7 +154,10 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <InboxSidebarLink propertyId={currentPropertyId} />
+              <InboxSidebarLink
+                propertyId={currentPropertyId}
+                userId={user.id}
+              />
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href={`/p/${currentPropertyId}/threads`} />}
@@ -189,6 +219,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
                     <UserCog className="size-4" />
                     Edit profile
                   </DropdownMenuItem>
+                  <ThemeToggle />
                   <NotificationsToggle />
                   <DropdownMenuItem
                     onClick={() => {
@@ -209,6 +240,13 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         open={channelOpen}
         onOpenChange={setChannelOpen}
       />
+      {isChannelAdmin ? (
+        <ArchivedChannelsDialog
+          propertyId={currentPropertyId}
+          open={archivedOpen}
+          onOpenChange={setArchivedOpen}
+        />
+      ) : null}
       <CreateDmDialog
         propertyId={currentPropertyId}
         open={dmOpen}

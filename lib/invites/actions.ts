@@ -8,6 +8,7 @@ import {
   upsertStreamUser,
 } from "@/lib/stream/server";
 import { sendInviteEmail } from "@/lib/email/send-invite-email";
+import { createNotification } from "@/lib/notifications/server";
 import type { Role } from "@/lib/db/types";
 
 const Roles = ["owner", "manager", "staff"] as const;
@@ -185,6 +186,21 @@ export async function createInvite(
 
   const magicUrl = linkData.properties.action_link;
 
+  // Existing user — also drop an in-app notification so they see it as soon
+  // as they next visit the app, even if the email lands in spam.
+  if (linkData.user?.id) {
+    await createNotification({
+      userId: linkData.user.id,
+      propertyId: parsed.data.propertyId,
+      type: "invite_received",
+      payload: {
+        inviteToken: token,
+        propertyName,
+        role: parsed.data.role,
+      },
+    });
+  }
+
   const sendResult = await sendInviteEmail({
     to: email,
     inviterName,
@@ -262,7 +278,8 @@ export async function acceptInvite(
       .from("chat_channels")
       .select("stream_channel_id")
       .eq("property_id", invite.property_id)
-      .eq("is_private", false);
+      .eq("is_private", false)
+      .is("archived_at", null);
 
     if (publicChannels && publicChannels.length > 0) {
       await addUserToPublicChannels({

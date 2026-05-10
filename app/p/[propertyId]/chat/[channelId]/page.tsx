@@ -19,6 +19,7 @@ export default async function ChannelPage({
     .select("name, stream_channel_id, stream_channel_type")
     .eq("property_id", propertyId)
     .eq("stream_channel_id", channelId)
+    .is("archived_at", null)
     .maybeSingle();
 
   return (

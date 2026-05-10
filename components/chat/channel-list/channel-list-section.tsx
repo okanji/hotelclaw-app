@@ -44,10 +44,13 @@ export function ChannelListSection({
   // ChannelFilters is strictly typed for built-in fields; Stream supports
   // arbitrary custom fields at runtime (we store property_id on every channel),
   // so cast through unknown to satisfy the type system.
+  // `frozen: false` hides archived (soft-deleted) channels — deleteChannel
+  // freezes the Stream channel and stamps archived_at on our row.
   const filters = {
     type: channelKind,
     property_id: propertyId,
     members: { $in: [userId] },
+    frozen: false,
   } as unknown as ChannelFilters;
 
   // Stream's default LoadingIndicator for ChannelList is a stack of big

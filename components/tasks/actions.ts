@@ -2,7 +2,11 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import {
+  createNotification,
+  type NotificationType,
+} from "@/lib/notifications/server";
 import type { Database } from "@/lib/db/types";
 
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
@@ -55,6 +59,19 @@ export async function createTask(
     .single();
 
   if (error || !data) return { error: error?.message ?? "Insert failed" };
+
+  // Notify the assignee if it's not the creator themselves.
+  if (parsed.data.assigneeId && parsed.data.assigneeId !== user.id) {
+    await emitTaskAssignmentNotifications({
+      taskId: data.id,
+      propertyId: parsed.data.propertyId,
+      title: parsed.data.title,
+      byUserId: user.id,
+      previousAssigneeId: null,
+      nextAssigneeId: parsed.data.assigneeId,
+    });
+  }
+
   revalidatePath(`/p/${parsed.data.propertyId}/tasks`);
   return { taskId: data.id };
 }
@@ -71,6 +88,14 @@ export async function updateTask(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
+  // Read the previous assignee so we can detect a change and emit
+  // assigned/unassigned notifications appropriately.
+  const { data: before } = await supabase
+    .from("tasks")
+    .select("assignee_id, title, property_id")
+    .eq("id", parsed.data.taskId)
+    .maybeSingle();
+
   const patch: TaskUpdate = {};
   if (parsed.data.title !== undefined) patch.title = parsed.data.title;
   if (parsed.data.description !== undefined)
@@ -84,10 +109,26 @@ export async function updateTask(
     .from("tasks")
     .update(patch)
     .eq("id", parsed.data.taskId)
-    .select("property_id")
+    .select("property_id, title")
     .single();
 
   if (error || !row) return { error: error?.message ?? "Update failed" };
+
+  if (
+    parsed.data.assigneeId !== undefined &&
+    before &&
+    parsed.data.assigneeId !== before.assignee_id
+  ) {
+    await emitTaskAssignmentNotifications({
+      taskId: parsed.data.taskId,
+      propertyId: row.property_id,
+      title: row.title,
+      byUserId: user.id,
+      previousAssigneeId: before.assignee_id,
+      nextAssigneeId: parsed.data.assigneeId,
+    });
+  }
+
   revalidatePath(`/p/${row.property_id}/tasks`);
   revalidatePath(`/p/${row.property_id}/tasks/${parsed.data.taskId}`);
   return { ok: true };
@@ -108,4 +149,51 @@ export async function deleteTask(
   if (error) return { error: error.message };
   revalidatePath(`/p/${row.property_id}/tasks`);
   return { ok: true };
+}
+
+/* -------------------------------------------------------------------------- */
+
+async function emitTaskAssignmentNotifications(args: {
+  taskId: string;
+  propertyId: string;
+  title: string;
+  byUserId: string;
+  previousAssigneeId: string | null;
+  nextAssigneeId: string | null;
+}): Promise<void> {
+  const service = createServiceClient();
+  const { data: actor } = await service
+    .from("profiles")
+    .select("full_name")
+    .eq("id", args.byUserId)
+    .maybeSingle();
+  const byUserName = actor?.full_name ?? null;
+
+  const events: Array<{ userId: string; type: NotificationType }> = [];
+  if (args.nextAssigneeId && args.nextAssigneeId !== args.byUserId) {
+    events.push({ userId: args.nextAssigneeId, type: "task_assigned" });
+  }
+  if (
+    args.previousAssigneeId &&
+    args.previousAssigneeId !== args.byUserId &&
+    args.previousAssigneeId !== args.nextAssigneeId
+  ) {
+    events.push({ userId: args.previousAssigneeId, type: "task_unassigned" });
+  }
+
+  await Promise.all(
+    events.map((e) =>
+      createNotification({
+        userId: e.userId,
+        propertyId: args.propertyId,
+        type: e.type,
+        payload: {
+          taskId: args.taskId,
+          taskTitle: args.title,
+          byUserId: args.byUserId,
+          byUserName,
+        },
+      }),
+    ),
+  );
 }

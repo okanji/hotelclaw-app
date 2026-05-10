@@ -7,17 +7,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useUnreadCount } from "./use-unread-count";
+import {
+  useUnseenMentionsCount,
+  useNotificationsRealtime,
+} from "./use-unread-mentions";
 
 /**
- * Sidebar entry for the inbox. Shows a small badge with the user's total
- * unread count when > 0. We use Stream's `total_unread_count` rather than a
- * mentions-only count because Stream doesn't expose unread-mentions
- * client-side; this gives a useful general signal.
+ * Sidebar entry for the inbox. Badge counts UNSEEN mention notifications
+ * from our notifications table (matching what /inbox displays). Reading
+ * the inbox marks those mentions seen and the badge clears.
  */
-export function InboxSidebarLink({ propertyId }: { propertyId: string }) {
+export function InboxSidebarLink({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
   const pathname = usePathname();
-  const unread = useUnreadCount();
+  const unread = useUnseenMentionsCount(userId);
+  useNotificationsRealtime(userId);
   const href = `/p/${propertyId}/inbox`;
 
   return (

@@ -158,6 +158,28 @@
 .str-chat__channel-list__header {
   display: none !important;
 }
+/* Strip Stream's <ChannelList> chrome when embedded inside our own sidebar.
+   Stream's default styles give the list wrapper an opaque background
+   (`--str-chat__background-core-elevation-1`), a 30% flex-basis, a 280px
+   min-width, and a 1px end-border — fine for a stand-alone Stream layout but
+   wrong here, where it sits inside our shadcn Sidebar and was punching a
+   white rectangle through dark mode. */
+.str-chat__channel-list,
+.str-chat__channel-list .str-chat__channel-list-inner,
+.str-chat__channel-list .str-chat__channel-list-inner .str-chat__channel-list-inner__main {
+  background: transparent !important;
+  border: 0 !important;
+}
+.str-chat__channel-list {
+  flex: initial !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+}
+.str-chat__channel-list .str-chat__channel-list-inner .str-chat__channel-list-inner__main {
+  overflow: visible !important;
+  padding-bottom: 0 !important;
+}
 /* /threads page layout fixes:
    - Pin thread list width (Stream defaults to 30% via channel-list width).
    - In Stream's <ChatView> the right pane on /threads is rendered via

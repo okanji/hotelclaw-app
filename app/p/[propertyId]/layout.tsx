@@ -9,6 +9,7 @@ import { LiveblocksProviders } from "@/lib/liveblocks/room-provider";
 import { InfoPanelProvider } from "@/components/chat/info-panel/context";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-context";
 import { CommandPalette } from "@/components/shell/command-palette";
+import { ChatEventNotifier } from "@/components/shell/chat-event-notifier";
 
 export default async function PropertyLayout({
   children,
@@ -61,6 +62,7 @@ export default async function PropertyLayout({
               />
               <SidebarInset>{children}</SidebarInset>
               <CommandPalette propertyId={propertyId} />
+              <ChatEventNotifier propertyId={propertyId} />
             </SidebarProvider>
           </CommandPaletteProvider>
         </InfoPanelProvider>

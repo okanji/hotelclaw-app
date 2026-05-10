@@ -12,6 +12,7 @@ export default async function ChatIndex({
     .from("chat_channels")
     .select("stream_channel_id")
     .eq("property_id", propertyId)
+    .is("archived_at", null)
     .order("created_at", { ascending: true })
     .limit(1);
 

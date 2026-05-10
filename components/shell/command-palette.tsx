@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import type { Channel, MessageResponse } from "stream-chat";
+import { useCommandPalette } from "./command-palette-context";
 import {
   Command,
   CommandDialog,
@@ -55,20 +56,10 @@ type Task = {
 export function CommandPalette({ propertyId }: { propertyId: string }) {
   const router = useRouter();
   const { client } = useChatContext();
-  const [open, setOpen] = useState(false);
+  // Single source of truth for open state — the provider owns it so the
+  // keyboard shortcut and the sidebar Search button drive the same dialog.
+  const { open, setOpen } = useCommandPalette();
   const [query, setQuery] = useState("");
-
-  // Cmd+K / Ctrl+K toggle.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
 
   // Reset query on close so reopening starts fresh.
   useEffect(() => {

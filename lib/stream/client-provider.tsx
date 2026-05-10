@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { StreamChat, type User } from "stream-chat";
 import { Chat } from "stream-chat-react";
 
@@ -31,6 +32,9 @@ export function StreamProvider({
 }: Props) {
   const [client, setClient] = useState<StreamChat | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const { resolvedTheme } = useTheme();
+  const streamTheme =
+    resolvedTheme === "dark" ? "str-chat__theme-dark" : "str-chat__theme-light";
 
   // Step 1: fetch the token once when identity is known.
   useEffect(() => {
@@ -85,5 +89,9 @@ export function StreamProvider({
   }, [token, userId, userName, avatarUrl]);
 
   if (!client) return <>{children}</>;
-  return <Chat client={client}>{children}</Chat>;
+  return (
+    <Chat client={client} theme={streamTheme}>
+      {children}
+    </Chat>
+  );
 }

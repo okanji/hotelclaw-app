@@ -12,7 +12,7 @@ import { useCommandPalette } from "./command-palette-context";
  * Cmd+K shortcut opens. Shows the keyboard hint on the right.
  */
 export function SearchButton() {
-  const { setOpen } = useCommandPalette();
+  const { toggle } = useCommandPalette();
   const shortcut = typeof navigator !== "undefined" &&
     /Mac|iPod|iPhone|iPad/.test(navigator.platform)
     ? "⌘K"
@@ -20,7 +20,7 @@ export function SearchButton() {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton onClick={() => setOpen(true)} tooltip="Search">
+      <SidebarMenuButton onClick={toggle} tooltip="Search">
         <Search />
         <span>Search</span>
         <span className="ml-auto rounded border bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground">

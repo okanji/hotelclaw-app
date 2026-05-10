@@ -50,6 +50,18 @@ export async function createChannel(input: {
     return { error: "Forbidden" };
   }
 
+  const { data: existing, error: existingErr } = await supabase
+    .from("chat_channels")
+    .select("id")
+    .eq("property_id", parsed.data.propertyId)
+    .eq("name", parsed.data.name)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (existingErr) return { error: existingErr.message };
+  if (existing) {
+    return { error: `#${parsed.data.name} already exists` };
+  }
+
   const streamChannelId = `prop-${parsed.data.propertyId.slice(0, 8)}-${parsed.data.name}-${crypto
     .randomUUID()
     .slice(0, 6)}`;

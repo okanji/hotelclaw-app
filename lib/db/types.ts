@@ -78,6 +78,7 @@ export interface Database {
           is_private: boolean;
           created_by: string | null;
           created_at: string;
+          archived_at: string | null;
         };
         Insert: {
           id?: string;
@@ -88,10 +89,12 @@ export interface Database {
           is_private?: boolean;
           created_by?: string | null;
           created_at?: string;
+          archived_at?: string | null;
         };
         Update: Partial<{
           name: string;
           is_private: boolean;
+          archived_at: string | null;
         }>;
         Relationships: [];
       };
@@ -127,6 +130,29 @@ export interface Database {
           priority: TaskPriority;
           assignee_id: string | null;
           due_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          property_id: string | null;
+          type: string;
+          payload: Record<string, unknown>;
+          seen_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          property_id?: string | null;
+          type: string;
+          payload?: Record<string, unknown>;
+          seen_at?: string | null;
+        };
+        Update: Partial<{
+          seen_at: string | null;
         }>;
         Relationships: [];
       };
