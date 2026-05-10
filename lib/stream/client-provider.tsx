@@ -88,7 +88,17 @@ export function StreamProvider({
     };
   }, [token, userId, userName, avatarUrl]);
 
-  if (!client) return <>{children}</>;
+  // Children include components (ChannelList, CommandPalette, etc.) that call
+  // useChatContext() on first render. Rendering them outside <Chat> triggers
+  // a flood of "called outside the ChatContext provider" warnings, so we hold
+  // the whole shell behind a minimal loading state until Stream is connected.
+  if (!client) {
+    return (
+      <div className="flex h-svh items-center justify-center text-sm text-muted-foreground">
+        Connecting…
+      </div>
+    );
+  }
   return (
     <Chat client={client} theme={streamTheme}>
       {children}

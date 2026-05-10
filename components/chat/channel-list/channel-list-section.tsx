@@ -18,7 +18,10 @@ type Props = {
   emptyState?: React.ReactNode;
 };
 
-const SORT: ChannelSort = { last_message_at: -1, updated_at: -1 };
+// Stream warns when a sort object has multiple fields ("Object's field order
+// is not guaranteed"). Pass an array of single-field sort objects so the
+// priority is explicit.
+const SORT: ChannelSort = [{ last_message_at: -1 }, { updated_at: -1 }];
 const OPTIONS: ChannelOptions = {
   state: true,
   watch: true,

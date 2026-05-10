@@ -40,7 +40,14 @@ export function ChannelView({
       watchedChannel = c;
       setChannel(c);
     }
-    watch();
+    // Strict-mode double-mount: the first effect's watch() can resolve after
+    // the cleanup runs disconnectUser(), which makes channel.watch() reject
+    // with "channel after disconnect()". Swallow it — the second mount will
+    // re-watch with a fresh client.
+    watch().catch((e) => {
+      if (cancelled) return;
+      console.error("channel.watch failed", e);
+    });
     return () => {
       cancelled = true;
       watchedChannel?.stopWatching().catch(() => {});
