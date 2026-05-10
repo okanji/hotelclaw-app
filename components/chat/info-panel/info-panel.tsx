@@ -52,7 +52,7 @@ export function ChannelInfoPanel({ propertyId }: { propertyId: string }) {
             <PinnedTab />
           </TabsContent>
           <TabsContent value="about" className="flex-1 overflow-y-auto p-3">
-            <AboutTab />
+            <AboutTab propertyId={propertyId} />
           </TabsContent>
         </Tabs>
       </SheetContent>

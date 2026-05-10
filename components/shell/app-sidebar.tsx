@@ -42,6 +42,7 @@ import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { NotificationsToggle } from "./notifications-toggle";
 import { EditProfileDialog } from "./edit-profile-dialog";
+import { SearchButton } from "./search-button";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -79,6 +80,13 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         />
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SearchButton />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Channels</SidebarGroupLabel>
           <SidebarGroupAction
