@@ -33,17 +33,20 @@ export interface Database {
           id: string;
           full_name: string | null;
           avatar_url: string | null;
+          onboarded_at: string | null;
           created_at: string;
         };
         Insert: {
           id: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          onboarded_at?: string | null;
           created_at?: string;
         };
         Update: Partial<{
           full_name: string | null;
           avatar_url: string | null;
+          onboarded_at: string | null;
         }>;
         Relationships: [];
       };
@@ -150,6 +153,8 @@ export interface Database {
         };
         Update: Partial<{
           accepted_at: string | null;
+          expires_at: string;
+          role: Role;
         }>;
         Relationships: [];
       };

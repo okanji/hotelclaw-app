@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
+import { isOnboarded } from "@/lib/auth/onboarding";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
@@ -16,6 +17,9 @@ export default async function PropertyLayout({
 }) {
   const { propertyId } = await params;
   const user = await requireUser();
+  if (!(await isOnboarded(user.id))) {
+    redirect(`/welcome?next=${encodeURIComponent(`/p/${propertyId}/chat`)}`);
+  }
   const supabase = await createClient();
 
   const { data: property } = await supabase

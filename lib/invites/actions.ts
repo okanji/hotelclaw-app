@@ -1,11 +1,13 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   addUserToPublicChannels,
   upsertStreamUser,
 } from "@/lib/stream/server";
+import { sendInviteEmail } from "@/lib/email/send-invite-email";
 import type { Role } from "@/lib/db/types";
 
 const Roles = ["owner", "manager", "staff"] as const;
@@ -16,9 +18,45 @@ const CreateSchema = z.object({
   role: z.enum(Roles).default("staff"),
 });
 
+async function getOrigin(): Promise<string> {
+  const env = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (env) return env.replace(/\/$/, "");
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const host = h.get("host") ?? "localhost:3000";
+  return `${proto}://${host}`;
+}
+
+/**
+ * Why we use the admin API (and not signInWithOtp):
+ *
+ * `auth.signInWithOtp` initiates a PKCE flow — it stores a code-verifier
+ * cookie in the SAME browser that called it. When the recipient opens the
+ * email link in a *different* browser, exchangeCodeForSession fails with
+ * "PKCE code verifier not found." This burned us in production.
+ *
+ * `auth.admin.inviteUserByEmail` (new users) and `auth.admin.generateLink`
+ * (existing users) skip PKCE entirely. They produce token_hash-based links
+ * that work cross-browser. Both require service role, which is fine here
+ * because we already gate the action by membership role.
+ *
+ * Dedup: re-inviting the same email to the same property reuses the
+ * pending-invite token (refreshing expiry + role) instead of creating a
+ * second row. Slack does this — the recipient sees one entry.
+ */
 export async function createInvite(
   input: z.input<typeof CreateSchema>,
-): Promise<{ token: string; url: string } | { error: string }> {
+): Promise<
+  | {
+      token: string;
+      url: string;
+      emailSent: boolean;
+      isExistingUser: boolean;
+      isResend: boolean;
+      emailError?: string;
+    }
+  | { error: string }
+> {
   const parsed = CreateSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -28,8 +66,6 @@ export async function createInvite(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  // Only owners/managers can invite. Check via the user-scoped client (RLS
-  // policy on `invites_insert_owner_manager` enforces it server-side too).
   const { data: membership } = await supabase
     .from("memberships")
     .select("role")
@@ -37,29 +73,135 @@ export async function createInvite(
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!membership || (membership.role !== "owner" && membership.role !== "manager")) {
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "manager")
+  ) {
     return { error: "You don't have permission to invite to this property." };
   }
 
-  const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const email = parsed.data.email.toLowerCase();
+  const service = createServiceClient();
 
-  const { error } = await supabase.from("invites").insert({
-    property_id: parsed.data.propertyId,
-    email: parsed.data.email.toLowerCase(),
+  // Look for an existing pending (unaccepted) invite for this email+property.
+  const { data: existingInvite } = await service
+    .from("invites")
+    .select("token")
+    .eq("property_id", parsed.data.propertyId)
+    .eq("email", email)
+    .is("accepted_at", null)
+    .maybeSingle();
+
+  let token: string;
+  let isResend = false;
+  if (existingInvite) {
+    token = existingInvite.token;
+    isResend = true;
+    const { error: updateErr } = await service
+      .from("invites")
+      .update({ expires_at: expiresAt, role: parsed.data.role })
+      .eq("token", token);
+    if (updateErr) return { error: updateErr.message };
+  } else {
+    token = crypto.randomUUID();
+    const { error: insertError } = await service.from("invites").insert({
+      property_id: parsed.data.propertyId,
+      email,
+      role: parsed.data.role,
+      token,
+      expires_at: expiresAt,
+      created_by: user.id,
+    });
+    if (insertError) return { error: insertError.message };
+  }
+
+  const origin = await getOrigin();
+  const inviteAcceptUrl = `${origin}/invites/${token}`;
+
+  // Pull inviter + property name for the email body.
+  const [{ data: inviterProfile }, { data: property }] = await Promise.all([
+    service.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    service
+      .from("properties")
+      .select("name")
+      .eq("id", parsed.data.propertyId)
+      .maybeSingle(),
+  ]);
+  const inviterName = inviterProfile?.full_name ?? user.email ?? "A teammate";
+  const propertyName = property?.name ?? "a workspace";
+
+  // Try invite-new-user first. Returns specific error if user exists.
+  const { error: inviteError } = await service.auth.admin.inviteUserByEmail(
+    email,
+    { redirectTo: inviteAcceptUrl },
+  );
+
+  if (!inviteError) {
+    return {
+      token,
+      url: inviteAcceptUrl,
+      emailSent: true,
+      isExistingUser: false,
+      isResend,
+    };
+  }
+
+  const errMsg = inviteError.message ?? "";
+  const userExists =
+    /already (been )?registered|already exists|email_exists/i.test(errMsg);
+
+  if (!userExists) {
+    return {
+      token,
+      url: inviteAcceptUrl,
+      emailSent: false,
+      isExistingUser: false,
+      isResend,
+      emailError: errMsg,
+    };
+  }
+
+  // Existing user — generate a magic link, then ship it via Resend.
+  const { data: linkData, error: linkError } =
+    await service.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo: inviteAcceptUrl },
+    });
+
+  if (linkError || !linkData?.properties?.action_link) {
+    return {
+      token,
+      url: inviteAcceptUrl,
+      emailSent: false,
+      isExistingUser: true,
+      isResend,
+      emailError: linkError?.message ?? "Failed to generate magic link",
+    };
+  }
+
+  const magicUrl = linkData.properties.action_link;
+
+  const sendResult = await sendInviteEmail({
+    to: email,
+    inviterName,
+    propertyName,
     role: parsed.data.role,
-    token,
-    expires_at: expiresAt,
-    created_by: user.id,
+    acceptUrl: magicUrl,
+    inviteToken: token,
   });
 
-  if (error) return { error: error.message };
-
-  // Build absolute URL on the server using NEXT_PUBLIC_SITE_URL or fall back
-  // to a relative path the client will absolutize.
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const url = `${origin}/invites/${token}`;
-  return { token, url };
+  return {
+    token,
+    url: magicUrl,
+    emailSent: sendResult.ok,
+    isExistingUser: true,
+    isResend,
+    emailError: sendResult.error,
+  };
 }
 
 export async function acceptInvite(
@@ -72,7 +214,8 @@ export async function acceptInvite(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sign in to accept this invite.", needsAuth: true };
+  if (!user)
+    return { error: "Sign in to accept this invite.", needsAuth: true };
 
   const service = createServiceClient();
 
@@ -89,7 +232,6 @@ export async function acceptInvite(
     return { error: "This invite has expired." };
   }
 
-  // If user is already a member, just mark accepted and send them in.
   const { data: existing } = await service
     .from("memberships")
     .select("role")
@@ -105,9 +247,6 @@ export async function acceptInvite(
     });
     if (memErr) return { error: memErr.message };
 
-    // Bring them into Stream and into all public team channels of this
-    // property — Slack-style "joining a workspace adds you to public channels."
-    // Private channels still require explicit invitation via the channel itself.
     const { data: profile } = await service
       .from("profiles")
       .select("full_name, avatar_url")

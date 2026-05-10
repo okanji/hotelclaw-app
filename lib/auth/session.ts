@@ -24,9 +24,19 @@ export type Membership = {
 
 export async function getUserMemberships(): Promise<Membership[]> {
   const supabase = await createClient();
+  const user = await getSessionUser();
+  if (!user) return [];
+
+  // Important: filter by user_id explicitly. Membership RLS lets you read
+  // EVERY membership row for properties you belong to (so the members panel
+  // can show all teammates), which means an unfiltered query returns the
+  // sibling memberships too — and the property switcher then renders the
+  // same property multiple times (one row per teammate). Always filter to
+  // self when listing the current user's properties.
   const { data, error } = await supabase
     .from("memberships")
     .select("property_id, role, property:properties!inner(id, name, slug)")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
   if (error) {

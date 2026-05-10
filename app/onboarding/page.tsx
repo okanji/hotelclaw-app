@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
+import { isOnboarded } from "@/lib/auth/onboarding";
 import { OnboardingForm } from "./onboarding-form";
 
 export default async function OnboardingPage() {
-  await requireUser();
+  const user = await requireUser();
+  if (!(await isOnboarded(user.id))) {
+    redirect("/welcome?next=/onboarding");
+  }
   const memberships = await getUserMemberships();
   if (memberships.length > 0) {
     redirect(`/p/${memberships[0].property_id}/chat`);

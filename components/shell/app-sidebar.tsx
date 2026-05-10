@@ -26,7 +26,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronsUpDown, ListChecks, LogOut, MessageSquareText, Plus } from "lucide-react";
+import {
+  ChevronsUpDown,
+  ListChecks,
+  LogOut,
+  MessageSquareText,
+  Plus,
+  UserCog,
+} from "lucide-react";
 import { PropertySwitcher } from "./property-switcher";
 import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
 import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
@@ -34,6 +41,7 @@ import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
 import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { NotificationsToggle } from "./notifications-toggle";
+import { EditProfileDialog } from "./edit-profile-dialog";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -52,6 +60,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
   const pathname = usePathname();
   const [channelOpen, setChannelOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const initials = (user.name ?? user.email ?? "?")
     .split(/\s+/)
@@ -168,6 +177,10 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
                     {user.name ?? user.email}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+                    <UserCog className="size-4" />
+                    Edit profile
+                  </DropdownMenuItem>
                   <NotificationsToggle />
                   <DropdownMenuItem
                     onClick={() => {
@@ -192,6 +205,12 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         propertyId={currentPropertyId}
         open={dmOpen}
         onOpenChange={setDmOpen}
+      />
+      <EditProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        initialName={user.name}
+        email={user.email}
       />
       <BrowserNotifications />
     </Sidebar>

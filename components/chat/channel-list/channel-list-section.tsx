@@ -1,9 +1,15 @@
 "use client";
 
-import { ChannelList, useChatContext } from "stream-chat-react";
+import {
+  ChannelList,
+  ComponentProvider,
+  useChatContext,
+  useComponentContext,
+} from "stream-chat-react";
 import type { ChannelFilters, ChannelOptions, ChannelSort } from "stream-chat";
 import { SidebarMenu } from "@/components/ui/sidebar";
 import { ChannelPreviewRow } from "./channel-preview-row";
+import { SidebarRowsSkeleton } from "./sidebar-rows-skeleton";
 
 type Props = {
   propertyId: string;
@@ -28,15 +34,11 @@ export function ChannelListSection({
 }: Props) {
   const { client } = useChatContext();
 
-  // ChannelList depends on the StreamChat client being connected. The Chat
-  // provider only mounts <Chat> after `connectUser()` resolves (see
-  // lib/stream/client-provider.tsx), so we render a placeholder until then.
+  // While the Chat client is connecting, show the same skeleton we'll show
+  // once ChannelList takes over its own loading. Avoids a "Connecting…" text
+  // flash before the shimmer.
   if (!client) {
-    return (
-      <div className="px-2 py-1 text-xs text-muted-foreground">
-        Connecting…
-      </div>
-    );
+    return <SidebarRowsSkeleton withAvatar={channelKind === "messaging"} />;
   }
 
   // ChannelFilters is strictly typed for built-in fields; Stream supports
@@ -48,29 +50,71 @@ export function ChannelListSection({
     members: { $in: [userId] },
   } as unknown as ChannelFilters;
 
+  // Stream's default LoadingIndicator for ChannelList is a stack of big
+  // card-shaped shimmers (avatar + two text lines per row) that doesn't match
+  // our compact sidebar rows. Override via ComponentProvider — the
+  // v14-sanctioned way to swap context-supplied UI.
+  const SkeletonForKind = () => (
+    <SidebarRowsSkeleton withAvatar={channelKind === "messaging"} />
+  );
+
   return (
-    <ChannelList
-      filters={filters}
-      sort={SORT}
-      options={OPTIONS}
-      setActiveChannelOnMount={false}
-      EmptyStateIndicator={() => (
-        <div className="px-2 py-1 text-xs text-muted-foreground">
-          {emptyState ?? "Nothing here yet."}
-        </div>
-      )}
-      renderChannels={(channels) => (
-        <SidebarMenu>
-          {channels.map((c) => (
-            <ChannelPreviewRow
-              key={c.cid}
-              channel={c}
-              propertyId={propertyId}
-              channelKind={channelKind}
-            />
-          ))}
-        </SidebarMenu>
-      )}
-    />
+    <ScopedComponents LoadingIndicator={SkeletonForKind}>
+      <ChannelList
+        filters={filters}
+        sort={SORT}
+        options={OPTIONS}
+        setActiveChannelOnMount={false}
+        // Stream defaults to true — when ANY new channel event fires
+        // (notification.added_to_channel, message.new, etc.) it auto-pushes
+        // that channel into the list, ignoring our `filters`. With two
+        // ChannelList instances (team + messaging) this means a newly-created
+        // DM briefly appears in the Channels list too. Disable, then enforce
+        // the type filter ourselves below.
+        allowNewMessagesFromUnfilteredChannels={false}
+        // Render-time guard. Even if Stream's internal state ever surfaces a
+        // mismatched channel here, this strips it before it hits the DOM.
+        channelRenderFilterFn={(channels) =>
+          channels.filter((c) => c.type === channelKind)
+        }
+        EmptyStateIndicator={() => (
+          <div className="px-2 py-1 text-xs text-muted-foreground">
+            {emptyState ?? "Nothing here yet."}
+          </div>
+        )}
+        renderChannels={(channels) => (
+          <SidebarMenu>
+            {channels.map((c) => (
+              <ChannelPreviewRow
+                key={c.cid}
+                channel={c}
+                propertyId={propertyId}
+                channelKind={channelKind}
+              />
+            ))}
+          </SidebarMenu>
+        )}
+      />
+    </ScopedComponents>
+  );
+}
+
+/**
+ * Merge the parent ComponentContext with our local override so we don't blow
+ * away other components Stream needs (Avatar, Message, etc.). ComponentProvider
+ * replaces `value` entirely; spreading the existing context preserves it.
+ */
+function ScopedComponents({
+  LoadingIndicator,
+  children,
+}: {
+  LoadingIndicator: React.ComponentType;
+  children: React.ReactNode;
+}) {
+  const parent = useComponentContext();
+  return (
+    <ComponentProvider value={{ ...parent, LoadingIndicator }}>
+      {children}
+    </ComponentProvider>
   );
 }

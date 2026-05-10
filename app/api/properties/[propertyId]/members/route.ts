@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Members of a property, with profile info merged in.
+ *
+ * We do this as two queries instead of a Supabase relational join
+ * (`profile:profiles!inner(...)`). The relational shorthand requires a foreign
+ * key from `memberships` to `profiles`, but our schema's FK goes to
+ * `auth.users` — so PostgREST can't auto-resolve the path and returns 500.
+ * Two cheap queries + an in-memory merge sidesteps that entirely.
+ */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ propertyId: string }> },
@@ -15,28 +24,41 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // RLS on memberships allows reading rows for properties the user is a member of.
-  const { data, error } = await supabase
+  const { data: members, error: membersErr } = await supabase
     .from("memberships")
-    .select("user_id, role, profile:profiles!inner(id, full_name, avatar_url)")
+    .select("user_id, role")
     .eq("property_id", propertyId);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (membersErr) {
+    return NextResponse.json({ error: membersErr.message }, { status: 500 });
+  }
+  if (!members || members.length === 0) {
+    return NextResponse.json([]);
   }
 
-  type Row = {
-    user_id: string;
-    role: string;
-    profile: { id: string; full_name: string | null; avatar_url: string | null };
-  };
+  const userIds = members.map((m) => m.user_id);
+  const { data: profiles, error: profilesErr } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .in("id", userIds);
 
-  const members = ((data ?? []) as unknown as Row[]).map((m) => ({
-    id: m.user_id,
-    role: m.role,
-    name: m.profile.full_name,
-    avatarUrl: m.profile.avatar_url,
-  }));
+  if (profilesErr) {
+    return NextResponse.json({ error: profilesErr.message }, { status: 500 });
+  }
 
-  return NextResponse.json(members);
+  const byId = new Map(
+    (profiles ?? []).map((p) => [p.id, p] as const),
+  );
+
+  const result = members.map((m) => {
+    const p = byId.get(m.user_id);
+    return {
+      id: m.user_id,
+      role: m.role,
+      name: p?.full_name ?? null,
+      avatarUrl: p?.avatar_url ?? null,
+    };
+  });
+
+  return NextResponse.json(result);
 }

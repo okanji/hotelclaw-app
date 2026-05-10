@@ -84,6 +84,7 @@ export function TaskDetail({
             <Button
               variant="ghost"
               size="sm"
+              nativeButton={false}
               render={<Link href={`/p/${propertyId}/tasks`} />}
             >
               <ArrowLeft className="size-4" />

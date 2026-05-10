@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Building2, Check, ChevronsUpDown, Plus, UserPlus } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
+import {
+  PendingInvitesSection,
+  usePendingInvitesCount,
+} from "./pending-invites-section";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -31,14 +35,23 @@ export function PropertySwitcher({
   const [inviteOpen, setInviteOpen] = useState(false);
   const current = memberships.find((m) => m.property_id === currentPropertyId);
   const canInvite = current?.role === "owner" || current?.role === "manager";
+  const pendingCount = usePendingInvitesCount();
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-            <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <div className="relative flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Building2 className="size-4" />
+              {pendingCount > 0 ? (
+                <span
+                  className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground"
+                  title={`${pendingCount} pending invite${pendingCount === 1 ? "" : "s"}`}
+                >
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              ) : null}
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">
@@ -56,6 +69,7 @@ export function PropertySwitcher({
             className="min-w-64"
           >
             <DropdownMenuGroup>
+              <PendingInvitesSection />
               <DropdownMenuLabel>Properties</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {memberships.map((m) => (
