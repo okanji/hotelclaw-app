@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,20 +23,53 @@ import {
   PendingInvitesSection,
   usePendingInvitesCount,
 } from "./pending-invites-section";
+import { createClient } from "@/lib/supabase/client";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
   currentPropertyId,
   memberships,
+  email,
 }: {
   currentPropertyId: string;
   memberships: Membership[];
+  email: string;
 }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
   const current = memberships.find((m) => m.property_id === currentPropertyId);
   const canInvite = current?.role === "owner" || current?.role === "manager";
   const pendingCount = usePendingInvitesCount();
+
+  // Realtime: push new/changed invites for this email so the badge + dropdown
+  // update without polling. Emails are stored lowercased on insert
+  // (lib/invites/actions.ts), so we match byte-for-byte on the lowercased
+  // address. The migration 0006_invites_realtime grants the invitee SELECT
+  // access; without it Realtime filters the event out.
+  useEffect(() => {
+    if (!email) return;
+    const lowered = email.toLowerCase();
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`invites:${lowered}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "invites",
+          filter: `email=eq.${lowered}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["pending-invites"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [email, qc]);
 
   return (
     <SidebarMenu>

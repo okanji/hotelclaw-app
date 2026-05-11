@@ -87,6 +87,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         <PropertySwitcher
           currentPropertyId={currentPropertyId}
           memberships={memberships}
+          email={user.email}
         />
       </SidebarHeader>
       <SidebarContent>

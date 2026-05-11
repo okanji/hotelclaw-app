@@ -25,7 +25,6 @@ export function usePendingInvitesCount(): number {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000, // poll for new invites every 30s
   });
   return data?.length ?? 0;
 }
@@ -43,7 +42,6 @@ export function PendingInvitesSection() {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30_000,
   });
 
   if (data.length === 0) return null;
