@@ -8,6 +8,8 @@ import {
   useChatContext,
   useChatViewContext,
 } from "stream-chat-react";
+import { MessageSquareText } from "lucide-react";
+import { PageHeader } from "@/components/shell/page-header";
 
 /**
  * Slack-style "Threads" view: list of every thread the user participates in
@@ -56,12 +58,15 @@ export function ThreadsPageClient() {
   }
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex items-center justify-between border-b bg-background px-4 py-3">
-        <h1 className="text-sm font-semibold">Threads</h1>
-        <p className="text-xs text-muted-foreground">
-          Conversations you're part of
-        </p>
-      </header>
+      <PageHeader
+        title="Threads"
+        icon={<MessageSquareText />}
+        actions={
+          <p className="text-xs text-muted-foreground">
+            Conversations you're part of
+          </p>
+        }
+      />
       <div className="flex-1 min-h-0">
         <ThreadsView />
       </div>

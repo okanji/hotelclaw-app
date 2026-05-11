@@ -82,7 +82,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
     .toUpperCase();
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
         <PropertySwitcher
           currentPropertyId={currentPropertyId}

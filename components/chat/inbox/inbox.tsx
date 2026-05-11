@@ -6,6 +6,7 @@ import type { MessageResponse, SearchAPIResponse } from "stream-chat";
 import { MentionRow } from "./mention-row";
 import { Inbox as InboxIcon } from "lucide-react";
 import { useMarkMentionsSeenOnMount } from "./use-unread-mentions";
+import { PageHeader } from "@/components/shell/page-header";
 
 type Hit = SearchAPIResponse["results"][number];
 
@@ -67,15 +68,15 @@ export function InboxView({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex items-center justify-between border-b bg-background px-4 py-3">
-        <div className="flex items-center gap-2">
-          <InboxIcon className="size-4" />
-          <h1 className="text-sm font-semibold">Mentions</h1>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Every place you were @-mentioned in this property
-        </p>
-      </header>
+      <PageHeader
+        title="Mentions"
+        icon={<InboxIcon />}
+        actions={
+          <p className="text-xs text-muted-foreground">
+            Every place you were @-mentioned in this property
+          </p>
+        }
+      />
       <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>

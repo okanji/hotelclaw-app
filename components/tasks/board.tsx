@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastEvent, useEventListener } from "@liveblocks/react/suspense";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { TaskCard } from "./task-card";
 import { CreateTaskDialog } from "./create-task-dialog";
 import { PresenceBar } from "./presence-bar";
+import { PageHeader } from "@/components/shell/page-header";
 import type { TaskPriority, TaskStatus } from "@/lib/db/types";
 
 type Task = {
@@ -60,21 +61,19 @@ export function TasksBoard({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex items-center justify-between border-b bg-background/60 px-4 py-3 backdrop-blur">
-        <div>
-          <h1 className="text-base font-semibold">Tasks</h1>
-          <p className="text-xs text-muted-foreground">
-            Real-time across the property.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <PresenceBar />
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus className="size-4" />
-            New task
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Tasks"
+        icon={<ListChecks />}
+        actions={
+          <>
+            <PresenceBar />
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus />
+              New task
+            </Button>
+          </>
+        }
+      />
       <div className="grid flex-1 grid-cols-1 gap-3 overflow-x-auto p-4 md:grid-cols-2 xl:grid-cols-4">
         {COLUMNS.map((col) => {
           const columnTasks = tasks.filter((t) => t.status === col.id);
