@@ -32,14 +32,32 @@ function safeHttpUrl(url: string | undefined | null): string | null {
   return null;
 }
 
+function isHttpUrl(value: string): boolean {
+  if (!value) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Uploads land in Stream's CDN as `<uuid>.<original-name>` (e.g.
+// `3fc6a0fb-21c7-4e34-b2a1-116215afeaac.IMG_5119.HEIC`). Strip the UUID so the
+// filename row shows the human-readable original (matches Slack).
+const UPLOAD_UUID_PREFIX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\./i;
+function stripUploadUuid(name: string): string {
+  return name.replace(UPLOAD_UUID_PREFIX, "");
+}
+
 function displayNameForImage(item: GalleryImageProps): string {
   const title = typeof item.title === "string" ? item.title.trim() : "";
-  if (title) return title;
+  if (title) return stripUploadUuid(title);
   const href = item.imageUrl?.trim();
   if (href) {
     try {
       const last = new URL(href).pathname.split("/").filter(Boolean).pop();
-      if (last) return decodeURIComponent(last);
+      if (last) return stripUploadUuid(decodeURIComponent(last));
     } catch {
       /* ignore */
     }
@@ -92,7 +110,11 @@ export function SlackMessageImage(props: GalleryImageProps) {
   const label = displayNameForImage(props);
   const openUrl = safeHttpUrl(props.imageUrl);
   const altRaw = typeof props.alt === "string" ? props.alt.trim() : "";
-  const altLabel = altRaw ? altRaw.replace(/\s+/g, " ").trim() : "";
+  // Stream sometimes populates `alt` with the image URL itself when no real
+  // alt text was set on upload. That's not human-meaningful text — drop it so
+  // the Details popover and "+ ALT" badge only surface real descriptions.
+  const altLabel =
+    altRaw && !isHttpUrl(altRaw) ? altRaw.replace(/\s+/g, " ").trim() : "";
 
   return (
     <div className="str-chat__slack-message-image-card" data-testid="slack-message-image-card">

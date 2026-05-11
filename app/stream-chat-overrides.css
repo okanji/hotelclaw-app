@@ -51,8 +51,15 @@
 /* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect). */
 .str-chat {
   --slack-avatar-size: 36px;
-  --slack-avatar-radius: 6px;
+  --slack-avatar-radius: 8px;
   --slack-avatar-column-gap: 10px;
+}
+
+/* Extra breathing room between the avatar/main message column and the left
+   edge of the chat surface (Stream defaults to spacing-md = 16px on
+   `.str-chat__message`'s `padding-inline`, which feels cramped). */
+.str-chat .str-chat__message {
+  padding-inline-start: 22px;
 }
 
 .str-chat.str-chat__theme-light {
@@ -166,27 +173,65 @@
   background-color: var(--str-chat__background-core-surface-subtle) !important;
 }
 
-/* Vertical rhythm: slightly roomier than Stream xxxs so bursts and clusters read clearly. */
+/* Virtualized list: full-bleed rows in our shell.
+   - `.str-chat__main-panel-inner` uses `align-items: center`, so flex children can stay only as
+     wide as Stream’s composer column unless we stretch them.
+   - Stream caps `.str-chat__virtual-list-message-wrapper` to composer max-width + padding.
+   - React-Virtuoso’s scroller/list/viewport must inherit that full width. */
+.str-chat .str-chat__main-panel-inner.str-chat__message-list-main-panel {
+  align-items: stretch !important;
+}
+.str-chat .str-chat__virtual-list {
+  --str-chat__message-list-scroll-max-width: 100% !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+.str-chat .str-chat__virtual-list .str-chat__message-list-scroll {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+.str-chat .str-chat__virtual-list [data-virtuoso-scroller],
+.str-chat .str-chat__virtual-list [data-viewport-type="element"],
+.str-chat .str-chat__virtual-list [data-test-id="virtuoso-item-list"] {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+.str-chat .str-chat__virtual-list .str-chat__virtual-list-message-wrapper {
+  max-width: none !important;
+  width: 100% !important;
+  margin-inline: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Vertical rhythm: slightly roomier than Stream xxxs so bursts and clusters read clearly.
+   +1.5px on padding-block-start compensates the -1.5px text-column shift on
+   .str-chat__slack-message-main so inter-row gap reads ~1.5px wider per row. */
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--top,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--top {
-  padding-block-start: var(--str-chat__spacing-sm);
+  padding-block-start: calc(var(--str-chat__spacing-sm) + 1.5px);
   padding-block-end: var(--str-chat__spacing-xxs);
 }
 
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--middle,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--middle {
-  padding-block: var(--str-chat__spacing-xxs);
+  padding-block-start: calc(var(--str-chat__spacing-xxs) + 1.5px);
+  padding-block-end: var(--str-chat__spacing-xxs);
 }
 
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--bottom {
-  padding-block-start: var(--str-chat__spacing-xxs);
+  padding-block-start: calc(var(--str-chat__spacing-xxs) + 1.5px);
   padding-block-end: var(--str-chat__spacing-sm);
 }
 
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--single,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--single {
-  padding-block: var(--str-chat__spacing-sm);
+  padding-block-start: calc(var(--str-chat__spacing-sm) + 1.5px);
+  padding-block-end: var(--str-chat__spacing-sm);
 }
 
 /*
@@ -227,9 +272,12 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  gap: 0;
+  gap: 2.5px;
   min-width: 0;
   position: relative;
+  /* Nudge the text column 1px above the grid baseline — applies to cluster
+     heads and continuation rows equally so inter-row gaps stay uniform. */
+  margin-block-start: -1.5px;
 }
 
 /* Slack-style message actions: pill at the trailing edge; vertical midpoint
@@ -347,6 +395,18 @@
     "reactions" !important;
 }
 
+/* SlackReplyIndicator sits in the `replies` grid area (below the bubble, above
+   any bottom reactions). Stream's default `MessageRepliesCountButton` was
+   wrapped in `.str-chat__message-replies-count-button-wrapper`, which Stream
+   styled with a curved `::after` connector — replaced entirely by our flat
+   inline indicator (avatars + "N replies" + relative time). */
+.str-chat__slack-message-main .str-chat__message-inner > .str-chat__slack-reply-indicator {
+  grid-area: replies;
+  justify-self: flex-start;
+  margin-block-start: 4px;
+  max-width: 100%;
+}
+
 .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
   grid-area: avatar !important;
   align-self: start !important;
@@ -414,7 +474,7 @@
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: baseline !important;
-  gap: 8px !important;
+  gap: 6px !important;
 }
 
 .str-chat__message .str-chat__message-metadata {
@@ -636,27 +696,135 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Slack-style image attachment: filename + menu row, framed thumbnail (Stream ModalGallery).
-*/
+   Thread reply loader: Stream renders the wrapper `<div class="str-chat__list__loading">`
+   between the parent message and replies *unconditionally*, but only mounts
+   the rotating `.str-chat__loading-indicator` SVG inside it while
+   `loadMoreThread()` (or jump-to-message hydration) is in flight. We hide
+   the SVG and use `:has(.str-chat__loading-indicator)` to scope the
+   skeleton to the same active-loading window — so once replies have
+   resolved, the wrapper collapses back to zero space.
+
+   Scoped to `.str-chat__thread` so we don't disturb the same loader class
+   when it's used by MessageList pagination elsewhere. */
+.str-chat__thread .str-chat__list__loading .str-chat__loading-indicator,
+.str-chat__thread-container .str-chat__list__loading .str-chat__loading-indicator {
+  display: none !important;
+}
+
+.str-chat__thread .str-chat__list__loading:has(.str-chat__loading-indicator),
+.str-chat__thread-container .str-chat__list__loading:has(.str-chat__loading-indicator) {
+  display: grid;
+  grid-template-columns: var(--slack-avatar-size, 36px) minmax(0, 1fr);
+  column-gap: var(--slack-avatar-column-gap, 10px);
+  align-items: start;
+  padding-block: var(--str-chat__spacing-sm, 12px);
+  padding-inline: var(--str-chat__spacing-md, 16px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.str-chat__thread .str-chat__list__loading:has(.str-chat__loading-indicator)::before,
+.str-chat__thread-container .str-chat__list__loading:has(.str-chat__loading-indicator)::before {
+  content: "";
+  grid-column: 1;
+  width: var(--slack-avatar-size, 36px);
+  height: var(--slack-avatar-size, 36px);
+  border-radius: var(--slack-avatar-radius, 6px);
+  background: var(--str-chat__background-core-surface-subtle, rgba(255, 255, 255, 0.06));
+  animation: slack-thread-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.str-chat__thread .str-chat__list__loading:has(.str-chat__loading-indicator)::after,
+.str-chat__thread-container .str-chat__list__loading:has(.str-chat__loading-indicator)::after {
+  content: "";
+  grid-column: 2;
+  display: block;
+  height: 12px;
+  width: 55%;
+  max-width: 280px;
+  margin-block-start: 8px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--str-chat__background-core-surface-subtle, rgba(255, 255, 255, 0.05)) 0%,
+    var(--str-chat__background-core-surface-default, rgba(255, 255, 255, 0.1)) 50%,
+    var(--str-chat__background-core-surface-subtle, rgba(255, 255, 255, 0.05)) 100%
+  );
+  background-size: 200% 100%;
+  animation: slack-thread-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes slack-thread-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes slack-thread-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slack-style image attachment: filename + menu row, flush thumbnail (Stream ModalGallery).
+
+   Stream wraps every image attachment in `.str-chat__message-attachment` and paints it
+   with `var(--chat-bg-attachment)`. For outgoing messages that variable resolves to
+   `--str-chat__brand-150` (brand-tinted), which leaks through as a heavy blue halo
+   around the image card. Slack has no halo — flatten it. */
+.str-chat__attachment-list .str-chat__message-attachment--image,
+.str-chat__attachment-list .str-chat__message-attachment--gallery,
+.str-chat__attachment-list .str-chat__message-attachment {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Voice notes: strip the brand-tinted halo/frame around the player so it blends
+   into the bubble like Slack (no card border, no surface fill). */
+.str-chat__attachment-list .str-chat__message-attachment--voiceRecording,
+.str-chat__attachment-list .str-chat__message-attachment--voiceRecording .str-chat__message-attachment__voice-recording-widget,
+.str-chat__attachment-list .str-chat__message-attachment--voiceRecording .str-chat__message-attachment-audio-widget {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Stream's `.str-chat__message-attachment--image` sets `justify-content: center`,
+   which centers our Slack card horizontally inside the message bubble — pushing
+   the filename row and thumbnail well to the right of the message body's left
+   edge. Slack pins the card to the leading edge (right below the body text), so
+   anchor both the wrapper and the card with start alignment. */
+.str-chat__attachment-list,
+.str-chat__attachment-list .str-chat__message-attachment--image,
+.str-chat__attachment-list .str-chat__message-attachment--gallery,
+.str-chat__attachment-list .str-chat__message-attachment {
+  justify-content: flex-start !important;
+  align-self: flex-start !important;
+}
 
 .str-chat .str-chat__slack-message-image-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   max-width: var(--str-chat__attachment-max-width, min(400px, 100%));
   min-width: 0;
+  align-self: flex-start;
 }
 
 .str-chat .str-chat__slack-message-image-card__header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
+  /* Chevron sits next to the filename (Slack), not pinned to the far end. */
+  justify-content: flex-start;
 }
 
 .str-chat .str-chat__slack-message-image-card__filename {
-  flex: 1;
+  /* Don't grow — the chevron should hug the filename. Shrink + ellipsis when long. */
+  flex: 0 1 auto;
   min-width: 0;
   font-family: var(--slack-chat-font-family);
   font-size: 13px;
@@ -668,10 +836,11 @@
 }
 
 .str-chat .str-chat__slack-message-image-card__frame {
-  border-radius: 10px;
-  background: var(--slack-image-card-bg);
-  border: 1px solid var(--slack-image-card-border);
-  padding: 2px;
+  /* Slack renders the thumbnail flush — no surrounding frame, just rounded corners. */
+  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
 }

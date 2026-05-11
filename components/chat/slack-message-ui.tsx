@@ -46,7 +46,6 @@ import {
   MessageBouncePrompt as DefaultMessageBouncePrompt,
   MessageDeletedBubble as DefaultMessageDeletedBubble,
   MessageEditedIndicator as DefaultMessageEditedIndicator,
-  MessageRepliesCountButton as DefaultMessageRepliesCountButton,
   MessageStatus as DefaultMessageStatus,
   MessageText,
   MessageTimestamp as DefaultMessageTimestamp,
@@ -78,6 +77,7 @@ import {
 } from "stream-chat-react";
 import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
+import { SlackReplyIndicator } from "@/components/chat/slack-reply-indicator";
 
 type MessageActionSetItem = NonNullable<MessageActionsProps["messageActionSet"]>[number];
 
@@ -92,6 +92,55 @@ function messageActionSetWithoutQuickReactWhenHasReactions(
 }
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
+
+/** Slack breaks message clusters when consecutive same-author messages are more than ~5 min apart. */
+const CLUSTER_TIME_GAP_MS = 5 * 60 * 1000;
+
+function messageCreatedAtMs(msg: unknown): number | null {
+  if (!msg || typeof msg !== "object") return null;
+  const createdAt = (msg as { created_at?: unknown }).created_at;
+  if (createdAt == null) return null;
+  const d =
+    createdAt instanceof Date
+      ? createdAt
+      : typeof createdAt === "string"
+        ? new Date(createdAt)
+        : new Date(String(createdAt));
+  const t = d.getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+/**
+ * Demote the cluster role when the time gap to a same-author neighbor exceeds
+ * the threshold, so a re-engaged user gets a fresh avatar/header row.
+ */
+function demoteClusterRoleByTimeGap(
+  role: ClusterRole,
+  self: unknown,
+  prev: unknown,
+  next: unknown,
+): ClusterRole {
+  const selfMs = messageCreatedAtMs(self);
+  if (selfMs == null) return role;
+
+  let result = role;
+
+  if (result === "middle" || result === "bottom") {
+    const prevMs = messageCreatedAtMs(prev);
+    if (prevMs != null && selfMs - prevMs > CLUSTER_TIME_GAP_MS) {
+      result = result === "middle" ? "top" : "single";
+    }
+  }
+
+  if (result === "top" || result === "middle") {
+    const nextMs = messageCreatedAtMs(next);
+    if (nextMs != null && nextMs - selfMs > CLUSTER_TIME_GAP_MS) {
+      result = result === "top" ? "single" : "bottom";
+    }
+  }
+
+  return result;
+}
 
 /** Short clock for Slack-style gutter (continuation rows); `hour12: false` avoids AM/PM. */
 function slackGutterTimeFromMessage(createdAt: unknown): {
@@ -133,6 +182,34 @@ function resolveClusterRole(
   processedMessages: unknown[] | undefined,
   groupStyles?: string[],
 ): ClusterRole {
+  let self: unknown;
+  let prev: unknown;
+  let next: unknown;
+
+  if (processedMessages?.length) {
+    const idx = processedMessages.findIndex((item) => {
+      if (!item || typeof item !== "object") return false;
+      if (isDateSeparatorMessage(item) || isIntroMessage(item)) return false;
+      return "id" in item && (item as { id?: string }).id === messageId;
+    });
+
+    if (idx >= 0) {
+      const candidate = processedMessages[idx];
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        !isDateSeparatorMessage(candidate) &&
+        !isIntroMessage(candidate)
+      ) {
+        self = candidate;
+        prev = neighborRenderedMessage(processedMessages, idx, -1);
+        next = neighborRenderedMessage(processedMessages, idx, 1);
+      }
+    }
+  }
+
+  let role: ClusterRole = "single";
+
   const fromProp = groupStyles?.[0];
   if (
     fromProp === "top" ||
@@ -140,47 +217,28 @@ function resolveClusterRole(
     fromProp === "bottom" ||
     fromProp === "single"
   ) {
-    return fromProp;
+    role = fromProp;
+  } else if (self) {
+    const style = getGroupStyles(
+      self as never,
+      prev as never,
+      next as never,
+      false,
+      undefined,
+    );
+    if (
+      style === "top" ||
+      style === "middle" ||
+      style === "bottom" ||
+      style === "single"
+    ) {
+      role = style;
+    }
   }
 
-  if (!processedMessages?.length) return "single";
+  if (!self) return role;
 
-  const idx = processedMessages.findIndex((item) => {
-    if (!item || typeof item !== "object") return false;
-    if (isDateSeparatorMessage(item) || isIntroMessage(item)) return false;
-    return "id" in item && (item as { id?: string }).id === messageId;
-  });
-
-  if (idx < 0) return "single";
-
-  const self = processedMessages[idx];
-  if (
-    !self ||
-    typeof self !== "object" ||
-    isDateSeparatorMessage(self) ||
-    isIntroMessage(self)
-  ) {
-    return "single";
-  }
-
-  const style = getGroupStyles(
-    self as never,
-    neighborRenderedMessage(processedMessages, idx, -1) as never,
-    neighborRenderedMessage(processedMessages, idx, 1) as never,
-    false,
-    undefined,
-  );
-
-  if (
-    style === "top" ||
-    style === "middle" ||
-    style === "bottom" ||
-    style === "single"
-  ) {
-    return style;
-  }
-
-  return "single";
+  return demoteClusterRoleByTimeGap(role, self, prev, next);
 }
 
 type MessageUIWithContextProps = MessageContextValue;
@@ -218,7 +276,6 @@ const SlackMessageUIWithContext = ({
     MessageDeleted,
     MessageDeletedBubble = DefaultMessageDeletedBubble,
     MessageEditedIndicator = DefaultMessageEditedIndicator,
-    MessageRepliesCountButton = DefaultMessageRepliesCountButton,
     MessageStatus = DefaultMessageStatus,
     MessageTimestamp = DefaultMessageTimestamp,
     MessageTranslationIndicator = DefaultMessageTranslationIndicator,
@@ -425,10 +482,16 @@ const SlackMessageUIWithContext = ({
             tabIndex={isMessageInnerInteractive ? 0 : undefined}
           >
             {showReplyCountButton && (
-              <MessageRepliesCountButton
-                onClick={handleOpenThread}
-                reply_count={message.reply_count}
-                thread_participants={message.thread_participants}
+              <SlackReplyIndicator
+                replyCount={message.reply_count ?? 0}
+                participants={message.thread_participants}
+                // Stream's `LocalMessage` doesn't carry a real "last reply at"
+                // timestamp on the parent (that lives on `ThreadResponse` from
+                // the threads v2 API). Fall back to the parent's `created_at`
+                // so the row always renders "Last reply X ago" — same shape as
+                // Slack. Wire up `client.queryThreads()` later if precision matters.
+                lastReplyAt={message.created_at}
+                onClick={handleOpenThread as React.MouseEventHandler<HTMLButtonElement>}
               />
             )}
             {isDeleted ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { StreamChat, type User } from "stream-chat";
 import {
@@ -64,6 +64,13 @@ export function StreamProvider({
   const streamTheme =
     resolvedTheme === "dark" ? "str-chat__theme-dark" : "str-chat__theme-light";
 
+  // Hold the latest name/image in refs so profile edits don't retrigger the
+  // connect effect below — the server already calls upsertStreamUser, and a
+  // mid-flight router.refresh() reconnect tears down channels that components
+  // are still watching ("channel after disconnect").
+  const identityRef = useRef({ userName, avatarUrl });
+  identityRef.current = { userName, avatarUrl };
+
   // Step 1: fetch the token once when identity is known.
   useEffect(() => {
     let cancelled = false;
@@ -89,10 +96,12 @@ export function StreamProvider({
     const timer = setTimeout(async () => {
       if (!mounted) return;
       const c = new StreamChat(apiKey, { timeout: 15000 });
+      const { userName: latestName, avatarUrl: latestAvatar } =
+        identityRef.current;
       const user: User = {
         id: userId,
-        name: userName,
-        image: avatarUrl ?? undefined,
+        name: latestName,
+        image: latestAvatar ?? undefined,
       };
       try {
         await c.connectUser(user, token);
@@ -114,7 +123,21 @@ export function StreamProvider({
       connectedClient?.disconnectUser().catch(() => {});
       setClient(null);
     };
-  }, [token, userId, userName, avatarUrl]);
+  }, [token, userId]);
+
+  // Profile edits (name/avatar) — push the new metadata into the live
+  // connection without reconnecting. Stream propagates this as a user.updated
+  // event to everyone subscribed to channels with this user.
+  useEffect(() => {
+    if (!client) return;
+    client
+      .partialUpdateUser(
+        avatarUrl
+          ? { id: userId, set: { name: userName, image: avatarUrl } }
+          : { id: userId, set: { name: userName }, unset: ["image"] },
+      )
+      .catch((e) => console.error("Stream partialUpdateUser failed", e));
+  }, [client, userId, userName, avatarUrl]);
 
   // Children include components (ChannelList, CommandPalette, etc.) that call
   // useChatContext() on first render. Rendering them outside <Chat> triggers

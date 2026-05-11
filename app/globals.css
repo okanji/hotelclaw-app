@@ -7,8 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Inter Variable is injected on <html> as --font-sans-inter via next/font (see layout.tsx).
+     Linear uses Inter with a few OpenType features enabled — see the `html` base rule below. */
+  --font-sans: var(--font-sans-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -126,6 +128,11 @@
   }
   html {
     @apply font-sans;
+    /* Linear-style Inter tuning: cv11 = single-storey `a`, ss03 = looped `l`,
+       cv02 = straight-leg `g`. Combined with -0.011em tracking this matches
+       Linear's UI text. */
+    font-feature-settings: "cv11", "ss03", "cv02";
+    letter-spacing: -0.011em;
   }
 }
 
@@ -144,6 +151,15 @@
 }
 .str-chat__message-list-main-panel {
   --str-chat__message-list-scroll-max-width: 100% !important;
+}
+/* Stream defaults to `scrollbar-gutter: stable both-edges` on the message list,
+   which reserves scrollbar width on BOTH inline edges even when no scrollbar
+   is visible — leaving a permanent gap on the left (between sidebar and first
+   message) and the right. Switch to `auto` so the gutter only consumes space
+   when a scrollbar is actually rendered; the messages then bleed flush on
+   both edges. */
+.str-chat__message-list {
+  scrollbar-gutter: auto !important;
 }
 /* Hide Stream's sticky/floating date pill — keep only the inline date separator
    that sits between message groups. The `--floating` modifier is Stream's

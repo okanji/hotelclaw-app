@@ -257,7 +257,9 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
         open={profileOpen}
         onOpenChange={setProfileOpen}
         initialName={user.name}
+        initialAvatarUrl={user.avatarUrl}
         email={user.email}
+        userId={user.id}
       />
       <BrowserNotifications />
     </Sidebar>
