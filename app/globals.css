@@ -180,6 +180,17 @@
   overflow: visible !important;
   padding-bottom: 0 !important;
 }
+/* Regular channel chat + <ChatView>: `ChannelView` wraps `<Channel>` in Stream's
+   `<ChatView>`, which is `display: flex` (row) with default `align-items: stretch`
+   but flex items default to `flex-grow: 0`. The channel root (`#str-chat__channel`)
+   then sizes to its content width — the same capped message-list column — leaving
+   empty space to the right. Grow it to fill the inset like Stream's built-in
+   layout where the channel sits inside `.str-chat__chat-view__channels`. */
+.str-chat__chat-view > #str-chat__channel {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
 /* /threads page layout fixes:
    - Pin thread list width (Stream defaults to 30% via channel-list width).
    - In Stream's <ChatView> the right pane on /threads is rendered via

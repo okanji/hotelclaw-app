@@ -8,11 +8,55 @@
 
    Cluster semantics match Slack Desktop:
    - `top` = first row in a burst (avatar + timestamp visible)
-   - `middle` / `bottom` = continuations (hidden avatar visual + no duplicate timestamp row)
+   - `middle` / `bottom` = continuations (avatar hidden; gutter width kept, vertical tile collapsed so spacing matches Slack bursts)
 
    Stream assigns labels against processedMessages (see MessageList); SlackMessageUI
    recomputes with `getGroupStyles` + MessageListContext for reliability.
 */
+
+/* Slack-like full-width row highlight on the list row (hover / keyboard / open
+   actions). Stream zeros hover bg — override it. */
+.str-chat .str-chat__ul .str-chat__li:hover:not(
+    :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
+  ),
+.str-chat
+  .str-chat__ul
+  .str-chat__li:focus-within:not(
+    :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
+  ),
+.str-chat .str-chat__ul .str-chat__li:has(.str-chat__message-options--active),
+.str-chat .str-chat__virtual-list .str-chat__li:hover:not(
+    :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
+  ),
+.str-chat
+  .str-chat__virtual-list
+  .str-chat__li:focus-within:not(
+    :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
+  ),
+.str-chat
+  .str-chat__virtual-list
+  .str-chat__li:has(.str-chat__message-options--active) {
+  background-color: var(--str-chat__background-core-surface-subtle) !important;
+}
+
+/* Tight vertical rhythm inside bursts (match Stream defaults / Slack density). */
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--top {
+  padding-block-start: var(--str-chat__spacing-xs);
+  padding-block-end: var(--str-chat__spacing-xxxs);
+}
+
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--middle {
+  padding-block: var(--str-chat__spacing-xxxs);
+}
+
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom {
+  padding-block-start: var(--str-chat__spacing-xxxs);
+  padding-block-end: var(--str-chat__spacing-xs);
+}
+
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--single {
+  padding-block: var(--str-chat__spacing-xs);
+}
 
 .str-chat__message.str-chat__message--me {
   justify-items: flex-start !important;
@@ -26,8 +70,7 @@
     ". also-sent-in-channel"
     ". message-reminder"
     ". translation-indicator"
-    "avatar metadata"
-    "avatar message"
+    "avatar slack-main"
     "avatar translation-notice"
     "avatar custom-metadata" !important;
   grid-template-columns: auto 1fr !important;
@@ -42,17 +85,177 @@
     ". also-sent-in-channel"
     ". message-reminder"
     ". translation-indicator"
-    "avatar metadata"
-    "avatar message"
+    "avatar slack-main"
     "avatar translation-notice"
     "avatar custom-metadata" !important;
   grid-template-columns: auto 1fr !important;
 }
 
+/* One column next to the avatar (Slack): metadata + bubble stack tightly so avatar bottom matches first text line. */
+.str-chat__slack-message-main {
+  grid-area: slack-main;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 1px;
+  min-width: 0;
+  position: relative;
+}
+
+/* Slack-style message actions: pill at the trailing edge; vertical midpoint
+   straddles the highlight row’s top (Slack). See `top` + `translateY(-50%)`. */
+
+.str-chat__slack-message-actions-host {
+  position: absolute;
+  inset-inline-end: var(--str-chat__spacing-xxs);
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 100%;
+  pointer-events: none;
+  transform: translateY(-50%);
+  /* Fallback when `li` has no cluster class (rare); overridden below. */
+  top: calc(-1 * var(--str-chat__spacing-xs));
+}
+
+/* Pill midpoint sits on the top edge of the list-row highlight (half above /
+   half inside), like Slack. `top` negates the row’s padding so the anchor lines
+   up with the `li` background edge; varies by cluster role. */
+.str-chat__ul .str-chat__li.str-chat__li--top .str-chat__slack-message-actions-host,
+.str-chat__ul .str-chat__li.str-chat__li--single .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--top .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--single .str-chat__slack-message-actions-host {
+  top: calc(-1 * var(--str-chat__spacing-xs));
+}
+
+.str-chat__ul .str-chat__li.str-chat__li--middle .str-chat__slack-message-actions-host,
+.str-chat__ul .str-chat__li.str-chat__li--bottom .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom .str-chat__slack-message-actions-host {
+  top: calc(-1 * var(--str-chat__spacing-xxxs));
+}
+
+.str-chat__slack-message-actions-host .str-chat__message-options {
+  display: none;
+  pointer-events: auto;
+  width: auto !important;
+  min-width: 0;
+  max-width: none;
+  flex-shrink: 0;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 2px 4px;
+  margin: 0;
+  background: var(--str-chat__background-core-elevation-1);
+  border: 1px solid var(--str-chat__border-core-subtle);
+  border-radius: var(--str-chat__radius-max);
+  box-shadow: var(--str-chat__box-shadow-1);
+  --str-chat__message-options-border-radius: var(--str-chat__radius-sm);
+}
+
+.str-chat__ul .str-chat__li:hover:not(:has(.str-chat__modal--open))
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options,
+.str-chat__ul .str-chat__li:focus-within:not(:has(.str-chat__modal--open))
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options,
+.str-chat__ul .str-chat__li:has(.str-chat__message-options--active)
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options,
+.str-chat__virtual-list .str-chat__li:hover:not(:has(.str-chat__modal--open))
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options,
+.str-chat__virtual-list .str-chat__li:focus-within:not(:has(.str-chat__modal--open))
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options,
+.str-chat__virtual-list .str-chat__li:has(.str-chat__message-options--active)
+  .str-chat__slack-message-actions-host
+  .str-chat__message-options {
+  display: flex !important;
+}
+
+/* One column: bubble spans full width; options column removed from inner grid. */
+.str-chat__slack-message-main .str-chat__message-inner {
+  grid-template-areas:
+    "reactions"
+    "message-bubble"
+    "replies" !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  margin-inline-end: 0 !important;
+  margin-inline-start: 0 !important;
+  column-gap: 0 !important;
+  width: 100%;
+  max-width: 100%;
+}
+
+.str-chat__slack-message-main
+  .str-chat__message-inner:has(.str-chat__message-reactions--bottom) {
+  grid-template-areas:
+    "message-bubble"
+    "replies"
+    "reactions" !important;
+}
+
+.str-chat__message.str-chat__message--me .str-chat__slack-message-main .str-chat__message-inner {
+  grid-template-areas:
+    "reminder"
+    "reactions"
+    "message-bubble"
+    "replies" !important;
+}
+
+.str-chat__message.str-chat__message--me
+  .str-chat__slack-message-main
+  .str-chat__message-inner:has(.str-chat__message-reactions--bottom) {
+  grid-template-areas:
+    "reminder"
+    "message-bubble"
+    "replies"
+    "reactions" !important;
+}
+
+.str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
+  grid-area: avatar !important;
+  align-self: start !important;
+  justify-self: start;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  box-sizing: border-box;
+}
+
+.str-chat__message.str-chat__message--with-avatar > .str-chat__avatar .str-chat__avatar-image {
+  width: 36px !important;
+  height: 36px !important;
+}
+
+.str-chat__message .str-chat__slack-message-main > .str-chat__message-metadata {
+  line-height: 1.2 !important;
+}
+
 .str-chat__message .str-chat__message-metadata {
   height: auto !important;
-  min-height: var(--str-chat__size-24);
+  min-height: 0 !important;
   align-items: baseline !important;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble {
+  padding-block: 0 !important;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text {
+  padding-block: 0 !important;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text p {
+  line-height: 1.35 !important;
 }
 
 .str-chat__message .str-chat__message-metadata .str-chat__message-metadata__name {
@@ -62,27 +265,10 @@
 .str-chat__message.str-chat__message--me .str-chat__message-bubble {
   justify-self: flex-start !important;
 }
-.str-chat__message.str-chat__message--me .str-chat__message-inner {
-  grid-template-areas:
-    "reminder reminder"
-    "reactions ."
-    "message-bubble options"
-    "replies replies" !important;
-  grid-template-columns: auto 1fr !important;
-  margin-inline-start: 0 !important;
-  margin-inline-end: var(--str-chat-message-options-size) !important;
+.str-chat__message.str-chat__message--me .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-reactions-host {
+  justify-self: flex-start !important;
 }
-.str-chat__message.str-chat__message--me .str-chat__message-inner:has(.str-chat__message-reactions--bottom) {
-  grid-template-areas:
-    "reminder reminder"
-    "message-bubble options"
-    "replies replies"
-    "reactions ." !important;
-}
-.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-options {
-  flex-direction: row !important;
-}
-.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-reactions-host {
+.str-chat__message.str-chat__message--me .str-chat__message-metadata {
   justify-self: flex-start !important;
 }
 .str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-reactions-host:has(.str-chat__message-reactions--flipped-horizontally) {
@@ -100,15 +286,26 @@
   justify-content: flex-start !important;
 }
 
-/* Invert Stream: Slack hides continuation rows (`middle` / `bottom`). */
-.str-chat__li.str-chat__li--middle .str-chat__message > .str-chat__avatar,
-.str-chat__li.str-chat__li--bottom .str-chat__message > .str-chat__avatar {
-  visibility: hidden !important;
-}
+/* Invert Stream: Slack hides continuation rows (`middle` / `bottom`).
+   Hidden avatars still occupied 36×36 (`visibility` preserves layout), stretching short rows and making
+   top→middle gaps look tighter than middle→middle. Collapse block-size; width stays for gutter alignment. */
 .str-chat__li.str-chat__li--middle .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar,
 .str-chat__li.str-chat__li--bottom .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
+  visibility: hidden !important;
   pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin-block: 0 !important;
+  padding-block: 0 !important;
 }
+
+.str-chat__li.str-chat__li--middle .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar .str-chat__avatar-image,
+.str-chat__li.str-chat__li--bottom .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar .str-chat__avatar-image {
+  height: 0 !important;
+  min-height: 0 !important;
+}
+
 .str-chat__li.str-chat__li--top .str-chat__message > .str-chat__avatar,
 .str-chat__li.str-chat__li--single .str-chat__message > .str-chat__avatar {
   visibility: visible !important;
@@ -133,15 +330,4 @@
 .str-chat__avatar,
 .str-chat__avatar .str-chat__avatar-image {
   border-radius: 6px !important;
-}
-
-.str-chat__message .str-chat__avatar:has(~ .str-chat__message-inner) {
-  align-self: start !important;
-}
-
-.str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
-  justify-self: start;
-  width: 32px;
-  min-width: 32px;
-  box-sizing: border-box;
 }

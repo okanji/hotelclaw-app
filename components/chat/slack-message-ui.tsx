@@ -15,7 +15,16 @@
  * Stream v14.1 bug/workaround: `<Message>` does not forward `showAvatar` into
  * `MessageProvider`; we always reserve an avatar column for alignment (see below).
  *
+ * - Slack-like message toolbar: `<MessageActions />` sits in
+ *   `.str-chat__slack-message-actions-host` (top-end of the message block) so
+ *   it renders as a compact pill on hover, matching Slack, instead of a grid
+ *   column beside the bubble.
+ *
  * CSS overrides live in `app/stream-chat-overrides.css` (loaded after Stream CSS).
+ *
+ * Metadata + bubble sit in `.str-chat__slack-message-main` (single grid column beside the avatar)
+ * so vertical rhythm matches Slack: tight stack + explicit `grid-area: avatar` (nested `.message-inner`
+ * breaks Stream’s `Avatar:has(~ .message-inner)` placement rule).
  */
 
 import clsx from "clsx";
@@ -325,72 +334,78 @@ const SlackMessageUIWithContext = ({
             userName={avatarUserName}
           />
         )}
-        {showMetadata ? (
+        <div className="str-chat__slack-message-main">
+          {showMetadata ? (
+            <div
+              className="str-chat__message-metadata"
+              style={{
+                alignItems: "baseline",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.35rem",
+              }}
+            >
+              <MessageStatus />
+              {showAvatarColumn && (
+                <span className="str-chat__message-metadata__name">
+                  {metadataDisplayName}
+                </span>
+              )}
+              <MessageTimestamp customClass="str-chat__message-metadata__timestamp" />
+              {!isDeleted && isEdited && <MessageEditedIndicator />}
+            </div>
+          ) : null}
+          {!isDeleted ? (
+            <div className="str-chat__slack-message-actions-host">
+              <MessageActions />
+            </div>
+          ) : null}
           <div
-            className="str-chat__message-metadata"
-            style={{
-              alignItems: "baseline",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.35rem",
-            }}
+            aria-label={messageInnerAriaLabel}
+            className={clsx("str-chat__message-inner", {
+              "str-chat__message-inner--error": allowRetry || isBounced,
+            })}
+            data-testid="message-inner"
+            onClick={handleClick}
+            onKeyDown={isMessageInnerInteractive ? handleMessageInnerKeyDown : undefined}
+            role={isMessageInnerInteractive ? "button" : undefined}
+            tabIndex={isMessageInnerInteractive ? 0 : undefined}
           >
-            <MessageStatus />
-            {showAvatarColumn && (
-              <span className="str-chat__message-metadata__name">
-                {metadataDisplayName}
-              </span>
+            {showReplyCountButton && (
+              <MessageRepliesCountButton
+                onClick={handleOpenThread}
+                reply_count={message.reply_count}
+                thread_participants={message.thread_participants}
+              />
             )}
-            <MessageTimestamp customClass="str-chat__message-metadata__timestamp" />
-            {!isDeleted && isEdited && <MessageEditedIndicator />}
+            {isDeleted ? (
+              <MessageDeletedBubble />
+            ) : (
+              <>
+                <div className="str-chat__message-bubble">
+                  {poll && <Poll poll={poll} />}
+                  {message.quoted_message && <QuotedMessage />}
+                  {finalAttachments?.length ? (
+                    <Attachment
+                      actionHandler={handleAction}
+                      attachments={finalAttachments}
+                    />
+                  ) : null}
+                  {isAIGenerated ? (
+                    <StreamedMessageText message={message} renderText={renderText} />
+                  ) : (
+                    <MessageText message={message} renderText={renderText} />
+                  )}
+                </div>
+                <div className="str-chat__message-reactions-host">
+                  {hasReactions && <MessageReactions reverse />}
+                </div>
+                <div className="str-chat__message-error-indicator">
+                  <ErrorBadge />
+                </div>
+              </>
+            )}
           </div>
-        ) : null}
-        <div
-          aria-label={messageInnerAriaLabel}
-          className={clsx("str-chat__message-inner", {
-            "str-chat__message-inner--error": allowRetry || isBounced,
-          })}
-          data-testid="message-inner"
-          onClick={handleClick}
-          onKeyDown={isMessageInnerInteractive ? handleMessageInnerKeyDown : undefined}
-          role={isMessageInnerInteractive ? "button" : undefined}
-          tabIndex={isMessageInnerInteractive ? 0 : undefined}
-        >
-          {!isDeleted && <MessageActions />}
-          {showReplyCountButton && (
-            <MessageRepliesCountButton
-              onClick={handleOpenThread}
-              reply_count={message.reply_count}
-              thread_participants={message.thread_participants}
-            />
-          )}
-          {isDeleted ? (
-            <MessageDeletedBubble />
-          ) : (
-            <>
-              <div className="str-chat__message-bubble">
-                {poll && <Poll poll={poll} />}
-                {message.quoted_message && <QuotedMessage />}
-                {finalAttachments?.length ? (
-                  <Attachment
-                    actionHandler={handleAction}
-                    attachments={finalAttachments}
-                  />
-                ) : null}
-                {isAIGenerated ? (
-                  <StreamedMessageText message={message} renderText={renderText} />
-                ) : (
-                  <MessageText message={message} renderText={renderText} />
-                )}
-              </div>
-              <div className="str-chat__message-reactions-host">
-                {hasReactions && <MessageReactions reverse />}
-              </div>
-              <div className="str-chat__message-error-indicator">
-                <ErrorBadge />
-              </div>
-            </>
-          )}
         </div>
       </div>
     </>
