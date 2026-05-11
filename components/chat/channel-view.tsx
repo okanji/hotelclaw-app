@@ -31,11 +31,14 @@ export function ChannelView({
   const [channel, setChannel] = useState<StreamChannel | null>(null);
 
   useEffect(() => {
-    if (!client) return;
+    if (!client) {
+      setChannel(null);
+      return;
+    }
     let cancelled = false;
     let watchedChannel: StreamChannel | null = null;
     async function watch() {
-      const c = client!.channel(channelType, channelId);
+      const c = client.channel(channelType, channelId);
       await c.watch();
       if (cancelled) return;
       watchedChannel = c;
@@ -52,6 +55,9 @@ export function ChannelView({
     return () => {
       cancelled = true;
       watchedChannel?.stopWatching().catch(() => {});
+      // Drop stale channel immediately when client/channel key changes so we never
+      // render <Channel> with an instance tied to a disconnected client.
+      setChannel(null);
     };
   }, [client, channelId, channelType]);
 

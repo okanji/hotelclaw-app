@@ -23,6 +23,18 @@
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
 
+  --slack-image-card-bg: rgba(255, 255, 255, 0.055);
+  --slack-image-card-border: rgba(255, 255, 255, 0.1);
+  --slack-image-card-muted: rgba(209, 210, 211, 0.78);
+  --slack-image-card-hover: rgba(255, 255, 255, 0.08);
+  --slack-image-toolbar-bg: rgba(34, 37, 41, 0.88);
+  --slack-image-toolbar-border: rgba(255, 255, 255, 0.1);
+  --slack-image-toolbar-icon: rgba(248, 248, 248, 0.96);
+  --slack-image-toolbar-icon-hover-bg: rgba(255, 255, 255, 0.1);
+  --slack-image-alt-badge-bg: rgba(34, 37, 41, 0.88);
+  --slack-image-alt-badge-border: rgba(255, 255, 255, 0.12);
+  --slack-image-alt-badge-text: #f8f8f8;
+
   /* @mention pills — Slack-like tint, no stroke */
   --slack-mention-user-bg: rgba(105, 183, 255, 0.12);
   --slack-mention-user-text: #8dc8f6;
@@ -62,6 +74,18 @@
   --slack-msg-body-line-height: 22px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: #616061;
+
+  --slack-image-card-bg: rgba(29, 31, 36, 0.045);
+  --slack-image-card-border: rgba(29, 31, 36, 0.12);
+  --slack-image-card-muted: #616365;
+  --slack-image-card-hover: rgba(29, 31, 36, 0.07);
+  --slack-image-toolbar-bg: rgba(255, 255, 255, 0.94);
+  --slack-image-toolbar-border: rgba(29, 31, 36, 0.1);
+  --slack-image-toolbar-icon: rgba(61, 60, 61, 0.95);
+  --slack-image-toolbar-icon-hover-bg: rgba(29, 31, 36, 0.08);
+  --slack-image-alt-badge-bg: rgba(255, 255, 255, 0.94);
+  --slack-image-alt-badge-border: rgba(29, 31, 36, 0.12);
+  --slack-image-alt-badge-text: #1d1c1d;
 
   --slack-mention-user-bg: rgba(18, 100, 163, 0.08);
   --slack-mention-user-text: #1264a3;
@@ -609,6 +633,146 @@
 
 .str-chat__message > .str-chat__avatar::after {
   opacity: 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slack-style image attachment: filename + menu row, framed thumbnail (Stream ModalGallery).
+*/
+
+.str-chat .str-chat__slack-message-image-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: var(--str-chat__attachment-max-width, min(400px, 100%));
+  min-width: 0;
+}
+
+.str-chat .str-chat__slack-message-image-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.str-chat .str-chat__slack-message-image-card__filename {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--slack-chat-font-family);
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--slack-image-card-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.str-chat .str-chat__slack-message-image-card__frame {
+  border-radius: 10px;
+  background: var(--slack-image-card-bg);
+  border: 1px solid var(--slack-image-card-border);
+  padding: 2px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.str-chat .str-chat__slack-message-image-card__frame-inner {
+  position: relative;
+  width: 100%;
+}
+
+/* Slack-like floating pill: appears on image hover / keyboard focus within. */
+.str-chat .str-chat__slack-message-image-card__toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: var(--slack-image-toolbar-bg);
+  border: 1px solid var(--slack-image-toolbar-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.str-chat.str-chat__theme-light .str-chat__slack-message-image-card__toolbar {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.str-chat .str-chat__slack-message-image-card__frame-inner:hover .str-chat__slack-message-image-card__toolbar,
+.str-chat .str-chat__slack-message-image-card__frame-inner:focus-within .str-chat__slack-message-image-card__toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.str-chat .str-chat__slack-message-image-card__toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--slack-image-toolbar-icon);
+  outline: none;
+}
+
+.str-chat .str-chat__slack-message-image-card__toolbar-btn:hover {
+  background: var(--slack-image-toolbar-icon-hover-bg);
+}
+
+.str-chat .str-chat__slack-message-image-card__toolbar-btn:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--slack-image-toolbar-bg),
+    0 0 0 4px rgb(79 134 239 / 0.45);
+}
+
+.str-chat .str-chat__slack-message-image-card__alt-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 2;
+  font-family: var(--slack-chat-font-family);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--slack-image-alt-badge-bg);
+  color: var(--slack-image-alt-badge-text);
+  border: 1px solid var(--slack-image-alt-badge-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.str-chat.str-chat__theme-light .str-chat__slack-message-image-card__alt-badge {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.str-chat .str-chat__slack-message-image-card__frame .str-chat__modal-gallery {
+  width: 100%;
+}
+
+.str-chat .str-chat__slack-message-image-card__frame .str-chat__modal-gallery__image {
+  border-radius: 8px;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
