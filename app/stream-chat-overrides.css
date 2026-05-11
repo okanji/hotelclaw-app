@@ -1,5 +1,92 @@
 /* Must load AFTER stream-chat-react/dist/css/index.css (see app/layout.tsx). */
 
+/* Slack reaction row — mirrors Slack desktop pills; tuned to Stream theme classes
+   from StreamProvider (`str-chat__theme-dark` / `str-chat__theme-light`, next-themes). */
+.str-chat.str-chat__theme-dark {
+  --slack-reaction-pill-bg: rgba(248, 248, 248, 0.059);
+  --slack-reaction-pill-bg-hover: rgba(248, 248, 248, 0.1);
+  --slack-reaction-pill-text: rgba(255, 255, 255, 0.92);
+  --slack-reaction-pill-own-bg: rgba(29, 155, 209, 0.33);
+  --slack-reaction-pill-own-bg-hover: rgba(29, 155, 209, 0.42);
+  --slack-add-reaction-icon: #ababad;
+
+  /* Message typography — aligned to Slack desktop inspect (15px name/body, 12px time) */
+  --slack-chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --slack-msg-display-name-size: 15px;
+  --slack-msg-display-name-weight: 700;
+  --slack-msg-display-name-color: #f8f8f8;
+  --slack-msg-body-size: 15px;
+  --slack-msg-body-weight: 400;
+  --slack-msg-body-color: #d1d2d3;
+  --slack-msg-body-line-height: 22px;
+  --slack-msg-timestamp-size: 12px;
+  --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
+
+  /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
+  --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);
+}
+
+/* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect). */
+.str-chat {
+  --slack-avatar-size: 36px;
+  --slack-avatar-radius: 4px;
+  --slack-avatar-column-gap: 10px;
+}
+
+.str-chat.str-chat__theme-light {
+  --slack-reaction-pill-bg: rgba(29, 31, 36, 0.06);
+  --slack-reaction-pill-bg-hover: rgba(29, 31, 36, 0.09);
+  --slack-reaction-pill-text: rgba(29, 31, 36, 0.92);
+  --slack-reaction-pill-own-bg: rgba(18, 100, 163, 0.14);
+  --slack-reaction-pill-own-bg-hover: rgba(18, 100, 163, 0.22);
+  --slack-add-reaction-icon: #616365;
+
+  --slack-chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --slack-msg-display-name-size: 15px;
+  --slack-msg-display-name-weight: 700;
+  --slack-msg-display-name-color: #1d1c1d;
+  --slack-msg-body-size: 15px;
+  --slack-msg-body-weight: 400;
+  --slack-msg-body-color: #1d1c1d;
+  --slack-msg-body-line-height: 22px;
+  --slack-msg-timestamp-size: 12px;
+  --slack-msg-timestamp-color: #616061;
+
+  --str-chat__avatar-bg-placeholder: rgba(29, 31, 36, 0.06);
+}
+
+/* Quick emoji picker (Stream .str-chat__reaction-selector) — anchored via DialogAnchor */
+.str-chat.str-chat__theme-dark .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
+  background: color-mix(in srgb, var(--str-chat__background-core-elevation-2) 100%, #1a1d21);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.str-chat.str-chat__theme-light .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
+  background: var(--str-chat__background-core-elevation-2);
+  border: 1px solid rgba(29, 31, 36, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.str-chat .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
+  border-radius: var(--str-chat__radius-lg, 8px);
+  padding-block: var(--str-chat__spacing-xs, 6px);
+  padding-inline: var(--str-chat__spacing-sm, 8px);
+  gap: var(--str-chat__spacing-xxs, 4px);
+  max-width: min(100vw - 24px, 420px);
+  z-index: 50;
+}
+
+.str-chat .str-chat__reaction-selector-list {
+  gap: var(--str-chat__spacing-xxs, 4px);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Slack-style message layout + clustering visibility overrides.
 
@@ -39,44 +126,35 @@
   background-color: var(--str-chat__background-core-surface-subtle) !important;
 }
 
-/* Tight vertical rhythm inside bursts (match Stream defaults / Slack density). */
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--top {
-  padding-block-start: var(--str-chat__spacing-xs);
-  padding-block-end: var(--str-chat__spacing-xxxs);
+/* Vertical rhythm: slightly roomier than Stream xxxs so bursts and clusters read clearly. */
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--top,
+.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--top {
+  padding-block-start: var(--str-chat__spacing-sm);
+  padding-block-end: var(--str-chat__spacing-xxs);
 }
 
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--middle {
-  padding-block: var(--str-chat__spacing-xxxs);
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--middle,
+.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--middle {
+  padding-block: var(--str-chat__spacing-xxs);
 }
 
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom {
-  padding-block-start: var(--str-chat__spacing-xxxs);
-  padding-block-end: var(--str-chat__spacing-xs);
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom,
+.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--bottom {
+  padding-block-start: var(--str-chat__spacing-xxs);
+  padding-block-end: var(--str-chat__spacing-sm);
 }
 
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--single {
-  padding-block: var(--str-chat__spacing-xs);
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--single,
+.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--single {
+  padding-block: var(--str-chat__spacing-sm);
 }
 
 .str-chat__message.str-chat__message--me {
   justify-items: flex-start !important;
-  column-gap: var(--str-chat__space-8) !important;
-}
-.str-chat__message.str-chat__message--me.str-chat__message--with-avatar,
-.str-chat__message.str-chat__message--me.str-chat__message--pinned {
-  grid-template-areas:
-    ". message-saved-for-later"
-    ". pin-indicator"
-    ". also-sent-in-channel"
-    ". message-reminder"
-    ". translation-indicator"
-    "avatar slack-main"
-    "avatar translation-notice"
-    "avatar custom-metadata" !important;
-  grid-template-columns: auto 1fr !important;
 }
 
-/* Slack: sender row above bubble (Stream defaults put metadata last). */
+.str-chat__message.str-chat__message--me.str-chat__message--with-avatar,
+.str-chat__message.str-chat__message--me.str-chat__message--pinned,
 .str-chat__message.str-chat__message--other.str-chat__message--with-avatar,
 .str-chat__message.str-chat__message--other.str-chat__message--pinned {
   grid-template-areas:
@@ -88,7 +166,9 @@
     "avatar slack-main"
     "avatar translation-notice"
     "avatar custom-metadata" !important;
-  grid-template-columns: auto 1fr !important;
+  grid-template-columns: var(--slack-avatar-size) minmax(0, 1fr) !important;
+  column-gap: var(--slack-avatar-column-gap) !important;
+  align-items: start !important;
 }
 
 /* One column next to the avatar (Slack): metadata + bubble stack tightly so avatar bottom matches first text line. */
@@ -101,7 +181,7 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
   position: relative;
 }
@@ -120,7 +200,7 @@
   pointer-events: none;
   transform: translateY(-50%);
   /* Fallback when `li` has no cluster class (rare); overridden below. */
-  top: calc(-1 * var(--str-chat__spacing-xs));
+  top: calc(-1 * var(--str-chat__spacing-sm));
 }
 
 /* Pill midpoint sits on the top edge of the list-row highlight (half above /
@@ -130,14 +210,14 @@
 .str-chat__ul .str-chat__li.str-chat__li--single .str-chat__slack-message-actions-host,
 .str-chat__virtual-list .str-chat__li.str-chat__li--top .str-chat__slack-message-actions-host,
 .str-chat__virtual-list .str-chat__li.str-chat__li--single .str-chat__slack-message-actions-host {
-  top: calc(-1 * var(--str-chat__spacing-xs));
+  top: calc(-1 * var(--str-chat__spacing-sm));
 }
 
 .str-chat__ul .str-chat__li.str-chat__li--middle .str-chat__slack-message-actions-host,
 .str-chat__ul .str-chat__li.str-chat__li--bottom .str-chat__slack-message-actions-host,
 .str-chat__virtual-list .str-chat__li.str-chat__li--middle .str-chat__slack-message-actions-host,
 .str-chat__virtual-list .str-chat__li.str-chat__li--bottom .str-chat__slack-message-actions-host {
-  top: calc(-1 * var(--str-chat__spacing-xxxs));
+  top: calc(-1 * var(--str-chat__spacing-xxs));
 }
 
 .str-chat__slack-message-actions-host .str-chat__message-options {
@@ -224,16 +304,20 @@
 .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
   grid-area: avatar !important;
   align-self: start !important;
-  justify-self: start;
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 36px !important;
+  justify-self: stretch;
+  width: 100% !important;
+  max-width: var(--slack-avatar-size) !important;
+  min-width: 0 !important;
+  height: var(--slack-avatar-size) !important;
+  flex-shrink: 0;
   box-sizing: border-box;
+  border-radius: var(--slack-avatar-radius) !important;
 }
 
 .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar .str-chat__avatar-image {
-  width: 36px !important;
-  height: 36px !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
 }
 
 /* Continuation rows: compact clock in the avatar gutter on row hover (Slack). */
@@ -242,12 +326,15 @@
   align-self: center;
   justify-self: center;
   text-align: center;
-  min-width: 36px;
+  width: 100%;
+  max-width: var(--slack-avatar-size);
+  min-width: 0;
   padding: 0 4px;
   box-sizing: border-box;
-  font: var(--str-chat__font-caption-default);
-  color: var(--str-chat__chat-text-timestamp);
-  font-size: 11px;
+  font-family: var(--slack-chat-font-family);
+  font-weight: 400;
+  color: var(--slack-msg-timestamp-color);
+  font-size: var(--slack-msg-timestamp-size);
   line-height: 1;
   white-space: nowrap;
   pointer-events: none;
@@ -274,7 +361,14 @@
 }
 
 .str-chat__message .str-chat__slack-message-main > .str-chat__message-metadata {
-  line-height: 1.2 !important;
+  /* Let each child own line-height — avoids a tall shared line box that drops glyphs below the avatar top. */
+  line-height: normal !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: baseline !important;
+  gap: 8px !important;
 }
 
 .str-chat__message .str-chat__message-metadata {
@@ -283,21 +377,82 @@
   align-items: baseline !important;
 }
 
+/* Slack-matched type scale (scoped to Slack message column; StreamProvider themes supply vars). */
+.str-chat__slack-message-main {
+  font-family: var(--slack-chat-font-family);
+}
+
+.str-chat__slack-message-main .str-chat__message-metadata .str-chat__message-metadata__name {
+  font-family: var(--slack-chat-font-family);
+  font-size: var(--slack-msg-display-name-size);
+  font-weight: var(--slack-msg-display-name-weight);
+  /* Slack: cap height lines up with avatar top — tight line box (not 22px body leading). */
+  line-height: 1.12;
+  color: var(--slack-msg-display-name-color);
+}
+
+.str-chat__slack-message-main .str-chat__message-metadata .str-chat__message-metadata__timestamp,
+.str-chat__slack-message-main .str-chat__message-metadata time.str-chat__message-metadata__timestamp {
+  font-family: var(--slack-chat-font-family);
+  font-size: var(--slack-msg-timestamp-size);
+  font-weight: 400;
+  line-height: 1.12;
+  color: var(--slack-msg-timestamp-color);
+}
+
+.str-chat__slack-message-main .str-chat__message-metadata .str-chat__message-edited-indicator {
+  font-family: var(--slack-chat-font-family);
+  font-size: var(--slack-msg-timestamp-size);
+  line-height: 1.12;
+}
+
+/* Delivery/read icons — after name/time so the display name’s left edge always aligns with the message body.
+   Tuck status toward the end of the row when there’s room (Slack puts checks toward the trailing side). */
+.str-chat__slack-message-main .str-chat__message-metadata .str-chat__message-status {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  align-self: center;
+  margin-inline-start: auto;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner {
+  margin-block: 0 !important;
+  padding-block: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble {
   padding-block: 0 !important;
 }
 
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text {
   padding-block: 0 !important;
+  /* Stream defaults add horizontal padding here only — makes body look “left” of the display name. */
+  padding-inline: 0 !important;
+  font-family: var(--slack-chat-font-family);
+  font-size: var(--slack-msg-body-size);
+  font-weight: var(--slack-msg-body-weight);
+  line-height: var(--slack-msg-body-line-height);
+  color: var(--slack-msg-body-color);
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text p,
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text li {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: var(--slack-msg-body-line-height);
+  color: inherit;
 }
 
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text p {
-  line-height: 1.35 !important;
+  margin-block: 0;
 }
 
-.str-chat__message .str-chat__message-metadata .str-chat__message-metadata__name {
-  font-weight: 600;
-  color: var(--str-chat__text-primary);
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text p + p {
+  margin-block-start: 0.5rem;
 }
 .str-chat__message.str-chat__message--me .str-chat__message-bubble {
   justify-self: flex-start !important;
@@ -366,5 +521,141 @@
 
 .str-chat__avatar,
 .str-chat__avatar .str-chat__avatar-image {
-  border-radius: 6px !important;
+  border-radius: var(--slack-avatar-radius) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slack-style segmented reaction pills (bottom row under text).
+*/
+
+/* Stream uses padding-block: xxs on bottom reactions — doubles the gap before the next
+   burst row vs middle↔middle (li padding is only xxxs each). Drop bottom padding;
+   keep top so text→reactions breathing room matches Stream’s intent. */
+.str-chat__slack-message-main
+  .str-chat__message-inner
+  .str-chat__message-reactions-host:has(.str-chat__message-reactions--bottom) {
+  padding-block-end: 0 !important;
+}
+
+.str-chat .str-chat__message-reactions-host:has(.str-chat__slack-add-reaction-pill) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom {
+  align-items: flex-start;
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  column-gap: 4px;
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item:not(.str-chat__message-reactions__list-item--more) {
+  margin: 0 4px 0 0;
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button {
+  box-sizing: border-box;
+  min-height: 24px;
+  height: 24px;
+  padding-block: 0;
+  padding-inline: 8px;
+  gap: 4px;
+  border: none;
+  box-shadow: none;
+  background: var(--slack-reaction-pill-bg);
+  color: var(--slack-reaction-pill-text);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide Stream’s pill overlay — Slack uses a flat translucent fill. */
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button:not(:disabled)::before {
+  opacity: 0 !important;
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button:not(:disabled):hover {
+  background: var(--slack-reaction-pill-bg-hover);
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button:not(:disabled):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--str-chat__accent-blue, #1264a3) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* “You reacted” — Slack blue tint */
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button[data-slack-own-reaction="true"] {
+  background: var(--slack-reaction-pill-own-bg);
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button[data-slack-own-reaction="true"]:not(:disabled):hover {
+  background: var(--slack-reaction-pill-own-bg-hover);
+}
+
+.str-chat
+  .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom
+  .str-chat__message-reactions__list-item-button
+  .str-chat__message-reactions__list-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Inline “add reaction” pill (Slack) — same fill + height as reaction pills */
+.str-chat .str-chat__slack-add-reaction-pill {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 24px;
+  min-width: 24px;
+  margin: 0;
+  padding: 0 6px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--slack-reaction-pill-bg);
+  color: var(--slack-add-reaction-icon);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.str-chat .str-chat__slack-add-reaction-pill:hover {
+  background: var(--slack-reaction-pill-bg-hover);
+  color: var(--slack-add-reaction-icon);
+}
+
+.str-chat .str-chat__slack-add-reaction-pill:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--str-chat__accent-blue, #1264a3) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.str-chat .str-chat__slack-add-reaction-pill .str-chat__slack-add-reaction-pill__icon {
+  width: 16px;
+  height: 16px;
 }

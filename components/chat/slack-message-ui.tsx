@@ -30,7 +30,7 @@
 
 import clsx from "clsx";
 import React, { useContext, useMemo, useState } from "react";
-import type { MessageContextValue, MessageUIComponentProps } from "stream-chat-react";
+import type { MessageContextValue, MessageUIComponentProps, MessageActionsProps } from "stream-chat-react";
 import {
   Attachment as DefaultAttachment,
   Avatar as DefaultAvatar,
@@ -46,7 +46,6 @@ import {
   MessageBouncePrompt as DefaultMessageBouncePrompt,
   MessageDeletedBubble as DefaultMessageDeletedBubble,
   MessageEditedIndicator as DefaultMessageEditedIndicator,
-  MessageReactions as DefaultMessageReactions,
   MessageRepliesCountButton as DefaultMessageRepliesCountButton,
   MessageStatus as DefaultMessageStatus,
   MessageText,
@@ -64,6 +63,7 @@ import {
   useTranslationContext,
   areMessageUIPropsEqual,
   countEmojis,
+  defaultMessageActionSet,
   isMessageBlocked,
   isMessageBounced,
   isMessageDeleted,
@@ -76,6 +76,20 @@ import {
   messageHasSingleAttachment,
   messageTextHasEmojisOnly,
 } from "stream-chat-react";
+import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
+import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
+
+type MessageActionSetItem = NonNullable<MessageActionsProps["messageActionSet"]>[number];
+
+function messageActionSetWithoutQuickReactWhenHasReactions(
+  hasReactions: boolean,
+  set: MessageActionSetItem[],
+): MessageActionSetItem[] {
+  if (!hasReactions) return set;
+  return set.filter(
+    (a) => !("type" in a && a.placement === "quick" && a.type === "react"),
+  );
+}
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
 
@@ -205,7 +219,6 @@ const SlackMessageUIWithContext = ({
     MessageDeleted,
     MessageDeletedBubble = DefaultMessageDeletedBubble,
     MessageEditedIndicator = DefaultMessageEditedIndicator,
-    MessageReactions = DefaultMessageReactions,
     MessageRepliesCountButton = DefaultMessageRepliesCountButton,
     MessageStatus = DefaultMessageStatus,
     MessageTimestamp = DefaultMessageTimestamp,
@@ -232,6 +245,27 @@ const SlackMessageUIWithContext = ({
     [message],
   );
 
+  const hasReactionsForToolbar = useMemo(
+    () => !isDeleted && messageHasReactions(message),
+    [isDeleted, message],
+  );
+
+  const messageActionSet = useMemo(
+    () =>
+      messageActionSetWithoutQuickReactWhenHasReactions(hasReactionsForToolbar, defaultMessageActionSet),
+    [hasReactionsForToolbar],
+  );
+
+  const clusterRole = useMemo(
+    () => resolveClusterRole(message.id, processedMessages, groupStyles),
+    [message.id, processedMessages, groupStyles],
+  );
+
+  const slackGutterTime = useMemo(() => {
+    if (clusterRole !== "middle" && clusterRole !== "bottom") return null;
+    return slackGutterTimeFromMessage(message.created_at);
+  }, [clusterRole, message.created_at]);
+
   if (isDateSeparatorMessage(message)) {
     return null;
   }
@@ -256,16 +290,6 @@ const SlackMessageUIWithContext = ({
   const allowRetry = isMessageErrorRetryable(message);
   const isBounced = isMessageBounced(message);
   const isEdited = isMessageEdited(message) && !isAIGenerated;
-
-  const clusterRole = useMemo(
-    () => resolveClusterRole(message.id, processedMessages, groupStyles),
-    [message.id, processedMessages, groupStyles],
-  );
-
-  const slackGutterTime = useMemo(() => {
-    if (clusterRole !== "middle" && clusterRole !== "bottom") return null;
-    return slackGutterTimeFromMessage(message.created_at);
-  }, [clusterRole, message.created_at]);
 
   const showMetadata = clusterRole !== "middle" && clusterRole !== "bottom";
   const avatarHiddenInCluster = clusterRole === "middle" || clusterRole === "bottom";
@@ -374,16 +398,7 @@ const SlackMessageUIWithContext = ({
         )}
         <div className="str-chat__slack-message-main">
           {showMetadata ? (
-            <div
-              className="str-chat__message-metadata"
-              style={{
-                alignItems: "baseline",
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.35rem",
-              }}
-            >
-              <MessageStatus />
+            <div className="str-chat__message-metadata">
               {showAvatarColumn && (
                 <span className="str-chat__message-metadata__name">
                   {metadataDisplayName}
@@ -391,11 +406,12 @@ const SlackMessageUIWithContext = ({
               )}
               <MessageTimestamp customClass="str-chat__message-metadata__timestamp" />
               {!isDeleted && isEdited && <MessageEditedIndicator />}
+              <MessageStatus />
             </div>
           ) : null}
           {!isDeleted ? (
             <div className="str-chat__slack-message-actions-host">
-              <MessageActions />
+              <MessageActions messageActionSet={messageActionSet} />
             </div>
           ) : null}
           <div
@@ -436,7 +452,16 @@ const SlackMessageUIWithContext = ({
                   )}
                 </div>
                 <div className="str-chat__message-reactions-host">
-                  {hasReactions && <MessageReactions reverse />}
+                  {hasReactions ? (
+                    <>
+                      <SlackMessageReactions
+                        reverse
+                        verticalPosition="bottom"
+                        visualStyle="segmented"
+                      />
+                      <SlackAddReactionPill />
+                    </>
+                  ) : null}
                 </div>
                 <div className="str-chat__message-error-indicator">
                   <ErrorBadge />
