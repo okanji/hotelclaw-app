@@ -1,0 +1,147 @@
+/* Must load AFTER stream-chat-react/dist/css/index.css (see app/layout.tsx). */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slack-style message layout + clustering visibility overrides.
+
+   Stream’s stylesheet loads after globals.css and otherwise overrides plain
+   `display`/`visibility` rules without !important. Keep Slack tweaks here so they win.
+
+   Cluster semantics match Slack Desktop:
+   - `top` = first row in a burst (avatar + timestamp visible)
+   - `middle` / `bottom` = continuations (hidden avatar visual + no duplicate timestamp row)
+
+   Stream assigns labels against processedMessages (see MessageList); SlackMessageUI
+   recomputes with `getGroupStyles` + MessageListContext for reliability.
+*/
+
+.str-chat__message.str-chat__message--me {
+  justify-items: flex-start !important;
+  column-gap: var(--str-chat__space-8) !important;
+}
+.str-chat__message.str-chat__message--me.str-chat__message--with-avatar,
+.str-chat__message.str-chat__message--me.str-chat__message--pinned {
+  grid-template-areas:
+    ". message-saved-for-later"
+    ". pin-indicator"
+    ". also-sent-in-channel"
+    ". message-reminder"
+    ". translation-indicator"
+    "avatar metadata"
+    "avatar message"
+    "avatar translation-notice"
+    "avatar custom-metadata" !important;
+  grid-template-columns: auto 1fr !important;
+}
+
+/* Slack: sender row above bubble (Stream defaults put metadata last). */
+.str-chat__message.str-chat__message--other.str-chat__message--with-avatar,
+.str-chat__message.str-chat__message--other.str-chat__message--pinned {
+  grid-template-areas:
+    ". message-saved-for-later"
+    ". pin-indicator"
+    ". also-sent-in-channel"
+    ". message-reminder"
+    ". translation-indicator"
+    "avatar metadata"
+    "avatar message"
+    "avatar translation-notice"
+    "avatar custom-metadata" !important;
+  grid-template-columns: auto 1fr !important;
+}
+
+.str-chat__message .str-chat__message-metadata {
+  height: auto !important;
+  min-height: var(--str-chat__size-24);
+  align-items: baseline !important;
+}
+
+.str-chat__message .str-chat__message-metadata .str-chat__message-metadata__name {
+  font-weight: 600;
+  color: var(--str-chat__text-primary);
+}
+.str-chat__message.str-chat__message--me .str-chat__message-bubble {
+  justify-self: flex-start !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner {
+  grid-template-areas:
+    "reminder reminder"
+    "reactions ."
+    "message-bubble options"
+    "replies replies" !important;
+  grid-template-columns: auto 1fr !important;
+  margin-inline-start: 0 !important;
+  margin-inline-end: var(--str-chat-message-options-size) !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner:has(.str-chat__message-reactions--bottom) {
+  grid-template-areas:
+    "reminder reminder"
+    "message-bubble options"
+    "replies replies"
+    "reactions ." !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-options {
+  flex-direction: row !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-reactions-host {
+  justify-self: flex-start !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-reactions-host:has(.str-chat__message-reactions--flipped-horizontally) {
+  justify-self: flex-end !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-inner .str-chat__message-reactions-host .str-chat__message-reactions.str-chat__message-reactions--segmented.str-chat__message-reactions--bottom > .str-chat__message-reactions__list {
+  justify-content: flex-start !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-metadata {
+  justify-content: flex-start !important;
+  text-align: start !important;
+}
+.str-chat__message.str-chat__message--me .str-chat__message-pin-indicator .str-chat__message-pin-indicator__content,
+.str-chat__message.str-chat__message--me .str-chat__message-also-sent-in-channel {
+  justify-content: flex-start !important;
+}
+
+/* Invert Stream: Slack hides continuation rows (`middle` / `bottom`). */
+.str-chat__li.str-chat__li--middle .str-chat__message > .str-chat__avatar,
+.str-chat__li.str-chat__li--bottom .str-chat__message > .str-chat__avatar {
+  visibility: hidden !important;
+}
+.str-chat__li.str-chat__li--middle .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar,
+.str-chat__li.str-chat__li--bottom .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
+  pointer-events: none !important;
+}
+.str-chat__li.str-chat__li--top .str-chat__message > .str-chat__avatar,
+.str-chat__li.str-chat__li--single .str-chat__message > .str-chat__avatar {
+  visibility: visible !important;
+}
+
+.str-chat__li.str-chat__li--middle .str-chat__message .str-chat__message-metadata,
+.str-chat__li.str-chat__li--bottom .str-chat__message .str-chat__message-metadata {
+  display: none !important;
+}
+.str-chat__li.str-chat__li--top .str-chat__message .str-chat__message-metadata,
+.str-chat__li.str-chat__li--single .str-chat__message .str-chat__message-metadata {
+  display: flex !important;
+}
+
+.str-chat__message .str-chat__message-inner .str-chat__message-bubble {
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding-inline: 0 !important;
+  box-shadow: none !important;
+}
+
+.str-chat__avatar,
+.str-chat__avatar .str-chat__avatar-image {
+  border-radius: 6px !important;
+}
+
+.str-chat__message .str-chat__avatar:has(~ .str-chat__message-inner) {
+  align-self: start !important;
+}
+
+.str-chat__message.str-chat__message--with-avatar > .str-chat__avatar {
+  justify-self: start;
+  width: 32px;
+  min-width: 32px;
+  box-sizing: border-box;
+}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Channel,
+  ChatView,
   MessageComposer,
   MessageList,
   Thread,
@@ -69,22 +70,34 @@ export function ChannelView({
     );
   }
 
+  // <ChatView> wrapper: Stream's default <ThreadHeader> calls
+  // useChatViewContext() and warns when no provider is found. Wrapping here
+  // silences the warning without changing layout — ChatView just adds a
+  // `display:flex; width:100%; height:100%` div around the Channel.
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <Channel channel={channel}>
-        <Window>
-          <ChannelHeader />
-          <MessageList />
-          {/* audioRecordingEnabled adds the voice-message mic to the composer
-              (peer dep @breezystack/lamejs handles the MP3 encode client-side).
-              Polls render in the "+" menu automatically via Stream's default
-              AttachmentSelector — provided the channel type has polls enabled
-              in the Stream dashboard (Channel Type → Settings → Polls). */}
-          <MessageComposer audioRecordingEnabled />
-        </Window>
-        <Thread />
-        <ChannelInfoPanel propertyId={propertyId} />
-      </Channel>
+      <ChatView>
+        <Channel channel={channel}>
+          <Window>
+            {/* Group consecutive rows from the same user (`noGroupByUser` unset).
+                Stream marks cluster segments as top / middle / bottom; globals.css + SlackMessageUI
+                flip avatar/metadata visibility so only the first row matches Slack (like Slack desktop).
+                Note: rows with attachments are always `single` — upstream getGroupStyles() behavior.
+
+                showAvatar is set but Stream's `<Message>` does not forward it; SlackMessageUI defaults to true. */}
+            <ChannelHeader />
+            <MessageList showAvatar />
+            {/* audioRecordingEnabled adds the voice-message mic to the composer
+                (peer dep @breezystack/lamejs handles the MP3 encode client-side).
+                Polls render in the "+" menu automatically via Stream's default
+                AttachmentSelector — provided the channel type has polls enabled
+                in the Stream dashboard (Channel Type → Settings → Polls). */}
+            <MessageComposer audioRecordingEnabled />
+          </Window>
+          <Thread />
+          <ChannelInfoPanel propertyId={propertyId} />
+        </Channel>
+      </ChatView>
     </div>
   );
 }

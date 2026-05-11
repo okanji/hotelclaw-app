@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { StreamChat, type User } from "stream-chat";
-import { Chat } from "stream-chat-react";
+import {
+  Chat,
+  ComponentProvider,
+  useComponentContext,
+} from "stream-chat-react";
+import { SlackMessageUI } from "@/components/chat/slack-message-ui";
 
 type Props = {
   userId: string;
@@ -11,6 +16,20 @@ type Props = {
   avatarUrl: string | null;
   children: React.ReactNode;
 };
+
+/** Slack-style message row (avatars + alignment); merges with existing overrides from sidebar loaders etc. */
+function StreamChatComponents({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const parent = useComponentContext();
+  return (
+    <ComponentProvider value={{ ...parent, MessageUI: SlackMessageUI }}>
+      {children}
+    </ComponentProvider>
+  );
+}
 
 /**
  * Client-side Stream Chat provider.
@@ -101,7 +120,7 @@ export function StreamProvider({
   }
   return (
     <Chat client={client} theme={streamTheme}>
-      {children}
+      <StreamChatComponents>{children}</StreamChatComponents>
     </Chat>
   );
 }

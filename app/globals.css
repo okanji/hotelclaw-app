@@ -219,3 +219,5 @@
   max-width: 100% !important;
   width: 100%;
 }
+
+/* Slack-style Stream Chat tweaks live in ./stream-chat-overrides.css (loaded AFTER Stream CSS). */
