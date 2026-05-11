@@ -8,6 +8,7 @@ import {
   ComponentProvider,
   useComponentContext,
 } from "stream-chat-react";
+import { SlackDateSeparator } from "@/components/chat/slack-date-separator";
 import { SlackMessageUI } from "@/components/chat/slack-message-ui";
 
 type Props = {
@@ -25,7 +26,9 @@ function StreamChatComponents({
 }) {
   const parent = useComponentContext();
   return (
-    <ComponentProvider value={{ ...parent, MessageUI: SlackMessageUI }}>
+    <ComponentProvider
+      value={{ ...parent, DateSeparator: SlackDateSeparator, MessageUI: SlackMessageUI }}
+    >
       {children}
     </ComponentProvider>
   );

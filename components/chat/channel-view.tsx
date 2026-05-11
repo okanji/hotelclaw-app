@@ -86,7 +86,7 @@ export function ChannelView({
 
                 showAvatar is set but Stream's `<Message>` does not forward it; SlackMessageUI defaults to true. */}
             <ChannelHeader />
-            <MessageList showAvatar />
+            <MessageList showAvatar disableDateSeparator={false} />
             {/* audioRecordingEnabled adds the voice-message mic to the composer
                 (peer dep @breezystack/lamejs handles the MP3 encode client-side).
                 Polls render in the "+" menu automatically via Stream's default

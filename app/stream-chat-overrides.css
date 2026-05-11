@@ -23,6 +23,12 @@
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
 
+  /* @mention pills — Slack-like tint, no stroke */
+  --slack-mention-user-bg: rgba(105, 183, 255, 0.12);
+  --slack-mention-user-text: #8dc8f6;
+  --slack-mention-broadcast-bg: rgba(232, 198, 94, 0.12);
+  --slack-mention-broadcast-text: #e8c65e;
+
   /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
   --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);
 }
@@ -30,7 +36,7 @@
 /* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect). */
 .str-chat {
   --slack-avatar-size: 36px;
-  --slack-avatar-radius: 4px;
+  --slack-avatar-radius: 6px;
   --slack-avatar-column-gap: 10px;
 }
 
@@ -53,6 +59,11 @@
   --slack-msg-body-line-height: 22px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: #616061;
+
+  --slack-mention-user-bg: rgba(18, 100, 163, 0.08);
+  --slack-mention-user-text: #1264a3;
+  --slack-mention-broadcast-bg: rgba(181, 131, 0, 0.1);
+  --slack-mention-broadcast-text: #866b00;
 
   --str-chat__avatar-bg-placeholder: rgba(29, 31, 36, 0.06);
 }
@@ -147,6 +158,40 @@
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--single,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--single {
   padding-block: var(--str-chat__spacing-sm);
+}
+
+/*
+ * Hover highlight uses the <li> background; padding is the only inset. Burst heads
+ * already use `sm` above the block; continuation rows used `xxs` everywhere, so
+ * a message with reaction pills looked tight—especially under the pills. Rows
+ * with bottom reactions get symmetric vertical inset: `sm` below pills, and for
+ * continuations (`middle` / `bottom`) a slightly taller top inset (`xs`) so the
+ * gutter timestamp + first line match the breathing room under reactions.
+ * `data-slack-reactions` is set on the message root in `SlackMessageUI`.
+ */
+.str-chat .str-chat__ul .str-chat__li:has([data-slack-reactions="bottom"]),
+.str-chat .str-chat__virtual-list .str-chat__li:has([data-slack-reactions="bottom"]) {
+  padding-block-end: var(--str-chat__spacing-sm);
+}
+
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"]),
+.str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"]),
+.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"]),
+.str-chat
+  .str-chat__virtual-list
+  .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"]) {
+  padding-block-start: var(--str-chat__spacing-xs);
+}
+
+.str-chat__ul .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"])
+  .str-chat__slack-message-actions-host,
+.str-chat__ul .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"])
+  .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"])
+  .str-chat__slack-message-actions-host,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"])
+  .str-chat__slack-message-actions-host {
+  top: calc(-1 * var(--str-chat__spacing-xs));
 }
 
 .str-chat__message.str-chat__message--me {
@@ -427,6 +472,15 @@
   padding-block: 0 !important;
 }
 
+/* Display-name row → first body block: text gets implicit line-box gap; attachments/polls/quotes
+   are flush without it. Add the same visual gap only when the first block isn’t body text. */
+.str-chat__slack-message-main:has(> .str-chat__message-metadata)
+  .str-chat__message-inner
+  .str-chat__message-bubble
+  > :first-child:not(.str-chat__message-text) {
+  margin-block-start: 6px;
+}
+
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text {
   padding-block: 0 !important;
   /* Stream defaults add horizontal padding here only — makes body look “left” of the display name. */
@@ -454,6 +508,42 @@
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text p + p {
   margin-block-start: 0.5rem;
 }
+
+/*
+ * @mentions — Slack-like pills: regular weight, tinted fill only (no border).
+ * Stream uses `.str-chat__message-mention` + `data-user-id` for resolved user mentions.
+ */
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention {
+  font-family: var(--slack-chat-font-family);
+  font-size: inherit;
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: inherit;
+  display: inline;
+  padding-block: 0.06em 0.1em;
+  padding-inline: 0;
+  margin: 0;
+  border-radius: 2px;
+  border: 0;
+  background: var(--slack-mention-user-bg);
+  color: var(--slack-mention-user-text);
+  text-decoration: none !important;
+  vertical-align: baseline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="channel"],
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="here"],
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="everyone"] {
+  background: var(--slack-mention-broadcast-bg);
+  color: var(--slack-mention-broadcast-text);
+}
+
+.str-chat__message.str-chat__message--me .str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention {
+  font-weight: 400;
+}
+
 .str-chat__message.str-chat__message--me .str-chat__message-bubble {
   justify-self: flex-start !important;
 }
@@ -522,6 +612,26 @@
 .str-chat__avatar,
 .str-chat__avatar .str-chat__avatar-image {
   border-radius: var(--slack-avatar-radius) !important;
+}
+
+/* Message-list avatars: static chrome only — no per-avatar hover/focus ring (row hover is enough). */
+.str-chat__message > .str-chat__avatar {
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.str-chat__message > .str-chat__avatar:hover {
+  filter: none;
+  opacity: 1;
+}
+
+.str-chat__message > .str-chat__avatar:focus,
+.str-chat__message > .str-chat__avatar:focus-visible {
+  outline: none;
+}
+
+.str-chat__message > .str-chat__avatar::after {
+  opacity: 0 !important;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -658,4 +768,85 @@
 .str-chat .str-chat__slack-add-reaction-pill .str-chat__slack-add-reaction-pill__icon {
   width: 16px;
   height: 16px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slack-style date separator: full-width rule bisects the centered pill; pill
+   opens “Jump to…” (see `SlackDateSeparator`).
+*/
+
+.str-chat .str-chat__slack-date-separator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 28px;
+  padding-block: var(--str-chat__spacing-sm, 12px);
+  margin: 0;
+}
+
+.str-chat .str-chat__slack-date-separator__line {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: color-mix(
+    in srgb,
+    var(--str-chat__border-core-subtle, rgba(134, 134, 134, 0.55)) 70%,
+    transparent
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+.str-chat .str-chat__slack-date-separator__pill {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100% - 1.5rem, 420px);
+  padding: 5px 10px 5px 12px;
+  margin: 0;
+  border-radius: 9999px;
+  border: 1px solid
+    color-mix(in srgb, var(--str-chat__border-core-subtle, rgba(134, 134, 134, 0.6)) 85%, transparent);
+  background: var(--str-chat__background-core-surface-default, #1a1d21);
+  color: var(--str-chat__chat-text, var(--slack-msg-body-color, #d1d2d3));
+  font-family: var(--slack-chat-font-family, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+}
+
+.str-chat .str-chat__slack-date-separator__pill:hover {
+  background: var(--str-chat__background-core-surface-subtle);
+}
+
+.str-chat .str-chat__slack-date-separator__pill:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--str-chat__accent-blue, #1264a3) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.str-chat .str-chat__slack-date-separator__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.str-chat .str-chat__slack-date-separator__chevron {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.str-chat .str-chat__slack-date-separator__menu {
+  font-family: var(--slack-chat-font-family, system-ui, sans-serif);
 }

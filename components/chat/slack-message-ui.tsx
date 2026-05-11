@@ -197,7 +197,6 @@ const SlackMessageUIWithContext = ({
   isMyMessage,
   message,
   onUserClick,
-  onUserHover,
   renderText,
   threadList,
 }: MessageUIWithContextProps) => {
@@ -368,6 +367,7 @@ const SlackMessageUIWithContext = ({
       <div
         className={rootClassName}
         data-slack-cluster={clusterRole}
+        data-slack-reactions={hasReactions ? "bottom" : undefined}
         key={message.id}
       >
         {message.pinned && <PinIndicator message={message} />}
@@ -380,7 +380,6 @@ const SlackMessageUIWithContext = ({
               className="str-chat__avatar--with-border"
               imageUrl={message.user?.image}
               onClick={message.user ? onUserClick : undefined}
-              onMouseOver={message.user ? onUserHover : undefined}
               size="md"
               style={{ visibility: avatarHiddenInCluster ? "hidden" : "visible" }}
               userName={avatarUserName}
