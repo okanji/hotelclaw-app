@@ -78,6 +78,7 @@ import {
 import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
 import { SlackReplyIndicator } from "@/components/chat/slack-reply-indicator";
+import { useUserProfilePanel } from "@/components/chat/user-profile-panel/context";
 
 type MessageActionSetItem = NonNullable<MessageActionsProps["messageActionSet"]>[number];
 
@@ -265,6 +266,10 @@ const SlackMessageUIWithContext = ({
   const { t } = useTranslationContext("MessageUI");
   const [isBounceDialogOpen, setIsBounceDialogOpen] = useState(false);
   const reminder = useMessageReminder(message.id);
+  const profilePanel = useUserProfilePanel();
+  const openProfile = message.user?.id
+    ? () => profilePanel.open(message.user!.id!)
+    : undefined;
 
   const {
     Attachment = DefaultAttachment,
@@ -436,7 +441,7 @@ const SlackMessageUIWithContext = ({
             <Avatar
               className="str-chat__avatar--with-border"
               imageUrl={message.user?.image}
-              onClick={message.user ? onUserClick : undefined}
+              onClick={openProfile ?? onUserClick}
               size="md"
               style={{ visibility: avatarHiddenInCluster ? "hidden" : "visible" }}
               userName={avatarUserName}
@@ -456,9 +461,19 @@ const SlackMessageUIWithContext = ({
           {showMetadata ? (
             <div className="str-chat__message-metadata">
               {showAvatarColumn && (
-                <span className="str-chat__message-metadata__name">
-                  {metadataDisplayName}
-                </span>
+                openProfile ? (
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="str-chat__message-metadata__name hover:underline"
+                  >
+                    {metadataDisplayName}
+                  </button>
+                ) : (
+                  <span className="str-chat__message-metadata__name">
+                    {metadataDisplayName}
+                  </span>
+                )
               )}
               <MessageTimestamp customClass="str-chat__message-metadata__timestamp" />
               {!isDeleted && isEdited && <MessageEditedIndicator />}
