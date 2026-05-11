@@ -29,6 +29,9 @@
   --slack-mention-broadcast-bg: rgba(232, 198, 94, 0.12);
   --slack-mention-broadcast-text: #e8c65e;
 
+  /* Date pill: match darkest chat plane so only the stroke reads (not a grey “chip”). */
+  --slack-date-pill-bg: var(--str-chat__background-core-elevation-0);
+
   /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
   --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);
 }
@@ -64,6 +67,8 @@
   --slack-mention-user-text: #1264a3;
   --slack-mention-broadcast-bg: rgba(181, 131, 0, 0.1);
   --slack-mention-broadcast-text: #866b00;
+
+  --slack-date-pill-bg: var(--str-chat__background-core-elevation-0);
 
   --str-chat__avatar-bg-placeholder: rgba(29, 31, 36, 0.06);
 }
@@ -161,38 +166,10 @@
 }
 
 /*
- * Hover highlight uses the <li> background; padding is the only inset. Burst heads
- * already use `sm` above the block; continuation rows used `xxs` everywhere, so
- * a message with reaction pills looked tight—especially under the pills. Rows
- * with bottom reactions get symmetric vertical inset: `sm` below pills, and for
- * continuations (`middle` / `bottom`) a slightly taller top inset (`xs`) so the
- * gutter timestamp + first line match the breathing room under reactions.
- * `data-slack-reactions` is set on the message root in `SlackMessageUI`.
+ * Bottom spacing below reaction pills is handled on `.str-chat__message-reactions-host`
+ * (~line 646) so it matches bubble ↔ bubble seams; `data-slack-reactions` on the
+ * message root remains useful for debugging / future hooks (SlackMessageUI).
  */
-.str-chat .str-chat__ul .str-chat__li:has([data-slack-reactions="bottom"]),
-.str-chat .str-chat__virtual-list .str-chat__li:has([data-slack-reactions="bottom"]) {
-  padding-block-end: var(--str-chat__spacing-sm);
-}
-
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"]),
-.str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"]),
-.str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"]),
-.str-chat
-  .str-chat__virtual-list
-  .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"]) {
-  padding-block-start: var(--str-chat__spacing-xs);
-}
-
-.str-chat__ul .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"])
-  .str-chat__slack-message-actions-host,
-.str-chat__ul .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"])
-  .str-chat__slack-message-actions-host,
-.str-chat__virtual-list .str-chat__li.str-chat__li--middle:has([data-slack-reactions="bottom"])
-  .str-chat__slack-message-actions-host,
-.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:has([data-slack-reactions="bottom"])
-  .str-chat__slack-message-actions-host {
-  top: calc(-1 * var(--str-chat__spacing-xs));
-}
 
 .str-chat__message.str-chat__message--me {
   justify-items: flex-start !important;
@@ -638,13 +615,13 @@
    Slack-style segmented reaction pills (bottom row under text).
 */
 
-/* Stream uses padding-block: xxs on bottom reactions — doubles the gap before the next
-   burst row vs middle↔middle (li padding is only xxxs each). Drop bottom padding;
-   keep top so text→reactions breathing room matches Stream’s intent. */
+/* Bottom reaction row: add the same breathing room Stream uses below pills so the
+   gap pill → next burst line matches continuation bubble ↔ bubble (plain lines keep
+   ~half-leading inside the bubble; pills sat flush when we zeroed this earlier). */
 .str-chat__slack-message-main
   .str-chat__message-inner
   .str-chat__message-reactions-host:has(.str-chat__message-reactions--bottom) {
-  padding-block-end: 0 !important;
+  padding-block-end: var(--str-chat__spacing-xxs) !important;
 }
 
 .str-chat .str-chat__message-reactions-host:has(.str-chat__slack-add-reaction-pill) {
@@ -807,14 +784,18 @@
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   max-width: min(100% - 1.5rem, 420px);
-  padding: 5px 10px 5px 12px;
+  /* Match elevation-0 (base plane) + border so it reads as outline, not a lifted grey fill. */
+  padding-block: 6px;
+  padding-inline-start: 16px;
+  padding-inline-end: 9px;
   margin: 0;
   border-radius: 9999px;
   border: 1px solid
-    color-mix(in srgb, var(--str-chat__border-core-subtle, rgba(134, 134, 134, 0.6)) 85%, transparent);
-  background: var(--str-chat__background-core-surface-default, #1a1d21);
+    color-mix(in srgb, var(--str-chat__border-core-subtle, rgba(134, 134, 134, 0.6)) 92%, transparent);
+  background: var(--slack-date-pill-bg, var(--str-chat__background-core-elevation-0));
   color: var(--str-chat__chat-text, var(--slack-msg-body-color, #d1d2d3));
   font-family: var(--slack-chat-font-family, system-ui, sans-serif);
   font-size: 13px;
@@ -826,7 +807,15 @@
 }
 
 .str-chat .str-chat__slack-date-separator__pill:hover {
-  background: var(--str-chat__background-core-surface-subtle);
+  background: color-mix(
+    in srgb,
+    var(--slack-date-pill-bg, var(--str-chat__background-core-elevation-0)) 90%,
+    var(
+      --str-chat__background-core-surface-subtle,
+      var(--str-chat__background-core-surface-default)
+    )
+      10%
+  );
 }
 
 .str-chat .str-chat__slack-date-separator__pill:focus-visible {
@@ -841,8 +830,8 @@
 }
 
 .str-chat .str-chat__slack-date-separator__chevron {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   opacity: 0.75;
   flex-shrink: 0;
 }
