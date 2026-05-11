@@ -15,7 +15,8 @@
  * Stream v14.1 bug/workaround: `<Message>` does not forward `showAvatar` into
  * `MessageProvider`; we always reserve an avatar column for alignment (see below).
  *
- * - Slack-like message toolbar: `<MessageActions />` sits in
+ * - Continuation rows (`middle` / `bottom`): short clock in the avatar gutter on
+ *   row hover / focus / open actions, matching Slack.
  *   `.str-chat__slack-message-actions-host` (top-end of the message block) so
  *   it renders as a compact pill on hover, matching Slack, instead of a grid
  *   column beside the bubble.
@@ -77,6 +78,27 @@ import {
 } from "stream-chat-react";
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
+
+/** Short clock for Slack-style gutter (continuation rows); `hour12: false` avoids AM/PM. */
+function slackGutterTimeFromMessage(createdAt: unknown): {
+  label: string;
+  iso: string;
+} | null {
+  if (createdAt == null) return null;
+  const d =
+    createdAt instanceof Date
+      ? createdAt
+      : typeof createdAt === "string"
+        ? new Date(createdAt)
+        : new Date(String(createdAt));
+  if (Number.isNaN(d.getTime())) return null;
+  const label = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+  return { label, iso: d.toISOString() };
+}
 
 function neighborRenderedMessage(
   list: unknown[],
@@ -240,6 +262,11 @@ const SlackMessageUIWithContext = ({
     [message.id, processedMessages, groupStyles],
   );
 
+  const slackGutterTime = useMemo(() => {
+    if (clusterRole !== "middle" && clusterRole !== "bottom") return null;
+    return slackGutterTimeFromMessage(message.created_at);
+  }, [clusterRole, message.created_at]);
+
   const showMetadata = clusterRole !== "middle" && clusterRole !== "bottom";
   const avatarHiddenInCluster = clusterRole === "middle" || clusterRole === "bottom";
 
@@ -324,15 +351,26 @@ const SlackMessageUIWithContext = ({
         {!!reminder && <ReminderNotification reminder={reminder} />}
         <MessageTranslationIndicator message={message} />
         {showAvatarColumn && (
-          <Avatar
-            className="str-chat__avatar--with-border"
-            imageUrl={message.user?.image}
-            onClick={message.user ? onUserClick : undefined}
-            onMouseOver={message.user ? onUserHover : undefined}
-            size="md"
-            style={{ visibility: avatarHiddenInCluster ? "hidden" : "visible" }}
-            userName={avatarUserName}
-          />
+          <>
+            <Avatar
+              className="str-chat__avatar--with-border"
+              imageUrl={message.user?.image}
+              onClick={message.user ? onUserClick : undefined}
+              onMouseOver={message.user ? onUserHover : undefined}
+              size="md"
+              style={{ visibility: avatarHiddenInCluster ? "hidden" : "visible" }}
+              userName={avatarUserName}
+            />
+            {slackGutterTime && !isDeleted ? (
+              <time
+                className="str-chat__slack-gutter-timestamp"
+                dateTime={slackGutterTime.iso}
+                title={slackGutterTime.iso}
+              >
+                {slackGutterTime.label}
+              </time>
+            ) : null}
+          </>
         )}
         <div className="str-chat__slack-message-main">
           {showMetadata ? (

@@ -236,6 +236,43 @@
   height: 36px !important;
 }
 
+/* Continuation rows: compact clock in the avatar gutter on row hover (Slack). */
+.str-chat__message .str-chat__slack-gutter-timestamp {
+  grid-area: avatar !important;
+  align-self: center;
+  justify-self: center;
+  text-align: center;
+  min-width: 36px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  font: var(--str-chat__font-caption-default);
+  color: var(--str-chat__chat-text-timestamp);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+}
+
+.str-chat__ul .str-chat__li.str-chat__li--middle:hover .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--bottom:hover .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--middle:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--bottom:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--middle:has(.str-chat__message-options--active)
+  .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--bottom:has(.str-chat__message-options--active)
+  .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle:hover .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:hover .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle:has(.str-chat__message-options--active)
+  .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:has(.str-chat__message-options--active)
+  .str-chat__slack-gutter-timestamp {
+  display: block;
+}
+
 .str-chat__message .str-chat__slack-message-main > .str-chat__message-metadata {
   line-height: 1.2 !important;
 }
