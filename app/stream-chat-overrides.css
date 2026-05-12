@@ -1172,3 +1172,172 @@
 .str-chat .str-chat__slack-date-separator__menu {
   font-family: var(--slack-chat-font-family, system-ui, sans-serif);
 }
+
+/* Stream's <MessageComposer> is no longer rendered — the chat uses our own
+   <SlackComposer> component (components/chat/slack-composer.tsx). Stream
+   still renders its own composer inside <Thread>, so the rules below keep
+   those baselines clean without trying to pretend they're the Slack design. */
+.str-chat__message-input,
+.str-chat__message-composer {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Strip Stream's built-in textarea pill so the input sits flat in our card */
+.str-chat__message-textarea-container,
+.str-chat__message-input__textarea-container,
+.str-chat__message-textarea-with-emoji-picker {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+}
+
+.str-chat__message-textarea,
+.str-chat__textarea > textarea,
+.str-chat__message-textarea__textarea {
+  font-family: var(--slack-chat-font-family, system-ui, sans-serif) !important;
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  padding: 8px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  min-height: 24px !important;
+  color: var(--foreground) !important;
+}
+
+.str-chat__message-textarea::placeholder,
+.str-chat__textarea > textarea::placeholder,
+.str-chat__message-textarea__textarea::placeholder {
+  color: color-mix(in srgb, var(--muted-foreground) 80%, transparent) !important;
+}
+
+/* ── Top formatting toolbar (B I U S | link | lists | code) ──
+   No divider above/below — just sits flush against the input. The vertical
+   dividers between icon GROUPS come from a child rule below. */
+.str-chat__message-textarea-toolbar,
+.str-chat__message-composer-rich-text-formatting,
+.str-chat__message-composer__formatting,
+.str-chat__rte-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 0 2px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* Toolbar buttons — 28×28 muted icon, subtle hover */
+.str-chat__message-textarea-toolbar button,
+.str-chat__message-composer-rich-text-formatting button,
+.str-chat__message-composer__formatting button,
+.str-chat__rte-toolbar button {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.str-chat__message-textarea-toolbar button:hover,
+.str-chat__message-composer-rich-text-formatting button:hover,
+.str-chat__message-composer__formatting button:hover,
+.str-chat__rte-toolbar button:hover {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+.str-chat__message-textarea-toolbar button[aria-pressed="true"],
+.str-chat__message-textarea-toolbar button.active,
+.str-chat__message-composer-rich-text-formatting button[aria-pressed="true"],
+.str-chat__message-composer__formatting button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+/* Vertical dividers between toolbar icon GROUPS. Stream marks group breaks
+   with element gaps; we approximate by adding a left-border on every Nth
+   child group. Most Stream versions render plain <button>s with no group
+   element — fall back to inset margins to keep the spacing right. */
+.str-chat__message-textarea-toolbar,
+.str-chat__message-composer-rich-text-formatting,
+.str-chat__message-composer__formatting,
+.str-chat__rte-toolbar {
+  --rte-divider: 1px solid color-mix(in srgb, var(--border) 100%, transparent);
+}
+
+.str-chat__message-textarea-toolbar > *:not(:first-child)[data-group-start="true"],
+.str-chat__message-composer-rich-text-formatting > *:not(:first-child)[data-group-start="true"] {
+  margin-inline-start: 6px !important;
+  padding-inline-start: 6px !important;
+  border-inline-start: var(--rte-divider) !important;
+}
+
+/* ── Bottom action row (+ Aa emoji @ | video mic | slash ... send) ── */
+.str-chat__message-input__action-buttons,
+.str-chat__message-composer__action-buttons,
+.str-chat__message-input__buttons-wrapper,
+.str-chat__message-composer-buttons,
+.str-chat__message-input-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: 2px !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.str-chat__message-input__action-buttons button,
+.str-chat__message-composer__action-buttons button,
+.str-chat__message-input__buttons-wrapper button,
+.str-chat__message-composer-buttons button {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.str-chat__message-input__action-buttons button:hover,
+.str-chat__message-composer__action-buttons button:hover,
+.str-chat__message-input__buttons-wrapper button:hover,
+.str-chat__message-composer-buttons button:hover {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+/* Send button — Slack keeps it muted (same gray as other icons) regardless
+   of input state. Sits on the trailing edge of the action row. */
+.str-chat__send-button,
+.str-chat__message-send-button {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  border: 0 !important;
+}
+
+.str-chat__send-button:hover,
+.str-chat__message-send-button:hover {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+.str-chat__send-button:disabled,
+.str-chat__message-send-button:disabled {
+  opacity: 0.5 !important;
+  background: transparent !important;
+}

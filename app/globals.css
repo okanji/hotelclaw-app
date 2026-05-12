@@ -143,77 +143,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/*
- * Sidebar gradient (dark mode only). Mirrors the figma-mapped pattern: lift
- * at the top-left corner of the sidebar, decaying quickly to the solid
- * darkest (#121213). Applied via `background-image` so `bg-sidebar` (which
- * sets `background-color`) stays as the underlying fallback — equivalent to
- * the gradient's end stop, so they meet seamlessly at the bottom-right.
- */
-.dark [data-sidebar="sidebar"] {
-  /*
-   * Ellipse is compressed vertically (height ~45%) so the visible gradient
-   * lives in the upper portion of the sidebar. Beyond the ellipse edge, the
-   * color clamps to the final stop (#121213) — that's how the bottom half
-   * reads as solid darkest. Stops trace the figma column-1 progression:
-   * #171718 → #161617 → #151516 → #141415 → #131314 → #121213.
-   */
-  background-image: radial-gradient(
-    ellipse 110% 45% at 0% 0%,
-    #171718 0%,
-    #161617 18%,
-    #151516 36%,
-    #141415 54%,
-    #131314 75%,
-    #121213 100%
-  );
-}
-
-/*
- * Light-mode sidebar gradient — same shape (radial ellipse anchored top-left,
- * fading to the solid `--sidebar` color by ~65%), inverted in lightness. The
- * stops sit in a narrow band so the gradient stays subtle the way light-mode
- * surface gradients have to. Scoped with `:not(.dark)` so it doesn't fight
- * the dark rule above when the `dark` class flips on `<html>`.
- */
-html:not(.dark) [data-sidebar="sidebar"] {
-  background-image: radial-gradient(
-    ellipse 110% 45% at 0% 0%,
-    #f9f9fa 0%,
-    #f7f7f8 18%,
-    #f5f5f6 36%,
-    #f3f3f4 54%,
-    #f1f1f2 75%,
-    #f0f0f1 100%
-  );
-}
-
-/*
- * Inset card gradient — bright at the top-left corner, falling off to the
- * solid base color of the inset by the bottom. Same construction as the
- * sidebar gradient; `bg-card` underneath (`--card`) matches the bottom stop
- * so the seam is invisible.
- */
-.dark [data-slot="sidebar-inset"] {
-  background-image: radial-gradient(
-    ellipse 75% 55% at 0% 0%,
-    #1c1c1d 0%,
-    #181819 28%,
-    #161617 55%,
-    #141415 80%,
-    #131414 100%
-  );
-}
-
-html:not(.dark) [data-slot="sidebar-inset"] {
-  background-image: radial-gradient(
-    ellipse 75% 55% at 0% 0%,
-    #ffffff 0%,
-    #fdfdfe 40%,
-    #fbfbfc 100%
-  );
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -406,6 +335,97 @@ html:not(.dark) [data-slot="sidebar-inset"] {
   --str-chat__message-list-scroll-max-width: 100% !important;
   max-width: 100% !important;
   width: 100%;
+}
+
+/* Make Stream's main chat panels transparent so the inset card's radial
+   gradient shows through the message list. Stream's defaults paint these
+   surfaces with `--str-chat__background-core-elevation-*` tokens, which were
+   covering the gradient with a solid plane. */
+#str-chat__channel,
+.str-chat__container,
+.str-chat__main-panel,
+.str-chat__main-panel-inner,
+.str-chat__list,
+.str-chat__message-list,
+.str-chat__message-list-scroll,
+.str-chat__virtual-list,
+.str-chat__virtual-list .str-chat__message-list-scroll {
+  background: transparent !important;
+}
+
+/* List markers inside the rich editor AND inside Stream's rendered messages.
+   Tailwind v4's base reset zeros `list-style` on ul/ol globally; without
+   re-asserting it here, bullets and numbers wouldn't render in either place
+   (composer input or the message bubble after send). */
+.rich-editor-content ul,
+.rich-editor-content ol,
+.str-chat__message-text ul,
+.str-chat__message-text ol,
+.str-chat__slack-message-main ul,
+.str-chat__slack-message-main ol {
+  margin: 0;
+  padding-inline-start: 1.5rem;
+}
+.rich-editor-content ul,
+.str-chat__message-text ul,
+.str-chat__slack-message-main ul {
+  list-style: disc outside;
+}
+.rich-editor-content ol,
+.str-chat__message-text ol,
+.str-chat__slack-message-main ol {
+  list-style: decimal outside;
+}
+.rich-editor-content li,
+.str-chat__message-text li,
+.str-chat__slack-message-main li {
+  margin: 0;
+}
+
+/* Blockquote, inline code, and code blocks in rendered messages — Tailwind
+   v4's base zeros their visual treatment; re-apply it so they read the way
+   the user typed them. */
+.str-chat__message-text blockquote,
+.str-chat__slack-message-main blockquote {
+  margin: 4px 0;
+  border-inline-start: 3px solid color-mix(in srgb, currentcolor 30%, transparent);
+  padding-inline-start: 10px;
+  color: color-mix(in srgb, currentcolor 80%, transparent);
+}
+.str-chat__message-text code,
+.str-chat__slack-message-main code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  background: color-mix(in srgb, currentcolor 8%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.str-chat__message-text pre,
+.str-chat__slack-message-main pre {
+  margin: 4px 0;
+  padding: 8px 10px;
+  background: color-mix(in srgb, currentcolor 6%, transparent);
+  border: 1px solid color-mix(in srgb, currentcolor 12%, transparent);
+  border-radius: 6px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  overflow-x: auto;
+}
+.str-chat__message-text pre code,
+.str-chat__slack-message-main pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 1em;
+}
+
+/* No focus ring on the editor — the surrounding composer's border already
+   carries the focus state, and the contentEditable should look flush. */
+.rich-editor-content,
+.rich-editor-content:focus,
+.rich-editor-content:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Slack-style Stream Chat tweaks live in ./stream-chat-overrides.css (loaded AFTER Stream CSS). */

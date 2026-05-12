@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Channel,
   ChatView,
-  MessageComposer,
   MessageList,
   Thread,
   Window,
@@ -12,7 +11,9 @@ import {
 } from "stream-chat-react";
 import type { Channel as StreamChannel } from "stream-chat";
 import { ChannelHeader } from "./channel-header";
+import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
+import { SlackComposer } from "./slack-composer";
 
 type Props = {
   channelId: string;
@@ -92,13 +93,9 @@ export function ChannelView({
 
                 showAvatar is set but Stream's `<Message>` does not forward it; SlackMessageUI defaults to true. */}
             <ChannelHeader />
+            <ChannelTabs />
             <MessageList showAvatar disableDateSeparator={false} />
-            {/* audioRecordingEnabled adds the voice-message mic to the composer
-                (peer dep @breezystack/lamejs handles the MP3 encode client-side).
-                Polls render in the "+" menu automatically via Stream's default
-                AttachmentSelector — provided the channel type has polls enabled
-                in the Stream dashboard (Channel Type → Settings → Polls). */}
-            <MessageComposer audioRecordingEnabled />
+            <SlackComposer />
           </Window>
           <Thread />
           <ChannelInfoPanel propertyId={propertyId} />

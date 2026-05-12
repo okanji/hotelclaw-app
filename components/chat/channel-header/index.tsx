@@ -7,7 +7,17 @@ import {
   useChannelPreviewInfo,
 } from "stream-chat-react";
 import { Button } from "@/components/ui/button";
-import { Hash, Info, Lock, Users } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  Hash,
+  Headphones,
+  Lock,
+  MoreVertical,
+  Search,
+  Star,
+  Users,
+} from "lucide-react";
 import { useInfoPanel } from "../info-panel/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -25,48 +35,103 @@ export function ChannelHeader() {
 
   const isDm = channel.type === "messaging";
   const data = channel.data as
-    | { is_private?: boolean; member_count?: number }
+    | {
+        is_private?: boolean;
+        member_count?: number;
+        description?: string;
+      }
     | undefined;
   const isPrivate = data?.is_private ?? false;
   const memberCount =
     data?.member_count ??
     Object.keys(channel.state.members ?? {}).length;
+  const description = data?.description?.trim() ?? "";
 
   const title = isDm
     ? dmTitle(channel, client?.user?.id)
     : displayTitle ?? channel.id ?? "Untitled";
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-3">
       <div className="flex min-w-0 items-center gap-2">
-        {isDm ? (
-          <DmAvatar channel={channel} currentUserId={client?.user?.id} />
-        ) : isPrivate ? (
-          <Lock className="size-4 text-muted-foreground" />
-        ) : (
-          <Hash className="size-4 text-muted-foreground" />
-        )}
-        <h1 className="truncate text-sm font-semibold">{title}</h1>
-        {!isDm ? (
-          <button
-            onClick={toggle}
-            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-            title="Members"
-          >
-            <Users className="size-3" />
-            {memberCount}
-          </button>
-        ) : null}
+        <Button
+          variant="outline"
+          size="icon-sm"
+          title="Star channel"
+          aria-label="Star channel"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Star className="size-[15px]" />
+        </Button>
+        <div className="flex min-w-0 items-center gap-1.5 pl-0.5">
+          {isDm ? (
+            <DmAvatar channel={channel} currentUserId={client?.user?.id} />
+          ) : isPrivate ? (
+            <Lock className="size-[18px] text-[#D1D2D3]" />
+          ) : (
+            <Hash className="size-[18px] text-[#D1D2D3]" strokeWidth={2.5} />
+          )}
+          <h1 className="truncate text-[18px] font-extrabold leading-none tracking-tight text-[#D1D2D3]">
+            {title}
+          </h1>
+          <PresenceDots channel={channel} currentUserId={client?.user?.id} />
+          {!isDm && description ? (
+            <span
+              className="ml-2 min-w-0 truncate text-[13px] text-muted-foreground"
+              title={description}
+            >
+              {description}
+            </span>
+          ) : null}
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        <PresenceDots channel={channel} currentUserId={client?.user?.id} />
+      <div className="flex shrink-0 items-center gap-1">
+        {!isDm ? (
+          <Button
+            variant="outline"
+            size="default"
+            onClick={toggle}
+            title="Members"
+            className="gap-1.5 px-2.5"
+          >
+            <Users className="size-4 text-muted-foreground" />
+            <span className="tabular-nums">{memberCount}</span>
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          size="default"
+          title="Huddle"
+          aria-label="Start huddle"
+          className="gap-1 px-2.5"
+        >
+          <Headphones className="size-4" />
+          <ChevronDown className="size-3.5 text-muted-foreground" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          title="Notifications"
+          aria-label="Channel notifications"
+        >
+          <Bell />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          title="Search"
+          aria-label="Search in channel"
+        >
+          <Search />
+        </Button>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
+          title="More"
+          aria-label="More actions"
           onClick={toggle}
-          title="Channel info"
         >
-          <Info className="size-4" />
+          <MoreVertical />
         </Button>
       </div>
     </header>
@@ -103,9 +168,9 @@ function DmAvatar({
     .join("")
     .toUpperCase();
   return (
-    <Avatar className="size-5">
+    <Avatar className="size-6">
       <AvatarImage src={other?.image as string | undefined} />
-      <AvatarFallback className="text-[9px]">{initials || "?"}</AvatarFallback>
+      <AvatarFallback className="text-[10px]">{initials || "?"}</AvatarFallback>
     </Avatar>
   );
 }
@@ -130,9 +195,9 @@ function PresenceDots({
 
   if (onlineCount === 0) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-      <span className="size-1.5 rounded-full bg-emerald-500" />
-      {onlineCount} online
-    </span>
+    <span
+      className="ml-1 inline-flex size-1.5 rounded-full bg-emerald-500"
+      title={`${onlineCount} online`}
+    />
   );
 }
