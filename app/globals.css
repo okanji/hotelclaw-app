@@ -60,11 +60,19 @@
  *     stay subtle on either inner or outer surface.
  */
 :root {
-  --background: oklch(0.975 0 0);
+  /*
+   * Light-mode parallel to the dark palette. The lightest/highlight plane is
+   * the inset card (pure white). The sidebar uses a subtle gradient from a
+   * near-white top-left down to a slightly cooler off-white (#f0f0f1) by ~65%,
+   * which is also the solid color for the outer wrapper + sidebar fallback.
+   * The range is narrow because light-mode gradients have to live near the
+   * top of the lightness scale; pushing further would look smudgy.
+   */
+  --background: #f0f0f1;
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
@@ -84,11 +92,11 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.975 0 0);
-  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar: #f0f0f1;
+  --sidebar-foreground: oklch(0.275 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0 0 0 / 5%);
+  --sidebar-accent: oklch(0 0 0 / 6%);
   --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0 0 0 / 8%);
   --sidebar-ring: oklch(0.708 0 0);
@@ -96,22 +104,20 @@
 
 .dark {
   /*
-   * Linear-tuned palette:
-   *   Sidebar/outer:  near-black, the deepest plane.
-   *   Inset (card):   one step lighter so the boundary reads without a heavy
-   *                   border (~1.5% lightness lift; the seam is the 1px ring).
-   *   Sidebar accent: ~10% white overlay — the visible "active pill" fill on
-   *                   the sidebar; clearly readable but not bright.
-   *   Border:         5% white — hairline, barely-there division.
+   * Linear-tuned palette. The darkest plane (#121213) is the outer surface +
+   * sidebar end-color. The sidebar layers a radial gradient (top-left bright,
+   * fades to #121213 by ~65%) on top of that base; see the rule below scoped
+   * to `[data-sidebar="sidebar"]`. The inset card sits ~3% lighter than the
+   * darkest plane so the seam reads with the existing 1px ring.
    */
-  --background: oklch(0.135 0 0);
+  --background: #121213;
   --foreground: oklch(0.96 0 0);
-  --card: oklch(0.16 0 0);
+  --card: #131414;
   --card-foreground: oklch(0.96 0 0);
-  --popover: oklch(0.18 0 0);
+  --popover: #1a1b1c;
   --popover-foreground: oklch(0.96 0 0);
   --primary: oklch(0.96 0 0);
-  --primary-foreground: oklch(0.135 0 0);
+  --primary-foreground: #121213;
   --secondary: oklch(0.235 0 0);
   --secondary-foreground: oklch(0.96 0 0);
   --muted: oklch(0.21 0 0);
@@ -127,14 +133,85 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.135 0 0);
+  --sidebar: #121213;
   --sidebar-foreground: oklch(0.72 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(1 0 0 / 10%);
+  --sidebar-accent: oklch(1 0 0 / 8%);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 5%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/*
+ * Sidebar gradient (dark mode only). Mirrors the figma-mapped pattern: lift
+ * at the top-left corner of the sidebar, decaying quickly to the solid
+ * darkest (#121213). Applied via `background-image` so `bg-sidebar` (which
+ * sets `background-color`) stays as the underlying fallback — equivalent to
+ * the gradient's end stop, so they meet seamlessly at the bottom-right.
+ */
+.dark [data-sidebar="sidebar"] {
+  /*
+   * Ellipse is compressed vertically (height ~45%) so the visible gradient
+   * lives in the upper portion of the sidebar. Beyond the ellipse edge, the
+   * color clamps to the final stop (#121213) — that's how the bottom half
+   * reads as solid darkest. Stops trace the figma column-1 progression:
+   * #171718 → #161617 → #151516 → #141415 → #131314 → #121213.
+   */
+  background-image: radial-gradient(
+    ellipse 110% 45% at 0% 0%,
+    #171718 0%,
+    #161617 18%,
+    #151516 36%,
+    #141415 54%,
+    #131314 75%,
+    #121213 100%
+  );
+}
+
+/*
+ * Light-mode sidebar gradient — same shape (radial ellipse anchored top-left,
+ * fading to the solid `--sidebar` color by ~65%), inverted in lightness. The
+ * stops sit in a narrow band so the gradient stays subtle the way light-mode
+ * surface gradients have to. Scoped with `:not(.dark)` so it doesn't fight
+ * the dark rule above when the `dark` class flips on `<html>`.
+ */
+html:not(.dark) [data-sidebar="sidebar"] {
+  background-image: radial-gradient(
+    ellipse 110% 45% at 0% 0%,
+    #f9f9fa 0%,
+    #f7f7f8 18%,
+    #f5f5f6 36%,
+    #f3f3f4 54%,
+    #f1f1f2 75%,
+    #f0f0f1 100%
+  );
+}
+
+/*
+ * Inset card gradient — bright at the top-left corner, falling off to the
+ * solid base color of the inset by the bottom. Same construction as the
+ * sidebar gradient; `bg-card` underneath (`--card`) matches the bottom stop
+ * so the seam is invisible.
+ */
+.dark [data-slot="sidebar-inset"] {
+  background-image: radial-gradient(
+    ellipse 75% 55% at 0% 0%,
+    #1c1c1d 0%,
+    #181819 28%,
+    #161617 55%,
+    #141415 80%,
+    #131414 100%
+  );
+}
+
+html:not(.dark) [data-slot="sidebar-inset"] {
+  background-image: radial-gradient(
+    ellipse 75% 55% at 0% 0%,
+    #ffffff 0%,
+    #fdfdfe 40%,
+    #fbfbfc 100%
+  );
 }
 
 @layer base {
