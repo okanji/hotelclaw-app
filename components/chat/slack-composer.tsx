@@ -311,6 +311,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
           }}
         >
           <PopoverTrigger
+            nativeButton={false}
             render={
               <div tabIndex={-1} className="outline-none focus:outline-none">
                 <RichEditor
