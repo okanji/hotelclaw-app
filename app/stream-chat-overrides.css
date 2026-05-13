@@ -27,7 +27,7 @@
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
   --slack-msg-body-color: #d1d2d3;
-  --slack-msg-body-line-height: 22px;
+  --slack-msg-body-line-height: 25px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
 
@@ -86,7 +86,7 @@
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
   --slack-msg-body-color: #1d1c1d;
-  --slack-msg-body-line-height: 22px;
+  --slack-msg-body-line-height: 25px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: #616061;
 
@@ -230,13 +230,13 @@
 
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--middle,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--middle {
-  padding-block-start: calc(var(--str-chat__spacing-xxs) + 1.5px);
-  padding-block-end: var(--str-chat__spacing-xxs);
+  padding-block-start: calc(var(--str-chat__spacing-xxs) + 3.5px);
+  padding-block-end: calc(var(--str-chat__spacing-xxs) + 2px);
 }
 
 .str-chat .str-chat__ul .str-chat__li.str-chat__li--bottom,
 .str-chat .str-chat__virtual-list .str-chat__li.str-chat__li--bottom {
-  padding-block-start: calc(var(--str-chat__spacing-xxs) + 1.5px);
+  padding-block-start: calc(var(--str-chat__spacing-xxs) + 3.5px);
   padding-block-end: var(--str-chat__spacing-sm);
 }
 
