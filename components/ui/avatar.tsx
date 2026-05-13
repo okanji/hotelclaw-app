@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
+import { User } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -40,17 +41,23 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
 
 function AvatarFallback({
   className,
+  children: _children,
   ...props
 }: AvatarPrimitive.Fallback.Props) {
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        "flex size-full items-center justify-center rounded-full bg-muted text-muted-foreground",
         className
       )}
       {...props}
-    />
+    >
+      <User
+        aria-hidden
+        className="size-1/2 group-data-[size=sm]/avatar:size-3.5 group-data-[size=lg]/avatar:size-5"
+      />
+    </AvatarPrimitive.Fallback>
   )
 }
 

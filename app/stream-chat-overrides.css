@@ -49,15 +49,25 @@
   --slack-mention-broadcast-bg: rgba(232, 198, 94, 0.12);
   --slack-mention-broadcast-text: #e8c65e;
 
-  /* Date pill: match darkest chat plane so only the stroke reads (not a grey “chip”). */
-  --slack-date-pill-bg: var(--str-chat__background-core-elevation-0);
+  /* Date pill fill — explicit Linear-style solid chip color (overrides the
+     elevation-0 plane match so the pill reads as a distinct surface). */
+  --slack-date-pill-bg: #191b1e;
 
   /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
   --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);
 }
 
-/* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect). */
+/* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect).
+ *
+ * ── Continuation hover clock ────────────────────────────────────────────────
+ * `.str-chat__slack-gutter-timestamp`: vertical position is `--slack-continuation-gutter-offset-from-grid-top`
+ * (applied as `margin-block-start` from the top of the avatar column / message row alignment).
+ *   • Increase (e.g. 4px, 8px) → pushes the clock downward.
+ *   • Decrease / negative (e.g. -4px) → pushes the clock upward.
+ * Tune on `.str-chat` — no JS; same value light + dark unless you override per theme below.
+ */
 .str-chat {
+  --slack-continuation-gutter-offset-from-grid-top: 2.43px;
   --slack-avatar-size: 36px;
   --slack-avatar-radius: 8px;
   --slack-avatar-column-gap: 10px;
@@ -296,7 +306,7 @@
      absorbs both the original baseline shift (-1.5px) and the ~2.6px of top
      half-leading added when the name's line-height was set to 22px to match
      Slack's inspect (15px font / 22px line-box). */
-  margin-block-start: -4px;
+  margin-block-start: -6px;
 }
 
 /* Slack-style message actions: pill at the trailing edge; vertical midpoint
@@ -445,15 +455,17 @@
   object-fit: cover;
 }
 
-/* Continuation rows: compact clock in the avatar gutter on row hover (Slack). */
+/* Continuation rows: compact clock in the avatar gutter on row hover (Slack).
+ * Vertical offset: see `--slack-continuation-gutter-offset-from-grid-top` on `.str-chat`. */
 .str-chat__message .str-chat__slack-gutter-timestamp {
   grid-area: avatar !important;
-  align-self: center;
+  align-self: start !important;
   justify-self: center;
   text-align: center;
   width: 100%;
   max-width: var(--slack-avatar-size);
   min-width: 0;
+  margin-block-start: var(--slack-continuation-gutter-offset-from-grid-top, 0px);
   padding: 0 4px;
   box-sizing: border-box;
   font-family: var(--slack-chat-font-family);
