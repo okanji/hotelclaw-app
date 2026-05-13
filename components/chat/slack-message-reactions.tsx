@@ -12,6 +12,7 @@ import {
   useTranslationContext,
   type MessageReactionsProps,
 } from "stream-chat-react";
+import { getEmojiNative } from "@/lib/emoji";
 
 export type SlackReactionDisplayRow = {
   reactionType: string;
@@ -28,15 +29,8 @@ function sortSlackReactionRows(a: SlackReactionDisplayRow, b: SlackReactionDispl
   return a.reactionType.localeCompare(b.reactionType, "en");
 }
 
-/** Heuristic: reaction `type` is a native unicode emoji glyph (e.g. "🔥")
- *  rather than a Stream short code (e.g. "fire"). Native glyphs always
- *  contain at least one non-ASCII codepoint. */
-function isNativeEmojiType(reactionType: string): boolean {
-  return /[^\x00-\x7F]/.test(reactionType);
-}
-
-function NativeEmojiRenderer({ type }: { type: string }) {
-  return <span aria-hidden="true">{type}</span>;
+function NativeEmojiRenderer({ glyph }: { glyph: string }) {
+  return <span aria-hidden="true">{glyph}</span>;
 }
 
 function emojiComponentForType(
@@ -56,36 +50,28 @@ function emojiComponentForType(
     }
   }
 
-  // Fallback: if the type itself is a unicode emoji glyph (as written by our
-  // custom hover toolbar / emoji-mart picker), render it directly. This means
-  // we don't need to pre-register every possible emoji in reactionOptions.
-  if (isNativeEmojiType(reactionType)) {
-    const Renderer = () => <NativeEmojiRenderer type={reactionType} />;
-    Renderer.displayName = "NativeEmojiRenderer";
-    return Renderer;
-  }
-
-  return null;
+  // Fallback: render the emoji glyph for this reaction type. Most reactions
+  // sent from our custom toolbar use emoji-mart ids ("fire", "raised_hands")
+  // because Stream's backend doesn't reliably persist unicode reaction types.
+  // `getEmojiNative` returns the native glyph for a known id, or echoes the
+  // input back when it's already a unicode glyph or unknown string.
+  const glyph = getEmojiNative(reactionType);
+  const Renderer = () => <NativeEmojiRenderer glyph={glyph} />;
+  Renderer.displayName = "NativeEmojiRenderer";
+  return Renderer;
 }
 
 function useSlackReactionDisplayRows(props: Pick<MessageReactionsProps, "reaction_groups">): SlackReactionDisplayRow[] {
   const { message } = useMessageContext("SlackMessageReactions");
   const { reactionOptions = defaultReactionOptions } = useComponentContext("SlackMessageReactions");
 
-  const isSupportedReaction = useMemo(() => {
-    return (reactionType: string) => {
-      // Native-emoji reaction types are always supported — the renderer just
-      // displays the glyph itself, so they never need an explicit registration.
-      if (isNativeEmojiType(reactionType)) return true;
-      if (Array.isArray(reactionOptions)) {
-        return reactionOptions.some((option) => option.type === reactionType);
-      }
-      return (
-        typeof reactionOptions.quick[reactionType] !== "undefined" ||
-        typeof reactionOptions.extended?.[reactionType] !== "undefined"
-      );
-    };
-  }, [reactionOptions]);
+  // Any non-empty reaction type is renderable: registered types go through
+  // their custom Component; unregistered types fall back to the native glyph
+  // looked up from emoji-mart, or render the type string verbatim.
+  const isSupportedReaction = useMemo(
+    () => (reactionType: string) => reactionType.length > 0,
+    [],
+  );
 
   const groups = props.reaction_groups ?? message.reaction_groups;
 

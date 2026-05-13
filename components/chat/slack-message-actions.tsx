@@ -36,12 +36,14 @@ const EmojiPicker = dynamic(
 
 /** Inline quick-react set — clicking one of these emojis toggles a reaction
  *  directly without opening a picker, matching Slack's "frequents" row.
- *  Reaction `type` is the native unicode glyph so SlackMessageReactions can
- *  render it directly without needing an entry in Stream's reactionOptions. */
-const QUICK_REACTIONS: Array<{ native: string; label: string }> = [
-  { native: "✅", label: "check mark" },
-  { native: "🙌", label: "raised hands" },
-  { native: "🔥", label: "fire" },
+ *  Reaction `type` is the emoji-mart id (ASCII) — Stream's backend reliably
+ *  persists ASCII reaction types, where native unicode glyphs don't survive
+ *  a `channel.watch()` refresh. SlackMessageReactions looks up the native
+ *  glyph at render time via `getEmojiNative()`. */
+const QUICK_REACTIONS: Array<{ id: string; native: string; label: string }> = [
+  { id: "white_check_mark", native: "✅", label: "check mark" },
+  { id: "raised_hands", native: "🙌", label: "raised hands" },
+  { id: "fire", native: "🔥", label: "fire" },
 ];
 
 /**
@@ -83,10 +85,10 @@ export function SlackMessageActions() {
     >
       {QUICK_REACTIONS.map((r) => (
         <QuickReactionButton
-          key={r.native}
+          key={r.id}
           native={r.native}
           label={r.label}
-          onClick={(e) => void handleReaction(r.native, e)}
+          onClick={(e) => void handleReaction(r.id, e)}
         />
       ))}
 
@@ -211,11 +213,13 @@ function AddReactionButton({
           previewPosition="none"
           skinTonePosition="none"
           navPosition="bottom"
-          onEmojiSelect={(emoji: { native?: string }, event: React.SyntheticEvent) => {
-            // Use the native unicode glyph as the reaction type. This way
-            // SlackMessageReactions can render any picked emoji without us
-            // pre-registering a reactionOptions entry for every emoji.
-            if (emoji?.native) onSelect(emoji.native, event);
+          onEmojiSelect={(emoji: { id?: string; native?: string }, event: React.SyntheticEvent) => {
+            // Send the emoji-mart id (ASCII) as the reaction type — Stream
+            // persists ASCII types reliably. Render time converts back to the
+            // native glyph via `getEmojiNative()`. Falls back to native only
+            // if id is missing (shouldn't happen with emoji-mart).
+            const type = emoji?.id ?? emoji?.native;
+            if (type) onSelect(type, event);
             onOpenChange(false);
           }}
         />
