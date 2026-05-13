@@ -28,22 +28,44 @@ function sortSlackReactionRows(a: SlackReactionDisplayRow, b: SlackReactionDispl
   return a.reactionType.localeCompare(b.reactionType, "en");
 }
 
+/** Heuristic: reaction `type` is a native unicode emoji glyph (e.g. "🔥")
+ *  rather than a Stream short code (e.g. "fire"). Native glyphs always
+ *  contain at least one non-ASCII codepoint. */
+function isNativeEmojiType(reactionType: string): boolean {
+  return /[^\x00-\x7F]/.test(reactionType);
+}
+
+function NativeEmojiRenderer({ type }: { type: string }) {
+  return <span aria-hidden="true">{type}</span>;
+}
+
 function emojiComponentForType(
   reactionOptions: unknown,
   reactionType: string,
 ): ComponentType<object> | null {
-  if (!reactionOptions || typeof reactionOptions !== "object") return null;
+  if (reactionOptions && typeof reactionOptions === "object") {
+    const opts = reactionOptions as typeof defaultReactionOptions | Array<{ type: string; Component?: ComponentType<object> }>;
 
-  const opts = reactionOptions as typeof defaultReactionOptions | Array<{ type: string; Component?: ComponentType<object> }>;
-
-  if (Array.isArray(opts)) {
-    const row = opts.find((option) => option.type === reactionType);
-    return row?.Component ?? null;
+    if (Array.isArray(opts)) {
+      const row = opts.find((option) => option.type === reactionType);
+      if (row?.Component) return row.Component;
+    } else {
+      const quickComp = opts.quick[reactionType]?.Component as ComponentType<object> | undefined;
+      const extComp = opts.extended?.[reactionType]?.Component as ComponentType<object> | undefined;
+      if (quickComp || extComp) return quickComp ?? extComp ?? null;
+    }
   }
 
-  const quickComp = opts.quick[reactionType]?.Component as ComponentType<object> | undefined;
-  const extComp = opts.extended?.[reactionType]?.Component as ComponentType<object> | undefined;
-  return quickComp ?? extComp ?? null;
+  // Fallback: if the type itself is a unicode emoji glyph (as written by our
+  // custom hover toolbar / emoji-mart picker), render it directly. This means
+  // we don't need to pre-register every possible emoji in reactionOptions.
+  if (isNativeEmojiType(reactionType)) {
+    const Renderer = () => <NativeEmojiRenderer type={reactionType} />;
+    Renderer.displayName = "NativeEmojiRenderer";
+    return Renderer;
+  }
+
+  return null;
 }
 
 function useSlackReactionDisplayRows(props: Pick<MessageReactionsProps, "reaction_groups">): SlackReactionDisplayRow[] {
@@ -52,6 +74,9 @@ function useSlackReactionDisplayRows(props: Pick<MessageReactionsProps, "reactio
 
   const isSupportedReaction = useMemo(() => {
     return (reactionType: string) => {
+      // Native-emoji reaction types are always supported — the renderer just
+      // displays the glyph itself, so they never need an explicit registration.
+      if (isNativeEmojiType(reactionType)) return true;
       if (Array.isArray(reactionOptions)) {
         return reactionOptions.some((option) => option.type === reactionType);
       }

@@ -30,7 +30,7 @@
 
 import clsx from "clsx";
 import React, { useContext, useMemo, useState } from "react";
-import type { MessageContextValue, MessageUIComponentProps, MessageActionsProps } from "stream-chat-react";
+import type { MessageContextValue, MessageUIComponentProps } from "stream-chat-react";
 import {
   Attachment as DefaultAttachment,
   Avatar as DefaultAvatar,
@@ -39,7 +39,6 @@ import {
   isDateSeparatorMessage,
   isIntroMessage,
   MessageListContext,
-  MessageActions as DefaultMessageActions,
   MessageAlsoSentInChannelIndicator as DefaultMessageAlsoSentInChannelIndicator,
   MessageBlocked as DefaultMessageBlocked,
   MessageBounceModal,
@@ -62,7 +61,6 @@ import {
   useTranslationContext,
   areMessageUIPropsEqual,
   countEmojis,
-  defaultMessageActionSet,
   isMessageBlocked,
   isMessageBounced,
   isMessageDeleted,
@@ -76,22 +74,11 @@ import {
   messageTextHasEmojisOnly,
 } from "stream-chat-react";
 import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
+import { SlackMessageActions } from "@/components/chat/slack-message-actions";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
 import { SlackReplyIndicator } from "@/components/chat/slack-reply-indicator";
 import { useUserProfilePanel } from "@/components/chat/user-profile-panel/context";
 import { useTimeFormat } from "@/lib/preferences/time-format-context";
-
-type MessageActionSetItem = NonNullable<MessageActionsProps["messageActionSet"]>[number];
-
-function messageActionSetWithoutQuickReactWhenHasReactions(
-  hasReactions: boolean,
-  set: MessageActionSetItem[],
-): MessageActionSetItem[] {
-  if (!hasReactions) return set;
-  return set.filter(
-    (a) => !("type" in a && a.placement === "quick" && a.type === "react"),
-  );
-}
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
 
@@ -279,7 +266,6 @@ const SlackMessageUIWithContext = ({
   const {
     Attachment = DefaultAttachment,
     Avatar = DefaultAvatar,
-    MessageActions = DefaultMessageActions,
     MessageAlsoSentInChannelIndicator = DefaultMessageAlsoSentInChannelIndicator,
     MessageBlocked = DefaultMessageBlocked,
     MessageBouncePrompt = DefaultMessageBouncePrompt,
@@ -309,17 +295,6 @@ const SlackMessageUIWithContext = ({
           ? message.attachments
           : [message.shared_location, ...(message.attachments ?? [])],
     [message],
-  );
-
-  const hasReactionsForToolbar = useMemo(
-    () => !isDeleted && messageHasReactions(message),
-    [isDeleted, message],
-  );
-
-  const messageActionSet = useMemo(
-    () =>
-      messageActionSetWithoutQuickReactWhenHasReactions(hasReactionsForToolbar, defaultMessageActionSet),
-    [hasReactionsForToolbar],
   );
 
   const clusterRole = useMemo(
@@ -496,7 +471,7 @@ const SlackMessageUIWithContext = ({
           ) : null}
           {!isDeleted ? (
             <div className="str-chat__slack-message-actions-host">
-              <MessageActions messageActionSet={messageActionSet} />
+              <SlackMessageActions />
             </div>
           ) : null}
           <div
