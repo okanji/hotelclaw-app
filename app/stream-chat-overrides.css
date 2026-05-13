@@ -26,8 +26,10 @@
   --slack-msg-display-name-color: #f8f8f8;
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
-  --slack-msg-body-color: #d1d2d3;
-  --slack-msg-body-line-height: 25px;
+  --slack-msg-body-color: #CBCCCD;
+  /* Slack desktop computes ~22px (1.46668 × 15px). Nudged up by 1px to give
+     the body a touch more vertical breathing room. */
+  --slack-msg-body-line-height: 24px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
 
@@ -96,7 +98,9 @@
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
   --slack-msg-body-color: #1d1c1d;
-  --slack-msg-body-line-height: 25px;
+  /* Slack desktop computes ~22px (1.46668 × 15px). Nudged up by 1px to give
+     the body a touch more vertical breathing room. */
+  --slack-msg-body-line-height: 23px;
   --slack-msg-timestamp-size: 12px;
   --slack-msg-timestamp-color: #616061;
 
@@ -518,10 +522,11 @@
 .str-chat__slack-message-main {
   font-family: var(--slack-chat-font-family);
   /* Reset the global Inter-tuned `-0.011em` tracking inside the message
-     column. Slack desktop renders Lato with `letter-spacing: normal`; the
-     wider/rounder Lato letterforms are what gives the "more space between
-     letters" perception users see vs. tightened Inter. */
-  letter-spacing: 0.014em;
+     column. Slack desktop itself uses `letter-spacing: normal` on Lato; the
+     small positive value here is a visual compensation for the metric drift
+     between Google Fonts Lato (what next/font ships) and Slack's custom
+     "Slack-Lato" build, which renders a hair more open at the same tracking. */
+  letter-spacing: 0.01em;
   font-feature-settings: normal;
 }
 
@@ -609,19 +614,22 @@
 
 /*
  * @mentions — Slack-like pills: regular weight, tinted fill only (no border).
- * Stream uses `.str-chat__message-mention` + `data-user-id` for resolved user mentions.
+ * Stream uses `.str-chat__message-mention` + `data-user-id` for resolved user
+ * mentions in the rendered message. The composer renders its own atomic chips
+ * with the same class + `data-mention` attribute, so this rule covers both.
  */
-.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention {
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention,
+.rich-editor-content .str-chat__message-mention {
   font-family: var(--slack-chat-font-family);
   font-size: inherit;
-  font-weight: 400;
+  font-weight: 700;
   font-synthesis: none;
   line-height: inherit;
   display: inline;
   padding-block: 0.06em 0.1em;
-  padding-inline: 0;
+  padding-inline: 2px;
   margin: 0;
-  border-radius: 2px;
+  border-radius: 3px;
   border: 0;
   background: var(--slack-mention-user-bg);
   color: var(--slack-mention-user-text);
@@ -633,13 +641,24 @@
 
 .str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="channel"],
 .str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="here"],
-.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="everyone"] {
+.str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention[data-user-id="everyone"],
+.rich-editor-content .str-chat__message-mention[data-user-id="channel"],
+.rich-editor-content .str-chat__message-mention[data-user-id="here"],
+.rich-editor-content .str-chat__message-mention[data-user-id="everyone"] {
   background: var(--slack-mention-broadcast-bg);
   color: var(--slack-mention-broadcast-text);
 }
 
+/* Composer chip: keep the caret-friendly cursor (text) but stop selection
+   from highlighting *inside* the chip, so it reads as one atomic token. */
+.rich-editor-content .str-chat__message-mention {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .str-chat__message.str-chat__message--me .str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention {
-  font-weight: 400;
+  font-weight: 700;
 }
 
 .str-chat__message.str-chat__message--me .str-chat__message-bubble {

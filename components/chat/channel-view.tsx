@@ -15,6 +15,7 @@ import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
 import { SlackComposer } from "./slack-composer";
 import { MessageJumper } from "./search/message-jumper";
+import { slackRenderText } from "./slack-render-text";
 
 type Props = {
   channelId: string;
@@ -97,10 +98,16 @@ export function ChannelView({
                 showAvatar is set but Stream's `<Message>` does not forward it; SlackMessageUI defaults to true. */}
             <ChannelHeader />
             <ChannelTabs />
-            <MessageList showAvatar disableDateSeparator={false} />
+            <MessageList
+              showAvatar
+              disableDateSeparator={false}
+              renderText={slackRenderText}
+            />
             <SlackComposer />
           </Window>
-          <Thread />
+          <Thread
+            additionalMessageListProps={{ renderText: slackRenderText }}
+          />
           <ChannelInfoPanel propertyId={propertyId} />
           <MessageJumper messageId={messageId} />
         </Channel>

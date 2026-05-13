@@ -27,6 +27,9 @@ const MentionBody = z.object({
   propertyId: z.string().uuid(),
   channelId: z.string().min(1),
   messageId: z.string().min(1),
+  /** True for broadcast mentions (@channel). When set, the server verifies
+   *  channel membership + text content instead of `mentioned_users`. */
+  broadcast: z.boolean().optional(),
 });
 
 const Body = z.discriminatedUnion("kind", [ChannelAddedBody, MentionBody]);
@@ -84,6 +87,7 @@ export async function POST(request: NextRequest) {
     propertyId: body.propertyId,
     streamChannelId: body.channelId,
     messageId: body.messageId,
+    broadcast: body.broadcast ?? false,
   });
 }
 
@@ -158,8 +162,13 @@ async function handleMention(args: {
   propertyId: string;
   streamChannelId: string;
   messageId: string;
+  broadcast: boolean;
 }): Promise<Response> {
   // Verify: pull the message from Stream and confirm the user is mentioned.
+  // Two paths: direct @user mention (in `mentioned_users`) or broadcast
+  // `@channel` mention (text contains the token AND the user is a member of
+  // the channel — defense-in-depth so a misbehaving client can't fabricate
+  // broadcast notifications for users not in the channel).
   let messageText = "";
   let byUserId: string | undefined;
   let byUserName: string | null = null;
@@ -169,16 +178,43 @@ async function handleMention(args: {
     if (!msg) {
       return NextResponse.json({ error: "message not found" }, { status: 404 });
     }
-    const mentioned = (msg.mentioned_users ?? []).map((u) => u.id);
-    if (!mentioned.includes(args.userId)) {
-      return NextResponse.json(
-        { error: "not mentioned" },
-        { status: 403 },
-      );
-    }
     messageText = (msg.text ?? "").slice(0, 200);
     byUserId = msg.user?.id;
     byUserName = msg.user?.name ?? null;
+
+    if (args.broadcast) {
+      if (!/(?:^|\s)@channel\b/.test(msg.text ?? "")) {
+        return NextResponse.json(
+          { error: "no broadcast token in message" },
+          { status: 403 },
+        );
+      }
+      const channelType =
+        ((msg.cid as string | undefined) ?? "").split(":")[0] || "team";
+      const channel = args.stream.channel(channelType, args.streamChannelId);
+      const state = await channel.query({ members: { limit: 200 } });
+      const isMember = (state.members ?? []).some(
+        (m) => m.user?.id === args.userId,
+      );
+      if (!isMember) {
+        return NextResponse.json(
+          { error: "not a channel member" },
+          { status: 403 },
+        );
+      }
+      // Don't notify the sender of their own broadcast.
+      if (byUserId === args.userId) {
+        return NextResponse.json({ ok: true, skipped: "self" });
+      }
+    } else {
+      const mentioned = (msg.mentioned_users ?? []).map((u) => u.id);
+      if (!mentioned.includes(args.userId)) {
+        return NextResponse.json(
+          { error: "not mentioned" },
+          { status: 403 },
+        );
+      }
+    }
   } catch (e) {
     console.error("getMessage failed", e);
     return NextResponse.json({ error: "stream error" }, { status: 500 });

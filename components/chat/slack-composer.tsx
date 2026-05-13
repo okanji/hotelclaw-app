@@ -18,6 +18,7 @@ import {
   Link2,
   List,
   ListOrdered,
+  Megaphone,
   Mic,
   Plus,
   Send,
@@ -51,6 +52,18 @@ type UploadingFile = {
 
 type QueuedAttachment = Attachment & { _id: string };
 
+type MentionCandidate = {
+  id: string;
+  name: string | null;
+  image?: unknown;
+  /** True for synthetic broadcast targets (`@channel`). Renders with a
+   *  megaphone icon in the picker and is excluded from `mentioned_users`
+   *  on send (the render + notification paths handle broadcasts via text). */
+  isBroadcast?: boolean;
+  /** Optional helper text shown in the picker (broadcast entries only). */
+  description?: string;
+};
+
 /**
  * Slack-style composer with a real WYSIWYG editor (rich-editor.tsx) under it.
  * Bold/italic/underline/strike show as actual styled text in the input, lists
@@ -69,7 +82,6 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
   const [showFormatting, setShowFormatting] = useState(true);
   const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
   const [uploads, setUploads] = useState<UploadingFile[]>([]);
-  const [mentionedIds, setMentionedIds] = useState<Set<string>>(new Set());
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [mention, setMention] = useState<MentionContext | null>(null);
   // Force a render when editor content changes so the send button can update.
@@ -92,11 +104,13 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
       await channel.sendMessage({
         text,
         attachments: attachments.map(({ _id, ...rest }) => rest),
-        mentioned_users: [...mentionedIds],
+        // Source of truth is the DOM — derived from `data-mention` chips
+        // present at send time, so removing a chip in the composer (whole-
+        // unit backspace) correctly drops the user from the outgoing list.
+        mentioned_users: editor.getMentionedIds(),
       });
       editor.clear();
       setAttachments([]);
-      setMentionedIds(new Set());
       setMention(null);
     } catch (e) {
       console.error("send failed", e);
@@ -104,7 +118,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
     } finally {
       setSending(false);
     }
-  }, [attachments, channel, mentionedIds, sending]);
+  }, [attachments, channel, sending]);
 
   // ── Member candidates for mention popover ────────────────────────────
   const memberCandidates = useMemo(() => {
@@ -121,23 +135,42 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
   const mentionMatches = useMemo(() => {
     if (!mention) return [];
     const q = mention.query;
-    if (!q) return memberCandidates.slice(0, 8);
-    return memberCandidates
-      .filter((u) => {
-        const name = (u.name ?? "").toLowerCase();
-        return name.includes(q) || u.id.toLowerCase().includes(q);
-      })
-      .slice(0, 8);
+    // Slack-style broadcast candidate. Notifies everyone in the channel
+    // when the message lands. Rendered with a megaphone icon, NOT added to
+    // `mentioned_users` on send — Stream would reject the unknown user id.
+    // The render-side `slackRenderText` reconstructs the pill from the text.
+    const broadcast: MentionCandidate = {
+      id: "channel",
+      name: "channel",
+      description: "Notify everyone in this channel",
+      isBroadcast: true,
+    };
+    const broadcastMatches = "channel".startsWith(q);
+    const userMatches = q
+      ? memberCandidates.filter((u) => {
+          const name = (u.name ?? "").toLowerCase();
+          return name.includes(q) || u.id.toLowerCase().includes(q);
+        })
+      : memberCandidates;
+    return [
+      ...(broadcastMatches ? [broadcast] : []),
+      ...userMatches.map(
+        (u): MentionCandidate => ({ id: u.id, name: u.name ?? null, image: u.image }),
+      ),
+    ].slice(0, 8);
   }, [mention, memberCandidates]);
 
   const mentionOpen = !!mention && mentionMatches.length > 0;
 
-  function applyMention(user: { id: string; name?: string | null }) {
+  function applyMention(candidate: MentionCandidate) {
     const editor = editorRef.current;
     if (!editor || !mention) return;
-    const display = (user.name ?? user.id).replace(/\s+/g, "");
-    editor.replaceRange(mention.range, `@${display} `);
-    setMentionedIds((s) => new Set(s).add(user.id));
+    const display = (candidate.name ?? candidate.id).replace(/\s+/g, "");
+    editor.replaceRangeWithMention(mention.range, {
+      id: candidate.id,
+      display,
+      isBroadcast: !!candidate.isBroadcast,
+    });
     setMention(null);
   }
 
@@ -544,8 +577,8 @@ function MentionList({
   onSelect,
   onCancel,
 }: {
-  items: Array<{ id: string; name?: string | null; image?: unknown }>;
-  onSelect: (u: { id: string; name?: string | null }) => void;
+  items: Array<MentionCandidate>;
+  onSelect: (u: MentionCandidate) => void;
   onCancel: () => void;
 }) {
   const [index, setIndex] = useState(0);
@@ -602,16 +635,31 @@ function MentionList({
                   : "text-foreground/90",
               )}
             >
-              <Avatar className="size-6">
-                <AvatarImage
-                  src={typeof u.image === "string" ? u.image : undefined}
-                  alt=""
-                />
-                <AvatarFallback className="text-[10px]">
-                  {initials || "?"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="truncate">{u.name ?? u.id}</span>
+              {u.isBroadcast ? (
+                <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--slack-mention-broadcast-bg)] text-[var(--slack-mention-broadcast-text)]">
+                  <Megaphone className="size-3.5" />
+                </span>
+              ) : (
+                <Avatar className="size-6">
+                  <AvatarImage
+                    src={typeof u.image === "string" ? u.image : undefined}
+                    alt=""
+                  />
+                  <AvatarFallback className="text-[10px]">
+                    {initials || "?"}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">
+                  @{u.name ?? u.id}
+                </span>
+                {u.description ? (
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {u.description}
+                  </span>
+                ) : null}
+              </span>
             </button>
           </li>
         );

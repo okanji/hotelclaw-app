@@ -42,6 +42,17 @@ export type RichEditorHandle = {
   insertText: (text: string) => void;
   /** Replace a range with text (used when selecting a mention from the popover). */
   replaceRange: (range: Range, replacement: string) => void;
+  /** Replace a range with a styled, atomic mention chip — the visual pill the
+   *  user sees in the composer. `display` is the rendered text (e.g. "alice");
+   *  `id` is the Stream user id stored on the chip and serialized as `@id`. */
+  replaceRangeWithMention: (
+    range: Range,
+    spec: { id: string; display: string; isBroadcast?: boolean },
+  ) => void;
+  /** Derive the set of mention ids currently present in the editor — source
+   *  of truth for `mentioned_users` at send time, so deleting a chip in the
+   *  composer correctly drops the user from the outgoing message. */
+  getMentionedIds: () => string[];
   /** Read the editor content as markdown for sending. */
   getMarkdown: () => string;
   /** True when the editor is visually empty. */
@@ -197,6 +208,53 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
       sel.addRange(range);
       document.execCommand("insertText", false, replacement);
       emit();
+    },
+    replaceRangeWithMention: (range, { id, display, isBroadcast }) => {
+      const el = elRef.current;
+      if (!el) return;
+      const sel = window.getSelection();
+      if (!sel) return;
+
+      // Build the atomic chip. `contenteditable=false` makes the chip behave
+      // as a single grapheme — left/right arrow steps over it, backspace
+      // deletes it whole. The trailing space (a real text node, outside the
+      // chip) gives the caret somewhere to land afterwards so the user can
+      // keep typing.
+      const chip = document.createElement("span");
+      chip.className = "str-chat__message-mention";
+      chip.setAttribute("data-user-id", id);
+      chip.setAttribute("data-mention", "true");
+      if (isBroadcast) chip.setAttribute("data-broadcast", "true");
+      chip.setAttribute("contenteditable", "false");
+      chip.textContent = `@${display}`;
+      const trailing = document.createTextNode(" ");
+
+      sel.removeAllRanges();
+      sel.addRange(range);
+      range.deleteContents();
+      range.insertNode(trailing);
+      range.insertNode(chip);
+
+      const caret = document.createRange();
+      caret.setStartAfter(trailing);
+      caret.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(caret);
+
+      emit();
+    },
+    getMentionedIds: () => {
+      const el = elRef.current;
+      if (!el) return [];
+      const seen = new Set<string>();
+      el
+        .querySelectorAll<HTMLElement>('[data-mention="true"]')
+        .forEach((node) => {
+          if (node.getAttribute("data-broadcast") === "true") return;
+          const id = node.getAttribute("data-user-id");
+          if (id) seen.add(id);
+        });
+      return [...seen];
     },
     getMarkdown: () => htmlToMarkdown(elRef.current?.innerHTML ?? ""),
     isEmpty: () => editorIsEmpty(elRef.current),
@@ -542,8 +600,16 @@ function nodeToMarkdown(node: Node): string {
       // newline after each so lines are separated, but never double up.
       return content + (content.endsWith("\n") ? "" : "\n");
     }
-    case "SPAN":
+    case "SPAN": {
+      // Mention chips serialize to plain `@token` text so Stream's renderer
+      // matches them against `mentioned_users` on the receiver. The chip's
+      // text content already starts with `@` so `inner()` is correct here —
+      // the explicit branch is for clarity and to make the contract obvious.
+      if ((el as HTMLElement).getAttribute("data-mention") === "true") {
+        return inner();
+      }
       return inner();
+    }
     default:
       return inner();
   }

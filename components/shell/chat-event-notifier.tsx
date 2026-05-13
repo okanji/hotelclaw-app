@@ -58,20 +58,26 @@ export function ChatEventNotifier({ propertyId }: { propertyId: string }) {
 
     // message.new — only fires while the channel is being watched, but we
     // sit inside the Chat provider so all watched channels broadcast here.
-    // We forward only when the current user is in mentioned_users.
+    // Forward when the current user is in mentioned_users OR when the text
+    // contains a broadcast token (`@channel`) — the server then verifies
+    // channel membership before persisting.
     const onMessage = (event: Event) => {
       const msg = event.message;
       const channelId = event.channel_id ?? event.cid?.split(":")[1];
       if (!msg || !channelId) return;
-      const mentioned = (msg.mentioned_users ?? []).some((u) => u.id === me);
-      if (!mentioned) return;
       // Skip own mentions (someone mentioning themselves).
       if (msg.user?.id === me) return;
+      const directlyMentioned = (msg.mentioned_users ?? []).some(
+        (u) => u.id === me,
+      );
+      const broadcastMentioned = /(?:^|\s)@channel\b/.test(msg.text ?? "");
+      if (!directlyMentioned && !broadcastMentioned) return;
       void emit({
         kind: "mention",
         propertyId,
         channelId,
         messageId: msg.id,
+        ...(directlyMentioned ? {} : { broadcast: true }),
       });
     };
 

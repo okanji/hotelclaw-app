@@ -249,7 +249,7 @@
    resets); without it, our overrides at the same selectors lose source-order. */
 .str-chat {
   --str-chat__message-composer-max-width: 100% !important;
-  --str-chat__message-max-width: 80ch !important;
+  --str-chat__message-max-width: 100% !important;
 }
 .str-chat__message-list-main-panel {
   --str-chat__message-list-scroll-max-width: 100% !important;
