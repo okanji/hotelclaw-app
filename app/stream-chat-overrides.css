@@ -1,5 +1,13 @@
 /* Must load AFTER stream-chat-react/dist/css/index.css (see app/layout.tsx). */
 
+/* Chat canvas color (dark). Stream's `--str-chat__background-core-app` is the
+   variable behind `.str-chat__chat-view`, `.str-chat__message-list`, and
+   `.str-chat__virtual-list` (all `background: var(--str-chat__background-core-app)`).
+   Loaded after Stream's CSS so source-order beats the `.str-chat` default. */
+.str-chat.str-chat__theme-dark {
+  --str-chat__background-core-app: #191B1E;
+}
+
 /* Slack reaction row — mirrors Slack desktop pills; tuned to Stream theme classes
    from StreamProvider (`str-chat__theme-dark` / `str-chat__theme-light`, next-themes). */
 .str-chat.str-chat__theme-dark {

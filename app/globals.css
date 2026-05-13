@@ -143,6 +143,18 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Chat inset fill — kept distinct from --card so other card surfaces
+   (popovers, info panel, mention rows, etc.) keep their existing tone.
+   Stream Chat paints `--str-chat__background-core-app` on several inner
+   surfaces (`.str-chat__chat-view`, `.str-chat__message-list`,
+   `.str-chat__virtual-list`, etc.) AND its own CSS is imported AFTER
+   ours (see app/layout.tsx), so we override the variable in
+   `stream-chat-overrides.css` rather than here. The inset's own
+   background color stays in sync so the brief pre-mount state matches. */
+.dark [data-slot="sidebar-inset"] {
+  background-color: #191B1E;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

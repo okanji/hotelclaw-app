@@ -9,9 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Bell,
-  ChevronDown,
   Hash,
-  Headphones,
   Lock,
   MoreVertical,
   Search,
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import { useInfoPanel } from "../info-panel/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HuddleButton } from "@/components/chat/huddle/huddle-button";
 
 /**
  * Custom replacement for Stream's default <ChannelHeader>.
@@ -98,16 +97,7 @@ export function ChannelHeader() {
             <span className="tabular-nums">{memberCount}</span>
           </Button>
         ) : null}
-        <Button
-          variant="outline"
-          size="default"
-          title="Huddle"
-          aria-label="Start huddle"
-          className="gap-1 px-2.5"
-        >
-          <Headphones className="size-4" />
-          <ChevronDown className="size-3.5 text-muted-foreground" />
-        </Button>
+        {channel.id ? <HuddleButton channelId={channel.id} /> : null}
         <Button
           variant="outline"
           size="icon"

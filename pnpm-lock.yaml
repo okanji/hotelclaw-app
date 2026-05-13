@@ -41,6 +41,12 @@ dependencies:
   '@stream-io/chat-ai-sdk':
     specifier: ^0.2.11
     version: 0.2.11
+  '@stream-io/node-sdk':
+    specifier: ^0.7.56
+    version: 0.7.56
+  '@stream-io/video-react-sdk':
+    specifier: ^1.36.1
+    version: 1.36.1(react-dom@19.2.4)(react@19.2.4)(typescript@5.9.3)
   '@supabase/ssr':
     specifier: '0.10'
     version: 0.10.3(@supabase/supabase-js@2.105.4)
@@ -1257,6 +1263,10 @@ packages:
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
     dev: false
 
+  /@kurkle/color@0.3.4:
+    resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
+    dev: false
+
   /@liveblocks/chat-sdk-adapter@3.19.0(@types/json-schema@7.0.15)(chat@4.28.1):
     resolution: {integrity: sha512-GXCwY7p7Yuslx2jELB2aYovYJ8cVLQ6vOlVHAMPmTo8YoPMqddGbec5bOReBGMeqUpkXI8od+Muz3KVtxPXZXQ==}
     peerDependencies:
@@ -1350,6 +1360,10 @@ packages:
       react: 19.2.4
     transitivePeerDependencies:
       - '@types/json-schema'
+    dev: false
+
+  /@mediapipe/tasks-vision@0.10.35:
+    resolution: {integrity: sha512-HOvadwVRE6JC+45nyYhmnywnr5h/J8KZvOeUNVOG9q/0875pZgItznFB9bRTvLc264YSJqiZ1NsIpCStJw/egg==}
     dev: false
 
   /@mem0/vercel-ai-provider@2.0.5(zod@4.4.3):
@@ -1571,6 +1585,23 @@ packages:
   /@opentelemetry/api@1.9.0:
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
     engines: {node: '>=8.0.0'}
+    dev: false
+
+  /@protobuf-ts/runtime-rpc@2.11.1:
+    resolution: {integrity: sha512-4CqqUmNA+/uMz00+d3CYKgElXO9VrEbucjnBFEjqI4GuDrEQ32MaI3q+9qPBvIGOlL4PmHXrzM32vBPWRhQKWQ==}
+    dependencies:
+      '@protobuf-ts/runtime': 2.11.1
+    dev: false
+
+  /@protobuf-ts/runtime@2.11.1:
+    resolution: {integrity: sha512-KuDaT1IfHkugM2pyz+FwiY80ejWrkH1pAtOBOZFuR6SXEFTsnb/jiQWQ1rCIrcKx2BtyxnxW6BWwsVSA/Ie+WQ==}
+    dev: false
+
+  /@protobuf-ts/twirp-transport@2.11.1:
+    resolution: {integrity: sha512-4/C6XzlsHW0pdINO4a+zbhF5fEHWwhUU//ZfGu/7KbtWjPgdJRxFVibbjZP1gKdWWjj8U59NduR3OSsUHElWsA==}
+    dependencies:
+      '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
     dev: false
 
   /@radix-ui/number@1.1.1:
@@ -2997,6 +3028,25 @@ packages:
     dev: false
     optional: true
 
+  /@stream-io/logger@2.0.0:
+    resolution: {integrity: sha512-cH9Gi/lAeDjLWB2J9xhPtiNOyRNNO9M46uT7507wT3MCouZNdlXDu/vgiGVhu3I/Tg7sG4ePlG5aHefJ6xjgmw==}
+    dev: false
+
+  /@stream-io/node-sdk@0.7.56:
+    resolution: {integrity: sha512-ZNc0wqUim29zTf91/p5Y3ZYIby402Wxw6VH6XRpVLi7CfWwwYRxpNV9MbhsgL/bk/8/RZx7leDboyfEqMvwtUw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@stream-io/openai-realtime-api': ~0.1.3 || ~0.2.0 || ~0.3.0 || ~0.3.3
+    peerDependenciesMeta:
+      '@stream-io/openai-realtime-api':
+        optional: true
+    dependencies:
+      '@types/jsonwebtoken': 9.0.10
+      '@types/node': 18.19.130
+      jsonwebtoken: 9.0.3
+      uuid: 13.0.2
+    dev: false
+
   /@stream-io/transliterate@1.5.5:
     resolution: {integrity: sha512-r6Qp0HylAZhHNWHxU1nGfRI2Dtkbs1iqLCnOp1bvKhv8yj0/sEUigN0dk0LGPbE4I7zDO3tppyd7PaTPBvvJkg==}
     engines: {node: '>=12'}
@@ -3006,6 +3056,69 @@ packages:
       lodash.deburr: 4.1.0
     dev: false
     optional: true
+
+  /@stream-io/video-client@1.49.0:
+    resolution: {integrity: sha512-EKm6cd7om1fHM/ssNkhxgIWFx9Vt6zl1GSCz7tSrN3XPaUy8vGi/Aw1flJo/DSGjOS3P8uDO4LR2h53Qwc2f4A==}
+    dependencies:
+      '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
+      '@protobuf-ts/twirp-transport': 2.11.1
+      '@stream-io/logger': 2.0.0
+      '@stream-io/worker-timer': 1.2.5
+      axios: 1.16.0
+      rxjs: 7.8.2
+      sdp-transform: 2.15.0
+      ua-parser-js: 1.0.41
+      webrtc-adapter: 8.2.4
+    transitivePeerDependencies:
+      - debug
+    dev: false
+
+  /@stream-io/video-filters-web@0.7.4:
+    resolution: {integrity: sha512-N6Oa7sokuuABPeaYIyQJJhzq22MGUny0bSepGRBBeBrcTbR7C8QNZrauFNl3BMquqRrXbl1EkSigEtpivFyx/g==}
+    dependencies:
+      '@mediapipe/tasks-vision': 0.10.35
+      '@stream-io/worker-timer': 1.2.5
+      wasm-feature-detect: 1.8.0
+    dev: false
+
+  /@stream-io/video-react-bindings@1.15.1(@stream-io/video-client@1.49.0)(react@19.2.4)(typescript@5.9.3):
+    resolution: {integrity: sha512-ivAroAPgSnybv9uYFVSsA9x0vkoKzG3q6xVZ0VIqzF/1iu7E14StAB0uR6KtQVbCp9zaXHjWvtkNziBP7c97RQ==}
+    peerDependencies:
+      '@stream-io/video-client': ^1.49.0
+      react: ^17 || ^18 || ^19
+    dependencies:
+      '@stream-io/video-client': 1.49.0
+      i18next: 25.10.10(typescript@5.9.3)
+      react: 19.2.4
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - typescript
+    dev: false
+
+  /@stream-io/video-react-sdk@1.36.1(react-dom@19.2.4)(react@19.2.4)(typescript@5.9.3):
+    resolution: {integrity: sha512-460jvGlsuyiv30iqC7WIjOFMu7xdGwNEeKWxXAxIWedSq5tCiR4lZn0YOx/E/SQm1P0TimBCjkO3ipaLtbzyaw==}
+    peerDependencies:
+      react: ^17 || ^18 || ^19
+      react-dom: ^17 || ^18 || ^19
+    dependencies:
+      '@floating-ui/react': 0.27.19(react-dom@19.2.4)(react@19.2.4)
+      '@stream-io/video-client': 1.49.0
+      '@stream-io/video-filters-web': 0.7.4
+      '@stream-io/video-react-bindings': 1.15.1(@stream-io/video-client@1.49.0)(react@19.2.4)(typescript@5.9.3)
+      chart.js: 4.5.1
+      clsx: 2.1.1
+      react: 19.2.4
+      react-chartjs-2: 5.3.1(chart.js@4.5.1)(react@19.2.4)
+      react-dom: 19.2.4(react@19.2.4)
+    transitivePeerDependencies:
+      - debug
+      - typescript
+    dev: false
+
+  /@stream-io/worker-timer@1.2.5:
+    resolution: {integrity: sha512-Fr2NAURYb3mWG8zE5k4KMC0spTtBJofK6PyF931dmhfuOHqFp1NrSf+U3GxOO+pN0cxObHHpW20lR1B4XiKgRw==}
+    dev: false
 
   /@supabase/auth-js@2.105.4:
     resolution: {integrity: sha512-Ejfa37M5xoIwoxVebxRahnwubPo8g22qkXQ4p50+N9MIvU9UZoN+A8dwVPtczzGf8oV/YXN80ZPxK4aWXuSN/A==}
@@ -3306,6 +3419,12 @@ packages:
 
   /@types/ms@2.1.0:
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+    dev: false
+
+  /@types/node@18.19.130:
+    resolution: {integrity: sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg==}
+    dependencies:
+      undici-types: 5.26.5
     dev: false
 
   /@types/node@20.19.40:
@@ -4094,6 +4213,13 @@ packages:
 
   /character-reference-invalid@2.0.1:
     resolution: {integrity: sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw==}
+    dev: false
+
+  /chart.js@4.5.1:
+    resolution: {integrity: sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==}
+    engines: {pnpm: '>=8'}
+    dependencies:
+      '@kurkle/color': 0.3.4
     dev: false
 
   /chat@4.28.1:
@@ -7502,6 +7628,16 @@ packages:
       use-sync-external-store: 1.6.0(react@19.2.4)
     dev: false
 
+  /react-chartjs-2@5.3.1(chart.js@4.5.1)(react@19.2.4):
+    resolution: {integrity: sha512-h5IPXKg9EXpjoBzUfyWJvllMjG2mQ4EiuHQFhms/AjUm0XSZHhyRy2xVmLXHKrtcdrPO4mnGqRtYoD0vp95A0A==}
+    peerDependencies:
+      chart.js: ^4.1.1
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      chart.js: 4.5.1
+      react: 19.2.4
+    dev: false
+
   /react-dom@19.2.4(react@19.2.4):
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
     peerDependencies:
@@ -7842,6 +7978,12 @@ packages:
     dependencies:
       queue-microtask: 1.2.3
 
+  /rxjs@7.8.2:
+    resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
+    dependencies:
+      tslib: 2.8.1
+    dev: false
+
   /safe-array-concat@1.1.4:
     resolution: {integrity: sha512-wtZlHyOje6OZTGqAoaDKxFkgRtkF9CnHAVnCHKfuj200wAgL+bSJhdsCD2l0Qx/2ekEXjPWcyKkfGb5CPboslg==}
     engines: {node: '>=0.4'}
@@ -7886,6 +8028,15 @@ packages:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
     dependencies:
       compute-scroll-into-view: 3.1.1
+    dev: false
+
+  /sdp-transform@2.15.0:
+    resolution: {integrity: sha512-KrOH82c/W+GYQ0LHqtr3caRpM3ITglq3ljGUIb8LTki7ByacJZ9z+piSGiwZDsRyhQbYBOBJgr2k6X4BZXi3Kw==}
+    hasBin: true
+    dev: false
+
+  /sdp@3.2.2:
+    resolution: {integrity: sha512-xZocWwfyp4hkbN4hLWxMjmv2Q8aNa9MhmOZ7L9aCZPT+dZsgRr6wZRrSYE3HTdyk/2pZKPSgqI7ns7Een1xMSA==}
     dev: false
 
   /semver@6.3.1:
@@ -8708,6 +8859,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  /ua-parser-js@1.0.41:
+    resolution: {integrity: sha512-LbBDqdIC5s8iROCUjMbW1f5dJQTEFB1+KO9ogbvlb3nm9n4YHa5p4KTvFPWvh2Hs8gZMBuiB1/8+pdfe/tDPug==}
+    hasBin: true
+    dev: false
+
   /unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
@@ -8717,6 +8873,10 @@ packages:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
     dev: true
+
+  /undici-types@5.26.5:
+    resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+    dev: false
 
   /undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
@@ -8917,6 +9077,11 @@ packages:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: false
 
+  /uuid@13.0.2:
+    resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
+    hasBin: true
+    dev: false
+
   /validate-npm-package-name@7.0.2:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
     engines: {node: ^20.17.0 || >=22.9.0}
@@ -8941,6 +9106,10 @@ packages:
       vfile-message: 4.0.3
     dev: false
 
+  /wasm-feature-detect@1.8.0:
+    resolution: {integrity: sha512-zksaLKM2fVlnB5jQQDqKXXwYHLQUVH9es+5TOOHwGOVJOCeRBCiPjwSg+3tN2AdTCzjgli4jijCH290kXb/zWQ==}
+    dev: false
+
   /web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
@@ -8948,6 +9117,13 @@ packages:
 
   /webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+    dev: false
+
+  /webrtc-adapter@8.2.4:
+    resolution: {integrity: sha512-VwtwbYNKnVQW8koB9qb8YcxNwpSVHTvvKEZLzY6uQ3gFrA9E87VPbB5xE+m1AGwUjL1UgN35jRR9hQgteZI5bg==}
+    engines: {node: '>=6.0.0', npm: '>=3.10.0'}
+    dependencies:
+      sdp: 3.2.2
     dev: false
 
   /whatwg-url@5.0.0:

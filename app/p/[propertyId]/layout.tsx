@@ -5,6 +5,9 @@ import { isOnboarded } from "@/lib/auth/onboarding";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
+import { StreamVideoProvider } from "@/lib/stream/video-provider";
+import { HuddleProvider } from "@/lib/stream/huddle-context";
+import { HuddleWidget } from "@/components/chat/huddle/huddle-widget";
 import { LiveblocksProviders } from "@/lib/liveblocks/room-provider";
 import { InfoPanelProvider } from "@/components/chat/info-panel/context";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-context";
@@ -53,6 +56,12 @@ export default async function PropertyLayout({
       userName={profile.data?.full_name ?? user.email ?? user.id}
       avatarUrl={profile.data?.avatar_url ?? null}
     >
+     <StreamVideoProvider
+      userId={user.id}
+      userName={profile.data?.full_name ?? user.email ?? user.id}
+      avatarUrl={profile.data?.avatar_url ?? null}
+     >
+      <HuddleProvider>
       <LiveblocksProviders propertyId={propertyId}>
        <TimeFormatProvider initial={initialTimeFormat}>
         <InfoPanelProvider>
@@ -82,12 +91,15 @@ export default async function PropertyLayout({
                 </SidebarInset>
                 <CommandPalette propertyId={propertyId} />
                 <ChatEventNotifier propertyId={propertyId} />
+                <HuddleWidget />
               </SidebarProvider>
             </CommandPaletteProvider>
           </UserProfilePanelProvider>
         </InfoPanelProvider>
        </TimeFormatProvider>
       </LiveblocksProviders>
+      </HuddleProvider>
+     </StreamVideoProvider>
     </StreamProvider>
   );
 }
