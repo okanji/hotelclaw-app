@@ -79,6 +79,7 @@ import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill"
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
 import { SlackReplyIndicator } from "@/components/chat/slack-reply-indicator";
 import { useUserProfilePanel } from "@/components/chat/user-profile-panel/context";
+import { useTimeFormat } from "@/lib/preferences/time-format-context";
 
 type MessageActionSetItem = NonNullable<MessageActionsProps["messageActionSet"]>[number];
 
@@ -143,8 +144,12 @@ function demoteClusterRoleByTimeGap(
   return result;
 }
 
-/** Short clock for Slack-style gutter (continuation rows); `hour12: false` avoids AM/PM. */
-function slackGutterTimeFromMessage(createdAt: unknown): {
+/** Short clock for Slack-style gutter (continuation rows). The `hour12` flag
+ *  is driven by the user's per-profile preference; default is 24-hour. */
+function slackGutterTimeFromMessage(
+  createdAt: unknown,
+  hour12: boolean,
+): {
   label: string;
   iso: string;
 } | null {
@@ -159,7 +164,7 @@ function slackGutterTimeFromMessage(createdAt: unknown): {
   const label = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     minute: "2-digit",
-    hour12: false,
+    hour12,
   }).format(d);
   return { label, iso: d.toISOString() };
 }
@@ -322,10 +327,13 @@ const SlackMessageUIWithContext = ({
     [message.id, processedMessages, groupStyles],
   );
 
+  const { format: timeFormat } = useTimeFormat();
+  const hour12 = timeFormat === "12h";
+
   const slackGutterTime = useMemo(() => {
     if (clusterRole !== "middle" && clusterRole !== "bottom") return null;
-    return slackGutterTimeFromMessage(message.created_at);
-  }, [clusterRole, message.created_at]);
+    return slackGutterTimeFromMessage(message.created_at, hour12);
+  }, [clusterRole, message.created_at, hour12]);
 
   if (isDateSeparatorMessage(message)) {
     return null;
@@ -475,7 +483,10 @@ const SlackMessageUIWithContext = ({
                   </span>
                 )
               )}
-              <MessageTimestamp customClass="str-chat__message-metadata__timestamp" />
+              <MessageTimestamp
+                customClass="str-chat__message-metadata__timestamp"
+                format={hour12 ? "h:mm A" : "HH:mm"}
+              />
               {!isDeleted && isEdited && <MessageEditedIndicator />}
               <MessageStatus />
             </div>

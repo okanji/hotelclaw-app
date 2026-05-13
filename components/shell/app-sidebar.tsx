@@ -47,6 +47,7 @@ import { EditProfileDialog } from "./edit-profile-dialog";
 import { SearchButton } from "./search-button";
 import { NotificationsBell } from "./notifications-bell";
 import { ThemeToggle } from "./theme-toggle";
+import { TimeFormatToggle } from "./time-format-toggle";
 import type { Membership } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
 
@@ -221,6 +222,7 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
                     Edit profile
                   </DropdownMenuItem>
                   <ThemeToggle />
+                  <TimeFormatToggle />
                   <NotificationsToggle />
                   <DropdownMenuItem
                     onClick={() => {

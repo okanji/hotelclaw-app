@@ -12,6 +12,8 @@ import { CommandPalette } from "@/components/shell/command-palette";
 import { ChatEventNotifier } from "@/components/shell/chat-event-notifier";
 import { UserProfilePanelProvider } from "@/components/chat/user-profile-panel/context";
 import { UserProfilePanel } from "@/components/chat/user-profile-panel/panel";
+import { TimeFormatProvider } from "@/lib/preferences/time-format-context";
+import type { TimeFormat } from "@/lib/auth/profile-actions";
 
 export default async function PropertyLayout({
   children,
@@ -38,9 +40,12 @@ export default async function PropertyLayout({
   const memberships = await getUserMemberships();
   const profile = await supabase
     .from("profiles")
-    .select("id, full_name, avatar_url")
+    .select("id, full_name, avatar_url, time_format")
     .eq("id", user.id)
     .maybeSingle();
+
+  const initialTimeFormat: TimeFormat =
+    profile.data?.time_format === "12h" ? "12h" : "24h";
 
   return (
     <StreamProvider
@@ -49,6 +54,7 @@ export default async function PropertyLayout({
       avatarUrl={profile.data?.avatar_url ?? null}
     >
       <LiveblocksProviders propertyId={propertyId}>
+       <TimeFormatProvider initial={initialTimeFormat}>
         <InfoPanelProvider>
           <UserProfilePanelProvider>
             <CommandPaletteProvider>
@@ -80,6 +86,7 @@ export default async function PropertyLayout({
             </CommandPaletteProvider>
           </UserProfilePanelProvider>
         </InfoPanelProvider>
+       </TimeFormatProvider>
       </LiveblocksProviders>
     </StreamProvider>
   );

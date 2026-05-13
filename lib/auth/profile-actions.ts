@@ -120,6 +120,33 @@ export async function updateAvatar(
   return { ok: true };
 }
 
+const TimeFormatSchema = z.enum(["12h", "24h"]);
+
+export type TimeFormat = z.infer<typeof TimeFormatSchema>;
+
+/** Persists the user's clock-format preference. Stream user record is not
+ *  affected — this is a display-only preference for our UI. */
+export async function updateTimeFormat(
+  format: TimeFormat,
+): Promise<{ ok: true } | { error: string }> {
+  const parsed = TimeFormatSchema.safeParse(format);
+  if (!parsed.success) return { error: "Invalid time format" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ time_format: parsed.data })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+
+  return { ok: true };
+}
+
 /**
  * If `url` is a public URL for an object in our avatars bucket owned by
  * `userId`, return its storage path (e.g. `<userId>/1715473200000.png`).
