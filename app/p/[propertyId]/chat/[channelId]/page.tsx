@@ -8,10 +8,16 @@ import { ChannelView } from "@/components/chat/channel-view";
  */
 export default async function ChannelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ propertyId: string; channelId: string }>;
+  searchParams: Promise<{ messageId?: string | string[] }>;
 }) {
   const { propertyId, channelId } = await params;
+  const sp = await searchParams;
+  const messageIdRaw = sp.messageId;
+  const messageId = Array.isArray(messageIdRaw) ? messageIdRaw[0] : messageIdRaw;
+
   const supabase = await createClient();
 
   const { data: row } = await supabase
@@ -28,6 +34,7 @@ export default async function ChannelPage({
       channelType={row?.stream_channel_type ?? "messaging"}
       channelName={row?.name ?? null}
       propertyId={propertyId}
+      messageId={messageId ?? null}
     />
   );
 }

@@ -27,7 +27,6 @@ import {
   TextQuote,
   Type,
   Underline,
-  Video,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -199,7 +198,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
   const canSend = (!isEditorEmpty || attachments.length > 0) && !sending;
 
   return (
-    <div className="mx-4 mb-4 mt-2 flex flex-col rounded-lg border border-[oklch(1_0_0_/_0.13)] bg-transparent transition-colors focus-within:border-[oklch(1_0_0_/_0.22)]">
+    <div className="group/composer mx-4 mb-4 mt-2 flex flex-col rounded-lg border border-[oklch(1_0_0_/_0.13)] bg-transparent transition-colors focus-within:border-[oklch(1_0_0_/_0.22)]">
       {/* Attachment preview chips */}
       {(attachments.length > 0 || uploads.length > 0) && (
         <div className="flex flex-wrap gap-2 border-b border-border px-3 py-2">
@@ -303,7 +302,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
       )}
 
       {/* Editor (mention popover anchored on the wrapper) */}
-      <div className="px-3 py-2">
+      <div className="px-[17px] py-[13px]">
         <Popover
           open={mentionOpen}
           onOpenChange={(o) => {
@@ -370,7 +369,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
                     type="button"
                     aria-label="Emoji"
                     title="Emoji"
-                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground [&_svg]:size-[15px]"
+                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground [&_svg]:size-[18px]"
                   >
                     <Smile />
                   </button>
@@ -405,9 +404,6 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
           </ToolbarGroup>
           <Divider />
           <ToolbarGroup>
-            <IconBtn label="Video — not yet available">
-              <Video />
-            </IconBtn>
             <IconBtn label="Voice message — not yet available">
               <Mic />
             </IconBtn>
@@ -432,17 +428,17 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
               "inline-flex size-7 items-center justify-center rounded-md transition-colors",
               canSend
                 ? "text-foreground hover:bg-[oklch(1_0_0_/_0.08)]"
-                : "text-muted-foreground/60",
+                : "text-muted-foreground/60 group-focus-within/composer:text-[#AAAAAB]",
             )}
           >
-            <Send className="size-4" />
+            <Send className="size-[18px]" />
           </button>
           <button
             type="button"
             aria-label="Send options"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground"
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground"
           >
-            <ChevronDown className="size-4" />
+            <ChevronDown className="size-[18px]" />
           </button>
         </div>
       </div>
@@ -495,10 +491,10 @@ function IconBtn({
       }}
       onClick={onClick}
       className={cn(
-        "inline-flex size-7 items-center justify-center rounded-md transition-colors [&_svg]:size-[15px]",
+        "inline-flex size-7 items-center justify-center rounded-md transition-colors [&_svg]:size-[18px]",
         active
           ? "bg-[oklch(1_0_0_/_0.1)] text-foreground"
-          : "text-muted-foreground hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground",
+          : "text-muted-foreground group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground",
       )}
     >
       {children}

@@ -14,12 +14,14 @@ import { ChannelHeader } from "./channel-header";
 import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
 import { SlackComposer } from "./slack-composer";
+import { MessageJumper } from "./search/message-jumper";
 
 type Props = {
   channelId: string;
   channelType: string;
   channelName: string | null;
   propertyId: string;
+  messageId?: string | null;
 };
 
 export function ChannelView({
@@ -27,6 +29,7 @@ export function ChannelView({
   channelType,
   channelName,
   propertyId,
+  messageId = null,
 }: Props) {
   const { client } = useChatContext();
   const [channel, setChannel] = useState<StreamChannel | null>(null);
@@ -99,6 +102,7 @@ export function ChannelView({
           </Window>
           <Thread />
           <ChannelInfoPanel propertyId={propertyId} />
+          <MessageJumper messageId={messageId} />
         </Channel>
       </ChatView>
     </div>

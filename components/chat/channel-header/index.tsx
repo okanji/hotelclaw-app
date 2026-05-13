@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   useChannelStateContext,
   useChatContext,
@@ -31,6 +32,9 @@ export function ChannelHeader() {
   const { client } = useChatContext();
   const { displayTitle } = useChannelPreviewInfo({ channel });
   const { toggle } = useInfoPanel();
+  const router = useRouter();
+  const params = useParams<{ propertyId?: string }>();
+  const propertyId = params?.propertyId;
 
   const isDm = channel.type === "messaging";
   const data = channel.data as
@@ -109,8 +113,14 @@ export function ChannelHeader() {
         <Button
           variant="outline"
           size="icon"
-          title="Search"
+          title="Search in channel"
           aria-label="Search in channel"
+          onClick={() => {
+            if (!propertyId || !channel.id) return;
+            router.push(
+              `/p/${propertyId}/search?in=${encodeURIComponent(channel.id)}`,
+            );
+          }}
         >
           <Search />
         </Button>

@@ -25,6 +25,7 @@ import {
   ListChecks,
   Lock,
   MessageSquareText,
+  Search,
   User as UserIcon,
 } from "lucide-react";
 
@@ -303,7 +304,10 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 key={message.id}
                 value={`msg-${message.id}-${message.text}`}
                 onSelect={() =>
-                  channelId && go(`/p/${propertyId}/chat/${channelId}`)
+                  channelId &&
+                  go(
+                    `/p/${propertyId}/chat/${channelId}?messageId=${encodeURIComponent(message.id)}`,
+                  )
                 }
               >
                 <MessageSquareText className="size-4 text-muted-foreground" />
@@ -317,6 +321,25 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 </div>
               </CommandItem>
             ))}
+          </CommandGroup>
+        ) : null}
+
+        {hasQuery ? (
+          <CommandGroup>
+            <CommandItem
+              value={`see-all-results-${trimmed}`}
+              onSelect={() =>
+                go(`/p/${propertyId}/search?q=${encodeURIComponent(trimmed)}`)
+              }
+            >
+              <Search className="size-4 text-muted-foreground" />
+              <span>
+                See all results for{" "}
+                <span className="font-medium text-foreground">
+                  &ldquo;{trimmed}&rdquo;
+                </span>
+              </span>
+            </CommandItem>
           </CommandGroup>
         ) : null}
         </CommandList>
