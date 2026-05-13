@@ -332,8 +332,11 @@ const SlackMessageUIWithContext = ({
 
   const slackGutterTime = useMemo(() => {
     if (clusterRole !== "middle" && clusterRole !== "bottom") return null;
-    return slackGutterTimeFromMessage(message.created_at, hour12);
-  }, [clusterRole, message.created_at, hour12]);
+    // The hover gutter time is always 24h regardless of the user's preference —
+    // it's a compact clock label squeezed into the avatar column where AM/PM
+    // would overflow into the message text.
+    return slackGutterTimeFromMessage(message.created_at, false);
+  }, [clusterRole, message.created_at]);
 
   if (isDateSeparatorMessage(message)) {
     return null;

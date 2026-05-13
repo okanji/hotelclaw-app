@@ -19,10 +19,10 @@
   --slack-add-reaction-icon: #ababad;
 
   /* Message typography — aligned to Slack desktop inspect (15px name/body, 12px time) */
-  --slack-chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+  --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --slack-msg-display-name-size: 15px;
-  --slack-msg-display-name-weight: 700;
+  --slack-msg-display-name-weight: 900;
   --slack-msg-display-name-color: #f8f8f8;
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
@@ -78,10 +78,10 @@
   --slack-reaction-pill-own-bg-hover: rgba(18, 100, 163, 0.22);
   --slack-add-reaction-icon: #616365;
 
-  --slack-chat-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+  --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --slack-msg-display-name-size: 15px;
-  --slack-msg-display-name-weight: 700;
+  --slack-msg-display-name-weight: 900;
   --slack-msg-display-name-color: #1d1c1d;
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
@@ -157,13 +157,17 @@
 */
 
 /* Slack-like full-width row highlight on the list row (hover / keyboard / open
-   actions). Stream zeros hover bg — override it. */
+   actions). `:has(:focus-visible)` instead of `:focus-within` so a mouse click
+   on a button/link inside the row doesn't leave the row in a stuck
+   highlighted state — keyboard focus still highlights the active row.
+   Color is per-theme so light mode keeps a near-white tint and dark mode
+   uses Slack's row-hover gray. */
 .str-chat .str-chat__ul .str-chat__li:hover:not(
     :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
   ),
 .str-chat
   .str-chat__ul
-  .str-chat__li:focus-within:not(
+  .str-chat__li:has(:focus-visible):not(
     :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
   ),
 .str-chat .str-chat__ul .str-chat__li:has(.str-chat__message-options--active),
@@ -172,13 +176,13 @@
   ),
 .str-chat
   .str-chat__virtual-list
-  .str-chat__li:focus-within:not(
+  .str-chat__li:has(:focus-visible):not(
     :has(.str-chat__reaction-list:hover, .str-chat__modal--open)
   ),
 .str-chat
   .str-chat__virtual-list
   .str-chat__li:has(.str-chat__message-options--active) {
-  background-color: var(--str-chat__background-core-surface-subtle) !important;
+  background-color: #1F2124 !important;
 }
 
 /* Virtualized list: full-bleed rows in our shell.
@@ -280,12 +284,19 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  gap: 2.5px;
+  /* gap was 2.5px when the name's line-height was 1.12. The 22px name
+     line-box now contributes ~3.5px of bottom half-leading on its own, so
+     leaving the explicit gap at 0 keeps the visual distance from the name's
+     glyph bottom to the first body line near the pre-change 3.4px. */
+  gap: 0px;
   min-width: 0;
   position: relative;
-  /* Nudge the text column 1px above the grid baseline — applies to cluster
-     heads and continuation rows equally so inter-row gaps stay uniform. */
-  margin-block-start: -1.5px;
+  /* Nudge the text column above the grid baseline — applies to cluster heads
+     and continuation rows equally so inter-row gaps stay uniform. -4px
+     absorbs both the original baseline shift (-1.5px) and the ~2.6px of top
+     half-leading added when the name's line-height was set to 22px to match
+     Slack's inspect (15px font / 22px line-box). */
+  margin-block-start: -4px;
 }
 
 /* Slack-style message actions: pill at the trailing edge; vertical midpoint
@@ -345,7 +356,7 @@
 .str-chat__ul .str-chat__li:hover:not(:has(.str-chat__modal--open))
   .str-chat__slack-message-actions-host
   .str-chat__message-options,
-.str-chat__ul .str-chat__li:focus-within:not(:has(.str-chat__modal--open))
+.str-chat__ul .str-chat__li:has(:focus-visible):not(:has(.str-chat__modal--open))
   .str-chat__slack-message-actions-host
   .str-chat__message-options,
 .str-chat__ul .str-chat__li:has(.str-chat__message-options--active)
@@ -354,7 +365,7 @@
 .str-chat__virtual-list .str-chat__li:hover:not(:has(.str-chat__modal--open))
   .str-chat__slack-message-actions-host
   .str-chat__message-options,
-.str-chat__virtual-list .str-chat__li:focus-within:not(:has(.str-chat__modal--open))
+.str-chat__virtual-list .str-chat__li:has(:focus-visible):not(:has(.str-chat__modal--open))
   .str-chat__slack-message-actions-host
   .str-chat__message-options,
 .str-chat__virtual-list .str-chat__li:has(.str-chat__message-options--active)
@@ -457,16 +468,16 @@
 
 .str-chat__ul .str-chat__li.str-chat__li--middle:hover .str-chat__slack-gutter-timestamp,
 .str-chat__ul .str-chat__li.str-chat__li--bottom:hover .str-chat__slack-gutter-timestamp,
-.str-chat__ul .str-chat__li.str-chat__li--middle:focus-within .str-chat__slack-gutter-timestamp,
-.str-chat__ul .str-chat__li.str-chat__li--bottom:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--middle:has(:focus-visible) .str-chat__slack-gutter-timestamp,
+.str-chat__ul .str-chat__li.str-chat__li--bottom:has(:focus-visible) .str-chat__slack-gutter-timestamp,
 .str-chat__ul .str-chat__li.str-chat__li--middle:has(.str-chat__message-options--active)
   .str-chat__slack-gutter-timestamp,
 .str-chat__ul .str-chat__li.str-chat__li--bottom:has(.str-chat__message-options--active)
   .str-chat__slack-gutter-timestamp,
 .str-chat__virtual-list .str-chat__li.str-chat__li--middle:hover .str-chat__slack-gutter-timestamp,
 .str-chat__virtual-list .str-chat__li.str-chat__li--bottom:hover .str-chat__slack-gutter-timestamp,
-.str-chat__virtual-list .str-chat__li.str-chat__li--middle:focus-within .str-chat__slack-gutter-timestamp,
-.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:focus-within .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--middle:has(:focus-visible) .str-chat__slack-gutter-timestamp,
+.str-chat__virtual-list .str-chat__li.str-chat__li--bottom:has(:focus-visible) .str-chat__slack-gutter-timestamp,
 .str-chat__virtual-list .str-chat__li.str-chat__li--middle:has(.str-chat__message-options--active)
   .str-chat__slack-gutter-timestamp,
 .str-chat__virtual-list .str-chat__li.str-chat__li--bottom:has(.str-chat__message-options--active)
@@ -494,14 +505,20 @@
 /* Slack-matched type scale (scoped to Slack message column; StreamProvider themes supply vars). */
 .str-chat__slack-message-main {
   font-family: var(--slack-chat-font-family);
+  /* Reset the global Inter-tuned `-0.011em` tracking inside the message
+     column. Slack desktop renders Lato with `letter-spacing: normal`; the
+     wider/rounder Lato letterforms are what gives the "more space between
+     letters" perception users see vs. tightened Inter. */
+  letter-spacing: 0.014em;
+  font-feature-settings: normal;
 }
 
 .str-chat__slack-message-main .str-chat__message-metadata .str-chat__message-metadata__name {
   font-family: var(--slack-chat-font-family);
   font-size: var(--slack-msg-display-name-size);
   font-weight: var(--slack-msg-display-name-weight);
-  /* Slack: cap height lines up with avatar top — tight line box (not 22px body leading). */
-  line-height: 1.12;
+  /* Matches Slack desktop inspect: 15px name, 22px line-height. */
+  line-height: 22px;
   color: var(--slack-msg-display-name-color);
 }
 

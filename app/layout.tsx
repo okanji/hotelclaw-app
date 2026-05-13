@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono, Lato } from "next/font/google";
 import "./globals.css";
 import "stream-chat-react/dist/css/index.css";
 import "./stream-chat-overrides.css";
@@ -19,6 +19,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Lato is used only for the chat surface (`--slack-chat-font-family`).
+// Slack's web client uses Lato as its primary face — including all weights
+// the chat metadata + body need.
+const lato = Lato({
+  variable: "--font-lato",
+  subsets: ["latin"],
+  weight: ["400", "700", "900"],
+});
+
 export const metadata: Metadata = {
   title: "Hotelclaw",
   description:
@@ -34,7 +43,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${lato.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col overflow-hidden">
         <ThemeProvider>
