@@ -49,49 +49,198 @@
   margin-bottom: 1.25rem;
 }
 
-/* "Paper" surface — the sheet the editor lives inside, floating on a subtle
- * page background. Mirrors the Tiptap marketing example. In dark mode the
- * paper sits slightly above the page (lighter, not darker) and we drop the
- * shadow stack to a subtle inset ring (per design guideline: no shadows in
- * dark mode). */
-.document-paper {
-  background-color: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+
+/* Comment highlights — the inline marker that wraps text attached to a
+ * thread. The previous rule used `oklch(var(--primary) / 0.18)` which is
+ * malformed because our theme tokens are already full `oklch(...)` values;
+ * the browser silently dropped the rule and Liveblocks's default styling
+ * (which uses its own `--lb-accent-*` tokens that don't track our `.dark`
+ * class) was too dim in dark mode.
+ *
+ * Yellow highlight reads as "annotation" in both modes the way it does in
+ * Google Docs / Notion — and being theme-independent it stays legible
+ * regardless of how the page background changes. */
+.tiptap .lb-tiptap-thread-mark {
+  background-color: rgb(250 204 21 / 0.32); /* tailwind yellow-400 @ 32% */
+  border-radius: 2px;
+  padding: 0 1px;
+  text-decoration: underline 1.5px rgb(202 138 4 / 0.7); /* yellow-600 */
+  text-underline-offset: 3px;
+}
+
+.dark .tiptap .lb-tiptap-thread-mark {
+  /* Dark amber wash with the doc's foreground text preserved on top — the
+   * default LB rule sets `color: var(--lb-foreground)` which doesn't track
+   * our `.dark` class, so the text would otherwise stay dark and become
+   * unreadable inside the highlight. Override both. */
+  background-color: rgb(120 84 0 / 0.42);
+  color: var(--foreground);
+  text-decoration-color: rgb(250 204 21 / 0.9);
+}
+
+/* Active / selected thread mark — when the thread is open / hovered. */
+.tiptap .lb-tiptap-thread-mark-selected,
+.tiptap .lb-tiptap-thread-mark[data-state="active"] {
+  background-color: rgb(250 204 21 / 0.5);
+}
+
+.dark .tiptap .lb-tiptap-thread-mark-selected,
+.dark .tiptap .lb-tiptap-thread-mark[data-state="active"] {
+  background-color: rgb(160 110 0 / 0.55);
+  color: var(--foreground);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Floating composer + thread visual polish.
+ *
+ * Liveblocks's defaults are fine, but a touch dated against a 2026 Tiptap-
+ * style editor: too-tight radii, generic shadows, default 14px body type
+ * with snug line-height. Overrides below modernize the chrome without
+ * changing any behavior — the LB tokens already track our `.dark` ancestor
+ * (we import `@liveblocks/react-ui/styles/dark/attributes.css` in the
+ * documents layout). */
+
+.lb-tiptap-floating-composer,
+.lb-tiptap-floating-threads-thread {
+  border-radius: 14px;
+  background: var(--background);
+  /* `outline` instead of `border` so the rounded corners get a consistent
+   * 1px ring on all four sides. Some Liveblocks internals were painting
+   * inset shadows over part of the bordered edge — outline sits OUTSIDE the
+   * box so nothing inside can hide it. Combined with overflow:hidden the
+   * card stays a clean rounded rect. */
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
   box-shadow:
     0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 24px rgb(0 0 0 / 0.06),
-    0 24px 48px -16px rgb(0 0 0 / 0.08);
-  padding: 4rem 4.5rem;
-  min-height: calc(100vh - 200px);
+    0 8px 24px rgb(0 0 0 / 0.07),
+    0 20px 48px -16px rgb(0 0 0 / 0.10);
+  backdrop-filter: saturate(140%) blur(8px);
+  overflow: hidden;
 }
 
-.dark .document-paper {
-  background-color: var(--card);
-  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+.dark .lb-tiptap-floating-composer,
+.dark .lb-tiptap-floating-threads-thread {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  /* Slightly lifted white outline reads better against the dark page than
+   * `--border` at 80% which faded out. Mirrors shadcn's `inset-ring-white/5`
+   * convention. */
+  outline-color: rgb(255 255 255 / 0.10);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.04),
+    0 8px 28px rgb(0 0 0 / 0.45);
+}
+
+/* `.lb-thread` is LB's inner Thread wrapper. It carries its own background +
+ * rounded top corners by default — but the outer popover card already has
+ * the rounding, and our header bar sits above the thread. The double-rounded
+ * "card-in-a-card" was the artifact at the top corners. Strip the inner
+ * rounding and let the background inherit. */
+.lb-tiptap-floating-threads-thread .lb-thread {
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Composer body: roomier padding, modern type rhythm. The thread's reply
+ * composer ("Reply to thread...") inherits this, so the placeholder font
+ * stays in line with the comment body. 13px reads as secondary chrome. */
+.lb-tiptap-floating-composer .lb-composer-editor,
+.lb-tiptap-floating-threads-thread .lb-composer-editor {
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lb-tiptap-floating-composer .lb-composer-editor[data-placeholder]:empty::before {
+  color: var(--muted-foreground);
+}
+
+/* Composer action row: tighter gap, primary submit button. */
+.lb-tiptap-floating-composer .lb-composer-actions {
+  padding: 8px 10px;
+  gap: 6px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+.lb-tiptap-floating-composer .lb-button[data-variant="primary"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 8px;
+  font-weight: 600;
+  transition: filter 120ms ease;
+}
+.lb-tiptap-floating-composer .lb-button[data-variant="primary"]:where(:enabled:hover) {
+  filter: brightness(1.08);
+}
+
+/* Thread cards: slimmer comment density, refined avatars. */
+.lb-tiptap-floating-threads-thread .lb-comment {
+  padding: 14px 16px;
+}
+
+.lb-tiptap-floating-threads-thread .lb-comment-header {
+  gap: 10px;
+  align-items: center;
+}
+
+.lb-tiptap-floating-threads-thread .lb-comment-avatar,
+.lb-tiptap-floating-threads-thread .lb-avatar {
+  --lb-avatar-size: 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.lb-tiptap-floating-threads-thread .lb-comment-author {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.lb-tiptap-floating-threads-thread .lb-comment-date {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.lb-tiptap-floating-threads-thread .lb-comment-body {
+  font-size: 14px;
+  line-height: 1.55;
+  margin-top: 4px;
+}
+
+/* Subtle separator between stacked threads in the floating popover. */
+.lb-tiptap-floating-threads-thread + .lb-tiptap-floating-threads-thread {
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+/* Resolve / delete / more buttons on a comment row: ghost style. */
+.lb-tiptap-floating-threads-thread .lb-button[data-variant="ghost"] {
+  border-radius: 8px;
+  color: var(--muted-foreground);
+}
+.lb-tiptap-floating-threads-thread
+  .lb-button[data-variant="ghost"]:where(:enabled:hover) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* AnchoredThreads gutter: the parent is `pointer-events-none` so empty gutter
+ * space doesn't swallow clicks meant for the doc body; each indicator opts
+ * back in so it stays clickable. */
+.documents-anchored-threads {
+  width: 56px;
+}
+.documents-anchored-threads .lb-tiptap-anchored-threads-thread-container {
+  pointer-events: auto;
+}
+.documents-anchored-threads .lb-tiptap-anchored-threads-thread {
+  /* The default LB AnchoredThread has a card background + shadow that fights
+   * our custom bubble look. Strip it so the avatar bubble is the only
+   * visible chrome. */
+  background: transparent;
   box-shadow: none;
 }
-
-@media (max-width: 768px) {
-  .document-paper {
-    padding: 2rem 1.5rem;
-    border-radius: 8px;
-  }
-}
-
-/* The editor sits inside .document-paper; strip its own padding so the paper
- * controls the inset. */
-.document-paper .tiptap {
-  padding: 0;
-}
-
-/* Tiptap renders Liveblocks comment highlights with a default yellow that
- * doesn't always read well against our theme tokens. Re-bind to the theme's
- * highlight color so light/dark both look intentional. */
-.tiptap .lb-tiptap-thread-mark {
-  background-color: oklch(var(--primary) / 0.18);
-  border-bottom: 1.5px solid oklch(var(--primary) / 0.5);
-  border-radius: 2px;
+.documents-anchored-threads .lb-tiptap-anchored-threads-thread::after {
+  display: none; /* default inset shadow */
 }
 
 /* Liveblocks ships the static Toolbar with a solid `--lb-background` fill

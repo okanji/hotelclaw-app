@@ -15,10 +15,11 @@
  * already-synced Yjs content.
  */
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { ClientSideSuspense, useThreads } from "@liveblocks/react/suspense";
 import { RoomProvider } from "@liveblocks/react/suspense";
 import {
+  AnchoredThreads,
   FloatingComposer,
   FloatingThreads,
   FloatingToolbar,
@@ -40,7 +41,13 @@ import { Loader2 } from "lucide-react";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
 import { renameDocument } from "./actions";
 import { DocumentAvatars } from "./document-avatars";
+import { ComposerCloseContext, DocumentComposer } from "./document-composer";
 import { DocumentTaskItem } from "./document-task-item";
+import {
+  DocumentFloatingThread,
+  DocumentThreadIndicator,
+  ThreadIndicatorEditorContext,
+} from "./document-thread-indicator";
 
 type Props = {
   propertyId: string;
@@ -131,24 +138,50 @@ function EditorInner({
   });
 
   useTitleSync(editor, documentId);
+  const closeComposer = useCallback(() => {
+    if (!editor) return;
+    closePendingCommentChain(editor);
+  }, [editor]);
+  useFloatingEditorUIDismiss(editor);
 
   const { threads } = useThreads();
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-muted/40">
-      <div className="documents-toolbar relative flex shrink-0 items-center justify-center px-6 pt-3 pb-2">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="documents-toolbar relative flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 pt-3 pb-2">
         <Toolbar editor={editor} />
         <div className="absolute right-6 top-1/2 -translate-y-1/2">
           <DocumentAvatars />
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-4 pb-16">
-        <div className="document-paper mx-auto w-full max-w-3xl">
-          <EditorContent editor={editor} />
-          <FloatingToolbar editor={editor} />
-          <FloatingComposer editor={editor} style={{ width: 350 }} />
-          <FloatingThreads threads={threads} editor={editor} />
-        </div>
+      <div className="flex-1 overflow-auto px-6 pb-24">
+        <ThreadIndicatorEditorContext.Provider value={editor}>
+          <div className="relative mx-auto w-full max-w-3xl pt-16">
+            <EditorContent editor={editor} />
+            <FloatingToolbar editor={editor} />
+            <ComposerCloseContext.Provider value={closeComposer}>
+              <FloatingComposer
+                editor={editor}
+                components={{ Composer: DocumentComposer }}
+                style={{ width: 350 }}
+              />
+            </ComposerCloseContext.Provider>
+            <FloatingThreads
+              threads={threads}
+              editor={editor}
+              components={{ Thread: DocumentFloatingThread }}
+            />
+            {/* Gutter indicators (right side, lg+). On narrower viewports the
+                inline FloatingThreads popover is the only entry-point — same
+                approach as Liveblocks's marketing demo. */}
+            <AnchoredThreads
+              editor={editor}
+              threads={threads}
+              components={{ Thread: DocumentThreadIndicator }}
+              className="documents-anchored-threads pointer-events-none absolute left-full top-0 ml-6 hidden lg:block"
+            />
+          </div>
+        </ThreadIndicatorEditorContext.Provider>
       </div>
     </div>
   );
@@ -194,6 +227,84 @@ function useTitleSync(editor: Editor | null, documentId: string) {
       editor.off("update", schedule);
     };
   }, [editor, documentId]);
+}
+
+/**
+ * `closePendingComment` is exposed by Liveblocks's CommentsExtension at
+ * runtime but isn't included in the public ChainedCommands type — cast so TS
+ * lets us through. Helper so the call site stays readable.
+ */
+function closePendingCommentChain(editor: Editor) {
+  (
+    editor.chain() as unknown as {
+      closePendingComment: () => { run: () => void };
+    }
+  )
+    .closePendingComment()
+    .run();
+}
+
+/**
+ * Outside-click dismissal for BOTH Liveblocks editor popovers:
+ *  - `FloatingComposer` (new-comment input) — dismissed via `closePendingComment`
+ *  - `FloatingThreads` (existing-thread viewer) — dismissed via `selectThread(null)`
+ *
+ * Liveblocks's components don't ship an outside-click handler for either
+ * (see `FloatingComposer.js` and `CommentsExtension.js` — only Escape and
+ * submit close them). The earlier "sometimes works" was incidental: clicking
+ * inside the editor changes the selection, which the CommentsExtension
+ * clears the pending mark from, which hides the composer. Clicks on the
+ * sidebar/toolbar/chrome don't touch the editor selection, so the popovers
+ * stay open forever without help.
+ *
+ * Strategy:
+ *  - `window` + capture-phase listeners so no descendant can `stopPropagation`
+ *    us out of the picture.
+ *  - Listen to BOTH `pointerdown` and `mousedown`. Pointerdown fires earliest;
+ *    some Radix synthetic events only emit mousedown.
+ *  - "Inside" detection uses class lookups, which is robust here because both
+ *    LB popovers carry the shared `.lb-tiptap-floating` class on their portal
+ *    root (see `FloatingComposer.js:112`). Mention/emoji pickers carry
+ *    `.lb-tiptap-suggestions` and must NOT dismiss either.
+ *  - Short-circuit when no popover is mounted: avoids firing useless transactions.
+ */
+function useFloatingEditorUIDismiss(editor: Editor | null) {
+  useEffect(() => {
+    if (!editor) return;
+
+    function isInsideEditorPopover(target: EventTarget | null): boolean {
+      if (!(target instanceof Element)) return false;
+      if (target.closest(".lb-tiptap-floating")) return true; // composer + threads
+      if (target.closest(".lb-tiptap-suggestions")) return true; // mention/emoji picker
+      return false;
+    }
+
+    function dismissIfOutside(event: Event) {
+      if (isInsideEditorPopover(event.target)) return;
+
+      // Bail when nothing's open — keeps unrelated clicks completely free of
+      // Tiptap transactions.
+      if (!document.querySelector(".lb-tiptap-floating")) return;
+
+      const storage = editor!.storage.liveblocksComments as
+        | { pendingComment?: boolean }
+        | undefined;
+      if (storage?.pendingComment) {
+        closePendingCommentChain(editor!);
+      }
+      // Always safe to call: `selectThread(null)` resolves to clearing the
+      // active id list (CommentsExtension.js:242–246). Idempotent when the
+      // list is already empty.
+      editor!.commands.selectThread(null);
+    }
+
+    window.addEventListener("pointerdown", dismissIfOutside, true);
+    window.addEventListener("mousedown", dismissIfOutside, true);
+    return () => {
+      window.removeEventListener("pointerdown", dismissIfOutside, true);
+      window.removeEventListener("mousedown", dismissIfOutside, true);
+    };
+  }, [editor]);
 }
 
 function escapeHtml(s: string): string {
