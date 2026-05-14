@@ -82,8 +82,8 @@ import { useTimeFormat } from "@/lib/preferences/time-format-context";
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
 
-/** Slack breaks message clusters when consecutive same-author messages are more than ~5 min apart. */
-const CLUSTER_TIME_GAP_MS = 5 * 60 * 1000;
+/** Slack breaks message clusters when consecutive same-author messages are more than ~2 min apart. */
+const CLUSTER_TIME_GAP_MS = 2 * 60 * 1000;
 
 function messageCreatedAtMs(msg: unknown): number | null {
   if (!msg || typeof msg !== "object") return null;
@@ -170,10 +170,23 @@ function neighborRenderedMessage(
   return undefined;
 }
 
+/**
+ * Stream's getGroupStyles treats any message with reactions as a cluster
+ * breaker — both the reacted message and its successor get forced into
+ * `single`/`top`/`bottom`, growing an avatar. Slack's grouping ignores
+ * reactions entirely; reactions sit under the reacted message without
+ * splitting the cluster. Strip `reaction_groups` before handing the message
+ * to getGroupStyles so the algorithm can't see the reaction signal — every
+ * other rule (author change, attachments, type, edited) still applies.
+ */
+function withoutReactions(msg: unknown): unknown {
+  if (!msg || typeof msg !== "object") return msg;
+  return { ...(msg as Record<string, unknown>), reaction_groups: undefined };
+}
+
 function resolveClusterRole(
   messageId: string,
   processedMessages: unknown[] | undefined,
-  groupStyles?: string[],
 ): ClusterRole {
   let self: unknown;
   let prev: unknown;
@@ -203,19 +216,14 @@ function resolveClusterRole(
 
   let role: ClusterRole = "single";
 
-  const fromProp = groupStyles?.[0];
-  if (
-    fromProp === "top" ||
-    fromProp === "middle" ||
-    fromProp === "bottom" ||
-    fromProp === "single"
-  ) {
-    role = fromProp;
-  } else if (self) {
+  // The `groupStyles` prop from Stream's MessageList is computed against
+  // un-stripped messages, so it carries the reaction-as-cluster-breaker bug.
+  // Always recompute locally with reactions stripped.
+  if (self) {
     const style = getGroupStyles(
-      self as never,
-      prev as never,
-      next as never,
+      withoutReactions(self) as never,
+      withoutReactions(prev) as never,
+      withoutReactions(next) as never,
       false,
       undefined,
     );
@@ -239,7 +247,6 @@ type MessageUIWithContextProps = MessageContextValue;
 const SlackMessageUIWithContext = ({
   endOfGroup,
   firstOfGroup,
-  groupStyles,
   groupedByUser,
   handleAction,
   handleOpenThread,
@@ -298,8 +305,8 @@ const SlackMessageUIWithContext = ({
   );
 
   const clusterRole = useMemo(
-    () => resolveClusterRole(message.id, processedMessages, groupStyles),
-    [message.id, processedMessages, groupStyles],
+    () => resolveClusterRole(message.id, processedMessages),
+    [message.id, processedMessages],
   );
 
   const { format: timeFormat } = useTimeFormat();
