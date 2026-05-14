@@ -526,7 +526,7 @@
      small positive value here is a visual compensation for the metric drift
      between Google Fonts Lato (what next/font ships) and Slack's custom
      "Slack-Lato" build, which renders a hair more open at the same tracking. */
-  letter-spacing: 0.01em;
+  letter-spacing: 0.008em;
   font-feature-settings: normal;
 }
 

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStreamServer } from "@/lib/stream/server";
+import { findAlreadyNotifiedUserIds } from "@/lib/notifications/server";
 
 /**
  * Bridge endpoint: the client subscribes to Stream events and POSTs the
@@ -119,12 +120,12 @@ async function handleChannelAdded(args: {
   }
 
   // Dedup: skip if we already notified this user about this channel-add.
-  if (
-    await alreadyNotified(args.service, args.userId, "channel_added", {
-      key: "channelId",
-      value: args.streamChannelId,
-    })
-  ) {
+  const dedupedAdds = await findAlreadyNotifiedUserIds({
+    userIds: [args.userId],
+    type: "channel_added",
+    match: { key: "channelId", value: args.streamChannelId },
+  });
+  if (dedupedAdds.has(args.userId)) {
     return NextResponse.json({ ok: true, deduped: true });
   }
 
@@ -221,12 +222,12 @@ async function handleMention(args: {
   }
 
   // Dedup by message id.
-  if (
-    await alreadyNotified(args.service, args.userId, "mention", {
-      key: "messageId",
-      value: args.messageId,
-    })
-  ) {
+  const dedupedMentions = await findAlreadyNotifiedUserIds({
+    userIds: [args.userId],
+    type: "mention",
+    match: { key: "messageId", value: args.messageId },
+  });
+  if (dedupedMentions.has(args.userId)) {
     return NextResponse.json({ ok: true, deduped: true });
   }
 
@@ -248,20 +249,3 @@ async function handleMention(args: {
   return NextResponse.json({ ok: true });
 }
 
-async function alreadyNotified(
-  service: ReturnType<typeof createServiceClient>,
-  userId: string,
-  type: string,
-  match: { key: string; value: string },
-): Promise<boolean> {
-  // Last 24h window. Cheap query via the user/created_at index.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data } = await service
-    .from("notifications")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("type", type)
-    .gte("created_at", since)
-    .contains("payload", { [match.key]: match.value });
-  return !!data && data.length > 0;
-}

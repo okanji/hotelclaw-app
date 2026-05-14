@@ -2,13 +2,22 @@
 
 import { File, MessageSquare, Pin, Plus, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FilesPopover } from "@/components/chat/files/files-popover";
+import { useInfoPanel } from "@/components/chat/info-panel/context";
 
 /**
  * Slack-style tab strip directly under the channel header.
- * Messages is the only functional tab today; Canvas/Files/Pins/+ are visual
- * scaffolding that will wire up once those features land.
+ * Messages is the active tab; Files hover-previews + opens the info panel
+ * on the Files tab when clicked. Canvas/Pins/+ are still scaffolding.
  */
 export function ChannelTabs() {
+  const { setTab, toggle, open } = useInfoPanel();
+
+  const openFilesPanel = () => {
+    setTab("files");
+    if (!open) toggle();
+  };
+
   return (
     <nav
       aria-label="Channel views"
@@ -16,7 +25,9 @@ export function ChannelTabs() {
     >
       <TabButton active label="Messages" icon={<MessageSquare />} />
       <TabButton label="Canvas" icon={<StickyNote />} />
-      <TabButton label="Files" icon={<File />} />
+      <FilesPopover onClick={openFilesPanel}>
+        <TabButton label="Files" icon={<File />} />
+      </FilesPopover>
       <TabButton label="Pins" icon={<Pin />} />
       <button
         type="button"
@@ -33,11 +44,12 @@ function TabButton({
   active,
   label,
   icon,
+  ...rest
 }: {
   active?: boolean;
   label: string;
   icon: React.ReactNode;
-}) {
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
@@ -48,6 +60,7 @@ function TabButton({
           : "text-muted-foreground hover:bg-[oklch(1_0_0_/_0.06)] hover:text-foreground",
       )}
       aria-current={active ? "page" : undefined}
+      {...rest}
     >
       <span className="[&_svg]:size-[15px]">{icon}</span>
       <span>{label}</span>

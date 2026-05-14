@@ -65,3 +65,31 @@ export async function createNotifications(items: Args[]): Promise<void> {
     console.error("createNotifications threw", e);
   }
 }
+
+/**
+ * Returns the subset of `userIds` who already have a notification of `type`
+ * matching `payload[match.key] === match.value` in the last 24 hours. Used
+ * by both the client-side bridge and the Stream webhook to avoid duplicate
+ * notifications when both fire for the same message — whichever lands first
+ * wins, the other's user ids are filtered out here.
+ *
+ * Cheap query via the (user_id, created_at) index; the payload JSON contains
+ * check is a sequential scan over the recent window only.
+ */
+export async function findAlreadyNotifiedUserIds(args: {
+  userIds: string[];
+  type: NotificationType;
+  match: { key: string; value: string };
+}): Promise<Set<string>> {
+  if (args.userIds.length === 0) return new Set();
+  const service = createServiceClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await service
+    .from("notifications")
+    .select("user_id")
+    .in("user_id", args.userIds)
+    .eq("type", args.type)
+    .gte("created_at", since)
+    .contains("payload", { [args.match.key]: args.match.value });
+  return new Set((data ?? []).map((r) => r.user_id as string));
+}

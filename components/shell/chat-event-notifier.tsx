@@ -83,7 +83,15 @@ export function ChatEventNotifier({ propertyId }: { propertyId: string }) {
 
     const subs = [
       client.on("notification.added_to_channel", onAdded),
+      // `message.new` only fires for channels the user is currently watching.
+      // `notification.message_new` fires for member channels the user is NOT
+      // watching, so we cover both: messages in the open channel AND messages
+      // arriving in other channels while the user is on a different page.
+      // Same handler — both events carry `message` + `channel_id` in the same
+      // shape, and the in-handler guard (mentioned / @channel only) prevents
+      // notification spam for unmentioning messages.
       client.on("message.new", onMessage),
+      client.on("notification.message_new", onMessage),
     ];
     return () => subs.forEach((s) => s.unsubscribe());
   }, [client, propertyId]);
