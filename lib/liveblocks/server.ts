@@ -1,6 +1,16 @@
 import "server-only";
 import { Liveblocks } from "@liveblocks/node";
 
+// Re-export the pure room-id helpers for server-side callers so existing
+// imports (`@/lib/liveblocks/server`) keep working. Client code should
+// import from `@/lib/liveblocks/rooms` instead.
+export {
+  roomIdForBoard,
+  roomIdForTask,
+  roomIdForDocument,
+  propertyIdFromRoomId,
+} from "./rooms";
+
 let _client: Liveblocks | null = null;
 
 export function getLiveblocksServer() {
@@ -9,12 +19,4 @@ export function getLiveblocksServer() {
   if (!secret) throw new Error("Missing LIVEBLOCKS_SECRET_KEY");
   _client = new Liveblocks({ secret });
   return _client;
-}
-
-export function roomIdForBoard(propertyId: string) {
-  return `property:${propertyId}:tasks`;
-}
-
-export function roomIdForTask(propertyId: string, taskId: string) {
-  return `property:${propertyId}:task:${taskId}`;
 }

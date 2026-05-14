@@ -1,6 +1,10 @@
 "use client";
 
-import type { ResolveUsersArgs } from "@liveblocks/client";
+import type {
+  ResolveMentionSuggestionsArgs,
+  ResolveUsersArgs,
+} from "@liveblocks/client";
+import { propertyIdFromRoomId } from "./rooms";
 
 type UserInfo = {
   name: string;
@@ -24,3 +28,28 @@ export async function resolveUsers({
     return userIds.map(() => undefined);
   }
 }
+
+/**
+ * Comment-composer mention search. Liveblocks calls this when the user types
+ * `@` in a thread composer. The property is parsed out of the room id (we
+ * use `property:<uuid>:...` everywhere — see lib/liveblocks/server.ts) so the
+ * results stay scoped to the user's tenant.
+ */
+export async function resolveMentionSuggestions({
+  text,
+  roomId,
+}: ResolveMentionSuggestionsArgs): Promise<string[]> {
+  const propertyId = roomId ? propertyIdFromRoomId(roomId) : null;
+  if (!propertyId) return [];
+  const params = new URLSearchParams({ text, propertyId });
+  try {
+    const res = await fetch(`/api/users/search?${params.toString()}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as string[];
+  } catch {
+    return [];
+  }
+}
+

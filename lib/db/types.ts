@@ -98,6 +98,29 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      documents: {
+        Row: {
+          id: string;
+          property_id: string;
+          title: string;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          title?: string;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
       tasks: {
         Row: {
           id: string;

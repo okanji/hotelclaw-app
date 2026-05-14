@@ -1,0 +1,155 @@
+/*
+ * Minimal overrides for the Tiptap + Liveblocks document editor. Most styling
+ * comes from:
+ *   - @liveblocks/react-ui/styles.css       (composer + threads UI)
+ *   - @liveblocks/react-tiptap/styles.css   (toolbar + floating toolbar)
+ *   - Tailwind's `prose` plugin on the editor container (typography)
+ *
+ * Only the bits Tailwind can't handle live here.
+ */
+
+/* Liveblocks's CollaborationCursor renders inline labels next to remote
+ * carets. The default label is bright; tone it down so it doesn't fight
+ * with the rest of the UI. */
+.collaboration-cursor__label {
+  font-family:
+    var(--font-sans),
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Empty node placeholder. Tiptap's Placeholder extension stamps
+ * data-placeholder onto empty nodes that have the cursor; we render the hint
+ * via ::before so it doesn't take real layout space. The selector intentionally
+ * matches any element (not just <p>) because the first node — the title — is
+ * an <h1>. */
+.tiptap .is-empty[data-placeholder]::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Title row: the first top-level node is always rendered title-sized,
+ * regardless of whether the user keeps it as an <h1> or downgrades it to a
+ * paragraph. This matches the Notion-style "first line is the title" model. */
+.tiptap > :first-child {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+/* "Paper" surface — the sheet the editor lives inside, floating on a subtle
+ * page background. Mirrors the Tiptap marketing example. In dark mode the
+ * paper sits slightly above the page (lighter, not darker) and we drop the
+ * shadow stack to a subtle inset ring (per design guideline: no shadows in
+ * dark mode). */
+.document-paper {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px rgb(0 0 0 / 0.06),
+    0 24px 48px -16px rgb(0 0 0 / 0.08);
+  padding: 4rem 4.5rem;
+  min-height: calc(100vh - 200px);
+}
+
+.dark .document-paper {
+  background-color: var(--card);
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .document-paper {
+    padding: 2rem 1.5rem;
+    border-radius: 8px;
+  }
+}
+
+/* The editor sits inside .document-paper; strip its own padding so the paper
+ * controls the inset. */
+.document-paper .tiptap {
+  padding: 0;
+}
+
+/* Tiptap renders Liveblocks comment highlights with a default yellow that
+ * doesn't always read well against our theme tokens. Re-bind to the theme's
+ * highlight color so light/dark both look intentional. */
+.tiptap .lb-tiptap-thread-mark {
+  background-color: oklch(var(--primary) / 0.18);
+  border-bottom: 1.5px solid oklch(var(--primary) / 0.5);
+  border-radius: 2px;
+}
+
+/* Liveblocks ships the static Toolbar with a solid `--lb-background` fill
+ * AND solid per-button backgrounds — together they produce a white pill row
+ * that looks correct on a generic page but fights the gray page surface
+ * we're using. Override only inside `.documents-toolbar` so the floating
+ * selection toolbar and other Liveblocks UI (composer, threads) keep their
+ * default pill styling. Scoping by class also means dark mode "just works"
+ * — every value below pulls from the shadcn theme tokens that already
+ * switch when `.dark` is set on the html element. */
+
+.documents-toolbar .lb-tiptap-toolbar {
+  background: transparent;
+}
+
+.documents-toolbar .lb-button {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: none;
+  box-shadow: none;
+}
+
+.documents-toolbar .lb-button :where(.lb-icon, svg) {
+  color: currentColor;
+}
+
+.documents-toolbar
+  .lb-button:where(:enabled:hover, [data-highlighted]:not([data-highlighted="false"])) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.documents-toolbar
+  .lb-button:where(
+    [data-active="true"],
+    [data-state="open"],
+    [data-state="on"]
+  ) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.documents-toolbar
+  .lb-button:where(:not(.lb-button\:non-disableable):disabled) {
+  opacity: 0.4;
+}
+
+/* Block selector ("Text" / "H") and other buttons with a text label keep
+ * their label readable in both modes. */
+.documents-toolbar .lb-button .lb-button-label {
+  color: inherit;
+  font-weight: 500;
+}
+
+/* Separator: re-bind to the theme border token so it shows up in both
+ * modes (the default `--lb-foreground-subtle` reads way too faint on our
+ * gray surface). */
+.documents-toolbar .lb-tiptap-toolbar-separator::before {
+  background: var(--border);
+  opacity: 1;
+}

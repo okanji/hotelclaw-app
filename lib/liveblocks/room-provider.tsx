@@ -1,7 +1,7 @@
 "use client";
 
 import { LiveblocksProvider } from "@liveblocks/react/suspense";
-import { resolveUsers } from "./resolvers";
+import { resolveMentionSuggestions, resolveUsers } from "./resolvers";
 
 export function LiveblocksProviders({
   propertyId,
@@ -14,6 +14,7 @@ export function LiveblocksProviders({
     <LiveblocksProvider
       authEndpoint="/api/liveblocks/auth"
       resolveUsers={resolveUsers}
+      resolveMentionSuggestions={resolveMentionSuggestions}
     >
       {children}
     </LiveblocksProvider>

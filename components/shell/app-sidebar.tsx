@@ -40,6 +40,7 @@ import { ChannelListSection } from "@/components/chat/channel-list/channel-list-
 import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
 import { ArchivedChannelsDialog } from "@/components/chat/archived-channels-dialog";
 import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
+import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
 import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { NotificationsToggle } from "./notifications-toggle";
@@ -151,6 +152,8 @@ export function AppSidebar({ currentPropertyId, memberships, user }: Props) {
             />
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <DocumentsTreeSection propertyId={currentPropertyId} />
 
         <SidebarGroup>
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
