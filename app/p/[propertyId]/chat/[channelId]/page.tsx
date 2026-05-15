@@ -1,4 +1,5 @@
 import { ChannelView } from "@/components/chat/channel-view";
+import { LastChannelRecorder } from "@/components/chat/last-channel-recorder";
 
 /**
  * Channel route — handles both `team` channels and `messaging` DMs.
@@ -22,10 +23,13 @@ export default async function ChannelPage({
   const messageId = Array.isArray(messageIdRaw) ? messageIdRaw[0] : messageIdRaw;
 
   return (
-    <ChannelView
-      channelId={channelId}
-      propertyId={propertyId}
-      messageId={messageId ?? null}
-    />
+    <>
+      <LastChannelRecorder propertyId={propertyId} channelId={channelId} />
+      <ChannelView
+        channelId={channelId}
+        propertyId={propertyId}
+        messageId={messageId ?? null}
+      />
+    </>
   );
 }

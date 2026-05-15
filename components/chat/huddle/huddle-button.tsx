@@ -24,7 +24,7 @@ export function HuddleButton({ channelId }: { channelId: string }) {
         size="default"
         title="Leave huddle"
         aria-label="Leave huddle"
-        className="gap-1 border-destructive/40 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        className="gap-1 border-destructive/40 bg-transparent px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive dark:bg-transparent"
         onClick={() => void leave()}
       >
         <PhoneOff className="size-4" />
@@ -39,7 +39,7 @@ export function HuddleButton({ channelId }: { channelId: string }) {
       size="default"
       title={videoReady ? "Start huddle" : "Voice not ready"}
       aria-label="Start huddle"
-      className="gap-1 px-2.5"
+      className="gap-1 bg-transparent px-2.5 dark:bg-transparent"
       disabled={!videoReady || joining}
       onClick={() => void join(channelId)}
     >

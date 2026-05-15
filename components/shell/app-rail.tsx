@@ -10,6 +10,7 @@ import {
   MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { lastChannelPath } from "@/lib/chat/last-channel";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 
@@ -93,15 +94,26 @@ export function AppRail({
     for (const item of items) {
       if (item.href) router.prefetch(item.href);
     }
-  }, [items, router]);
+    // Chat / DMs resolve to a specific channel route at click time (see
+    // `handleClick`) — warm that too so the jump is instant after a reload.
+    const chatPath = lastChannelPath(propertyId);
+    if (chatPath) router.prefetch(chatPath);
+  }, [items, router, propertyId]);
 
   function handleClick(item: RailItem) {
     setSection(item.section);
-    // Navigate to the section's landing route — unless we're already on a
-    // route that belongs to it (don't yank the user off their current page).
-    if (item.href && !(item.routeKey && pathname.includes(item.routeKey))) {
-      router.push(item.href);
-    }
+    if (!item.href) return;
+    // Already on a route that belongs to this section — just switch the
+    // sidebar, don't yank the user off their current page.
+    if (item.routeKey && pathname.includes(item.routeKey)) return;
+    // Chat / DMs: skip the `/chat` index (a DB query + server redirect to the
+    // first channel) by going straight to the channel last opened in this
+    // property. Falls back to the index on first visit / cleared storage.
+    const target =
+      item.routeKey === "/chat"
+        ? (lastChannelPath(propertyId) ?? item.href)
+        : item.href;
+    router.push(target);
   }
 
   return (

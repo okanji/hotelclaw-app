@@ -62,7 +62,7 @@ export function ChannelHeader() {
           size="icon-sm"
           title="Star channel"
           aria-label="Star channel"
-          className="text-muted-foreground hover:text-foreground"
+          className="bg-transparent text-muted-foreground hover:text-foreground dark:bg-transparent"
         >
           <Star className="size-[15px]" />
         </Button>
@@ -95,7 +95,7 @@ export function ChannelHeader() {
             size="default"
             onClick={toggle}
             title="Members"
-            className="gap-1.5 px-2.5"
+            className="gap-1.5 bg-transparent px-2.5 dark:bg-transparent"
           >
             <Users className="size-4 text-muted-foreground" />
             <span className="tabular-nums">{memberCount}</span>
@@ -107,6 +107,7 @@ export function ChannelHeader() {
           size="icon"
           title="Notifications"
           aria-label="Channel notifications"
+          className="bg-transparent dark:bg-transparent"
         >
           <Bell />
         </Button>
@@ -115,6 +116,7 @@ export function ChannelHeader() {
           size="icon"
           title="Search in channel"
           aria-label="Search in channel"
+          className="bg-transparent dark:bg-transparent"
           onClick={() => {
             if (!propertyId || !channel.id) return;
             router.push(
