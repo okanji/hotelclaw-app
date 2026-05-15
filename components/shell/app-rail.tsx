@@ -10,7 +10,7 @@ import {
   MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { lastChannelPath } from "@/lib/chat/last-channel";
+import { lastSectionPath } from "@/lib/shell/last-path";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 
@@ -89,15 +89,13 @@ export function AppRail({
   // auto-prefetches these routes. Warm them on mount: a cold first click
   // otherwise leaves the previous section's page on screen for the whole
   // server roundtrip (the section sidebar has already switched away) — e.g.
-  // a chat channel briefly showing under the Activity rail.
+  // a chat channel briefly showing under the Activity rail. Each click
+  // resolves to the section's remembered route, so warm that, not `href`.
   useEffect(() => {
     for (const item of items) {
-      if (item.href) router.prefetch(item.href);
+      const target = lastSectionPath(propertyId, item.section) ?? item.href;
+      if (target) router.prefetch(target);
     }
-    // Chat / DMs resolve to a specific channel route at click time (see
-    // `handleClick`) — warm that too so the jump is instant after a reload.
-    const chatPath = lastChannelPath(propertyId);
-    if (chatPath) router.prefetch(chatPath);
   }, [items, router, propertyId]);
 
   function handleClick(item: RailItem) {
@@ -106,13 +104,11 @@ export function AppRail({
     // Already on a route that belongs to this section — just switch the
     // sidebar, don't yank the user off their current page.
     if (item.routeKey && pathname.includes(item.routeKey)) return;
-    // Chat / DMs: skip the `/chat` index (a DB query + server redirect to the
-    // first channel) by going straight to the channel last opened in this
-    // property. Falls back to the index on first visit / cleared storage.
-    const target =
-      item.routeKey === "/chat"
-        ? (lastChannelPath(propertyId) ?? item.href)
-        : item.href;
+    // Jump back to wherever the user left off in this section (recorded in
+    // localStorage by `LastPathRecorder`) instead of its generic landing
+    // route — for Chat that also skips the `/chat` index's query + redirect.
+    // Falls back to the landing route on first visit / cleared storage.
+    const target = lastSectionPath(propertyId, item.section) ?? item.href;
     router.push(target);
   }
 
