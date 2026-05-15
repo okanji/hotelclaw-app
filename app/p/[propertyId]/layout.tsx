@@ -1,9 +1,12 @@
 import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
-import { AppSidebar } from "@/components/shell/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { LeftShell } from "@/components/shell/left-shell";
+import { ShellSectionProvider } from "@/components/shell/shell-section-context";
+import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
 import { HuddleProvider } from "@/lib/stream/huddle-context";
@@ -50,6 +53,21 @@ export default async function PropertyLayout({
   const initialTimeFormat: TimeFormat =
     profile.data?.time_format === "12h" ? "12h" : "24h";
 
+  // Persisted secondary-sidebar widths — read server-side from cookies so the
+  // first paint matches the resized width with no hydration flash. Activity
+  // keeps its own (wider) width separate from the chat/tasks/docs sidebar.
+  const cookieStore = await cookies();
+  const cookieWidth = Number(cookieStore.get("section_sidebar_width")?.value);
+  const sectionSidebarWidth = Number.isFinite(cookieWidth)
+    ? cookieWidth
+    : undefined;
+  const activityCookieWidth = Number(
+    cookieStore.get("activity_sidebar_width")?.value,
+  );
+  const activitySidebarWidth = Number.isFinite(activityCookieWidth)
+    ? activityCookieWidth
+    : undefined;
+
   return (
     <StreamProvider
       userId={user.id}
@@ -68,30 +86,42 @@ export default async function PropertyLayout({
           <UserProfilePanelProvider>
             <CommandPaletteProvider>
               <SidebarProvider>
-                <AppSidebar
-                  currentPropertyId={propertyId}
-                  memberships={memberships}
-                  user={{
-                    id: user.id,
-                    email: user.email ?? "",
-                    name: profile.data?.full_name ?? null,
-                    avatarUrl: profile.data?.avatar_url ?? null,
-                  }}
-                />
-                <SidebarInset>
-                  {/* flex-row so an open profile panel claims width and the
-                      chat/tasks/threads page compresses to fit (Slack-style
-                      push, not overlay). */}
-                  <div className="flex h-full min-h-0 flex-1">
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      {children}
-                    </div>
-                    <UserProfilePanel propertyId={propertyId} />
+                <ShellSectionProvider>
+                  {/* Slack-style shell: icon rail + contextual secondary
+                      sidebar (both bg-sidebar, no divider) + inset content. */}
+                  <div className="flex h-svh w-full overflow-hidden bg-sidebar">
+                    <LeftShell
+                      currentPropertyId={propertyId}
+                      memberships={memberships}
+                      defaultWidth={sectionSidebarWidth}
+                      activityDefaultWidth={activitySidebarWidth}
+                      user={{
+                        id: user.id,
+                        email: user.email ?? "",
+                        name: profile.data?.full_name ?? null,
+                        avatarUrl: profile.data?.avatar_url ?? null,
+                      }}
+                    />
+                    <main
+                      data-slot="sidebar-inset"
+                      className="relative m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border"
+                    >
+                      {/* flex-row so an open profile panel claims width and the
+                          chat/tasks/threads page compresses to fit (Slack-style
+                          push, not overlay). */}
+                      <div className="flex h-full min-h-0 flex-1">
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          {children}
+                        </div>
+                        <UserProfilePanel propertyId={propertyId} />
+                      </div>
+                    </main>
                   </div>
-                </SidebarInset>
-                <CommandPalette propertyId={propertyId} />
-                <ChatEventNotifier propertyId={propertyId} />
-                <HuddleWidget />
+                  <CommandPalette propertyId={propertyId} />
+                  <ChatEventNotifier propertyId={propertyId} />
+                  <HuddleWidget />
+                  <BrowserNotifications />
+                </ShellSectionProvider>
               </SidebarProvider>
             </CommandPaletteProvider>
           </UserProfilePanelProvider>

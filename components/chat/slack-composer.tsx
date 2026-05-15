@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useChannelStateContext, useChatContext } from "stream-chat-react";
 import type { Attachment } from "stream-chat";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import emojiData from "@emoji-mart/data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,6 +74,7 @@ type MentionCandidate = {
 export function SlackComposer({ placeholder }: { placeholder?: string }) {
   const { channel } = useChannelStateContext();
   const { client } = useChatContext();
+  const { resolvedTheme } = useTheme();
   const myId = client?.user?.id;
 
   const editorRef = useRef<RichEditorHandle>(null);
@@ -231,7 +233,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
   const canSend = (!isEditorEmpty || attachments.length > 0) && !sending;
 
   return (
-    <div className="group/composer mx-4 mb-4 mt-2 flex flex-col rounded-lg border border-[oklch(1_0_0_/_0.13)] bg-transparent transition-colors focus-within:border-[oklch(1_0_0_/_0.22)]">
+    <div className="group/composer mx-4 mb-4 mt-2 flex flex-col rounded-lg border border-black/10 bg-transparent transition-colors focus-within:border-black/20 dark:border-[oklch(1_0_0_/_0.13)] dark:focus-within:border-[oklch(1_0_0_/_0.22)]">
       {/* Attachment preview chips */}
       {(attachments.length > 0 || uploads.length > 0) && (
         <div className="flex flex-wrap gap-2 border-b border-border px-3 py-2">
@@ -402,7 +404,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
                     type="button"
                     aria-label="Emoji"
                     title="Emoji"
-                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground [&_svg]:size-[18px]"
+                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-[#AAAAAB] dark:hover:bg-[oklch(1_0_0_/_0.08)] [&_svg]:size-[18px]"
                   >
                     <Smile />
                   </button>
@@ -416,7 +418,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
               >
                 <EmojiPicker
                   data={emojiData}
-                  theme="dark"
+                  theme={resolvedTheme === "light" ? "light" : "dark"}
                   previewPosition="none"
                   skinTonePosition="none"
                   navPosition="bottom"
@@ -460,8 +462,8 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
             className={cn(
               "inline-flex size-7 items-center justify-center rounded-md transition-colors",
               canSend
-                ? "text-foreground hover:bg-[oklch(1_0_0_/_0.08)]"
-                : "text-muted-foreground/60 group-focus-within/composer:text-[#AAAAAB]",
+                ? "text-foreground hover:bg-black/5 dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+                : "text-muted-foreground/60 group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-[#AAAAAB]",
             )}
           >
             <Send className="size-[18px]" />
@@ -469,7 +471,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
           <button
             type="button"
             aria-label="Send options"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground"
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-[#AAAAAB] dark:hover:bg-[oklch(1_0_0_/_0.08)]"
           >
             <ChevronDown className="size-[18px]" />
           </button>
@@ -497,7 +499,7 @@ function Divider() {
   return (
     <span
       aria-hidden="true"
-      className="mx-1 h-4 w-px shrink-0 bg-[oklch(1_0_0_/_0.12)]"
+      className="mx-1 h-4 w-px shrink-0 bg-black/10 dark:bg-[oklch(1_0_0_/_0.12)]"
     />
   );
 }
@@ -526,8 +528,8 @@ function IconBtn({
       className={cn(
         "inline-flex size-7 items-center justify-center rounded-md transition-colors [&_svg]:size-[18px]",
         active
-          ? "bg-[oklch(1_0_0_/_0.1)] text-foreground"
-          : "text-muted-foreground group-focus-within/composer:text-[#AAAAAB] hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground",
+          ? "bg-black/10 text-foreground dark:bg-[oklch(1_0_0_/_0.1)]"
+          : "text-muted-foreground hover:bg-black/5 hover:text-foreground group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-[#AAAAAB] dark:hover:bg-[oklch(1_0_0_/_0.08)]",
       )}
     >
       {children}
@@ -564,7 +566,7 @@ function AttachmentChip({
         type="button"
         aria-label="Remove attachment"
         onClick={onRemove}
-        className="ml-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground"
+        className="ml-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
       >
         <X className="size-3" />
       </button>
@@ -631,7 +633,7 @@ function MentionList({
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]",
                 i === index
-                  ? "bg-[oklch(1_0_0_/_0.08)] text-foreground"
+                  ? "bg-black/5 text-foreground dark:bg-[oklch(1_0_0_/_0.08)]"
                   : "text-foreground/90",
               )}
             >

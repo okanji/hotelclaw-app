@@ -24,7 +24,11 @@ export function TaskRoom({
   return (
     <RoomProvider
       id={`property:${propertyId}:task:${task.id}`}
-      initialPresence={{ cursor: null, selectedTaskId: task.id }}
+      initialPresence={{
+        cursor: null,
+        selectedTaskId: task.id,
+        draggingTaskId: null,
+      }}
     >
       <ClientSideSuspense
         fallback={

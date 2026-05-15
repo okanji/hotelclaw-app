@@ -21,14 +21,21 @@ type Props = {
   propertyId: string;
   /** Called with a destination href to navigate to; null = no nav. */
   onSelect: (href: string | null) => void;
+  /** Highlight as the currently selected row (Activity master-detail). */
+  active?: boolean;
 };
 
 /**
- * Single row in the notification feed. Renders icon + lead + sub + time.
- * Each `type` value has its own renderer below — when adding a new type
- * server-side, plug it in here too.
+ * A single notification card in the Activity feed: icon avatar + lead + time
+ * on one row, with an optional preview line below. Each `type` value has its
+ * own renderer below — when adding a new type server-side, plug it in here too.
  */
-export function NotificationItem({ notification, propertyId, onSelect }: Props) {
+export function NotificationItem({
+  notification,
+  propertyId,
+  onSelect,
+  active = false,
+}: Props) {
   const view = renderView(notification, propertyId);
   const unseen = !notification.seen_at;
 
@@ -37,37 +44,47 @@ export function NotificationItem({ notification, propertyId, onSelect }: Props) 
       <button
         type="button"
         onClick={() => onSelect(view.href)}
+        aria-current={active ? "true" : undefined}
         className={cn(
-          "flex w-full items-start gap-3 px-3 py-3 text-left transition",
-          unseen ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted",
+          "flex w-full items-start gap-3 rounded-lg border bg-card p-3 text-left",
+          active
+            ? "border-primary/40 ring-2 ring-primary/30"
+            : "border-border hover:border-foreground/25",
+          unseen && !active && "bg-primary/5",
         )}
       >
         <span
           className={cn(
-            "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-            unseen ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full",
+            unseen
+              ? "bg-primary/15 text-primary"
+              : "bg-muted text-muted-foreground",
           )}
           aria-hidden="true"
         >
           {view.icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm leading-snug">{view.lead}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 text-sm leading-snug">{view.lead}</p>
+            <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
+              {unseen ? (
+                <span
+                  className="size-2 rounded-full bg-primary"
+                  aria-label="Unread"
+                />
+              ) : null}
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {relativeTime(notification.created_at)}
+              </span>
+            </span>
+          </div>
           {view.sub ? (
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
               {view.sub}
             </p>
           ) : null}
-          <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
-            {relativeTime(notification.created_at)}
-          </p>
         </div>
-        {unseen ? (
-          <span
-            className="mt-2 size-2 shrink-0 rounded-full bg-primary"
-            aria-label="Unread"
-          />
-        ) : null}
       </button>
     </li>
   );
@@ -136,7 +153,7 @@ function renderView(n: NotificationRow, propertyId: string): View {
         icon: <Mail className="size-3.5" />,
         lead: (
           <>
-            You're invited to{" "}
+            You&apos;re invited to{" "}
             <strong className="font-semibold">
               {p.propertyName ?? "a workspace"}
             </strong>{" "}

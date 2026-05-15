@@ -9,76 +9,123 @@ import {
   Window,
   useChatContext,
 } from "stream-chat-react";
-import type { Channel as StreamChannel } from "stream-chat";
+import type {
+  Channel as StreamChannel,
+  ChannelFilters,
+  StreamChat,
+} from "stream-chat";
 import { ChannelHeader } from "./channel-header";
 import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
+import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
 import { MessageJumper } from "./search/message-jumper";
 import { slackRenderText } from "./slack-render-text";
 
 type Props = {
   channelId: string;
-  channelType: string;
-  channelName: string | null;
   propertyId: string;
   messageId?: string | null;
 };
 
+/** Result of the cold-path query, tagged with the channelId it answers. */
+type ColdResult = { channelId: string; channel: StreamChannel | null };
+
+/**
+ * Find a channel the sidebar <ChannelList> has already watched. Stream keeps
+ * every watched channel in `client.activeChannels`, keyed by cid (`type:id`);
+ * the route only carries the bare id, so scan by `.id`. An already-
+ * `initialized` channel can be handed straight to <Channel> with no network
+ * call — that's what makes switching feel instant.
+ */
+function findWarmChannel(
+  client: StreamChat,
+  channelId: string,
+): StreamChannel | null {
+  return (
+    Object.values(client.activeChannels).find(
+      (c) => c.id === channelId && c.initialized && !c.disconnected,
+    ) ?? null
+  );
+}
+
+/**
+ * Renders one chat channel.
+ *
+ * Switching channels is instant because the target is almost always already
+ * watched + fully in memory: the sidebar <ChannelList> mounts persistently
+ * with `watch: true`, so every visible channel's state (messages, members)
+ * lives in `client.activeChannels`. The warm path resolves that channel
+ * synchronously during render — no `watch()` round-trip, no loading flash.
+ *
+ * The cold path (a deep link / hard refresh to a channel not yet in
+ * `activeChannels`) does a single `queryChannels` and shows a skeleton.
+ */
 export function ChannelView({
   channelId,
-  channelType,
-  channelName,
   propertyId,
   messageId = null,
 }: Props) {
   const { client } = useChatContext();
-  const [channel, setChannel] = useState<StreamChannel | null>(null);
+
+  // Warm path — derived synchronously, no effect, no state.
+  const warmChannel = client ? findWarmChannel(client, channelId) : null;
+
+  // Cold path — populated only from the effect's async callback below.
+  const [cold, setCold] = useState<ColdResult | null>(null);
 
   useEffect(() => {
-    if (!client) {
-      setChannel(null);
-      return;
-    }
+    // Warm channel already in hand (or no client yet) → nothing to fetch.
+    if (!client || warmChannel) return;
+
     let cancelled = false;
-    let watchedChannel: StreamChannel | null = null;
-    async function watch() {
-      const c = client.channel(channelType, channelId);
-      await c.watch();
-      if (cancelled) return;
-      watchedChannel = c;
-      setChannel(c);
-    }
-    // Strict-mode double-mount: the first effect's watch() can resolve after
-    // the cleanup runs disconnectUser(), which makes channel.watch() reject
-    // with "channel after disconnect()". Swallow it — the second mount will
-    // re-watch with a fresh client.
-    watch().catch((e) => {
-      if (cancelled) return;
-      console.error("channel.watch failed", e);
-    });
+    (async () => {
+      const userID = client.userID;
+      if (!userID) return;
+      const filters: ChannelFilters = {
+        id: channelId,
+        members: { $in: [userID] },
+      };
+      try {
+        const results = await client.queryChannels(
+          filters,
+          {},
+          { watch: true, state: true },
+        );
+        if (cancelled) return;
+        setCold({ channelId, channel: results[0] ?? null });
+      } catch (e) {
+        // Strict-mode double-mount: a query can resolve after the first
+        // mount's disconnectUser(). The second mount re-queries on a fresh
+        // client, so swallow the stale rejection.
+        if (cancelled) return;
+        console.error("queryChannels for channel failed", e);
+      }
+    })();
+
     return () => {
       cancelled = true;
-      watchedChannel?.stopWatching().catch(() => {});
-      // Drop stale channel immediately when client/channel key changes so we never
-      // render <Channel> with an instance tied to a disconnected client.
-      setChannel(null);
+      // Deliberately no stopWatching(): the channel object is shared with the
+      // sidebar ChannelList — stopping it would kill its live updates and
+      // unread counts.
     };
-  }, [client, channelId, channelType]);
+  }, [client, channelId, warmChannel]);
 
-  if (!client) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        Connecting to chat…
-      </div>
-    );
-  }
+  // Ignore a cold result left over from a previous channelId (the route
+  // remounts on channel change, but guard the rare client-reconnect case).
+  const coldForThis = cold && cold.channelId === channelId ? cold : null;
+  const channel = warmChannel ?? coldForThis?.channel ?? null;
+
   if (!channel) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        Loading{channelName ? ` #${channelName}` : ""}…
-      </div>
-    );
+    // Cold query finished and found nothing → not a member / archived / gone.
+    if (coldForThis) {
+      return (
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          This channel doesn’t exist or you don’t have access.
+        </div>
+      );
+    }
+    return <ChannelSkeleton />;
   }
 
   // <ChatView> wrapper: Stream's default <ThreadHeader> calls

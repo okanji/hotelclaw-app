@@ -18,6 +18,10 @@
   --slack-reaction-pill-own-bg-hover: rgba(29, 155, 209, 0.42);
   --slack-add-reaction-icon: #ababad;
 
+  /* Full-row hover fill — a ~2.6% white lift over the #191B1E chat canvas,
+     matching Slack desktop's dark row hover. */
+  --slack-row-hover-bg: #1F2124;
+
   /* Message typography — aligned to Slack desktop inspect (15px name/body, 12px time) */
   --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -89,6 +93,10 @@
   --slack-reaction-pill-own-bg: rgba(18, 100, 163, 0.14);
   --slack-reaction-pill-own-bg-hover: rgba(18, 100, 163, 0.22);
   --slack-add-reaction-icon: #616365;
+
+  /* Full-row hover fill — a faint dark tint over the white chat canvas,
+     matching Slack desktop's light row hover. */
+  --slack-row-hover-bg: rgba(29, 31, 36, 0.04);
 
   --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -196,7 +204,7 @@
 .str-chat
   .str-chat__virtual-list
   .str-chat__li:has(.str-chat__message-options--active) {
-  background-color: #1F2124 !important;
+  background-color: var(--slack-row-hover-bg) !important;
 }
 
 /* Virtualized list: full-bleed rows in our shell.

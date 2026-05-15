@@ -62,7 +62,11 @@ export function DocumentEditor({ propertyId, documentId, initialTitle }: Props) 
   return (
     <RoomProvider
       id={roomIdForDocument(propertyId, documentId)}
-      initialPresence={{ cursor: null, selectedTaskId: null }}
+      initialPresence={{
+        cursor: null,
+        selectedTaskId: null,
+        draggingTaskId: null,
+      }}
     >
       <ClientSideSuspense fallback={<EditorSkeleton />}>
         <EditorInner
@@ -147,7 +151,10 @@ function EditorInner({
   const { threads } = useThreads();
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
+    // Light mode: match the chat canvas, which is white (Stream paints
+    // `--str-chat__background-core-app` → `chrome-0` → `#ffffff`). Dark mode
+    // keeps `--background` as before.
+    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
       <div className="documents-toolbar relative flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 pt-3 pb-2">
         <Toolbar editor={editor} />
         <div className="absolute right-6 top-1/2 -translate-y-1/2">

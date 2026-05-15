@@ -20,15 +20,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createTask } from "./actions";
-import type { TaskPriority } from "@/lib/db/types";
+import { COLUMNS } from "./kanban";
+import type { TaskPriority, TaskStatus } from "@/lib/db/types";
 
 type Props = {
   propertyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+  /** Column the new task lands in — controlled by the board. */
+  status: TaskStatus;
+  onStatusChange: (status: TaskStatus) => void;
 };
 
 const PRIORITIES: { id: TaskPriority; label: string }[] = [
@@ -43,6 +48,8 @@ export function CreateTaskDialog({
   open,
   onOpenChange,
   onCreated,
+  status,
+  onStatusChange,
 }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -56,6 +63,7 @@ export function CreateTaskDialog({
         propertyId,
         title,
         description: description || undefined,
+        status,
         priority,
       });
       if ("error" in result) {
@@ -104,33 +112,72 @@ export function CreateTaskDialog({
               disabled={pending}
             />
           </div>
-          <div className="space-y-2">
-            <Label>Priority</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="justify-between capitalize"
-                    disabled={pending}
-                  />
-                }
-              >
-                {priority}
-                <ChevronDown className="size-4 opacity-50" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {PRIORITIES.map((p) => (
-                  <DropdownMenuItem
-                    key={p.id}
-                    onClick={() => setPriority(p.id)}
-                  >
-                    {p.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Column</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                      disabled={pending}
+                    />
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "size-2 rounded-full",
+                        COLUMNS.find((c) => c.id === status)?.dotClass,
+                      )}
+                    />
+                    {COLUMNS.find((c) => c.id === status)?.label}
+                  </span>
+                  <ChevronDown className="size-4 opacity-50" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {COLUMNS.map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onClick={() => onStatusChange(c.id)}
+                    >
+                      <span className={cn("size-2 rounded-full", c.dotClass)} />
+                      {c.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between capitalize"
+                      disabled={pending}
+                    />
+                  }
+                >
+                  {priority}
+                  <ChevronDown className="size-4 opacity-50" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {PRIORITIES.map((p) => (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onClick={() => setPriority(p.id)}
+                    >
+                      {p.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           <DialogFooter>
             <Button

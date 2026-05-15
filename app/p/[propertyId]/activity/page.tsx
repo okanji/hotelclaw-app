@@ -1,12 +1,12 @@
-import { TasksBoardRoom } from "@/components/tasks/board-room";
 import { requireUser } from "@/lib/auth/session";
+import { ActivityView } from "@/components/shell/activity/activity-view";
 
-export default async function TasksPage({
+export default async function ActivityPage({
   params,
 }: {
   params: Promise<{ propertyId: string }>;
 }) {
   const { propertyId } = await params;
   const user = await requireUser();
-  return <TasksBoardRoom propertyId={propertyId} currentUserId={user.id} />;
+  return <ActivityView propertyId={propertyId} userId={user.id} />;
 }

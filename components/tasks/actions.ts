@@ -32,6 +32,12 @@ const UpdateSchema = z.object({
   assigneeId: z.string().uuid().nullable().optional(),
 });
 
+const MoveSchema = z.object({
+  taskId: z.string().uuid(),
+  status: z.enum(Statuses),
+  position: z.number().finite(),
+});
+
 export async function createTask(
   input: z.input<typeof CreateSchema>,
 ): Promise<{ taskId: string } | { error: string }> {
@@ -44,6 +50,13 @@ export async function createTask(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
+  // New cards land at the top of their column.
+  const position = await topPositionFor(
+    supabase,
+    parsed.data.propertyId,
+    parsed.data.status,
+  );
+
   const { data, error } = await supabase
     .from("tasks")
     .insert({
@@ -54,6 +67,7 @@ export async function createTask(
       priority: parsed.data.priority,
       assignee_id: parsed.data.assigneeId ?? null,
       created_by: user.id,
+      position,
     })
     .select("id")
     .single();
@@ -88,11 +102,11 @@ export async function updateTask(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  // Read the previous assignee so we can detect a change and emit
-  // assigned/unassigned notifications appropriately.
+  // Read the previous assignee/status so we can detect changes and emit
+  // assigned/unassigned notifications (and re-anchor the card on a status move).
   const { data: before } = await supabase
     .from("tasks")
-    .select("assignee_id, title, property_id")
+    .select("assignee_id, title, property_id, status")
     .eq("id", parsed.data.taskId)
     .maybeSingle();
 
@@ -104,6 +118,20 @@ export async function updateTask(
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
   if (parsed.data.assigneeId !== undefined)
     patch.assignee_id = parsed.data.assigneeId;
+
+  // Changing status moves the card to a different column — drop it at the
+  // top so it doesn't inherit a stale position from its old column.
+  if (
+    parsed.data.status !== undefined &&
+    before &&
+    parsed.data.status !== before.status
+  ) {
+    patch.position = await topPositionFor(
+      supabase,
+      before.property_id,
+      parsed.data.status,
+    );
+  }
 
   const { data: row, error } = await supabase
     .from("tasks")
@@ -134,6 +162,37 @@ export async function updateTask(
   return { ok: true };
 }
 
+/**
+ * Persist a Kanban drag: the card's new column (`status`) and its new
+ * fractional `position` within that column. Kept separate from `updateTask`
+ * so the board's optimistic drag path stays lean and never touches
+ * notifications.
+ */
+export async function moveTask(
+  input: z.input<typeof MoveSchema>,
+): Promise<{ ok: true } | { error: string }> {
+  const parsed = MoveSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: row, error } = await supabase
+    .from("tasks")
+    .update({ status: parsed.data.status, position: parsed.data.position })
+    .eq("id", parsed.data.taskId)
+    .select("property_id")
+    .single();
+
+  if (error || !row) return { error: error?.message ?? "Move failed" };
+
+  revalidatePath(`/p/${row.property_id}/tasks`);
+  return { ok: true };
+}
+
 export async function deleteTask(
   taskId: string,
 ): Promise<{ ok: true } | { error: string }> {
@@ -152,6 +211,27 @@ export async function deleteTask(
 }
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Returns a `position` that places a card just above the current top card of
+ * a column (or a sensible default when the column is empty). Used for newly
+ * created cards and for cards moved between columns outside of a drag.
+ */
+async function topPositionFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  status: (typeof Statuses)[number],
+): Promise<number> {
+  const { data: top } = await supabase
+    .from("tasks")
+    .select("position")
+    .eq("property_id", propertyId)
+    .eq("status", status)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return top ? top.position - 1024 : 1024;
+}
 
 async function emitTaskAssignmentNotifications(args: {
   taskId: string;

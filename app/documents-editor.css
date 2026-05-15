@@ -131,6 +131,16 @@
     0 8px 28px rgb(0 0 0 / 0.45);
 }
 
+/* Liveblocks portals its floating popovers (new-comment composer, thread
+ * viewer, selection toolbar) to <body> with no z-index of their own, so they
+ * stack below the app sidebar (z-10) and rail (z-20) — a comment popover that
+ * extends into the sidebar column gets its left edge painted over. Lift the
+ * shared portal root above both. `.lb-tiptap-floating` is carried by every
+ * one of these popover roots (see FloatingComposer.js / FloatingThreads.js). */
+.lb-tiptap-floating {
+  z-index: 50;
+}
+
 /* `.lb-thread` is LB's inner Thread wrapper. It carries its own background +
  * rounded top corners by default — but the outer popover card already has
  * the rounding, and our header bar sits above the thread. The double-rounded

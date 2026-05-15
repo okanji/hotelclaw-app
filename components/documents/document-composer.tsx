@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, forwardRef, useContext } from "react";
+import { createContext, useContext } from "react";
 import { Composer as LBComposer } from "@liveblocks/react-ui";
 import type { ComposerProps } from "@liveblocks/react-ui";
 import { X } from "lucide-react";
@@ -20,19 +20,25 @@ export const ComposerCloseContext = createContext<(() => void) | null>(null);
  * the X close button. The header style matches the editor toolbar (subtle
  * muted fill, thin bottom border) so the popover reads like a small
  * sub-window of the document.
+ *
+ * MUST be a plain function component — NOT `forwardRef`. Liveblocks renders
+ * `components.Composer` through its `useStableComponent` helper, which calls
+ * the component directly (`Component(props)`) rather than via React. A
+ * `forwardRef` result is an object, not a callable, so wrapping this in
+ * `forwardRef` throws "Component2 is not a function" the moment the composer
+ * opens. We don't pass a ref to `<FloatingComposer>` anyway, so `props.ref`
+ * (a regular prop under React 19) is simply spread onto `LBComposer`.
  */
-export const DocumentComposer = forwardRef<HTMLFormElement, ComposerProps>(
-  function DocumentComposer(props, ref) {
-    const onClose = useContext(ComposerCloseContext);
+export function DocumentComposer(props: ComposerProps) {
+  const onClose = useContext(ComposerCloseContext);
 
-    return (
-      <div className="flex flex-col">
-        <PopoverHeader onClose={onClose} />
-        <LBComposer {...props} ref={ref} />
-      </div>
-    );
-  },
-);
+  return (
+    <div className="flex flex-col">
+      <PopoverHeader onClose={onClose} />
+      <LBComposer {...props} />
+    </div>
+  );
+}
 
 /**
  * Slim header across the top of the comment popovers. Same fill as the

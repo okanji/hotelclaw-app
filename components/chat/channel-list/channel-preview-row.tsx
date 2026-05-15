@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Channel, EventTypes } from "stream-chat";
 import { useChannelPreviewInfo, useChatContext } from "stream-chat-react";
@@ -22,8 +23,9 @@ export function ChannelPreviewRow({
   propertyId,
   channelKind,
 }: Props) {
-  const { client, channel: activeChannel } = useChatContext();
+  const { client } = useChatContext();
   const { displayTitle } = useChannelPreviewInfo({ channel });
+  const pathname = usePathname();
 
   const [unread, setUnread] = useState(channel.countUnread());
 
@@ -42,7 +44,13 @@ export function ChannelPreviewRow({
     return () => subs.forEach((s) => s.unsubscribe());
   }, [channel]);
 
-  const isActive = activeChannel?.cid === channel.cid;
+  // Active state follows the URL, not Stream's `activeChannel` context. The
+  // channel list remounts whenever the rail switches sections (and mounts
+  // with `setActiveChannelOnMount={false}`), so Stream's context can render
+  // out of sync with the route — the row would fail to highlight even though
+  // its channel is open. The pathname is the source of truth, and matches how
+  // every other secondary-sidebar item computes `isActive`.
+  const isActive = pathname === `/p/${propertyId}/chat/${channel.id}`;
   const isPrivate =
     (channel.data as { is_private?: boolean } | undefined)?.is_private ?? false;
   const Icon = channelKind === "team" ? (isPrivate ? Lock : Hash) : null;
@@ -61,7 +69,10 @@ export function ChannelPreviewRow({
         }
         isActive={isActive}
         tooltip={title}
-        className={cn(unread > 0 && !isActive && "font-semibold text-foreground")}
+        className={cn(
+          "text-[14px]",
+          unread > 0 && !isActive && "font-semibold text-foreground",
+        )}
       >
         {Icon ? <Icon /> : <DmAvatar channel={channel} currentUserId={client?.user?.id} />}
         <span className="truncate">{title}</span>

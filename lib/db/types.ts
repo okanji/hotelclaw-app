@@ -34,6 +34,7 @@ export interface Database {
           full_name: string | null;
           avatar_url: string | null;
           onboarded_at: string | null;
+          time_format: "12h" | "24h";
           created_at: string;
         };
         Insert: {
@@ -41,12 +42,14 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           onboarded_at?: string | null;
+          time_format?: "12h" | "24h";
           created_at?: string;
         };
         Update: Partial<{
           full_name: string | null;
           avatar_url: string | null;
           onboarded_at: string | null;
+          time_format: "12h" | "24h";
         }>;
         Relationships: [];
       };
@@ -132,6 +135,7 @@ export interface Database {
           assignee_id: string | null;
           created_by: string | null;
           due_at: string | null;
+          position: number;
           created_at: string;
           updated_at: string;
         };
@@ -145,6 +149,7 @@ export interface Database {
           assignee_id?: string | null;
           created_by?: string | null;
           due_at?: string | null;
+          position?: number;
         };
         Update: Partial<{
           title: string;
@@ -153,6 +158,7 @@ export interface Database {
           priority: TaskPriority;
           assignee_id: string | null;
           due_at: string | null;
+          position: number;
         }>;
         Relationships: [];
       };

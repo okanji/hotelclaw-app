@@ -70,11 +70,11 @@ export function ChannelHeader() {
           {isDm ? (
             <DmAvatar channel={channel} currentUserId={client?.user?.id} />
           ) : isPrivate ? (
-            <Lock className="size-[18px] text-[#D1D2D3]" />
+            <Lock className="size-[18px] text-foreground" />
           ) : (
-            <Hash className="size-[18px] text-[#D1D2D3]" strokeWidth={2.5} />
+            <Hash className="size-[18px] text-foreground" strokeWidth={2.5} />
           )}
-          <h1 className="truncate text-[18px] font-extrabold leading-none tracking-tight text-[#D1D2D3]">
+          <h1 className="truncate text-[18px] font-extrabold leading-none tracking-tight text-foreground">
             {title}
           </h1>
           <PresenceDots channel={channel} currentUserId={client?.user?.id} />

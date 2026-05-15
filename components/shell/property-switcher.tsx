@@ -17,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Building2, Check, ChevronsUpDown, Plus, UserPlus } from "lucide-react";
+import { Building2, Check, ChevronDown, Plus, UserPlus } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
 import {
   PendingInvitesSection,
@@ -75,27 +75,21 @@ export function PropertySwitcher({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-            <div className="relative flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Building2 className="size-4" />
-              {pendingCount > 0 ? (
-                <span
-                  className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground"
-                  title={`${pendingCount} pending invite${pendingCount === 1 ? "" : "s"}`}
-                >
-                  {pendingCount > 9 ? "9+" : pendingCount}
-                </span>
-              ) : null}
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">
-                {current?.property.name ?? "Property"}
+          <DropdownMenuTrigger
+            render={<SidebarMenuButton size="lg" className="h-9 w-fit max-w-full" />}
+          >
+            <span className="min-w-0 truncate text-sm font-bold text-sidebar-accent-foreground">
+              {current?.property.name ?? "Property"}
+            </span>
+            <ChevronDown className="size-3.5! shrink-0 text-muted-foreground" />
+            {pendingCount > 0 ? (
+              <span
+                className="ml-auto flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground"
+                title={`${pendingCount} pending invite${pendingCount === 1 ? "" : "s"}`}
+              >
+                {pendingCount > 9 ? "9+" : pendingCount}
               </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {current?.role ?? ""}
-              </span>
-            </div>
-            <ChevronsUpDown className="ml-auto size-4" />
+            ) : null}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"

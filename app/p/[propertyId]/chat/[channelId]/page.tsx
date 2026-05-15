@@ -1,10 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
 import { ChannelView } from "@/components/chat/channel-view";
 
 /**
- * Channel route handles both `team` (mirrored in chat_channels for queries/AI)
- * and `messaging` (DMs — Stream-only, no DB row). For DMs we render with
- * channelType="messaging" and let the client resolve the channel from Stream.
+ * Channel route — handles both `team` channels and `messaging` DMs.
+ *
+ * Channel metadata (name, type, members, messages) is resolved entirely
+ * client-side: ChannelView reuses the channel the sidebar <ChannelList> has
+ * already watched. This page therefore does NO per-navigation data fetching,
+ * which keeps its RSC payload trivial and fully prefetchable — that's what
+ * makes switching channels feel instant (Slack-style).
  */
 export default async function ChannelPage({
   params,
@@ -18,21 +21,9 @@ export default async function ChannelPage({
   const messageIdRaw = sp.messageId;
   const messageId = Array.isArray(messageIdRaw) ? messageIdRaw[0] : messageIdRaw;
 
-  const supabase = await createClient();
-
-  const { data: row } = await supabase
-    .from("chat_channels")
-    .select("name, stream_channel_id, stream_channel_type")
-    .eq("property_id", propertyId)
-    .eq("stream_channel_id", channelId)
-    .is("archived_at", null)
-    .maybeSingle();
-
   return (
     <ChannelView
       channelId={channelId}
-      channelType={row?.stream_channel_type ?? "messaging"}
-      channelName={row?.name ?? null}
       propertyId={propertyId}
       messageId={messageId ?? null}
     />

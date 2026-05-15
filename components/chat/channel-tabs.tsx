@@ -32,7 +32,7 @@ export function ChannelTabs() {
       <button
         type="button"
         aria-label="Add tab"
-        className="ml-0.5 inline-flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-[oklch(1_0_0_/_0.08)] hover:text-foreground [&_svg]:size-3.5"
+        className="ml-0.5 inline-flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3.5"
       >
         <Plus />
       </button>
@@ -56,8 +56,8 @@ function TabButton({
       className={cn(
         "relative inline-flex h-full items-center gap-1.5 rounded-md px-2 !text-[13px] !leading-none font-medium transition-colors",
         active
-          ? "text-[#F8F8F8]"
-          : "text-muted-foreground hover:bg-[oklch(1_0_0_/_0.06)] hover:text-foreground",
+          ? "text-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
       aria-current={active ? "page" : undefined}
       {...rest}
