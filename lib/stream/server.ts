@@ -38,6 +38,21 @@ export function createStreamUserToken(userId: string) {
   return getStreamServer().createToken(userId);
 }
 
+/**
+ * Permanently delete a user from Stream Chat — used by account deletion.
+ * Hard-deletes the user, marks their messages deleted, and removes their 1:1
+ * conversation channels. Team channels they created are left intact (the
+ * property keeps them, or they're torn down with the property). Throws if the
+ * user doesn't exist on Stream, so callers should treat this as best-effort.
+ */
+export async function deleteStreamUser(userId: string) {
+  await getStreamServer().deleteUser(userId, {
+    hard_delete: true,
+    mark_messages_deleted: true,
+    delete_conversation_channels: true,
+  });
+}
+
 export async function createPropertyChannel(args: {
   propertyId: string;
   channelId: string;

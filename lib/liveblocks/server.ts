@@ -20,3 +20,23 @@ export function getLiveblocksServer() {
   _client = new Liveblocks({ secret });
   return _client;
 }
+
+/**
+ * Delete every Liveblocks room belonging to a property — the tasks board,
+ * each per-task room and each per-document room (all keyed `property:<id>:…`,
+ * see `rooms.ts`). Used when account deletion archives a property: its
+ * collaborative boards and documents are torn down with it. Liveblocks has no
+ * per-user delete, so room-by-property is the available unit of cleanup.
+ */
+export async function deletePropertyRooms(propertyId: string) {
+  const lb = getLiveblocksServer();
+  let cursor: string | undefined;
+  do {
+    const page = await lb.getRooms({
+      query: `roomId^"property:${propertyId}:"`,
+      startingAfter: cursor,
+    });
+    await Promise.all(page.data.map((room) => lb.deleteRoom(room.id)));
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+}

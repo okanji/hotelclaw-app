@@ -3,6 +3,7 @@
 import {
   ChannelList,
   ComponentProvider,
+  getChannel,
   useChatContext,
   useComponentContext,
 } from "stream-chat-react";
@@ -78,6 +79,32 @@ export function ChannelListSection({
         // DM briefly appears in the Channels list too. Disable, then enforce
         // the type filter ourselves below.
         allowNewMessagesFromUnfilteredChannels={false}
+        // Setting the flag above to `false` ALSO disables Stream's built-in
+        // `notification.added_to_channel` handler (it early-returns when the
+        // flag is off), so a freshly created channel never enters the list
+        // until a full refetch — i.e. a page refresh. Supply our own handler:
+        // it re-checks the two filter dimensions the event payload exposes
+        // (channel type + property) and prepends matching channels live.
+        onAddedToChannel={async (setChannels, event) => {
+          const ec = event.channel;
+          if (!ec?.id || ec.type !== channelKind) return;
+          if ((ec as { property_id?: string }).property_id !== propertyId) {
+            return;
+          }
+          const channel = await getChannel({
+            client,
+            type: ec.type,
+            id: ec.id,
+            members: ec.members
+              ?.map((m) => m.user_id ?? m.user?.id ?? "")
+              .filter((id): id is string => id.length > 0),
+          });
+          setChannels((channels) =>
+            channels.some((c) => c.cid === channel.cid)
+              ? channels
+              : [channel, ...channels],
+          );
+        }}
         // Render-time guard. Even if Stream's internal state ever surfaces a
         // mismatched channel here, this strips it before it hits the DOM.
         channelRenderFilterFn={(channels) =>

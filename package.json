@@ -41,6 +41,7 @@
     "@tiptap/pm": "^3",
     "@tiptap/react": "^3",
     "@tiptap/starter-kit": "^3",
+    "@tiptap/suggestion": "^3",
     "ai": "6",
     "chat": "^4.28.1",
     "class-variance-authority": "^0.7.1",

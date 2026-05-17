@@ -14,17 +14,20 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
+          archived_at: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           slug: string;
+          archived_at?: string | null;
           created_at?: string;
         };
         Update: Partial<{
           name: string;
           slug: string;
+          archived_at: string | null;
         }>;
         Relationships: [];
       };
@@ -106,6 +109,8 @@ export interface Database {
           id: string;
           property_id: string;
           title: string;
+          parent_id: string | null;
+          position: number;
           created_by: string | null;
           archived_at: string | null;
           created_at: string;
@@ -115,11 +120,15 @@ export interface Database {
           id?: string;
           property_id: string;
           title?: string;
+          parent_id?: string | null;
+          position?: number;
           created_by?: string | null;
           archived_at?: string | null;
         };
         Update: Partial<{
           title: string;
+          parent_id: string | null;
+          position: number;
           archived_at: string | null;
         }>;
         Relationships: [];
@@ -219,6 +228,14 @@ export interface Database {
       is_member: {
         Args: { prop_id: string };
         Returns: boolean;
+      };
+      archive_document_tree: {
+        Args: { root: string };
+        Returns: undefined;
+      };
+      restore_document_tree: {
+        Args: { root: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

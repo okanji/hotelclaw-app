@@ -38,8 +38,9 @@ export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
       toast.success(`#${name} created`);
       setName("");
       onOpenChange(false);
-      // Stream's <ChannelList> picks up the new channel via WebSocket events;
-      // no manual invalidation needed.
+      // The channel list's onAddedToChannel handler picks up the new channel
+      // from the notification.added_to_channel WebSocket event — no manual
+      // invalidation needed.
       router.push(`/p/${propertyId}/chat/${result.streamChannelId}`);
     });
   }

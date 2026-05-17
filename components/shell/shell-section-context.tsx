@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 /** The five rail sections. */
@@ -15,6 +15,7 @@ function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/documents")) return "docs";
+  if (pathname.includes("/dms")) return "dms";
   if (pathname.includes("/inbox") || pathname.includes("/threads")) return "chat";
   return null;
 }
@@ -26,19 +27,47 @@ type ShellSectionContextValue = {
 
 const ShellSectionContext = createContext<ShellSectionContextValue | null>(null);
 
+const ALL_SECTIONS: ShellSection[] = [
+  "activity",
+  "chat",
+  "dms",
+  "tasks",
+  "docs",
+];
+
+/** Narrow an untrusted string (e.g. a cookie value) to a ShellSection. */
+function asSection(value: string | undefined): ShellSection | undefined {
+  return value && (ALL_SECTIONS as string[]).includes(value)
+    ? (value as ShellSection)
+    : undefined;
+}
+
 /**
  * Tracks which rail section is active. The rail writes it on click; the rail
  * and secondary sidebar read it.
  */
 export function ShellSectionProvider({
   children,
+  initialSection,
 }: {
   children: React.ReactNode;
+  /**
+   * Section restored from the `shell_section` cookie. On a hard refresh of a
+   * /chat/* route — which `sectionFromPath` can't classify, since channels
+   * and DMs share those routes — this keeps the correct sidebar showing.
+   */
+  initialSection?: string;
 }) {
   const pathname = usePathname();
   const [section, setSection] = useState<ShellSection>(
-    () => sectionFromPath(pathname) ?? "chat",
+    () => sectionFromPath(pathname) ?? asSection(initialSection) ?? "chat",
   );
+
+  // Persist the active section so the next hard refresh on a /chat/* route
+  // restores the matching sidebar (the property layout reads this cookie).
+  useEffect(() => {
+    document.cookie = `shell_section=${section}; path=/; max-age=31536000; SameSite=Lax`;
+  }, [section]);
 
   // Adjust the section during render when navigation lands on a route that
   // pins one (e.g. opening a doc from the command palette). This is React's

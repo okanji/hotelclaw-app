@@ -35,7 +35,9 @@ export async function getUserMemberships(): Promise<Membership[]> {
   // self when listing the current user's properties.
   const { data, error } = await supabase
     .from("memberships")
-    .select("property_id, role, property:properties!inner(id, name, slug)")
+    .select(
+      "property_id, role, property:properties!inner(id, name, slug, archived_at)",
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
@@ -43,7 +45,14 @@ export async function getUserMemberships(): Promise<Membership[]> {
     console.error("getUserMemberships error", error);
     return [];
   }
-  return (data ?? []) as unknown as Membership[];
+
+  // Drop archived properties — e.g. one whose sole owner deleted their
+  // account. Remaining members keep their membership row but the property
+  // should no longer surface in the switcher.
+  const rows = (data ?? []) as unknown as (Membership & {
+    property: { archived_at: string | null };
+  })[];
+  return rows.filter((m) => !m.property.archived_at);
 }
 
 export async function getMembershipForProperty(propertyId: string) {

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { archiveDocument, createDocument } from "./actions";
+import { ArchivedDocumentsDialog } from "./archived-documents-dialog";
 
 type DocRow = {
   id: string;
@@ -50,6 +51,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
 
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createBrowserClient();
@@ -163,7 +165,27 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
             })}
           </SidebarMenu>
         )}
+        {loaded ? (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size="sm"
+                onClick={() => setArchivedOpen(true)}
+                tooltip="Archived documents"
+                className="text-sidebar-foreground/55 [&_svg]:size-3.5 [&_svg]:opacity-60"
+              >
+                <Archive />
+                <span>Archived</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        ) : null}
       </SidebarGroupContent>
+      <ArchivedDocumentsDialog
+        propertyId={propertyId}
+        open={archivedOpen}
+        onOpenChange={setArchivedOpen}
+      />
     </SidebarGroup>
   );
 }

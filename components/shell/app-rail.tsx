@@ -18,9 +18,13 @@ type RailItem = {
   section: ShellSection;
   label: string;
   icon: typeof Bell;
-  /** Landing route pushed on click. Omitted for DMs (no index route). */
+  /** Landing route pushed on click when the user isn't already in-section. */
   href?: string;
-  /** Pathname fragment meaning "already inside this section". */
+  /**
+   * Unique pathname fragment for the "already inside this section" check —
+   * set only for the pinned sections (activity/tasks/docs). Chat and DMs
+   * share the /chat/* routes and are told apart via the section context.
+   */
   routeKey?: string;
 };
 
@@ -56,16 +60,16 @@ export function AppRail({
         label: "Chat",
         icon: MessagesSquare,
         href: `/p/${propertyId}/chat`,
-        routeKey: "/chat",
       },
       {
         section: "dms",
         label: "DMs",
         icon: MessageCircle,
-        // DMs share the `/chat/*` routes with channels — navigate there (only
-        // when off it) so DMs is never left showing a non-chat page.
-        href: `/p/${propertyId}/chat`,
-        routeKey: "/chat",
+        // DMs get their own landing for the "nothing selected" state.
+        // Conversations themselves render at `/chat/<id>` (shared with
+        // channels) — handleClick uses the section context, not the path,
+        // to tell Chat and DMs apart.
+        href: `/p/${propertyId}/dms`,
       },
       {
         section: "tasks",
@@ -101,13 +105,20 @@ export function AppRail({
   function handleClick(item: RailItem) {
     setSection(item.section);
     if (!item.href) return;
-    // Already on a route that belongs to this section — just switch the
-    // sidebar, don't yank the user off their current page.
-    if (item.routeKey && pathname.includes(item.routeKey)) return;
+    // Skip navigation when the user is already viewing this section's content
+    // — just swap the sidebar, don't yank them off the page. Chat and DMs
+    // share the /chat/* routes, so only the section context distinguishes
+    // them (`section` here is still the pre-click value); the pinned sections
+    // are matched by their unique route prefix, since their section can lag
+    // the route when a non-rail link lands on a /chat/* page.
+    const isChatPair = item.section === "chat" || item.section === "dms";
+    const alreadyInSection = isChatPair
+      ? section === item.section
+      : !!item.routeKey && pathname.includes(item.routeKey);
+    if (alreadyInSection) return;
     // Jump back to wherever the user left off in this section (recorded in
-    // localStorage by `LastPathRecorder`) instead of its generic landing
-    // route — for Chat that also skips the `/chat` index's query + redirect.
-    // Falls back to the landing route on first visit / cleared storage.
+    // localStorage by `LastPathRecorder`); fall back to the landing route on
+    // first visit / cleared storage.
     const target = lastSectionPath(propertyId, item.section) ?? item.href;
     router.push(target);
   }

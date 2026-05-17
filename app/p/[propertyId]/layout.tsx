@@ -39,6 +39,7 @@ export default async function PropertyLayout({
     .from("properties")
     .select("id, name, slug")
     .eq("id", propertyId)
+    .is("archived_at", null)
     .maybeSingle();
 
   if (!property) notFound();
@@ -86,7 +87,9 @@ export default async function PropertyLayout({
           <UserProfilePanelProvider>
             <CommandPaletteProvider>
               <SidebarProvider>
-                <ShellSectionProvider>
+                <ShellSectionProvider
+                  initialSection={cookieStore.get("shell_section")?.value}
+                >
                   {/* Slack-style shell: icon rail + contextual secondary
                       sidebar (both bg-sidebar, no divider) + inset content. */}
                   <div className="flex h-svh w-full overflow-hidden bg-sidebar">
