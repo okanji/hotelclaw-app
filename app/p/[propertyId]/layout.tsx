@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
+import { getServerQueryClient } from "@/lib/query/server";
+import { getNotifications } from "@/lib/notifications/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
 import { LeftShell } from "@/components/shell/left-shell";
@@ -69,7 +72,17 @@ export default async function PropertyLayout({
     ? activityCookieWidth
     : undefined;
 
+  // Stream the user's notifications to the client so the Activity feed (rail
+  // badge + section) and the Activity page render populated on first paint —
+  // the shared `useNotifications` hook hydrates from this.
+  const queryClient = getServerQueryClient();
+  void queryClient.prefetchQuery({
+    queryKey: ["notifications", user.id],
+    queryFn: () => getNotifications(supabase, { limit: 100 }),
+  });
+
   return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
     <StreamProvider
       userId={user.id}
       userName={profile.data?.full_name ?? user.email ?? user.id}
@@ -134,5 +147,6 @@ export default async function PropertyLayout({
       </HuddleProvider>
      </StreamVideoProvider>
     </StreamProvider>
+    </HydrationBoundary>
   );
 }

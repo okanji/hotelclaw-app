@@ -5,6 +5,7 @@ import { useResizableWidth } from "./use-resizable-width";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
 import { UserMenu } from "./user-menu";
+import { LastPathRecorder } from "./last-path-recorder";
 import type { Membership } from "@/lib/auth/session";
 
 /**
@@ -52,6 +53,9 @@ export function LeftShell({
 
   return (
     <div className="flex shrink-0 flex-col bg-sidebar">
+      {/* Records each section's last route to localStorage so the rail and
+          property switcher can jump straight back to it. Renders nothing. */}
+      <LastPathRecorder propertyId={currentPropertyId} />
       <div className="flex min-h-0 flex-1">
         <AppRail propertyId={currentPropertyId} userId={user.id} />
         <SectionSidebar

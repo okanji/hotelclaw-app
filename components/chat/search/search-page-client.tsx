@@ -16,6 +16,7 @@ import {
   type SearchState,
 } from "./parse-search-params";
 import { useMessageSearch } from "./use-message-search";
+import { lastSectionPath } from "@/lib/shell/last-path";
 
 type Props = {
   propertyId: string;
@@ -71,12 +72,16 @@ export function SearchPageClient({ propertyId }: Props) {
 
   // Exit search: prefer going back to wherever the user came from (the channel
   // they were viewing, the page that opened Cmd+K, etc.). When there's no
-  // history (deep link / fresh tab), fall back to the chat root.
+  // history (deep link / fresh tab), fall back to the last channel viewed
+  // (localStorage) — skipping the `/chat` index's DB-query-then-`redirect()` —
+  // or the chat root if none is remembered.
   const exit = useCallback(() => {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      router.push(`/p/${propertyId}/chat`);
+      router.push(
+        lastSectionPath(propertyId, "chat") ?? `/p/${propertyId}/chat`,
+      );
     }
   }, [router, propertyId]);
 

@@ -1,8 +1,21 @@
 "use client";
 
-import { ClientSideSuspense, RoomProvider } from "@liveblocks/react/suspense";
+import { Suspense } from "react";
+import { RoomProvider } from "@liveblocks/react";
 import { TasksBoard } from "./board";
+import { TasksBoardSkeleton } from "./board-skeleton";
 
+/**
+ * Liveblocks room for the tasks board.
+ *
+ * No `ClientSideSuspense` wrapper: the board renders immediately from its
+ * hydrated React Query cache, and the non-suspense Liveblocks hooks in
+ * <TasksBoard> fill in presence once the room connects — so opening Tasks
+ * never blocks on the websocket.
+ *
+ * The plain <Suspense> is the boundary <TasksBoard>'s `useSearchParams()`
+ * needs; it only shows the fallback if something actually suspends.
+ */
 export function TasksBoardRoom({
   propertyId,
   currentUserId,
@@ -19,15 +32,9 @@ export function TasksBoardRoom({
         draggingTaskId: null,
       }}
     >
-      <ClientSideSuspense
-        fallback={
-          <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
-            Loading tasks…
-          </div>
-        }
-      >
+      <Suspense fallback={<TasksBoardSkeleton />}>
         <TasksBoard propertyId={propertyId} currentUserId={currentUserId} />
-      </ClientSideSuspense>
+      </Suspense>
     </RoomProvider>
   );
 }

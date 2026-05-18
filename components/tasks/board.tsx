@@ -9,7 +9,7 @@ import {
   useEventListener,
   useOthersMapped,
   useUpdateMyPresence,
-} from "@liveblocks/react/suspense";
+} from "@liveblocks/react";
 import {
   closestCenter,
   DndContext,
@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
 import { CreateTaskDialog } from "./create-task-dialog";
+import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCardOverlay } from "./task-card";
@@ -95,7 +96,7 @@ export function TasksBoard({
   const searchParams = useSearchParams();
   const mineOnly = searchParams.get("view") === "mine";
 
-  const { data } = useQuery<Task[]>({
+  const { data, isPending } = useQuery<Task[]>({
     queryKey: ["tasks", propertyId],
     queryFn: async () => {
       const res = await fetch(`/api/properties/${propertyId}/tasks`, {
@@ -365,6 +366,11 @@ export function TasksBoard({
 
   const activeColumn = activeId ? columnOf(board.columns, activeId) : null;
   const activeTask = activeId ? board.byId[activeId] : null;
+
+  // First streamed render before the hydrated task list lands — show the
+  // board's shape instead of an empty four-column flash. On an error the
+  // query leaves `pending`, so we fall through to an empty board as before.
+  if (isPending) return <TasksBoardSkeleton />;
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">

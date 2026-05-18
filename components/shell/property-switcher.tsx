@@ -24,6 +24,7 @@ import {
   usePendingInvitesCount,
 } from "./pending-invites-section";
 import { createClient } from "@/lib/supabase/client";
+import { lastSectionPath } from "@/lib/shell/last-path";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -103,7 +104,16 @@ export function PropertySwitcher({
               {memberships.map((m) => (
                 <DropdownMenuItem
                   key={m.property_id}
-                  onClick={() => router.push(`/p/${m.property_id}/chat`)}
+                  // Jump straight to the last channel viewed in that property
+                  // (localStorage) so switching skips the `/chat` index's
+                  // DB-query-then-`redirect()`. Falls back to `/chat` on a
+                  // property never visited before.
+                  onClick={() =>
+                    router.push(
+                      lastSectionPath(m.property_id, "chat") ??
+                        `/p/${m.property_id}/chat`,
+                    )
+                  }
                   className="gap-2"
                 >
                   <Building2 className="size-4 text-muted-foreground" />

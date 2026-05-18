@@ -14,7 +14,7 @@ export default async function DocumentPage({
   const supabase = await createClient();
   const { data: doc } = await supabase
     .from("documents")
-    .select("id, title, archived_at, property_id")
+    .select("id, title, parent_id, archived_at, property_id")
     .eq("id", documentId)
     .maybeSingle();
 
@@ -22,11 +22,33 @@ export default async function DocumentPage({
     notFound();
   }
 
+  // Ancestor chain for the breadcrumb. A property's document set is small,
+  // so we fetch it flat and walk parent links in memory instead of issuing a
+  // recursive query. The `seen` guard makes a corrupt cycle terminate.
+  const { data: tree } = await supabase
+    .from("documents")
+    .select("id, title, parent_id")
+    .eq("property_id", propertyId)
+    .is("archived_at", null);
+
+  const byId = new Map((tree ?? []).map((row) => [row.id, row]));
+  const ancestors: { id: string; title: string }[] = [];
+  const seen = new Set<string>();
+  let cursor = doc.parent_id;
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    const node = byId.get(cursor);
+    if (!node) break;
+    ancestors.unshift({ id: node.id, title: node.title });
+    cursor = node.parent_id;
+  }
+
   return (
     <DocumentEditor
       propertyId={propertyId}
       documentId={documentId}
       initialTitle={doc.title}
+      ancestors={ancestors}
     />
   );
 }

@@ -97,3 +97,23 @@ export async function addUserToPublicChannels(args: {
     }),
   );
 }
+
+/**
+ * Every message in the property where `userId` was @-mentioned, newest first.
+ * Server-side twin of the Stream search in `InboxView` — used to prefetch the
+ * `["mentions", propertyId, userId]` query so the inbox renders populated.
+ * Uses the server client (API secret), so no user token is needed.
+ */
+export async function searchMentions(propertyId: string, userId: string) {
+  const stream = getStreamServer();
+  const res = await stream.search(
+    {
+      type: { $in: ["team", "messaging"] },
+      property_id: propertyId,
+      members: { $in: [userId] },
+    } as Parameters<typeof stream.search>[0],
+    { "mentioned_users.id": { $contains: userId } },
+    { limit: 50, sort: [{ created_at: -1 }] },
+  );
+  return res.results ?? [];
+}

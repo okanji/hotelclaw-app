@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import type { MessageResponse, SearchAPIResponse } from "stream-chat";
-import { MentionRow } from "./mention-row";
 import { Inbox as InboxIcon } from "lucide-react";
+import { MentionRow } from "./mention-row";
 import { useMarkMentionsSeenOnMount } from "./use-unread-mentions";
+import { InboxSkeleton } from "./inbox-skeleton";
 import { PageHeader } from "@/components/shell/page-header";
 
 type Hit = SearchAPIResponse["results"][number];
@@ -13,58 +14,48 @@ type Hit = SearchAPIResponse["results"][number];
 /**
  * Slack-style "Mentions" inbox: every message across the property where the
  * current user was @-mentioned, newest first. Driven by Stream's search
- * endpoint with `mentioned_users.id` filter — no DB queries, no event fan-in,
- * just a single typed query.
+ * endpoint with a `mentioned_users.id` filter.
+ *
+ * The search runs through React Query keyed by `["mentions", propertyId,
+ * userId]` — the same key `inbox/page.tsx` prefetches server-side — so the
+ * list renders populated on first paint and the cache survives navigation.
+ * `userId` comes in as a prop (not from the Stream client) so the query key
+ * matches the server prefetch even before the websocket has connected.
  */
-export function InboxView({ propertyId }: { propertyId: string }) {
+export function InboxView({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
   const { client } = useChatContext();
-  const [hits, setHits] = useState<Hit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Visiting the inbox = "I've seen these". Clears the sidebar badge.
-  useMarkMentionsSeenOnMount(client?.user?.id ?? "");
+  useMarkMentionsSeenOnMount(userId);
 
-  useEffect(() => {
-    if (!client?.user) return;
-    let cancelled = false;
-    async function run() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await client!.search(
-          {
-            type: { $in: ["team", "messaging"] },
-            property_id: propertyId,
-            members: { $in: [client!.user!.id] },
-          } as Parameters<typeof client.search>[0],
-          {
-            "mentioned_users.id": { $contains: client!.user!.id },
-          },
-          { limit: 50, sort: [{ created_at: -1 }] },
-        );
-        if (!cancelled) setHits(res.results ?? []);
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Search failed");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [client, propertyId]);
+  const { data: hits, isPending, error } = useQuery<Hit[]>({
+    queryKey: ["mentions", propertyId, userId],
+    // The search runs over the Stream client; only fetch once it's connected.
+    // Hydrated data still displays before then.
+    enabled: !!client?.user,
+    queryFn: async () => {
+      const res = await client!.search(
+        {
+          type: { $in: ["team", "messaging"] },
+          property_id: propertyId,
+          members: { $in: [client!.user!.id] },
+        } as Parameters<typeof client.search>[0],
+        { "mentioned_users.id": { $contains: client!.user!.id } },
+        { limit: 50, sort: [{ created_at: -1 }] },
+      );
+      return res.results ?? [];
+    },
+  });
 
-  if (!client) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        Connecting to chat…
-      </div>
-    );
-  }
+  if (isPending) return <InboxSkeleton />;
+
+  const rows = hits ?? [];
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -78,11 +69,11 @@ export function InboxView({ propertyId }: { propertyId: string }) {
         }
       />
       <div className="flex-1 overflow-y-auto p-4">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : hits.length === 0 ? (
+        {error ? (
+          <p className="text-sm text-destructive">
+            {error instanceof Error ? error.message : "Search failed"}
+          </p>
+        ) : rows.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <InboxIcon className="size-8 text-muted-foreground" />
             <p className="text-sm font-medium">No mentions yet</p>
@@ -92,7 +83,7 @@ export function InboxView({ propertyId }: { propertyId: string }) {
           </div>
         ) : (
           <ul className="space-y-2">
-            {hits.map(({ message }) => (
+            {rows.map(({ message }) => (
               <MentionRow
                 key={message.id}
                 propertyId={propertyId}

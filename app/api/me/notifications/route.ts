@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getNotifications } from "@/lib/notifications/server";
 
 /**
  * GET /api/me/notifications
@@ -18,22 +19,16 @@ export async function GET(request: NextRequest) {
   }
 
   const unseenOnly = request.nextUrl.searchParams.get("unseen") === "1";
-  const limit = Math.min(
-    100,
-    Math.max(1, Number(request.nextUrl.searchParams.get("limit") ?? 50)),
-  );
+  const limit = Number(request.nextUrl.searchParams.get("limit") ?? 50);
 
-  let q = supabase
-    .from("notifications")
-    .select("id, type, payload, property_id, seen_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (unseenOnly) q = q.is("seen_at", null);
-
-  const { data, error } = await q;
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    return NextResponse.json(
+      await getNotifications(supabase, { limit, unseenOnly }),
+    );
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Failed to load notifications" },
+      { status: 500 },
+    );
   }
-  return NextResponse.json(data ?? []);
 }

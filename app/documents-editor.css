@@ -312,3 +312,18 @@
   background: var(--border);
   opacity: 1;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Sub-page blocks — the Notion-style `subPage` node (see sub-page-node.tsx).
+ * The node view ships its own Tailwind styling; these rules only stop the
+ * `prose` plugin's vertical rhythm from fighting it and add the standard
+ * ProseMirror selected-node ring. */
+.tiptap .sub-page-node {
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.tiptap .sub-page-node.ProseMirror-selectednode > button {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

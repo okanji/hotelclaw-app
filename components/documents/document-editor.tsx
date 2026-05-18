@@ -15,7 +15,7 @@
  * already-synced Yjs content.
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ClientSideSuspense, useThreads } from "@liveblocks/react/suspense";
 import { RoomProvider } from "@liveblocks/react/suspense";
 import {
@@ -41,6 +41,10 @@ import { Loader2 } from "lucide-react";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
 import { renameDocument } from "./actions";
 import { DocumentAvatars } from "./document-avatars";
+import {
+  DocumentBreadcrumbs,
+  type DocumentCrumb,
+} from "./document-breadcrumbs";
 import { ComposerCloseContext, DocumentComposer } from "./document-composer";
 import { DocumentTaskItem } from "./document-task-item";
 import {
@@ -48,17 +52,26 @@ import {
   DocumentThreadIndicator,
   ThreadIndicatorEditorContext,
 } from "./document-thread-indicator";
+import { SlashCommand } from "./slash-command";
+import { SubPage } from "./sub-page-node";
 
 type Props = {
   propertyId: string;
   documentId: string;
   initialTitle: string;
+  /** Parent chain (top-level → immediate parent) for the header breadcrumb. */
+  ancestors: DocumentCrumb[];
 };
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
 
-export function DocumentEditor({ propertyId, documentId, initialTitle }: Props) {
+export function DocumentEditor({
+  propertyId,
+  documentId,
+  initialTitle,
+  ancestors,
+}: Props) {
   return (
     <RoomProvider
       id={roomIdForDocument(propertyId, documentId)}
@@ -73,6 +86,7 @@ export function DocumentEditor({ propertyId, documentId, initialTitle }: Props) 
           propertyId={propertyId}
           documentId={documentId}
           initialTitle={initialTitle}
+          ancestors={ancestors}
         />
       </ClientSideSuspense>
     </RoomProvider>
@@ -91,10 +105,12 @@ function EditorInner({
   propertyId,
   documentId,
   initialTitle,
+  ancestors,
 }: {
   propertyId: string;
   documentId: string;
   initialTitle: string;
+  ancestors: DocumentCrumb[];
 }) {
   const liveblocks = useLiveblocksExtension({
     // Only applied when the Yjs doc is brand new (first opener wins). Seeds
@@ -138,10 +154,15 @@ function EditorInner({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Typography,
       Youtube.configure({ modestBranding: true }),
+      // Notion-style nested pages: the `subPage` block + the `/` slash menu
+      // that creates a child document and inserts the block in one step.
+      SubPage,
+      SlashCommand.configure({ propertyId, documentId }),
     ],
   });
 
   useTitleSync(editor, documentId);
+  const liveTitle = useLiveTitle(editor, initialTitle);
   const closeComposer = useCallback(() => {
     if (!editor) return;
     closePendingCommentChain(editor);
@@ -155,6 +176,13 @@ function EditorInner({
     // `--str-chat__background-core-app` → `chrome-0` → `#ffffff`). Dark mode
     // keeps `--background` as before.
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
+      <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/20 px-6 py-1.5">
+        <DocumentBreadcrumbs
+          propertyId={propertyId}
+          ancestors={ancestors}
+          currentTitle={liveTitle}
+        />
+      </div>
       <div className="documents-toolbar relative flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 pt-3 pb-2">
         <Toolbar editor={editor} />
         <div className="absolute right-6 top-1/2 -translate-y-1/2">
@@ -234,6 +262,28 @@ function useTitleSync(editor: Editor | null, documentId: string) {
       editor.off("update", schedule);
     };
   }, [editor, documentId]);
+}
+
+/**
+ * Live mirror of the first node's text for the header breadcrumb. Separate
+ * from `useTitleSync` (which is debounced + writes to Postgres): the crumb
+ * should track every keystroke, not lag 600ms behind.
+ */
+function useLiveTitle(editor: Editor | null, initialTitle: string): string {
+  const [title, setTitle] = useState(initialTitle);
+  useEffect(() => {
+    if (!editor) return;
+    function read() {
+      const first = editor!.state.doc.firstChild;
+      setTitle(first?.textContent.trim() || "Untitled");
+    }
+    read();
+    editor.on("update", read);
+    return () => {
+      editor.off("update", read);
+    };
+  }, [editor]);
+  return title;
 }
 
 /**

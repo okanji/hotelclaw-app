@@ -1,14 +1,10 @@
+import { TasksBoardSkeleton } from "@/components/tasks/board-skeleton";
+
 /**
- * Suspense fallback for the Tasks route. Without it, clicking the Tasks rail
- * icon keeps the previous section's page on screen for the whole server
- * roundtrip (the section sidebar has already switched away). Mirrors the
- * `ClientSideSuspense` fallback inside `TasksBoardRoom` so the loading state
- * doesn't visibly change once the route resolves.
+ * Suspense fallback for the Tasks route, shaped like the real board so the
+ * transition shows no jump. The page's RSC does no blocking data fetch — the
+ * task list streams in — so this renders for ~0 frames on a warm navigation.
  */
 export default function TasksLoading() {
-  return (
-    <div className="flex h-full flex-1 items-center justify-center text-sm text-muted-foreground">
-      Loading tasks…
-    </div>
-  );
+  return <TasksBoardSkeleton />;
 }

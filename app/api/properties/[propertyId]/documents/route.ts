@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTasks } from "@/lib/tasks/queries";
+import { getDocuments } from "@/lib/documents/queries";
 
 export async function GET(
   _request: Request,
@@ -17,10 +17,10 @@ export async function GET(
   }
 
   try {
-    return NextResponse.json(await getTasks(supabase, propertyId));
+    return NextResponse.json(await getDocuments(supabase, propertyId));
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to load tasks" },
+      { error: e instanceof Error ? e.message : "Failed to load documents" },
       { status: 500 },
     );
   }

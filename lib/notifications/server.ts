@@ -1,5 +1,7 @@
 import "server-only";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, type createClient } from "@/lib/supabase/server";
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Recognized notification types. Adding a new type? Add it here AND give the
@@ -76,6 +78,30 @@ export async function createNotifications(items: Args[]): Promise<void> {
  * Cheap query via the (user_id, created_at) index; the payload JSON contains
  * check is a sequential scan over the recent window only.
  */
+/**
+ * The current user's latest notifications, newest first (RLS scopes by
+ * user_id). Shared by `GET /api/me/notifications` and the server-side
+ * prefetch in the property layout — same shape under `["notifications", id]`.
+ *
+ * Pass the *user-scoped* client (`createClient()`), not the service client.
+ */
+export async function getNotifications(
+  supabase: ServerClient,
+  opts: { limit?: number; unseenOnly?: boolean } = {},
+) {
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+  let q = supabase
+    .from("notifications")
+    .select("id, type, payload, property_id, seen_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (opts.unseenOnly) q = q.is("seen_at", null);
+
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 export async function findAlreadyNotifiedUserIds(args: {
   userIds: string[];
   type: NotificationType;
