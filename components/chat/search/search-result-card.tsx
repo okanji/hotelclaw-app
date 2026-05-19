@@ -5,6 +5,7 @@ import type { MessageResponse } from "stream-chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Hash, Lock, MessageSquare, Paperclip } from "lucide-react";
 import { useTimeFormat } from "@/lib/preferences/time-format-context";
+import { channelHref } from "@/lib/chat/channel-href";
 import { highlight } from "./highlight";
 
 type Props = {
@@ -56,7 +57,9 @@ export function SearchResultCard({ propertyId, message, channelId, query }: Prop
   function jump() {
     if (!channelId) return;
     router.push(
-      `/p/${propertyId}/chat/${channelId}?messageId=${encodeURIComponent(message.id)}`,
+      channelHref(propertyId, channelMeta?.type, channelId, {
+        messageId: message.id,
+      }),
     );
   }
 

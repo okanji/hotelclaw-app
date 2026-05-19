@@ -16,6 +16,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { notFound } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ClientSideSuspense, useThreads } from "@liveblocks/react/suspense";
 import { RoomProvider } from "@liveblocks/react/suspense";
 import {
@@ -39,6 +41,10 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorView } from "@tiptap/pm/view";
 import { Loader2 } from "lucide-react";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
+import {
+  documentsTreeQueryOptions,
+  type DocumentTreeRow,
+} from "@/lib/query/section-queries";
 import { renameDocument } from "./actions";
 import { DocumentAvatars } from "./document-avatars";
 import {
@@ -55,23 +61,35 @@ import {
 import { SlashCommand } from "./slash-command";
 import { SubPage } from "./sub-page-node";
 
-type Props = {
-  propertyId: string;
-  documentId: string;
-  initialTitle: string;
-  /** Parent chain (top-level → immediate parent) for the header breadcrumb. */
-  ancestors: DocumentCrumb[];
-};
-
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
 
+/**
+ * Document editor entry point. The title + breadcrumb ancestors are derived
+ * from the shared `["documents-tree", propertyId]` cache — warm from the rail
+ * prefetch and kept fresh by `DocumentsTreeSection`'s realtime — instead of a
+ * blocking server fetch, so the page's RSC stays trivial and the route
+ * transition is instant. A document missing from the tree (archived, or in
+ * another property) is a 404.
+ */
 export function DocumentEditor({
   propertyId,
   documentId,
-  initialTitle,
-  ancestors,
-}: Props) {
+}: {
+  propertyId: string;
+  documentId: string;
+}) {
+  const { data: tree, isPending } = useQuery(
+    documentsTreeQueryOptions(propertyId),
+  );
+
+  if (isPending) return <EditorSkeleton />;
+
+  const row = tree?.find((d) => d.id === documentId);
+  if (!row) notFound();
+
+  const ancestors = ancestorsOf(tree ?? [], row);
+
   return (
     <RoomProvider
       id={roomIdForDocument(propertyId, documentId)}
@@ -85,12 +103,31 @@ export function DocumentEditor({
         <EditorInner
           propertyId={propertyId}
           documentId={documentId}
-          initialTitle={initialTitle}
+          initialTitle={row.title}
           ancestors={ancestors}
         />
       </ClientSideSuspense>
     </RoomProvider>
   );
+}
+
+/** Walks `doc`'s parent chain to the top, building breadcrumb crumbs. */
+function ancestorsOf(
+  tree: DocumentTreeRow[],
+  doc: DocumentTreeRow,
+): DocumentCrumb[] {
+  const byId = new Map(tree.map((d) => [d.id, d]));
+  const crumbs: DocumentCrumb[] = [];
+  const seen = new Set<string>();
+  let cursor = doc.parent_id;
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    const node = byId.get(cursor);
+    if (!node) break;
+    crumbs.unshift({ id: node.id, title: node.title });
+    cursor = node.parent_id;
+  }
+  return crumbs;
 }
 
 function EditorSkeleton() {

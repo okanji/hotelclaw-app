@@ -492,7 +492,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
 // ── Subcomponents ──────────────────────────────────────────────────────────
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-0">{children}</div>;
+  return <div className="flex items-center gap-1">{children}</div>;
 }
 
 function Divider() {

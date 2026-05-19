@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Hash, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { channelHref } from "@/lib/chat/channel-href";
 
 type Props = {
   channel: Channel;
@@ -44,13 +45,17 @@ export function ChannelPreviewRow({
     return () => subs.forEach((s) => s.unsubscribe());
   }, [channel]);
 
+  // Team channels route under /chat, DMs under /dms — `channelKind` is the
+  // Stream channel type, so it picks the right prefix.
+  const channelPath = channelHref(propertyId, channelKind, channel.id ?? "");
+
   // Active state follows the URL, not Stream's `activeChannel` context. The
   // channel list remounts whenever the rail switches sections (and mounts
   // with `setActiveChannelOnMount={false}`), so Stream's context can render
   // out of sync with the route — the row would fail to highlight even though
   // its channel is open. The pathname is the source of truth, and matches how
   // every other secondary-sidebar item computes `isActive`.
-  const isActive = pathname === `/p/${propertyId}/chat/${channel.id}`;
+  const isActive = pathname === channelPath;
   const isPrivate =
     (channel.data as { is_private?: boolean } | undefined)?.is_private ?? false;
   const Icon = channelKind === "team" ? (isPrivate ? Lock : Hash) : null;
@@ -64,13 +69,10 @@ export function ChannelPreviewRow({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        render={
-          <Link href={`/p/${propertyId}/chat/${channel.id}`} />
-        }
+        render={<Link href={channelPath} />}
         isActive={isActive}
         tooltip={title}
         className={cn(
-          "text-[14px]",
           unread > 0 && !isActive && "font-semibold text-foreground",
         )}
       >

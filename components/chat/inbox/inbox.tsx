@@ -2,14 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
-import type { MessageResponse, SearchAPIResponse } from "stream-chat";
+import type { MessageResponse } from "stream-chat";
 import { Inbox as InboxIcon } from "lucide-react";
 import { MentionRow } from "./mention-row";
 import { useMarkMentionsSeenOnMount } from "./use-unread-mentions";
 import { InboxSkeleton } from "./inbox-skeleton";
+import { mentionsQueryOptions } from "@/lib/query/section-queries";
 import { PageHeader } from "@/components/shell/page-header";
-
-type Hit = SearchAPIResponse["results"][number];
 
 /**
  * Slack-style "Mentions" inbox: every message across the property where the
@@ -34,24 +33,9 @@ export function InboxView({
   // Visiting the inbox = "I've seen these". Clears the sidebar badge.
   useMarkMentionsSeenOnMount(userId);
 
-  const { data: hits, isPending, error } = useQuery<Hit[]>({
-    queryKey: ["mentions", propertyId, userId],
-    // The search runs over the Stream client; only fetch once it's connected.
-    // Hydrated data still displays before then.
-    enabled: !!client?.user,
-    queryFn: async () => {
-      const res = await client!.search(
-        {
-          type: { $in: ["team", "messaging"] },
-          property_id: propertyId,
-          members: { $in: [client!.user!.id] },
-        } as Parameters<typeof client.search>[0],
-        { "mentioned_users.id": { $contains: client!.user!.id } },
-        { limit: 50, sort: [{ created_at: -1 }] },
-      );
-      return res.results ?? [];
-    },
-  });
+  const { data: hits, isPending, error } = useQuery(
+    mentionsQueryOptions(propertyId, userId, client),
+  );
 
   if (isPending) return <InboxSkeleton />;
 

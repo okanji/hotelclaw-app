@@ -15,6 +15,7 @@ import type {
   NotificationRow,
   TaskAssignedPayload,
 } from "@/lib/notifications/types";
+import { channelHref } from "@/lib/chat/channel-href";
 
 type Props = {
   notification: NotificationRow;
@@ -144,7 +145,9 @@ function renderView(n: NotificationRow, propertyId: string): View {
           </>
         ),
         sub: null,
-        href: p.channelId ? `/p/${propertyId}/chat/${p.channelId}` : null,
+        href: p.channelId
+          ? channelHref(propertyId, "team", p.channelId)
+          : null,
       };
     }
     case "invite_received": {
@@ -177,7 +180,9 @@ function renderView(n: NotificationRow, propertyId: string): View {
           </>
         ),
         sub: p.preview ?? null,
-        href: p.channelId ? `/p/${propertyId}/chat/${p.channelId}` : null,
+        href: p.channelId
+          ? channelHref(propertyId, p.channelType, p.channelId)
+          : null,
       };
     }
     default:

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { channelHref } from "@/lib/chat/channel-href";
 
 export default async function ChatIndex({
   params,
@@ -17,7 +18,7 @@ export default async function ChatIndex({
     .limit(1);
 
   if (data && data.length > 0) {
-    redirect(`/p/${propertyId}/chat/${data[0].stream_channel_id}`);
+    redirect(channelHref(propertyId, "team", data[0].stream_channel_id));
   }
 
   return (

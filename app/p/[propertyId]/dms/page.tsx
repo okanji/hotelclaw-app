@@ -1,10 +1,10 @@
 /**
  * Direct-messages landing — the "nothing selected" state for the DMs section.
  *
- * DM conversations render at `/chat/<channelId>`, shared with team channels,
- * so DMs need their own index: the `/chat` index redirects to the first team
- * channel, which would wrongly surface a channel under the DMs rail. The DM
- * list itself lives in the section sidebar (`DmsSection`).
+ * DM conversations render at `/dms/<channelId>` (their own route, distinct
+ * from team channels at `/chat/<channelId>`); this index is just the empty
+ * state shown until one is picked. The DM list itself lives in the section
+ * sidebar (`DmsSection`).
  */
 export default function DmsIndex() {
   return (

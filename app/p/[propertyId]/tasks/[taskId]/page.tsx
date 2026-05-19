@@ -1,5 +1,8 @@
-import { notFound } from "next/navigation";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getServerQueryClient } from "@/lib/query/server";
+import { getTasks } from "@/lib/tasks/queries";
 import { TaskRoom } from "@/components/tasks/task-room";
 
 export default async function TaskDetailPage({
@@ -8,30 +11,21 @@ export default async function TaskDetailPage({
   params: Promise<{ propertyId: string; taskId: string }>;
 }) {
   const { propertyId, taskId } = await params;
-  const supabase = await createClient();
-  const { data: task } = await supabase
-    .from("tasks")
-    .select(
-      "id, title, description, status, priority, assignee_id, due_at, created_at, updated_at",
-    )
-    .eq("property_id", propertyId)
-    .eq("id", taskId)
-    .maybeSingle();
+  await requireUser();
 
-  if (!task) notFound();
+  // Stream the task list to the client; <TaskRoom> reads this one task out of
+  // the same `["tasks", propertyId]` cache the board uses — already warm when
+  // arriving from the board, so the route transition isn't blocked on a fetch.
+  const queryClient = getServerQueryClient();
+  const supabase = await createClient();
+  void queryClient.prefetchQuery({
+    queryKey: ["tasks", propertyId],
+    queryFn: () => getTasks(supabase, propertyId),
+  });
 
   return (
-    <TaskRoom
-      propertyId={propertyId}
-      task={{
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        status: task.status,
-        priority: task.priority,
-        assigneeId: task.assignee_id,
-        dueAt: task.due_at,
-      }}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <TaskRoom propertyId={propertyId} taskId={taskId} />
+    </HydrationBoundary>
   );
 }

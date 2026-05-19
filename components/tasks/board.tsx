@@ -47,6 +47,7 @@ import {
   type Task,
 } from "./kanban";
 import type { TaskStatus } from "@/lib/db/types";
+import { tasksQueryOptions } from "@/lib/query/section-queries";
 
 const EMPTY_TASKS: Task[] = [];
 
@@ -96,16 +97,7 @@ export function TasksBoard({
   const searchParams = useSearchParams();
   const mineOnly = searchParams.get("view") === "mine";
 
-  const { data, isPending } = useQuery<Task[]>({
-    queryKey: ["tasks", propertyId],
-    queryFn: async () => {
-      const res = await fetch(`/api/properties/${propertyId}/tasks`, {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Failed to load tasks");
-      return res.json();
-    },
-  });
+  const { data, isPending } = useQuery(tasksQueryOptions(propertyId));
   // "My tasks" saved view (?view=mine) filters the board to the current
   // user's assignments; otherwise the board shows every task.
   const tasks = useMemo(() => {

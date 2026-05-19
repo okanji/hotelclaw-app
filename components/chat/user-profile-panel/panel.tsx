@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, MessageSquareText, X } from "lucide-react";
 import { toast } from "sonner";
+import { channelHref } from "@/lib/chat/channel-href";
 import { useUserProfilePanel } from "./context";
 
 type ProfileResponse = {
@@ -135,7 +136,8 @@ function ProfileBody({
         } as Record<string, unknown>);
         await channel.create();
         onClose();
-        if (channel.id) router.push(`/p/${propertyId}/chat/${channel.id}`);
+        if (channel.id)
+          router.push(channelHref(propertyId, "messaging", channel.id));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to start DM");
       }
@@ -225,7 +227,8 @@ function ProfileBody({
                   type="button"
                   onClick={() => {
                     onClose();
-                    if (c.id) router.push(`/p/${propertyId}/chat/${c.id}`);
+                    if (c.id)
+                      router.push(channelHref(propertyId, "messaging", c.id));
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
                 >

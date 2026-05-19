@@ -10,6 +10,7 @@ import {
   useMessageContext,
   useMessageReminder,
 } from "stream-chat-react";
+import { channelHref } from "@/lib/chat/channel-href";
 import {
   Bookmark,
   Link as LinkIcon,
@@ -115,6 +116,7 @@ export function SlackMessageActions() {
       <CopyLinkButton
         propertyId={getPropertyIdFromChannel(channel)}
         channelId={channel.id ?? ""}
+        channelType={channel.type}
         messageId={message.id}
       />
 
@@ -264,16 +266,25 @@ function SaveButton({
 function CopyLinkButton({
   propertyId,
   channelId,
+  channelType,
   messageId,
 }: {
   propertyId: string | null;
   channelId: string;
+  channelType: string;
   messageId: string;
 }) {
   if (!propertyId || !channelId) return null;
   async function copy() {
     try {
-      const url = `${window.location.origin}/p/${propertyId}/chat/${channelId}?messageId=${encodeURIComponent(messageId)}`;
+      // `propertyId`/`channelId` are non-null past the guard above; TS
+      // doesn't carry that narrowing into this nested closure.
+      const url = `${window.location.origin}${channelHref(
+        propertyId!,
+        channelType,
+        channelId,
+        { messageId },
+      )}`;
       await navigator.clipboard.writeText(url);
       toast.success("Link copied");
     } catch (e) {

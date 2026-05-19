@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { channelHref } from "@/lib/chat/channel-href";
 
 type Member = {
   id: string;
@@ -86,7 +87,8 @@ export function CreateDmDialog({ propertyId, open, onOpenChange }: Props) {
         onOpenChange(false);
         setPicked([]);
         setQuery("");
-        if (channel.id) router.push(`/p/${propertyId}/chat/${channel.id}`);
+        if (channel.id)
+          router.push(channelHref(propertyId, "messaging", channel.id));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to start DM");
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   SidebarContent,
@@ -75,32 +75,32 @@ export function SectionSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {section === "activity" ? (
+        {/* All five sections stay mounted; only visibility toggles. Each
+            loads its data once (on property entry), so switching the rail is
+            an instant show/hide — no remount, no re-fetch, no skeleton. */}
+        <SectionPane active={section === "activity"}>
           <Suspense fallback={null}>
-            <ActivitySection
-              propertyId={currentPropertyId}
-              userId={user.id}
-            />
+            <ActivitySection propertyId={currentPropertyId} userId={user.id} />
           </Suspense>
-        ) : null}
-        {section === "chat" ? (
+        </SectionPane>
+        <SectionPane active={section === "chat"}>
           <ChatSection
             propertyId={currentPropertyId}
             userId={user.id}
             isChannelAdmin={isChannelAdmin}
           />
-        ) : null}
-        {section === "dms" ? (
+        </SectionPane>
+        <SectionPane active={section === "dms"}>
           <DmsSection propertyId={currentPropertyId} userId={user.id} />
-        ) : null}
-        {section === "tasks" ? (
+        </SectionPane>
+        <SectionPane active={section === "tasks"}>
           <Suspense fallback={null}>
             <TasksSection propertyId={currentPropertyId} />
           </Suspense>
-        ) : null}
-        {section === "docs" ? (
+        </SectionPane>
+        <SectionPane active={section === "docs"}>
           <DocumentsTreeSection propertyId={currentPropertyId} />
-        ) : null}
+        </SectionPane>
       </SidebarContent>
 
       {/* Drag-to-resize handle on the trailing edge. */}
@@ -122,4 +122,21 @@ export function SectionSidebar({
       </div>
     </aside>
   );
+}
+
+/**
+ * Wraps one section so all five can stay mounted simultaneously. The active
+ * section renders transparently (`display: contents`, so its `SidebarGroup`s
+ * lay out as direct children of `SidebarContent`, exactly as before); the rest
+ * are `display: none` but still mounted — keeping their data, subscriptions
+ * and scroll position warm so a rail switch is instant, with no loading state.
+ */
+function SectionPane({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: ReactNode;
+}) {
+  return <div className={active ? "contents" : "hidden"}>{children}</div>;
 }

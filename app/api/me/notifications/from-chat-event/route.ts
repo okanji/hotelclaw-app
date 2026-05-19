@@ -173,6 +173,7 @@ async function handleMention(args: {
   let messageText = "";
   let byUserId: string | undefined;
   let byUserName: string | null = null;
+  let channelType: "team" | "messaging" = "team";
   try {
     const res = await args.stream.getMessage(args.messageId);
     const msg = res.message;
@@ -182,6 +183,13 @@ async function handleMention(args: {
     messageText = (msg.text ?? "").slice(0, 200);
     byUserId = msg.user?.id;
     byUserName = msg.user?.name ?? null;
+    // Stream `cid` is `<type>:<id>` — the type decides whether the mention's
+    // deep link routes to /dms or /chat. Treat anything non-`messaging` as a
+    // team channel.
+    channelType =
+      ((msg.cid as string | undefined) ?? "").split(":")[0] === "messaging"
+        ? "messaging"
+        : "team";
 
     if (args.broadcast) {
       if (!/(?:^|\s)@channel\b/.test(msg.text ?? "")) {
@@ -190,8 +198,6 @@ async function handleMention(args: {
           { status: 403 },
         );
       }
-      const channelType =
-        ((msg.cid as string | undefined) ?? "").split(":")[0] || "team";
       const channel = args.stream.channel(channelType, args.streamChannelId);
       const state = await channel.query({ members: { limit: 200 } });
       const isMember = (state.members ?? []).some(
@@ -237,6 +243,7 @@ async function handleMention(args: {
     type: "mention",
     payload: {
       channelId: args.streamChannelId,
+      channelType,
       messageId: args.messageId,
       byUserId: byUserId ?? null,
       byUserName,

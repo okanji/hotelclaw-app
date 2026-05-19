@@ -28,6 +28,7 @@ import {
   Search,
   User as UserIcon,
 } from "lucide-react";
+import { channelHref } from "@/lib/chat/channel-href";
 
 type Member = {
   id: string;
@@ -231,7 +232,9 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 <CommandItem
                   key={c.cid}
                   value={`channel-${c.cid}-${data?.name ?? c.id}`}
-                  onSelect={() => go(`/p/${propertyId}/chat/${c.id}`)}
+                  onSelect={() =>
+                    go(channelHref(propertyId, c.type, c.id ?? ""))
+                  }
                 >
                   <Icon className="size-4 text-muted-foreground" />
                   <span>{data?.name ?? c.id}</span>
@@ -247,7 +250,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={c.cid}
                 value={`dm-${c.cid}-${dmTitle(c, me)}`}
-                onSelect={() => go(`/p/${propertyId}/chat/${c.id}`)}
+                onSelect={() => go(channelHref(propertyId, c.type, c.id ?? ""))}
               >
                 <DmIcon channel={c} currentUserId={me} />
                 <span>{dmTitle(c, me)}</span>
@@ -306,7 +309,12 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 onSelect={() =>
                   channelId &&
                   go(
-                    `/p/${propertyId}/chat/${channelId}?messageId=${encodeURIComponent(message.id)}`,
+                    channelHref(
+                      propertyId,
+                      message.cid?.split(":")[0],
+                      channelId,
+                      { messageId: message.id },
+                    ),
                   )
                 }
               >
@@ -360,7 +368,8 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
       } as Record<string, unknown>);
       await channel.create();
       setOpen(false);
-      if (channel.id) router.push(`/p/${propertyId}/chat/${channel.id}`);
+      if (channel.id)
+        router.push(channelHref(propertyId, "messaging", channel.id));
     } catch (e) {
       console.error("openOrCreateDm failed", e);
     }

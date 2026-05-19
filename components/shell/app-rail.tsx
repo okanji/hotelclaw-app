@@ -9,8 +9,16 @@ import {
   MessageCircle,
   MessagesSquare,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useChatContext } from "stream-chat-react";
 import { cn } from "@/lib/utils";
 import { lastSectionPath } from "@/lib/shell/last-path";
+import {
+  tasksQueryOptions,
+  documentsQueryOptions,
+  documentsTreeQueryOptions,
+  mentionsQueryOptions,
+} from "@/lib/query/section-queries";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 
@@ -29,6 +37,24 @@ type RailItem = {
 };
 
 /**
+ * Where a rail click for `item` should land.
+ *
+ * Most sections jump back to wherever the user left off (recorded in
+ * localStorage by `LastPathRecorder`), falling back to the landing route.
+ * DMs are the exception: their conversations live on the `/chat/*` routes
+ * shared with team channels, so a remembered path can't be confirmed to be a
+ * DM — a stale entry from a section/route desync would open a channel. DMs
+ * therefore always land on the `/dms` index, whose sidebar lists them.
+ */
+function resolveTarget(
+  propertyId: string,
+  item: RailItem,
+): string | undefined {
+  if (item.section === "dms") return item.href;
+  return lastSectionPath(propertyId, item.section) ?? item.href;
+}
+
+/**
  * Slack-style icon rail — the first sidebar, pinned to the screen edge. Five
  * square icon buttons switch the active section; the secondary sidebar
  * (`SectionSidebar`) renders content for whichever is selected. Rail and
@@ -43,6 +69,8 @@ export function AppRail({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const { client } = useChatContext();
   const { section, setSection } = useShellSection();
   const { unseenCount } = useNotifications(userId);
 
@@ -97,10 +125,27 @@ export function AppRail({
   // resolves to the section's remembered route, so warm that, not `href`.
   useEffect(() => {
     for (const item of items) {
-      const target = lastSectionPath(propertyId, item.section) ?? item.href;
+      const target = resolveTarget(propertyId, item);
       if (target) router.prefetch(target);
     }
   }, [items, router, propertyId]);
+
+  // Warm the section data caches once on entering the property, so the first
+  // click into Tasks / Docs / Inbox is an instant React Query cache hit
+  // instead of a skeleton. Activity is already warm — `useNotifications`
+  // above subscribes to the same query; Chat is warm via Stream's
+  // <ChannelList> watch. `prefetchQuery` respects staleTime, so it's a no-op
+  // when the data is already fresh (e.g. the user is already in-section).
+  useEffect(() => {
+    queryClient.prefetchQuery(tasksQueryOptions(propertyId));
+    queryClient.prefetchQuery(documentsQueryOptions(propertyId));
+    queryClient.prefetchQuery(documentsTreeQueryOptions(propertyId));
+    if (client?.user) {
+      queryClient.prefetchQuery(
+        mentionsQueryOptions(propertyId, userId, client),
+      );
+    }
+  }, [queryClient, propertyId, userId, client]);
 
   function handleClick(item: RailItem) {
     setSection(item.section);
@@ -116,11 +161,8 @@ export function AppRail({
       ? section === item.section
       : !!item.routeKey && pathname.includes(item.routeKey);
     if (alreadyInSection) return;
-    // Jump back to wherever the user left off in this section (recorded in
-    // localStorage by `LastPathRecorder`); fall back to the landing route on
-    // first visit / cleared storage.
-    const target = lastSectionPath(propertyId, item.section) ?? item.href;
-    router.push(target);
+    const target = resolveTarget(propertyId, item);
+    if (target) router.push(target);
   }
 
   return (

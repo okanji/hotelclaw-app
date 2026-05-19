@@ -8,7 +8,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -52,6 +51,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  documentsTreeQueryOptions,
+  type DocumentTreeRow,
+} from "@/lib/query/section-queries";
 import {
   archiveDocument,
   createDocument,
@@ -59,13 +63,7 @@ import {
 } from "./actions";
 import { ArchivedDocumentsDialog } from "./archived-documents-dialog";
 
-type DocRow = {
-  id: string;
-  title: string;
-  parent_id: string | null;
-  position: number;
-  updated_at: string;
-};
+type DocRow = DocumentTreeRow;
 
 type TreeNode = { doc: DocRow; children: TreeNode[] };
 
@@ -73,6 +71,8 @@ type TreeNode = { doc: DocRow; children: TreeNode[] };
 const ROOT_DROP_ID = "__doc_root__";
 /** Indentation step per nesting level, in pixels. */
 const INDENT = 14;
+/** Stable empty array so `buildTree`'s useMemo doesn't re-run every render. */
+const EMPTY_DOCS: DocRow[] = [];
 
 /**
  * Notion-style nested document tree for the current property.
@@ -92,8 +92,10 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   const params = useParams<{ documentId?: string }>();
   const activeId = params?.documentId;
 
-  const [docs, setDocs] = useState<DocRow[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
+  const { data, isPending } = useQuery(documentsTreeQueryOptions(propertyId));
+  const docs = data ?? EMPTY_DOCS;
+  const loaded = !isPending;
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -104,6 +106,9 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
+      // Client-only restore after hydration — `localStorage` is unavailable
+      // during SSR, so this can't move into the `useState` initializer.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setExpanded(new Set(JSON.parse(raw) as string[]));
     } catch {
       // ignore malformed/disabled storage
@@ -121,23 +126,11 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
     [storageKey],
   );
 
+  // Realtime: patch the cached tree on any documents change for this property
+  // so creates/moves/archives from any client land here without a refresh.
+  // The initial fetch is owned by `useQuery` above.
   useEffect(() => {
     const supabase = createBrowserClient();
-    let cancelled = false;
-
-    void supabase
-      .from("documents")
-      .select("id, title, parent_id, position, updated_at")
-      .eq("property_id", propertyId)
-      .is("archived_at", null)
-      .order("position", { ascending: true })
-      .limit(500)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setDocs((data ?? []) as DocRow[]);
-        setLoaded(true);
-      });
-
     const channel = supabase
       .channel(`documents:${propertyId}`)
       .on(
@@ -149,16 +142,18 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
           filter: `property_id=eq.${propertyId}`,
         },
         (payload) => {
-          setDocs((current) => reduce(current, payload as RealtimePayload));
+          queryClient.setQueryData<DocRow[]>(
+            documentsTreeQueryOptions(propertyId).queryKey,
+            (current) => reduce(current ?? [], payload as RealtimePayload),
+          );
         },
       )
       .subscribe();
 
     return () => {
-      cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [propertyId]);
+  }, [propertyId, queryClient]);
 
   const { roots, childrenOf, parentOf } = useMemo(
     () => buildTree(docs),
@@ -169,6 +164,9 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   // the tree after a deep-link or a navigation from breadcrumbs.
   useEffect(() => {
     if (!activeId) return;
+    // Reveal the open document by expanding its ancestors — a one-shot sync
+    // off navigation/data, not derivable during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded((current) => {
       const next = new Set(current);
       let cursor = parentOf.get(activeId) ?? null;
@@ -273,11 +271,12 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
 
       // Optimistic: re-parent locally and append to the new sibling list, so
       // the tree settles instantly. Realtime will confirm (or this reverts).
+      const key = documentsTreeQueryOptions(propertyId).queryKey;
       const snapshot = docs;
       const siblings = docs.filter((d) => (d.parent_id ?? null) === newParent);
       const maxPos = siblings.reduce((m, d) => Math.max(m, d.position), 0);
-      setDocs((current) =>
-        current.map((d) =>
+      queryClient.setQueryData<DocRow[]>(key, (current) =>
+        (current ?? []).map((d) =>
           d.id === id
             ? { ...d, parent_id: newParent, position: maxPos + 1024 }
             : d,
@@ -288,11 +287,11 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
       void moveDocument(id, newParent).then((res) => {
         if ("error" in res) {
           toast.error(res.error);
-          setDocs(snapshot);
+          queryClient.setQueryData<DocRow[]>(key, snapshot);
         }
       });
     },
-    [docs, disabledDropIds, expand],
+    [docs, disabledDropIds, expand, propertyId, queryClient],
   );
 
   const draggedDoc = draggedId

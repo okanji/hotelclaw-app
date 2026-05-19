@@ -7,15 +7,16 @@ import { rememberSectionPath } from "@/lib/shell/last-path";
 
 /**
  * Substring that marks a route as "content worth returning to" for each
- * section. Chat / DMs only count a specific conversation route (`/chat/<id>`)
- * — not the `/chat` index or the inbox / threads side-trips — so the rail
- * jumps back to an actual channel. The rest match their section broadly, so
- * an index page or a detail page both qualify.
+ * section. Chat only counts a specific channel route (`/chat/<id>`) and DMs
+ * a specific conversation route (`/dms/<id>`) — not the section index or the
+ * inbox / threads side-trips — so the rail jumps back to an actual
+ * conversation. The rest match their section broadly, so an index page or a
+ * detail page both qualify.
  */
 const SECTION_ROUTE: Record<ShellSection, string> = {
   activity: "/activity",
   chat: "/chat/",
-  dms: "/chat/",
+  dms: "/dms/",
   tasks: "/tasks",
   docs: "/documents",
 };

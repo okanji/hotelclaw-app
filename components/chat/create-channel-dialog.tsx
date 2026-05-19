@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { createChannel } from "./actions";
+import { channelHref } from "@/lib/chat/channel-href";
 
 type Props = {
   propertyId: string;
@@ -41,7 +42,7 @@ export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
       // The channel list's onAddedToChannel handler picks up the new channel
       // from the notification.added_to_channel WebSocket event — no manual
       // invalidation needed.
-      router.push(`/p/${propertyId}/chat/${result.streamChannelId}`);
+      router.push(channelHref(propertyId, "team", result.streamChannelId));
     });
   }
 

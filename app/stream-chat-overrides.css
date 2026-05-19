@@ -518,6 +518,11 @@
   flex-wrap: wrap !important;
   align-items: baseline !important;
   gap: 6px !important;
+  /* Nudge the name/timestamp row down a hair to sit more centered against the
+     avatar. `position`/`top` (not margin) so it shifts visually without
+     reflowing the message text below it — the message stays put. */
+  position: relative !important;
+  top: 2px !important;
 }
 
 .str-chat__message .str-chat__message-metadata {

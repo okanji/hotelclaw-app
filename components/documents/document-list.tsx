@@ -8,7 +8,7 @@ import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createDocument } from "./actions";
 import { DocumentListSkeleton } from "./document-list-skeleton";
-import type { DocumentListItem } from "@/lib/documents/queries";
+import { documentsQueryOptions } from "@/lib/query/section-queries";
 
 /**
  * Documents index. Reads the list from React Query so the page's RSC stays
@@ -21,16 +21,9 @@ export function DocumentList({ propertyId }: { propertyId: string }) {
   const [creating, startCreate] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { data: docs, isPending } = useQuery<DocumentListItem[]>({
-    queryKey: ["documents", propertyId],
-    queryFn: async () => {
-      const res = await fetch(`/api/properties/${propertyId}/documents`, {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Failed to load documents");
-      return res.json();
-    },
-  });
+  const { data: docs, isPending } = useQuery(
+    documentsQueryOptions(propertyId),
+  );
 
   function handleCreate() {
     setError(null);

@@ -62,13 +62,13 @@ function SubPageView({ node }: NodeViewProps) {
   const params = useParams<{ propertyId: string }>();
   const router = useRouter();
   const [title, setTitle] = useState<string | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  // A node with no id is broken from the start; an existing id resolves to
+  // `notFound` only once the lookup says so.
+  const missing = !documentId || notFound;
 
   useEffect(() => {
-    if (!documentId) {
-      setMissing(true);
-      return;
-    }
+    if (!documentId) return;
     let cancelled = false;
     const supabase = createBrowserClient();
     void supabase
@@ -79,7 +79,7 @@ function SubPageView({ node }: NodeViewProps) {
       .then(({ data }) => {
         if (cancelled) return;
         if (!data || data.archived_at) {
-          setMissing(true);
+          setNotFound(true);
           return;
         }
         setTitle(data.title);
