@@ -23,10 +23,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -178,8 +178,8 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <section className="mb-8 space-y-3">
-      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+    <section className="mb-8 space-y-6">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           Boards
         </h2>
@@ -267,20 +267,25 @@ function BoardStrip({
 }
 
 function BoardHeader({ board }: { board: DocumentBoardRow }) {
-  const [editing, setEditing] = useState(false);
+  // Notion-style: no view/edit toggle. The title is always an `<input>`
+  // styled like a plain heading — no border, no background, no field chrome.
+  // Click anywhere on the title row to position the cursor; blur or Enter
+  // commits. The shadcn `<Input>` is intentionally not used here because its
+  // visual chrome (ring, border, h-10) is the whole thing the user is
+  // asking us to drop.
   const [name, setName] = useState(board.name);
-  // Keep the local input in sync if a teammate renames the board while
-  // this user wasn't editing it.
-  useEffect(() => {
-    if (!editing) setName(board.name);
-  }, [board.name, editing]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync from server when this user isn't actively editing. Without the
+  // focus check, a teammate's rename would yank the input value out from
+  // under a user mid-edit.
   useEffect(() => {
-    if (editing) inputRef.current?.select();
-  }, [editing]);
+    if (document.activeElement !== inputRef.current) {
+      setName(board.name);
+    }
+  }, [board.name]);
 
   async function commitRename() {
-    setEditing(false);
     const next = name.trim();
     if (!next || next === board.name) {
       setName(board.name);
@@ -308,39 +313,40 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 py-0.5">
       <span
-        className={cn("inline-block size-2 shrink-0 rounded-full", COLOR_DOT[board.color])}
+        className={cn(
+          "inline-block size-2.5 shrink-0 rounded-full",
+          COLOR_DOT[board.color],
+        )}
         aria-hidden="true"
       />
-      {editing ? (
-        <Input
-          ref={inputRef}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") {
-              setEditing(false);
-              setName(board.name);
-            }
-          }}
-          className="h-7 max-w-xs text-[13px] font-semibold"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded px-1 py-0.5 text-[13px] font-semibold text-foreground hover:bg-muted"
-        >
-          {board.name || "Untitled board"}
-        </button>
-      )}
-      <span className="text-xs text-muted-foreground tabular-nums">
+      <input
+        ref={inputRef}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => void commitRename()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            inputRef.current?.blur();
+          }
+          if (e.key === "Escape") {
+            setName(board.name);
+            inputRef.current?.blur();
+          }
+        }}
+        placeholder="Untitled board"
+        aria-label="Board name"
+        className={cn(
+          "min-w-0 flex-1 truncate bg-transparent text-xl font-semibold leading-tight tracking-tight text-foreground",
+          "outline-none placeholder:text-muted-foreground/60",
+        )}
+      />
+      <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
         {board.items.length}
       </span>
-      <div className="ml-auto opacity-0 transition-opacity group-hover/board:opacity-100 focus-within:opacity-100">
+      <div className="opacity-0 transition-opacity group-hover/board:opacity-100 focus-within:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -355,27 +361,34 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={4}>
-            <DropdownMenuItem onClick={() => setEditing(true)}>
+            <DropdownMenuItem
+              onClick={() => {
+                inputRef.current?.focus();
+                inputRef.current?.select();
+              }}
+            >
               <Pencil className="size-4" /> Rename
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Color
-            </DropdownMenuLabel>
-            {BOARD_COLORS.map((c) => (
-              <DropdownMenuItem
-                key={c}
-                onClick={() => void handleColor(c)}
-                className="gap-2"
-              >
-                <span
-                  className={cn("size-3 shrink-0 rounded-full", COLOR_DOT[c])}
-                  aria-hidden="true"
-                />
-                <span className="flex-1">{COLOR_LABEL[c]}</span>
-                {board.color === c ? <Check className="size-3.5" /> : null}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Color
+              </DropdownMenuLabel>
+              {BOARD_COLORS.map((c) => (
+                <DropdownMenuItem
+                  key={c}
+                  onClick={() => void handleColor(c)}
+                  className="gap-2"
+                >
+                  <span
+                    className={cn("size-3 shrink-0 rounded-full", COLOR_DOT[c])}
+                    aria-hidden="true"
+                  />
+                  <span className="flex-1">{COLOR_LABEL[c]}</span>
+                  {board.color === c ? <Check className="size-3.5" /> : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => void handleDelete()}
