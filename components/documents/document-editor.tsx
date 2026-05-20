@@ -85,8 +85,12 @@ export function DocumentEditor({
   );
 
   if (isPending) return <EditorSkeleton />;
+  // Query has settled but errored — keep the skeleton up and let react-query
+  // retry. Falling through to `notFound()` here would 404 the user out on a
+  // transient blip even though the doc exists.
+  if (!tree) return <EditorSkeleton />;
 
-  const row = tree?.find((d) => d.id === documentId);
+  const row = tree.find((d) => d.id === documentId);
   if (!row) notFound();
 
   const ancestors = ancestorsOf(tree ?? [], row);

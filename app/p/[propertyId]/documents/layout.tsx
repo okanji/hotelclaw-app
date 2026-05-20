@@ -2,7 +2,7 @@ import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getServerQueryClient } from "@/lib/query/server";
-import { getDocuments } from "@/lib/documents/queries";
+import { getDocuments, getDocumentsTree } from "@/lib/documents/queries";
 
 // Liveblocks UI defaults — used by FloatingComposer, FloatingThreads,
 // FloatingToolbar, Toolbar (everything in `@liveblocks/react-tiptap`).
@@ -40,6 +40,14 @@ export default async function DocumentsLayout({
   void queryClient.prefetchQuery({
     queryKey: ["documents", propertyId],
     queryFn: () => getDocuments(supabase, propertyId),
+  });
+  // `DocumentEditor` reads the open doc's title + ancestors out of the
+  // `["documents-tree", propertyId]` cache and `notFound()`s on a miss — so a
+  // hard load of `/documents/[id]` needs the tree warm on the very first
+  // client render, before the rail's post-mount prefetch can run.
+  void queryClient.prefetchQuery({
+    queryKey: ["documents-tree", propertyId],
+    queryFn: () => getDocumentsTree(supabase, propertyId),
   });
 
   return (
