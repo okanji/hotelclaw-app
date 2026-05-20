@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { getServerQueryClient } from "@/lib/query/server";
+import { getDocumentsTree } from "@/lib/documents/queries";
 import { getNotifications } from "@/lib/notifications/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
@@ -85,10 +86,20 @@ export default async function PropertyLayout({
   // Await — see lib/query/client. A bare `void` prefetch leaves the
   // notifications cache empty on hard load so the Activity feed + rail
   // badge would render blank until the rail's client-side prefetch runs.
-  await queryClient.prefetchQuery({
-    queryKey: ["notifications", user.id],
-    queryFn: () => getNotifications(supabase, { limit: 100 }),
-  });
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["notifications", user.id],
+      queryFn: () => getNotifications(supabase, { limit: 100 }),
+    }),
+    // `<DocumentsSurface>` lives in this layout (outside the documents
+    // segment's `HydrationBoundary`), so warm the tree here too — otherwise
+    // a hard refresh of `/documents/[id]` can leave `useQuery` fetching with
+    // no hydrated data and the editor stuck on "Loading document…".
+    queryClient.prefetchQuery({
+      queryKey: ["documents-tree", propertyId],
+      queryFn: () => getDocumentsTree(supabase, propertyId),
+    }),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

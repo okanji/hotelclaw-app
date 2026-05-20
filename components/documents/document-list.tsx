@@ -2,38 +2,28 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Pin } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DocumentListSkeleton } from "./document-list-skeleton";
 import { documentsQueryOptions } from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
-import { usePinnedDocs } from "@/lib/documents/use-pinned-docs";
+
+type DocRow = { id: string; title: string; updated_at: string };
 
 /**
- * "All documents" list — flat, most-recently-updated first. Used standalone
- * as one section of the docs Home page (`<DocumentsHome>`), which owns the
- * page-level header and the New-document control. The page's RSC stays
- * trivial: it streams the list in via `<HydrationBoundary>` and this hook
- * picks it up from the shared `["documents", propertyId]` cache.
+ * "All documents" list — flat, most-recently-updated first. Renders inside
+ * `<DocumentsHome>`'s `<DndContext>`, so each row is a `useDraggable` source:
+ * dragging onto a board card or board strip pins the doc; dnd-kit's
+ * activation distance (6px) means a plain click still navigates.
  */
 export function DocumentList({ propertyId }: { propertyId: string }) {
   const { data: docs, isPending } = useQuery(
     documentsQueryOptions(propertyId),
   );
-  const { isPinned, togglePin } = usePinnedDocs(propertyId);
-  const openDocument = useOpenDocument(propertyId);
-  const prewarm = usePrewarmDocument(propertyId);
-
-  // Plain left-click → client-side `pushState` switch (no route nav, no
-  // skeleton). Modified clicks fall through to the browser so "open in new
-  // tab" still works via the underlying `<a href>`.
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>, docId: string) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    openDocument(docId);
-  }
 
   // First streamed render before the hydrated list lands.
   if (isPending) return <DocumentListSkeleton />;
@@ -50,47 +40,63 @@ export function DocumentList({ propertyId }: { propertyId: string }) {
 
   return (
     <ul className="divide-y divide-border rounded-lg border border-border">
-      {list.map((d) => {
-        const pinned = isPinned(d.id);
-        return (
-          <li key={d.id} className="group/row relative">
-            <Link
-              href={documentHref(propertyId, d.id)}
-              onClick={(e) => handleClick(e, d.id)}
-              onMouseEnter={() => prewarm(d.id)}
-              className="flex items-center gap-3 px-4 py-3 pr-14 group-hover/row:bg-muted/50"
-            >
-              <FileText className="size-4 text-muted-foreground" />
-              <span className="flex-1 truncate text-sm font-medium">
-                {d.title}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(d.updated_at).toLocaleDateString()}
-              </span>
-            </Link>
-            {/* Pin toggle sits outside the <Link>, so clicking it doesn't
-                navigate — DOM click targets this button, not the anchor
-                underneath. Pinned rows keep the icon visible; unpinned rows
-                only show it on row hover/focus. */}
-            <button
-              type="button"
-              aria-label={pinned ? "Unpin document" : "Pin document"}
-              title={pinned ? "Unpin" : "Pin"}
-              onClick={() => togglePin(d.id)}
-              className={cn(
-                "absolute right-3 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md transition",
-                pinned
-                  ? "text-foreground opacity-100 hover:bg-muted"
-                  : "text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100",
-              )}
-            >
-              <Pin
-                className={cn("size-3.5", pinned && "fill-current")}
-              />
-            </button>
-          </li>
-        );
-      })}
+      {list.map((d) => (
+        <DocumentListRow key={d.id} doc={d} propertyId={propertyId} />
+      ))}
     </ul>
+  );
+}
+
+function DocumentListRow({
+  doc,
+  propertyId,
+}: {
+  doc: DocRow;
+  propertyId: string;
+}) {
+  const openDocument = useOpenDocument(propertyId);
+  const prewarm = usePrewarmDocument(propertyId);
+
+  // Drag source: id `doc:<id>` — the parent DndContext's `onDragEnd`
+  // dispatches based on this prefix.
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: `doc:${doc.id}`,
+      data: { type: "doc", documentId: doc.id },
+    });
+
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    openDocument(doc.id);
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform) }}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        "group/row relative cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-40",
+      )}
+    >
+      <Link
+        href={documentHref(propertyId, doc.id)}
+        onClick={handleClick}
+        onMouseEnter={() => prewarm(doc.id)}
+        draggable={false}
+        className="flex items-center gap-3 px-4 py-3 group-hover/row:bg-muted/50"
+      >
+        <FileText className="size-4 text-muted-foreground" />
+        <span className="flex-1 truncate text-sm font-medium">
+          {doc.title}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {new Date(doc.updated_at).toLocaleDateString()}
+        </span>
+      </Link>
+    </li>
   );
 }

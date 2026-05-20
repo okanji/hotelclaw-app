@@ -1,6 +1,9 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
-import type { DocumentTreeRow } from "@/lib/query/section-queries";
+import type {
+  DocumentBoardRow,
+  DocumentTreeRow,
+} from "@/lib/query/section-queries";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -13,7 +16,10 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 export async function getDocuments(supabase: ServerClient, propertyId: string) {
   const { data, error } = await supabase
     .from("documents")
-    .select("id, title, updated_at")
+    // `body_snippet` powers the page-thumbnail cards on the docs-home boards
+    // (see `DocCard` in `doc-boards-section.tsx`). Synced by the editor —
+    // cheap text column, no extra round-trip.
+    .select("id, title, updated_at, body_snippet")
     .eq("property_id", propertyId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
@@ -48,4 +54,29 @@ export async function getDocumentsTree(
     .limit(500);
   if (error) throw new Error(error.message);
   return (data ?? []) as DocumentTreeRow[];
+}
+
+/**
+ * All boards for a property with their (document_id, position) items inlined.
+ * Drives the Boards strip at the top of `<DocumentsHome>`. Position-ordered
+ * across boards; items inside each board are sorted client-side because
+ * Supabase's nested ordering API is finicky and the lists are tiny.
+ */
+export async function getDocumentBoards(
+  supabase: ServerClient,
+  propertyId: string,
+): Promise<DocumentBoardRow[]> {
+  const { data, error } = await supabase
+    .from("document_boards")
+    .select(
+      "id, name, color, position, items:document_board_items(document_id, position)",
+    )
+    .eq("property_id", propertyId)
+    .order("position", { ascending: true });
+  if (error) throw new Error(error.message);
+  // Cast through `unknown`: the generated `Database` type doesn't declare a
+  // foreign-key relationship for the embedded `document_board_items` join, so
+  // supabase-js types `items` as a `SelectQueryError`. PostgREST resolves the
+  // join fine at runtime via the on-FK between board_id and document_boards.id.
+  return (data ?? []) as unknown as DocumentBoardRow[];
 }

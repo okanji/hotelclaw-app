@@ -95,3 +95,48 @@ export function documentsTreeQueryOptions(propertyId: string) {
     },
   });
 }
+
+/** Display accents for boards — kept in sync with the CHECK in migration 0013. */
+export const BOARD_COLORS = [
+  "slate",
+  "blue",
+  "green",
+  "amber",
+  "rose",
+  "violet",
+] as const;
+export type BoardColor = (typeof BOARD_COLORS)[number];
+
+export type DocumentBoardItem = {
+  document_id: string;
+  position: number;
+};
+
+/** A board row from `document_boards`, with its items inlined for one-query render. */
+export type DocumentBoardRow = {
+  id: string;
+  name: string;
+  color: BoardColor;
+  position: number;
+  items: DocumentBoardItem[];
+};
+
+/**
+ * All boards for a property, position-ordered, each with its (document_id,
+ * position) items inlined. Drives the Boards strip at the top of the docs
+ * home; the consuming component resolves item ids against the
+ * `documentsQueryOptions` cache to render real titles + meta.
+ */
+export function documentBoardsQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["document-boards", propertyId] as const,
+    queryFn: async (): Promise<DocumentBoardRow[]> => {
+      const res = await fetch(
+        `/api/properties/${propertyId}/document-boards`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error("Failed to load document boards");
+      return res.json();
+    },
+  });
+}

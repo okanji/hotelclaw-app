@@ -18,8 +18,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ClientSideSuspense, useThreads } from "@liveblocks/react/suspense";
-import { RoomProvider } from "@liveblocks/react/suspense";
+import {
+  ClientSideSuspense,
+  RoomProvider,
+  useThreads,
+} from "@liveblocks/react/suspense";
 import {
   AnchoredThreads,
   FloatingComposer,
@@ -46,7 +49,7 @@ import {
   documentsTreeQueryOptions,
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
-import { renameDocument } from "./actions";
+import { renameDocument, syncDocumentSnippet } from "./actions";
 import { DocumentAvatars } from "./document-avatars";
 import {
   DocumentBreadcrumbs,
@@ -64,6 +67,10 @@ import { SubPage } from "./sub-page-node";
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
+// Body content churns much harder than the title — longer debounce keeps the
+// write rate sane while still feeling near-live to anyone navigating to home.
+const SNIPPET_SYNC_DEBOUNCE_MS = 1500;
+const SNIPPET_MAX_LENGTH = 500;
 
 /**
  * Document editor entry point. The title + breadcrumb ancestors are derived
@@ -80,14 +87,18 @@ export function DocumentEditor({
   propertyId: string;
   documentId: string;
 }) {
-  const { data: tree, isPending } = useQuery(
-    documentsTreeQueryOptions(propertyId),
-  );
+  // `isLoading` (= pending with no data yet) — not `isPending`. Hydrated
+  // server data can be `isFetching` on mount; treating that as loading left
+  // the editor stuck after a hard refresh.
+  const { data: tree, isLoading, isError } = useQuery({
+    ...documentsTreeQueryOptions(propertyId),
+    retry: 2,
+  });
 
-  if (isPending) return <EditorSkeleton />;
-  // Query has settled but errored — keep the skeleton up and let react-query
-  // retry. Falling through to `notFound()` here would 404 the user out on a
-  // transient blip even though the doc exists.
+  if (isLoading) return <EditorSkeleton />;
+  // Query errored — keep the skeleton up while react-query retries. Falling
+  // through to `notFound()` here would 404 the user out on a transient blip.
+  if (isError && !tree) return <EditorSkeleton />;
   if (!tree) return <EditorSkeleton />;
 
   const row = tree.find((d) => d.id === documentId);
@@ -96,11 +107,6 @@ export function DocumentEditor({
   const ancestors = ancestorsOf(tree ?? [], row);
 
   return (
-    // No outer `ClientSideSuspense`: the editor itself shouldn't suspend on
-    // unrelated room-state (threads, presence). `EditorInner` mounts
-    // immediately, then `useIsEditorReady` decides when to reveal the editor
-    // vs. show the skeleton — so cached docs (via `offlineSupport_experimental`)
-    // render instantly while first opens still gate against the empty flash.
     <RoomProvider
       id={roomIdForDocument(propertyId, documentId)}
       initialPresence={{
@@ -109,12 +115,14 @@ export function DocumentEditor({
         draggingTaskId: null,
       }}
     >
-      <EditorInner
-        propertyId={propertyId}
-        documentId={documentId}
-        initialTitle={row.title}
-        ancestors={ancestors}
-      />
+      <ClientSideSuspense fallback={<EditorSkeleton />}>
+        <EditorInner
+          propertyId={propertyId}
+          documentId={documentId}
+          initialTitle={row.title}
+          ancestors={ancestors}
+        />
+      </ClientSideSuspense>
     </RoomProvider>
   );
 }
@@ -157,14 +165,17 @@ function EditorInner({
   initialTitle: string;
   ancestors: DocumentCrumb[];
 }) {
-  // True once the Yjs provider has reached `synchronizing` (or later) — i.e.
-  // Liveblocks auth + WS connect + initial Yjs handshake have all completed.
-  // `ClientSideSuspense` resolves on Liveblocks room-ready (presence/threads
-  // initialised) — which fires *before* Yjs content arrives — so without this
-  // gate Tiptap mounts with an empty doc, the Placeholder extension shows
-  // "Untitled" briefly, then the real content lands. Gating the render here
-  // keeps the skeleton on screen across the Yjs sync gap.
   const isReady = useIsEditorReady();
+  const [syncTimedOut, setSyncTimedOut] = useState(false);
+
+  // If Liveblocks never reaches `synchronizing`, don't block forever — but
+  // give the websocket a few seconds first (auth + Yjs handshake).
+  useEffect(() => {
+    setSyncTimedOut(false);
+    if (isReady) return;
+    const t = setTimeout(() => setSyncTimedOut(true), 12_000);
+    return () => clearTimeout(t);
+  }, [documentId, isReady]);
 
   const liveblocks = useLiveblocksExtension({
     // Only applied when the Yjs doc is brand new (first opener wins). Seeds
@@ -172,8 +183,7 @@ function EditorInner({
     initialContent: `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
     // Persist Yjs state in IndexedDB. A previously-opened doc renders from
     // the local snapshot the instant you reopen it; remote deltas reconcile
-    // in the background. First opens still wait for network sync (the
-    // `useIsEditorReady` gate below). The Liveblocks offline-support docs
+    // in the background. The Liveblocks offline-support docs
     // require that no Liveblocks hook outside `useLiveblocksExtension` /
     // `useEditor` triggers a loading screen — that's why threads have been
     // moved into their own `ClientSideSuspense` boundary instead of
@@ -231,6 +241,18 @@ function EditorInner({
   });
 
   useTitleSync(editor, documentId);
+  useSnippetSync(editor, documentId);
+
+  // Liveblocks still down after the timeout — seed the title locally so the
+  // page isn't a blank canvas (remote content will merge when WS recovers).
+  useEffect(() => {
+    if (!editor || isReady || !syncTimedOut) return;
+    if (editor.state.doc.textContent.trim() !== "") return;
+    editor.commands.setContent(
+      `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
+    );
+  }, [editor, isReady, syncTimedOut, initialTitle]);
+
   const liveTitle = useLiveTitle(editor, initialTitle);
   const closeComposer = useCallback(() => {
     if (!editor) return;
@@ -238,11 +260,13 @@ function EditorInner({
   }, [editor]);
   useFloatingEditorUIDismiss(editor);
 
-  // After all hooks: hold the skeleton until Yjs has synced. This is the
-  // doc-switching "Untitled" flash fix — see the comment on `useIsEditorReady`
-  // above. With offline support enabled, cached docs cross this gate
-  // essentially instantly; first opens hold here until the network sync lands.
-  if (!isReady) return <EditorSkeleton />;
+  if (!editor) return <EditorSkeleton />;
+
+  // Wait for Yjs before revealing content — `initialContent` and remote
+  // document bytes are only applied once the provider is synchronizing.
+  // Fall through after a timeout so a flaky websocket doesn't brick the page.
+  const showContent = isReady || syncTimedOut;
+  if (!showContent) return <EditorSkeleton />;
 
   return (
     // Light mode: match the chat canvas, which is white (Stream paints
@@ -350,6 +374,58 @@ function useTitleSync(editor: Editor | null, documentId: string) {
           console.warn("document title sync failed:", res.error);
         }
       }, TITLE_SYNC_DEBOUNCE_MS);
+    }
+
+    editor.on("update", schedule);
+    return () => {
+      if (timer) clearTimeout(timer);
+      editor.off("update", schedule);
+    };
+  }, [editor, documentId]);
+}
+
+/**
+ * Mirrors the first ~500 chars of plain-text body content (everything AFTER
+ * the title node) to `documents.body_snippet`, debounced. Powers the
+ * page-thumbnail cards on the docs-home boards — see `DocCard` in
+ * `doc-boards-section.tsx`. Best-effort: errors are warned and swallowed;
+ * Yjs owns the real content. Skipped on the empty-body case so a fresh
+ * doc's `body_snippet` doesn't get repeatedly rewritten to the same string.
+ */
+function useSnippetSync(editor: Editor | null, documentId: string) {
+  useEffect(() => {
+    if (!editor) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastSent: string | null = null;
+
+    function currentSnippet(): string {
+      const doc = editor!.state.doc;
+      const first = doc.firstChild;
+      if (!first) return "";
+      // Slice past the title node — the first block's `nodeSize` is the
+      // ProseMirror position immediately after it.
+      const start = first.nodeSize;
+      const end = doc.content.size;
+      if (start >= end) return "";
+      // `\n` between blocks gives the card a natural multi-line shape.
+      return doc
+        .textBetween(start, end, "\n", " ")
+        .trim()
+        .slice(0, SNIPPET_MAX_LENGTH);
+    }
+
+    function schedule() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const next = currentSnippet();
+        if (next === lastSent) return;
+        lastSent = next;
+        const res = await syncDocumentSnippet(documentId, next);
+        if ("error" in res) {
+          // Best-effort — the home will still render the previous snippet.
+          console.warn("document snippet sync failed:", res.error);
+        }
+      }, SNIPPET_SYNC_DEBOUNCE_MS);
     }
 
     editor.on("update", schedule);

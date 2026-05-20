@@ -586,13 +586,15 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
             "pr-14",
             isDropTarget && "ring-2 ring-sidebar-ring ring-inset",
           )}
-          // Top-level docs without sub-pages: no extra padding — flush with
-          // the rest of the sidebar (Home, etc.). The `+24` only reserves the
-          // chevron column when there's actually a chevron (or we're nested).
-          style={{
-            paddingLeft:
-              hasChildren || depth > 0 ? depth * INDENT + 24 : 0,
-          }}
+          // Reserve the chevron column only when there's actually a chevron
+          // (or we're nested). For top-level docs without sub-pages we leave
+          // the inline padding off entirely so `SidebarMenuButton`'s own
+          // gutter applies — matching Home / the "Documents" label / Archived.
+          style={
+            hasChildren || depth > 0
+              ? { paddingLeft: depth * INDENT + 24 }
+              : undefined
+          }
         >
           <FileText />
           <span className="truncate">{doc.title || "Untitled"}</span>

@@ -5,6 +5,14 @@
 export type Role = "owner" | "manager" | "staff";
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
+// Kept in sync with the CHECK in migration 0013_document_boards.sql.
+export type BoardColor =
+  | "slate"
+  | "blue"
+  | "green"
+  | "amber"
+  | "rose"
+  | "violet";
 
 export interface Database {
   public: {
@@ -111,6 +119,8 @@ export interface Database {
           title: string;
           parent_id: string | null;
           position: number;
+          // Synced plain-text preview of the body — see migration 0014.
+          body_snippet: string;
           created_by: string | null;
           archived_at: string | null;
           created_at: string;
@@ -122,6 +132,7 @@ export interface Database {
           title?: string;
           parent_id?: string | null;
           position?: number;
+          body_snippet?: string;
           created_by?: string | null;
           archived_at?: string | null;
         };
@@ -129,6 +140,7 @@ export interface Database {
           title: string;
           parent_id: string | null;
           position: number;
+          body_snippet: string;
           archived_at: string | null;
         }>;
         Relationships: [];
@@ -219,6 +231,49 @@ export interface Database {
           accepted_at: string | null;
           expires_at: string;
           role: Role;
+        }>;
+        Relationships: [];
+      };
+      document_boards: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          color: BoardColor;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name?: string;
+          color?: BoardColor;
+          position: number;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          color: BoardColor;
+          position: number;
+        }>;
+        Relationships: [];
+      };
+      document_board_items: {
+        Row: {
+          board_id: string;
+          document_id: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          board_id: string;
+          document_id: string;
+          position: number;
+        };
+        Update: Partial<{
+          position: number;
         }>;
         Relationships: [];
       };

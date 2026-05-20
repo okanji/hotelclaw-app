@@ -32,6 +32,9 @@ export function useOpenDocument(propertyId: string) {
       const href = documentHref(propertyId, documentId);
       if (IN_DOCS_SURFACE.test(window.location.pathname)) {
         window.history.pushState(null, "", href);
+        // `usePathname` does not update on `pushState` — surfaces listen for
+        // this so client-side doc switches re-render without a route nav.
+        window.dispatchEvent(new Event("hotelclaw:pathname"));
       } else {
         router.push(href);
       }
