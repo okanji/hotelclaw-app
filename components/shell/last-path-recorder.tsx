@@ -2,24 +2,15 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useShellSection, type ShellSection } from "./shell-section-context";
-import { rememberSectionPath } from "@/lib/shell/last-path";
+import { useShellSection } from "./shell-section-context";
+import {
+  rememberSectionPath,
+  sectionPathPrefix,
+} from "@/lib/shell/last-path";
 
-/**
- * Substring that marks a route as "content worth returning to" for each
- * section. Chat only counts a specific channel route (`/chat/<id>`) and DMs
- * a specific conversation route (`/dms/<id>`) — not the section index or the
- * inbox / threads side-trips — so the rail jumps back to an actual
- * conversation. The rest match their section broadly, so an index page or a
- * detail page both qualify.
- */
-const SECTION_ROUTE: Record<ShellSection, string> = {
-  activity: "/activity",
-  chat: "/chat/",
-  dms: "/dms/",
-  tasks: "/tasks",
-  docs: "/documents",
-};
+// The section→URL-prefix map lives in `lib/shell/last-path` so the writer
+// (here) and the reader (`lastSectionPath`) agree on which strings are valid
+// for which section. Updating the routes only needs a touch over there.
 
 /**
  * Records the current route as the active section's "last path" (localStorage)
@@ -27,16 +18,17 @@ const SECTION_ROUTE: Record<ShellSection, string> = {
  * the property shell, so it captures every navigation regardless of how it
  * happened (sidebar, command palette, notification, deep link).
  *
- * The route is filed under the *active* section, which is what disambiguates
- * the shared `/chat/*` routes: a conversation opened from the Chat section is
- * remembered as `chat`, one opened from the DMs section as `dms`.
+ * The route is filed under the *active* section. Each section's recorded
+ * paths must match its URL prefix; the reader re-validates the same way so
+ * a route-shape change can't quietly mis-route later.
  */
 export function LastPathRecorder({ propertyId }: { propertyId: string }) {
   const pathname = usePathname();
   const { section } = useShellSection();
 
   useEffect(() => {
-    if (pathname.includes(SECTION_ROUTE[section])) {
+    const prefix = sectionPathPrefix(section);
+    if (prefix && pathname.includes(prefix)) {
       rememberSectionPath(propertyId, section, pathname);
     }
   }, [propertyId, pathname, section]);

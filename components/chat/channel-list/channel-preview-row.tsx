@@ -12,6 +12,7 @@ import {
 import { Hash, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
 type Props = {
   channel: Channel;
@@ -27,6 +28,7 @@ export function ChannelPreviewRow({
   const { client } = useChatContext();
   const { displayTitle } = useChannelPreviewInfo({ channel });
   const pathname = usePathname();
+  const openChannel = useOpenChannel(propertyId);
 
   const [unread, setUnread] = useState(channel.countUnread());
 
@@ -49,6 +51,15 @@ export function ChannelPreviewRow({
   // Stream channel type, so it picks the right prefix.
   const channelPath = channelHref(propertyId, channelKind, channel.id ?? "");
 
+  // Keep the real <a href> (middle-click / open-in-new-tab / a11y), but a
+  // plain left-click switches client-side via pushState — no route nav, no
+  // skeleton flash. Modified clicks fall through to the browser.
+  function handleClick(e: React.MouseEvent) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    openChannel(channelKind, channel.id ?? "");
+  }
+
   // Active state follows the URL, not Stream's `activeChannel` context. The
   // channel list remounts whenever the rail switches sections (and mounts
   // with `setActiveChannelOnMount={false}`), so Stream's context can render
@@ -69,7 +80,7 @@ export function ChannelPreviewRow({
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        render={<Link href={channelPath} />}
+        render={<Link href={channelPath} onClick={handleClick} />}
         isActive={isActive}
         tooltip={title}
         className={cn(

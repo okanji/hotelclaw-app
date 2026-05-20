@@ -82,8 +82,15 @@ import { useTimeFormat } from "@/lib/preferences/time-format-context";
 
 type ClusterRole = "top" | "middle" | "bottom" | "single";
 
-/** Slack breaks message clusters when consecutive same-author messages are more than ~2 min apart. */
-const CLUSTER_TIME_GAP_MS = 2 * 60 * 1000;
+/**
+ * Slack breaks message clusters when consecutive same-author messages are more
+ * than ~2 min apart. Exported so `channel-view.tsx` can pass the same value to
+ * `<MessageList maxTimeBetweenGroupedMessages>` — Stream's internal
+ * groupStyles drives the `.str-chat__li--middle/--bottom` classes that
+ * `stream-chat-overrides.css` keys off (with `!important`), so the
+ * `<MessageList>` prop and our custom recomputation must agree on the gap.
+ */
+export const CLUSTER_TIME_GAP_MS = 2 * 60 * 1000;
 
 function messageCreatedAtMs(msg: unknown): number | null {
   if (!msg || typeof msg !== "object") return null;
@@ -225,7 +232,11 @@ function resolveClusterRole(
       withoutReactions(prev) as never,
       withoutReactions(next) as never,
       false,
-      undefined,
+      // Tell Stream's helper to break clusters at the same gap the
+      // `<MessageList maxTimeBetweenGroupedMessages>` prop uses, so our
+      // custom recomputation can't disagree with the li-class CSS overrides.
+      // `demoteClusterRoleByTimeGap` below stays as a safety net.
+      CLUSTER_TIME_GAP_MS,
     );
     if (
       style === "top" ||

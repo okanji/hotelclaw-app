@@ -1,3 +1,9 @@
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { requireUser } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { getServerQueryClient } from "@/lib/query/server";
+import { getDocuments } from "@/lib/documents/queries";
+
 // Liveblocks UI defaults — used by FloatingComposer, FloatingThreads,
 // FloatingToolbar, Toolbar (everything in `@liveblocks/react-tiptap`).
 import "@liveblocks/react-ui/styles.css";
@@ -8,10 +14,37 @@ import "@liveblocks/react-ui/styles/dark/attributes.css";
 import "@liveblocks/react-tiptap/styles.css";
 import "@/app/documents-editor.css";
 
-export default function DocumentsLayout({
+/**
+ * Docs section layout — only does the server-streamed prefetch into the
+ * shared React Query cache plus the Liveblocks/Tiptap CSS imports. The
+ * actual rendering surface (`<DocumentsSurface>`) lives one level up in
+ * the property layout so cross-section rail clicks are `pushState`s; on a
+ * hard load of `/documents` or `/documents/[id]`, this hydration runs first
+ * and the property-layout surface picks up warm data.
+ *
+ * Every page.tsx under this layout is `null`; rendering is owned by the
+ * property-layout surface.
+ */
+export default async function DocumentsLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ propertyId: string }>;
 }) {
-  return <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>;
+  const { propertyId } = await params;
+  await requireUser();
+
+  const queryClient = getServerQueryClient();
+  const supabase = await createClient();
+  void queryClient.prefetchQuery({
+    queryKey: ["documents", propertyId],
+    queryFn: () => getDocuments(supabase, propertyId),
+  });
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      {children}
+    </HydrationBoundary>
+  );
 }

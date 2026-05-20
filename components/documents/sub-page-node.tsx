@@ -12,7 +12,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useOpenDocument } from "@/lib/documents/use-open-document";
 import {
   Node,
   mergeAttributes,
@@ -60,7 +61,7 @@ export const SubPage = Node.create({
 function SubPageView({ node }: NodeViewProps) {
   const documentId = node.attrs.documentId as string | null;
   const params = useParams<{ propertyId: string }>();
-  const router = useRouter();
+  const openDocument = useOpenDocument(params?.propertyId ?? "");
   const [title, setTitle] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   // A node with no id is broken from the start; an existing id resolves to
@@ -91,7 +92,7 @@ function SubPageView({ node }: NodeViewProps) {
 
   function open() {
     if (!documentId || missing || !params?.propertyId) return;
-    router.push(`/p/${params.propertyId}/documents/${documentId}`);
+    openDocument(documentId);
   }
 
   return (

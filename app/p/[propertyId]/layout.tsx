@@ -9,6 +9,12 @@ import { isOnboarded } from "@/lib/auth/onboarding";
 import { LeftShell } from "@/components/shell/left-shell";
 import { ShellSectionProvider } from "@/components/shell/shell-section-context";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
+import { ChatSurface } from "@/components/chat/chat-surface";
+import { TasksSurface } from "@/components/tasks/tasks-surface";
+import { DocumentsSurface } from "@/components/documents/documents-surface";
+import { ActivitySurface } from "@/components/shell/activity/activity-surface";
+import { ThreadsSurface } from "@/components/chat/threads/threads-surface";
+import { InboxSurface } from "@/components/chat/inbox/inbox-surface";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
@@ -127,7 +133,33 @@ export default async function PropertyLayout({
                           push, not overlay). */}
                       <div className="flex h-full min-h-0 flex-1">
                         <div className="flex min-w-0 flex-1 flex-col">
+                          {/* Persistent section surfaces. Each renders only
+                              when its URL prefix matches and returns null
+                              otherwise, so rail clicks between sections become
+                              zero-roundtrip `pushState`s instead of cross-
+                              segment Next route navigations. `children` stays
+                              as the fallback for the `/chat` index — its
+                              `page.tsx` still server-redirects to the first
+                              channel (or renders "No channels yet"), which a
+                              `pushState` can't trigger. Every other section's
+                              `page.tsx` is `null` and the surface here owns
+                              rendering. */}
                           {children}
+                          <ChatSurface propertyId={propertyId} />
+                          <TasksSurface
+                            propertyId={propertyId}
+                            currentUserId={user.id}
+                          />
+                          <DocumentsSurface propertyId={propertyId} />
+                          <ActivitySurface
+                            propertyId={propertyId}
+                            userId={user.id}
+                          />
+                          <ThreadsSurface />
+                          <InboxSurface
+                            propertyId={propertyId}
+                            userId={user.id}
+                          />
                         </div>
                         <UserProfilePanel propertyId={propertyId} />
                       </div>

@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { MessageResponse } from "stream-chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Hash, Lock, MessageSquare, Paperclip } from "lucide-react";
 import { useTimeFormat } from "@/lib/preferences/time-format-context";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 import { highlight } from "./highlight";
 
 type Props = {
@@ -28,7 +27,7 @@ function initialsOf(s: string): string {
 }
 
 export function SearchResultCard({ propertyId, message, channelId, query }: Props) {
-  const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const { format: timeFormat } = useTimeFormat();
 
   const senderName = message.user?.name ?? message.user?.id ?? "Someone";
@@ -56,11 +55,7 @@ export function SearchResultCard({ propertyId, message, channelId, query }: Prop
 
   function jump() {
     if (!channelId) return;
-    router.push(
-      channelHref(propertyId, channelMeta?.type, channelId, {
-        messageId: message.id,
-      }),
-    );
+    openChannel(channelMeta?.type, channelId, { messageId: message.id });
   }
 
   return (

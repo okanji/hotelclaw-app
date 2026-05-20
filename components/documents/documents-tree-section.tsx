@@ -16,7 +16,7 @@ import {
   ChevronRight,
   CornerLeftUp,
   FileText,
-  LayoutGrid,
+  Home,
   MoreHorizontal,
   Plus,
 } from "lucide-react";
@@ -56,6 +56,9 @@ import {
   documentsTreeQueryOptions,
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
+import { documentHref } from "@/lib/documents/document-href";
+import { useOpenDocument } from "@/lib/documents/use-open-document";
+import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
 import {
   archiveDocument,
   createDocument,
@@ -93,6 +96,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   const activeId = params?.documentId;
 
   const queryClient = useQueryClient();
+  const openDocument = useOpenDocument(propertyId);
   const { data, isPending } = useQuery(documentsTreeQueryOptions(propertyId));
   const docs = data ?? EMPTY_DOCS;
   const loaded = !isPending;
@@ -215,10 +219,36 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
         toast.error(res.error);
         return;
       }
+
+      // Optimistically add the new doc to the tree cache so `DocumentEditor`
+      // (which reads `documentsTreeQueryOptions` and `notFound()`s on miss)
+      // finds it immediately — the postgres_changes event will reconcile.
+      // Without this, navigating to the new doc races the realtime patch and
+      // lands on the not-found page.
+      const key = documentsTreeQueryOptions(propertyId).queryKey;
+      queryClient.setQueryData<DocRow[]>(key, (current) => {
+        const list = current ?? [];
+        if (list.some((d) => d.id === res.id)) return list;
+        const siblings = list.filter(
+          (d) => (d.parent_id ?? null) === (parentId ?? null),
+        );
+        const maxPos = siblings.reduce((m, d) => Math.max(m, d.position), 0);
+        return [
+          ...list,
+          {
+            id: res.id,
+            title: "Untitled document",
+            parent_id: parentId,
+            position: maxPos + 1024,
+            updated_at: new Date().toISOString(),
+          },
+        ];
+      });
+
       if (parentId) expand(parentId);
-      router.push(`/p/${propertyId}/documents/${res.id}`);
+      openDocument(res.id);
     },
-    [propertyId, router, expand],
+    [propertyId, openDocument, expand, queryClient],
   );
 
   const onArchive = useCallback(
@@ -329,27 +359,40 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   );
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Documents</SidebarGroupLabel>
-      <SidebarGroupAction
-        onClick={() => void onCreate(null)}
-        title="New document"
-      >
-        <Plus />
-      </SidebarGroupAction>
-      <SidebarGroupContent>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          onDragCancel={() => setDraggedId(null)}
-        >
-          <TreeContext.Provider value={ctx}>
+    // One DndContext spans both groups: the Home row (its own group, above)
+    // is also a drop target for promote-to-root, so drags that start in the
+    // tree need to register over it.
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setDraggedId(null)}
+    >
+      <TreeContext.Provider value={ctx}>
+        {/* Home — its own top-level group, separate from the doc tree so it
+            reads as a standalone link to the dashboard, not the tree's root
+            node. Mirrors Chat's Inbox/Threads-then-Channels pattern. */}
+        <SidebarGroup>
+          <SidebarGroupContent>
             <SidebarMenu>
-              <DocumentsHomeItem propertyId={propertyId} pathname={pathname} />
+              <DocumentsHomeItem
+                propertyId={propertyId}
+                pathname={pathname}
+              />
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Documents</SidebarGroupLabel>
+          <SidebarGroupAction
+            onClick={() => void onCreate(null)}
+            title="New document"
+          >
+            <Plus />
+          </SidebarGroupAction>
+          <SidebarGroupContent>
             {!loaded ? null : roots.length === 0 ? (
               <div className="px-2 py-1 text-xs text-muted-foreground">
                 No documents yet
@@ -377,27 +420,27 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
                 </SidebarMenuItem>
               </SidebarMenu>
             ) : null}
-          </TreeContext.Provider>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </TreeContext.Provider>
 
-          <DragOverlay dropAnimation={null}>
-            {draggedDoc ? (
-              <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-[13px] shadow-lg">
-                <FileText className="size-4 shrink-0 opacity-70" />
-                <span className="truncate">
-                  {draggedDoc.title || "Untitled"}
-                </span>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </SidebarGroupContent>
+      <DragOverlay dropAnimation={null}>
+        {draggedDoc ? (
+          <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-[13px] shadow-lg">
+            <FileText className="size-4 shrink-0 opacity-70" />
+            <span className="truncate">
+              {draggedDoc.title || "Untitled"}
+            </span>
+          </div>
+        ) : null}
+      </DragOverlay>
 
       <ArchivedDocumentsDialog
         propertyId={propertyId}
         open={archivedOpen}
         onOpenChange={setArchivedOpen}
       />
-    </SidebarGroup>
+    </DndContext>
   );
 }
 
@@ -427,8 +470,9 @@ function useTree(): TreeCtx {
 // ── "All documents" home row ────────────────────────────────────────────────
 
 /**
- * Links to the documents dashboard (`/p/<id>/documents`). Also a drop target —
- * dragging a doc here promotes it back to the top level.
+ * Links to the docs Home / dashboard (`/p/<id>/documents`). Also a drop
+ * target — dragging a doc here promotes it back to the top level of the
+ * tree below.
  */
 function DocumentsHomeItem({
   propertyId,
@@ -446,13 +490,13 @@ function DocumentsHomeItem({
       <SidebarMenuButton
         render={<Link href={href} draggable={false} />}
         isActive={isActive}
-        tooltip="All documents"
+        tooltip="Home"
         className={cn(
           isOver && "ring-2 ring-sidebar-ring ring-inset",
         )}
       >
-        <LayoutGrid />
-        <span className="truncate">All documents</span>
+        <Home />
+        <span className="truncate">Home</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -462,12 +506,23 @@ function DocumentsHomeItem({
 
 function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
   const tree = useTree();
+  const openDocument = useOpenDocument(tree.propertyId);
+  const prewarm = usePrewarmDocument(tree.propertyId);
   const { doc, children } = node;
   const hasChildren = children.length > 0;
   const isExpanded = tree.expanded.has(doc.id);
-  const href = `/p/${tree.propertyId}/documents/${doc.id}`;
+  const href = documentHref(tree.propertyId, doc.id);
   const isActive =
     tree.activeId === doc.id || tree.pathname === href;
+
+  // Plain left-click → client-side `pushState` switch (no route nav, no
+  // `documents/loading.tsx` flash). Modified clicks fall through to the
+  // browser for "open in new tab" via the underlying `<a href>`.
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    openDocument(doc.id);
+  }
 
   const draggable = useDraggable({ id: doc.id });
   const droppable = useDroppable({
@@ -517,14 +572,27 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
         ) : null}
 
         <SidebarMenuButton
-          render={<Link href={href} draggable={false} />}
+          render={
+            <Link
+              href={href}
+              draggable={false}
+              onClick={handleClick}
+              onMouseEnter={() => prewarm(doc.id)}
+            />
+          }
           isActive={isActive}
           tooltip={doc.title || "Untitled"}
           className={cn(
             "pr-14",
             isDropTarget && "ring-2 ring-sidebar-ring ring-inset",
           )}
-          style={{ paddingLeft: depth * INDENT + 24 }}
+          // Top-level docs without sub-pages: no extra padding — flush with
+          // the rest of the sidebar (Home, etc.). The `+24` only reserves the
+          // chevron column when there's actually a chevron (or we're nested).
+          style={{
+            paddingLeft:
+              hasChildren || depth > 0 ? depth * INDENT + 24 : 0,
+          }}
         >
           <FileText />
           <span className="truncate">{doc.title || "Untitled"}</span>

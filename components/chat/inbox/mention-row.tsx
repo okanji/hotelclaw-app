@@ -1,10 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { MessageResponse } from "stream-chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Hash } from "lucide-react";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
 type Props = {
   propertyId: string;
@@ -12,7 +11,7 @@ type Props = {
 };
 
 export function MentionRow({ propertyId, message }: Props) {
-  const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const senderName = message.user?.name ?? message.user?.id ?? "Someone";
   const initials = senderName
     .split(/\s+/)
@@ -39,7 +38,7 @@ export function MentionRow({ propertyId, message }: Props) {
     // param + Stream's `customActiveChannel` jumpToMessage.
     // `cid` is `<type>:<id>` — the type routes a DM mention to /dms, a
     // channel mention to /chat.
-    router.push(channelHref(propertyId, message.cid?.split(":")[0], channelId));
+    openChannel(message.cid?.split(":")[0], channelId);
   }
 
   return (

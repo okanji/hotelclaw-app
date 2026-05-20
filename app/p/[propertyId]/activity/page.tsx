@@ -1,12 +1,8 @@
-import { requireUser } from "@/lib/auth/session";
-import { ActivityView } from "@/components/shell/activity/activity-view";
-
-export default async function ActivityPage({
-  params,
-}: {
-  params: Promise<{ propertyId: string }>;
-}) {
-  const { propertyId } = await params;
-  const user = await requireUser();
-  return <ActivityView propertyId={propertyId} userId={user.id} />;
+/**
+ * Activity index landing. The feed is rendered by `<ActivitySurface>` in the
+ * property layout (it reads the active URL), so this page is `null` and
+ * exists only so the `/activity` URL resolves on a hard load / deep link.
+ */
+export default function ActivityPage() {
+  return null;
 }

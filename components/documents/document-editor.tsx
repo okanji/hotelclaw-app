@@ -26,6 +26,7 @@ import {
   FloatingThreads,
   FloatingToolbar,
   Toolbar,
+  useIsEditorReady,
   useLiveblocksExtension,
 } from "@liveblocks/react-tiptap";
 import Highlight from "@tiptap/extension-highlight";
@@ -91,6 +92,11 @@ export function DocumentEditor({
   const ancestors = ancestorsOf(tree ?? [], row);
 
   return (
+    // No outer `ClientSideSuspense`: the editor itself shouldn't suspend on
+    // unrelated room-state (threads, presence). `EditorInner` mounts
+    // immediately, then `useIsEditorReady` decides when to reveal the editor
+    // vs. show the skeleton — so cached docs (via `offlineSupport_experimental`)
+    // render instantly while first opens still gate against the empty flash.
     <RoomProvider
       id={roomIdForDocument(propertyId, documentId)}
       initialPresence={{
@@ -99,14 +105,12 @@ export function DocumentEditor({
         draggingTaskId: null,
       }}
     >
-      <ClientSideSuspense fallback={<EditorSkeleton />}>
-        <EditorInner
-          propertyId={propertyId}
-          documentId={documentId}
-          initialTitle={row.title}
-          ancestors={ancestors}
-        />
-      </ClientSideSuspense>
+      <EditorInner
+        propertyId={propertyId}
+        documentId={documentId}
+        initialTitle={row.title}
+        ancestors={ancestors}
+      />
     </RoomProvider>
   );
 }
@@ -149,10 +153,27 @@ function EditorInner({
   initialTitle: string;
   ancestors: DocumentCrumb[];
 }) {
+  // True only once Yjs has synced this room's content into the editor.
+  // `ClientSideSuspense` resolves on Liveblocks room-ready (presence/threads
+  // initialised) — which fires *before* Yjs content arrives — so without this
+  // gate Tiptap mounts with an empty doc, the Placeholder extension shows
+  // "Untitled" briefly, then the real content lands. Gating the render here
+  // keeps the skeleton on screen across the Yjs sync gap.
+  const isReady = useIsEditorReady();
+
   const liveblocks = useLiveblocksExtension({
     // Only applied when the Yjs doc is brand new (first opener wins). Seeds
     // the title heading so the page never opens to a totally blank canvas.
     initialContent: `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
+    // Persist Yjs state in IndexedDB. A previously-opened doc renders from
+    // the local snapshot the instant you reopen it; remote deltas reconcile
+    // in the background. First opens still wait for network sync (the
+    // `useIsEditorReady` gate below). The Liveblocks offline-support docs
+    // require that no Liveblocks hook outside `useLiveblocksExtension` /
+    // `useEditor` triggers a loading screen — that's why threads have been
+    // moved into their own `ClientSideSuspense` boundary instead of
+    // suspending the whole editor.
+    offlineSupport_experimental: true,
   });
 
   const editor = useEditor({
@@ -206,7 +227,11 @@ function EditorInner({
   }, [editor]);
   useFloatingEditorUIDismiss(editor);
 
-  const { threads } = useThreads();
+  // After all hooks: hold the skeleton until Yjs has synced. This is the
+  // doc-switching "Untitled" flash fix — see the comment on `useIsEditorReady`
+  // above. With offline support enabled, cached docs cross this gate
+  // essentially instantly; first opens hold here until the network sync lands.
+  if (!isReady) return <EditorSkeleton />;
 
   return (
     // Light mode: match the chat canvas, which is white (Stream paints
@@ -238,24 +263,47 @@ function EditorInner({
                 style={{ width: 350 }}
               />
             </ComposerCloseContext.Provider>
-            <FloatingThreads
-              threads={threads}
-              editor={editor}
-              components={{ Thread: DocumentFloatingThread }}
-            />
-            {/* Gutter indicators (right side, lg+). On narrower viewports the
-                inline FloatingThreads popover is the only entry-point — same
-                approach as Liveblocks's marketing demo. */}
-            <AnchoredThreads
-              editor={editor}
-              threads={threads}
-              components={{ Thread: DocumentThreadIndicator }}
-              className="documents-anchored-threads pointer-events-none absolute left-full top-0 ml-6 hidden lg:block"
-            />
+            {/* Threads live in their own Suspense boundary (per the
+                Liveblocks offline-support guide) — `useThreads` would
+                otherwise block the editor render until threads load, which
+                defeats the whole "show cached content instantly" point. The
+                editor renders without the overlays for a moment, then the
+                thread indicators pop in. */}
+            <ClientSideSuspense fallback={null}>
+              <EditorThreads editor={editor} />
+            </ClientSideSuspense>
           </div>
         </ThreadIndicatorEditorContext.Provider>
       </div>
     </div>
+  );
+}
+
+/**
+ * Inline + gutter thread overlays. Lives in its own `ClientSideSuspense`
+ * boundary so `useThreads` (which suspends until threads load) doesn't block
+ * the editor from rendering cached content immediately.
+ */
+function EditorThreads({ editor }: { editor: Editor | null }) {
+  const { threads } = useThreads();
+  if (!editor) return null;
+  return (
+    <>
+      <FloatingThreads
+        threads={threads}
+        editor={editor}
+        components={{ Thread: DocumentFloatingThread }}
+      />
+      {/* Gutter indicators (right side, lg+). On narrower viewports the
+          inline FloatingThreads popover is the only entry-point — same
+          approach as Liveblocks's marketing demo. */}
+      <AnchoredThreads
+        editor={editor}
+        threads={threads}
+        components={{ Thread: DocumentThreadIndicator }}
+        className="documents-anchored-threads pointer-events-none absolute left-full top-0 ml-6 hidden lg:block"
+      />
+    </>
   );
 }
 

@@ -44,16 +44,7 @@ export function ChatSection({
         <SidebarGroupContent>
           <SidebarMenu>
             <InboxSidebarLink propertyId={propertyId} userId={userId} />
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`/p/${propertyId}/threads`} />}
-                isActive={pathname.startsWith(`/p/${propertyId}/threads`)}
-                tooltip="Threads"
-              >
-                <MessageSquareText />
-                <span>Threads</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            <ThreadsLink propertyId={propertyId} pathname={pathname} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -106,5 +97,38 @@ export function ChatSection({
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * Threads link. `threads/page.tsx` is null and `<ThreadsSurface>` in the
+ * property layout owns rendering, so clicking is a zero-roundtrip
+ * `pushState` — same instant feel as a channel switch. Modifier-clicks fall
+ * through so "open in new tab" still works via the underlying anchor.
+ */
+function ThreadsLink({
+  propertyId,
+  pathname,
+}: {
+  propertyId: string;
+  pathname: string;
+}) {
+  const href = `/p/${propertyId}/threads`;
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    window.history.pushState(null, "", href);
+  }
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        render={<Link href={href} onClick={handleClick} />}
+        isActive={pathname.startsWith(href)}
+        tooltip="Threads"
+      >
+        <MessageSquareText />
+        <span>Threads</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

@@ -5,10 +5,10 @@ import {
   Channel,
   ChatView,
   MessageList,
-  Thread,
   Window,
   useChatContext,
 } from "stream-chat-react";
+import { SlackThread } from "./threads/slack-thread";
 import type {
   Channel as StreamChannel,
   ChannelFilters,
@@ -21,6 +21,7 @@ import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
 import { MessageJumper } from "./search/message-jumper";
 import { slackRenderText } from "./slack-render-text";
+import { CLUSTER_TIME_GAP_MS } from "./slack-message-ui";
 
 type Props = {
   channelId: string;
@@ -149,12 +150,23 @@ export function ChannelView({
               showAvatar
               disableDateSeparator={false}
               renderText={slackRenderText}
+              // Break the cluster when same-author messages are more than
+              // ~2 min apart. Drives Stream's internal groupStyles, which
+              // sets the `str-chat__li--middle/--bottom` classes the CSS
+              // overrides in `stream-chat-overrides.css` key off (with
+              // `!important`) to hide avatars/metadata on continuations.
+              // Without this, a stale double-text would still be hidden under
+              // the previous one regardless of how long ago that was — the
+              // custom `clusterRole` in `slack-message-ui.tsx` recomputes
+              // with the same constant so the two layers can't drift.
+              maxTimeBetweenGroupedMessages={CLUSTER_TIME_GAP_MS}
             />
             <SlackComposer />
           </Window>
-          <Thread
-            additionalMessageListProps={{ renderText: slackRenderText }}
-          />
+          {/* Slack-styled thread panel — same SlackComposer + SlackMessageUI
+              as the main channel so the reply input doesn't visually break
+              out of the channel UI. */}
+          <SlackThread />
           <ChannelInfoPanel propertyId={propertyId} />
           <MessageJumper messageId={messageId} />
         </Channel>

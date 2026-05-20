@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import type { Channel as StreamChannel } from "stream-chat";
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, MessageSquareText, X } from "lucide-react";
 import { toast } from "sonner";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 import { useUserProfilePanel } from "./context";
 
 type ProfileResponse = {
@@ -78,7 +77,7 @@ function ProfileBody({
   userId: string;
   onClose: () => void;
 }) {
-  const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const { client } = useChatContext();
   const [pending, startTransition] = useTransition();
 
@@ -136,8 +135,7 @@ function ProfileBody({
         } as Record<string, unknown>);
         await channel.create();
         onClose();
-        if (channel.id)
-          router.push(channelHref(propertyId, "messaging", channel.id));
+        if (channel.id) openChannel("messaging", channel.id);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to start DM");
       }
@@ -227,8 +225,7 @@ function ProfileBody({
                   type="button"
                   onClick={() => {
                     onClose();
-                    if (c.id)
-                      router.push(channelHref(propertyId, "messaging", c.id));
+                    if (c.id) openChannel("messaging", c.id);
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-accent"
                 >

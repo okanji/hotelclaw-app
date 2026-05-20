@@ -1,51 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
-import {
-  ChatView,
-  Thread,
-  ThreadList,
-  useChatContext,
-  useChatViewContext,
-} from "stream-chat-react";
+import { useChatContext } from "stream-chat-react";
 import { MessageSquareText } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
+import { ThreadsFeed } from "./threads-feed";
 
 /**
- * Slack-style "Threads" view: list of every thread the user participates in
- * across channels (left), and the selected thread on the right. Stream's
- * `<ChatView>` owns the active-thread state, list↔detail wiring, and live
- * updates from `client.threads`.
- *
- * We render inside ChatView and force `activeChatView = "threads"` because
- * Stream defaults to "channels" — this page is dedicated to threads.
- */
-export function ThreadsView() {
-  return (
-    <ChatView>
-      <ForceThreadsView />
-      <ChatView.Threads>
-        <ThreadList />
-        <ChatView.ThreadAdapter>
-          <Thread />
-        </ChatView.ThreadAdapter>
-      </ChatView.Threads>
-    </ChatView>
-  );
-}
-
-function ForceThreadsView() {
-  const { setActiveChatView } = useChatViewContext();
-  useEffect(() => {
-    setActiveChatView("threads");
-  }, [setActiveChatView]);
-  return null;
-}
-
-/**
- * Top-level wrapper that gates rendering on Chat being connected — same
- * pattern as ChannelListSection. <ThreadList> / <ChatView> need a connected
- * client.
+ * Top-level wrapper for the /threads page. The actual rendering is the
+ * Slack-style stacked feed in `<ThreadsFeed>` — each thread card carries
+ * its own channel + reply composer, full-width, scrollable as one column.
+ * No ChatView / two-pane layout here: that pattern doesn't fit a feed of
+ * unrelated threads from different channels.
  */
 export function ThreadsPageClient() {
   const { client } = useChatContext();
@@ -63,12 +28,12 @@ export function ThreadsPageClient() {
         icon={<MessageSquareText />}
         actions={
           <p className="text-xs text-muted-foreground">
-            Conversations you're part of
+            Conversations you&apos;re part of
           </p>
         }
       />
-      <div className="flex-1 min-h-0">
-        <ThreadsView />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <ThreadsFeed />
       </div>
     </div>
   );

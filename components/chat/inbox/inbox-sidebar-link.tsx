@@ -29,10 +29,19 @@ export function InboxSidebarLink({
   useNotificationsRealtime(userId);
   const href = `/p/${propertyId}/inbox`;
 
+  // `inbox/page.tsx` is null and `<InboxSurface>` in the property layout
+  // owns rendering, so clicking is a zero-roundtrip `pushState` like channel
+  // switching. Modifier-clicks fall through so "open in new tab" still works.
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    window.history.pushState(null, "", href);
+  }
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        render={<Link href={href} />}
+        render={<Link href={href} onClick={handleClick} />}
         isActive={pathname.startsWith(href)}
         tooltip="Inbox"
       >

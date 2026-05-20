@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { documentHref } from "@/lib/documents/document-href";
+import { useOpenDocument } from "@/lib/documents/use-open-document";
 
 export type DocumentCrumb = { id: string; title: string };
 
@@ -19,6 +21,20 @@ export function DocumentBreadcrumbs({
   ancestors: DocumentCrumb[];
   currentTitle: string;
 }) {
+  const openDocument = useOpenDocument(propertyId);
+
+  // Plain left-click on an ancestor → client-side `pushState`. "All documents"
+  // (the index link) stays as a normal `<Link>` — modified clicks on either
+  // still open in a new tab via the `<a href>`.
+  function handleAncestorClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    crumbId: string,
+  ) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    openDocument(crumbId);
+  }
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -34,7 +50,8 @@ export function DocumentBreadcrumbs({
         <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
           <ChevronRight className="size-3 shrink-0 opacity-50" />
           <Link
-            href={`/p/${propertyId}/documents/${crumb.id}`}
+            href={documentHref(propertyId, crumb.id)}
+            onClick={(e) => handleAncestorClick(e, crumb.id)}
             className="truncate rounded px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
           >
             {crumb.title || "Untitled"}

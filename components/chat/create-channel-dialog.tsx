@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { createChannel } from "./actions";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
 type Props = {
   propertyId: string;
@@ -24,7 +23,7 @@ type Props = {
 };
 
 export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
-  const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -42,7 +41,7 @@ export function CreateChannelDialog({ propertyId, open, onOpenChange }: Props) {
       // The channel list's onAddedToChannel handler picks up the new channel
       // from the notification.added_to_channel WebSocket event — no manual
       // invalidation needed.
-      router.push(channelHref(propertyId, "team", result.streamChannelId));
+      openChannel("team", result.streamChannelId);
     });
   }
 

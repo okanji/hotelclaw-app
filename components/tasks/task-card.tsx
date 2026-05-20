@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask } from "./actions";
 import { COLUMNS, PRIORITY_META, type Task } from "./kanban";
+import { taskHref } from "@/lib/tasks/task-href";
+import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { TaskStatus } from "@/lib/db/types";
 
 /* -------------------------------------------------------------------------- */
@@ -156,6 +158,16 @@ export function SortableTaskCard({
 }: Props) {
   const [pending, startTransition] = useTransition();
   const lockedByOther = draggedByName != null;
+  const openTask = useOpenTask(propertyId);
+
+  // Plain left-click → client-side `pushState` switch (no route nav, no
+  // `TaskDetailSkeleton` flash). Modified clicks fall through to the browser
+  // so "open in new tab" still works via the underlying `<a href>`.
+  function handleTitleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    openTask(task.id);
+  }
 
   const {
     attributes,
@@ -218,7 +230,8 @@ export function SortableTaskCard({
         {/* Draggable like the rest of the card; a plain click (no drag)
             still navigates to the task detail page. */}
         <Link
-          href={`/p/${propertyId}/tasks/${task.id}`}
+          href={taskHref(propertyId, task.id)}
+          onClick={handleTitleClick}
           className="text-sm/5 font-medium text-foreground hover:underline"
         >
           {task.title}

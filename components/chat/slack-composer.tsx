@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useChannelStateContext, useChatContext } from "stream-chat-react";
+import {
+  useChannelStateContext,
+  useChatContext,
+  useThreadContext,
+} from "stream-chat-react";
 import type { Attachment } from "stream-chat";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
@@ -71,11 +75,33 @@ type MentionCandidate = {
  * render with bullets/numbers and auto-continue on Enter. On send the editor
  * serializes to markdown for `channel.sendMessage`.
  */
-export function SlackComposer({ placeholder }: { placeholder?: string }) {
-  const { channel } = useChannelStateContext();
+export function SlackComposer({
+  placeholder,
+  parentId: parentIdProp,
+}: {
+  placeholder?: string;
+  /** Explicit thread parent id — overrides whatever's in context. Used by
+   *  the threads feed where many thread cards share a channel and we can't
+   *  rely on `channel.state.thread` (it's a per-channel singleton). */
+  parentId?: string;
+}) {
+  // Where the parent message comes from depends on how this composer is
+  // mounted: inline channel reply → `channel.state.thread` (set by
+  // openThread); ChatView.ThreadAdapter path → ThreadContext; the threads
+  // feed → explicit prop. Check all three.
+  const { channel, thread: channelStateThread } = useChannelStateContext();
   const { client } = useChatContext();
+  const threadInstance = useThreadContext();
   const { resolvedTheme } = useTheme();
   const myId = client?.user?.id;
+  // Thread instance from the new API stores its parent on a StateStore; a
+  // one-shot read is fine here — parent messages don't change between
+  // mount and the next interaction.
+  const contextParentId =
+    channelStateThread?.id ??
+    threadInstance?.state.getLatestValue().parentMessage.id;
+  const parentId = parentIdProp ?? contextParentId;
+  const isThreadReply = !!parentId;
 
   const editorRef = useRef<RichEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,7 +119,8 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
     (channel?.data as { name?: string } | undefined)?.name ??
     channel?.id ??
     "channel";
-  const ph = placeholder ?? `Message #${channelName}`;
+  const ph =
+    placeholder ?? (isThreadReply ? "Reply…" : `Message #${channelName}`);
 
   // ── Send ──────────────────────────────────────────────────────────────
   const submit = useCallback(async () => {
@@ -110,6 +137,12 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
         // present at send time, so removing a chip in the composer (whole-
         // unit backspace) correctly drops the user from the outgoing list.
         mentioned_users: editor.getMentionedIds(),
+        // In a thread panel: attach to the parent and keep it out of the
+        // channel feed. Both fields are ignored by Stream when `parent_id`
+        // is undefined, so the main composer sends normally.
+        ...(parentId
+          ? { parent_id: parentId, show_in_channel: false }
+          : {}),
       });
       editor.clear();
       setAttachments([]);
@@ -120,7 +153,7 @@ export function SlackComposer({ placeholder }: { placeholder?: string }) {
     } finally {
       setSending(false);
     }
-  }, [attachments, channel, sending]);
+  }, [attachments, channel, parentId, sending]);
 
   // ── Member candidates for mention popover ────────────────────────────
   const memberCandidates = useMemo(() => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import {
@@ -19,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
 type Member = {
   id: string;
@@ -35,7 +34,7 @@ type Props = {
 };
 
 export function CreateDmDialog({ propertyId, open, onOpenChange }: Props) {
-  const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const { client } = useChatContext();
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Member[]>([]);
@@ -87,8 +86,7 @@ export function CreateDmDialog({ propertyId, open, onOpenChange }: Props) {
         onOpenChange(false);
         setPicked([]);
         setQuery("");
-        if (channel.id)
-          router.push(channelHref(propertyId, "messaging", channel.id));
+        if (channel.id) openChannel("messaging", channel.id);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to start DM");
       }

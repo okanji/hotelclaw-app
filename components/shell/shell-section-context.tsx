@@ -8,15 +8,21 @@ export type ShellSection = "activity" | "chat" | "dms" | "tasks" | "docs";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
- * section — notably `/chat/*`, which is shared by team channels (Chat) and
- * DMs. On those routes an explicit rail choice is preserved.
+ * section — `/chat/<id>` and `/dms/<id>` now live on distinct prefixes since
+ * the route split, so both pin their sections directly.
  */
 function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/documents")) return "docs";
   if (pathname.includes("/dms")) return "dms";
-  if (pathname.includes("/inbox") || pathname.includes("/threads")) return "chat";
+  if (
+    pathname.includes("/chat") ||
+    pathname.includes("/inbox") ||
+    pathname.includes("/threads")
+  ) {
+    return "chat";
+  }
   return null;
 }
 
@@ -52,9 +58,10 @@ export function ShellSectionProvider({
 }: {
   children: React.ReactNode;
   /**
-   * Section restored from the `shell_section` cookie. On a hard refresh of a
-   * /chat/* route — which `sectionFromPath` can't classify, since channels
-   * and DMs share those routes — this keeps the correct sidebar showing.
+   * Section restored from the `shell_section` cookie. Post-split, every
+   * route either pins a section directly (via `sectionFromPath`) or isn't
+   * tied to one at all (the property root), so the cookie now only matters
+   * as a fallback default — preserved here for compatibility.
    */
   initialSection?: string;
 }) {
@@ -72,8 +79,6 @@ export function ShellSectionProvider({
   // Adjust the section during render when navigation lands on a route that
   // pins one (e.g. opening a doc from the command palette). This is React's
   // sanctioned "adjust state on a changed value" pattern — no effect needed.
-  // `/chat/*` routes pin nothing, so an explicit Chat/DMs rail choice there
-  // survives.
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);

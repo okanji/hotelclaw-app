@@ -28,7 +28,7 @@ import {
   Search,
   User as UserIcon,
 } from "lucide-react";
-import { channelHref } from "@/lib/chat/channel-href";
+import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
 type Member = {
   id: string;
@@ -57,6 +57,7 @@ type Task = {
  */
 export function CommandPalette({ propertyId }: { propertyId: string }) {
   const router = useRouter();
+  const openChannel = useOpenChannel(propertyId);
   const { client } = useChatContext();
   // Single source of truth for open state — the provider owns it so the
   // keyboard shortcut and the sidebar Search button drive the same dialog.
@@ -79,6 +80,17 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
     },
     [router],
   );
+
+  // Channel/DM selections route through `openChannel` — a client-side
+  // pushState when already in chat, so the palette switch is instant.
+  function goChannel(
+    channelType: string | undefined,
+    channelId: string,
+    opts?: { messageId?: string },
+  ) {
+    setOpen(false);
+    openChannel(channelType, channelId, opts);
+  }
 
   // ---- Channels (team) ------------------------------------------------------
   const { data: teamChannels = [] } = useQuery<Channel[]>({
@@ -232,9 +244,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 <CommandItem
                   key={c.cid}
                   value={`channel-${c.cid}-${data?.name ?? c.id}`}
-                  onSelect={() =>
-                    go(channelHref(propertyId, c.type, c.id ?? ""))
-                  }
+                  onSelect={() => goChannel(c.type, c.id ?? "")}
                 >
                   <Icon className="size-4 text-muted-foreground" />
                   <span>{data?.name ?? c.id}</span>
@@ -250,7 +260,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={c.cid}
                 value={`dm-${c.cid}-${dmTitle(c, me)}`}
-                onSelect={() => go(channelHref(propertyId, c.type, c.id ?? ""))}
+                onSelect={() => goChannel(c.type, c.id ?? "")}
               >
                 <DmIcon channel={c} currentUserId={me} />
                 <span>{dmTitle(c, me)}</span>
@@ -306,17 +316,13 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={message.id}
                 value={`msg-${message.id}-${message.text}`}
-                onSelect={() =>
-                  channelId &&
-                  go(
-                    channelHref(
-                      propertyId,
-                      message.cid?.split(":")[0],
-                      channelId,
-                      { messageId: message.id },
-                    ),
-                  )
-                }
+                onSelect={() => {
+                  if (channelId) {
+                    goChannel(message.cid?.split(":")[0], channelId, {
+                      messageId: message.id,
+                    });
+                  }
+                }}
               >
                 <MessageSquareText className="size-4 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
@@ -368,8 +374,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
       } as Record<string, unknown>);
       await channel.create();
       setOpen(false);
-      if (channel.id)
-        router.push(channelHref(propertyId, "messaging", channel.id));
+      if (channel.id) openChannel("messaging", channel.id);
     } catch (e) {
       console.error("openOrCreateDm failed", e);
     }

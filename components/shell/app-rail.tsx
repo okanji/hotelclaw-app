@@ -37,22 +37,36 @@ type RailItem = {
 };
 
 /**
- * Where a rail click for `item` should land.
+ * Where a rail click for `item` should land. Every section jumps back to
+ * wherever the user left off (recorded in localStorage by `LastPathRecorder`),
+ * falling back to the section's landing route on first visit / cleared storage.
  *
- * Most sections jump back to wherever the user left off (recorded in
- * localStorage by `LastPathRecorder`), falling back to the landing route.
- * DMs are the exception: their conversations live on the `/chat/*` routes
- * shared with team channels, so a remembered path can't be confirmed to be a
- * DM — a stale entry from a section/route desync would open a channel. DMs
- * therefore always land on the `/dms` index, whose sidebar lists them.
+ * DMs were previously hard-coded to the `/dms` index because conversations
+ * shared `/chat/*` with team channels and a stale remembered path could open a
+ * channel. With the `/dms/[channelId]` route split, `/dms/<id>` is
+ * unambiguously a DM, so the same lookup is safe.
  */
 function resolveTarget(
   propertyId: string,
   item: RailItem,
 ): string | undefined {
-  if (item.section === "dms") return item.href;
   return lastSectionPath(propertyId, item.section) ?? item.href;
 }
+
+/**
+ * Any path inside the property layout — i.e. any URL the layout's persistent
+ * section surfaces (chat / dms / tasks / docs / activity / threads / inbox)
+ * own rendering for. Used as the pushState gate: a rail hop that stays
+ * inside the layout can skip Next's cross-segment RSC fetch entirely.
+ */
+const IN_PROPERTY = /^\/p\/[^/]+\/[^/]+/;
+/**
+ * The bare `/chat` root — the one in-property exception. Its `page.tsx`
+ * still runs a server `redirect()` to pick the first team channel (or
+ * renders "No channels yet"); pushState would skip that and leave the
+ * surface empty.
+ */
+const CHAT_ROOT = /^\/p\/[^/]+\/chat\/?$/;
 
 /**
  * Slack-style icon rail — the first sidebar, pinned to the screen edge. Five
@@ -147,33 +161,64 @@ export function AppRail({
     }
   }, [queryClient, propertyId, userId, client]);
 
+  // Pre-warm Stream's threads list so the first Threads click feels as
+  // instant as a channel switch. Calling `activate()` (not `loadNextPage`)
+  // is what fires the initial reload that populates `state.threads` —
+  // it's the same code path `useThreadList()` runs when the threads page
+  // mounts, just earlier. Idempotent; no harm if the page later activates
+  // again on mount.
+  useEffect(() => {
+    if (!client?.user) return;
+    client.threads.activate();
+  }, [client]);
+
   function handleClick(item: RailItem) {
     setSection(item.section);
     if (!item.href) return;
     // Skip navigation when the user is already viewing this section's content
-    // — just swap the sidebar, don't yank them off the page. Chat and DMs
-    // share the /chat/* routes, so only the section context distinguishes
-    // them (`section` here is still the pre-click value); the pinned sections
-    // are matched by their unique route prefix, since their section can lag
-    // the route when a non-rail link lands on a /chat/* page.
+    // — just swap the sidebar, don't yank them off the page. Chat and DMs now
+    // sit on distinct `/chat/*` vs `/dms/*` prefixes, but section context
+    // remains the source of truth (a non-rail link can land on either route
+    // without flipping the rail), so we stick with the pre-click section
+    // comparison rather than the path.
     const isChatPair = item.section === "chat" || item.section === "dms";
     const alreadyInSection = isChatPair
       ? section === item.section
       : !!item.routeKey && pathname.includes(item.routeKey);
     if (alreadyInSection) return;
     const target = resolveTarget(propertyId, item);
-    if (target) router.push(target);
+    if (!target) return;
+
+    // Every section's content is rendered by a persistent surface in the
+    // property layout (chat, dms, tasks, docs, activity, threads, inbox) and
+    // every `page.tsx` is `null` — so any rail hop that stays inside the
+    // property layout can `pushState` instead of triggering a Next cross-
+    // segment RSC fetch. The surface re-derives off the new URL and the
+    // matching section renders in place; zero round-trip, no skeleton flash.
+    //
+    // `/chat` root is the lone exception: its `page.tsx` still does a server
+    // `redirect()` to the first team channel (or renders "No channels yet"),
+    // which pushState would skip. Fall through to `router.push` for that
+    // target. It only fires on a user's very first Chat click (no
+    // `lastSectionPath("chat")` recorded yet); from then on the rail
+    // resolves to a real `/chat/<id>` path.
+    if (
+      IN_PROPERTY.test(pathname) &&
+      IN_PROPERTY.test(target) &&
+      !CHAT_ROOT.test(target)
+    ) {
+      window.history.pushState(null, "", target);
+      return;
+    }
+    router.push(target);
   }
 
   return (
     <aside
-      // pt-[45px] lines the first rail icon glyph up with the Search icon in
-      // the secondary sidebar. The Search icon sits 58px down (8px header
-      // padding + 36px property switcher + 8px header gap + 6px icon centering
-      // in the h-7 row); a rail icon sits 13px below the aside's top padding
-      // (4px button padding + 9px centering of the 18px glyph in the size-9
-      // hit area), so 58 − 13 = 45.
-      className="flex w-(--rail-width) shrink-0 flex-col items-center gap-1 bg-sidebar pt-[45px] pb-3"
+      // Rail leads with its first icon; the secondary sidebar leads with the
+      // property switcher. Each column owns its own top, separated by the
+      // `border-r` between them — no synthetic baseline to maintain.
+      className="flex w-(--rail-width) shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar pt-3 pb-3"
       aria-label="Sections"
     >
       {items.map((item) => {

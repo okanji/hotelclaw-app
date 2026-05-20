@@ -1,28 +1,9 @@
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
-import { InboxView } from "@/components/chat/inbox/inbox";
-import { requireUser } from "@/lib/auth/session";
-import { getServerQueryClient } from "@/lib/query/server";
-import { searchMentions } from "@/lib/stream/server";
-
-export default async function InboxPage({
-  params,
-}: {
-  params: Promise<{ propertyId: string }>;
-}) {
-  const { propertyId } = await params;
-  const user = await requireUser();
-
-  // Stream the mentions search to the client — same key InboxView reads, so
-  // the inbox renders populated without a client-side search roundtrip.
-  const queryClient = getServerQueryClient();
-  void queryClient.prefetchQuery({
-    queryKey: ["mentions", propertyId, user.id],
-    queryFn: () => searchMentions(propertyId, user.id),
-  });
-
-  return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <InboxView propertyId={propertyId} userId={user.id} />
-    </HydrationBoundary>
-  );
+/**
+ * Inbox landing. The view is rendered by `<InboxSurface>` in the property
+ * layout (it reads the active URL); the mentions prefetch lives in
+ * `inbox/layout.tsx`. This page is `null` and exists only so the `/inbox`
+ * URL resolves on a hard load / deep link.
+ */
+export default function InboxPage() {
+  return null;
 }
