@@ -82,7 +82,10 @@ export default async function PropertyLayout({
   // badge + section) and the Activity page render populated on first paint —
   // the shared `useNotifications` hook hydrates from this.
   const queryClient = getServerQueryClient();
-  void queryClient.prefetchQuery({
+  // Await — see lib/query/client. A bare `void` prefetch leaves the
+  // notifications cache empty on hard load so the Activity feed + rail
+  // badge would render blank until the rail's client-side prefetch runs.
+  await queryClient.prefetchQuery({
     queryKey: ["notifications", user.id],
     queryFn: () => getNotifications(supabase, { limit: 100 }),
   });

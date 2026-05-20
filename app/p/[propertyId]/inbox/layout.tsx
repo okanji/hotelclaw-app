@@ -24,7 +24,9 @@ export default async function InboxLayout({
   const user = await requireUser();
 
   const queryClient = getServerQueryClient();
-  void queryClient.prefetchQuery({
+  // Await — see lib/query/client. A bare `void` prefetch leaves the client
+  // cache empty for `["mentions", …]` on hard load.
+  await queryClient.prefetchQuery({
     queryKey: ["mentions", propertyId, user.id],
     queryFn: () => searchMentions(propertyId, user.id),
   });

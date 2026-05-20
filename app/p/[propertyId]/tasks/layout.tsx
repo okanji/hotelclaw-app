@@ -26,7 +26,11 @@ export default async function TasksLayout({
 
   const queryClient = getServerQueryClient();
   const supabase = await createClient();
-  void queryClient.prefetchQuery({
+  // Await — see lib/query/client: dehydrate only serializes resolved queries,
+  // so a bare `void` prefetch hands the client an empty cache that
+  // `useQuery` then has to refetch (or, worse with the old config, hung at
+  // `pending`).
+  await queryClient.prefetchQuery({
     queryKey: ["tasks", propertyId],
     queryFn: () => getTasks(supabase, propertyId),
   });

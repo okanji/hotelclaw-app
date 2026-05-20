@@ -262,6 +262,7 @@ const SlackMessageUIWithContext = ({
   handleAction,
   handleOpenThread,
   highlighted,
+  initialMessage,
   isMessageAIGenerated,
   isMyMessage,
   message,
@@ -362,7 +363,14 @@ const SlackMessageUIWithContext = ({
   /** Slack shell always reserves the gutter (Stream often drops `showAvatar` from context). */
   const showAvatarColumn = true;
 
-  const showReplyCountButton = !threadList && !!message.reply_count;
+  // No "X replies" pill on:
+  //   • messages inside a thread reply list (`threadList`) — they ARE the
+  //     replies; nesting another indicator under them is noise.
+  //   • the thread-start row in the inline thread panel (`initialMessage`)
+  //     — the panel header already shows "Thread · N replies", and the
+  //     narrow panel width makes the indicator wrap awkwardly.
+  const showReplyCountButton =
+    !threadList && !initialMessage && !!message.reply_count;
 
   const rootClassName = clsx(
     "str-chat__message",

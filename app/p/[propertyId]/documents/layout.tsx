@@ -37,18 +37,24 @@ export default async function DocumentsLayout({
 
   const queryClient = getServerQueryClient();
   const supabase = await createClient();
-  void queryClient.prefetchQuery({
-    queryKey: ["documents", propertyId],
-    queryFn: () => getDocuments(supabase, propertyId),
-  });
-  // `DocumentEditor` reads the open doc's title + ancestors out of the
-  // `["documents-tree", propertyId]` cache and `notFound()`s on a miss — so a
-  // hard load of `/documents/[id]` needs the tree warm on the very first
-  // client render, before the rail's post-mount prefetch can run.
-  void queryClient.prefetchQuery({
-    queryKey: ["documents-tree", propertyId],
-    queryFn: () => getDocumentsTree(supabase, propertyId),
-  });
+  // Await — dehydrate only serializes resolved queries (see lib/query/client),
+  // and a bare `void` prefetch would leave the client cache empty AND its
+  // status `pending` with no in-flight fetch to resolve. Both queries run
+  // in parallel so the wait is the slower of the two, not the sum.
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["documents", propertyId],
+      queryFn: () => getDocuments(supabase, propertyId),
+    }),
+    // `DocumentEditor` reads the open doc's title + ancestors out of the
+    // `["documents-tree", propertyId]` cache and `notFound()`s on a miss,
+    // so a hard load of `/documents/[id]` needs the tree warm on the first
+    // client render — before the rail's post-mount prefetch can land.
+    queryClient.prefetchQuery({
+      queryKey: ["documents-tree", propertyId],
+      queryFn: () => getDocumentsTree(supabase, propertyId),
+    }),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

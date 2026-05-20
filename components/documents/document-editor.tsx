@@ -157,7 +157,8 @@ function EditorInner({
   initialTitle: string;
   ancestors: DocumentCrumb[];
 }) {
-  // True only once Yjs has synced this room's content into the editor.
+  // True once the Yjs provider has reached `synchronizing` (or later) — i.e.
+  // Liveblocks auth + WS connect + initial Yjs handshake have all completed.
   // `ClientSideSuspense` resolves on Liveblocks room-ready (presence/threads
   // initialised) — which fires *before* Yjs content arrives — so without this
   // gate Tiptap mounts with an empty doc, the Placeholder extension shows
@@ -201,6 +202,12 @@ function EditorInner({
         // Liveblocks owns undo/redo via Yjs — disabling the bundled history
         // prevents diverging local-vs-remote stacks.
         undoRedo: false,
+        // StarterKit ships its own Link extension; disable it here so the
+        // explicit `Link.configure({ openOnClick: false })` below is the
+        // sole registration. Two extensions sharing the `link` name fires a
+        // recurring Tiptap warning and can race during initial editor
+        // mount (which is exactly when the readiness gate matters).
+        link: false,
         heading: { levels: [1, 2, 3] },
       }),
       Highlight,

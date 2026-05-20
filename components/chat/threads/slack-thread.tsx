@@ -11,6 +11,7 @@ import {
   useThreadContext,
 } from "stream-chat-react";
 import type { ThreadState } from "stream-chat";
+import { cn } from "@/lib/utils";
 import { SlackComposer } from "../slack-composer";
 import { slackRenderText } from "../slack-render-text";
 
@@ -87,30 +88,46 @@ export function SlackThread({
     }
   }, [thread, loadMoreThread, threadInstance]);
 
-  const parentMessage = thread ?? threadState?.parentMessage;
-  if (!parentMessage) return null;
-
   // ⚠️ EXPLICIT `messages` prop is the fix for "thread panel shows channel
   // chat." Without it MessageList falls back to channel.state.messages.
   const replies = threadInstance
     ? (threadState?.replies ?? [])
     : threadMessages;
+  const parentMessage = thread ?? threadState?.parentMessage;
   // In flat mode, the parent message rides at the head of the same array
   // as the replies — no nested ThreadHead treatment. Otherwise the parent
-  // goes through MessageList's `head` slot below.
+  // goes through MessageList's `head` slot below. Always call the hook
+  // unconditionally so its position in the hook list stays stable across
+  // renders where the parent isn't loaded yet (Rules of Hooks).
   const messages = useMemo(
-    () => (flatMessages ? [parentMessage, ...replies] : replies),
+    () =>
+      flatMessages && parentMessage
+        ? [parentMessage, ...replies]
+        : replies,
     [flatMessages, parentMessage, replies],
   );
 
+  if (!parentMessage) return null;
+
+  // Panel mode = inline channel reply panel (side-by-side with the channel
+  // column). It needs its own boundary against the main feed and a bit of
+  // breathing room above the first message. Flat-feed mode (the /threads
+  // page) doesn't — the wrapping card already provides those.
+  const panelMode = !hideHeader;
+
   return (
-    <div className="str-chat__thread flex h-full min-h-0 flex-col">
+    <div
+      className={cn(
+        "str-chat__thread flex h-full min-h-0 flex-col",
+        panelMode && "border-l border-border",
+      )}
+    >
       {hideHeader
         ? null
         : (header ?? (
             <ThreadHeader thread={parentMessage} closeThread={closeThread} />
           ))}
-      <div className="min-h-0 flex-1">
+      <div className={cn("min-h-0 flex-1", panelMode && "pt-4")}>
         <MessageList
           threadList
           messages={messages}
