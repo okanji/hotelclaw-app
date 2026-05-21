@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  CalendarDays,
   FileText,
   ListChecks,
   MessageCircle,
@@ -119,6 +120,13 @@ export function AppRail({
         icon: ListChecks,
         href: `/p/${propertyId}/tasks`,
         routeKey: "/tasks",
+      },
+      {
+        section: "calendar",
+        label: "Calendar",
+        icon: CalendarDays,
+        href: `/p/${propertyId}/calendar`,
+        routeKey: "/calendar",
       },
       {
         section: "docs",

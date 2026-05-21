@@ -14,7 +14,7 @@ export async function getTasks(supabase: ServerClient, propertyId: string) {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, status, priority, assignee_id, created_by, due_at, position, created_at, updated_at",
+      "id, title, description, status, priority, assignee_id, created_by, due_at, scheduled_start, scheduled_end, position, created_at, updated_at",
     )
     .eq("property_id", propertyId)
     .order("position", { ascending: true })

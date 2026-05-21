@@ -1,0 +1,258 @@
+import "server-only";
+import type { createClient } from "@/lib/supabase/server";
+import type {
+  CalendarAttendee,
+  CalendarEvent,
+  CalendarRange,
+  CalendarSource,
+  ConnectionRow,
+  ExternalEvent,
+  MeetingEvent,
+  TaskEvent,
+} from "./types";
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Fetch every "event" the calendar grid renders for a property + user, in
+ * one call. The three sources (meetings, tasks-with-schedule, external
+ * provider events) share a unified `CalendarEvent` shape so the renderer
+ * doesn't need to know where each row originated.
+ *
+ * Range filtering is half-open `[from, to)`. The query uses overlap, not
+ * containment, so a 3-day meeting partially inside the window still appears.
+ *
+ * Calendar source filtering (the show/hide checkboxes in the sidebar) is
+ * applied client-side off the same query — re-running the SQL on every
+ * toggle would burn round-trips for what's effectively a CSS visibility
+ * change. The grid query stays property-wide and dense; checkboxes hide.
+ */
+export async function getCalendarEvents(
+  supabase: ServerClient,
+  propertyId: string,
+  userId: string,
+  range: CalendarRange,
+): Promise<CalendarEvent[]> {
+  const { from, to } = range;
+
+  // Meetings + attendees in one query: a meeting shows on the grid even if
+  // the current user isn't on the attendee list (they may have created it
+  // for others, or it may have been a walk-up meeting in their property).
+  // The attendee join is left-outer so meetings without explicit attendees
+  // still come back.
+  const meetingsP = supabase
+    .from("meetings")
+    .select(
+      `id, title, description, location, color, all_day,
+       scheduled_start, scheduled_end, started_at, ended_at,
+       host_id, channel_id, stream_call_id,
+       attendees:meeting_attendees(
+         user_id, response, is_organizer,
+         profile:profiles(id, full_name, avatar_url)
+       )`,
+    )
+    .eq("property_id", propertyId)
+    .or(
+      // Scheduled meetings overlap [from, to)
+      `and(scheduled_start.lt.${to},scheduled_end.gt.${from}),` +
+        // Walk-up meetings (no schedule) overlap via started_at/ended_at
+        `and(scheduled_start.is.null,started_at.lt.${to},or(ended_at.is.null,ended_at.gt.${from}))`,
+    );
+
+  // Tasks: any task with a scheduled window that overlaps. due_at-only
+  // tasks aren't rendered as time-blocks (no duration), but they DO appear
+  // as small markers via the separate "due-on-this-day" list — handled
+  // client-side from the existing tasks query, so this endpoint only needs
+  // scheduled blocks.
+  const tasksP = supabase
+    .from("tasks")
+    .select(
+      "id, title, description, status, priority, assignee_id, due_at, scheduled_start, scheduled_end",
+    )
+    .eq("property_id", propertyId)
+    .not("scheduled_start", "is", null)
+    .not("scheduled_end", "is", null)
+    .lt("scheduled_start", to)
+    .gt("scheduled_end", from);
+
+  // External events live under the *user's* connections. Two-level RLS does
+  // the scoping but we still need the IDs to apply the [from, to) filter.
+  const externalP = supabase
+    .from("external_events")
+    .select(
+      `id, title, description, location, start_at, end_at, all_day,
+       busy_status, html_link, organizer_email, external_id,
+       calendar:external_calendars!inner(id, color, selected,
+         connection:calendar_connections!inner(provider, user_id))`,
+    )
+    .lt("start_at", to)
+    .gt("end_at", from)
+    .eq("calendar.connection.user_id", userId);
+
+  const [meetings, tasks, external] = await Promise.all([
+    meetingsP,
+    tasksP,
+    externalP,
+  ]);
+
+  if (meetings.error) throw new Error(meetings.error.message);
+  if (tasks.error) throw new Error(tasks.error.message);
+  if (external.error) throw new Error(external.error.message);
+
+  const meetingEvents: MeetingEvent[] = (meetings.data ?? []).map((m) => {
+    const start = m.scheduled_start ?? m.started_at;
+    const end =
+      m.scheduled_end ??
+      m.ended_at ??
+      // 30-min default render window for an in-progress walk-up call.
+      new Date(new Date(start as string).getTime() + 30 * 60_000).toISOString();
+    // Cast via unknown — supabase-js typegen doesn't model FK joins for our
+    // hand-written Database types, so the inferred shape comes back as a
+    // SelectQueryError. The runtime payload matches the cast.
+    const rawAttendees = (m.attendees ?? []) as unknown as Array<{
+      user_id: string;
+      response: CalendarAttendee["response"];
+      is_organizer: boolean;
+      profile: { full_name: string | null; avatar_url: string | null } | null;
+    }>;
+    const attendees: CalendarAttendee[] = rawAttendees.map((a) => ({
+      user_id: a.user_id,
+      name: a.profile?.full_name ?? null,
+      avatar_url: a.profile?.avatar_url ?? null,
+      response: a.response,
+      is_organizer: a.is_organizer,
+    }));
+    return {
+      source: "meeting",
+      id: m.id,
+      title: m.title ?? "Meeting",
+      description: m.description,
+      location: m.location,
+      color: m.color,
+      all_day: m.all_day,
+      start: start as string,
+      end,
+      host_id: m.host_id,
+      channel_id: m.channel_id,
+      stream_call_id: m.stream_call_id,
+      attendees,
+      started_at: m.started_at,
+      ended_at: m.ended_at,
+    };
+  });
+
+  const taskEvents: TaskEvent[] = (tasks.data ?? []).map((t) => ({
+    source: "task",
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    location: null,
+    color: null,
+    all_day: false,
+    start: t.scheduled_start as string,
+    end: t.scheduled_end as string,
+    status: t.status as TaskEvent["status"],
+    priority: t.priority as TaskEvent["priority"],
+    assignee_id: t.assignee_id,
+    due_at: t.due_at,
+  }));
+
+  const externalEvents: ExternalEvent[] = (external.data ?? []).map((e) => {
+    const cal = (e.calendar ?? {}) as unknown as {
+      id: string;
+      color: string | null;
+      connection: { provider: "google" | "microsoft" };
+    };
+    return {
+      source: "external",
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      location: e.location,
+      color: cal.color ?? null,
+      all_day: e.all_day,
+      start: e.start_at,
+      end: e.end_at,
+      provider: cal.connection.provider,
+      calendar_id: cal.id,
+      external_id: e.external_id,
+      busy_status: e.busy_status as ExternalEvent["busy_status"],
+      html_link: e.html_link,
+      organizer_email: e.organizer_email,
+    };
+  });
+
+  return [...meetingEvents, ...taskEvents, ...externalEvents];
+}
+
+/** Connected providers for the current user — drives the "Connected as …" rows. */
+export async function getConnections(
+  supabase: ServerClient,
+  userId: string,
+): Promise<ConnectionRow[]> {
+  const { data, error } = await supabase
+    .from("calendar_connections")
+    .select("id, provider, account_email, last_synced_at, last_sync_error")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    provider: c.provider as ConnectionRow["provider"],
+    account_email: c.account_email,
+    last_synced_at: c.last_synced_at,
+    last_sync_error: c.last_sync_error,
+  }));
+}
+
+/** Calendars the user has connected — toggleable in the section sidebar. */
+export async function getCalendarSources(
+  supabase: ServerClient,
+  userId: string,
+): Promise<CalendarSource[]> {
+  const { data, error } = await supabase
+    .from("external_calendars")
+    .select(
+      `id, name, color, selected,
+       connection:calendar_connections!inner(provider, account_email, user_id)`,
+    )
+    .eq("connection.user_id", userId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+
+  const externals: CalendarSource[] = (data ?? []).map((c) => {
+    const conn = c.connection as unknown as {
+      provider: "google" | "microsoft";
+      account_email: string;
+    };
+    return {
+      id: c.id,
+      kind: conn.provider,
+      name: c.name,
+      color: c.color,
+      selected: c.selected,
+      account_email: conn.account_email,
+    };
+  });
+
+  // Two synthetic rows for the in-app sources so the UI can render a single
+  // unified list of "which calendars do I want overlaid." Their ids are
+  // namespaced so client-side filtering can route on `kind === "internal"`.
+  return [
+    {
+      id: "internal:meetings",
+      kind: "internal",
+      name: "Property meetings",
+      color: null,
+      selected: true,
+    },
+    {
+      id: "internal:tasks",
+      kind: "internal",
+      name: "Scheduled tasks",
+      color: null,
+      selected: true,
+    },
+    ...externals,
+  ];
+}

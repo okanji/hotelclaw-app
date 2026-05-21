@@ -21,6 +21,10 @@ import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
 import { HuddleProvider } from "@/lib/stream/huddle-context";
 import { HuddleWidget } from "@/components/chat/huddle/huddle-widget";
+import { MeetingProvider } from "@/lib/stream/meeting-context";
+import { ActiveMeeting } from "@/components/chat/meeting/active-meeting";
+import { CalendarPrefsProvider } from "@/components/calendar/calendar-prefs-context";
+import { CalendarSurface } from "@/components/calendar/calendar-surface";
 import { LiveblocksProviders } from "@/lib/liveblocks/room-provider";
 import { InfoPanelProvider } from "@/components/chat/info-panel/context";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-context";
@@ -114,6 +118,8 @@ export default async function PropertyLayout({
       avatarUrl={profile.data?.avatar_url ?? null}
      >
       <HuddleProvider>
+      <MeetingProvider>
+      <CalendarPrefsProvider>
       <LiveblocksProviders propertyId={propertyId}>
        <TimeFormatProvider initial={initialTimeFormat}>
         <InfoPanelProvider>
@@ -164,6 +170,10 @@ export default async function PropertyLayout({
                             propertyId={propertyId}
                             currentUserId={user.id}
                           />
+                          <CalendarSurface
+                            propertyId={propertyId}
+                            currentUserId={user.id}
+                          />
                           <DocumentsSurface propertyId={propertyId} />
                           <ActivitySurface
                             propertyId={propertyId}
@@ -182,6 +192,7 @@ export default async function PropertyLayout({
                   <CommandPalette propertyId={propertyId} />
                   <ChatEventNotifier propertyId={propertyId} />
                   <HuddleWidget />
+                  <ActiveMeeting />
                   <BrowserNotifications />
                 </ShellSectionProvider>
               </SidebarProvider>
@@ -190,6 +201,8 @@ export default async function PropertyLayout({
         </InfoPanelProvider>
        </TimeFormatProvider>
       </LiveblocksProviders>
+      </CalendarPrefsProvider>
+      </MeetingProvider>
       </HuddleProvider>
      </StreamVideoProvider>
     </StreamProvider>

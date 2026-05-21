@@ -14,6 +14,7 @@ import { ActivitySection } from "./sections/activity-section";
 import { ChatSection } from "./sections/chat-section";
 import { DmsSection } from "./sections/dms-section";
 import { TasksSection } from "./sections/tasks-section";
+import { CalendarSection } from "@/components/calendar/calendar-section";
 import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
 import type { Membership } from "@/lib/auth/session";
 
@@ -97,6 +98,9 @@ export function SectionSidebar({
           <Suspense fallback={null}>
             <TasksSection propertyId={currentPropertyId} />
           </Suspense>
+        </SectionPane>
+        <SectionPane active={section === "calendar"}>
+          <CalendarSection propertyId={currentPropertyId} />
         </SectionPane>
         <SectionPane active={section === "docs"}>
           <DocumentsTreeSection propertyId={currentPropertyId} />

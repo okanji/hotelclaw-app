@@ -28,6 +28,7 @@ const SECTION_PREFIX: Record<string, string> = {
   chat: "/chat/",
   dms: "/dms/",
   tasks: "/tasks",
+  calendar: "/calendar",
   docs: "/documents",
 };
 
