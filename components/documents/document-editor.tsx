@@ -50,7 +50,8 @@ import {
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
 import { renameDocument, syncDocumentSnippet } from "./actions";
-import { DocumentAvatars } from "./document-avatars";
+import { DocumentLastEdited } from "./document-last-edited";
+import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
   DocumentBreadcrumbs,
   type DocumentCrumb,
@@ -120,6 +121,8 @@ export function DocumentEditor({
           propertyId={propertyId}
           documentId={documentId}
           initialTitle={row.title}
+          lastEditedBy={row.last_edited_by}
+          updatedAt={row.updated_at}
           ancestors={ancestors}
         />
       </ClientSideSuspense>
@@ -158,11 +161,15 @@ function EditorInner({
   propertyId,
   documentId,
   initialTitle,
+  lastEditedBy,
+  updatedAt,
   ancestors,
 }: {
   propertyId: string;
   documentId: string;
   initialTitle: string;
+  lastEditedBy: string | null;
+  updatedAt: string;
   ancestors: DocumentCrumb[];
 }) {
   const isReady = useIsEditorReady();
@@ -282,8 +289,14 @@ function EditorInner({
       </div>
       <div className="documents-toolbar relative flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 pt-3 pb-2">
         <Toolbar editor={editor} />
-        <div className="absolute right-6 top-1/2 -translate-y-1/2">
-          <DocumentAvatars />
+        <div className="absolute right-6 top-1/2 flex -translate-y-1/2 items-center gap-3">
+          <DocumentLastEdited
+            propertyId={propertyId}
+            lastEditedBy={lastEditedBy}
+            updatedAt={updatedAt}
+            className="hidden text-sm text-muted-foreground tabular-nums sm:block"
+          />
+          <DocumentRoomAvatarStack max={5} size={28} />
         </div>
       </div>
       <div className="flex-1 overflow-auto px-6 pb-24">

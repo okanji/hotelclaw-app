@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -14,19 +13,21 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Pencil, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DocumentRow } from "./document-row";
 import { Button } from "@/components/ui/button";
 import {
   documentBoardsQueryOptions,
   documentsQueryOptions,
 } from "@/lib/query/section-queries";
-import { documentHref } from "@/lib/documents/document-href";
-import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { createDocument } from "./actions";
 import { DocBoardsSection, useBoardMutations } from "./doc-boards-section";
+import { DocsActivitySheet } from "./docs-activity-panel";
+import { DocsHomePresenceProvider } from "./docs-home-presence";
 import { DocumentList } from "./document-list";
-import { useRecentDocs } from "@/lib/documents/use-recent-docs";
+
+const RECENTLY_EDITED_LIMIT = 6;
 
 /**
  * Documents section home / dashboard.
@@ -35,8 +36,8 @@ import { useRecentDocs } from "@/lib/documents/use-recent-docs";
  *
  *   • Boards — team-shared, drag-and-drop dashboard of pinned doc cards
  *     organized into named/colored boards (see `<DocBoardsSection>`).
- *   • Recently opened — the last few docs the user opened, recorded by
- *     `<RecentDocsRecorder>` mounted on the doc detail route.
+ *   • Recently edited — the last few docs updated on this property (from
+ *     `documents.updated_at`, synced when anyone edits title or body).
  *   • All documents — `<DocumentList>` (drag-source for the boards above;
  *     rows are `useDraggable`).
  *
@@ -46,23 +47,10 @@ import { useRecentDocs } from "@/lib/documents/use-recent-docs";
  */
 export function DocumentsHome({ propertyId }: { propertyId: string }) {
   const router = useRouter();
-  const openDocument = useOpenDocument(propertyId);
   const [creating, startCreate] = useTransition();
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Plain left-click → client-side `pushState` switch via the persistent
-  // DocumentsSurface (no route nav, no skeleton flash). Modified clicks fall
-  // through to the browser so "open in new tab" still works.
-  function handleOpen(
-    e: React.MouseEvent<HTMLAnchorElement>,
-    documentId: string,
-  ) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    openDocument(documentId);
-  }
-
-  const { data: docs } = useQuery(documentsQueryOptions(propertyId));
+  const { data: docs, isError: docsError } = useQuery(documentsQueryOptions(propertyId));
   const { data: boards = [] } = useQuery(documentBoardsQueryOptions(propertyId));
   const { pin, unpin } = useBoardMutations(propertyId);
 
@@ -82,21 +70,14 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
     return m;
   }, [boards]);
 
-  const recents = useRecentDocs(propertyId);
-  const recentDocs = useMemo(
-    () =>
-      recents
-        .map((e) => {
-          const doc = docsById.get(e.id);
-          return doc ? { ...doc, openedAt: e.openedAt } : null;
-        })
-        .filter((d): d is NonNullable<typeof d> => !!d)
-        .slice(0, 6),
-    [recents, docsById],
+  const recentlyEdited = useMemo(
+    () => docsList.slice(0, RECENTLY_EDITED_LIMIT),
+    [docsList],
   );
 
   const hasDocs = docsList.length > 0;
-  const hasRecents = recentDocs.length > 0;
+  const hasRecentlyEdited = recentlyEdited.length > 0;
+  const showLibrary = hasRecentlyEdited || hasDocs;
 
   function handleCreate() {
     setCreateError(null);
@@ -166,63 +147,89 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
   }
 
   return (
+    <DocsHomePresenceProvider propertyId={propertyId}>
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col px-6 py-10">
-        <header className="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
-            <p className="text-sm text-muted-foreground">
-              Boards, recently opened, and everything else for this property.
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-6 py-8 sm:py-10 lg:max-w-7xl">
+        <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance">
+              Documents
+            </h1>
+            <p className="mt-1 max-w-[48ch] text-sm text-pretty text-muted-foreground">
+              Pin favorites to boards, see what changed recently, or browse the
+              full library.
             </p>
           </div>
-          <Button type="button" onClick={handleCreate} disabled={creating}>
-            <Plus className="size-4" /> New document
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <DocsActivitySheet propertyId={propertyId} />
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={creating}
+            >
+              <Plus className="size-4" />
+              {creating ? "Creating…" : "New document"}
+            </Button>
+          </div>
         </header>
 
         {createError ? (
-          <p className="mb-4 text-sm text-destructive">{createError}</p>
+          <p className="mb-6 text-sm text-destructive">{createError}</p>
         ) : null}
 
-        <DocBoardsSection propertyId={propertyId} />
+        {docsError ? (
+          <p className="mb-6 text-sm text-destructive">
+            Could not load documents. Try refreshing the page.
+          </p>
+        ) : null}
 
-        {hasRecents ? (
-          <section className="mb-8">
-            <SectionHeading>Recently opened</SectionHeading>
-            <ul className="space-y-0.5">
-              {recentDocs.map((d) => (
-                <li key={d.id}>
-                  <Link
-                    href={documentHref(propertyId, d.id)}
-                    onClick={(e) => handleOpen(e, d.id)}
-                    className="flex items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+        <div className="flex flex-col gap-10 lg:gap-12">
+          <DocBoardsSection propertyId={propertyId} />
+
+          {showLibrary ? (
+            <div className="flex flex-col gap-8">
+              {hasRecentlyEdited ? (
+                <section>
+                  <SectionHeading
+                    icon={<Pencil className="size-3.5" />}
+                    right={
+                      <span className="text-sm text-muted-foreground tabular-nums">
+                        {recentlyEdited.length}
+                      </span>
+                    }
                   >
-                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="flex-1 truncate">{d.title}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {relativeTime(d.openedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+                    Recently edited
+                  </SectionHeading>
+                  <ul role="list" className="flex flex-col gap-0.5">
+                    {recentlyEdited.map((d) => (
+                      <DocumentRow
+                        key={d.id}
+                        propertyId={propertyId}
+                        doc={d}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
-        <AllDocumentsSection hasDocs={hasDocs} count={docsList.length}>
-          <DocumentList propertyId={propertyId} />
-        </AllDocumentsSection>
+              <AllDocumentsSection hasDocs={hasDocs} count={docsList.length}>
+                <DocumentList propertyId={propertyId} />
+              </AllDocumentsSection>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <DragOverlay dropAnimation={null}>
         {activeGhost ? <DragGhost title={activeGhost.title} /> : null}
       </DragOverlay>
     </DndContext>
+    </DocsHomePresenceProvider>
   );
 }
 
@@ -242,7 +249,7 @@ function AllDocumentsSection({
       <SectionHeading
         right={
           hasDocs ? (
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {count} {count === 1 ? "doc" : "docs"}
             </span>
           ) : null
@@ -250,10 +257,13 @@ function AllDocumentsSection({
       >
         All documents
       </SectionHeading>
+      <p className="mb-3 text-sm text-pretty text-muted-foreground">
+        Drag a document onto a board to pin it for your team.
+      </p>
       <div
         className={cn(
           "rounded-lg transition-shadow",
-          isOver && "ring-2 ring-foreground/20",
+          isOver && "ring-2 ring-foreground/15",
         )}
       >
         {children}
@@ -265,13 +275,20 @@ function AllDocumentsSection({
 function SectionHeading({
   children,
   right,
+  icon,
 }: {
   children: React.ReactNode;
   right?: React.ReactNode;
+  icon?: React.ReactNode;
 }) {
   return (
-    <div className="mb-2.5 flex items-baseline justify-between gap-3">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+        {icon ? (
+          <span className="text-muted-foreground" aria-hidden="true">
+            {icon}
+          </span>
+        ) : null}
         {children}
       </h2>
       {right}
@@ -282,23 +299,9 @@ function SectionHeading({
 /** Compact card preview that follows the cursor during a pin/unpin drag. */
 function DragGhost({ title }: { title: string }) {
   return (
-    <div className="flex h-12 w-56 items-center gap-2 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10">
+    <div className="flex h-12 w-56 items-center gap-2 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
       <FileText className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate text-sm font-medium">{title}</span>
     </div>
   );
-}
-
-function relativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
 }

@@ -241,6 +241,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
             parent_id: parentId,
             position: maxPos + 1024,
             updated_at: new Date().toISOString(),
+            last_edited_by: null,
           },
         ];
       });
@@ -739,6 +740,7 @@ function reduce(current: DocRow[], payload: RealtimePayload): DocRow[] {
     parent_id: row.parent_id ?? null,
     position: row.position ?? 0,
     updated_at: row.updated_at ?? new Date().toISOString(),
+    last_edited_by: row.last_edited_by ?? null,
   };
   return [...without, next];
 }

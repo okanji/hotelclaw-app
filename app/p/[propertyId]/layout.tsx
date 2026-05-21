@@ -146,7 +146,7 @@ export default async function PropertyLayout({
                           chat/tasks/threads page compresses to fit (Slack-style
                           push, not overlay). */}
                       <div className="flex h-full min-h-0 flex-1">
-                        <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                           {/* Persistent section surfaces. Each renders only
                               when its URL prefix matches and returns null
                               otherwise, so rail clicks between sections become

@@ -122,6 +122,7 @@ export interface Database {
           // Synced plain-text preview of the body — see migration 0014.
           body_snippet: string;
           created_by: string | null;
+          last_edited_by: string | null;
           archived_at: string | null;
           created_at: string;
           updated_at: string;
@@ -134,6 +135,7 @@ export interface Database {
           position?: number;
           body_snippet?: string;
           created_by?: string | null;
+          last_edited_by?: string | null;
           archived_at?: string | null;
         };
         Update: Partial<{
@@ -141,6 +143,7 @@ export interface Database {
           parent_id: string | null;
           position: number;
           body_snippet: string;
+          last_edited_by: string | null;
           archived_at: string | null;
         }>;
         Relationships: [];

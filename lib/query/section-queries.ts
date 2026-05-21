@@ -70,6 +70,7 @@ export type DocumentTreeRow = {
   parent_id: string | null;
   position: number;
   updated_at: string;
+  last_edited_by: string | null;
 };
 
 /**
@@ -85,7 +86,7 @@ export function documentsTreeQueryOptions(propertyId: string) {
       const supabase = createBrowserClient();
       const { data, error } = await supabase
         .from("documents")
-        .select("id, title, parent_id, position, updated_at")
+        .select("id, title, parent_id, position, updated_at, last_edited_by")
         .eq("property_id", propertyId)
         .is("archived_at", null)
         .order("position", { ascending: true })
@@ -110,6 +111,7 @@ export type BoardColor = (typeof BOARD_COLORS)[number];
 export type DocumentBoardItem = {
   document_id: string;
   position: number;
+  created_at: string;
 };
 
 /** A board row from `document_boards`, with its items inlined for one-query render. */
@@ -118,7 +120,28 @@ export type DocumentBoardRow = {
   name: string;
   color: BoardColor;
   position: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
   items: DocumentBoardItem[];
+};
+
+export type PropertyMember = {
+  id: string;
+  role: string;
+  name: string | null;
+  avatarUrl: string | null;
+};
+
+export type DocumentPresenceUser = {
+  id: string;
+  name: string;
+  avatar?: string;
+};
+
+export type DocumentPresenceEntry = {
+  documentId: string;
+  users: DocumentPresenceUser[];
 };
 
 /**
@@ -138,5 +161,41 @@ export function documentBoardsQueryOptions(propertyId: string) {
       if (!res.ok) throw new Error("Failed to load document boards");
       return res.json();
     },
+  });
+}
+
+export function propertyMembersQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["property-members", propertyId] as const,
+    queryFn: async (): Promise<PropertyMember[]> => {
+      const res = await fetch(`/api/properties/${propertyId}/members`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load members");
+      return res.json();
+    },
+  });
+}
+
+/** Live viewers per document room — polled on the docs home (max 15 ids). */
+export function documentPresenceQueryOptions(
+  propertyId: string,
+  documentIds: string[],
+) {
+  const ids = [...documentIds].sort().join(",");
+  return queryOptions({
+    queryKey: ["document-presence", propertyId, ids] as const,
+    enabled: documentIds.length > 0,
+    queryFn: async (): Promise<DocumentPresenceEntry[]> => {
+      const params = new URLSearchParams({ ids: documentIds.join(",") });
+      const res = await fetch(
+        `/api/properties/${propertyId}/documents/presence?${params}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error("Failed to load document presence");
+      return res.json();
+    },
+    refetchInterval: 10_000,
+    staleTime: 8_000,
   });
 }

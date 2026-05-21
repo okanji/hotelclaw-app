@@ -22,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,6 +42,11 @@ import {
   type DocumentBoardRow,
 } from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
+import { DocumentViewerAvatarStack } from "@/components/documents/document-presence-stack";
+import {
+  useDocsHomePresence,
+  useDocsHomePresenceMap,
+} from "@/components/documents/docs-home-presence";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
 import {
@@ -63,12 +69,12 @@ const COLOR_DOT: Record<BoardColor, string> = {
 };
 /** Soft tint behind a board's drop-zone, used when a drag is over the strip. */
 const COLOR_DROP_TINT: Record<BoardColor, string> = {
-  slate: "bg-slate-100/70 ring-slate-300",
-  blue: "bg-blue-50 ring-blue-300",
-  green: "bg-emerald-50 ring-emerald-300",
-  amber: "bg-amber-50 ring-amber-300",
-  rose: "bg-rose-50 ring-rose-300",
-  violet: "bg-violet-50 ring-violet-300",
+  slate: "bg-slate-500/5 ring-slate-500/20",
+  blue: "bg-blue-500/5 ring-blue-500/25",
+  green: "bg-emerald-500/5 ring-emerald-500/25",
+  amber: "bg-amber-500/5 ring-amber-500/25",
+  rose: "bg-rose-500/5 ring-rose-500/25",
+  violet: "bg-violet-500/5 ring-violet-500/25",
 };
 /** Per-color swatch + label for the color picker. */
 const COLOR_LABEL: Record<BoardColor, string> = {
@@ -178,24 +184,36 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <section className="mb-8 space-y-6">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Boards
-        </h2>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {boards.length} {boards.length === 1 ? "board" : "boards"}
-        </span>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-foreground">Boards</h2>
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {boards.length}
+          </span>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleCreate}
+          disabled={creatingBoard}
+          className="h-8"
+        >
+          <Plus className="size-3.5" />
+          {creatingBoard ? "Creating…" : "New board"}
+        </Button>
       </div>
-      {boards.map((board) => (
-        <BoardStrip
-          key={board.id}
-          board={board}
-          docsById={docsById}
-          propertyId={propertyId}
-        />
-      ))}
-      <NewBoardTile onCreate={handleCreate} pending={creatingBoard} />
+      <div className="flex flex-col gap-4">
+        {boards.map((board) => (
+          <BoardStrip
+            key={board.id}
+            board={board}
+            docsById={docsById}
+            propertyId={propertyId}
+          />
+        ))}
+      </div>
     </section>
   );
 }
@@ -232,14 +250,13 @@ function BoardStrip({
   });
 
   return (
-    <div className="group/board">
+    <div className="group/board border-b border-border/50 pb-8 last:border-b-0 last:pb-0">
       <BoardHeader board={board} />
       <div
         ref={setNodeRef}
         className={cn(
-          "-mx-1 flex gap-3 overflow-x-auto rounded-lg px-1 py-2 transition-colors",
-          isOver &&
-            cn("ring-1 ring-inset", COLOR_DROP_TINT[board.color]),
+          "flex gap-3 overflow-x-auto py-2",
+          isOver && cn("rounded-lg ring-1 ring-inset", COLOR_DROP_TINT[board.color]),
         )}
       >
         <SortableContext items={itemIds} strategy={horizontalListSortingStrategy}>
@@ -267,6 +284,10 @@ function BoardStrip({
 }
 
 function BoardHeader({ board }: { board: DocumentBoardRow }) {
+  const presenceMap = useDocsHomePresenceMap();
+  const liveCount = board.items.filter(
+    (i) => (presenceMap.get(i.document_id)?.length ?? 0) > 0,
+  ).length;
   // Notion-style: no view/edit toggle. The title is always an `<input>`
   // styled like a plain heading — no border, no background, no field chrome.
   // Click anywhere on the title row to position the cursor; blur or Enter
@@ -313,10 +334,10 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
   }
 
   return (
-    <div className="flex items-center gap-2 py-0.5">
+    <div className="mb-2 flex items-center gap-2">
       <span
         className={cn(
-          "inline-block size-2.5 shrink-0 rounded-full",
+          "inline-block size-2 shrink-0 rounded-full",
           COLOR_DOT[board.color],
         )}
         aria-hidden="true"
@@ -339,13 +360,18 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
         placeholder="Untitled board"
         aria-label="Board name"
         className={cn(
-          "min-w-0 flex-1 truncate bg-transparent text-xl font-semibold leading-tight tracking-tight text-foreground",
+          "min-w-0 flex-1 truncate bg-transparent text-base font-semibold tracking-tight text-foreground",
           "outline-none placeholder:text-muted-foreground/60",
         )}
       />
-      <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+      <span className="shrink-0 rounded-md bg-muted/60 px-2 py-0.5 text-sm text-muted-foreground tabular-nums">
         {board.items.length}
       </span>
+      {liveCount > 0 ? (
+        <Badge variant="secondary" className="tabular-nums">
+          {liveCount} live
+        </Badge>
+      ) : null}
       <div className="opacity-0 transition-opacity group-hover/board:opacity-100 focus-within:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -405,8 +431,8 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
 
 function BoardEmptyHint() {
   return (
-    <div className="flex h-56 w-full items-center justify-center rounded-md border border-dashed border-border/70 text-xs text-muted-foreground">
-      Drag docs from the list below to pin them here.
+    <div className="flex h-48 min-w-[12rem] flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 px-4 text-center text-sm text-pretty text-muted-foreground">
+      Drag documents from the library below to pin them here.
     </div>
   );
 }
@@ -451,6 +477,7 @@ function DocCard({
   // accent color so cards still read as "belonging to" their board even
   // without the old outer container.
   const snippet = doc.body_snippet?.trim() ?? "";
+  const viewers = useDocsHomePresence(doc.id);
 
   return (
     <div
@@ -471,55 +498,52 @@ function DocCard({
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
         className={cn(
-          "flex h-56 w-44 cursor-grab flex-col overflow-hidden rounded-md border border-border bg-white text-left shadow-sm",
-          "transition-shadow active:cursor-grabbing",
-          "group-hover/card:border-foreground/20 group-hover/card:shadow-md",
-          "dark:bg-card",
+          "flex h-48 w-40 cursor-grab flex-col overflow-hidden rounded-lg border border-border/80 bg-card text-left",
+          "active:cursor-grabbing group-hover/card:border-foreground/25 group-hover/card:bg-muted/30",
+          "dark:shadow-none dark:inset-ring dark:inset-ring-white/5",
         )}
       >
         <div className="flex-1 overflow-hidden p-3">
-          <h3 className="line-clamp-2 text-[12px] font-semibold leading-tight text-foreground">
+          <h3 className="line-clamp-2 text-sm font-medium text-foreground">
             {doc.title || "Untitled"}
           </h3>
-          <div className="my-2 h-px bg-border/60" />
+          <div className="my-2 h-px bg-border/50" />
           {snippet ? (
-            <p className="line-clamp-6 whitespace-pre-line text-[10px] leading-snug text-muted-foreground">
+            <p className="line-clamp-5 whitespace-pre-line text-sm text-muted-foreground">
               {snippet}
             </p>
           ) : (
-            <p className="text-[10px] italic leading-snug text-muted-foreground/60">
-              Empty document
-            </p>
+            <p className="text-sm text-muted-foreground/70">Empty document</p>
           )}
         </div>
-        <div className="flex items-center gap-1.5 border-t border-border/60 bg-muted/30 px-3 py-1.5">
-          <span
-            className={cn(
-              "size-1.5 shrink-0 rounded-full",
-              COLOR_DOT[boardColor],
-            )}
-            aria-hidden="true"
-          />
-          <span className="text-[10px] text-muted-foreground tabular-nums">
-            {relativeTime(doc.updated_at)}
+        <div className="flex items-center justify-between gap-2 border-t border-border/50 px-3 py-2">
+          <span className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                "size-1.5 shrink-0 rounded-full",
+                COLOR_DOT[boardColor],
+              )}
+              aria-hidden="true"
+            />
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {relativeTime(doc.updated_at)}
+            </span>
           </span>
+          <DocumentViewerAvatarStack users={viewers} size={18} />
         </div>
       </Link>
     </div>
   );
 }
 
-function DropSlot({ boardColor }: { boardColor: BoardColor }) {
+function DropSlot({ boardColor: _boardColor }: { boardColor: BoardColor }) {
   return (
     <div
-      className={cn(
-        "flex h-56 w-44 shrink-0 flex-col items-center justify-center rounded-md border border-dashed border-border/70 text-xs text-muted-foreground",
-        `hover:border-${boardColor}-300`,
-      )}
+      className="flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground"
       aria-hidden="true"
     >
-      <Pin className="mb-1 size-4" />
-      Drop doc here
+      <Pin className="size-4 opacity-60" />
+      Drop here
     </div>
   );
 }
@@ -527,30 +551,6 @@ function DropSlot({ boardColor }: { boardColor: BoardColor }) {
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  New-board tile + empty-state                                             */
 /* ────────────────────────────────────────────────────────────────────────── */
-
-function NewBoardTile({
-  onCreate,
-  pending,
-}: {
-  onCreate: () => void;
-  pending: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onCreate}
-      disabled={pending}
-      className={cn(
-        "flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/30 px-3 py-3 text-sm text-muted-foreground transition",
-        "hover:border-foreground/30 hover:bg-card/60 hover:text-foreground",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-      )}
-    >
-      <Plus className="size-4" />
-      {pending ? "Creating board…" : "New board"}
-    </button>
-  );
-}
 
 function EmptyBoardsCallout({
   onCreate,
@@ -560,16 +560,24 @@ function EmptyBoardsCallout({
   pending: boolean;
 }) {
   return (
-    <section className="mb-8 rounded-xl border border-dashed border-border bg-card/30 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-sm font-semibold">Pin your most-used docs</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Create a board and drag docs from the list below — every teammate
-            on this property sees the same board.
+    <section className="border-b border-border/50 pb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium text-foreground">
+            Pin your most-used documents
+          </h2>
+          <p className="mt-1 max-w-[48ch] text-sm text-pretty text-muted-foreground">
+            Create a board and drag documents from the library — everyone on
+            this property sees the same layout.
           </p>
         </div>
-        <Button type="button" onClick={onCreate} disabled={pending} size="sm">
+        <Button
+          type="button"
+          onClick={onCreate}
+          disabled={pending}
+          size="sm"
+          className="shrink-0"
+        >
           <Plus className="size-4" />
           {pending ? "Creating…" : "Create board"}
         </Button>
@@ -605,7 +613,11 @@ export function useBoardMutations(propertyId: string) {
               ...b,
               items: [
                 ...filtered,
-                { document_id: documentId, position: maxPos + 1024 },
+                {
+                  document_id: documentId,
+                  position: maxPos + 1024,
+                  created_at: new Date().toISOString(),
+                },
               ],
             };
           }

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { DocumentEditor } from "./document-editor";
 import { DocumentsHome } from "./documents-home";
-import { RecentDocsRecorder } from "./recent-docs-recorder";
 
 /** Any URL under the docs section — used to gate the surface OFF other sections. */
 const IN_DOCS = /^\/p\/[^/]+\/documents(?:\/|$)/;
@@ -52,17 +51,16 @@ export function DocumentsSurface({ propertyId }: { propertyId: string }) {
   const documentId = pathname.match(DOC_ROUTE)?.[1];
   if (documentId) {
     return (
-      <>
-        {/* Records this open into the per-property recents list so the Home
-            page can surface it. No render; effect-only. */}
-        <RecentDocsRecorder propertyId={propertyId} documentId={documentId} />
-        <DocumentEditor
-          key={documentId}
-          propertyId={propertyId}
-          documentId={documentId}
-        />
-      </>
+      <DocumentEditor
+        key={documentId}
+        propertyId={propertyId}
+        documentId={documentId}
+      />
     );
   }
-  return <DocumentsHome propertyId={propertyId} />;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <DocumentsHome propertyId={propertyId} />
+    </div>
+  );
 }

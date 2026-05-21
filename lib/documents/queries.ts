@@ -19,7 +19,9 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     // `body_snippet` powers the page-thumbnail cards on the docs-home boards
     // (see `DocCard` in `doc-boards-section.tsx`). Synced by the editor —
     // cheap text column, no extra round-trip.
-    .select("id, title, updated_at, body_snippet")
+    .select(
+      "id, title, updated_at, body_snippet, created_at, created_by, last_edited_by",
+    )
     .eq("property_id", propertyId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
@@ -47,7 +49,7 @@ export async function getDocumentsTree(
 ): Promise<DocumentTreeRow[]> {
   const { data, error } = await supabase
     .from("documents")
-    .select("id, title, parent_id, position, updated_at")
+    .select("id, title, parent_id, position, updated_at, last_edited_by")
     .eq("property_id", propertyId)
     .is("archived_at", null)
     .order("position", { ascending: true })
@@ -69,7 +71,7 @@ export async function getDocumentBoards(
   const { data, error } = await supabase
     .from("document_boards")
     .select(
-      "id, name, color, position, items:document_board_items(document_id, position)",
+      "id, name, color, position, created_at, updated_at, created_by, items:document_board_items(document_id, position, created_at)",
     )
     .eq("property_id", propertyId)
     .order("position", { ascending: true });

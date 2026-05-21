@@ -92,6 +92,7 @@ export async function createDocument(
       parent_id: parent,
       position,
       created_by: user.id,
+      last_edited_by: user.id,
     })
     .select("id")
     .single();
@@ -128,7 +129,7 @@ export async function syncDocumentSnippet(
 
   const { error } = await supabase
     .from("documents")
-    .update({ body_snippet: s.data })
+    .update({ body_snippet: s.data, last_edited_by: user.id })
     .eq("id", id.data);
   if (error) return { error: error.message };
   return { ok: true };
@@ -151,7 +152,7 @@ export async function renameDocument(
 
   const { data, error } = await supabase
     .from("documents")
-    .update({ title: t.data })
+    .update({ title: t.data, last_edited_by: user.id })
     .eq("id", id.data)
     .select("property_id")
     .single();
