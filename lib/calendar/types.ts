@@ -45,6 +45,12 @@ export type MeetingEvent = BaseEvent & {
   /** Set once the host actually started the call. */
   started_at: string | null;
   ended_at: string | null;
+  /**
+   * Present when this is an occurrence of a recurring meeting. The
+   * occurrence_id is `<meetingId>@<startIso>` so editors can strip the
+   * suffix to find the underlying row.
+   */
+  recurrence: import("@/lib/db/types").MeetingRecurrence | null;
 };
 
 export type TaskEvent = BaseEvent & {
@@ -97,4 +103,12 @@ export type ConnectionRow = {
 export type CalendarRange = {
   from: string;
   to: string;
+};
+
+/** Tuple returned by `calendar_free_busy` — strictly free/busy, no content. */
+export type FreeBusySlot = {
+  user_id: string;
+  start_at: string;
+  end_at: string;
+  busy: "busy" | "tentative" | "free";
 };

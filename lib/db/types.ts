@@ -3,6 +3,19 @@
 //   pnpm dlx supabase gen types typescript --project-id <id> > lib/db/types.ts
 
 export type Role = "owner" | "manager" | "staff";
+
+/**
+ * Recurrence rule for a meeting — a deliberate RRULE subset that covers
+ * the standup/sync use cases without a full iCal parser. `byday` is
+ * 1–7 (Mon=1, Sun=7) and `interval` defaults to 1 (every cycle).
+ */
+export type MeetingRecurrence = {
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  until?: string;
+  count?: number;
+  byday?: number[];
+};
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 // Kept in sync with the CHECK in migration 0013_document_boards.sql.
@@ -326,6 +339,8 @@ export interface Database {
           description: string | null;
           location: string | null;
           color: string | null;
+          // Migration 0018 — recurrence rule. Null for a one-off event.
+          recurrence: MeetingRecurrence | null;
           created_at: string;
           updated_at: string;
         };
@@ -345,6 +360,7 @@ export interface Database {
           description?: string | null;
           location?: string | null;
           color?: string | null;
+          recurrence?: MeetingRecurrence | null;
         };
         Update: Partial<{
           title: string;
@@ -356,6 +372,7 @@ export interface Database {
           location: string | null;
           color: string | null;
           stream_call_type: string;
+          recurrence: MeetingRecurrence | null;
         }>;
         Relationships: [];
       };
@@ -390,6 +407,7 @@ export interface Database {
           expires_at: string | null;
           sync_state: Record<string, unknown>;
           push_subscription: Record<string, unknown> | null;
+          push_expires_at: string | null;
           last_synced_at: string | null;
           last_sync_error: string | null;
           created_at: string;
@@ -405,6 +423,7 @@ export interface Database {
           expires_at?: string | null;
           sync_state?: Record<string, unknown>;
           push_subscription?: Record<string, unknown> | null;
+          push_expires_at?: string | null;
           last_synced_at?: string | null;
           last_sync_error?: string | null;
         };
@@ -414,6 +433,7 @@ export interface Database {
           expires_at: string | null;
           sync_state: Record<string, unknown>;
           push_subscription: Record<string, unknown> | null;
+          push_expires_at: string | null;
           last_synced_at: string | null;
           last_sync_error: string | null;
         }>;
@@ -596,6 +616,25 @@ export interface Database {
       restore_document_tree: {
         Args: { root: string };
         Returns: undefined;
+      };
+      // Free/busy aggregator for the team availability overlay. RLS would
+      // block reading another user's external_events directly; this
+      // SECURITY DEFINER fn returns only time ranges + busy flag — no
+      // titles, descriptions, or attendees. Caller is verified as a
+      // member of `property_id` inside the function. Migration 0018.
+      calendar_free_busy: {
+        Args: {
+          user_ids: string[];
+          from_ts: string;
+          to_ts: string;
+          property_id: string;
+        };
+        Returns: Array<{
+          user_id: string;
+          start_at: string;
+          end_at: string;
+          busy: "busy" | "tentative" | "free";
+        }>;
       };
       // Keyword search over title + body_text (migration 0019). RLS-aware
       // via security invoker; clamps `match_count` to [1, 50] server-side.

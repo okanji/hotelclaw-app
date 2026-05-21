@@ -1,11 +1,30 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import { useCalendarPrefs } from "./calendar-prefs-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { cn } from "@/lib/utils";
+
+const PALETTE = [
+  "ef4444",
+  "f97316",
+  "eab308",
+  "22c55e",
+  "06b6d4",
+  "3b82f6",
+  "8b5cf6",
+  "ec4899",
+];
+
+/** Same hash as `calendar-room.tsx` — keep them in sync. */
+function colorFor(userId: string): string {
+  let h = 0;
+  for (const ch of userId) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
 
 /**
  * Right-rail panel listing every property member with toggle avatars. Each
@@ -23,8 +42,10 @@ export function TeamOverlayPanel({
   const membersQuery = useQuery(propertyMembersQueryOptions(propertyId));
   const { overlayUsers, toggleOverlayUser } = useCalendarPrefs();
 
-  const members = (membersQuery.data ?? []).filter(
-    (m) => m.id !== currentUserId,
+  const members = useMemo(
+    () =>
+      (membersQuery.data ?? []).filter((m) => m.id !== currentUserId),
+    [membersQuery.data, currentUserId],
   );
 
   if (members.length === 0) return null;
@@ -38,6 +59,7 @@ export function TeamOverlayPanel({
       <ul className="flex flex-col gap-0.5 p-1.5">
         {members.map((m) => {
           const on = overlayUsers.has(m.id);
+          const color = colorFor(m.id);
           return (
             <li key={m.id}>
               <button
@@ -57,12 +79,17 @@ export function TeamOverlayPanel({
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{m.name ?? "Unnamed"}</span>
+                {/* Lane swatch — the colour the grid uses for this user's
+                    free/busy bars when they're toggled on. */}
                 <span
                   aria-hidden
-                  className={cn(
-                    "ml-auto size-2 rounded-full",
-                    on ? "bg-emerald-500" : "bg-muted-foreground/30",
-                  )}
+                  className="ml-auto size-2.5 rounded-sm"
+                  style={{
+                    backgroundColor: on ? `#${color}` : undefined,
+                    boxShadow: on
+                      ? undefined
+                      : `inset 0 0 0 1px #${color}`,
+                  }}
                 />
               </button>
             </li>

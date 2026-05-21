@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { MeetingRecurrence } from "@/lib/db/types";
 
 /**
  * Server actions that mutate calendar entries. These are called from the
@@ -22,6 +23,8 @@ type SaveMeetingInput = {
   attendeeIds: string[];
   /** When true, the meeting is also a Stream Video call (default). */
   withVideoCall: boolean;
+  /** Null for a one-off meeting. */
+  recurrence: MeetingRecurrence | null;
 };
 
 export async function saveMeeting(input: SaveMeetingInput) {
@@ -49,6 +52,7 @@ export async function saveMeeting(input: SaveMeetingInput) {
     host_id: user.id,
     stream_call_id: `cal-${crypto.randomUUID()}`,
     stream_call_type: input.withVideoCall ? "default" : "calendar",
+    recurrence: input.recurrence,
   };
 
   let meetingId = input.meetingId;
@@ -63,6 +67,7 @@ export async function saveMeeting(input: SaveMeetingInput) {
         scheduled_end: payload.scheduled_end,
         all_day: payload.all_day,
         stream_call_type: payload.stream_call_type,
+        recurrence: payload.recurrence,
       })
       .eq("id", meetingId);
     if (error) return { error: error.message };

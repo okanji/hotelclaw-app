@@ -10,6 +10,8 @@ import type {
   MeetingEvent,
   TaskEvent,
 } from "./types";
+import { expandRecurrence } from "./recurrence";
+import type { MeetingRecurrence } from "@/lib/db/types";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -35,17 +37,18 @@ export async function getCalendarEvents(
 ): Promise<CalendarEvent[]> {
   const { from, to } = range;
 
-  // Meetings + attendees in one query: a meeting shows on the grid even if
-  // the current user isn't on the attendee list (they may have created it
-  // for others, or it may have been a walk-up meeting in their property).
-  // The attendee join is left-outer so meetings without explicit attendees
-  // still come back.
+  // Meetings + attendees. Two cohorts:
+  //   * One-off + walk-up: only need rows that overlap [from, to).
+  //   * Recurring: the seed row may be far before the window; we need
+  //     every recurring meeting where `scheduled_start < to` because an
+  //     occurrence inside the window is a function of the rule, not of
+  //     the seed's stored end time. We filter properly after expansion.
   const meetingsP = supabase
     .from("meetings")
     .select(
       `id, title, description, location, color, all_day,
        scheduled_start, scheduled_end, started_at, ended_at,
-       host_id, channel_id, stream_call_id,
+       host_id, channel_id, stream_call_id, recurrence,
        attendees:meeting_attendees(
          user_id, response, is_organizer,
          profile:profiles(id, full_name, avatar_url)
@@ -53,10 +56,9 @@ export async function getCalendarEvents(
     )
     .eq("property_id", propertyId)
     .or(
-      // Scheduled meetings overlap [from, to)
       `and(scheduled_start.lt.${to},scheduled_end.gt.${from}),` +
-        // Walk-up meetings (no schedule) overlap via started_at/ended_at
-        `and(scheduled_start.is.null,started_at.lt.${to},or(ended_at.is.null,ended_at.gt.${from}))`,
+        `and(scheduled_start.is.null,started_at.lt.${to},or(ended_at.is.null,ended_at.gt.${from}))` +
+        `,recurrence.not.is.null`,
     );
 
   // Tasks: any task with a scheduled window that overlaps. due_at-only
@@ -99,7 +101,9 @@ export async function getCalendarEvents(
   if (tasks.error) throw new Error(tasks.error.message);
   if (external.error) throw new Error(external.error.message);
 
-  const meetingEvents: MeetingEvent[] = (meetings.data ?? []).map((m) => {
+  const windowFrom = new Date(from);
+  const windowTo = new Date(to);
+  const meetingEvents: MeetingEvent[] = (meetings.data ?? []).flatMap((m) => {
     const start = m.scheduled_start ?? m.started_at;
     const end =
       m.scheduled_end ??
@@ -122,23 +126,54 @@ export async function getCalendarEvents(
       response: a.response,
       is_organizer: a.is_organizer,
     }));
-    return {
-      source: "meeting",
+    const baseMeeting = {
+      source: "meeting" as const,
       id: m.id,
       title: m.title ?? "Meeting",
       description: m.description,
       location: m.location,
       color: m.color,
       all_day: m.all_day,
-      start: start as string,
-      end,
       host_id: m.host_id,
       channel_id: m.channel_id,
       stream_call_id: m.stream_call_id,
       attendees,
       started_at: m.started_at,
       ended_at: m.ended_at,
+      recurrence: (m.recurrence as MeetingRecurrence | null) ?? null,
     };
+
+    // Non-recurring meeting: a single occurrence at the stored times.
+    const recurrence = m.recurrence as MeetingRecurrence | null;
+    if (!recurrence || !m.scheduled_start || !m.scheduled_end) {
+      return [
+        {
+          ...baseMeeting,
+          start: start as string,
+          end,
+        },
+      ];
+    }
+
+    // Recurring: expand into materialised occurrences inside the window.
+    // The occurrence id is `<meetingId>@<startIso>` so click handlers can
+    // still resolve back to the underlying meeting row (everything before
+    // the `@`).
+    return expandRecurrence(
+      {
+        id: m.id,
+        scheduled_start: m.scheduled_start,
+        scheduled_end: m.scheduled_end,
+        recurrence,
+      },
+      windowFrom,
+      windowTo,
+    ).map((occ) => ({
+      ...baseMeeting,
+      id: occ.occurrence_id,
+      start: occ.scheduled_start,
+      end: occ.scheduled_end,
+    }));
   });
 
   const taskEvents: TaskEvent[] = (tasks.data ?? []).map((t) => ({

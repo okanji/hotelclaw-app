@@ -5,6 +5,7 @@ import {
   normaliseEventTimes,
   refreshAccessToken,
 } from "@/lib/calendar/google";
+import { decryptToken, encryptToken } from "@/lib/calendar/token-crypto";
 
 /**
  * `POST /api/calendar/google/sync?connectionId=<id>`
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   // OAuth bookkeeping — we want every Google API call below to hold a
   // fresh token so this single function doesn't have to handle 401-retry
   // logic per request.
-  let accessToken = connection.access_token;
+  let accessToken = decryptToken(connection.access_token);
   const expires = connection.expires_at
     ? new Date(connection.expires_at)
     : new Date(0);
@@ -76,7 +77,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const refreshed = await refreshAccessToken(connection.refresh_token);
+    const refreshed = await refreshAccessToken(
+      decryptToken(connection.refresh_token),
+    );
     accessToken = refreshed.access_token;
     const newExpires = new Date(
       Date.now() + refreshed.expires_in * 1000,
@@ -84,7 +87,7 @@ export async function POST(request: Request) {
     await supabase
       .from("calendar_connections")
       .update({
-        access_token: accessToken,
+        access_token: encryptToken(accessToken),
         expires_at: newExpires,
       })
       .eq("id", connection.id);

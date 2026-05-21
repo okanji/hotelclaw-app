@@ -21,7 +21,11 @@ import {
   startOfWeek,
   weekDays,
 } from "@/lib/calendar/time";
-import { calendarEventsQueryOptions } from "@/lib/calendar/query-options";
+import {
+  calendarEventsQueryOptions,
+  freeBusyQueryOptions,
+} from "@/lib/calendar/query-options";
+import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { scheduleTask } from "@/lib/calendar/actions";
 import { useCalendarPrefs } from "./calendar-prefs-context";
 import { WeekGrid } from "./week-grid";
@@ -116,6 +120,39 @@ export function CalendarRoom({
   const eventsQuery = useQuery(
     calendarEventsQueryOptions(propertyId, range),
   );
+  const overlayList = useMemo(
+    () => Array.from(overlayUsers),
+    [overlayUsers],
+  );
+  const freeBusyQuery = useQuery(
+    freeBusyQueryOptions(propertyId, overlayList, range),
+  );
+  const membersQuery = useQuery(propertyMembersQueryOptions(propertyId));
+
+  // Deterministic per-user colour palette — keyed on a hash of the id so
+  // the same user gets the same colour across renders, sessions, and
+  // teammates' screens. Avoids "Alice is teal here but blue on Bob's
+  // calendar" confusion.
+  const userColors = useMemo(() => {
+    const palette = [
+      "ef4444",
+      "f97316",
+      "eab308",
+      "22c55e",
+      "06b6d4",
+      "3b82f6",
+      "8b5cf6",
+      "ec4899",
+    ];
+    const map = new Map<string, string>();
+    for (const m of membersQuery.data ?? []) {
+      let h = 0;
+      for (const ch of m.id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+      map.set(m.id, palette[Math.abs(h) % palette.length]);
+    }
+    return map;
+  }, [membersQuery.data]);
+
   const qc = useQueryClient();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -253,6 +290,8 @@ export function CalendarRoom({
               events={events}
               propertyId={propertyId}
               overlayUsers={overlayUsers}
+              freeBusy={freeBusyQuery.data ?? []}
+              userColors={userColors}
               onCreateSlot={(start, end) =>
                 setDialog({ mode: "create", start, end })
               }

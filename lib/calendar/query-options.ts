@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { CalendarEvent, CalendarSource, ConnectionRow } from "./types";
+import type {
+  CalendarEvent,
+  CalendarSource,
+  ConnectionRow,
+  FreeBusySlot,
+} from "./types";
 
 /**
  * Event window query — keyed on the rounded `[from, to)` ISO pair. The grid
@@ -20,6 +25,42 @@ export function calendarEventsQueryOptions(
         { cache: "no-store" },
       );
       if (!res.ok) throw new Error("Failed to load calendar events");
+      return res.json();
+    },
+  });
+}
+
+/**
+ * Per-user free/busy ranges for the team-availability overlay. Empty
+ * `users` array short-circuits the fetch so the grid doesn't query
+ * needlessly when no overlay is toggled on.
+ */
+export function freeBusyQueryOptions(
+  propertyId: string,
+  users: string[],
+  range: { from: string; to: string },
+) {
+  const usersKey = [...users].sort().join(",");
+  return queryOptions({
+    queryKey: [
+      "calendar-free-busy",
+      propertyId,
+      usersKey,
+      range.from,
+      range.to,
+    ] as const,
+    enabled: users.length > 0,
+    queryFn: async (): Promise<FreeBusySlot[]> => {
+      const params = new URLSearchParams({
+        users: usersKey,
+        from: range.from,
+        to: range.to,
+      });
+      const res = await fetch(
+        `/api/properties/${propertyId}/calendar/free-busy?${params}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error("Failed to load free/busy");
       return res.json();
     },
   });

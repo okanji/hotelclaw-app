@@ -20,6 +20,37 @@ import { cn } from "@/lib/utils";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { saveMeeting, deleteMeeting } from "@/lib/calendar/actions";
 import type { CalendarEvent } from "@/lib/calendar/types";
+import type { MeetingRecurrence } from "@/lib/db/types";
+
+type RecurrencePreset = "none" | "daily" | "weekdays" | "weekly" | "monthly";
+
+function recurrenceToPreset(r: MeetingRecurrence | null): RecurrencePreset {
+  if (!r) return "none";
+  if (r.frequency === "daily") return "daily";
+  if (
+    r.frequency === "weekly" &&
+    r.byday &&
+    r.byday.length === 5 &&
+    [1, 2, 3, 4, 5].every((d) => r.byday!.includes(d))
+  ) {
+    return "weekdays";
+  }
+  if (r.frequency === "weekly") return "weekly";
+  if (r.frequency === "monthly") return "monthly";
+  return "none";
+}
+
+function presetToRecurrence(
+  preset: RecurrencePreset,
+): MeetingRecurrence | null {
+  if (preset === "none") return null;
+  if (preset === "daily") return { frequency: "daily", interval: 1 };
+  if (preset === "weekdays") {
+    return { frequency: "weekly", interval: 1, byday: [1, 2, 3, 4, 5] };
+  }
+  if (preset === "weekly") return { frequency: "weekly", interval: 1 };
+  return { frequency: "monthly", interval: 1 };
+}
 
 type Props = {
   propertyId: string;
@@ -88,6 +119,20 @@ export function EventDialog({
   }, [editing, currentUserId]);
   const [attendees, setAttendees] = useState<Set<string>>(initialAttendees);
 
+  // Recurring meetings are expanded server-side and each occurrence has
+  // id `<meetingId>@<startIso>`. Edits should hit the underlying row.
+  const baseMeetingId =
+    editing?.source === "meeting"
+      ? editing.id.split("@")[0]
+      : undefined;
+  const [recurrence, setRecurrence] = useState<RecurrencePreset>(
+    editing?.source === "meeting"
+      ? recurrenceToPreset(editing.recurrence ?? null)
+      : "none",
+  );
+  const isOccurrence =
+    editing?.source === "meeting" && editing.id.includes("@");
+
   const membersQuery = useQuery(propertyMembersQueryOptions(propertyId));
   const [pending, startTransition] = useTransition();
   const qc = useQueryClient();
@@ -110,7 +155,7 @@ export function EventDialog({
     startTransition(async () => {
       const result = await saveMeeting({
         propertyId,
-        meetingId: editing?.source === "meeting" ? editing.id : undefined,
+        meetingId: baseMeetingId,
         title: title.trim(),
         description: description.trim() || undefined,
         location: location.trim() || undefined,
@@ -119,6 +164,7 @@ export function EventDialog({
         allDay,
         attendeeIds: Array.from(attendees).filter((id) => id !== currentUserId),
         withVideoCall,
+        recurrence: presetToRecurrence(recurrence),
       });
       if ("error" in result) {
         toast.error(result.error);
@@ -131,9 +177,17 @@ export function EventDialog({
   }
 
   function handleDelete() {
-    if (editing?.source !== "meeting") return;
+    if (!baseMeetingId) return;
+    if (
+      isOccurrence &&
+      !confirm(
+        "This is a recurring event. Deleting will remove the entire series.",
+      )
+    ) {
+      return;
+    }
     startTransition(async () => {
-      const result = await deleteMeeting(propertyId, editing.id);
+      const result = await deleteMeeting(propertyId, baseMeetingId);
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -251,6 +305,29 @@ export function EventDialog({
             />
             All-day event
           </label>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-repeats">Repeats</Label>
+            <select
+              id="event-repeats"
+              value={recurrence}
+              onChange={(e) =>
+                setRecurrence(e.target.value as RecurrencePreset)
+              }
+              className="block w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="none">Doesn&apos;t repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekdays">Every weekday (Mon–Fri)</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            {isOccurrence ? (
+              <p className="text-[11px] text-muted-foreground">
+                Editing applies to the whole series.
+              </p>
+            ) : null}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="event-location">Location</Label>

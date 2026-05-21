@@ -98,12 +98,25 @@ async function tokenCall(
   return res.json();
 }
 
+/**
+ * Standard Graph headers — `Prefer: outlook.timezone="UTC"` is critical:
+ * without it, Graph returns datetimes in the mailbox's local time and the
+ * caller has to know what tz to interpret them in. With it, every dateTime
+ * comes back UTC and a trailing `Z` makes a valid ISO string.
+ */
+function graphHeaders(accessToken: string): HeadersInit {
+  return {
+    authorization: `Bearer ${accessToken}`,
+    Prefer: 'outlook.timezone="UTC"',
+  };
+}
+
 export async function getUserInfo(accessToken: string): Promise<{
   email: string;
   name?: string;
 }> {
   const res = await fetch("https://graph.microsoft.com/v1.0/me", {
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: graphHeaders(accessToken),
   });
   if (!res.ok) {
     throw new Error(`Microsoft /me failed: ${await res.text()}`);
@@ -133,7 +146,7 @@ export async function listCalendars(
 ): Promise<GraphCalendar[]> {
   const res = await fetch(
     "https://graph.microsoft.com/v1.0/me/calendars",
-    { headers: { authorization: `Bearer ${accessToken}` } },
+    { headers: graphHeaders(accessToken) },
   );
   if (!res.ok) {
     throw new Error(`Microsoft calendars failed: ${await res.text()}`);
@@ -192,7 +205,7 @@ export async function listEventsDelta(
 
   while (urlStr) {
     const res = await fetch(urlStr, {
-      headers: { authorization: `Bearer ${accessToken}` },
+      headers: graphHeaders(accessToken),
     });
     if (res.status === 410) {
       return { events: [], nextDeltaLink: null, fullSyncRequired: true };
@@ -217,15 +230,85 @@ export async function listEventsDelta(
   return { events: allEvents, nextDeltaLink, fullSyncRequired: false };
 }
 
+/**
+ * Open a Graph subscription for the user's events. Microsoft expires
+ * calendar subscriptions in at most ~3 days (4230 minutes) so the
+ * `renew-subscriptions` cron has to touch every one regularly.
+ *
+ * Subscription creation is a two-step handshake: Microsoft POSTs a
+ * `validationToken` query string to our notificationUrl within ~10s and
+ * expects the raw token back as text/plain. Our webhook route handles
+ * that branch.
+ */
+export async function createSubscription(
+  accessToken: string,
+  options: {
+    notificationUrl: string;
+    clientState: string;
+    expirationDateTime: string; // ISO UTC
+  },
+): Promise<{ id: string; expirationDateTime: string }> {
+  const res = await fetch("https://graph.microsoft.com/v1.0/subscriptions", {
+    method: "POST",
+    headers: {
+      ...graphHeaders(accessToken),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      changeType: "created,updated,deleted",
+      notificationUrl: options.notificationUrl,
+      resource: "/me/events",
+      expirationDateTime: options.expirationDateTime,
+      clientState: options.clientState,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Microsoft subscribe failed: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function renewSubscription(
+  accessToken: string,
+  subscriptionId: string,
+  expirationDateTime: string,
+): Promise<void> {
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/subscriptions/${subscriptionId}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...graphHeaders(accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ expirationDateTime }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Microsoft renew failed: ${await res.text()}`);
+  }
+}
+
+export async function stopMicrosoftSubscription(
+  accessToken: string,
+  subscription: Record<string, unknown>,
+): Promise<void> {
+  const id = subscription.id as string | undefined;
+  if (!id) return;
+  await fetch(`https://graph.microsoft.com/v1.0/subscriptions/${id}`, {
+    method: "DELETE",
+    headers: graphHeaders(accessToken),
+  });
+}
+
 export function normaliseEventTimes(g: GraphEvent): {
   start: string;
   end: string;
   all_day: boolean;
 } {
-  // Graph returns local-tz datetimes; appending `Z` makes them UTC-correct
-  // when the timezone is UTC. For non-UTC we'd need full IANA conversion;
-  // for v1 we accept that "WIP timezone fidelity" caveat and treat the
-  // returned value as UTC since Graph defaults to UTC for /me/calendarView.
+  // We send `Prefer: outlook.timezone="UTC"` on every Graph call, so the
+  // returned `dateTime` is always UTC wall-clock. Appending `Z` gives us a
+  // valid ISO-8601 instant — no IANA conversion needed.
   return {
     start: `${g.start.dateTime}Z`,
     end: `${g.end.dateTime}Z`,

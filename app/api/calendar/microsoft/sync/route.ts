@@ -6,6 +6,7 @@ import {
   refreshAccessToken,
   type GraphEvent,
 } from "@/lib/calendar/microsoft";
+import { decryptToken, encryptToken } from "@/lib/calendar/token-crypto";
 
 /**
  * Microsoft Graph sync. Same shape as the Google route: refresh access
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let accessToken = connection.access_token;
+  let accessToken = decryptToken(connection.access_token);
   const expires = connection.expires_at
     ? new Date(connection.expires_at)
     : new Date(0);
@@ -65,14 +66,19 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const refreshed = await refreshAccessToken(connection.refresh_token);
+    const refreshed = await refreshAccessToken(
+      decryptToken(connection.refresh_token),
+    );
     accessToken = refreshed.access_token;
     const newExpires = new Date(
       Date.now() + refreshed.expires_in * 1000,
     ).toISOString();
     await supabase
       .from("calendar_connections")
-      .update({ access_token: accessToken, expires_at: newExpires })
+      .update({
+        access_token: encryptToken(accessToken),
+        expires_at: newExpires,
+      })
       .eq("id", connection.id);
   }
 

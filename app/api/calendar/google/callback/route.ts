@@ -6,6 +6,11 @@ import {
   listCalendars,
 } from "@/lib/calendar/google";
 import { consumeOAuth } from "@/lib/calendar/oauth-state";
+import { encryptToken } from "@/lib/calendar/token-crypto";
+import {
+  ensureGooglePushForConnection,
+  primaryGoogleCalendar,
+} from "@/lib/calendar/push";
 
 /**
  * `GET /api/calendar/google/callback?code=…&state=…`
@@ -51,8 +56,10 @@ export async function GET(request: Request) {
           user_id: user.id,
           provider: "google" as const,
           account_email: userInfo.email,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token ?? null,
+          access_token: encryptToken(tokens.access_token),
+          refresh_token: tokens.refresh_token
+            ? encryptToken(tokens.refresh_token)
+            : null,
           expires_at: expiresAt,
           last_sync_error: null,
         },
@@ -83,6 +90,24 @@ export async function GET(request: Request) {
         { onConflict: "connection_id,external_id" },
       );
     }
+
+    // Open the push channel before the first sync so Google's initial
+    // "sync" notification arrives after the row exists. The helper
+    // swallows failures (e.g. no CALENDAR_WEBHOOK_BASE configured in
+    // local dev), keeping push opt-in.
+    const primary = primaryGoogleCalendar(calendars);
+    await ensureGooglePushForConnection(
+      // Service-role client isn't needed here — the caller is the user.
+      // But ensureGooglePushForConnection expects a Database client; the
+      // RLS-bound `supabase` works equivalently for self-owned rows.
+      supabase as unknown as Parameters<typeof ensureGooglePushForConnection>[0],
+      {
+        id: connection.id,
+        access_token: encryptToken(tokens.access_token),
+        push_subscription: null,
+      },
+      primary?.id ?? null,
+    );
 
     // Kick a first sync inline. If it errors we still want the connection
     // to land — the sidebar can show the error and the user can retry.

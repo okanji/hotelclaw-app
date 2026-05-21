@@ -13,7 +13,7 @@ import {
 } from "@/lib/calendar/time";
 import { cn } from "@/lib/utils";
 import { EventBlock } from "./event-block";
-import type { CalendarEvent } from "@/lib/calendar/types";
+import type { CalendarEvent, FreeBusySlot } from "@/lib/calendar/types";
 
 const HOUR_HEIGHT_PX = 48;
 const SNAP_MINUTES = 15;
@@ -24,6 +24,15 @@ type Props = {
   events: CalendarEvent[];
   propertyId: string;
   overlayUsers: Set<string>;
+  /**
+   * Free/busy slots for the toggled overlay users. We don't pull these
+   * inside this component — the room owns the query so cache keys stay
+   * adjacent to the events query.
+   */
+  freeBusy: FreeBusySlot[];
+  /** Stable per-user colour map (id → hex). Built in the room from the
+   *  member palette so two grids in the same render don't disagree. */
+  userColors: Map<string, string>;
   onCreateSlot: (start: Date, end: Date) => void;
   onSelectEvent: (event: CalendarEvent) => void;
 };
@@ -45,9 +54,39 @@ type Props = {
 export function WeekGrid({
   days,
   events,
+  overlayUsers,
+  freeBusy,
+  userColors,
   onCreateSlot,
   onSelectEvent,
 }: Props) {
+  // Stable lane order keyed on `overlayUsers` membership — the renderer
+  // draws each user's free/busy in their own lane down the right edge of
+  // each column. Sets aren't ordered, so we sort by id for determinism.
+  const lanes = useMemo(
+    () => Array.from(overlayUsers).sort(),
+    [overlayUsers],
+  );
+  // Index busy slots by day so each column lookup is O(1).
+  const slotsByDay = useMemo(() => {
+    const map = new Map<string, FreeBusySlot[]>();
+    for (const slot of freeBusy) {
+      if (slot.busy === "free") continue;
+      const start = new Date(slot.start_at);
+      const end = new Date(slot.end_at);
+      // A slot can span multiple days — clamp each crossed day.
+      const cursor = new Date(start);
+      cursor.setHours(0, 0, 0, 0);
+      while (cursor < end) {
+        const key = cursor.toDateString();
+        const arr = map.get(key) ?? [];
+        arr.push(slot);
+        map.set(key, arr);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return map;
+  }, [freeBusy]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Scroll the grid to 7am on first paint so the "useful" part of the day
@@ -120,6 +159,9 @@ export function WeekGrid({
             key={day.toDateString()}
             day={day}
             events={timedByDay[day.toDateString()] ?? []}
+            freeBusySlots={slotsByDay.get(day.toDateString()) ?? []}
+            lanes={lanes}
+            userColors={userColors}
             onCreateSlot={onCreateSlot}
             onSelectEvent={onSelectEvent}
           />
@@ -175,11 +217,17 @@ function formatHourLabel(h: number): string {
 function DayColumn({
   day,
   events,
+  freeBusySlots,
+  lanes,
+  userColors,
   onCreateSlot,
   onSelectEvent,
 }: {
   day: Date;
   events: CalendarEvent[];
+  freeBusySlots: FreeBusySlot[];
+  lanes: string[];
+  userColors: Map<string, string>;
   onCreateSlot: (start: Date, end: Date) => void;
   onSelectEvent: (event: CalendarEvent) => void;
 }) {
@@ -272,6 +320,18 @@ function DayColumn({
       {/* Now-line: only on today's column */}
       {isSameDay(day, new Date()) ? <NowLine /> : null}
 
+      {/* Per-user free/busy lanes — translucent bars along the right edge.
+          Each toggled-on user gets one narrow lane (max 4 lanes before we
+          stop growing — beyond that we'd want a pop-out summary). */}
+      {lanes.length > 0 ? (
+        <FreeBusyLanes
+          day={day}
+          slots={freeBusySlots}
+          lanes={lanes}
+          userColors={userColors}
+        />
+      ) : null}
+
       {/* Event blocks */}
       {placements.map(({ event: wrapped, column, columns }) => {
         const ev = wrapped.event;
@@ -350,6 +410,76 @@ function PositionedEvent({
     >
       <EventBlock event={event} />
     </button>
+  );
+}
+
+function FreeBusyLanes({
+  day,
+  slots,
+  lanes,
+  userColors,
+}: {
+  day: Date;
+  slots: FreeBusySlot[];
+  lanes: string[];
+  userColors: Map<string, string>;
+}) {
+  const dayStart = startOfDay(day);
+  const dayEnd = addMinutes(dayStart, MINUTES_PER_DAY);
+  const laneWidthPx = 6;
+  const laneGapPx = 2;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-y-0 right-0 flex"
+      style={{ width: lanes.length * (laneWidthPx + laneGapPx) }}
+    >
+      {lanes.map((userId) => {
+        const color = userColors.get(userId) ?? "94a3b8";
+        const userSlots = slots.filter((s) => s.user_id === userId);
+        return (
+          <div
+            key={userId}
+            className="relative h-full"
+            style={{
+              width: laneWidthPx,
+              marginLeft: laneGapPx,
+              backgroundColor: `#${color}10`,
+            }}
+          >
+            {userSlots.map((slot, idx) => {
+              const slotStart = new Date(slot.start_at);
+              const slotEnd = new Date(slot.end_at);
+              const visStart =
+                slotStart < dayStart ? dayStart : slotStart;
+              const visEnd = slotEnd > dayEnd ? dayEnd : slotEnd;
+              const top =
+                (minutesFromMidnight(visStart) / 60) * HOUR_HEIGHT_PX;
+              const height = Math.max(
+                3,
+                ((visEnd.getTime() - visStart.getTime()) /
+                  60_000 /
+                  60) *
+                  HOUR_HEIGHT_PX,
+              );
+              const opacity = slot.busy === "tentative" ? 0.45 : 0.75;
+              return (
+                <div
+                  key={`${slot.start_at}-${idx}`}
+                  className="absolute inset-x-0 rounded-sm"
+                  style={{
+                    top,
+                    height,
+                    backgroundColor: `#${color}`,
+                    opacity,
+                  }}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

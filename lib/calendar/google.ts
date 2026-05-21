@@ -227,6 +227,65 @@ export async function listEvents(
   return { events: allEvents, nextSyncToken, fullSyncRequired };
 }
 
+/**
+ * Open a push channel for a calendar's events resource. Google delivers a
+ * POST to `address` on every change; the receiver POSTs back to our sync
+ * endpoint. Channels expire (max 7 days for events.watch) and need
+ * renewal via `renewChannel` (just call `watchEvents` again with a new id).
+ */
+export async function watchEvents(
+  accessToken: string,
+  calendarId: string,
+  options: { channelId: string; address: string; token?: string; ttlSeconds?: number },
+): Promise<{ id: string; resourceId: string; expiration: string }> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId,
+    )}/events/watch`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        id: options.channelId,
+        type: "web_hook",
+        address: options.address,
+        token: options.token,
+        params: options.ttlSeconds
+          ? { ttl: String(options.ttlSeconds) }
+          : undefined,
+      }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Google watch failed: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+/**
+ * Stop a previously-opened push channel. Best-effort — failure is
+ * non-fatal (channels expire on their own).
+ */
+export async function stopGoogleWatch(
+  accessToken: string,
+  channel: Record<string, unknown>,
+): Promise<void> {
+  const id = channel.id as string | undefined;
+  const resourceId = channel.resourceId as string | undefined;
+  if (!id || !resourceId) return;
+  await fetch("https://www.googleapis.com/calendar/v3/channels/stop", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ id, resourceId }),
+  });
+}
+
 /** Normalise Google's flexible start/end into our `external_events` row shape. */
 export function normaliseEventTimes(g: GoogleEvent): {
   start: string;

@@ -6,6 +6,8 @@ import {
   listCalendars,
 } from "@/lib/calendar/microsoft";
 import { consumeOAuth } from "@/lib/calendar/oauth-state";
+import { encryptToken } from "@/lib/calendar/token-crypto";
+import { ensureMicrosoftPushForConnection } from "@/lib/calendar/push";
 
 /**
  * Microsoft OAuth callback. Mirrors the Google flow: exchange the code,
@@ -46,8 +48,10 @@ export async function GET(request: Request) {
           user_id: user.id,
           provider: "microsoft" as const,
           account_email: userInfo.email,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token ?? null,
+          access_token: encryptToken(tokens.access_token),
+          refresh_token: tokens.refresh_token
+            ? encryptToken(tokens.refresh_token)
+            : null,
           expires_at: expiresAt,
           last_sync_error: null,
         },
@@ -76,6 +80,17 @@ export async function GET(request: Request) {
         { onConflict: "connection_id,external_id" },
       );
     }
+
+    await ensureMicrosoftPushForConnection(
+      supabase as unknown as Parameters<
+        typeof ensureMicrosoftPushForConnection
+      >[0],
+      {
+        id: connection.id,
+        access_token: encryptToken(tokens.access_token),
+        push_subscription: null,
+      },
+    );
 
     try {
       await fetch(
