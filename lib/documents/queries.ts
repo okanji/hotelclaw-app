@@ -16,11 +16,13 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 export async function getDocuments(supabase: ServerClient, propertyId: string) {
   const { data, error } = await supabase
     .from("documents")
-    // `body_snippet` powers the page-thumbnail cards on the docs-home boards
-    // (see `DocCard` in `doc-boards-section.tsx`). Synced by the editor —
-    // cheap text column, no extra round-trip.
+    // `body_text` powers the page-thumbnail cards on the docs-home boards
+    // (see `DocCard` in `doc-boards-section.tsx`); cards slice it client-side
+    // to ~240 chars. Written by the Liveblocks ydocUpdated webhook —
+    // see `lib/documents/snapshot.ts`. Full text isn't huge in practice
+    // (kB range per doc) and a single round-trip beats 50 Liveblocks rooms.
     .select(
-      "id, title, updated_at, body_snippet, created_at, created_by, last_edited_by",
+      "id, title, updated_at, body_text, created_at, created_by, last_edited_by",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

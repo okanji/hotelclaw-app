@@ -12,14 +12,14 @@ import type { Database } from "@/lib/db/types";
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 
 const Statuses = ["todo", "in_progress", "blocked", "done"] as const;
-const Priorities = ["low", "medium", "high", "urgent"] as const;
+const Priorities = ["none", "low", "medium", "high", "urgent"] as const;
 
 const CreateSchema = z.object({
   propertyId: z.string().uuid(),
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   status: z.enum(Statuses).default("todo"),
-  priority: z.enum(Priorities).default("medium"),
+  priority: z.enum(Priorities).default("none"),
   assigneeId: z.string().uuid().nullable().optional(),
 });
 

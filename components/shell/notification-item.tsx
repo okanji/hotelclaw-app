@@ -7,10 +7,12 @@ import {
   Mail,
   MessageSquareText,
   UserMinus,
+  Video,
 } from "lucide-react";
 import type {
   ChannelAddedPayload,
   InviteReceivedPayload,
+  MeetingSummaryPayload,
   MentionPayload,
   NotificationRow,
   TaskAssignedPayload,
@@ -182,6 +184,24 @@ function renderView(n: NotificationRow, propertyId: string): View {
         sub: p.preview ?? null,
         href: p.channelId
           ? channelHref(propertyId, p.channelType, p.channelId)
+          : null,
+      };
+    }
+    case "meeting_summary": {
+      const p = n.payload as Partial<MeetingSummaryPayload>;
+      return {
+        icon: <Video className="size-3.5" />,
+        lead: (
+          <>
+            Notes ready for{" "}
+            <strong className="font-semibold">
+              {p.title ?? "a meeting"}
+            </strong>
+          </>
+        ),
+        sub: p.preview ?? null,
+        href: p.meetingId
+          ? `/p/${propertyId}/meetings/${p.meetingId}`
           : null,
       };
     }

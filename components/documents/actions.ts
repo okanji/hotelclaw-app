@@ -7,10 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 const PropertyId = z.string().uuid();
 const DocumentId = z.string().uuid();
 const Title = z.string().min(1).max(200);
-// Body snippet cap matches the column comment in migration 0014. The editor
-// already slices client-side; the server check is a belt-and-braces guard
-// against a misbehaving client.
-const BodySnippet = z.string().max(1000);
 
 type ActionError = { error: string };
 
@@ -102,38 +98,9 @@ export async function createDocument(
   return { id: data.id };
 }
 
-/**
- * Mirror the first ~500 chars of a doc's plain-text body into
- * `documents.body_snippet` so the docs-home boards can render page-thumbnail
- * cards without mounting a Liveblocks room per card. Called (debounced) from
- * `useSnippetSync` in `document-editor.tsx`.
- *
- * Best-effort: errors are swallowed by the editor — Yjs owns the real content.
- * No `revalidatePath` here: the docs home reads from React Query, not from RSC
- * caches, so revalidating on every keystroke debounce would be pure overhead.
- */
-export async function syncDocumentSnippet(
-  documentId: string,
-  snippet: string,
-): Promise<{ ok: true } | ActionError> {
-  const id = DocumentId.safeParse(documentId);
-  const s = BodySnippet.safeParse(snippet);
-  if (!id.success) return { error: "Invalid document id" };
-  if (!s.success) return { error: "Snippet too long" };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not signed in" };
-
-  const { error } = await supabase
-    .from("documents")
-    .update({ body_snippet: s.data, last_edited_by: user.id })
-    .eq("id", id.data);
-  if (error) return { error: error.message };
-  return { ok: true };
-}
+// `syncDocumentSnippet` removed — body persistence is now server-driven via
+// the Liveblocks `ydocUpdated` webhook (app/api/liveblocks/webhook/route.ts),
+// which captures the full plaintext into `documents.body_text` per ~60s.
 
 export async function renameDocument(
   documentId: string,

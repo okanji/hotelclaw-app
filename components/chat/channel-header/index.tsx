@@ -20,6 +20,7 @@ import {
 import { useInfoPanel } from "../info-panel/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HuddleButton } from "@/components/chat/huddle/huddle-button";
+import { MeetingButton } from "@/components/chat/meeting/meeting-button";
 
 /**
  * Custom replacement for Stream's default <ChannelHeader>.
@@ -102,6 +103,7 @@ export function ChannelHeader() {
           </Button>
         ) : null}
         {channel.id ? <HuddleButton channelId={channel.id} /> : null}
+        {channel.id ? <MeetingButton channelId={channel.id} /> : null}
         <Button
           variant="outline"
           size="icon"

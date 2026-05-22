@@ -33,7 +33,10 @@ export function DocumentList({ propertyId }: { propertyId: string }) {
   if (list.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
-        <FileText className="size-7 text-muted-foreground/50" />
+        <FileText
+          strokeWidth={1.5}
+          className="size-7 text-muted-foreground/50"
+        />
         <p className="text-sm text-pretty text-muted-foreground">
           No documents yet.
         </p>

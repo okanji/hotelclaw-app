@@ -37,10 +37,11 @@ type Props = {
 };
 
 const PRIORITIES: { id: TaskPriority; label: string }[] = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
+  { id: "none", label: "No priority" },
   { id: "urgent", label: "Urgent" },
+  { id: "high", label: "High" },
+  { id: "medium", label: "Medium" },
+  { id: "low", label: "Low" },
 ];
 
 export function CreateTaskDialog({
@@ -53,7 +54,7 @@ export function CreateTaskDialog({
 }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [priority, setPriority] = useState<TaskPriority>("none");
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e: React.FormEvent) {

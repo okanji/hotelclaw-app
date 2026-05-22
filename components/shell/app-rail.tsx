@@ -9,6 +9,7 @@ import {
   ListChecks,
   MessageCircle,
   MessagesSquare,
+  Video,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
@@ -68,6 +69,14 @@ const IN_PROPERTY = /^\/p\/[^/]+\/[^/]+/;
  * surface empty.
  */
 const CHAT_ROOT = /^\/p\/[^/]+\/chat\/?$/;
+/**
+ * Meetings is the second exception: unlike chat/tasks/docs which mount
+ * persistent surfaces in the property layout, the meetings page is a
+ * normal server-rendered route (`/meetings/page.tsx` returns JSX, not
+ * null). A pushState would leave the previous surface visible while only
+ * the URL changes. Force a real navigation so `children` re-renders.
+ */
+const MEETINGS_ROUTE = /^\/p\/[^/]+\/meetings(\/.*)?$/;
 
 /**
  * Slack-style icon rail — the first sidebar, pinned to the screen edge. Five
@@ -134,6 +143,13 @@ export function AppRail({
         icon: FileText,
         href: `/p/${propertyId}/documents`,
         routeKey: "/documents",
+      },
+      {
+        section: "meetings",
+        label: "Meetings",
+        icon: Video,
+        href: `/p/${propertyId}/meetings`,
+        routeKey: "/meetings",
       },
     ],
     [propertyId],
@@ -213,7 +229,9 @@ export function AppRail({
     if (
       IN_PROPERTY.test(pathname) &&
       IN_PROPERTY.test(target) &&
-      !CHAT_ROOT.test(target)
+      !CHAT_ROOT.test(target) &&
+      !MEETINGS_ROUTE.test(target) &&
+      !MEETINGS_ROUTE.test(pathname)
     ) {
       window.history.pushState(null, "", target);
       return;

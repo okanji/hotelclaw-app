@@ -44,3 +44,13 @@ export type MentionPayload = {
   byUserName: string | null;
   preview: string;
 };
+
+export type MeetingSummaryPayload = {
+  meetingId: string;
+  title: string;
+  /** Stream channel id where the summary was posted, or null if the meeting
+   *  wasn't tied to a channel. */
+  channelId: string | null;
+  /** First ~200 chars of the markdown summary, for the activity card sub. */
+  preview: string;
+};

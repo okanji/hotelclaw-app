@@ -24,14 +24,14 @@ export function SidebarRowsSkeleton({
       {Array.from({ length: count }).map((_, i) => (
         <li
           key={i}
-          className="flex items-center gap-2 px-2 py-1.5"
+          className="flex h-8 items-center gap-2.5 px-2"
           style={{ opacity: Math.max(0.35, 1 - i * 0.18) }}
         >
           <Skeleton
             className={
               withAvatar
-                ? "size-4 shrink-0 rounded-full"
-                : "size-4 shrink-0 rounded-sm"
+                ? "size-[18px] shrink-0 rounded-full"
+                : "size-[18px] shrink-0 rounded-sm"
             }
           />
           <Skeleton

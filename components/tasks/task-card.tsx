@@ -21,13 +21,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, GripVertical, MoreHorizontal } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MoreHorizontal, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask } from "./actions";
-import { COLUMNS, PRIORITY_META, type Task } from "./kanban";
+import { COLUMNS, taskShortId, type Task } from "./kanban";
+import { StatusIcon } from "./task-icons";
+import { PriorityChip } from "./priority-menu";
 import { taskHref } from "@/lib/tasks/task-href";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
+import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import type { TaskStatus } from "@/lib/db/types";
 
 /* -------------------------------------------------------------------------- */
@@ -44,7 +48,6 @@ function useFlip<T extends HTMLElement>(enabled: boolean) {
     const el = ref.current;
     if (!el) return;
     if (!enabled) {
-      // A drag is in progress — let dnd-kit drive every transform.
       prevRect.current = null;
       return;
     }
@@ -69,67 +72,219 @@ function useFlip<T extends HTMLElement>(enabled: boolean) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Date helpers                                                               */
+/* -------------------------------------------------------------------------- */
+
+function formatDueDate(due: Date, now: number) {
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round(
+    (dueDay.getTime() - today.getTime()) / 86_400_000,
+  );
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays === -1) return "Yesterday";
+  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`;
+  if (diffDays > 0 && diffDays < 7)
+    return due.toLocaleDateString(undefined, { weekday: "short" });
+  const sameYear = dueDay.getFullYear() === today.getFullYear();
+  return due.toLocaleDateString(
+    undefined,
+    sameYear
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" },
+  );
+}
+
+/** Absolute "MMM D" / "MMM D, YY" for created timestamps — Linear-style. */
+function formatCreated(iso: string, now: number) {
+  const d = new Date(iso);
+  const today = new Date(now);
+  const sameYear = d.getFullYear() === today.getFullYear();
+  return d.toLocaleDateString(
+    undefined,
+    sameYear
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "2-digit" },
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Presentational pieces                                                      */
 /* -------------------------------------------------------------------------- */
 
-function TaskMeta({ task }: { task: Task }) {
-  // Snapshot "now" once per mount — a task board doesn't need the overdue
-  // flag to tick live, and this keeps the render pure.
-  const [now] = useState(() => Date.now());
-  const priority = PRIORITY_META[task.priority];
-  const due = task.due_at ? new Date(task.due_at) : null;
-  const overdue =
-    due != null && task.status !== "done" && due.getTime() < now;
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
 
-  return (
-    <div className="mt-3 flex items-center gap-3 text-xs">
+function AssigneeSlot({
+  info,
+  assigneeId,
+}: {
+  info: AssigneeInfo | undefined;
+  assigneeId: string | null;
+}) {
+  if (!assigneeId) {
+    return (
       <span
-        className={cn(
-          "inline-flex items-center gap-1.5 font-medium",
-          priority.textClass,
-        )}
+        aria-label="Unassigned"
+        className="inline-flex size-[18px] items-center justify-center text-muted-foreground/40"
       >
-        <span className={cn("size-1.5 rounded-full", priority.dotClass)} />
-        {priority.label}
+        <UserRound className="size-3.5" />
       </span>
-      {due ? (
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 tabular-nums",
-            overdue
-              ? "font-medium text-red-600 dark:text-red-400"
-              : "text-muted-foreground",
-          )}
-        >
-          <CalendarDays className="size-3.5" />
-          {due.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          })}
-        </span>
-      ) : null}
+    );
+  }
+  const name = info?.name ?? "Assigned";
+  return (
+    <Avatar
+      size="sm"
+      className="size-[18px] shrink-0"
+      title={`Assigned to ${name}`}
+    >
+      {info?.avatar ? <AvatarImage src={info.avatar} alt={name} /> : null}
+      <AvatarFallback className="bg-muted text-[0.5625rem] font-medium text-foreground">
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function CardPropertyRow({
+  task,
+  onChanged,
+}: {
+  task: Task;
+  onChanged: () => void;
+}) {
+  // Linear-style "properties" strip — small chips for priority (always
+  // present; "No priority" renders as a dashed placeholder) and any other
+  // inline properties we add over time. Left-aligned with the task ID so it
+  // reads as its own column of metadata, not a continuation of the title.
+  return (
+    <div className="mt-1.5 flex items-center gap-1">
+      <PriorityChip
+        taskId={task.id}
+        priority={task.priority}
+        onChanged={onChanged}
+      />
     </div>
   );
 }
 
-const CARD_BASE =
-  "rounded-lg border border-border bg-card p-3 shadow-xs";
+function CardCreatedAt({ iso, now }: { iso: string | undefined; now: number }) {
+  if (!iso) return null;
+  return (
+    <div className="mt-1.5 text-[0.75rem] leading-4 text-muted-foreground">
+      Created {formatCreated(iso, now)}
+    </div>
+  );
+}
+
+function CardDueDate({
+  task,
+  now,
+}: {
+  task: Task;
+  now: number;
+}) {
+  const due = task.due_at ? new Date(task.due_at) : null;
+  if (!due) return null;
+  const overdue = task.status !== "done" && due.getTime() < now;
+  return (
+    <div
+      className={cn(
+        "mt-1 text-[0.75rem] leading-4 tabular-nums",
+        overdue
+          ? "font-medium text-red-600 dark:text-red-400"
+          : "text-muted-foreground",
+      )}
+    >
+      Due {formatDueDate(due, now)}
+    </div>
+  );
+}
+
+const CARD_BASE = cn(
+  // Padding kept tight (Linear sits around 8px) so the card stays compact
+  // even with a priority chip + created date stacked underneath the title.
+  "relative rounded-md border border-border/70 bg-card p-2 shadow-xs",
+);
 
 /**
  * The card rendered inside the `DragOverlay` — a detached, lifted copy that
  * follows the cursor while the real card stays dimmed in its column.
  */
-export function TaskCardOverlay({ task }: { task: Task }) {
+export function TaskCardOverlay({
+  task,
+  assignee,
+}: {
+  task: Task;
+  assignee?: AssigneeInfo;
+}) {
+  const [now] = useState(() => Date.now());
   return (
     <div
       className={cn(
         CARD_BASE,
-        "w-full cursor-grabbing shadow-xl ring-1 ring-black/5",
+        "w-72 cursor-grabbing shadow-lg ring-1 ring-black/10 dark:ring-white/10",
       )}
     >
-      <p className="pr-6 text-sm/5 font-medium text-foreground">{task.title}</p>
-      <TaskMeta task={task} />
+      <CardHeader task={task} assignee={assignee} />
+      <CardTitle title={task.title} status={task.status} />
+      <CardDescription description={task.description} />
+      <CardPropertyRow task={task} onChanged={() => undefined} />
+      <CardDueDate task={task} now={now} />
+      <CardCreatedAt iso={task.created_at} now={now} />
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Subcomponents                                                              */
+/* -------------------------------------------------------------------------- */
+
+function CardHeader({
+  task,
+  assignee,
+}: {
+  task: Task;
+  assignee: AssigneeInfo | undefined;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 leading-4">
+      <span className="text-[0.75rem] font-normal text-muted-foreground tabular-nums tracking-tight">
+        {taskShortId(task.id)}
+      </span>
+      <AssigneeSlot info={assignee} assigneeId={task.assignee_id} />
+    </div>
+  );
+}
+
+function CardTitle({ title, status }: { title: string; status: TaskStatus }) {
+  return (
+    <div className="mt-1.5 flex items-start gap-1.5">
+      <span className="flex h-[1.125rem] shrink-0 items-center">
+        <StatusIcon status={status} className="size-3.5" />
+      </span>
+      <p className="line-clamp-2 text-[0.8125rem] leading-[1.125rem] font-normal text-foreground">
+        {title}
+      </p>
+    </div>
+  );
+}
+
+function CardDescription({ description }: { description: string | null }) {
+  const text = description?.trim();
+  if (!text) return null;
+  return (
+    <p className="mt-1 ml-5 line-clamp-1 text-[0.75rem] leading-4 text-muted-foreground/80">
+      {text}
+    </p>
   );
 }
 
@@ -140,6 +295,8 @@ export function TaskCardOverlay({ task }: { task: Task }) {
 type Props = {
   propertyId: string;
   task: Task;
+  /** Resolved assignee info from the board-level lookup, if any. */
+  assignee?: AssigneeInfo;
   /** True while *any* card is being dragged on this client. */
   dragActive: boolean;
   /** Name of a teammate currently dragging this card, if any. */
@@ -151,18 +308,17 @@ type Props = {
 export function SortableTaskCard({
   propertyId,
   task,
+  assignee,
   dragActive,
   draggedByName,
   onMove,
   onChanged,
 }: Props) {
   const [pending, startTransition] = useTransition();
+  const [now] = useState(() => Date.now());
   const lockedByOther = draggedByName != null;
   const openTask = useOpenTask(propertyId);
 
-  // Plain left-click → client-side `pushState` switch (no route nav, no
-  // `TaskDetailSkeleton` flash). Modified clicks fall through to the browser
-  // so "open in new tab" still works via the underlying `<a href>`.
   function handleTitleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
@@ -212,9 +368,11 @@ export function SortableTaskCard({
       {...listeners}
       className={cn(
         CARD_BASE,
-        "group relative outline-none",
-        "cursor-grab active:cursor-grabbing",
-        "hover:border-foreground/20",
+        "group outline-none transition-colors",
+        // Resting cursor is the default arrow (Linear-style). Only switch to
+        // the grabbing hand once the pointer is actively pressed/dragging.
+        "active:cursor-grabbing",
+        "hover:border-foreground/15",
         "focus-visible:ring-2 focus-visible:ring-ring",
         isDragging && "opacity-40",
         lockedByOther && "cursor-default ring-2 ring-blue-500/50",
@@ -226,61 +384,69 @@ export function SortableTaskCard({
         </div>
       ) : null}
 
-      <div className="flex items-start justify-between gap-2">
-        {/* Draggable like the rest of the card; a plain click (no drag)
-            still navigates to the task detail page. */}
-        <Link
-          href={taskHref(propertyId, task.id)}
-          onClick={handleTitleClick}
-          className="text-sm/5 font-medium text-foreground hover:underline"
+      {/* Hover-only menu — absolutely positioned over the top-right so the
+          resting card stays uncluttered like Linear's. The card-colored
+          background keeps the trigger readable when it overlays the
+          assignee chip. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              size="icon"
+              variant="ghost"
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Task options"
+              className={cn(
+                "absolute right-1 top-1 z-10 size-6 rounded-sm bg-card p-0 text-muted-foreground/80",
+                "opacity-0 transition-opacity",
+                "group-hover:opacity-100 focus-visible:opacity-100",
+                "aria-expanded:opacity-100 data-popup-open:opacity-100",
+                "hover:bg-foreground/8 hover:text-foreground",
+              )}
+              disabled={pending}
+            />
+          }
         >
-          {task.title}
-        </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                size="icon"
-                variant="ghost"
-                onPointerDown={(e) => e.stopPropagation()}
-                className="-mt-1 -mr-1 size-6 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                disabled={pending}
-              />
-            }
-          >
-            <MoreHorizontal className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Move to</DropdownMenuLabel>
-              {COLUMNS.map((c) => (
-                <DropdownMenuItem
-                  key={c.id}
-                  disabled={c.id === task.status}
-                  onClick={() => onMove(task.id, c.id)}
-                >
-                  <span className={cn("size-2 rounded-full", c.dotClass)} />
-                  {c.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
+          <MoreHorizontal className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Move to</DropdownMenuLabel>
+            {COLUMNS.map((c) => (
               <DropdownMenuItem
-                onClick={remove}
-                className="text-destructive focus:text-destructive"
+                key={c.id}
+                disabled={c.id === task.status}
+                onClick={() => onMove(task.id, c.id)}
               >
-                Delete task
+                <StatusIcon status={c.id} className="size-3.5" />
+                {c.label}
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={remove}
+              className="text-destructive focus:text-destructive"
+            >
+              Delete task
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-      <TaskMeta task={task} />
+      <CardHeader task={task} assignee={assignee} />
 
-      <GripVertical
-        aria-hidden
-        className="absolute top-1/2 -left-0.5 size-4 -translate-y-1/2 text-muted-foreground/40 opacity-0 group-hover:opacity-100"
-      />
+      <Link
+        href={taskHref(propertyId, task.id)}
+        onClick={handleTitleClick}
+        className="block focus-visible:outline-none"
+      >
+        <CardTitle title={task.title} status={task.status} />
+        <CardDescription description={task.description} />
+      </Link>
+
+      <CardPropertyRow task={task} onChanged={onChanged} />
+      <CardDueDate task={task} now={now} />
+      <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );
 }

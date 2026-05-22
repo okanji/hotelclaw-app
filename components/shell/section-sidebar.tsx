@@ -16,6 +16,7 @@ import { DmsSection } from "./sections/dms-section";
 import { TasksSection } from "./sections/tasks-section";
 import { CalendarSection } from "@/components/calendar/calendar-section";
 import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
+import { MeetingsSection } from "./sections/meetings-section";
 import type { Membership } from "@/lib/auth/session";
 
 type ResizeHandleProps = {
@@ -104,6 +105,9 @@ export function SectionSidebar({
         </SectionPane>
         <SectionPane active={section === "docs"}>
           <DocumentsTreeSection propertyId={currentPropertyId} />
+        </SectionPane>
+        <SectionPane active={section === "meetings"}>
+          <MeetingsSection propertyId={currentPropertyId} />
         </SectionPane>
       </SidebarContent>
 

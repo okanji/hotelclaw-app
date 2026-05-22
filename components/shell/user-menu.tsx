@@ -66,7 +66,7 @@ export function UserMenu({ user }: { user: User }) {
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto !size-4 !text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="min-w-56">
               <DropdownMenuGroup>

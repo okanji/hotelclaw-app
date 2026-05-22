@@ -90,7 +90,7 @@ export function ChannelPreviewRow({
         {Icon ? <Icon /> : <DmAvatar channel={channel} currentUserId={client?.user?.id} />}
         <span className="truncate">{title}</span>
         {unread > 0 && !isActive ? (
-          <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+          <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-medium leading-none text-sidebar-foreground/70 tabular-nums">
             {unread > 99 ? "99+" : unread}
           </span>
         ) : null}
@@ -128,7 +128,7 @@ function DmAvatar({
     .join("")
     .toUpperCase();
   return (
-    <span className="flex size-4 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
       {initials || "?"}
     </span>
   );

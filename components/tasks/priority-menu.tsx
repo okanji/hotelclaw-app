@@ -1,0 +1,157 @@
+"use client";
+
+import { useTransition } from "react";
+import { Check } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
+import { PriorityBars } from "./task-icons";
+import { updateTask } from "./actions";
+import type { TaskPriority } from "@/lib/db/types";
+
+/* -------------------------------------------------------------------------- */
+/* PriorityChip — the small circular button shown on a task card. Renders the */
+/* priority glyph (bars / dashes / urgent) inside a subtle bordered pill, and */
+/* opens a Linear-style priority menu on click.                               */
+/* -------------------------------------------------------------------------- */
+
+type PriorityChipProps = {
+  taskId: string;
+  priority: TaskPriority;
+  onChanged?: () => void;
+  /** Stop the parent's drag listeners from hijacking the click. */
+  stopDrag?: boolean;
+  className?: string;
+};
+
+export function PriorityChip({
+  taskId,
+  priority,
+  onChanged,
+  stopDrag = true,
+  className,
+}: PriorityChipProps) {
+  const [pending, startTransition] = useTransition();
+  const meta = PRIORITY_META[priority];
+
+  function setPriority(next: TaskPriority) {
+    if (next === priority) return;
+    startTransition(async () => {
+      const result = await updateTask({ taskId, priority: next });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      onChanged?.();
+    });
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`Priority: ${meta.label}. Change priority.`}
+            onPointerDown={stopDrag ? (e) => e.stopPropagation() : undefined}
+            onClick={stopDrag ? (e) => e.stopPropagation() : undefined}
+            disabled={pending}
+            className={cn(
+              // Sized to match Linear's resting chip — 20px tall × 24px wide.
+              // The bars/dashes inside are ~12px wide so this leaves a 6px
+              // gutter on each side without feeling cramped.
+              "inline-flex h-5 w-6 items-center justify-center rounded-full",
+              "border border-border/60 bg-transparent",
+              "text-muted-foreground transition-colors",
+              "hover:border-border hover:bg-foreground/5 hover:text-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "aria-expanded:border-border aria-expanded:bg-foreground/5",
+              "data-popup-open:border-border data-popup-open:bg-foreground/5",
+              "disabled:opacity-50",
+              className,
+            )}
+          />
+        }
+      >
+        <PriorityBars priority={priority} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56 p-1">
+        <PriorityMenuHeader />
+        {PRIORITY_MENU_ORDER.map((p) => {
+          const item = PRIORITY_META[p];
+          const selected = p === priority;
+          return (
+            <DropdownMenuItem
+              key={p}
+              onClick={() => setPriority(p)}
+              className="cursor-pointer gap-2 py-1.5"
+            >
+              <span className="flex w-4 items-center justify-center">
+                <PriorityBars priority={p} />
+              </span>
+              <span
+                className={cn(
+                  "flex-1 text-[0.8125rem]",
+                  selected ? "text-foreground" : "text-foreground/90",
+                )}
+              >
+                {item.label}
+              </span>
+              {selected ? (
+                <Check className="size-3.5 text-muted-foreground" />
+              ) : null}
+              <ShortcutBadge value={item.shortcut} variant="plain" />
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Menu header — "Set priority to..."  with a faux "P" keyboard hint on the   */
+/* right. Mirrors the Linear menu chrome.                                     */
+/* -------------------------------------------------------------------------- */
+
+function PriorityMenuHeader() {
+  return (
+    <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-[0.75rem] text-muted-foreground">
+      <span>Set priority to&hellip;</span>
+      <ShortcutBadge value="P" variant="key" />
+    </div>
+  );
+}
+
+function ShortcutBadge({
+  value,
+  variant,
+}: {
+  value: string | number;
+  variant: "plain" | "key";
+}) {
+  if (variant === "key") {
+    return (
+      <kbd
+        aria-hidden
+        className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted/60 px-1 font-sans text-[0.6875rem] font-medium text-muted-foreground"
+      >
+        {value}
+      </kbd>
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="ml-1 inline-flex w-3 justify-center text-[0.6875rem] tabular-nums text-muted-foreground"
+    >
+      {value}
+    </span>
+  );
+}

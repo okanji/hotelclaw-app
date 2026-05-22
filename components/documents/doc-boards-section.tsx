@@ -9,7 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDroppable } from "@dnd-kit/core";
+import { useDndContext, useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import {
   Pin,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -92,8 +93,10 @@ type DocRow = {
   id: string;
   title: string;
   updated_at: string;
-  // Synced by the editor (see `useSnippetSync`). Empty for fresh docs.
-  body_snippet: string;
+  // Full plaintext from the Liveblocks `ydocUpdated` webhook snapshot
+  // (see `app/api/liveblocks/webhook/route.ts`). Empty for fresh docs and
+  // until the first 60s-throttled snapshot lands. Cards slice client-side.
+  body_text: string;
 };
 
 /**
@@ -249,6 +252,23 @@ function BoardStrip({
     data: { type: "board", boardId: board.id },
   });
 
+  // Owned locally so `DocCard`'s remove-from-board button has a single
+  // call-site for optimistic update + server action + toast. Re-pinning on
+  // undo lands the doc back on this board (position appended at the end).
+  const { pin, unpin } = useBoardMutations(propertyId);
+
+  async function handleUnpin(docId: string) {
+    await unpin(docId);
+    toast.success("Removed from board", {
+      action: {
+        label: "Undo",
+        onClick: () => void pin(docId, board.id),
+      },
+    });
+  }
+
+  const hasItems = items.length > 0;
+
   return (
     <div className="group/board border-b border-border/50 pb-8 last:border-b-0 last:pb-0">
       <BoardHeader board={board} />
@@ -260,23 +280,29 @@ function BoardStrip({
         )}
       >
         <SortableContext items={itemIds} strategy={horizontalListSortingStrategy}>
-          {items.length === 0 ? (
-            <BoardEmptyHint />
+          {hasItems ? (
+            <>
+              {items.map((item) => {
+                const doc = docsById.get(item.document_id);
+                if (!doc) return null;
+                return (
+                  <DocCard
+                    key={doc.id}
+                    doc={doc}
+                    propertyId={propertyId}
+                    boardColor={board.color}
+                    onUnpin={handleUnpin}
+                  />
+                );
+              })}
+              {/* Only show the trailing drop tile when the board already has
+                  cards — empty boards delegate the "drop target" hint to
+                  `BoardEmptyHint`, which spans the whole strip. */}
+              <DropSlot />
+            </>
           ) : (
-            items.map((item) => {
-              const doc = docsById.get(item.document_id);
-              if (!doc) return null;
-              return (
-                <DocCard
-                  key={doc.id}
-                  doc={doc}
-                  propertyId={propertyId}
-                  boardColor={board.color}
-                />
-              );
-            })
+            <BoardEmptyHint />
           )}
-          <DropSlot boardColor={board.color} />
         </SortableContext>
       </div>
     </div>
@@ -431,8 +457,16 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
 
 function BoardEmptyHint() {
   return (
-    <div className="flex h-48 min-w-[12rem] flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 px-4 text-center text-sm text-pretty text-muted-foreground">
-      Drag documents from the library below to pin them here.
+    <div className="flex h-48 min-w-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-4 text-center">
+      <span
+        className="flex size-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground"
+        aria-hidden="true"
+      >
+        <Pin strokeWidth={1.75} className="size-4" />
+      </span>
+      <p className="max-w-[24ch] text-sm text-pretty text-muted-foreground">
+        Drag a document here to pin it for your team.
+      </p>
     </div>
   );
 }
@@ -445,10 +479,13 @@ function DocCard({
   doc,
   propertyId,
   boardColor,
+  onUnpin,
 }: {
   doc: DocRow;
   propertyId: string;
   boardColor: BoardColor;
+  /** Called when the user clicks the hover-revealed remove button. */
+  onUnpin: (documentId: string) => void;
 }) {
   const openDocument = useOpenDocument(propertyId);
   const prewarm = usePrewarmDocument(propertyId);
@@ -470,13 +507,23 @@ function DocCard({
     openDocument(doc.id);
   }
 
+  // The remove button sits *over* the draggable wrapper. Two things must not
+  // happen on click: (a) the underlying <Link> shouldn't navigate, and
+  // (b) `useSortable`'s pointer listeners on the wrapper shouldn't start a
+  // drag. We stop propagation on both pointerdown and click for that.
+  function handleUnpinClick(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    onUnpin(doc.id);
+  }
+
   // Page-thumbnail layout: white page-shaped card with title at the top, a
   // hairline divider, and the body snippet rendered as the page's content.
-  // The snippet is plain text synced (debounced) from the editor — see
-  // `useSnippetSync` in `document-editor.tsx`. The footer carries the board's
-  // accent color so cards still read as "belonging to" their board even
-  // without the old outer container.
-  const snippet = doc.body_snippet?.trim() ?? "";
+  // The text is the server-side plaintext snapshot from `documents.body_text`,
+  // captured by the Liveblocks `ydocUpdated` webhook — see
+  // `app/api/liveblocks/webhook/route.ts`. Slice client-side to keep cards
+  // compact; the full body sits in the React Query cache regardless.
+  const snippet = doc.body_text?.trim().slice(0, 500) ?? "";
   const viewers = useDocsHomePresence(doc.id);
 
   return (
@@ -498,13 +545,14 @@ function DocCard({
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
         className={cn(
-          "flex h-48 w-40 cursor-grab flex-col overflow-hidden rounded-lg border border-border/80 bg-card text-left",
-          "active:cursor-grabbing group-hover/card:border-foreground/25 group-hover/card:bg-muted/30",
-          "dark:shadow-none dark:inset-ring dark:inset-ring-white/5",
+          "flex h-48 w-40 cursor-grab flex-col overflow-hidden rounded-lg border border-border/80 bg-card text-left transition-[box-shadow,border-color,background-color] duration-150",
+          "active:cursor-grabbing",
+          "group-hover/card:border-foreground/30 group-hover/card:bg-muted/40 group-hover/card:shadow-md group-hover/card:shadow-foreground/5",
+          "dark:shadow-none dark:inset-ring dark:inset-ring-white/5 dark:group-hover/card:inset-ring-white/10",
         )}
       >
         <div className="flex-1 overflow-hidden p-3">
-          <h3 className="line-clamp-2 text-sm font-medium text-foreground">
+          <h3 className="line-clamp-2 pr-6 text-sm font-medium text-foreground">
             {doc.title || "Untitled"}
           </h3>
           <div className="my-2 h-px bg-border/50" />
@@ -532,18 +580,67 @@ function DocCard({
           <DocumentViewerAvatarStack users={viewers} size={18} />
         </div>
       </Link>
+
+      {/* Remove-from-board affordance. Hover/focus-revealed so it doesn't
+          compete with the card content at rest. Positioned absolutely over
+          the top-right corner; the title above reserves `pr-6` so a long
+          title can't slide under it. Pointer-events explicitly enabled so
+          the button is clickable even though it floats over the Link.
+          `onPointerDown` stops the sortable's drag activation. */}
+      <button
+        type="button"
+        aria-label="Remove from board"
+        title="Remove from board"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={handleUnpinClick}
+        className={cn(
+          "absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md border border-border/60 bg-card/95 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity",
+          "group-hover/card:opacity-100 focus-visible:opacity-100",
+          "hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring/60",
+        )}
+      >
+        <X strokeWidth={2} className="size-3.5" />
+      </button>
     </div>
   );
 }
 
-function DropSlot({ boardColor: _boardColor }: { boardColor: BoardColor }) {
+/**
+ * Trailing drop hint at the end of a non-empty board strip. Permanently
+ * visible so the drop target is discoverable, but takes on two different
+ * shapes:
+ *
+ *   - idle:   narrow, faint column with only a small pin icon — a quiet
+ *             "you can drop here" marker that doesn't compete with cards
+ *   - active: expands to card width with a bright dashed outline + label
+ *             when *anything* is being dragged (a card from this board,
+ *             a card from another board, or a row from the library below)
+ */
+function DropSlot() {
+  const { active } = useDndContext();
+  const isDragging = !!active;
+
   return (
     <div
-      className="flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground"
       aria-hidden="true"
+      className={cn(
+        "flex h-48 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed transition-all duration-200",
+        isDragging
+          ? "w-40 border-foreground/30 bg-muted/20 text-foreground/70"
+          : "w-20 border-border/40 text-muted-foreground/40 group-hover/board:border-border/70",
+      )}
     >
-      <Pin className="size-4 opacity-60" />
-      Drop here
+      <Pin
+        strokeWidth={1.75}
+        className={cn(
+          "transition-all",
+          isDragging ? "size-5" : "size-3.5",
+        )}
+      />
+      {isDragging ? (
+        <span className="text-xs font-medium">Drop here</span>
+      ) : null}
     </div>
   );
 }

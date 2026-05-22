@@ -12,7 +12,8 @@ export type NotificationType =
   | "task_unassigned"
   | "channel_added"
   | "invite_received"
-  | "mention";
+  | "mention"
+  | "meeting_summary";
 
 export type NotificationPayload = Record<string, unknown>;
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Archive, MessageSquareText, Plus } from "lucide-react";
+import { Archive, MessageSquareText, Plus, Video } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupAction,
@@ -45,6 +45,7 @@ export function ChatSection({
           <SidebarMenu>
             <InboxSidebarLink propertyId={propertyId} userId={userId} />
             <ThreadsLink propertyId={propertyId} pathname={pathname} />
+            <MeetingsLink propertyId={propertyId} pathname={pathname} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -73,7 +74,7 @@ export function ChatSection({
                   size="sm"
                   onClick={() => setArchivedOpen(true)}
                   tooltip="Archived channels"
-                  className="text-sidebar-foreground/55 [&_svg]:size-3.5 [&_svg]:opacity-60"
+                  className="text-sidebar-foreground/55 [&_svg]:!size-3.5 [&_svg]:!text-sidebar-foreground/55"
                 >
                   <Archive />
                   <span>Archived</span>
@@ -128,6 +129,35 @@ function ThreadsLink({
       >
         <MessageSquareText />
         <span>Threads</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+/**
+ * Cross-section discovery link to the meetings index. Meetings *are* tied
+ * to channels (started from the chat header), so it makes sense to also
+ * surface them in the chat sidebar — not just on the dedicated rail icon.
+ * Unlike Threads/Inbox, the meetings page isn't a persistent surface, so
+ * this hop is a real `router.push` (Link default), not a pushState.
+ */
+function MeetingsLink({
+  propertyId,
+  pathname,
+}: {
+  propertyId: string;
+  pathname: string;
+}) {
+  const href = `/p/${propertyId}/meetings`;
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        render={<Link href={href} />}
+        isActive={pathname.startsWith(href)}
+        tooltip="Meetings"
+      >
+        <Video />
+        <span>Meetings</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

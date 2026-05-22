@@ -26,6 +26,7 @@ import { DocBoardsSection, useBoardMutations } from "./doc-boards-section";
 import { DocsActivitySheet } from "./docs-activity-panel";
 import { DocsHomePresenceProvider } from "./docs-home-presence";
 import { DocumentList } from "./document-list";
+import { DocumentSearch } from "./document-search";
 
 const RECENTLY_EDITED_LIMIT = 6;
 
@@ -77,7 +78,6 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
 
   const hasDocs = docsList.length > 0;
   const hasRecentlyEdited = recentlyEdited.length > 0;
-  const showLibrary = hasRecentlyEdited || hasDocs;
 
   function handleCreate() {
     setCreateError(null);
@@ -155,32 +155,22 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
       onDragCancel={handleDragCancel}
     >
       <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-6 py-8 sm:py-10 lg:max-w-7xl">
-        <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
+        {/* Title row and description sit on separate lines so the actions
+            hug the heading at the right edge instead of being pushed off
+            into the dead space `justify-between` would create. Mobile
+            stacks: title → actions → description. */}
+        <header className="mb-10 flex flex-col gap-3 sm:gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
             <h1 className="text-2xl font-semibold tracking-tight text-balance">
               Documents
             </h1>
-            <p className="mt-1 max-w-[48ch] text-sm text-pretty text-muted-foreground">
-              Pin favorites to boards, see what changed recently, or browse the
-              full library.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
             <DocsActivitySheet propertyId={propertyId} />
-            <Button
-              type="button"
-              onClick={handleCreate}
-              disabled={creating}
-            >
-              <Plus className="size-4" />
-              {creating ? "Creating…" : "New document"}
-            </Button>
           </div>
+          <p className="max-w-[64ch] text-sm text-pretty text-muted-foreground">
+            Pin favorites to boards, see what changed recently, or browse the
+            full library.
+          </p>
         </header>
-
-        {createError ? (
-          <p className="mb-6 text-sm text-destructive">{createError}</p>
-        ) : null}
 
         {docsError ? (
           <p className="mb-6 text-sm text-destructive">
@@ -188,40 +178,51 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
           </p>
         ) : null}
 
+        {/* Search collapses into a single empty input row when no query is
+            active, so it doesn't crowd the boards strip below. The result
+            list only renders once the debounced query crosses 2 chars. */}
+        <div className="mb-8">
+          <DocumentSearch propertyId={propertyId} />
+        </div>
+
         <div className="flex flex-col gap-10 lg:gap-12">
           <DocBoardsSection propertyId={propertyId} />
 
-          {showLibrary ? (
-            <div className="flex flex-col gap-8">
-              {hasRecentlyEdited ? (
-                <section>
-                  <SectionHeading
-                    icon={<Pencil className="size-3.5" />}
-                    right={
-                      <span className="text-sm text-muted-foreground tabular-nums">
-                        {recentlyEdited.length}
-                      </span>
-                    }
-                  >
-                    Recently edited
-                  </SectionHeading>
-                  <ul role="list" className="flex flex-col gap-0.5">
-                    {recentlyEdited.map((d) => (
-                      <DocumentRow
-                        key={d.id}
-                        propertyId={propertyId}
-                        doc={d}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
+          <div className="flex flex-col gap-8">
+            {hasRecentlyEdited ? (
+              <section>
+                <SectionHeading
+                  icon={<Pencil strokeWidth={1.75} className="size-3.5" />}
+                  right={
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {recentlyEdited.length}
+                    </span>
+                  }
+                >
+                  Recently edited
+                </SectionHeading>
+                <ul role="list" className="flex flex-col gap-0.5">
+                  {recentlyEdited.map((d) => (
+                    <DocumentRow
+                      key={d.id}
+                      propertyId={propertyId}
+                      doc={d}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
-              <AllDocumentsSection hasDocs={hasDocs} count={docsList.length}>
-                <DocumentList propertyId={propertyId} />
-              </AllDocumentsSection>
-            </div>
-          ) : null}
+            <AllDocumentsSection
+              hasDocs={hasDocs}
+              count={docsList.length}
+              createError={createError}
+              creating={creating}
+              onCreate={handleCreate}
+            >
+              <DocumentList propertyId={propertyId} />
+            </AllDocumentsSection>
+          </div>
         </div>
       </div>
 
@@ -237,10 +238,16 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
 function AllDocumentsSection({
   hasDocs,
   count,
+  createError,
+  creating,
+  onCreate,
   children,
 }: {
   hasDocs: boolean;
   count: number;
+  createError: string | null;
+  creating: boolean;
+  onCreate: () => void;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "unpin-zone" });
@@ -248,18 +255,33 @@ function AllDocumentsSection({
     <section ref={setNodeRef}>
       <SectionHeading
         right={
-          hasDocs ? (
-            <span className="text-sm text-muted-foreground tabular-nums">
-              {count} {count === 1 ? "doc" : "docs"}
-            </span>
-          ) : null
+          <div className="flex shrink-0 items-center gap-2">
+            {hasDocs ? (
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {count} {count === 1 ? "doc" : "docs"}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              onClick={onCreate}
+              disabled={creating}
+            >
+              <Plus className="size-4" />
+              {creating ? "Creating…" : "New document"}
+            </Button>
+          </div>
         }
       >
         All documents
       </SectionHeading>
-      <p className="mb-3 text-sm text-pretty text-muted-foreground">
-        Drag a document onto a board to pin it for your team.
-      </p>
+      {createError ? (
+        <p className="mb-3 text-sm text-destructive">{createError}</p>
+      ) : (
+        <p className="mb-3 text-sm text-pretty text-muted-foreground">
+          Drag a document onto a board to pin it for your team.
+        </p>
+      )}
       <div
         className={cn(
           "rounded-lg transition-shadow",
@@ -299,8 +321,11 @@ function SectionHeading({
 /** Compact card preview that follows the cursor during a pin/unpin drag. */
 function DragGhost({ title }: { title: string }) {
   return (
-    <div className="flex h-12 w-56 items-center gap-2 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
-      <FileText className="size-4 shrink-0 text-muted-foreground" />
+    <div className="flex h-12 w-56 items-center gap-2.5 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
+      <FileText
+        strokeWidth={1.5}
+        className="size-4 shrink-0 text-muted-foreground"
+      />
       <span className="truncate text-sm font-medium">{title}</span>
     </div>
   );

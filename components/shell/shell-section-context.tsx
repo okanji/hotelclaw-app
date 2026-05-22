@@ -3,14 +3,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
-/** The six rail sections. */
+/** The seven rail sections. */
 export type ShellSection =
   | "activity"
   | "chat"
   | "dms"
   | "tasks"
   | "calendar"
-  | "docs";
+  | "docs"
+  | "meetings";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
@@ -22,6 +23,7 @@ function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/calendar")) return "calendar";
   if (pathname.includes("/documents")) return "docs";
+  if (pathname.includes("/meetings")) return "meetings";
   if (pathname.includes("/dms")) return "dms";
   if (
     pathname.includes("/chat") ||
@@ -47,6 +49,7 @@ const ALL_SECTIONS: ShellSection[] = [
   "tasks",
   "calendar",
   "docs",
+  "meetings",
 ];
 
 /** Narrow an untrusted string (e.g. a cookie value) to a ShellSection. */

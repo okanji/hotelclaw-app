@@ -17,7 +17,7 @@ export type MeetingRecurrence = {
   byday?: number[];
 };
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
-export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
 // Kept in sync with the CHECK in migration 0013_document_boards.sql.
 export type BoardColor =
   | "slate"

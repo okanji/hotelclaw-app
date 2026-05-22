@@ -20,6 +20,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-icon-accent: var(--icon-accent);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -102,6 +103,10 @@
   --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0 0 0 / 8%);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Apple-Mail-style blue used as the universal "doc / nav item" icon accent
+     across the sidebar AND the docs home page. Slightly darker on light mode
+     for contrast against the off-white surface, lighter on dark. */
+  --icon-accent: oklch(0.58 0.172 248);
 }
 
 .dark {
@@ -143,6 +148,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 5%);
   --sidebar-ring: oklch(0.556 0 0);
+  --icon-accent: oklch(0.73 0.138 245);
 }
 
 /* Chat inset fill — kept distinct from --card so other card surfaces
@@ -443,3 +449,16 @@
 }
 
 /* Slack-style Stream Chat tweaks live in ./stream-chat-overrides.css (loaded AFTER Stream CSS). */
+
+/* Liveblocks Tiptap toolbar layout fallback. The full Liveblocks stylesheet
+   ships in a route-level chunk (imported from app/p/[propertyId]/documents/layout.tsx),
+   which on a hard page load can arrive a tick after the toolbar paints — leaving
+   the buttons stacked vertically as default block elements. These rules live in
+   globals.css (root layout) so the row layout is correct from the first frame;
+   spacing/colors still come from the upstream stylesheet. */
+.lb-tiptap-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}

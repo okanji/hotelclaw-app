@@ -48,7 +48,7 @@ export function InboxSidebarLink({
         <Inbox />
         <span>Inbox</span>
         {unread > 0 ? (
-          <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+          <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[11px] font-medium leading-none text-sidebar-foreground/70 tabular-nums">
             {unread > 99 ? "99+" : unread}
           </span>
         ) : null}
