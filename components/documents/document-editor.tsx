@@ -49,7 +49,7 @@ import {
   documentsTreeQueryOptions,
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
-import { renameDocument, syncDocumentSnippet } from "./actions";
+import { renameDocument } from "./actions";
 import { DocumentLastEdited } from "./document-last-edited";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
@@ -68,10 +68,10 @@ import { SubPage } from "./sub-page-node";
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
-// Body content churns much harder than the title — longer debounce keeps the
-// write rate sane while still feeling near-live to anyone navigating to home.
-const SNIPPET_SYNC_DEBOUNCE_MS = 1500;
-const SNIPPET_MAX_LENGTH = 500;
+// Body persistence is server-driven now: the Liveblocks `ydocUpdated`
+// webhook captures a snapshot (binary + plaintext + JSON) per room per
+// ~60s — see app/api/liveblocks/webhook/route.ts. No client-side
+// debounce hits Postgres on the body anymore.
 
 /**
  * Document editor entry point. The title + breadcrumb ancestors are derived
@@ -114,6 +114,8 @@ export function DocumentEditor({
         cursor: null,
         selectedTaskId: null,
         draggingTaskId: null,
+        editingEventId: null,
+        focusedDay: null,
       }}
     >
       <ClientSideSuspense fallback={<EditorSkeleton />}>
@@ -248,7 +250,6 @@ function EditorInner({
   });
 
   useTitleSync(editor, documentId);
-  useSnippetSync(editor, documentId);
 
   // Liveblocks still down after the timeout — seed the title locally so the
   // page isn't a blank canvas (remote content will merge when WS recovers).
@@ -387,58 +388,6 @@ function useTitleSync(editor: Editor | null, documentId: string) {
           console.warn("document title sync failed:", res.error);
         }
       }, TITLE_SYNC_DEBOUNCE_MS);
-    }
-
-    editor.on("update", schedule);
-    return () => {
-      if (timer) clearTimeout(timer);
-      editor.off("update", schedule);
-    };
-  }, [editor, documentId]);
-}
-
-/**
- * Mirrors the first ~500 chars of plain-text body content (everything AFTER
- * the title node) to `documents.body_snippet`, debounced. Powers the
- * page-thumbnail cards on the docs-home boards — see `DocCard` in
- * `doc-boards-section.tsx`. Best-effort: errors are warned and swallowed;
- * Yjs owns the real content. Skipped on the empty-body case so a fresh
- * doc's `body_snippet` doesn't get repeatedly rewritten to the same string.
- */
-function useSnippetSync(editor: Editor | null, documentId: string) {
-  useEffect(() => {
-    if (!editor) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let lastSent: string | null = null;
-
-    function currentSnippet(): string {
-      const doc = editor!.state.doc;
-      const first = doc.firstChild;
-      if (!first) return "";
-      // Slice past the title node — the first block's `nodeSize` is the
-      // ProseMirror position immediately after it.
-      const start = first.nodeSize;
-      const end = doc.content.size;
-      if (start >= end) return "";
-      // `\n` between blocks gives the card a natural multi-line shape.
-      return doc
-        .textBetween(start, end, "\n", " ")
-        .trim()
-        .slice(0, SNIPPET_MAX_LENGTH);
-    }
-
-    function schedule() {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(async () => {
-        const next = currentSnippet();
-        if (next === lastSent) return;
-        lastSent = next;
-        const res = await syncDocumentSnippet(documentId, next);
-        if ("error" in res) {
-          // Best-effort — the home will still render the previous snippet.
-          console.warn("document snippet sync failed:", res.error);
-        }
-      }, SNIPPET_SYNC_DEBOUNCE_MS);
     }
 
     editor.on("update", schedule);

@@ -60,6 +60,12 @@ type Props = {
   initial:
     | { mode: "create"; start: Date; end: Date }
     | { mode: "edit"; event: CalendarEvent };
+  /**
+   * Called after a successful save/delete. The calendar room hooks this up
+   * to broadcast `calendar-invalidate` over Liveblocks so peers refresh
+   * immediately instead of waiting for Supabase Realtime.
+   */
+  onMutated?: () => void;
 };
 
 /** Datetime-local takes "YYYY-MM-DDTHH:mm" in *local* time. */
@@ -86,6 +92,7 @@ export function EventDialog({
   open,
   onOpenChange,
   initial,
+  onMutated,
 }: Props) {
   const editing = initial.mode === "edit" ? initial.event : null;
   const isMeeting = editing?.source === "meeting" || initial.mode === "create";
@@ -172,6 +179,7 @@ export function EventDialog({
       }
       toast.success(editing ? "Event updated" : "Event created");
       qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
+      onMutated?.();
       onOpenChange(false);
     });
   }
@@ -194,6 +202,7 @@ export function EventDialog({
       }
       toast.success("Event deleted");
       qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
+      onMutated?.();
       onOpenChange(false);
     });
   }

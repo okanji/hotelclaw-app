@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -9,8 +9,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquareText, Plus } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useBroadcastEvent,
+  useEventListener,
+  useUpdateMyPresence,
+} from "@liveblocks/react/suspense";
 import { Button } from "@/components/ui/button";
 import {
   addDays,
@@ -34,6 +39,11 @@ import { EventDialog } from "./event-dialog";
 import { TeamOverlayPanel } from "./team-overlay-panel";
 import { TaskScheduleRail } from "./task-schedule-rail";
 import { useCalendarRealtime } from "./use-calendar-realtime";
+import { CalendarPresenceBar } from "./presence-bar";
+import { PresenceCursors } from "./presence-cursors";
+import { CalendarAiPanel } from "./calendar-ai-panel";
+import { CalendarAiKnowledge } from "./calendar-ai-knowledge";
+import { CalendarAiTools } from "./calendar-ai-tools";
 import type { CalendarEvent } from "@/lib/calendar/types";
 
 /** "May 18 – 24, 2026" / "May 18, 2026" / "May 2026". */
@@ -117,6 +127,27 @@ export function CalendarRoom({
 
   useCalendarRealtime(propertyId, currentUserId);
 
+  const qc = useQueryClient();
+
+  // Liveblocks room broadcast: any peer that mutated the calendar fires
+  // `calendar-invalidate` on save. We listen and invalidate immediately,
+  // skipping the Supabase Realtime round-trip lag. The realtime hook
+  // still runs as a fallback in case the room isn't connected.
+  const broadcast = useBroadcastEvent();
+  useEventListener(({ event }) => {
+    if (event.type === "calendar-invalidate") {
+      qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
+    }
+  });
+
+  // Tell peers what day we're on (drives the avatar-stack tooltip).
+  const updatePresence = useUpdateMyPresence();
+  useEffect(() => {
+    updatePresence({ focusedDay: focusDate.toISOString() });
+  }, [focusDate, updatePresence]);
+
+  const [aiOpen, setAiOpen] = useState(false);
+
   const eventsQuery = useQuery(
     calendarEventsQueryOptions(propertyId, range),
   );
@@ -153,7 +184,6 @@ export function CalendarRoom({
     return map;
   }, [membersQuery.data]);
 
-  const qc = useQueryClient();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
@@ -189,6 +219,7 @@ export function CalendarRoom({
     toast.success("Task scheduled");
     qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
     qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+    broadcast({ type: "calendar-invalidate" });
   }
 
   // Apply the sidebar's hide-checkbox filter client-side. The query stays
@@ -260,7 +291,16 @@ export function CalendarRoom({
             {formatRange(view, focusDate)}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <CalendarPresenceBar />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAiOpen((v) => !v)}
+          >
+            <MessageSquareText className="size-4" />
+            Ask Claude
+          </Button>
           <Button
             size="sm"
             onClick={() => {
@@ -276,7 +316,7 @@ export function CalendarRoom({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
           {view === "month" ? (
             <MonthGrid
               focusDate={focusDate}
@@ -298,6 +338,10 @@ export function CalendarRoom({
               onSelectEvent={(event) => setDialog({ mode: "edit", event })}
             />
           )}
+          {/* Peer cursors overlaying the grid. Positioned absolute inside
+              this `relative` wrapper so they line up with the time grid
+              regardless of how the rails on the right compress it. */}
+          <PresenceCursors />
         </div>
         <div className="flex shrink-0 flex-col">
           <TaskScheduleRail propertyId={propertyId} />
@@ -317,8 +361,33 @@ export function CalendarRoom({
             if (!open) setDialog(null);
           }}
           initial={dialog}
+          onMutated={() => broadcast({ type: "calendar-invalidate" })}
         />
       ) : null}
+
+      {/* AI plumbing — mounted unconditionally so the copilot always sees
+          fresh knowledge (current events, members, focus date) regardless
+          of whether the panel is open. The tools register globally for the
+          chat too. The panel itself is what slides in/out. */}
+      <CalendarAiKnowledge
+        propertyId={propertyId}
+        events={events}
+        members={membersQuery.data ?? []}
+        focusDate={focusDate}
+      />
+      <CalendarAiTools
+        propertyId={propertyId}
+        currentUserId={currentUserId}
+        broadcastInvalidate={() =>
+          broadcast({ type: "calendar-invalidate" })
+        }
+      />
+      <CalendarAiPanel
+        propertyId={propertyId}
+        currentUserId={currentUserId}
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+      />
     </section>
     </DndContext>
   );

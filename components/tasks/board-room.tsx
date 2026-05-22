@@ -30,6 +30,8 @@ export function TasksBoardRoom({
         cursor: null,
         selectedTaskId: null,
         draggingTaskId: null,
+        editingEventId: null,
+        focusedDay: null,
       }}
     >
       <Suspense fallback={<TasksBoardSkeleton />}>

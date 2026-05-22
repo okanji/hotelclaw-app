@@ -16,6 +16,15 @@ declare global {
       // Task currently being dragged by this user on the Kanban board, so
       // other people in the room can see a live "being moved" indicator.
       draggingTaskId: string | null;
+      // Calendar room: which event (meeting id, or task scheduled-block id)
+      // this user currently has open in the edit dialog. Null when not in
+      // the calendar or no dialog open. Drives "Alice is editing" chips on
+      // other people's grids.
+      editingEventId: string | null;
+      // Calendar room: the day the user has focusDate on. Powers the small
+      // "Alice • Aug 4" pill in the live-collaborators avatar stack so a
+      // teammate can jump to whatever week they're looking at.
+      focusedDay: string | null;
     };
     Storage: Record<string, never>;
     RoomEvent:
@@ -28,7 +37,12 @@ declare global {
           taskId: string;
           status: TaskStatus;
           position: number;
-        };
+        }
+      // Calendar: a peer just mutated a meeting / attendee / scheduled task.
+      // Receivers invalidate the calendar query immediately instead of
+      // waiting for the Supabase Realtime hop, which can lag a second or
+      // two under load. Postgres + Realtime stay authoritative.
+      | { type: "calendar-invalidate" };
     ThreadMetadata: {
       taskId?: string;
     };

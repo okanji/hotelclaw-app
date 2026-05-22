@@ -51,6 +51,8 @@ export function TaskRoom({
         cursor: null,
         selectedTaskId: task.id,
         draggingTaskId: null,
+        editingEventId: null,
+        focusedDay: null,
       }}
     >
       <Suspense fallback={<TaskDetailSkeleton />}>

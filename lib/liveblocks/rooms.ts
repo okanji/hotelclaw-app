@@ -19,6 +19,17 @@ export function roomIdForDocument(propertyId: string, documentId: string) {
 }
 
 /**
+ * The calendar room — one per property, not per-user. Everyone in the
+ * property who has the calendar open joins the same room so they show up
+ * in each other's avatar stacks + cursor overlays. AI chats are stored
+ * per user via a separate chatId; the room is for presence and broadcasts,
+ * not chat state.
+ */
+export function roomIdForCalendar(propertyId: string) {
+  return `property:${propertyId}:calendar`;
+}
+
+/**
  * Pull a property uuid out of any room id we generate. Returns null for room
  * ids that don't follow the `property:<uuid>:...` shape so callers can fail
  * closed instead of leaking across tenants.
@@ -27,4 +38,23 @@ export function propertyIdFromRoomId(roomId: string): string | null {
   const [scope, propertyId] = roomId.split(":");
   if (scope !== "property" || !propertyId) return null;
   return propertyId;
+}
+
+/**
+ * Parse a document room id (`property:<pid>:doc:<did>`) into its parts. Used
+ * by the Liveblocks `ydocUpdated` webhook (`app/api/liveblocks/webhook/route.ts`)
+ * to route a snapshot back to the right `documents` row. Returns `null` for
+ * any other room shape — task rooms, board rooms, malformed ids — so callers
+ * can ignore non-doc traffic without false matches.
+ */
+export function parseDocumentRoomId(
+  roomId: string,
+): { propertyId: string; documentId: string } | null {
+  const parts = roomId.split(":");
+  if (parts.length !== 4) return null;
+  const [scope, propertyId, kind, documentId] = parts;
+  if (scope !== "property" || kind !== "doc" || !propertyId || !documentId) {
+    return null;
+  }
+  return { propertyId, documentId };
 }
