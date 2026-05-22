@@ -22,8 +22,8 @@ function CardSkeleton() {
       </div>
       {/* Description preview */}
       <Skeleton className="mt-1.5 ml-5 h-2.5 w-[70%]" />
-      {/* Priority chip */}
-      <Skeleton className="mt-1.5 h-5 w-6 rounded-full" />
+      {/* Priority chip — ring + dashes when unset */}
+      <Skeleton className="mt-1.5 size-5 rounded-full" />
       {/* Created date */}
       <Skeleton className="mt-1.5 h-2.5 w-24" />
     </div>
@@ -47,17 +47,17 @@ export function TasksBoardSkeleton() {
         <Skeleton className="h-7 w-24 rounded-md" />
       </header>
 
-      {/* Toolbar — Linear-style: status pill tabs on the left, view-mode
-          icon group + search + filter/sort icons on the right. */}
+      {/* Toolbar — status pills on the left, labeled view buttons + search +
+          filter/sort icons on the right. */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-3">
         <Skeleton className="h-6 w-16 rounded-full" />
         <Skeleton className="h-6 w-14 rounded-full" />
         <Skeleton className="h-6 w-16 rounded-full" />
         <div className="ml-auto flex items-center gap-1">
           <div className="flex items-center gap-0.5">
-            <Skeleton className="size-7 rounded-md" />
-            <Skeleton className="size-7 rounded-md" />
-            <Skeleton className="size-7 rounded-md" />
+            <Skeleton className="h-7 w-14 rounded-md" />
+            <Skeleton className="h-7 w-12 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
           </div>
           <Skeleton className="ml-1 h-7 w-44 rounded-md" />
           <Skeleton className="size-7 rounded-md" />

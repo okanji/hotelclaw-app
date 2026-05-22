@@ -43,7 +43,9 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose }: Props)
         propertyId,
         title: trimmed,
         status,
-        priority: "medium",
+        // New quick-add tasks start unprioritised — same as Linear and the
+        // full create dialog default.
+        priority: "none",
       });
       if ("error" in result) {
         toast.error(result.error);

@@ -30,6 +30,7 @@ const UpdateSchema = z.object({
   status: z.enum(Statuses).optional(),
   priority: z.enum(Priorities).optional(),
   assigneeId: z.string().uuid().nullable().optional(),
+  dueAt: z.string().nullable().optional(),
 });
 
 const MoveSchema = z.object({
@@ -118,6 +119,7 @@ export async function updateTask(
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
   if (parsed.data.assigneeId !== undefined)
     patch.assignee_id = parsed.data.assigneeId;
+  if (parsed.data.dueAt !== undefined) patch.due_at = parsed.data.dueAt;
 
   // Changing status moves the card to a different column — drop it at the
   // top so it doesn't inherit a stale position from its old column.

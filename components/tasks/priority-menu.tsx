@@ -39,6 +39,7 @@ export function PriorityChip({
 }: PriorityChipProps) {
   const [pending, startTransition] = useTransition();
   const meta = PRIORITY_META[priority];
+  const isNone = priority === "none";
 
   function setPriority(next: TaskPriority) {
     if (next === priority) return;
@@ -63,23 +64,27 @@ export function PriorityChip({
             onClick={stopDrag ? (e) => e.stopPropagation() : undefined}
             disabled={pending}
             className={cn(
-              // Sized to match Linear's resting chip — 20px tall × 24px wide.
-              // The bars/dashes inside are ~12px wide so this leaves a 6px
-              // gutter on each side without feeling cramped.
-              "inline-flex h-5 w-6 items-center justify-center rounded-full",
-              "border border-border/60 bg-transparent",
+              isNone
+                ? // Ring + dashes live in the SVG — no extra chrome on the button.
+                  "inline-flex size-5 items-center justify-center rounded-full border-0 bg-transparent p-0 shadow-none"
+                : "inline-flex h-5 w-6 items-center justify-center rounded-full border border-border/60 bg-transparent",
               "text-muted-foreground transition-colors",
-              "hover:border-border hover:bg-foreground/5 hover:text-foreground",
+              !isNone &&
+                "hover:border-border hover:bg-foreground/5 hover:text-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "aria-expanded:border-border aria-expanded:bg-foreground/5",
-              "data-popup-open:border-border data-popup-open:bg-foreground/5",
+              !isNone && "aria-expanded:border-border aria-expanded:bg-foreground/5",
+              !isNone && "data-popup-open:border-border data-popup-open:bg-foreground/5",
+              isNone && "hover:text-foreground/90",
               "disabled:opacity-50",
               className,
             )}
           />
         }
       >
-        <PriorityBars priority={priority} />
+        <PriorityBars
+          priority={priority}
+          noneVariant={isNone ? "chip" : "inline"}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56 p-1">
         <PriorityMenuHeader />

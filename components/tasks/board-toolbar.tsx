@@ -158,8 +158,8 @@ export function BoardToolbar({
           </span>
         ) : null}
 
-        {/* View mode — icon-only segmented group. Lives inline so the
-            user can flip between Board/List/Timeline without a popover. */}
+        {/* View mode — explicit labeled buttons for clarity while keeping
+            the same minimal toolbar density. */}
         <div
           role="tablist"
           aria-label="View mode"
@@ -173,16 +173,17 @@ export function BoardToolbar({
                 type="button"
                 role="tab"
                 aria-selected={active}
-                aria-label={label}
-                title={label}
                 onClick={() => onChangeView(id)}
                 className={cn(
-                  TOOLBAR_ICON_BUTTON,
+                  "inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.75rem] font-medium text-muted-foreground transition-colors",
+                  "hover:bg-foreground/[0.06] hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active &&
                     "bg-foreground/[0.08] text-foreground hover:bg-foreground/[0.08]",
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-3.5" />
+                <span>{label}</span>
               </button>
             );
           })}

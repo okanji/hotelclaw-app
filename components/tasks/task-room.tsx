@@ -42,6 +42,7 @@ export function TaskRoom({
     priority: row.priority,
     assigneeId: row.assignee_id,
     dueAt: row.due_at,
+    createdAt: row.created_at,
   };
 
   return (

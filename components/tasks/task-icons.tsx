@@ -112,34 +112,96 @@ export function StatusIcon({
 
 const BAR_HEIGHTS = ["h-[5px]", "h-[8px]", "h-[11px]"] as const;
 
+/**
+ * Linear's empty-priority affordance — a thin ring with three centered dashes.
+ * `chip` is the on-card trigger; `inline` is the menu-row glyph (dashes only).
+ */
+export function NoPriorityGlyph({
+  variant = "inline",
+  className,
+}: {
+  variant?: "chip" | "inline";
+  className?: string;
+}) {
+  if (variant === "chip") {
+    return (
+      <svg
+        aria-hidden
+        viewBox="0 0 16 16"
+        className={cn("size-5 shrink-0 text-muted-foreground/70", className)}
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="6.25"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.25"
+        />
+        <line
+          x1="4.75"
+          y1="8"
+          x2="6.1"
+          y2="8"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          strokeLinecap="round"
+        />
+        <line
+          x1="7.45"
+          y1="8"
+          x2="8.55"
+          y2="8"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          strokeLinecap="round"
+        />
+        <line
+          x1="9.9"
+          y1="8"
+          x2="11.25"
+          y2="8"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <span
+      role="img"
+      aria-label="No priority"
+      className={cn(
+        "inline-flex h-3 shrink-0 items-center gap-[2px]",
+        className,
+      )}
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-[2px] w-[3.5px] rounded-full bg-muted-foreground/80"
+        />
+      ))}
+    </span>
+  );
+}
+
 export function PriorityBars({
   priority,
   className,
+  /** When `chip`, no-priority renders the full ring+dashes SVG for the card. */
+  noneVariant = "inline",
 }: {
   priority: TaskPriority;
   className?: string;
+  noneVariant?: "chip" | "inline";
 }) {
   const meta = PRIORITY_META[priority];
 
   if (priority === "none") {
-    return (
-      <span
-        role="img"
-        aria-label="No priority"
-        title="No priority"
-        className={cn(
-          "inline-flex h-3 shrink-0 items-end gap-[2px]",
-          className,
-        )}
-      >
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="h-[1.5px] w-[3px] rounded-[1px] bg-foreground/40"
-          />
-        ))}
-      </span>
-    );
+    return <NoPriorityGlyph variant={noneVariant} className={className} />;
   }
 
   if (priority === "urgent") {

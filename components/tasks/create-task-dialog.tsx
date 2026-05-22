@@ -74,7 +74,7 @@ export function CreateTaskDialog({
       toast.success("Task created");
       setTitle("");
       setDescription("");
-      setPriority("medium");
+      setPriority("none");
       onOpenChange(false);
       onCreated();
     });
