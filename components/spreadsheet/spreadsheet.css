@@ -197,6 +197,19 @@
   z-index: 4;
 }
 
+/* AutoFill drag preview — single dashed rectangle (Google Sheets style)
+   spanning the union of the seed selection and the current drag target.
+   Positioned absolutely inside the scaled `tableContainerStyle` div, so it
+   inherits the zoom transform and scrolls with the table. */
+.hc-sheet-fill-preview {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+  border: 2px dashed var(--hc-sheet-selection);
+  background: color-mix(in oklab, var(--hc-sheet-selection) 6%, transparent);
+  box-sizing: border-box;
+}
+
 /* Other users' selection — rendered as a colored outline. The accent color
    is set inline via `--hc-other-color`. */
 .hc-sheet-cell[data-other-color] {

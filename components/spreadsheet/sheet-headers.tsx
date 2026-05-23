@@ -222,26 +222,29 @@ function Handle({
           }
         />
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onSelect={() => onInsertBefore(index)}>
+          {/* Base UI Menu.Item fires onClick, not onSelect (which is the
+              Radix convention). Using onSelect here was a silent no-op — the
+              rest of the codebase wires DropdownMenuItem via onClick. */}
+          <DropdownMenuItem onClick={() => onInsertBefore(index)}>
             Insert {axis === "column" ? "column left" : "row above"}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onInsertAfter(index)}>
+          <DropdownMenuItem onClick={() => onInsertAfter(index)}>
             Insert {axis === "column" ? "column right" : "row below"}
           </DropdownMenuItem>
           {onSort ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onSort(index, "asc")}>
+              <DropdownMenuItem onClick={() => onSort(index, "asc")}>
                 Sort A → Z
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onSort(index, "desc")}>
+              <DropdownMenuItem onClick={() => onSort(index, "desc")}>
                 Sort Z → A
               </DropdownMenuItem>
             </>
           ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={() => onDelete(index)}
+            onClick={() => onDelete(index)}
             disabled={count <= 1}
             className="text-destructive focus:text-destructive"
           >

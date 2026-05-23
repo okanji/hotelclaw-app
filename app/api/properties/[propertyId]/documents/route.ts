@@ -17,19 +17,7 @@ export async function GET(
   }
 
   try {
-    const docs = await getDocuments(supabase, propertyId);
-    // TEMP debug for "All documents disappears" — remove once root cause found.
-    console.log(
-      "[docs-api]",
-      propertyId,
-      "user=",
-      user.id.slice(0, 6),
-      "rows=",
-      docs.length,
-      "first=",
-      docs[0]?.id?.slice(0, 6) ?? "—",
-    );
-    return NextResponse.json(docs);
+    return NextResponse.json(await getDocuments(supabase, propertyId));
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Failed to load documents" },

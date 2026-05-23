@@ -24,6 +24,8 @@ import {
   type CSSProperties,
 } from "react";
 import {
+  useCanRedo,
+  useCanUndo,
   useHistory,
   useMyPresence,
   useOthers,
@@ -31,7 +33,7 @@ import {
   useStorage,
 } from "@liveblocks/react/suspense";
 import { usePinch } from "@use-gesture/react";
-import { Plus, Redo2, Undo2 } from "lucide-react";
+import { Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { encodeCellId } from "@/lib/spreadsheet/cell-id";
@@ -106,6 +108,8 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     | CellMatrix
     | undefined;
   const history = useHistory();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
 
   const insertColumn = useInsertColumn();
   const insertRow = useInsertRow();
@@ -770,6 +774,8 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     transformOrigin: "top left",
     // Avoid the unscaled phantom area from breaking scroll. width compensates.
     width: `${100 / zoom}%`,
+    // The fill-drag preview overlay positions absolutely against this box.
+    position: "relative",
   };
 
   const fillCornerId = useMemo(() => {
@@ -779,6 +785,41 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     if (!col || !row) return null;
     return encodeCellId(col, row);
   }, [selectionBounds, colIds, rowIds]);
+
+  /**
+   * Pixel rectangle of the fill preview — the union of seed + drag target,
+   * shown as a dashed border while the user drags the AutoFill handle.
+   *
+   * Returns `null` when there's no fill in progress, or when the cursor is
+   * still inside the seed (no preview until the user actually extends the
+   * range). Layout is in unscaled CSS pixels; the parent table is wrapped in
+   * a `transform: scale(zoom)` div so the overlay inherits the same scale.
+   */
+  const fillPreviewRect = useMemo(() => {
+    if (!autoFillState) return null;
+    const sx = colIndex(autoFillState.seed.start.columnId);
+    const sy = rowIndex(autoFillState.seed.start.rowId);
+    const ex = colIndex(autoFillState.seed.end.columnId);
+    const ey = rowIndex(autoFillState.seed.end.rowId);
+    const tx = colIndex(autoFillState.target.columnId);
+    const ty = rowIndex(autoFillState.target.rowId);
+    if (sx < 0 || sy < 0 || ex < 0 || ey < 0 || tx < 0 || ty < 0) return null;
+    // No preview if the cursor hasn't left the seed yet.
+    if (tx >= sx && tx <= ex && ty >= sy && ty <= ey) return null;
+    const minX = Math.min(sx, tx);
+    const maxX = Math.max(ex, tx);
+    const minY = Math.min(sy, ty);
+    const maxY = Math.max(ey, ty);
+    let left = ROW_HEADER_WIDTH;
+    for (let i = 0; i < minX; i++) left += columns[i]?.width ?? 0;
+    let top = COLUMN_HEADER_HEIGHT;
+    for (let i = 0; i < minY; i++) top += rows[i]?.height ?? 0;
+    let width = 0;
+    for (let i = minX; i <= maxX; i++) width += columns[i]?.width ?? 0;
+    let height = 0;
+    for (let i = minY; i <= maxY; i++) height += rows[i]?.height ?? 0;
+    return { left, top, width, height };
+  }, [autoFillState, colIndex, rowIndex, columns, rows]);
 
   return (
     <div
@@ -797,26 +838,6 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
         onPatch={formatPatch}
       />
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/60 px-4 py-1.5">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => insertColumn(columns.length)}
-          title="Add column"
-          className="h-7"
-        >
-          <Plus className="size-4" /> Column
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => insertRow(rows.length)}
-          title="Add row"
-          className="h-7"
-        >
-          <Plus className="size-4" /> Row
-        </Button>
         <div className="ml-auto flex items-center gap-1">
           <Button
             type="button"
@@ -825,6 +846,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
             onClick={() => history.undo()}
             title="Undo (Cmd+Z)"
             className="size-7"
+            disabled={!canUndo}
           >
             <Undo2 className="size-4" />
           </Button>
@@ -835,6 +857,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
             onClick={() => history.redo()}
             title="Redo (Cmd+Shift+Z)"
             className="size-7"
+            disabled={!canRedo}
           >
             <Redo2 className="size-4" />
           </Button>
@@ -1040,6 +1063,18 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
                     ))}
                   </tbody>
                 </table>
+                {fillPreviewRect ? (
+                  <div
+                    aria-hidden
+                    className="hc-sheet-fill-preview"
+                    style={{
+                      left: fillPreviewRect.left,
+                      top: fillPreviewRect.top,
+                      width: fillPreviewRect.width,
+                      height: fillPreviewRect.height,
+                    }}
+                  />
+                ) : null}
               </div>
             </div>
           </HeadersDnd>

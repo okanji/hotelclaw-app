@@ -234,17 +234,18 @@ function AlignButton({
         }
       />
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onSelect={() => onPatch({ align: "left" })}>
+        {/* Base UI Menu.Item fires onClick, not onSelect. */}
+        <DropdownMenuItem onClick={() => onPatch({ align: "left" })}>
           <AlignLeft className="size-4" /> Left
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onPatch({ align: "center" })}>
+        <DropdownMenuItem onClick={() => onPatch({ align: "center" })}>
           <AlignCenter className="size-4" /> Center
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onPatch({ align: "right" })}>
+        <DropdownMenuItem onClick={() => onPatch({ align: "right" })}>
           <AlignRight className="size-4" /> Right
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => onPatch({ align: undefined })}>
+        <DropdownMenuItem onClick={() => onPatch({ align: undefined })}>
           Reset
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -314,7 +315,7 @@ function ColorButton({
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() =>
+          onClick={() =>
             onPatch(
               kind === "text"
                 ? { textColor: undefined }
@@ -370,7 +371,7 @@ function NumberFormatButton({
           {FORMATS.map((f) => (
             <DropdownMenuItem
               key={f.id}
-              onSelect={() => onPatch({ numberFormat: f.id })}
+              onClick={() => onPatch({ numberFormat: f.id })}
               className={cn(current === f.id && "bg-muted")}
             >
               {f.label}

@@ -28,16 +28,6 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .limit(50);
-  // TEMP: trace "All documents disappears" — remove once root cause found.
-  console.log(
-    "[getDocuments]",
-    "property=",
-    propertyId.slice(0, 8),
-    "error=",
-    error?.message ?? "none",
-    "rows=",
-    data?.length ?? 0,
-  );
   if (error) throw new Error(error.message);
   return data ?? [];
 }

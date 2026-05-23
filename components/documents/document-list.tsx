@@ -13,30 +13,9 @@ import { documentsQueryOptions } from "@/lib/query/section-queries";
  * activation distance (6px) means a plain click still navigates.
  */
 export function DocumentList({ propertyId }: { propertyId: string }) {
-  const query = useQuery(documentsQueryOptions(propertyId));
-  const { data: docs, isPending, isError, error } = query;
-
-  // TEMP: trace "All documents disappears" — remove once root cause found.
-  if (typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
-    console.log(
-      "[DocumentList]",
-      "isPending=",
-      isPending,
-      "isFetching=",
-      query.isFetching,
-      "dataLen=",
-      docs?.length,
-      "fetchStatus=",
-      query.fetchStatus,
-      "status=",
-      query.status,
-      "errored=",
-      isError,
-      "updatedAt=",
-      new Date(query.dataUpdatedAt).toISOString().slice(11, 23),
-    );
-  }
+  const { data: docs, isPending, isError, error } = useQuery(
+    documentsQueryOptions(propertyId),
+  );
 
   // First streamed render before the hydrated list lands.
   if (isPending) return <DocumentListSkeleton />;
