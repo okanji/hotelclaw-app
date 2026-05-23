@@ -85,6 +85,48 @@ export function tokenize(input: string): AnyToken[] {
       i++;
       continue;
     }
+    if (ch === "&") {
+      tokens.push({ kind: SyntaxKind.AmpersandToken });
+      i++;
+      continue;
+    }
+    // Two-char comparison operators have to be tried before single-char
+    // `<` and `>` so `<=`, `>=`, `<>` lex as one token.
+    if (ch === "<") {
+      const next = input[i + 1];
+      if (next === "=") {
+        tokens.push({ kind: SyntaxKind.LessEqualToken });
+        i += 2;
+        continue;
+      }
+      if (next === ">") {
+        tokens.push({ kind: SyntaxKind.NotEqualsToken });
+        i += 2;
+        continue;
+      }
+      tokens.push({ kind: SyntaxKind.LessThanToken });
+      i++;
+      continue;
+    }
+    if (ch === ">") {
+      const next = input[i + 1];
+      if (next === "=") {
+        tokens.push({ kind: SyntaxKind.GreaterEqualToken });
+        i += 2;
+        continue;
+      }
+      tokens.push({ kind: SyntaxKind.GreaterThanToken });
+      i++;
+      continue;
+    }
+    // The leading `=` of a formula is stripped before tokenize() is called
+    // (see `index.ts` — `input.slice(1)`). So any `=` we see here is the
+    // comparison operator.
+    if (ch === "=") {
+      tokens.push({ kind: SyntaxKind.EqualsToken });
+      i++;
+      continue;
+    }
 
     const slice = input.slice(i);
 

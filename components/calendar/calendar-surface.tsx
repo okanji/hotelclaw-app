@@ -40,6 +40,7 @@ export function CalendarSurface({
         focusedDay: null,
         selectedCell: null,
         selectionRange: null,
+        activeSheetId: null,
       }}
     >
       {/* Suspense boundary keeps the calendar from flashing while the

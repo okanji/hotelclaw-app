@@ -39,10 +39,15 @@ export type { ExpressionResult } from "./syntax";
 /**
  * Spreadsheet shape needed to expand a range — the ordered column + row id
  * arrays so we can find the rectangle between two arbitrary cell ids.
+ * Optionally carries workbook-scoped named ranges; passing them lets
+ * `=Revenue` and other identifier-style refs resolve to their stored range.
  */
 export type GridShape = {
   columnIds: readonly string[];
   rowIds: readonly string[];
+  namedRanges?: Readonly<
+    Record<string, { sheetId: string; startRef: string; endRef: string }>
+  >;
 };
 
 /**
@@ -104,6 +109,19 @@ function evalAst(
       // A bare range in non-function context: collapse to its top-left value,
       // mirroring Google Sheets' implicit intersection.
       return evalAst({ kind: SyntaxKind.Ref, ref: node.startRef }, shape, resolve);
+    case SyntaxKind.NamedRef: {
+      // Bare named-range reference outside a function: collapse to its
+      // top-left value, just like a plain range does above. Lookup is
+      // case-insensitive to match Excel / Sheets — `=Revenue`, `=REVENUE`,
+      // and `=revenue` all resolve to the same definition.
+      const named = lookupNamedRange(shape, node.name);
+      if (!named) return { type: "error" };
+      return evalAst(
+        { kind: SyntaxKind.Ref, ref: named.startRef },
+        shape,
+        resolve,
+      );
+    }
     case SyntaxKind.UnaryExpression: {
       const u = node as UnaryExpressionNode;
       const v = evalAst(u.operand, shape, resolve);
@@ -117,12 +135,27 @@ function evalAst(
       const b = node as BinaryExpressionNode;
       const lr = evalAst(b.left, shape, resolve);
       const rr = evalAst(b.right, shape, resolve);
-      // String concat with `+` if either side is a string. Otherwise both
-      // must be numeric.
+
+      // String concat via `&`. Coerces both sides to string regardless of
+      // their evaluated type (matches Excel/Sheets).
+      if (b.operator === SyntaxKind.AmpersandToken) {
+        return { type: "string", value: stringifyForConcat(lr) + stringifyForConcat(rr) };
+      }
+
+      // Comparison operators return booleans. Type-mixed comparisons follow
+      // Sheets rules: same-type compares directly; different-type compares
+      // by type rank (numbers < strings < booleans).
+      if (isComparison(b.operator)) {
+        return compareOp(lr, rr, b.operator);
+      }
+
+      // Implicit `+` concat when either side is a string (legacy behavior;
+      // most users still type `=A1+" "+B1` so we keep it).
       if (b.operator === SyntaxKind.PlusToken && (lr.type === "string" || rr.type === "string")) {
-        const ls = lr.type === "number" ? String(lr.value) : (lr.type === "string" ? lr.value : "");
-        const rs = rr.type === "number" ? String(rr.value) : (rr.type === "string" ? rr.value : "");
-        return { type: "string", value: ls + rs };
+        return {
+          type: "string",
+          value: stringifyForConcat(lr) + stringifyForConcat(rr),
+        };
       }
       if (lr.type !== "number" || rr.type !== "number") return { type: "error" };
       const l = lr.value;
@@ -166,8 +199,155 @@ function evalAsArg(
     const refs = expandRange(node as RangeNode, shape);
     return { type: "range", refs };
   }
+  if (node.kind === SyntaxKind.NamedRef) {
+    const named = lookupNamedRange(shape, node.name);
+    if (!named) return { type: "error" };
+    const refs = expandRange(
+      {
+        kind: SyntaxKind.Range,
+        startRef: named.startRef,
+        endRef: named.endRef,
+      },
+      shape,
+    );
+    return { type: "range", refs };
+  }
   const r = evalAst(node, shape, resolve);
   return r;
+}
+
+/**
+ * Case-insensitive named-range lookup. Returns the first matching definition
+ * by lowercased name, or `null`. Excel / Sheets treat names this way; we do
+ * the same so users don't have to remember capitalization.
+ *
+ * Cross-sheet caveat: the evaluator only knows the *active* sheet's column
+ * / row id arrays (passed via `shape`). A named range pointing into another
+ * sheet's storage will have refs whose ids don't appear in `shape.columnIds`
+ * / `shape.rowIds`, so `expandRange` returns `[]` and aggregators silently
+ * yield zero. To avoid that misleading zero we explicitly return `null`
+ * when the named range's `sheetId` doesn't match the active shape — surfacing
+ * `#ERR` to the user, which is the honest result until cross-sheet refs are
+ * wired through the evaluator.
+ *
+ * Same-sheet lookups (the common case) work as before.
+ */
+function lookupNamedRange(
+  shape: GridShape,
+  name: string,
+): { sheetId: string; startRef: string; endRef: string } | null {
+  if (!shape.namedRanges) return null;
+  const target = name.toLowerCase();
+  for (const [k, v] of Object.entries(shape.namedRanges)) {
+    if (k.toLowerCase() === target) {
+      // Cross-sheet refs aren't supported by the evaluator yet — if the
+      // range's home sheet is different from the active shape's sheet, we
+      // can't expand it correctly. Surface that as an error rather than
+      // silently summing to zero.
+      const startSheet = sheetIdFor(v.startRef, shape);
+      if (startSheet === null) return null;
+      return v;
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns "ok" if the ref's column/row both live in the active shape, `null`
+ * otherwise. Used by `lookupNamedRange` to guard against cross-sheet refs
+ * the evaluator can't resolve yet.
+ */
+function sheetIdFor(ref: string, shape: GridShape): "ok" | null {
+  const at = ref.indexOf("@");
+  if (at <= 0) return null;
+  const colId = ref.slice(0, at);
+  const rowId = ref.slice(at + 1);
+  if (shape.columnIds.indexOf(colId) < 0) return null;
+  if (shape.rowIds.indexOf(rowId) < 0) return null;
+  return "ok";
+}
+
+function isComparison(op: SyntaxKind): boolean {
+  return (
+    op === SyntaxKind.EqualsToken ||
+    op === SyntaxKind.NotEqualsToken ||
+    op === SyntaxKind.LessThanToken ||
+    op === SyntaxKind.LessEqualToken ||
+    op === SyntaxKind.GreaterThanToken ||
+    op === SyntaxKind.GreaterEqualToken
+  );
+}
+
+function stringifyForConcat(r: ExpressionResult): string {
+  if (r.type === "string") return r.value;
+  if (r.type === "number") {
+    // Trim trailing JS-noise decimals (`0.30000000000000004`).
+    const rounded = Math.round(r.value * 1e10) / 1e10;
+    return String(rounded);
+  }
+  if (r.type === "boolean") return r.value ? "TRUE" : "FALSE";
+  return "#ERR";
+}
+
+/**
+ * Type-rank ordering for cross-type comparisons (matches Sheets):
+ * numbers < strings < booleans. Within a type, compare directly.
+ */
+function typeRank(r: ExpressionResult): number {
+  switch (r.type) {
+    case "number":
+      return 1;
+    case "string":
+      return 2;
+    case "boolean":
+      return 3;
+    default:
+      return 0; // error — never returned from compareOp
+  }
+}
+
+function compareOp(
+  lr: ExpressionResult,
+  rr: ExpressionResult,
+  op: SyntaxKind,
+): ExpressionResult {
+  if (lr.type === "error" || rr.type === "error") return { type: "error" };
+  let cmp: number;
+  if (lr.type === rr.type) {
+    if (lr.type === "number" && rr.type === "number") {
+      cmp = lr.value < rr.value ? -1 : lr.value > rr.value ? 1 : 0;
+    } else if (lr.type === "string" && rr.type === "string") {
+      cmp = lr.value.localeCompare(rr.value);
+    } else if (lr.type === "boolean" && rr.type === "boolean") {
+      cmp = lr.value === rr.value ? 0 : lr.value ? 1 : -1;
+    } else {
+      cmp = 0;
+    }
+  } else {
+    cmp = typeRank(lr) - typeRank(rr);
+  }
+  let result = false;
+  switch (op) {
+    case SyntaxKind.EqualsToken:
+      result = cmp === 0;
+      break;
+    case SyntaxKind.NotEqualsToken:
+      result = cmp !== 0;
+      break;
+    case SyntaxKind.LessThanToken:
+      result = cmp < 0;
+      break;
+    case SyntaxKind.LessEqualToken:
+      result = cmp <= 0;
+      break;
+    case SyntaxKind.GreaterThanToken:
+      result = cmp > 0;
+      break;
+    case SyntaxKind.GreaterEqualToken:
+      result = cmp >= 0;
+      break;
+  }
+  return { type: "boolean", value: result };
 }
 
 /**

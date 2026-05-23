@@ -130,6 +130,20 @@ export type HeaderHandleProps = {
   onSelectAxis?: (index: number, shiftKey: boolean) => void;
   /** Only for column headers: sort the column. */
   onSort?: (index: number, direction: "asc" | "desc") => void;
+  /** Hide this column/row from the grid (keeps the underlying data + cell ids). */
+  onHide?: (index: number) => void;
+  /** Set the workbook's "freeze through this column/row" setting. */
+  onFreezeUpTo?: (index: number) => void;
+  /** Unfreeze entirely (resets to 0). */
+  onUnfreeze?: () => void;
+  /** Currently has any frozen items on this axis. Drives the menu item label. */
+  isFrozen?: boolean;
+  /** Mark this item as part of an outline group (level 1). */
+  onGroup?: (index: number) => void;
+  /** Remove the group level. */
+  onUngroup?: (index: number) => void;
+  /** Whether this item currently has a group level. */
+  isGrouped?: boolean;
 };
 
 /** Inner content for a column `<th>`. Provides drag, resize, and the menu. */
@@ -156,6 +170,13 @@ function Handle({
   onDelete,
   onSelectAxis,
   onSort,
+  onHide,
+  onFreezeUpTo,
+  onUnfreeze,
+  isFrozen,
+  onGroup,
+  onUngroup,
+  isGrouped,
 }: HeaderHandleProps & { axis: "column" | "row" }) {
   const sortable = useSortable({ id });
   const startSize = useRef(size);
@@ -221,7 +242,7 @@ function Handle({
             </button>
           }
         />
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
           {/* Base UI Menu.Item fires onClick, not onSelect (which is the
               Radix convention). Using onSelect here was a silent no-op — the
               rest of the codebase wires DropdownMenuItem via onClick. */}
@@ -231,6 +252,41 @@ function Handle({
           <DropdownMenuItem onClick={() => onInsertAfter(index)}>
             Insert {axis === "column" ? "column right" : "row below"}
           </DropdownMenuItem>
+          {onHide ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onHide(index)}>
+                Hide {axis === "column" ? "column" : "row"}
+              </DropdownMenuItem>
+            </>
+          ) : null}
+          {onFreezeUpTo ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onFreezeUpTo(index)}>
+                Freeze up to this {axis === "column" ? "column" : "row"}
+              </DropdownMenuItem>
+              {isFrozen ? (
+                <DropdownMenuItem onClick={() => onUnfreeze?.()}>
+                  Unfreeze
+                </DropdownMenuItem>
+              ) : null}
+            </>
+          ) : null}
+          {onGroup ? (
+            <>
+              <DropdownMenuSeparator />
+              {isGrouped ? (
+                <DropdownMenuItem onClick={() => onUngroup?.(index)}>
+                  Ungroup {axis === "column" ? "column" : "row"}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onGroup(index)}>
+                  Group {axis === "column" ? "column" : "row"}
+                </DropdownMenuItem>
+              )}
+            </>
+          ) : null}
           {onSort ? (
             <>
               <DropdownMenuSeparator />

@@ -139,7 +139,7 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-6 py-8 sm:py-10 lg:max-w-7xl">
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 py-8 sm:py-10 lg:max-w-7xl">
         {/* Title row keeps actions hugging the heading; the description
             stacks underneath so the page breathes without forcing a
             justify-between gap on smaller widths. */}

@@ -82,6 +82,46 @@
   /* Numbers right-aligned, anything else left. The cell sets a data-attr. */
 }
 
+/* Format-painter armed: any cell hover advertises that the next click paints. */
+.hc-sheet-root[data-painter="true"] .hc-sheet-cell {
+  cursor: copy;
+}
+
+/* Floating charts over the grid. */
+.hc-sheet-chart {
+  background: var(--hc-sheet-cell-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+.hc-sheet-chart-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  cursor: move;
+  user-select: none;
+}
+.hc-sheet-chart-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+}
+.hc-sheet-chart-resize {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--border) 50%);
+}
+
 .hc-sheet-cell[data-type="number"] .hc-sheet-cell-text {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -94,12 +134,26 @@
 .hc-sheet-cell-text {
   display: block;
   padding: 4px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   text-align: left;
   height: 100%;
   line-height: 1.4;
+}
+
+/* Three wrap modes. Default ("overflow") matches Excel/Sheets: long strings
+   extend rightward visually but the cell still has the truncate-with-
+   ellipsis fallback when the neighbor isn't empty. */
+.hc-sheet-wrap-overflow {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hc-sheet-wrap-wrap {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.hc-sheet-wrap-clip {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .hc-sheet-cell[data-selected="true"] {
@@ -176,6 +230,27 @@
 .hc-sheet-cell[data-match="true"] {
   background: color-mix(in oklab, hsl(50 90% 50%) 20%, transparent);
 }
+/* Data-validation invalid input → red dashed border. */
+.hc-sheet-cell[data-invalid="true"] {
+  outline: 2px dashed hsl(0 70% 55%);
+  outline-offset: -2px;
+}
+
+/* Checkbox cell — inline input centered. */
+.hc-sheet-checkbox {
+  margin: 4px 8px;
+  cursor: pointer;
+}
+
+/* Sparkline SVG fills the entire cell content area. */
+.hc-sheet-sparkline {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+
 .hc-sheet-cell[data-active-match="true"] {
   background: color-mix(in oklab, hsl(50 95% 50%) 40%, transparent);
   outline: 2px solid hsl(50 95% 45%);
@@ -185,6 +260,22 @@
 /* AutoFill drag handle — small blue square in the bottom-right corner of
    the selection rectangle. Captured cell sits inside a positioned td so the
    handle hangs off the corner cleanly. */
+/* Comment indicator — small orange triangle in the top-right corner. Drawn
+   with a CSS border-trick so the triangle uses the cell's stacking context
+   and stays on top of background fills + selection chrome. */
+.hc-sheet-comment-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 7px 7px 0;
+  border-color: transparent #f97316 transparent transparent;
+  pointer-events: none;
+  z-index: 4;
+}
+
 .hc-sheet-fill-handle {
   position: absolute;
   right: -3px;

@@ -34,6 +34,7 @@ export function TasksBoardRoom({
         focusedDay: null,
         selectedCell: null,
         selectionRange: null,
+        activeSheetId: null,
       }}
     >
       <Suspense fallback={<TasksBoardSkeleton />}>

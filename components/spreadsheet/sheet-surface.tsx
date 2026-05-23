@@ -33,14 +33,35 @@ import {
   useStorage,
 } from "@liveblocks/react/suspense";
 import { usePinch } from "@use-gesture/react";
-import { ChevronDown, Plus, Redo2, Undo2 } from "lucide-react";
+import {
+  BarChart3,
+  ChevronDown,
+  Database,
+  FileDown,
+  Lock,
+  Plus,
+  Printer,
+  Redo2,
+  Undo2,
+  Unlock,
+  Upload,
+} from "lucide-react";
+import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { encodeCellId } from "@/lib/spreadsheet/cell-id";
 import {
@@ -58,22 +79,72 @@ import {
   type GridShape,
 } from "@/lib/spreadsheet/formula";
 import { unwriteRefsToA1 } from "@/lib/spreadsheet/initial";
+import { getColumnLabel } from "@/lib/spreadsheet/formula/utils";
+import { evaluateConditionalFormats } from "@/lib/spreadsheet/conditional-format";
+import type {
+  ConditionalRule,
+  DataValidationRule,
+} from "@/liveblocks.config";
 import {
+  useAddChart,
+  useAddConditionalRule,
+  useAddNamedRange,
+  useRemoveDuplicates,
+  useAddSheet,
   useAutoFill,
   useClearCells,
+  useDeleteChart,
   useDeleteColumn,
+  useDeleteConditionalRule,
+  useDeleteNamedRange,
   useDeleteRow,
+  useDeleteSheet,
+  useDuplicateSheet,
+  useUpdateChart,
   useInsertColumn,
   useInsertRow,
+  useMergeCells,
+  useMigrateLegacy,
   useMoveColumn,
   useMoveRow,
   usePasteRange,
+  useRenameSheet,
+  useReorderSheet,
   useResizeColumn,
   useResizeRow,
+  useSetActiveSheet,
   useSetCellFormat,
   useSetCellValue,
+  useSetFreeze,
+  useSetGroupLevel,
+  useSetSheetColor,
+  useSetValidation,
   useSortColumn,
+  useToggleHideColumn,
+  useToggleHideRow,
+  useToggleProtectSheet,
+  useUnmergeCells,
 } from "@/lib/spreadsheet/mutations";
+import {
+  SheetNamedRangesPanel,
+  type NamedRangeRow,
+} from "./sheet-named-ranges-dialog";
+import {
+  CommentsSidebarButton,
+  NewCellCommentButton,
+  useActiveSheetCommentCellIds,
+} from "./sheet-cell-comments";
+import { SheetChartsLayer, type ChartSpec } from "./sheet-charts";
+import { SheetContextMenu, type ContextMenuSection } from "./sheet-context-menu";
+import { SheetShortcutsModal } from "./sheet-shortcuts";
+import type { ChartType } from "@/liveblocks.config";
+import {
+  exportCsv,
+  exportTsv,
+  exportXlsx,
+  importSpreadsheetFile,
+  sheetToMatrix,
+} from "@/lib/spreadsheet/io";
 import type {
   CellFormat,
   SheetCellAddress,
@@ -82,10 +153,13 @@ import { SheetCell, type CellOther } from "./sheet-cell";
 import { SheetFindReplace, type FindMatch } from "./sheet-find-replace";
 import {
   SheetFormatToolbar,
+  type BorderPreset,
   type FormatPatch,
 } from "./sheet-format-toolbar";
+import type { CellBorder } from "@/liveblocks.config";
 import { SheetFormulaBar, cellLabelFor } from "./sheet-formula-bar";
 import { ColumnHandle, HeadersDnd, RowHandle } from "./sheet-headers";
+import { SheetTabBar } from "./sheet-tab-bar";
 import "./spreadsheet.css";
 
 /** Liveblocks LiveMap renders to a plain readonly record under `useStorage`. */
@@ -108,35 +182,296 @@ type AutoFillState = {
 
 /** Top-level for one room's grid. */
 export function SheetSurface({ documentId }: { documentId?: string } = {}) {
-  const columns = useStorage((root) => root.spreadsheet?.columns ?? []);
-  const rows = useStorage((root) => root.spreadsheet?.rows ?? []);
-  const cells = useStorage((root) => root.spreadsheet?.cells) as
-    | CellMatrix
-    | undefined;
+  // ── Storage selectors ────────────────────────────────────────────────────
+  // The workbook lives at `root.workbook`. Pre-workbook rooms still carry the
+  // legacy `root.spreadsheet` shape; we detect that, auto-promote via
+  // `useMigrateLegacy`, and render a brief skeleton while the migration
+  // commits. After the migration both shapes coexist for one render then
+  // settle on `workbook`.
+  const hasWorkbook = useStorage((root) => root.workbook != null);
+  const hasLegacy = useStorage(
+    (root) => root.workbook == null && root.spreadsheet != null,
+  );
+  const sheetsList = useStorage((root) =>
+    root.workbook?.sheets ?? [],
+  ) as ReadonlyArray<{
+    id: string;
+    title: string;
+    color?: string;
+    cells: CellMatrix;
+    columns: ReadonlyArray<{ id: string; width: number; hidden?: boolean }>;
+    rows: ReadonlyArray<{ id: string; height: number; hidden?: boolean }>;
+    merges: Readonly<Record<string, string>>;
+    frozenRows: number;
+    frozenColumns: number;
+    conditionalRules?: Readonly<Record<string, ConditionalRule>>;
+    validations?: Readonly<Record<string, DataValidationRule>>;
+    protected?: boolean;
+    groupLevelsRow?: Readonly<Record<string, number>>;
+    groupLevelsCol?: Readonly<Record<string, number>>;
+    collapsedRows?: Readonly<Record<string, true>>;
+    collapsedCols?: Readonly<Record<string, true>>;
+  }>;
+  const remoteActiveSheetId = useStorage(
+    (root) => root.workbook?.activeSheetId ?? null,
+  );
+  const namedRanges = useStorage(
+    (root) => root.workbook?.namedRanges ?? {},
+  ) as Readonly<
+    Record<string, { sheetId: string; startRef: string; endRef: string }>
+  >;
+
+  // Each user picks their own active sheet locally. The workbook's
+  // `activeSheetId` is just the "last viewer" so a new joiner lands on
+  // something sensible — switching sheets doesn't yank other users.
+  const [localActiveSheetId, setLocalActiveSheetId] = useState<string | null>(
+    null,
+  );
+  const activeSheetId =
+    localActiveSheetId ?? remoteActiveSheetId ?? sheetsList[0]?.id ?? "";
+  const activeSheet =
+    sheetsList.find((s) => s.id === activeSheetId) ?? sheetsList[0];
+
+  // Surface the active sheet's slices to the rest of the component.
+  const columns = activeSheet?.columns ?? [];
+  const rows = activeSheet?.rows ?? [];
+  const cells = activeSheet?.cells as CellMatrix | undefined;
+
   const history = useHistory();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
 
-  const insertColumn = useInsertColumn();
-  const insertRow = useInsertRow();
-  const deleteColumn = useDeleteColumn();
-  const deleteRow = useDeleteRow();
-  const moveColumn = useMoveColumn();
-  const moveRow = useMoveRow();
-  const resizeColumn = useResizeColumn();
-  const resizeRow = useResizeRow();
-  const setCellValue = useSetCellValue();
-  const setCellFormat = useSetCellFormat();
-  const sortColumn = useSortColumn();
-  const autoFill = useAutoFill();
-  const clearCells = useClearCells();
-  const pasteRange = usePasteRange();
+  const migrateLegacy = useMigrateLegacy();
+  // Fire-once migration when we detect legacy storage. Liveblocks's
+  // mutation hook returns a stable function so this effect only fires when
+  // `hasLegacy` flips from false → true (i.e. on first connect against a
+  // pre-workbook room).
+  useEffect(() => {
+    if (hasLegacy) migrateLegacy();
+  }, [hasLegacy, migrateLegacy]);
+
+  // Bound mutations: thread `activeSheetId` so the surface doesn't have to
+  // pass it at every call site. `useMutation` returns a stable identity per
+  // render with the same closure deps, so wrapping with useCallback keeps
+  // the API ergonomic without sacrificing re-render efficiency.
+  const insertColumnRaw = useInsertColumn();
+  const insertRowRaw = useInsertRow();
+  const deleteColumnRaw = useDeleteColumn();
+  const deleteRowRaw = useDeleteRow();
+  const moveColumnRaw = useMoveColumn();
+  const moveRowRaw = useMoveRow();
+  const resizeColumnRaw = useResizeColumn();
+  const resizeRowRaw = useResizeRow();
+  const setCellValueRaw = useSetCellValue();
+  const setCellFormatRaw = useSetCellFormat();
+  const sortColumnRaw = useSortColumn();
+  const autoFillRaw = useAutoFill();
+  const clearCellsRaw = useClearCells();
+  const pasteRangeRaw = usePasteRange();
+
+  const insertColumn = useCallback(
+    (idx: number, w?: number) => insertColumnRaw(activeSheetId, idx, w),
+    [insertColumnRaw, activeSheetId],
+  );
+  const insertRow = useCallback(
+    (idx: number, h?: number) => insertRowRaw(activeSheetId, idx, h),
+    [insertRowRaw, activeSheetId],
+  );
+  const deleteColumn = useCallback(
+    (idx: number) => deleteColumnRaw(activeSheetId, idx),
+    [deleteColumnRaw, activeSheetId],
+  );
+  const deleteRow = useCallback(
+    (idx: number) => deleteRowRaw(activeSheetId, idx),
+    [deleteRowRaw, activeSheetId],
+  );
+  const moveColumn = useCallback(
+    (from: number, to: number) => moveColumnRaw(activeSheetId, from, to),
+    [moveColumnRaw, activeSheetId],
+  );
+  const moveRow = useCallback(
+    (from: number, to: number) => moveRowRaw(activeSheetId, from, to),
+    [moveRowRaw, activeSheetId],
+  );
+  const resizeColumn = useCallback(
+    (idx: number, w: number) => resizeColumnRaw(activeSheetId, idx, w),
+    [resizeColumnRaw, activeSheetId],
+  );
+  const resizeRow = useCallback(
+    (idx: number, h: number) => resizeRowRaw(activeSheetId, idx, h),
+    [resizeRowRaw, activeSheetId],
+  );
+  const setCellValue = useCallback(
+    (col: string, row: string, value: string) =>
+      setCellValueRaw(activeSheetId, col, row, value),
+    [setCellValueRaw, activeSheetId],
+  );
+  const setCellFormat = useCallback(
+    (
+      addresses: ReadonlyArray<{ columnId: string; rowId: string }>,
+      patch: Partial<CellFormat>,
+    ) => setCellFormatRaw(activeSheetId, addresses, patch),
+    [setCellFormatRaw, activeSheetId],
+  );
+  const sortColumn = useCallback(
+    (idx: number, dir: "asc" | "desc") =>
+      sortColumnRaw(activeSheetId, idx, dir),
+    [sortColumnRaw, activeSheetId],
+  );
+  const autoFill = useCallback(
+    (
+      stl: { columnId: string; rowId: string },
+      sbr: { columnId: string; rowId: string },
+      ttl: { columnId: string; rowId: string },
+      tbr: { columnId: string; rowId: string },
+    ) => autoFillRaw(activeSheetId, stl, sbr, ttl, tbr),
+    [autoFillRaw, activeSheetId],
+  );
+  const clearCells = useCallback(
+    (addresses: ReadonlyArray<{ columnId: string; rowId: string }>) =>
+      clearCellsRaw(activeSheetId, addresses),
+    [clearCellsRaw, activeSheetId],
+  );
+  const pasteRange = useCallback(
+    (
+      topLeft: { columnId: string; rowId: string },
+      matrix: ReadonlyArray<ReadonlyArray<string>>,
+    ) => pasteRangeRaw(activeSheetId, topLeft, matrix),
+    [pasteRangeRaw, activeSheetId],
+  );
+
+  // Workbook-level mutations (no sheetId on most).
+  const addSheet = useAddSheet();
+  const deleteSheet = useDeleteSheet();
+  const renameSheet = useRenameSheet();
+  const duplicateSheet = useDuplicateSheet();
+  const reorderSheet = useReorderSheet();
+  const setActiveSheet = useSetActiveSheet();
+  const setSheetColor = useSetSheetColor();
+  const toggleHideColumnRaw = useToggleHideColumn();
+  const toggleHideRowRaw = useToggleHideRow();
+  const setFreezeRaw = useSetFreeze();
+  const hideColumn = useCallback(
+    (idx: number) => toggleHideColumnRaw(activeSheetId, idx, true),
+    [toggleHideColumnRaw, activeSheetId],
+  );
+  const hideRow = useCallback(
+    (idx: number) => toggleHideRowRaw(activeSheetId, idx, true),
+    [toggleHideRowRaw, activeSheetId],
+  );
+  const showAllColumns = useCallback(() => {
+    columns.forEach((c, i) => {
+      if (c.hidden) toggleHideColumnRaw(activeSheetId, i, false);
+    });
+  }, [columns, toggleHideColumnRaw, activeSheetId]);
+  const showAllRows = useCallback(() => {
+    rows.forEach((r, i) => {
+      if (r.hidden) toggleHideRowRaw(activeSheetId, i, false);
+    });
+  }, [rows, toggleHideRowRaw, activeSheetId]);
+  const freezeColumns = useCallback(
+    (count: number) =>
+      setFreezeRaw(activeSheetId, activeSheet?.frozenRows ?? 0, count),
+    [setFreezeRaw, activeSheetId, activeSheet?.frozenRows],
+  );
+  const freezeRows = useCallback(
+    (count: number) =>
+      setFreezeRaw(activeSheetId, count, activeSheet?.frozenColumns ?? 0),
+    [setFreezeRaw, activeSheetId, activeSheet?.frozenColumns],
+  );
+
+  const addNamedRange = useAddNamedRange();
+  const deleteNamedRange = useDeleteNamedRange();
+  const mergeCellsRaw = useMergeCells();
+  const unmergeCellsRaw = useUnmergeCells();
+
+  // Data tools — conditional formatting, validation, sheet protection
+  const addConditionalRuleRaw = useAddConditionalRule();
+  const deleteConditionalRuleRaw = useDeleteConditionalRule();
+  const setValidationRaw = useSetValidation();
+  const toggleProtectRaw = useToggleProtectSheet();
+  const setGroupLevelRaw = useSetGroupLevel();
+  const removeDuplicatesRaw = useRemoveDuplicates();
+  void setGroupLevelRaw;
+  /** Delete a conditional-format rule by id (used by the rules manager). */
+  const deleteConditionalRule = useCallback(
+    (ruleId: string) => {
+      if (!activeSheetId) return;
+      deleteConditionalRuleRaw(activeSheetId, ruleId);
+    },
+    [deleteConditionalRuleRaw, activeSheetId],
+  );
+
+  // Charts — `insertChart` lives further down (depends on colIds/rowIds and
+  // a ref into `selectionBounds`).
+  const addChartRaw = useAddChart();
+  const updateChartRaw = useUpdateChart();
+  const deleteChartRaw = useDeleteChart();
+  const chartsList = useStorage(
+    (root) => root.workbook?.charts ?? [],
+  ) as ReadonlyArray<ChartSpec>;
+  const selectionBoundsRef = useRef<{
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null>(null);
+  // `mergeSelection` is declared below — depends on `selectionBounds`.
+  // Named-range memos are computed below `selection`/`colIndex`/`rowIndex`
+  // (search "namedRangeRows" later in this file).
+
+  // Conditional-format + validation memos are computed below `cellGraph` —
+  // search "conditionalOverrides" further down in this file.
+
+  /** Cell ids on the active sheet that carry an unresolved comment thread. */
+  const cellsWithComments = useActiveSheetCommentCellIds(activeSheetId || "");
+  /** sheetId → title (for the comments sidebar grouping label). */
+  const sheetTitlesMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of sheetsList) m.set(s.id, s.title);
+    return m;
+  }, [sheetsList]);
+  // `switchToCellAcrossSheets` is defined after `switchSheet` below — search
+  // for it.
 
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [edition, setEdition] = useState<EditionState>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    columnId: string;
+    rowId: string;
+  } | null>(null);
   const draggingRef = useRef<"select" | null>(null);
   const [autoFillState, setAutoFillState] = useState<AutoFillState>(null);
   const fillingRef = useRef(false);
+
+  const switchSheet = useCallback(
+    (sheetId: string) => {
+      setLocalActiveSheetId(sheetId);
+      setActiveSheet(sheetId);
+      // Selection/edition are per-sheet — clear them on switch so we don't
+      // restore stale coordinates from a different sheet's cell ids.
+      setSelection(null);
+      setEdition(null);
+    },
+    [setActiveSheet],
+  );
+
+  /** Switch to a sheet + select the targeted cell. Used by the comments sidebar. */
+  const switchToCellAcrossSheets = useCallback(
+    (sheetId: string, cellId: string) => {
+      const at = cellId.indexOf("@");
+      if (at <= 0) return;
+      switchSheet(sheetId);
+      setSelection({
+        start: { columnId: cellId.slice(0, at), rowId: cellId.slice(at + 1) },
+        end: { columnId: cellId.slice(0, at), rowId: cellId.slice(at + 1) },
+      });
+    },
+    [switchSheet],
+  );
 
   // ── Zoom ──────────────────────────────────────────────────────────────────
   const zoomStorageKey = documentId
@@ -224,7 +559,8 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     },
   );
 
-  // Mirror selection into presence so collaborators see our cursor.
+  // Mirror selection + active sheet into presence so collaborators see our
+  // cursor AND know which sheet to render it on.
   const [, updatePresence] = useMyPresence();
   useEffect(() => {
     updatePresence({
@@ -232,15 +568,57 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
         ? encodeCellId(selection.start.columnId, selection.start.rowId)
         : null,
       selectionRange: selection,
+      activeSheetId: activeSheetId || null,
     });
-  }, [selection, updatePresence]);
+  }, [selection, activeSheetId, updatePresence]);
+
+  // ── Visible columns/rows + freeze offsets ────────────────────────────────
+  // Hidden columns/rows aren't rendered but their cell ids remain valid for
+  // formula references. The grid loop iterates `visibleColumns` /
+  // `visibleRows`; the `index` on each entry is the STORAGE index (what
+  // mutations expect), distinct from the visible position.
+  const visibleColumns = useMemo(
+    () =>
+      columns
+        .map((c, i) => ({ ...c, index: i }))
+        .filter((c) => !c.hidden),
+    [columns],
+  );
+  const visibleRows = useMemo(
+    () => rows.map((r, i) => ({ ...r, index: i })).filter((r) => !r.hidden),
+    [rows],
+  );
+
+  const frozenColumnsCount = activeSheet?.frozenColumns ?? 0;
+  const frozenRowsCount = activeSheet?.frozenRows ?? 0;
+
+  /** Cumulative left offset (data-cell coords) for each visible column. */
+  const columnLeftOffsets = useMemo(() => {
+    const out: number[] = [];
+    let left = 0;
+    for (const c of visibleColumns) {
+      out.push(left);
+      left += c.width;
+    }
+    return out;
+  }, [visibleColumns]);
+  /** Cumulative top offset (data-cell coords) for each visible row. */
+  const rowTopOffsets = useMemo(() => {
+    const out: number[] = [];
+    let top = 0;
+    for (const r of visibleRows) {
+      out.push(top);
+      top += r.height;
+    }
+    return out;
+  }, [visibleRows]);
 
   // ── Cell graph evaluation ─────────────────────────────────────────────────
   const colIds = useMemo(() => columns.map((c) => c.id), [columns]);
   const rowIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const shape: GridShape = useMemo(
-    () => ({ columnIds: colIds, rowIds }),
-    [colIds, rowIds],
+    () => ({ columnIds: colIds, rowIds, namedRanges }),
+    [colIds, rowIds, namedRanges],
   );
 
   const rawCellsByKey = useMemo(() => {
@@ -256,6 +634,35 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     [rawCellsByKey, shape],
   );
 
+  /**
+   * Conditional-format overrides per cell. Computed AFTER `cellGraph` so
+   * formula rules can read evaluated values. Each entry is merged onto the
+   * cell's stored `format` before rendering.
+   */
+  const conditionalOverrides = useMemo(() => {
+    if (!activeSheet) return new Map<string, Partial<CellFormat>>();
+    const rules = activeSheet.conditionalRules
+      ? Object.values(activeSheet.conditionalRules)
+      : [];
+    if (rules.length === 0) return new Map<string, Partial<CellFormat>>();
+    return evaluateConditionalFormats(
+      rules as ConditionalRule[],
+      shape,
+      rawCellsByKey,
+      cellGraph,
+    );
+  }, [activeSheet, shape, rawCellsByKey, cellGraph]);
+
+  /** Validation rules for the active sheet, keyed by cellId. */
+  const validations = useMemo(() => {
+    const map = new Map<string, DataValidationRule>();
+    if (!activeSheet?.validations) return map;
+    for (const [k, v] of Object.entries(activeSheet.validations)) {
+      map.set(k, v as DataValidationRule);
+    }
+    return map;
+  }, [activeSheet]);
+
   // ── Other users' selections ───────────────────────────────────────────────
   const self = useSelf();
   const others = useOthers();
@@ -263,11 +670,35 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     const map = new Map<string, CellOther>();
     for (const other of others) {
       if (!other.presence?.selectedCell) continue;
+      // Only show another user's selection on the sheet I'm currently
+      // viewing. Workbook presence carries `activeSheetId`; if it's missing
+      // (very old clients) we fall back to "show always", matching the
+      // single-sheet era behavior.
+      const remoteSheet = other.presence.activeSheetId;
+      if (remoteSheet != null && activeSheetId && remoteSheet !== activeSheetId) {
+        continue;
+      }
       const color = colorFor(other.connectionId);
       map.set(other.presence.selectedCell, {
         color,
         name: other.info?.name ?? "Anonymous",
       });
+    }
+    return map;
+  }, [others, activeSheetId]);
+
+  /** Avatar dots on each sheet tab — who is currently viewing it. */
+  const viewersBySheet = useMemo(() => {
+    const map = new Map<string, Array<{ name: string; color: string }>>();
+    for (const other of others) {
+      const sheetId = other.presence?.activeSheetId;
+      if (!sheetId) continue;
+      const entry = map.get(sheetId) ?? [];
+      entry.push({
+        name: other.info?.name ?? "Anonymous",
+        color: colorFor(other.connectionId),
+      });
+      map.set(sheetId, entry);
     }
     return map;
   }, [others]);
@@ -292,12 +723,364 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     };
   }, [selection, colIndex, rowIndex]);
 
+  // Keep a ref synced to `selectionBounds` so the `insertChart` callback
+  // (which is captured before selectionBounds is computed) reads the latest.
+  useEffect(() => {
+    selectionBoundsRef.current = selectionBounds;
+  }, [selectionBounds]);
+
   const setSingle = useCallback((columnId: string, rowId: string) => {
     setSelection({
       start: { columnId, rowId },
       end: { columnId, rowId },
     });
   }, []);
+
+  /**
+   * Merge maps. `merges` keys are top-left cellIds, values are bottom-right.
+   * Computed once per render after `colIds`/`rowIds` are known:
+   *   - `mergeSpans`: top-left cellId → {colSpan, rowSpan} for table render
+   *   - `mergeHidden`: Set of cellIds that should NOT render at all
+   */
+  const { mergeSpans, mergeHidden } = useMemo(() => {
+    const spans = new Map<string, { colSpan: number; rowSpan: number }>();
+    const hidden = new Set<string>();
+    if (!activeSheet) return { mergeSpans: spans, mergeHidden: hidden };
+    for (const [tl, br] of Object.entries(activeSheet.merges)) {
+      const tlAt = tl.indexOf("@");
+      const brAt = br.indexOf("@");
+      if (tlAt <= 0 || brAt <= 0) continue;
+      const tlCol = tl.slice(0, tlAt);
+      const tlRow = tl.slice(tlAt + 1);
+      const brCol = br.slice(0, brAt);
+      const brRow = br.slice(brAt + 1);
+      const x1 = colIds.indexOf(tlCol);
+      const x2 = colIds.indexOf(brCol);
+      const y1 = rowIds.indexOf(tlRow);
+      const y2 = rowIds.indexOf(brRow);
+      if (x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0) continue;
+      const minX = Math.min(x1, x2);
+      const maxX = Math.max(x1, x2);
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+      spans.set(tl, { colSpan: maxX - minX + 1, rowSpan: maxY - minY + 1 });
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          if (x === minX && y === minY) continue;
+          const c = colIds[x];
+          const r = rowIds[y];
+          if (c && r) hidden.add(encodeCellId(c, r));
+        }
+      }
+    }
+    return { mergeSpans: spans, mergeHidden: hidden };
+  }, [activeSheet, colIds, rowIds]);
+
+  // ── Merge bound helpers (need `selectionBounds` + `colIds`/`rowIds`) ─────
+  const mergeSelection = useCallback(() => {
+    if (!selectionBounds || !activeSheetId) return;
+    const tlCol = colIds[selectionBounds.minX];
+    const tlRow = rowIds[selectionBounds.minY];
+    const brCol = colIds[selectionBounds.maxX];
+    const brRow = rowIds[selectionBounds.maxY];
+    if (!tlCol || !tlRow || !brCol || !brRow) return;
+    if (tlCol === brCol && tlRow === brRow) return;
+    mergeCellsRaw(
+      activeSheetId,
+      { columnId: tlCol, rowId: tlRow },
+      { columnId: brCol, rowId: brRow },
+    );
+  }, [mergeCellsRaw, activeSheetId, colIds, rowIds, selectionBounds]);
+  const unmergeSelection = useCallback(() => {
+    if (!selectionBounds || !activeSheetId) return;
+    const tlCol = colIds[selectionBounds.minX];
+    const tlRow = rowIds[selectionBounds.minY];
+    if (!tlCol || !tlRow) return;
+    unmergeCellsRaw(activeSheetId, encodeCellId(tlCol, tlRow));
+  }, [unmergeCellsRaw, activeSheetId, colIds, rowIds, selectionBounds]);
+
+  /** Quick conditional format: "highlight if > 0" / colorScale on selection. */
+  const addQuickConditionalRule = useCallback(
+    (
+      preset:
+        | "highlightGT0"
+        | "highlightLT0"
+        | "colorScaleRedGreen"
+        | "highlightNonEmpty",
+    ) => {
+      if (!selectionBoundsRef.current || !activeSheetId) return;
+      const b = selectionBoundsRef.current;
+      const tl = colIds[b.minX];
+      const tr = rowIds[b.minY];
+      const br = colIds[b.maxX];
+      const brr = rowIds[b.maxY];
+      if (!tl || !tr || !br || !brr) return;
+      const range = {
+        startRef: encodeCellId(tl, tr),
+        endRef: encodeCellId(br, brr),
+      };
+      const id = nanoid(8);
+      const rule: ConditionalRule = (() => {
+        switch (preset) {
+          case "highlightGT0":
+            return {
+              id,
+              range,
+              condition: { kind: "cellIs", op: "gt", value: "0" },
+              format: { bgColor: "#dcfce7" },
+            };
+          case "highlightLT0":
+            return {
+              id,
+              range,
+              condition: { kind: "cellIs", op: "lt", value: "0" },
+              format: { bgColor: "#fee2e2" },
+            };
+          case "colorScaleRedGreen":
+            return {
+              id,
+              range,
+              condition: {
+                kind: "colorScale",
+                minColor: "#fee2e2",
+                midColor: "#fef3c7",
+                maxColor: "#dcfce7",
+              },
+              format: {},
+            };
+          case "highlightNonEmpty":
+            return {
+              id,
+              range,
+              condition: { kind: "isNotEmpty" },
+              format: { bgColor: "#dbeafe" },
+            };
+        }
+      })();
+      addConditionalRuleRaw(activeSheetId, rule);
+    },
+    [addConditionalRuleRaw, activeSheetId, colIds, rowIds],
+  );
+
+  /** Remove duplicate rows from the selected range. */
+  const removeDuplicatesInSelection = useCallback(() => {
+    const b = selectionBoundsRef.current;
+    if (!b || !activeSheetId) return;
+    removeDuplicatesRaw(activeSheetId, b);
+  }, [removeDuplicatesRaw, activeSheetId]);
+
+  /** Apply a data-validation rule to the current selection. */
+  const applyValidation = useCallback(
+    (rule: DataValidationRule | null) => {
+      if (!selectionBoundsRef.current || !activeSheetId) return;
+      const b = selectionBoundsRef.current;
+      const ids: string[] = [];
+      for (let y = b.minY; y <= b.maxY; y++) {
+        for (let x = b.minX; x <= b.maxX; x++) {
+          const c = colIds[x];
+          const r = rowIds[y];
+          if (c && r) ids.push(encodeCellId(c, r));
+        }
+      }
+      if (ids.length === 0) return;
+      setValidationRaw(activeSheetId, ids, rule);
+    },
+    [setValidationRaw, activeSheetId, colIds, rowIds],
+  );
+
+  /**
+   * Export the active sheet (CSV / TSV) or the whole workbook (XLSX).
+   * Reads the latest workbook from `sheetsList` so it picks up un-saved
+   * mutations the snapshot pipeline hasn't flushed yet.
+   */
+  const exportActiveSheetCsv = useCallback(() => {
+    if (!activeSheet) return;
+    const matrix = sheetToMatrix(
+      activeSheet.columns.map((c) => c.id),
+      activeSheet.rows.map((r) => r.id),
+      rawCellsByKey,
+    );
+    exportCsv(
+      matrix,
+      `${activeSheet.title || "sheet"}.csv`.replace(/\s+/g, "-"),
+    );
+  }, [activeSheet, rawCellsByKey]);
+
+  const exportActiveSheetTsv = useCallback(() => {
+    if (!activeSheet) return;
+    const matrix = sheetToMatrix(
+      activeSheet.columns.map((c) => c.id),
+      activeSheet.rows.map((r) => r.id),
+      rawCellsByKey,
+    );
+    exportTsv(
+      matrix,
+      `${activeSheet.title || "sheet"}.tsv`.replace(/\s+/g, "-"),
+    );
+  }, [activeSheet, rawCellsByKey]);
+
+  const exportWorkbookXlsx = useCallback(() => {
+    // We need each sheet's own raw values map — build per-sheet.
+    const sheets = sheetsList.map((s) => {
+      const map = new Map<string, string>();
+      for (const [k, c] of Object.entries(s.cells)) {
+        if (c?.value) map.set(k, c.value);
+      }
+      return {
+        title: s.title,
+        matrix: sheetToMatrix(
+          s.columns.map((c) => c.id),
+          s.rows.map((r) => r.id),
+          map,
+        ),
+      };
+    });
+    exportXlsx({ filename: "workbook.xlsx", sheets });
+  }, [sheetsList]);
+
+  /** Import handler — file chosen via a hidden <input>. Pastes into the active sheet. */
+  const importFile = useCallback(
+    async (file: File) => {
+      if (!activeSheet || !activeSheetId) return;
+      try {
+        const imported = await importSpreadsheetFile(file);
+        // Strategy: for each imported sheet, add a new sheet to the workbook
+        // and paste its data. For a single-sheet import we just paste into
+        // the active sheet from A1.
+        if (imported.length === 1) {
+          const m = imported[0]!;
+          const topLeft = {
+            columnId: activeSheet.columns[0]?.id ?? "",
+            rowId: activeSheet.rows[0]?.id ?? "",
+          };
+          if (topLeft.columnId && topLeft.rowId) {
+            pasteRangeRaw(activeSheetId, topLeft, m.matrix);
+          }
+        } else {
+          // Multi-sheet: add a sheet per imported tab, paste into each.
+          // We resolve sheet ids by reading back the addSheet target name
+          // — but we don't have a return from useMutation. Simpler: paste
+          // them all into the active sheet, sequentially. (Users can split
+          // later.)
+          // For v1, just paste the first into active.
+          const m = imported[0]!;
+          const topLeft = {
+            columnId: activeSheet.columns[0]?.id ?? "",
+            rowId: activeSheet.rows[0]?.id ?? "",
+          };
+          if (topLeft.columnId && topLeft.rowId) {
+            pasteRangeRaw(activeSheetId, topLeft, m.matrix);
+          }
+        }
+      } catch (e) {
+        // Surface to the user — `alert` is enough for v1.
+        // eslint-disable-next-line no-alert
+        alert(`Import failed: ${(e as Error).message}`);
+      }
+    },
+    [activeSheet, activeSheetId, pasteRangeRaw],
+  );
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const triggerImport = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  /** Insert a `=SPARKLINE(range, type)` formula next to the current selection. */
+  const insertSparkline = useCallback(
+    (kind: "line" | "column" | "bar" | "winloss") => {
+      const b = selectionBoundsRef.current;
+      if (!b || !activeSheetId) return;
+      const startCol = colIds[b.minX];
+      const startRow = rowIds[b.minY];
+      const endCol = colIds[b.maxX];
+      const endRow = rowIds[b.maxY];
+      if (!startCol || !startRow || !endCol || !endRow) return;
+      const rangeText = `${getColumnLabel(b.minX)}${b.minY + 1}:${getColumnLabel(b.maxX)}${b.maxY + 1}`;
+      // Target: the cell immediately right of the selection's top row.
+      const targetX = b.maxX + 1;
+      const targetCol = colIds[targetX] ?? colIds[b.minX]!;
+      const targetRow = rowIds[b.minY]!;
+      setCellValueRaw(
+        activeSheetId,
+        targetCol,
+        targetRow,
+        `=SPARKLINE(${rangeText}, "${kind}")`,
+      );
+    },
+    [setCellValueRaw, activeSheetId, colIds, rowIds],
+  );
+
+  /** Insert a new chart from the current selection. */
+  const insertChart = useCallback(
+    (type: ChartType) => {
+      const b = selectionBoundsRef.current;
+      if (!b || !activeSheetId) return;
+      const startCol = colIds[b.minX];
+      const startRow = rowIds[b.minY];
+      const endCol = colIds[b.maxX];
+      const endRow = rowIds[b.maxY];
+      if (!startCol || !startRow || !endCol || !endRow) return;
+      const sourceWidth = (b.maxX - b.minX + 1) * 120;
+      addChartRaw(
+        activeSheetId,
+        type,
+        encodeCellId(startCol, startRow),
+        encodeCellId(endCol, endRow),
+        {
+          x: b.minX * 120 + sourceWidth + 20,
+          y: b.minY * 32,
+          width: 420,
+          height: 280,
+        },
+      );
+    },
+    [addChartRaw, activeSheetId, colIds, rowIds],
+  );
+
+  // Merge bound helpers — defined further below, after `colIds`/`rowIds`.
+
+  // ── Named-range rows (UI-side derivation) ────────────────────────────────
+  const namedRangeRows: NamedRangeRow[] = useMemo(() => {
+    const out: NamedRangeRow[] = [];
+    for (const [name, def] of Object.entries(namedRanges)) {
+      const sheet = sheetsList.find((s) => s.id === def.sheetId);
+      const colIdsForSheet = sheet?.columns.map((c) => c.id) ?? [];
+      const rowIdsForSheet = sheet?.rows.map((r) => r.id) ?? [];
+      const start = unwriteRefsToA1(
+        `=${def.startRef}`,
+        colIdsForSheet,
+        rowIdsForSheet,
+      ).slice(1);
+      const end = unwriteRefsToA1(
+        `=${def.endRef}`,
+        colIdsForSheet,
+        rowIdsForSheet,
+      ).slice(1);
+      const sheetName = sheet?.title ?? "?";
+      out.push({
+        name,
+        sheetId: def.sheetId,
+        startRef: def.startRef,
+        endRef: def.endRef,
+        display: `${sheetName}!${start === end ? start : `${start}:${end}`}`,
+      });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }, [namedRanges, sheetsList]);
+
+  const namedRangeSelectionDisplay = useMemo(() => {
+    if (!selection || !activeSheetId) return "";
+    const start = `${getColumnLabel(colIndex(selection.start.columnId))}${rowIndex(selection.start.rowId) + 1}`;
+    const end = `${getColumnLabel(colIndex(selection.end.columnId))}${rowIndex(selection.end.rowId) + 1}`;
+    return `${activeSheet?.title ?? "Sheet"}!${start === end ? start : `${start}:${end}`}`;
+  }, [
+    selection,
+    activeSheetId,
+    activeSheet?.title,
+    colIndex,
+    rowIndex,
+  ]);
 
   // ── Formula bar data ──────────────────────────────────────────────────────
   const activeCellLabel = useMemo(() => {
@@ -332,6 +1115,120 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     if (addresses.length === 0) return;
     setCellFormat(addresses, patch);
   }
+
+  function applyBorders(preset: BorderPreset, border: CellBorder | null) {
+    if (!selectionBounds) return;
+    const { minX, maxX, minY, maxY } = selectionBounds;
+    // For each preset, decide which per-edge patch each cell gets. We batch
+    // by issuing one `setCellFormat` call per "patch shape" since the
+    // mutation merges into the existing format and is idempotent.
+    type EdgePatch = Pick<
+      import("@/liveblocks.config").CellFormat,
+      "borderTop" | "borderRight" | "borderBottom" | "borderLeft"
+    >;
+    const cellPatches = new Map<string, EdgePatch>();
+    function patchFor(x: number, y: number): EdgePatch {
+      const col = colIds[x];
+      const row = rowIds[y];
+      if (!col || !row) return {};
+      const key = `${col}@${row}`;
+      let p = cellPatches.get(key);
+      if (!p) {
+        p = {};
+        cellPatches.set(key, p);
+      }
+      return p;
+    }
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const p = patchFor(x, y);
+        const isTopEdge = y === minY;
+        const isBottomEdge = y === maxY;
+        const isLeftEdge = x === minX;
+        const isRightEdge = x === maxX;
+        const isOnlyOneCol = minX === maxX;
+        const isOnlyOneRow = minY === maxY;
+        switch (preset) {
+          case "all":
+            p.borderTop = border ?? undefined;
+            p.borderRight = border ?? undefined;
+            p.borderBottom = border ?? undefined;
+            p.borderLeft = border ?? undefined;
+            break;
+          case "none":
+            // Setting all edges to undefined erases (the mutation strips
+            // explicit undefineds — see useSetCellFormat).
+            p.borderTop = undefined;
+            p.borderRight = undefined;
+            p.borderBottom = undefined;
+            p.borderLeft = undefined;
+            break;
+          case "outer":
+            if (isTopEdge) p.borderTop = border ?? undefined;
+            if (isBottomEdge) p.borderBottom = border ?? undefined;
+            if (isLeftEdge) p.borderLeft = border ?? undefined;
+            if (isRightEdge) p.borderRight = border ?? undefined;
+            break;
+          case "inner":
+            // Inner horizontal edges go on each row's bottom EXCEPT last.
+            if (!isBottomEdge && !isOnlyOneRow) {
+              p.borderBottom = border ?? undefined;
+            }
+            // Inner vertical edges go on each col's right EXCEPT last.
+            if (!isRightEdge && !isOnlyOneCol) {
+              p.borderRight = border ?? undefined;
+            }
+            break;
+          case "top":
+            if (isTopEdge) p.borderTop = border ?? undefined;
+            break;
+          case "bottom":
+            if (isBottomEdge) p.borderBottom = border ?? undefined;
+            break;
+          case "left":
+            if (isLeftEdge) p.borderLeft = border ?? undefined;
+            break;
+          case "right":
+            if (isRightEdge) p.borderRight = border ?? undefined;
+            break;
+        }
+      }
+    }
+    // Group by patch-shape signature, issue one mutation per group.
+    const groups = new Map<string, string[]>();
+    for (const [cellId, patch] of cellPatches) {
+      const sig = JSON.stringify(patch);
+      let bucket = groups.get(sig);
+      if (!bucket) {
+        bucket = [];
+        groups.set(sig, bucket);
+      }
+      bucket.push(cellId);
+    }
+    for (const [sig, cellIdList] of groups) {
+      const patch = JSON.parse(sig) as EdgePatch;
+      const addresses = cellIdList.map((id) => {
+        const at = id.indexOf("@");
+        return { columnId: id.slice(0, at), rowId: id.slice(at + 1) };
+      });
+      setCellFormat(addresses, patch);
+    }
+  }
+
+  // ── Format painter ────────────────────────────────────────────────────────
+  // When `painterFormat` is non-null, the next cell mousedown applies that
+  // captured format to the clicked cell (or dragged range) instead of
+  // re-anchoring the selection. Escape cancels.
+  const [painterFormat, setPainterFormat] = useState<CellFormat | null>(null);
+  const togglePainter = useCallback(() => {
+    if (painterFormat) {
+      setPainterFormat(null);
+      return;
+    }
+    // Capture the active cell's format. An empty/missing format still
+    // captures (effectively a "reset to defaults" painter).
+    setPainterFormat(activeFormat ?? {});
+  }, [painterFormat, activeFormat]);
 
   // ── Find / replace ────────────────────────────────────────────────────────
   const [findOpen, setFindOpen] = useState(false);
@@ -438,6 +1335,14 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     e: React.MouseEvent,
   ) {
     if (edition) return;
+    // Format painter consumes the click: apply captured format to the cell,
+    // then disarm. Mid-drag during painting also paints — see mouseEnter.
+    if (painterFormat) {
+      setCellFormat([{ columnId, rowId }], painterFormat);
+      // Keep painter active during a drag — release on mouseup below.
+      draggingRef.current = "select";
+      return;
+    }
     if (e.shiftKey && selection) {
       setSelection({ start: selection.start, end: { columnId, rowId } });
     } else {
@@ -461,6 +1366,12 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
         ...autoFillState,
         target: { columnId, rowId },
       });
+      return;
+    }
+    // While painter is active and the mouse is down, paint every cell the
+    // pointer crosses (range painting).
+    if (painterFormat && draggingRef.current === "select") {
+      setCellFormat([{ columnId, rowId }], painterFormat);
       return;
     }
     if (draggingRef.current !== "select" || !selection) return;
@@ -507,13 +1418,24 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
           }
         }
       }
+      // Format painter is single-shot per click/drag. Disarm on mouseup so
+      // it doesn't keep painting on subsequent clicks. Matches Sheets' UX.
+      if (painterFormat) setPainterFormat(null);
       draggingRef.current = null;
       fillingRef.current = false;
       setAutoFillState(null);
     }
     window.addEventListener("mouseup", stop);
     return () => window.removeEventListener("mouseup", stop);
-  }, [autoFillState, autoFill, colIds, rowIds, colIndex, rowIndex]);
+  }, [
+    autoFillState,
+    autoFill,
+    colIds,
+    rowIds,
+    colIndex,
+    rowIndex,
+    painterFormat,
+  ]);
 
   function onCellDoubleClick(columnId: string, rowId: string) {
     setEdition({ columnId, rowId, seed: null });
@@ -607,6 +1529,13 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     const key = e.key;
     const meta = e.metaKey || e.ctrlKey;
 
+    // Escape disarms the format painter before any other handling.
+    if (key === "Escape" && painterFormat) {
+      e.preventDefault();
+      setPainterFormat(null);
+      return;
+    }
+
     if (meta && (key === "z" || key === "Z")) {
       e.preventDefault();
       if (e.shiftKey) history.redo();
@@ -643,6 +1572,14 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
       e.preventDefault();
       setFindOpen(true);
       setFindShowReplace(true);
+      return;
+    }
+    // `?` (Shift+/) — open shortcuts modal. Plain `?` triggers when not
+    // editing AND no modifier — otherwise typing `?` in a cell should
+    // start editing with that key, which we handle later.
+    if (key === "?" && !meta && !e.altKey && !selection) {
+      e.preventDefault();
+      setShortcutsOpen(true);
       return;
     }
     if (!selection) return;
@@ -832,6 +1769,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     <div
       className="hc-sheet-root flex h-full min-h-0 flex-col"
       style={rootStyle}
+      data-painter={painterFormat ? "true" : undefined}
     >
       <SheetFormulaBar
         cellLabel={activeCellLabel}
@@ -843,6 +1781,23 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
         activeFormat={activeFormat}
         hasSelection={!!selectionBounds}
         onPatch={formatPatch}
+        painterActive={!!painterFormat}
+        onTogglePainter={togglePainter}
+        onApplyBorders={applyBorders}
+        onMerge={mergeSelection}
+        onUnmerge={unmergeSelection}
+        canMerge={
+          !!selectionBounds &&
+          (selectionBounds.minX !== selectionBounds.maxX ||
+            selectionBounds.minY !== selectionBounds.maxY)
+        }
+        canUnmerge={(() => {
+          if (!selectionBounds) return false;
+          const tlCol = colIds[selectionBounds.minX];
+          const tlRow = rowIds[selectionBounds.minY];
+          if (!tlCol || !tlRow) return false;
+          return mergeSpans.has(encodeCellId(tlCol, tlRow));
+        })()}
       />
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/60 px-4 py-1.5">
         {/* Convenience wrappers for the per-header dropdown's "Insert
@@ -860,6 +1815,79 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
           selectedRowIndex={selection ? rowIndex(selection.start.rowId) : -1}
           totalRows={rows.length}
           onInsert={insertRow}
+        />
+        <FileMenuButton
+          onExportCsv={exportActiveSheetCsv}
+          onExportTsv={exportActiveSheetTsv}
+          onExportXlsx={exportWorkbookXlsx}
+          onImport={triggerImport}
+          onPrint={() => window.print()}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.tsv,.xlsx,.xls,.ods"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) importFile(f);
+            // Reset so importing the same file twice in a row works.
+            e.target.value = "";
+          }}
+        />
+        <InsertChartButton
+          disabled={!selectionBounds}
+          onInsert={(type) => insertChart(type)}
+          onInsertSparkline={(kind) => insertSparkline(kind)}
+        />
+        <DataToolsButton
+          hasSelection={!!selectionBounds}
+          sheetIsProtected={!!activeSheet?.protected}
+          existingRules={
+            activeSheet?.conditionalRules
+              ? (Object.values(activeSheet.conditionalRules) as ConditionalRule[])
+              : []
+          }
+          onConditionalFormat={addQuickConditionalRule}
+          onDeleteConditionalRule={deleteConditionalRule}
+          onSetValidation={applyValidation}
+          onToggleProtect={() => {
+            if (activeSheetId) toggleProtectRaw(activeSheetId);
+          }}
+          onRemoveDuplicates={removeDuplicatesInSelection}
+        />
+        <NewCellCommentButton
+          sheetId={activeSheetId || ""}
+          cellId={
+            selection
+              ? encodeCellId(
+                  selection.start.columnId,
+                  selection.start.rowId,
+                )
+              : null
+          }
+        />
+        <CommentsSidebarButton
+          sheetTitles={sheetTitlesMap}
+          onSwitchToCell={switchToCellAcrossSheets}
+        />
+        <NamedRangesPopover
+          ranges={namedRangeRows}
+          hasSelection={!!selectionBounds && !!activeSheetId}
+          selectionDisplay={namedRangeSelectionDisplay}
+          onAdd={(name) => {
+            if (!selectionBounds || !activeSheetId) return;
+            const startRef = encodeCellId(
+              colIds[selectionBounds.minX]!,
+              rowIds[selectionBounds.minY]!,
+            );
+            const endRef = encodeCellId(
+              colIds[selectionBounds.maxX]!,
+              rowIds[selectionBounds.maxY]!,
+            );
+            addNamedRange(name, activeSheetId, startRef, endRef);
+          }}
+          onDelete={(name) => deleteNamedRange(name)}
         />
         <div className="ml-auto flex items-center gap-1">
           <Button
@@ -974,41 +2002,101 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
               <div style={tableContainerStyle}>
                 <table
                   className="hc-sheet-table"
-                  style={tableStyle(columns)}
+                  style={tableStyle(visibleColumns)}
                 >
                   <colgroup>
                     <col style={{ width: ROW_HEADER_WIDTH }} />
-                    {columns.map((c) => (
+                    {visibleColumns.map((c) => (
                       <col key={c.id} style={{ width: c.width }} />
                     ))}
                   </colgroup>
                   <thead>
                     <tr style={{ height: COLUMN_HEADER_HEIGHT }}>
                       <th className="hc-sheet-corner" />
-                      {columns.map((col, i) => (
-                        <th key={col.id} className="hc-sheet-col-header">
-                          <ColumnHandle
-                            id={col.id}
-                            index={i}
-                            size={col.width}
-                            count={columns.length}
-                            onResize={(idx, w) => resizeColumn(idx, w)}
-                            onInsertBefore={(idx) => insertColumn(idx)}
-                            onInsertAfter={(idx) => insertColumn(idx + 1)}
-                            onDelete={(idx) => deleteColumn(idx)}
-                            onResizeStart={() => history.pause()}
-                            onResizeEnd={() => history.resume()}
-                            onSelectAxis={onSelectColumn}
-                            onSort={(idx, dir) => sortColumn(idx, dir)}
-                          />
-                        </th>
-                      ))}
+                      {visibleColumns.map((col, visIdx) => {
+                        const i = col.index; // storage index
+                        const isFrozenCol = visIdx < frozenColumnsCount;
+                        const frozenLeft = isFrozenCol
+                          ? ROW_HEADER_WIDTH + columnLeftOffsets[visIdx]!
+                          : null;
+                        return (
+                          <th
+                            key={col.id}
+                            className="hc-sheet-col-header"
+                            data-frozen={isFrozenCol ? "true" : undefined}
+                            style={
+                              isFrozenCol
+                                ? { left: frozenLeft!, zIndex: 4 }
+                                : undefined
+                            }
+                          >
+                            <ColumnHandle
+                              id={col.id}
+                              index={i}
+                              size={col.width}
+                              count={columns.length}
+                              onResize={(idx, w) => resizeColumn(idx, w)}
+                              onInsertBefore={(idx) => insertColumn(idx)}
+                              onInsertAfter={(idx) => insertColumn(idx + 1)}
+                              onDelete={(idx) => deleteColumn(idx)}
+                              onResizeStart={() => history.pause()}
+                              onResizeEnd={() => history.resume()}
+                              onSelectAxis={onSelectColumn}
+                              onSort={(idx, dir) => sortColumn(idx, dir)}
+                              onHide={(idx) => hideColumn(idx)}
+                              onFreezeUpTo={(idx) => freezeColumns(idx + 1)}
+                              onUnfreeze={() => freezeColumns(0)}
+                              isFrozen={(activeSheet?.frozenColumns ?? 0) > 0}
+                              onGroup={(idx) => {
+                                if (!activeSheetId) return;
+                                const colId = columns[idx]?.id;
+                                if (colId)
+                                  setGroupLevelRaw(
+                                    activeSheetId,
+                                    "col",
+                                    colId,
+                                    1,
+                                  );
+                              }}
+                              onUngroup={(idx) => {
+                                if (!activeSheetId) return;
+                                const colId = columns[idx]?.id;
+                                if (colId)
+                                  setGroupLevelRaw(
+                                    activeSheetId,
+                                    "col",
+                                    colId,
+                                    0,
+                                  );
+                              }}
+                              isGrouped={
+                                !!(activeSheet?.groupLevelsCol?.[col.id]) &&
+                                (activeSheet.groupLevelsCol[col.id] ?? 0) > 0
+                              }
+                            />
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, y) => (
+                    {visibleRows.map((row, visRowIdx) => {
+                      const y = row.index;
+                      const isFrozenRow = visRowIdx < frozenRowsCount;
+                      const frozenTop = isFrozenRow
+                        ? COLUMN_HEADER_HEIGHT + rowTopOffsets[visRowIdx]!
+                        : null;
+                      return (
                       <tr key={row.id} style={{ height: row.height }}>
-                        <th className="hc-sheet-row-header">
+                        <th
+                          className="hc-sheet-row-header"
+                          data-frozen={isFrozenRow ? "true" : undefined}
+                          style={
+                            isFrozenRow
+                              ? { top: frozenTop!, zIndex: 4 }
+                              : undefined
+                          }
+                        >
                           <RowHandle
                             id={row.id}
                             index={y}
@@ -1021,10 +2109,51 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
                             onResizeStart={() => history.pause()}
                             onResizeEnd={() => history.resume()}
                             onSelectAxis={onSelectRow}
+                            onHide={(idx) => hideRow(idx)}
+                            onFreezeUpTo={(idx) => freezeRows(idx + 1)}
+                            onUnfreeze={() => freezeRows(0)}
+                            isFrozen={(activeSheet?.frozenRows ?? 0) > 0}
+                            onGroup={(idx) => {
+                              if (!activeSheetId) return;
+                              const rowId = rows[idx]?.id;
+                              if (rowId)
+                                setGroupLevelRaw(
+                                  activeSheetId,
+                                  "row",
+                                  rowId,
+                                  1,
+                                );
+                            }}
+                            onUngroup={(idx) => {
+                              if (!activeSheetId) return;
+                              const rowId = rows[idx]?.id;
+                              if (rowId)
+                                setGroupLevelRaw(
+                                  activeSheetId,
+                                  "row",
+                                  rowId,
+                                  0,
+                                );
+                            }}
+                            isGrouped={
+                              !!(activeSheet?.groupLevelsRow?.[row.id]) &&
+                              (activeSheet.groupLevelsRow[row.id] ?? 0) > 0
+                            }
                           />
                         </th>
-                        {columns.map((col) => {
+                        {visibleColumns.map((col, visIdx) => {
                           const id = encodeCellId(col.id, row.id);
+                          // Merged child cells render nothing — they're
+                          // covered by the top-left cell's colSpan/rowSpan.
+                          if (mergeHidden.has(id)) return null;
+                          const isFrozenCol = visIdx < frozenColumnsCount;
+                          const cellLeft = isFrozenCol
+                            ? ROW_HEADER_WIDTH + columnLeftOffsets[visIdx]!
+                            : null;
+                          const cellTop = isFrozenRow
+                            ? COLUMN_HEADER_HEIGHT + rowTopOffsets[visRowIdx]!
+                            : null;
+                          const span = mergeSpans.get(id);
                           const entry = cells?.[id];
                           const raw = entry?.value ?? "";
                           const evaluated: ExpressionResult =
@@ -1054,25 +2183,53 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
                               rawValue={raw}
                               displayFormula={displayFormula}
                               evaluated={evaluated}
-                              format={entry?.format}
+                              format={
+                                conditionalOverrides.has(id)
+                                  ? { ...entry?.format, ...conditionalOverrides.get(id)! }
+                                  : entry?.format
+                              }
+                              validation={validations.get(id)}
                               isSelected={isSelected}
                               isInRange={isInRange}
                               isEditing={isEditing}
                               isMatch={matchKeys.has(id)}
                               isActiveMatch={activeMatchKey === id}
                               isFillCorner={fillCornerId === id}
+                              hasComment={cellsWithComments.has(id)}
+                              colSpan={span?.colSpan}
+                              rowSpan={span?.rowSpan}
                               other={!isSelected ? other : undefined}
                               editSeed={
                                 isEditing
                                   ? (edition?.seed ?? undefined)
                                   : undefined
                               }
+                              frozenLeft={cellLeft}
+                              frozenTop={cellTop}
                               onMouseDown={(e) =>
                                 onCellMouseDown(col.id, row.id, e)
                               }
                               onMouseEnter={(e) =>
                                 onCellMouseEnter(col.id, row.id, e)
                               }
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                // Make sure the clicked cell becomes the
+                                // anchor so menu actions operate on it.
+                                if (
+                                  !selection ||
+                                  selection.start.columnId !== col.id ||
+                                  selection.start.rowId !== row.id
+                                ) {
+                                  setSingle(col.id, row.id);
+                                }
+                                setContextMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  columnId: col.id,
+                                  rowId: row.id,
+                                });
+                              }}
                               onDoubleClick={() =>
                                 onCellDoubleClick(col.id, row.id)
                               }
@@ -1083,7 +2240,8 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
                           );
                         })}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
                 {fillPreviewRect ? (
@@ -1098,11 +2256,99 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
                     }}
                   />
                 ) : null}
+                {/*
+                  Charts overlay. Positioned inside the table-container div so
+                  it scrolls + zooms with the grid. Coordinates are in CSS
+                  pixels relative to the table's top-left.
+                */}
+                <SheetChartsLayer
+                  charts={chartsList}
+                  activeSheetId={activeSheetId}
+                  cellValues={rawCellsByKey}
+                  columnIds={colIds}
+                  rowIds={rowIds}
+                  onUpdate={(id, patch) => updateChartRaw(id, patch)}
+                  onDelete={(id) => deleteChartRaw(id)}
+                />
               </div>
             </div>
           </HeadersDnd>
         </HeadersDnd>
       </div>
+      {shortcutsOpen ? (
+        <SheetShortcutsModal onClose={() => setShortcutsOpen(false)} />
+      ) : null}
+      {contextMenu ? (
+        <SheetContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          sections={buildContextMenu(
+            { columnId: contextMenu.columnId, rowId: contextMenu.rowId },
+            colIndex(contextMenu.columnId),
+            rowIndex(contextMenu.rowId),
+            {
+              insertColumn,
+              insertRow,
+              deleteColumn,
+              deleteRow,
+              clearSelection: () => {
+                const targets = enumerateRange(selectionBounds, colIds, rowIds);
+                if (targets.length > 0) clearCells(targets);
+              },
+              copy: () => document.execCommand("copy"),
+              cut: () => document.execCommand("cut"),
+              paste: async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (!text || !selection) return;
+                  const matrix = text
+                    .replace(/\r\n?/g, "\n")
+                    .split("\n")
+                    .map((l) => l.split("\t"));
+                  pasteRange(
+                    {
+                      columnId: selection.start.columnId,
+                      rowId: selection.start.rowId,
+                    },
+                    matrix,
+                  );
+                } catch {
+                  // Clipboard read may require user gesture; the keyboard
+                  // shortcut path already works without this.
+                }
+              },
+              insertComment: () => {
+                // Surface this via the toolbar's New Comment button — the
+                // composer is already wired there. We just open it as the
+                // visual focus is on the selected cell.
+                document
+                  .querySelector<HTMLButtonElement>(
+                    '[title^="Insert comment"]',
+                  )
+                  ?.click();
+              },
+              insertSparkline: () => insertSparkline("line"),
+            },
+          )}
+          onClose={() => setContextMenu(null)}
+        />
+      ) : null}
+      <SheetTabBar
+        sheets={sheetsList.map((s) => ({
+          id: s.id,
+          title: s.title,
+          color: s.color,
+        }))}
+        activeSheetId={activeSheetId}
+        onSelect={switchSheet}
+        onAdd={() => addSheet()}
+        onRename={(id, title) => renameSheet(id, title)}
+        onDuplicate={(id) => duplicateSheet(id)}
+        onDelete={(id) => deleteSheet(id)}
+        onReorder={(from, to) => reorderSheet(from, to)}
+        onSetColor={(id, c) => setSheetColor(id, c)}
+        viewersBySheet={viewersBySheet}
+      />
     </div>
   );
 }
@@ -1268,7 +2514,7 @@ function InsertColumnSplitButton({
         >
           <ChevronDown className="size-3 opacity-70" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
           <DropdownMenuItem onClick={() => onInsert(leftIndex)}>
             Insert column left
           </DropdownMenuItem>
@@ -1278,6 +2524,504 @@ function InsertColumnSplitButton({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  );
+}
+
+/** Build the right-click context menu for a cell. */
+function buildContextMenu(
+  cell: { columnId: string; rowId: string },
+  colIdx: number,
+  rowIdx: number,
+  actions: {
+    insertColumn: (idx: number) => void;
+    insertRow: (idx: number) => void;
+    deleteColumn: (idx: number) => void;
+    deleteRow: (idx: number) => void;
+    clearSelection: () => void;
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+    insertComment: () => void;
+    insertSparkline: () => void;
+  },
+): ContextMenuSection[] {
+  void cell;
+  return [
+    {
+      items: [
+        { label: "Cut", shortcut: "⌘X", onClick: actions.cut },
+        { label: "Copy", shortcut: "⌘C", onClick: actions.copy },
+        { label: "Paste", shortcut: "⌘V", onClick: actions.paste },
+      ],
+    },
+    {
+      items: [
+        {
+          label: "Insert column left",
+          onClick: () => actions.insertColumn(colIdx),
+        },
+        {
+          label: "Insert column right",
+          onClick: () => actions.insertColumn(colIdx + 1),
+        },
+        {
+          label: "Insert row above",
+          onClick: () => actions.insertRow(rowIdx),
+        },
+        {
+          label: "Insert row below",
+          onClick: () => actions.insertRow(rowIdx + 1),
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          label: "Delete column",
+          destructive: true,
+          onClick: () => actions.deleteColumn(colIdx),
+        },
+        {
+          label: "Delete row",
+          destructive: true,
+          onClick: () => actions.deleteRow(rowIdx),
+        },
+        {
+          label: "Clear contents",
+          shortcut: "Del",
+          onClick: actions.clearSelection,
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          label: "Insert comment",
+          shortcut: "⌘⌥M",
+          onClick: actions.insertComment,
+        },
+        {
+          label: "Insert sparkline",
+          onClick: actions.insertSparkline,
+        },
+      ],
+    },
+  ];
+}
+
+/** Human-readable summary of a conditional-format rule's condition. */
+function describeCondition(r: ConditionalRule): string {
+  const c = r.condition;
+  switch (c.kind) {
+    case "cellIs":
+      return `value ${c.op === "eq" ? "=" : c.op === "neq" ? "≠" : c.op === "lt" ? "<" : c.op === "lte" ? "≤" : c.op === "gt" ? ">" : c.op === "gte" ? "≥" : "between"} ${c.value}${c.value2 != null ? `..${c.value2}` : ""}`;
+    case "textContains":
+      return `text contains "${c.value}"`;
+    case "isEmpty":
+      return "is empty";
+    case "isNotEmpty":
+      return "is not empty";
+    case "isError":
+      return "is error";
+    case "formula":
+      return `formula: ${c.expression.slice(0, 30)}${c.expression.length > 30 ? "…" : ""}`;
+    case "colorScale":
+      return "color scale";
+  }
+}
+
+/**
+ * File menu — import / export / print. Each item just delegates to a
+ * surface-owned callback so the file-system access stays in one place.
+ */
+function FileMenuButton({
+  onExportCsv,
+  onExportTsv,
+  onExportXlsx,
+  onImport,
+  onPrint,
+}: {
+  onExportCsv: () => void;
+  onExportTsv: () => void;
+  onExportXlsx: () => void;
+  onImport: () => void;
+  onPrint: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title="File"
+            className="h-7 px-2 text-[12px]"
+          >
+            <FileDown className="size-4" /> File
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        <DropdownMenuItem onClick={onImport}>
+          <Upload className="size-4" /> Import…
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onExportCsv}>
+          Download active sheet as CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onExportTsv}>
+          Download active sheet as TSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onExportXlsx}>
+          Download workbook as Excel (.xlsx)
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onPrint}>
+          <Printer className="size-4" /> Print…
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Data tools popover — conditional formatting presets, data validation,
+ * sheet protection toggle. A "Data" menu in Sheets' parlance.
+ */
+function DataToolsButton({
+  hasSelection,
+  sheetIsProtected,
+  existingRules,
+  onConditionalFormat,
+  onDeleteConditionalRule,
+  onSetValidation,
+  onToggleProtect,
+  onRemoveDuplicates,
+}: {
+  hasSelection: boolean;
+  sheetIsProtected: boolean;
+  existingRules: ConditionalRule[];
+  onConditionalFormat: (
+    preset:
+      | "highlightGT0"
+      | "highlightLT0"
+      | "colorScaleRedGreen"
+      | "highlightNonEmpty",
+  ) => void;
+  onDeleteConditionalRule: (ruleId: string) => void;
+  onSetValidation: (rule: DataValidationRule | null) => void;
+  onToggleProtect: () => void;
+  onRemoveDuplicates: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title="Data tools"
+            className="h-7 px-2 text-[12px]"
+          >
+            <Database className="size-4" /> Data
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onConditionalFormat("highlightGT0")}
+        >
+          Highlight if &gt; 0 (green)
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onConditionalFormat("highlightLT0")}
+        >
+          Highlight if &lt; 0 (red)
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onConditionalFormat("colorScaleRedGreen")}
+        >
+          Color scale (red→green)
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onConditionalFormat("highlightNonEmpty")}
+        >
+          Highlight non-empty
+        </DropdownMenuItem>
+        {existingRules.length > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                Active rules ({existingRules.length})
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            {existingRules.map((r) => (
+              <DropdownMenuItem
+                key={r.id}
+                onClick={() => onDeleteConditionalRule(r.id)}
+              >
+                <span
+                  className="size-3 shrink-0 rounded-sm border border-border/60"
+                  style={{
+                    background: r.format.bgColor ?? "transparent",
+                  }}
+                />
+                <span className="truncate font-mono text-[11px]">
+                  {describeCondition(r)}
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Click to delete
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onSetValidation({ kind: "checkbox" })}
+        >
+          Insert checkbox
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => {
+            const csv = window.prompt(
+              "Dropdown options (comma-separated):",
+              "Yes,No,Maybe",
+            );
+            if (csv == null) return;
+            const values = csv
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            if (values.length === 0) return;
+            onSetValidation({ kind: "list", values });
+          }}
+        >
+          Insert dropdown…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => {
+            // eslint-disable-next-line no-alert
+            const minS = window.prompt("Minimum number (blank = no min):");
+            if (minS == null) return;
+            // eslint-disable-next-line no-alert
+            const maxS = window.prompt("Maximum number (blank = no max):");
+            if (maxS == null) return;
+            const min = minS === "" ? undefined : Number(minS);
+            const max = maxS === "" ? undefined : Number(maxS);
+            if (
+              (min !== undefined && Number.isNaN(min)) ||
+              (max !== undefined && Number.isNaN(max))
+            )
+              return;
+            onSetValidation({ kind: "numberRange", min, max });
+          }}
+        >
+          Validate: number range…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => {
+            // eslint-disable-next-line no-alert
+            const minS = window.prompt("Minimum date (YYYY-MM-DD, blank = no min):");
+            if (minS == null) return;
+            // eslint-disable-next-line no-alert
+            const maxS = window.prompt("Maximum date (YYYY-MM-DD, blank = no max):");
+            if (maxS == null) return;
+            onSetValidation({
+              kind: "dateRange",
+              min: minS || undefined,
+              max: maxS || undefined,
+            });
+          }}
+        >
+          Validate: date range…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => {
+            // eslint-disable-next-line no-alert
+            const minS = window.prompt("Minimum text length (blank = no min):");
+            if (minS == null) return;
+            // eslint-disable-next-line no-alert
+            const maxS = window.prompt("Maximum text length (blank = no max):");
+            if (maxS == null) return;
+            const min = minS === "" ? undefined : Number(minS);
+            const max = maxS === "" ? undefined : Number(maxS);
+            onSetValidation({ kind: "textLength", min, max });
+          }}
+        >
+          Validate: text length…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => {
+            // eslint-disable-next-line no-alert
+            const expr = window.prompt(
+              "Custom validation formula (e.g. =ISNUMBER($cell) — must evaluate truthy):",
+              "",
+            );
+            if (expr == null || expr === "") return;
+            onSetValidation({ kind: "formula", expression: expr });
+          }}
+        >
+          Validate: custom formula…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={() => onSetValidation(null)}
+        >
+          Clear validation
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!hasSelection}
+          onClick={onRemoveDuplicates}
+        >
+          Remove duplicates in selection
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onToggleProtect}>
+          {sheetIsProtected ? (
+            <>
+              <Unlock className="size-4" /> Unprotect sheet
+            </>
+          ) : (
+            <>
+              <Lock className="size-4" /> Protect sheet
+            </>
+          )}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Insert-chart split button — chart type chosen from a dropdown. */
+function InsertChartButton({
+  disabled,
+  onInsert,
+  onInsertSparkline,
+}: {
+  disabled: boolean;
+  onInsert: (type: ChartType) => void;
+  onInsertSparkline: (kind: "line" | "column" | "bar" | "winloss") => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            title="Insert chart / sparkline from selection"
+            className="h-7 px-2 text-[12px]"
+          >
+            <BarChart3 className="size-4" /> Chart
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Chart</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuItem onClick={() => onInsert("column")}>
+          Column
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsert("bar")}>
+          Bar
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsert("line")}>
+          Line
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsert("area")}>
+          Area
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsert("pie")}>
+          Pie
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsert("scatter")}>
+          Scatter
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Sparkline (in cell next to selection)</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuItem onClick={() => onInsertSparkline("line")}>
+          Sparkline — line
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsertSparkline("column")}>
+          Sparkline — column
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsertSparkline("bar")}>
+          Sparkline — bar
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInsertSparkline("winloss")}>
+          Sparkline — win/loss
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Named-range popover. Lightweight — toggle state opens an absolute panel
+ * anchored under the trigger button. Uses Base UI's DropdownMenu wrappers
+ * since they already handle outside-click + escape dismissal correctly.
+ */
+function NamedRangesPopover({
+  ranges,
+  hasSelection,
+  selectionDisplay,
+  onAdd,
+  onDelete,
+}: {
+  ranges: NamedRangeRow[];
+  hasSelection: boolean;
+  selectionDisplay: string;
+  onAdd: (name: string) => void;
+  onDelete: (name: string) => void;
+}) {
+  // Popover (not DropdownMenu) — the panel contains a text `<input>` and
+  // Base UI's Menu primitive traps Tab/arrow keys for menu-item navigation,
+  // which prevents typing. Popover has no such trap.
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title="Named ranges"
+            className="h-7 px-2 text-[12px]"
+          >
+            <span className="font-mono">fx</span> Names
+          </Button>
+        }
+      />
+      <PopoverContent align="start" className="w-80 p-0">
+        <SheetNamedRangesPanel
+          ranges={ranges}
+          hasSelection={hasSelection}
+          selectionDisplay={selectionDisplay}
+          onAdd={onAdd}
+          onDelete={onDelete}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1323,7 +3067,7 @@ function InsertRowSplitButton({
         >
           <ChevronDown className="size-3 opacity-70" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
           <DropdownMenuItem onClick={() => onInsert(aboveIndex)}>
             Insert row above
           </DropdownMenuItem>

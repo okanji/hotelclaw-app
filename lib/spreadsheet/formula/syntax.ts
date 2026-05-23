@@ -27,12 +27,19 @@ export enum SyntaxKind {
   CloseParenthesisToken,
   ColonToken,
   CommaToken,
+  AmpersandToken, // & — string concat
+  EqualsToken, // = (inside formula body — comparison)
+  NotEqualsToken, // <>
+  LessThanToken, // <
+  LessEqualToken, // <=
+  GreaterThanToken, // >
+  GreaterEqualToken, // >=
   EndOfTokens,
   NumberLiteralToken,
   StringLiteralToken,
   CellToken, // A1 form, pre-resolution
   RefToken, // colId@rowId form, post-resolution
-  IdentToken, // function name / TRUE / FALSE
+  IdentToken, // function name / TRUE / FALSE / named-range
 
   // AST nodes
   Expression,
@@ -43,6 +50,8 @@ export enum SyntaxKind {
   Ref,
   Range,
   FunctionCall,
+  /** A named-range reference resolved at eval time via the workbook. */
+  NamedRef,
 }
 
 export interface Token<K extends SyntaxKind = SyntaxKind> {
@@ -78,6 +87,13 @@ export type AnyToken =
   | Token<SyntaxKind.CloseParenthesisToken>
   | Token<SyntaxKind.ColonToken>
   | Token<SyntaxKind.CommaToken>
+  | Token<SyntaxKind.AmpersandToken>
+  | Token<SyntaxKind.EqualsToken>
+  | Token<SyntaxKind.NotEqualsToken>
+  | Token<SyntaxKind.LessThanToken>
+  | Token<SyntaxKind.LessEqualToken>
+  | Token<SyntaxKind.GreaterThanToken>
+  | Token<SyntaxKind.GreaterEqualToken>
   | Token<SyntaxKind.EndOfTokens>
   | NumberLiteralToken
   | StringLiteralToken
@@ -110,6 +126,11 @@ export interface FunctionCallNode {
   args: AstNode[];
 }
 
+export interface NamedRefNode {
+  kind: SyntaxKind.NamedRef;
+  name: string;
+}
+
 export type UnaryOperator = SyntaxKind.PlusToken | SyntaxKind.MinusToken;
 export type BinaryOperator =
   | SyntaxKind.PlusToken
@@ -117,7 +138,14 @@ export type BinaryOperator =
   | SyntaxKind.AsteriskToken
   | SyntaxKind.SlashToken
   | SyntaxKind.PercentToken
-  | SyntaxKind.CaretToken;
+  | SyntaxKind.CaretToken
+  | SyntaxKind.AmpersandToken
+  | SyntaxKind.EqualsToken
+  | SyntaxKind.NotEqualsToken
+  | SyntaxKind.LessThanToken
+  | SyntaxKind.LessEqualToken
+  | SyntaxKind.GreaterThanToken
+  | SyntaxKind.GreaterEqualToken;
 
 export interface UnaryExpressionNode {
   kind: SyntaxKind.UnaryExpression;
@@ -137,6 +165,7 @@ export type AstNode =
   | RefNode
   | RangeNode
   | FunctionCallNode
+  | NamedRefNode
   | UnaryExpressionNode
   | BinaryExpressionNode;
 

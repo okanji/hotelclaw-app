@@ -73,6 +73,7 @@ export function SheetEditor({
         focusedDay: null,
         selectedCell: null,
         selectionRange: null,
+        activeSheetId: null,
       }}
       initialStorage={initialStorage}
     >

@@ -58,6 +58,7 @@ export function usePrewarmDocument(propertyId: string) {
           focusedDay: null,
           selectedCell: null,
           selectionRange: null,
+          activeSheetId: null,
         },
       });
       pool.set(roomId, leave);

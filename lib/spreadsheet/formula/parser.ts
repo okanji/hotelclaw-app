@@ -13,12 +13,17 @@ import {
 } from "./syntax";
 
 /**
- * Recursive-descent parser. Precedence low→high:
- *   1. + -
- *   2. * / %
- *   3. ^      (right-assoc)
- *   4. unary +/-
- *   5. NumberLiteral | StringLiteral | functionCall | rangeOrRef | (...)
+ * Recursive-descent parser. Precedence low→high (loosest binds last):
+ *   1. comparison (= <> < <= > >=)
+ *   2. concat (&)
+ *   3. additive (+ -)
+ *   4. multiplicative (* / %)
+ *   5. exponent (^)  — right-assoc
+ *   6. unary (+ -)
+ *   7. NumberLiteral | StringLiteral | functionCall | rangeOrRef | (...)
+ *
+ * So `A1+B1=C1` is `(A1+B1)=C1` (comparison loosest), `"a"&"b"+1` is
+ * `"a"&("b"+1)` (concat loosest above arithmetic), matching Excel/Sheets.
  */
 export function parse(tokens: AnyToken[]): AstNode {
   let pos = 0;
@@ -38,7 +43,42 @@ export function parse(tokens: AnyToken[]): AstNode {
     return tok as AnyToken & { kind: K };
   }
 
+  function isComparisonOp(k: SyntaxKind): boolean {
+    return (
+      k === SyntaxKind.EqualsToken ||
+      k === SyntaxKind.NotEqualsToken ||
+      k === SyntaxKind.LessThanToken ||
+      k === SyntaxKind.LessEqualToken ||
+      k === SyntaxKind.GreaterThanToken ||
+      k === SyntaxKind.GreaterEqualToken
+    );
+  }
+
   function parseExpression(): AstNode {
+    return parseComparison();
+  }
+
+  function parseComparison(): AstNode {
+    let left = parseConcat();
+    while (isComparisonOp(peek().kind)) {
+      const op = consume().kind as BinaryOperator;
+      const right = parseConcat();
+      left = { kind: SyntaxKind.BinaryExpression, operator: op, left, right };
+    }
+    return left;
+  }
+
+  function parseConcat(): AstNode {
+    let left = parseAdditive();
+    while (peek().kind === SyntaxKind.AmpersandToken) {
+      const op = consume().kind as BinaryOperator;
+      const right = parseAdditive();
+      left = { kind: SyntaxKind.BinaryExpression, operator: op, left, right };
+    }
+    return left;
+  }
+
+  function parseAdditive(): AstNode {
     let left = parseTerm();
     while (
       peek().kind === SyntaxKind.PlusToken ||
@@ -125,33 +165,36 @@ export function parse(tokens: AnyToken[]): AstNode {
     if (tok.kind === SyntaxKind.IdentToken) {
       consume();
       const name = (tok as IdentToken).name;
-      // Boolean literals — TRUE / FALSE — surface as NumberLiteral 1/0
-      // for the existing arithmetic operators. The evaluator special-cases
-      // logical functions (IF, AND, OR, NOT) to read 1/0 as truthy/falsy.
       const upper = name.toUpperCase();
+      // Boolean literals — TRUE / FALSE — surface as NumberLiteral 1/0.
       if (upper === "TRUE") {
         return { kind: SyntaxKind.NumberLiteral, value: 1 };
       }
       if (upper === "FALSE") {
         return { kind: SyntaxKind.NumberLiteral, value: 0 };
       }
-      // Function call (the only other valid ident in atom position).
-      expect(SyntaxKind.OpenParenthesisToken);
-      const args: AstNode[] = [];
-      if (peek().kind !== SyntaxKind.CloseParenthesisToken) {
-        args.push(parseExpression());
-        while (peek().kind === SyntaxKind.CommaToken) {
-          consume();
+      // IDENT followed by `(` → function call.
+      if (peek().kind === SyntaxKind.OpenParenthesisToken) {
+        consume(); // (
+        const args: AstNode[] = [];
+        if (peek().kind !== SyntaxKind.CloseParenthesisToken) {
           args.push(parseExpression());
+          while (peek().kind === SyntaxKind.CommaToken) {
+            consume();
+            args.push(parseExpression());
+          }
         }
+        expect(SyntaxKind.CloseParenthesisToken);
+        const call: FunctionCallNode = {
+          kind: SyntaxKind.FunctionCall,
+          name: upper,
+          args,
+        };
+        return call;
       }
-      expect(SyntaxKind.CloseParenthesisToken);
-      const call: FunctionCallNode = {
-        kind: SyntaxKind.FunctionCall,
-        name: upper,
-        args,
-      };
-      return call;
+      // Otherwise: named-range reference. Resolved at eval time via the
+      // workbook's namedRanges map. Falls back to #ERR if unknown.
+      return { kind: SyntaxKind.NamedRef, name };
     }
     if (tok.kind === SyntaxKind.OpenParenthesisToken) {
       consume();

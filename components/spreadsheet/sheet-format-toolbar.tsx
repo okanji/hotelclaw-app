@@ -10,16 +10,24 @@
  * every selected cell.
  */
 
+import { useState } from "react";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
   DollarSign,
+  Grid3x3,
   Italic,
+  Link as LinkIcon,
+  Merge,
+  Paintbrush,
   Percent,
+  Split,
+  Square,
   Strikethrough,
   Underline,
+  WrapText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,11 +42,46 @@ import {
 import { cn } from "@/lib/utils";
 import type {
   CellAlign,
+  CellBorder,
   CellFormat,
   CellNumberFormat,
+  CellWrap,
 } from "@/liveblocks.config";
 
 export type FormatPatch = Partial<CellFormat>;
+
+/**
+ * Border preset semantics:
+ *  - `all`    every cell gets the border on every edge
+ *  - `outer`  only the outer perimeter of the selection (top row's top
+ *             edge, bottom row's bottom edge, left col's left edge, etc.)
+ *  - `inner`  internal edges only (between selected cells)
+ *  - `top|bottom|left|right` — only the perimeter edge of that side
+ *  - `none`   strip all 4 edges from every selected cell
+ *
+ * The surface receives the preset + border and walks the selection bounds
+ * to apply per-cell edge patches.
+ */
+export type BorderPreset =
+  | "all"
+  | "outer"
+  | "inner"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "none";
+
+export const SHEET_FONTS: ReadonlyArray<{ id: string; label: string; stack: string }> = [
+  { id: "inter", label: "Inter", stack: "Inter, ui-sans-serif, system-ui, sans-serif" },
+  { id: "arial", label: "Arial", stack: "Arial, Helvetica, sans-serif" },
+  { id: "georgia", label: "Georgia", stack: "Georgia, 'Times New Roman', serif" },
+  { id: "times", label: "Times", stack: "'Times New Roman', Times, serif" },
+  { id: "courier", label: "Courier", stack: "'Courier New', Courier, monospace" },
+  { id: "mono", label: "Monospace", stack: "ui-monospace, SFMono-Regular, monospace" },
+];
+
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 24, 32, 48] as const;
 
 const TEXT_COLORS = [
   "#0f172a", // default
@@ -67,10 +110,29 @@ export function SheetFormatToolbar({
   activeFormat,
   hasSelection,
   onPatch,
+  painterActive,
+  onTogglePainter,
+  onApplyBorders,
+  onMerge,
+  onUnmerge,
+  canMerge,
+  canUnmerge,
 }: {
   activeFormat: CellFormat | null;
   hasSelection: boolean;
   onPatch: (patch: FormatPatch) => void;
+  /** True while the format-painter has a captured format waiting to apply. */
+  painterActive?: boolean;
+  /** Capture the active cell's format (or cancel an in-flight capture). */
+  onTogglePainter?: () => void;
+  /** Apply a borders preset to the current selection. */
+  onApplyBorders?: (preset: BorderPreset, border: CellBorder | null) => void;
+  /** Merge the current selection rectangle into one cell. */
+  onMerge?: () => void;
+  /** Unmerge the merge whose top-left equals the selection's top-left. */
+  onUnmerge?: () => void;
+  canMerge?: boolean;
+  canUnmerge?: boolean;
 }) {
   const disabled = !hasSelection;
 
@@ -78,6 +140,21 @@ export function SheetFormatToolbar({
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border/60 bg-background/60 px-3 py-1.5">
+      <ToggleButton
+        title={
+          painterActive
+            ? "Cancel format painter (Esc)"
+            : "Format painter — click to capture, then click a target cell"
+        }
+        active={painterActive}
+        disabled={disabled && !painterActive}
+        onClick={() => onTogglePainter?.()}
+      >
+        <Paintbrush className="size-4" />
+      </ToggleButton>
+
+      <Separator />
+
       <ToggleButton
         title="Bold (Cmd+B)"
         active={!!fmt.bold}
@@ -115,7 +192,68 @@ export function SheetFormatToolbar({
 
       <Separator />
 
+      <FontFamilyButton
+        current={fmt.fontFamily}
+        disabled={disabled}
+        onPatch={onPatch}
+      />
+      <FontSizeButton
+        current={fmt.fontSize}
+        disabled={disabled}
+        onPatch={onPatch}
+      />
+
+      <Separator />
+
       <AlignButton current={fmt.align} disabled={disabled} onPatch={onPatch} />
+
+      <Separator />
+
+      <BordersButton
+        disabled={disabled}
+        onApply={(preset, border) => onApplyBorders?.(preset, border)}
+      />
+      <WrapButton
+        current={fmt.wrap}
+        disabled={disabled}
+        onPatch={onPatch}
+      />
+      <ToggleButton
+        title="Merge cells"
+        active={false}
+        disabled={!canMerge}
+        onClick={() => onMerge?.()}
+      >
+        <Merge className="size-4" />
+      </ToggleButton>
+      <ToggleButton
+        title="Unmerge"
+        active={false}
+        disabled={!canUnmerge}
+        onClick={() => onUnmerge?.()}
+      >
+        <Split className="size-4" />
+      </ToggleButton>
+      <ToggleButton
+        title={
+          fmt.link
+            ? `Remove link (${fmt.link})`
+            : "Insert link (Cmd+K)"
+        }
+        active={!!fmt.link}
+        disabled={disabled}
+        onClick={() => {
+          if (fmt.link) {
+            onPatch({ link: undefined });
+            return;
+          }
+          // eslint-disable-next-line no-alert
+          const url = window.prompt("Link URL:", "https://");
+          if (url) onPatch({ link: url });
+        }}
+      >
+        <LinkIcon className="size-4" />
+      </ToggleButton>
 
       <Separator />
 
@@ -202,6 +340,274 @@ function Separator() {
   return <span className="mx-1 h-5 w-px self-center bg-border/80" />;
 }
 
+const BORDER_STYLES: ReadonlyArray<{ id: CellBorder["style"]; label: string }> = [
+  { id: "thin", label: "Thin" },
+  { id: "medium", label: "Medium" },
+  { id: "thick", label: "Thick" },
+  { id: "dashed", label: "Dashed" },
+  { id: "dotted", label: "Dotted" },
+  { id: "double", label: "Double" },
+];
+
+const BORDER_COLORS = [
+  "#94a3b8", // default neutral
+  "#0f172a",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#0ea5e9",
+  "#6366f1",
+  "#a855f7",
+];
+
+function BordersButton({
+  disabled,
+  onApply,
+}: {
+  disabled: boolean;
+  onApply: (preset: BorderPreset, border: CellBorder | null) => void;
+}) {
+  // Local style + color choices propagate to every preset clicked. State
+  // lives outside the menu so picks persist across menu opens during a
+  // session (matches Excel — "border style stays until you change it").
+  const [style, setStyle] = useState<CellBorder["style"]>("thin");
+  const [color, setColor] = useState<string>("#94a3b8");
+  const border: CellBorder = { style, color };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={disabled}
+            title="Borders"
+            className="size-7"
+          >
+            <Grid3x3 className="size-4" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Borders</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuItem onClick={() => onApply("all", border)}>
+          <Grid3x3 className="size-4" /> All borders
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onApply("outer", border)}>
+          <Square className="size-4" /> Outer border
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onApply("inner", border)}>
+          Inner borders
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onApply("top", border)}>
+          Top border
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onApply("bottom", border)}>
+          Bottom border
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onApply("left", border)}>
+          Left border
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onApply("right", border)}>
+          Right border
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onApply("none", null)}>
+          No borders
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Style</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <div className="grid grid-cols-3 gap-1 px-2 pb-1.5">
+          {BORDER_STYLES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setStyle(s.id);
+              }}
+              className={cn(
+                "rounded border border-border/60 px-1.5 py-1 text-[11px] hover:bg-muted",
+                style === s.id && "bg-muted text-foreground",
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Color</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <div className="grid grid-cols-9 gap-1 px-2 pb-1.5">
+          {BORDER_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setColor(c);
+              }}
+              title={c}
+              className={cn(
+                "size-5 rounded-sm border border-border/60 hover:ring-2 hover:ring-foreground/15",
+                color === c && "ring-2 ring-foreground/40",
+              )}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function WrapButton({
+  current,
+  disabled,
+  onPatch,
+}: {
+  current?: CellWrap;
+  disabled: boolean;
+  onPatch: (p: FormatPatch) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={disabled}
+            title="Text wrap"
+            className={cn("size-7", current && current !== "overflow" && "bg-muted text-foreground")}
+          >
+            <WrapText className="size-4" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        <DropdownMenuItem
+          onClick={() => onPatch({ wrap: "overflow" })}
+          className={cn((current ?? "overflow") === "overflow" && "bg-muted")}
+        >
+          Overflow
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onPatch({ wrap: "wrap" })}
+          className={cn(current === "wrap" && "bg-muted")}
+        >
+          Wrap
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onPatch({ wrap: "clip" })}
+          className={cn(current === "clip" && "bg-muted")}
+        >
+          Clip
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function FontFamilyButton({
+  current,
+  disabled,
+  onPatch,
+}: {
+  current?: string;
+  disabled: boolean;
+  onPatch: (p: FormatPatch) => void;
+}) {
+  const active = SHEET_FONTS.find((f) => f.stack === current) ?? SHEET_FONTS[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            title="Font"
+            className="h-7 min-w-[88px] justify-start gap-1 px-2 text-[12px]"
+          >
+            <span style={{ fontFamily: active?.stack }}>{active?.label}</span>
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        {SHEET_FONTS.map((f) => (
+          <DropdownMenuItem
+            key={f.id}
+            onClick={() => onPatch({ fontFamily: f.stack })}
+            className={cn(active?.id === f.id && "bg-muted")}
+          >
+            <span style={{ fontFamily: f.stack }}>{f.label}</span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onPatch({ fontFamily: undefined })}>
+          Reset
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function FontSizeButton({
+  current,
+  disabled,
+  onPatch,
+}: {
+  current?: number;
+  disabled: boolean;
+  onPatch: (p: FormatPatch) => void;
+}) {
+  const value = current ?? 14;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            title="Font size"
+            className="h-7 min-w-[44px] px-2 text-[12px] tabular-nums"
+          >
+            {value}
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
+        {FONT_SIZES.map((s) => (
+          <DropdownMenuItem
+            key={s}
+            onClick={() => onPatch({ fontSize: s })}
+            className={cn(value === s && "bg-muted")}
+          >
+            {s}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onPatch({ fontSize: undefined })}>
+          Reset
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function AlignButton({
   current,
   disabled,
@@ -233,7 +639,7 @@ function AlignButton({
           </Button>
         }
       />
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
         {/* Base UI Menu.Item fires onClick, not onSelect. */}
         <DropdownMenuItem onClick={() => onPatch({ align: "left" })}>
           <AlignLeft className="size-4" /> Left
@@ -288,7 +694,7 @@ function ColorButton({
           </Button>
         }
       />
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             {kind === "text" ? "Text color" : "Background color"}
@@ -365,7 +771,7 @@ function NumberFormatButton({
           </Button>
         }
       />
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Number format</DropdownMenuLabel>
           {FORMATS.map((f) => (
@@ -377,6 +783,19 @@ function NumberFormatButton({
               {f.label}
             </DropdownMenuItem>
           ))}
+          <DropdownMenuItem
+            onClick={() => {
+              // eslint-disable-next-line no-alert
+              const s = window.prompt(
+                "Custom number format (e.g. $#,##0.00;[Red]-$#,##0.00):",
+              );
+              if (s == null || s === "") return;
+              onPatch({ numberFormat: "custom", customNumberFormat: s });
+            }}
+            className={cn(current === "custom" && "bg-muted")}
+          >
+            Custom format…
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

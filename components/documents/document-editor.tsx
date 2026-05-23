@@ -118,6 +118,7 @@ export function DocumentEditor({
         focusedDay: null,
         selectedCell: null,
         selectionRange: null,
+        activeSheetId: null,
       }}
     >
       <ClientSideSuspense fallback={<EditorSkeleton />}>
