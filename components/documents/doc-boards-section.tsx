@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -132,10 +133,15 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
   // RLS scopes events to the rows the user can read, so we don't filter
   // document_board_items by property here (the property column lives on
   // the parent board); a stray cross-property echo would be invisible anyway.
+  // The channel name is suffixed with `useId()` so multiple mounted instances
+  // (e.g. during the docs-home variant picker, where all options stay in the
+  // DOM with `hidden`) don't collide on Supabase's name-keyed channel cache —
+  // adding `.on()` after `.subscribe()` on a shared channel throws.
+  const instanceId = useId();
   useEffect(() => {
     const supabase = createBrowserClient();
     const channel = supabase
-      .channel(`document-boards:${propertyId}`)
+      .channel(`document-boards:${propertyId}:${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -167,7 +173,7 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [propertyId, queryClient]);
+  }, [propertyId, queryClient, instanceId]);
 
   const [creatingBoard, setCreatingBoard] = useState(false);
   const handleCreate = useCallback(async () => {
@@ -361,13 +367,6 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
 
   return (
     <div className="mb-2 flex items-center gap-2">
-      <span
-        className={cn(
-          "inline-block size-2 shrink-0 rounded-full",
-          COLOR_DOT[board.color],
-        )}
-        aria-hidden="true"
-      />
       <input
         ref={inputRef}
         value={name}
@@ -386,7 +385,7 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
         placeholder="Untitled board"
         aria-label="Board name"
         className={cn(
-          "min-w-0 flex-1 truncate bg-transparent text-base font-semibold tracking-tight text-foreground",
+          "min-w-0 flex-1 truncate bg-transparent text-lg font-semibold tracking-tight text-foreground",
           "outline-none placeholder:text-muted-foreground/60",
         )}
       />
@@ -607,15 +606,9 @@ function DocCard({
 }
 
 /**
- * Trailing drop hint at the end of a non-empty board strip. Permanently
- * visible so the drop target is discoverable, but takes on two different
- * shapes:
- *
- *   - idle:   narrow, faint column with only a small pin icon — a quiet
- *             "you can drop here" marker that doesn't compete with cards
- *   - active: expands to card width with a bright dashed outline + label
- *             when *anything* is being dragged (a card from this board,
- *             a card from another board, or a row from the library below)
+ * Trailing drop hint at the end of a non-empty board strip. Same footprint
+ * as `DocCard` (`w-40 h-48`) so the row reads as a uniform card grid.
+ * Brightens with a label when anything is being dragged.
  */
 function DropSlot() {
   const { active } = useDndContext();
@@ -625,19 +618,13 @@ function DropSlot() {
     <div
       aria-hidden="true"
       className={cn(
-        "flex h-48 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed transition-all duration-200",
+        "flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed transition-colors duration-200",
         isDragging
-          ? "w-40 border-foreground/30 bg-muted/20 text-foreground/70"
-          : "w-20 border-border/40 text-muted-foreground/40 group-hover/board:border-border/70",
+          ? "border-foreground/30 bg-muted/20 text-foreground/70"
+          : "border-border/40 text-muted-foreground/40 group-hover/board:border-border/70",
       )}
     >
-      <Pin
-        strokeWidth={1.75}
-        className={cn(
-          "transition-all",
-          isDragging ? "size-5" : "size-3.5",
-        )}
-      />
+      <Pin strokeWidth={1.75} className="size-4" />
       {isDragging ? (
         <span className="text-xs font-medium">Drop here</span>
       ) : null}
