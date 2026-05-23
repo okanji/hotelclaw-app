@@ -33,8 +33,14 @@ import {
   useStorage,
 } from "@liveblocks/react/suspense";
 import { usePinch } from "@use-gesture/react";
-import { Redo2, Undo2 } from "lucide-react";
+import { ChevronDown, Plus, Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { encodeCellId } from "@/lib/spreadsheet/cell-id";
 import {
@@ -174,6 +180,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
 
   // Ctrl/meta + wheel = "pinch" on every modern trackpad + Ctrl+wheel on a
   // mouse. The browser's default is to zoom the whole page — we preventDefault
@@ -838,6 +845,22 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
         onPatch={formatPatch}
       />
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/60 px-4 py-1.5">
+        {/* Convenience wrappers for the per-header dropdown's "Insert
+            column/row" actions. The main button mirrors "Insert column
+            right" / "Insert row below" anchored on the currently-selected
+            cell; the attached chevron exposes the "left" / "above" variant.
+            With no selection we fall back to appending at the end so the
+            buttons are still useful. */}
+        <InsertColumnSplitButton
+          selectedColIndex={selection ? colIndex(selection.start.columnId) : -1}
+          totalColumns={columns.length}
+          onInsert={insertColumn}
+        />
+        <InsertRowSplitButton
+          selectedRowIndex={selection ? rowIndex(selection.start.rowId) : -1}
+          totalRows={rows.length}
+          onInsert={insertRow}
+        />
         <div className="ml-auto flex items-center gap-1">
           <Button
             type="button"
@@ -1191,4 +1214,124 @@ const PALETTE = [
 
 function colorFor(connectionId: number): string {
   return PALETTE[Math.abs(connectionId) % PALETTE.length]!;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Toolbar split buttons                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Split button for inserting a column. Click the main half to insert right
+ * of the selected column (falling back to appending at the end when nothing
+ * is selected, so the button always does *something*). The attached chevron
+ * opens a dropdown with the "left" variant.
+ */
+function InsertColumnSplitButton({
+  selectedColIndex,
+  totalColumns,
+  onInsert,
+}: {
+  selectedColIndex: number;
+  totalColumns: number;
+  onInsert: (index: number) => void;
+}) {
+  // -1 (no selection) → append at the end.
+  const rightIndex = selectedColIndex < 0 ? totalColumns : selectedColIndex + 1;
+  const leftIndex = selectedColIndex < 0 ? totalColumns : selectedColIndex;
+  return (
+    <div className="inline-flex items-stretch overflow-hidden rounded-md">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => onInsert(rightIndex)}
+        title={
+          selectedColIndex < 0
+            ? "Append column at the end"
+            : "Insert column right of selection"
+        }
+        className="h-7 gap-1 rounded-r-none pr-1.5"
+      >
+        <Plus className="size-4" /> Column
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label="Column insertion options"
+              className="h-7 w-5 rounded-l-none border-l border-border/60 px-0"
+            />
+          }
+        >
+          <ChevronDown className="size-3 opacity-70" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={() => onInsert(leftIndex)}>
+            Insert column left
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onInsert(rightIndex)}>
+            Insert column right
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/** Row counterpart to `InsertColumnSplitButton`. */
+function InsertRowSplitButton({
+  selectedRowIndex,
+  totalRows,
+  onInsert,
+}: {
+  selectedRowIndex: number;
+  totalRows: number;
+  onInsert: (index: number) => void;
+}) {
+  const belowIndex = selectedRowIndex < 0 ? totalRows : selectedRowIndex + 1;
+  const aboveIndex = selectedRowIndex < 0 ? totalRows : selectedRowIndex;
+  return (
+    <div className="inline-flex items-stretch overflow-hidden rounded-md">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => onInsert(belowIndex)}
+        title={
+          selectedRowIndex < 0
+            ? "Append row at the end"
+            : "Insert row below selection"
+        }
+        className="h-7 gap-1 rounded-r-none pr-1.5"
+      >
+        <Plus className="size-4" /> Row
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label="Row insertion options"
+              className="h-7 w-5 rounded-l-none border-l border-border/60 px-0"
+            />
+          }
+        >
+          <ChevronDown className="size-3 opacity-70" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={() => onInsert(aboveIndex)}>
+            Insert row above
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onInsert(belowIndex)}>
+            Insert row below
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
