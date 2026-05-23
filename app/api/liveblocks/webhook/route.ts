@@ -6,12 +6,16 @@ import {
 } from "@/lib/documents/snapshot";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
 import { parseDocumentRoomId } from "@/lib/liveblocks/rooms";
+import {
+  captureSheetSnapshot,
+  persistSheetSnapshot,
+} from "@/lib/spreadsheet/snapshot";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Liveblocks webhook receiver.
  *
- * Today we handle two events:
+ * Today we handle three events:
  *
  *   • `ydocUpdated` — a Yjs doc in a room changed (Liveblocks coalesces
  *     these to one event per room per 60s; configurable to 5s on Enterprise).
@@ -22,15 +26,21 @@ import { createServiceClient } from "@/lib/supabase/server";
  *     live-edit layer but is now replaceable (the binary update can be
  *     replayed into any Yjs provider).
  *
+ *   • `storageUpdated` — Liveblocks Storage in a room changed (same ~60s
+ *     coalesce window). Sheet docs (`kind = 'sheet'`) use Storage instead of
+ *     Yjs, so this event drives `sheet_state` + `sheet_text` snapshots.
+ *     Doc rooms also emit `storageUpdated` when Comments touch their
+ *     internal storage; we filter by document kind so those are ignored.
+ *
  *   • `roomDeleted` — if a Liveblocks admin or our `deletePropertyRooms`
  *     tears down a doc room, mark the matching row archived so the UI
  *     stops linking to it. We don't hard-delete: the room id encodes the
  *     document id and the data model preserves thread context tied to it
  *     (see migration 0009's "no DELETE policy" comment).
  *
- * Other events (storageUpdated, comments, presence) are ignored — they're
- * not part of the persistence story. A future stage will hand off comment
- * events to the Vercel Chat SDK adapter for bot replies.
+ * Other events (comments, presence) are ignored — they're not part of the
+ * persistence story. A future stage will hand off comment events to the
+ * Vercel Chat SDK adapter for bot replies.
  *
  * Snapshot failures log and return 200. Returning 5xx triggers Liveblocks
  * retry, which is correct for transient errors but would loop forever on a
@@ -92,6 +102,50 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error(
         "[liveblocks-webhook] snapshot capture failed",
+        event.data.roomId,
+        err,
+      );
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (event.type === "storageUpdated") {
+    const parsed = parseDocumentRoomId(event.data.roomId);
+    if (!parsed) return NextResponse.json({ ok: true, ignored: true });
+
+    try {
+      const supabase = createServiceClient();
+      // Filter on `kind` here rather than letting the snapshot writer no-op:
+      // we don't want to spend a REST round-trip into Liveblocks for every
+      // doc room that emits storageUpdated for Comments storage.
+      const { data: row, error } = await supabase
+        .from("documents")
+        .select("kind")
+        .eq("id", parsed.documentId)
+        .maybeSingle();
+      if (error || !row || row.kind !== "sheet") {
+        return NextResponse.json({ ok: true, ignored: true });
+      }
+      const liveblocks = getLiveblocksServer();
+      const snapshot = await captureSheetSnapshot(
+        liveblocks,
+        event.data.roomId,
+      );
+      const result = await persistSheetSnapshot(
+        supabase,
+        parsed.documentId,
+        snapshot,
+      );
+      if ("error" in result) {
+        console.error(
+          "[liveblocks-webhook] persistSheetSnapshot failed",
+          parsed.documentId,
+          result.error,
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[liveblocks-webhook] sheet snapshot capture failed",
         event.data.roomId,
         err,
       );

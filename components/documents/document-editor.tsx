@@ -116,6 +116,8 @@ export function DocumentEditor({
         draggingTaskId: null,
         editingEventId: null,
         focusedDay: null,
+        selectedCell: null,
+        selectionRange: null,
       }}
     >
       <ClientSideSuspense fallback={<EditorSkeleton />}>

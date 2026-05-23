@@ -1,46 +1,23 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThreads } from "@liveblocks/react/suspense";
 import { Composer, Thread } from "@liveblocks/react-ui";
 import "@liveblocks/react-ui/styles.css";
-import {
-  BellOff,
-  CalendarPlus,
-  ChevronDown,
-  ClipboardCopy,
-  FileText,
-  Flag,
-  History,
-  Link2,
-  Paperclip,
-  Plus,
-  Smile,
-  SquarePlus,
-  Star,
-  Tag,
-  Trash2,
-  UserRound,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ListChecks, Paperclip, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask, updateTask } from "./actions";
-import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
-import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
+import { PageHeader } from "@/components/shell/page-header";
 import { PresenceBar } from "./presence-bar";
+import { taskShortId } from "./kanban";
+import {
+  SubIssuesPanel,
+  TaskDetailSidebar,
+} from "./task-detail-sidebar";
+import { TaskDetailInlineProperties } from "./task-detail-inline-properties";
+import { useTaskDetailMutations } from "./task-detail-mutations";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { taskHref } from "@/lib/tasks/task-href";
@@ -56,13 +33,6 @@ type Task = {
   dueAt: string | null;
   createdAt?: string;
 };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 function formatRelative(iso: string) {
   const then = Date.parse(iso);
@@ -80,38 +50,6 @@ function formatRelative(iso: string) {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-function formatDueLabel(iso: string | null) {
-  if (!iso) return "Due date";
-  const d = new Date(iso);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dueDay = new Date(d);
-  dueDay.setHours(0, 0, 0, 0);
-  const diffDays = Math.round(
-    (dueDay.getTime() - today.getTime()) / 86_400_000,
-  );
-  if (diffDays === 0) return "Due today";
-  if (diffDays === 1) return "Due tomorrow";
-  if (diffDays === -1) return "Due yesterday";
-  return `Due ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-}
-
-function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function dateInputToIso(value: string) {
-  if (!value) return null;
-  const d = new Date(`${value}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
-
 export function TaskDetail({
   propertyId,
   task,
@@ -127,7 +65,7 @@ export function TaskDetail({
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId);
   const [dueAt, setDueAt] = useState<string | null>(task.dueAt);
-  const [favorited, setFavorited] = useState(false);
+  const [addingSubIssue, setAddingSubIssue] = useState(false);
   const [pending, startTransition] = useTransition();
   const savedTitle = useRef(task.title);
   const savedDescription = useRef(task.description ?? "");
@@ -139,9 +77,12 @@ export function TaskDetail({
     propertyMembersQueryOptions(propertyId),
   );
 
+  const mutations = useTaskDetailMutations(propertyId, task.id);
+
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
-  }, [qc, propertyId]);
+    qc.invalidateQueries({ queryKey: ["task-meta", propertyId, task.id] });
+  }, [qc, propertyId, task.id]);
 
   function persist(
     patch: Parameters<typeof updateTask>[0],
@@ -225,16 +166,25 @@ export function TaskDetail({
     });
   }
 
-  function soon(label: string) {
-    toast.message(`${label} — coming soon`);
-  }
-
   return (
-    <div className="flex h-full min-h-0">
-      {/* Main — title, description, activity (Linear layout). */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-10 pt-8 pb-6">
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          {
+            label: "Tasks",
+            href: `/p/${propertyId}/tasks`,
+            icon: <ListChecks />,
+          },
+          { label: taskShortId(task.id) },
+        ]}
+      />
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex-1 overflow-y-auto">
+            {/* Reading column — narrower than the full pane and pushed down
+                from the top so the title gets the same "page header" breathing
+                room Linear gives its work item view. */}
+            <div className="mx-auto max-w-[820px] px-10 pt-16 pb-12">
             <textarea
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -265,22 +215,43 @@ export function TaskDetail({
               )}
             />
 
+            <TaskDetailInlineProperties
+              propertyId={propertyId}
+              status={status}
+              priority={priority}
+              assigneeId={assigneeId}
+              assignee={assignee}
+              dueAt={dueAt}
+              members={members}
+              meta={mutations.meta}
+              openers={mutations.openers}
+              removers={mutations.removers}
+              onStatusChange={saveStatus}
+              onPriorityChange={savePriority}
+              onAssigneeChange={saveAssignee}
+              onDueAtChange={saveDueAt}
+            />
+
             <div className="mt-4 flex items-center gap-1">
               <IconGhostButton label="Add reaction">
                 <Smile className="size-4" />
               </IconGhostButton>
-              <IconGhostButton label="Attach file">
+              <IconGhostButton
+                label="Attach file"
+                onClick={mutations.openers.attachFile}
+              >
                 <Paperclip className="size-4" />
               </IconGhostButton>
             </div>
 
-            <button
-              type="button"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-[0.8125rem] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-            >
-              <Plus className="size-3.5" />
-              Add sub-issues
-            </button>
+            <SubIssuesPanel
+              propertyId={propertyId}
+              taskId={task.id}
+              status={status}
+              adding={addingSubIssue}
+              onStartAdd={() => setAddingSubIssue(true)}
+              onCancelAdd={() => setAddingSubIssue(false)}
+            />
 
             <section className="mt-10 border-t border-border/60 pt-6">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -313,478 +284,54 @@ export function TaskDetail({
                 <Composer metadata={{ taskId: task.id }} />
               </div>
             </section>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Sidebar — Linear menu items surfaced as labeled rows, not a hidden ⋯ menu. */}
-      <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border/60">
-        <SidebarSection title="Properties">
-          <StatusPicker status={status} onSelect={saveStatus} />
-          <PriorityPicker priority={priority} onSelect={savePriority} />
-          <AssigneePicker
-            assignee={assignee}
-            assigneeId={assigneeId}
-            members={members}
-            onSelect={saveAssignee}
-          />
-          <DueDatePicker dueAt={dueAt} onChange={saveDueAt} />
-          <SidebarActionRow
-            icon={<Tag className="size-3.5" />}
-            label="Add label"
-            muted
-            onClick={() => soon("Labels")}
-          />
-          <SidebarActionRow
-            icon={
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-            }
-            label="Add to project"
-            muted
-            onClick={() => soon("Projects")}
-          />
-        </SidebarSection>
-
-        <SidebarSection title="Links & attachments">
-          <SidebarActionRow
-            icon={<Link2 className="size-3.5" />}
-            label="Add link"
-            onClick={copyTaskLink}
-          />
-          <SidebarActionRow
-            icon={<FileText className="size-3.5" />}
-            label="Add document"
-            muted
-            onClick={() => soon("Documents")}
-          />
-          <SidebarActionRow
-            icon={<Paperclip className="size-3.5" />}
-            label="Attach file"
-            muted
-            onClick={() => soon("Attachments")}
-          />
-        </SidebarSection>
-
-        <SidebarSection title="Relations">
-          <SidebarActionRow
-            icon={<SquarePlus className="size-3.5" />}
-            label="Create related"
-            muted
-            onClick={() => soon("Related tasks")}
-          />
-          <SidebarActionRow
-            icon={<Plus className="size-3.5" />}
-            label="Add sub-issues"
-            muted
-            onClick={() => soon("Sub-issues")}
-          />
-          <MarkAsPicker status={status} onSelect={saveStatus} />
-        </SidebarSection>
-
-        <SidebarSection title="Actions">
-          <SidebarActionRow
-            icon={<ClipboardCopy className="size-3.5" />}
-            label="Copy title"
-            onClick={copyTitle}
-          />
-          <SidebarActionRow
-            icon={<Link2 className="size-3.5" />}
-            label="Copy link"
-            onClick={copyTaskLink}
-          />
-          <SidebarActionRow
-            icon={
-              <Star
-                className={cn(
-                  "size-3.5",
-                  favorited && "fill-amber-400 text-amber-400",
-                )}
-              />
-            }
-            label={favorited ? "Favorited" : "Favorite"}
-            onClick={() => {
-              setFavorited((v) => {
-                toast.success(v ? "Removed from favorites" : "Favorited");
-                return !v;
-              });
-            }}
-          />
-          <SidebarActionRow
-            icon={<CalendarPlus className="size-3.5" />}
-            label="Remind me"
-            muted
-            onClick={() => soon("Reminders")}
-          />
-          <SidebarActionRow
-            icon={<BellOff className="size-3.5" />}
-            label="Unsubscribe"
-            onClick={() => toast.success("Unsubscribed from updates")}
-          />
-        </SidebarSection>
-
-        <SidebarSection title="More">
-          <SidebarActionRow
-            icon={<History className="size-3.5" />}
-            label="Show description history"
-            muted
-            onClick={() => soon("Description history")}
-          />
-          <SidebarActionRow
-            icon={<Trash2 className="size-3.5" />}
-            label="Delete"
-            destructive
-            onClick={removeTask}
-          />
-        </SidebarSection>
-      </aside>
-    </div>
-  );
-}
-
-function SidebarSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="border-b border-border/60 py-1.5">
-      <div className="flex items-center gap-1 px-3 py-1.5 text-[0.75rem] font-medium text-muted-foreground">
-        <ChevronDown className="size-3.5 opacity-70" />
-        {title}
-      </div>
-      <div className="flex flex-col gap-px px-1 pb-1">{children}</div>
-    </div>
-  );
-}
-
-function SidebarPropertyRow({
-  icon,
-  label,
-  muted,
-}: {
-  icon: ReactNode;
-  label: string;
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[0.8125rem]",
-        muted ? "text-muted-foreground" : "text-foreground",
-      )}
-    >
-      <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
-        {icon}
-      </span>
-      <span className="truncate">{label}</span>
-    </div>
-  );
-}
-
-function SidebarActionRow({
-  icon,
-  label,
-  muted,
-  destructive,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  muted?: boolean;
-  destructive?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[0.8125rem] transition-colors",
-        "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none",
-        destructive
-          ? "text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
-          : muted
-            ? "text-muted-foreground hover:text-foreground"
-            : "text-foreground",
-      )}
-    >
-      <span className="flex w-4 shrink-0 items-center justify-center">
-        {icon}
-      </span>
-      <span className="truncate">{label}</span>
-    </button>
-  );
-}
-
-function StatusPicker({
-  status,
-  onSelect,
-}: {
-  status: TaskStatus;
-  onSelect: (status: TaskStatus) => void;
-}) {
-  const label =
-    COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[0.8125rem] text-foreground transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<StatusIcon status={status} className="size-3.5" />}
-              label={label}
-            />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-48">
-        {COLUMNS.map((c) => (
-          <DropdownMenuItem
-            key={c.id}
-            onClick={() => onSelect(c.id)}
-            className="gap-2"
-          >
-            <StatusIcon status={c.id} className="size-3.5" />
-            {c.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function PriorityPicker({
-  priority,
-  onSelect,
-}: {
-  priority: TaskPriority;
-  onSelect: (priority: TaskPriority) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={
-                priority === "none" ? (
-                  <NoPriorityGlyph variant="inline" />
-                ) : (
-                  <PriorityBars priority={priority} />
-                )
-              }
-              label={
-                priority === "none"
-                  ? "Set priority"
-                  : PRIORITY_META[priority].label
-              }
-              muted={priority === "none"}
-            />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-56 p-1">
-        <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-[0.75rem] text-muted-foreground">
-          <span>Set priority to&hellip;</span>
-          <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted/60 px-1 font-sans text-[0.6875rem]">
-            P
-          </kbd>
-        </div>
-        {PRIORITY_MENU_ORDER.map((p) => (
-          <DropdownMenuItem
-            key={p}
-            onClick={() => onSelect(p)}
-            className="cursor-pointer gap-2 py-1.5"
-          >
-            <span className="flex w-4 items-center justify-center">
-              <PriorityBars priority={p} />
-            </span>
-            <span className="flex-1 text-[0.8125rem]">
-              {PRIORITY_META[p].label}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function AssigneePicker({
-  assignee,
-  assigneeId,
-  members,
-  onSelect,
-}: {
-  assignee: { name: string; avatar?: string } | undefined;
-  assigneeId: string | null;
-  members: { id: string; name: string | null; avatarUrl: string | null }[];
-  onSelect: (id: string | null) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={
-                assignee ? (
-                  <Avatar size="sm" className="size-4">
-                    {assignee.avatar ? (
-                      <AvatarImage src={assignee.avatar} alt={assignee.name} />
-                    ) : null}
-                    <AvatarFallback className="bg-muted text-[0.5rem]">
-                      {initials(assignee.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <UserRound className="size-3.5" />
-                )
-              }
-              label={assignee?.name ?? "Assign"}
-              muted={!assigneeId}
-            />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
-        <DropdownMenuItem onClick={() => onSelect(null)}>
-          Unassigned
-        </DropdownMenuItem>
-        {members.map((m) => (
-          <DropdownMenuItem
-            key={m.id}
-            onClick={() => onSelect(m.id)}
-            className="gap-2"
-          >
-            <Avatar size="sm" className="size-5">
-              {m.avatarUrl ? (
-                <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} />
-              ) : null}
-              <AvatarFallback className="bg-muted text-[0.5625rem]">
-                {initials(m.name ?? "?")}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{m.name ?? "Member"}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function DueDatePicker({
-  dueAt,
-  onChange,
-}: {
-  dueAt: string | null;
-  onChange: (iso: string | null) => void;
-}) {
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<CalendarPlus className="size-3.5" />}
-              label={formatDueLabel(dueAt)}
-              muted={!dueAt}
-            />
-          </button>
-        }
-      />
-      <PopoverContent align="end" className="w-56 p-3">
-        <label className="text-[0.75rem] font-medium text-muted-foreground">
-          Due date
-        </label>
-        <input
-          type="date"
-          value={toDateInputValue(dueAt)}
-          onChange={(e) => onChange(dateInputToIso(e.target.value))}
-          className={cn(
-            "mt-2 h-8 w-full rounded-md border border-input bg-transparent px-2 text-[0.8125rem]",
-            "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-          )}
+        <TaskDetailSidebar
+          propertyId={propertyId}
+          taskId={task.id}
+          status={status}
+          priority={priority}
+          assigneeId={assigneeId}
+          assignee={assignee}
+          dueAt={dueAt}
+          members={members}
+          meta={mutations.meta}
+          openers={mutations.openers}
+          removers={mutations.removers}
+          onStatusChange={saveStatus}
+          onPriorityChange={savePriority}
+          onAssigneeChange={saveAssignee}
+          onDueAtChange={saveDueAt}
+          onCopyTitle={copyTitle}
+          onCopyLink={copyTaskLink}
+          onDelete={removeTask}
+          onAddSubIssue={() => setAddingSubIssue(true)}
         />
-        {dueAt ? (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="mt-2 text-[0.75rem] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Clear due date
-          </button>
-        ) : null}
-      </PopoverContent>
-    </Popover>
-  );
-}
+      </div>
 
-function MarkAsPicker({
-  status,
-  onSelect,
-}: {
-  status: TaskStatus;
-  onSelect: (status: TaskStatus) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<Flag className="size-3.5" />}
-              label="Mark as"
-              muted
-            />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-48">
-        {COLUMNS.map((c) => (
-          <DropdownMenuItem
-            key={c.id}
-            onClick={() => onSelect(c.id)}
-            className="gap-2"
-            disabled={c.id === status}
-          >
-            <StatusIcon status={c.id} className="size-3.5" />
-            {c.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      {mutations.dialogs}
+      {mutations.attachmentInput}
+    </div>
   );
 }
 
 function IconGhostButton({
   label,
   children,
+  onClick,
 }: {
   label: string;
   children: React.ReactNode;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
+      onClick={onClick}
       className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
     >
       {children}

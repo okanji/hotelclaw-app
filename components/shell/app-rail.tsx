@@ -23,6 +23,7 @@ import {
 } from "@/lib/query/section-queries";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
+import { UserMenu } from "./user-menu";
 
 type RailItem = {
   section: ShellSection;
@@ -84,12 +85,21 @@ const MEETINGS_ROUTE = /^\/p\/[^/]+\/meetings(\/.*)?$/;
  * (`SectionSidebar`) renders content for whichever is selected. Rail and
  * secondary sidebar share `bg-sidebar` with no divider between them.
  */
+type RailUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+};
+
 export function AppRail({
   propertyId,
   userId,
+  user,
 }: {
   propertyId: string;
   userId: string;
+  user: RailUser;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -244,9 +254,10 @@ export function AppRail({
       // Rail leads with its first icon; the secondary sidebar leads with the
       // property switcher. Each column owns its own top, separated by the
       // `border-r` between them — no synthetic baseline to maintain.
-      className="flex w-(--rail-width) shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar pt-3 pb-3"
+      className="flex h-full w-(--rail-width) shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar pt-3 pb-3"
       aria-label="Sections"
     >
+      <div className="flex flex-col items-center gap-1">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = section === item.section;
@@ -288,6 +299,10 @@ export function AppRail({
           </button>
         );
       })}
+      </div>
+      <div className="mt-auto">
+        <UserMenu user={user} />
+      </div>
     </aside>
   );
 }

@@ -4,7 +4,6 @@ import { useShellSection } from "./shell-section-context";
 import { useResizableWidth } from "./use-resizable-width";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
-import { UserMenu } from "./user-menu";
 import { LastPathRecorder } from "./last-path-recorder";
 import type { Membership } from "@/lib/auth/session";
 
@@ -24,10 +23,9 @@ type User = {
 };
 
 /**
- * The whole left region: icon rail + secondary sidebar on top, with the
- * user-menu footer spanning their full width along the bottom so it sits
- * flush with the app's left edge (under the rail). Every rail section —
- * Activity included — renders its content in the secondary sidebar.
+ * The whole left region: icon rail (with account menu) + secondary sidebar.
+ * Every rail section — Activity included — renders its content in the
+ * secondary sidebar.
  */
 export function LeftShell({
   currentPropertyId,
@@ -57,7 +55,11 @@ export function LeftShell({
           property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />
       <div className="flex min-h-0 flex-1">
-        <AppRail propertyId={currentPropertyId} userId={user.id} />
+        <AppRail
+          propertyId={currentPropertyId}
+          userId={user.id}
+          user={user}
+        />
         <SectionSidebar
           currentPropertyId={currentPropertyId}
           memberships={memberships}
@@ -67,7 +69,6 @@ export function LeftShell({
           handleProps={resize.handleProps}
         />
       </div>
-      <UserMenu user={user} />
     </div>
   );
 }

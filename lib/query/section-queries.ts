@@ -12,6 +12,22 @@ import type { DocumentListItem } from "@/lib/documents/queries";
  * once and can never drift between the consumer and the prefetch.
  */
 
+import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
+
+export function taskDetailMetaQueryOptions(propertyId: string, taskId: string) {
+  return queryOptions({
+    queryKey: ["task-meta", propertyId, taskId] as const,
+    queryFn: async (): Promise<TaskDetailMeta> => {
+      const res = await fetch(
+        `/api/properties/${propertyId}/tasks/${taskId}/meta`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error("Failed to load task details");
+      return res.json();
+    },
+  });
+}
+
 export function tasksQueryOptions(propertyId: string) {
   return queryOptions({
     queryKey: ["tasks", propertyId] as const,
@@ -71,6 +87,9 @@ export type DocumentTreeRow = {
   position: number;
   updated_at: string;
   last_edited_by: string | null;
+  // 'doc' = Tiptap rich-text; 'sheet' = collaborative spreadsheet. Drives
+  // the editor fork in <DocumentsSurface> and the icon in the tree.
+  kind: "doc" | "sheet";
 };
 
 /**
@@ -86,7 +105,9 @@ export function documentsTreeQueryOptions(propertyId: string) {
       const supabase = createBrowserClient();
       const { data, error } = await supabase
         .from("documents")
-        .select("id, title, parent_id, position, updated_at, last_edited_by")
+        .select(
+          "id, title, parent_id, position, updated_at, last_edited_by, kind",
+        )
         .eq("property_id", propertyId)
         .is("archived_at", null)
         .order("position", { ascending: true })

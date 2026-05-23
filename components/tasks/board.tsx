@@ -14,6 +14,7 @@ import { BoardToolbar, type BoardFilters, type ViewMode } from "./board-toolbar"
 import { KanbanView } from "./kanban-view";
 import { ListView } from "./list-view";
 import { TimelineView } from "./timeline-view";
+import { WorkloadView } from "./workload-view";
 import { PRIORITY_META, type Task } from "./kanban";
 import type { TaskStatus } from "@/lib/db/types";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
@@ -56,6 +57,13 @@ export function TasksBoard({
   const { data, isPending } = useQuery(tasksQueryOptions(propertyId));
   const allTasks = data ?? EMPTY_TASKS;
 
+  // Sub-issues live under their parent on the detail page — keep the board
+  // to top-level work items only.
+  const topLevelTasks = useMemo(
+    () => allTasks.filter((t) => !t.parent_id),
+    [allTasks],
+  );
+
   // Filters/view live in component state — they're UI-only and don't need
   // to round-trip through the URL (the existing `?view=mine` flag is still
   // honored separately for shareable "My tasks" links).
@@ -66,8 +74,8 @@ export function TasksBoard({
 
   // Resolve assignee names/avatars once for the whole board — shared cache.
   const assigneeIds = useMemo(
-    () => allTasks.map((t) => t.assignee_id),
-    [allTasks],
+    () => topLevelTasks.map((t) => t.assignee_id),
+    [topLevelTasks],
   );
   const assignees = useAssigneesMap(assigneeIds);
 
@@ -75,9 +83,9 @@ export function TasksBoard({
   const scopedTasks = useMemo(
     () =>
       mineOnly
-        ? allTasks.filter((t) => t.assignee_id === currentUserId)
-        : allTasks,
-    [allTasks, mineOnly, currentUserId],
+        ? topLevelTasks.filter((t) => t.assignee_id === currentUserId)
+        : topLevelTasks,
+    [topLevelTasks, mineOnly, currentUserId],
   );
 
   const filteredTasks = useMemo(() => {
@@ -146,8 +154,18 @@ export function TasksBoard({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <PageHeader
-        title={mineOnly ? "My tasks" : "Tasks"}
-        icon={<ListChecks />}
+        breadcrumbs={
+          mineOnly
+            ? [
+                {
+                  label: "Tasks",
+                  href: `/p/${propertyId}/tasks`,
+                  icon: <ListChecks />,
+                },
+                { label: "My tasks" },
+              ]
+            : [{ label: "Tasks", icon: <ListChecks /> }]
+        }
         actions={
           <>
             <PresenceBar />
@@ -186,8 +204,15 @@ export function TasksBoard({
           onChanged={notifyChanged}
           onOpenFullCreate={openCreate}
         />
-      ) : (
+      ) : view === "timeline" ? (
         <TimelineView
+          propertyId={propertyId}
+          tasks={filteredTasks}
+          assignees={assignees}
+          hideDone={hideDone}
+        />
+      ) : (
+        <WorkloadView
           propertyId={propertyId}
           tasks={filteredTasks}
           assignees={assignees}

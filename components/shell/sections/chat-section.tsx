@@ -74,7 +74,7 @@ export function ChatSection({
                   size="sm"
                   onClick={() => setArchivedOpen(true)}
                   tooltip="Archived channels"
-                  className="text-sidebar-foreground/55 [&_svg]:!size-3.5 [&_svg]:!text-sidebar-foreground/55"
+                  className="text-sidebar-foreground/55"
                 >
                   <Archive />
                   <span>Archived</span>

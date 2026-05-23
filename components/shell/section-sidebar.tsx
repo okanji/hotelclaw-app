@@ -34,7 +34,7 @@ type Props = {
     name: string | null;
     avatarUrl: string | null;
   };
-  /** Width (px) — owned by `LeftShell` so the user-menu footer can match it. */
+  /** Width (px) — owned by `LeftShell`. */
   width: number;
   dragging: boolean;
   handleProps: ResizeHandleProps;
@@ -42,8 +42,7 @@ type Props = {
 
 /**
  * The second sidebar — content swaps with the active rail section. Property
- * switcher header + section content + drag-to-resize handle. The user-menu
- * footer lives in `LeftShell` instead, so it can span the app's left edge.
+ * switcher header + section content + drag-to-resize handle.
  */
 export function SectionSidebar({
   currentPropertyId,

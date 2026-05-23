@@ -9,6 +9,7 @@ import {
   ListFilter,
   Search,
   Settings2,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -46,7 +47,7 @@ export type BoardFilters = {
   statusPreset: StatusPreset;
 };
 
-export type ViewMode = "board" | "list" | "timeline";
+export type ViewMode = "board" | "list" | "timeline" | "workload";
 
 const STATUS_TABS: { id: StatusPreset; label: string }[] = [
   { id: "all", label: "All issues" },
@@ -58,6 +59,7 @@ const VIEW_TABS: { id: ViewMode; label: string; Icon: typeof Columns3 }[] = [
   { id: "board", label: "Board", Icon: Columns3 },
   { id: "list", label: "List", Icon: List },
   { id: "timeline", label: "Timeline", Icon: CalendarRange },
+  { id: "workload", label: "Workload", Icon: Users },
 ];
 
 const EMPTY_FILTERS: BoardFilters = {

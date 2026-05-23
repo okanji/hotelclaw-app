@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 const PropertyId = z.string().uuid();
 const DocumentId = z.string().uuid();
 const Title = z.string().min(1).max(200);
+const Kind = z.enum(["doc", "sheet"]);
+export type DocumentKind = z.infer<typeof Kind>;
 
 type ActionError = { error: string };
 
@@ -47,9 +49,13 @@ async function nextPosition(
 export async function createDocument(
   propertyId: string,
   parentId?: string | null,
+  kind: DocumentKind = "doc",
 ): Promise<{ id: string } | ActionError> {
   const parsed = PropertyId.safeParse(propertyId);
   if (!parsed.success) return { error: "Invalid property id" };
+
+  const parsedKind = Kind.safeParse(kind);
+  if (!parsedKind.success) return { error: "Invalid kind" };
 
   let parent: string | null = null;
   if (parentId) {
@@ -87,6 +93,12 @@ export async function createDocument(
       property_id: parsed.data,
       parent_id: parent,
       position,
+      kind: parsedKind.data,
+      // Sheets get a friendlier default title than "Untitled document".
+      title:
+        parsedKind.data === "sheet"
+          ? "Untitled spreadsheet"
+          : "Untitled document",
       created_by: user.id,
       last_edited_by: user.id,
     })

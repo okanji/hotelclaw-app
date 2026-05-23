@@ -21,6 +21,7 @@ const CreateSchema = z.object({
   status: z.enum(Statuses).default("todo"),
   priority: z.enum(Priorities).default("none"),
   assigneeId: z.string().uuid().nullable().optional(),
+  parentId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateSchema = z.object({
@@ -31,6 +32,8 @@ const UpdateSchema = z.object({
   priority: z.enum(Priorities).optional(),
   assigneeId: z.string().uuid().nullable().optional(),
   dueAt: z.string().nullable().optional(),
+  labels: z.array(z.string().min(1).max(40)).optional(),
+  projectName: z.string().max(120).nullable().optional(),
 });
 
 const MoveSchema = z.object({
@@ -69,6 +72,7 @@ export async function createTask(
       assignee_id: parsed.data.assigneeId ?? null,
       created_by: user.id,
       position,
+      parent_id: parsed.data.parentId ?? null,
     })
     .select("id")
     .single();
@@ -120,6 +124,9 @@ export async function updateTask(
   if (parsed.data.assigneeId !== undefined)
     patch.assignee_id = parsed.data.assigneeId;
   if (parsed.data.dueAt !== undefined) patch.due_at = parsed.data.dueAt;
+  if (parsed.data.labels !== undefined) patch.labels = parsed.data.labels;
+  if (parsed.data.projectName !== undefined)
+    patch.project_name = parsed.data.projectName;
 
   // Changing status moves the card to a different column — drop it at the
   // top so it doesn't inherit a stale position from its old column.

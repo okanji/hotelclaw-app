@@ -56,6 +56,8 @@ export function usePrewarmDocument(propertyId: string) {
           draggingTaskId: null,
           editingEventId: null,
           focusedDay: null,
+          selectedCell: null,
+          selectionRange: null,
         },
       });
       pool.set(roomId, leave);

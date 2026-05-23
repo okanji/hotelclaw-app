@@ -1,0 +1,219 @@
+/* Spreadsheet styles. Scoped via the `.hc-sheet-root` ancestor selector. */
+
+.hc-sheet-root {
+  --hc-sheet-grid-color: var(--border);
+  --hc-sheet-grid-color-strong: var(--border);
+  --hc-sheet-cell-bg: var(--background);
+  --hc-sheet-cell-bg-alt: color-mix(in oklab, var(--background) 95%, var(--muted) 5%);
+  --hc-sheet-header-bg: var(--muted);
+  --hc-sheet-header-text: var(--muted-foreground);
+  --hc-sheet-selection: hsl(220 90% 56%);
+  --hc-sheet-selection-bg: color-mix(in oklab, hsl(220 90% 56%) 10%, transparent);
+  --hc-sheet-error: hsl(0 70% 55%);
+}
+
+.hc-sheet-root.dark,
+.dark .hc-sheet-root {
+  --hc-sheet-grid-color: color-mix(in oklab, var(--border) 80%, transparent);
+}
+
+/* Scroll container holds the entire table including frozen headers. */
+.hc-sheet-scroll {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  outline: none;
+  background: var(--hc-sheet-cell-bg);
+}
+
+.hc-sheet-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  user-select: none;
+}
+
+.hc-sheet-cell,
+.hc-sheet-row-header,
+.hc-sheet-col-header,
+.hc-sheet-corner {
+  box-sizing: border-box;
+  border-right: 1px solid var(--hc-sheet-grid-color);
+  border-bottom: 1px solid var(--hc-sheet-grid-color);
+  font-size: 13px;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.hc-sheet-corner,
+.hc-sheet-col-header,
+.hc-sheet-row-header {
+  background: var(--hc-sheet-header-bg);
+  color: var(--hc-sheet-header-text);
+  font-weight: 500;
+  text-align: center;
+  position: sticky;
+  z-index: 2;
+}
+
+/* Sticky column-header row (top). */
+.hc-sheet-col-header {
+  top: 0;
+}
+
+/* Sticky row-header column (left). */
+.hc-sheet-row-header {
+  left: 0;
+}
+
+/* Top-left corner is sticky in both axes — needs a higher z so it covers
+   the intersecting sticky edges. */
+.hc-sheet-corner {
+  top: 0;
+  left: 0;
+  z-index: 3;
+}
+
+.hc-sheet-cell {
+  background: var(--hc-sheet-cell-bg);
+  cursor: cell;
+  position: relative;
+  /* Numbers right-aligned, anything else left. The cell sets a data-attr. */
+}
+
+.hc-sheet-cell[data-type="number"] .hc-sheet-cell-text {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-sheet-cell[data-type="error"] .hc-sheet-cell-text {
+  color: var(--hc-sheet-error);
+}
+
+.hc-sheet-cell-text {
+  display: block;
+  padding: 4px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  height: 100%;
+  line-height: 1.4;
+}
+
+.hc-sheet-cell[data-selected="true"] {
+  outline: 2px solid var(--hc-sheet-selection);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.hc-sheet-cell[data-in-range="true"] {
+  background: var(--hc-sheet-selection-bg);
+}
+
+.hc-sheet-cell-input {
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  border: 0;
+  background: var(--hc-sheet-cell-bg);
+  outline: 2px solid var(--hc-sheet-selection);
+  outline-offset: -2px;
+  font: inherit;
+  color: inherit;
+}
+
+/* Column-header drag handle + resize handle.
+   The handle sits on the right edge of each header. */
+.hc-sheet-col-header-inner,
+.hc-sheet-row-header-inner {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  cursor: grab;
+}
+
+.hc-sheet-col-header-inner:active,
+.hc-sheet-row-header-inner:active {
+  cursor: grabbing;
+}
+
+.hc-sheet-col-resize {
+  position: absolute;
+  right: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.hc-sheet-row-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 2;
+}
+
+.hc-sheet-col-resize:hover,
+.hc-sheet-row-resize:hover {
+  background: var(--hc-sheet-selection);
+}
+
+.hc-sheet-header-dragging {
+  opacity: 0.5;
+}
+
+/* Find-replace highlight. Soft yellow for any match, stronger for the
+   currently-focused one. */
+.hc-sheet-cell[data-match="true"] {
+  background: color-mix(in oklab, hsl(50 90% 50%) 20%, transparent);
+}
+.hc-sheet-cell[data-active-match="true"] {
+  background: color-mix(in oklab, hsl(50 95% 50%) 40%, transparent);
+  outline: 2px solid hsl(50 95% 45%);
+  outline-offset: -2px;
+}
+
+/* AutoFill drag handle — small blue square in the bottom-right corner of
+   the selection rectangle. Captured cell sits inside a positioned td so the
+   handle hangs off the corner cleanly. */
+.hc-sheet-fill-handle {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 7px;
+  height: 7px;
+  background: var(--hc-sheet-selection);
+  border: 1px solid var(--hc-sheet-cell-bg);
+  cursor: crosshair;
+  z-index: 4;
+}
+
+/* Other users' selection — rendered as a colored outline. The accent color
+   is set inline via `--hc-other-color`. */
+.hc-sheet-cell[data-other-color] {
+  outline: 2px solid var(--hc-other-color);
+  outline-offset: -2px;
+}
+
+.hc-sheet-cell[data-other-color] .hc-sheet-other-pill {
+  position: absolute;
+  top: -16px;
+  left: -1px;
+  background: var(--hc-other-color);
+  color: white;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 4px;
+  white-space: nowrap;
+  border-radius: 2px 2px 2px 0;
+  pointer-events: none;
+}

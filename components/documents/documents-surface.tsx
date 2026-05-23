@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { SheetEditor } from "@/components/spreadsheet/sheet-editor";
+import { documentsTreeQueryOptions } from "@/lib/query/section-queries";
 import { DocumentEditor } from "./document-editor";
 import { DocumentsHome } from "./documents-home";
 
@@ -51,7 +54,7 @@ export function DocumentsSurface({ propertyId }: { propertyId: string }) {
   const documentId = pathname.match(DOC_ROUTE)?.[1];
   if (documentId) {
     return (
-      <DocumentEditor
+      <ActiveDocument
         key={documentId}
         propertyId={propertyId}
         documentId={documentId}
@@ -63,4 +66,32 @@ export function DocumentsSurface({ propertyId }: { propertyId: string }) {
       <DocumentsHome propertyId={propertyId} />
     </div>
   );
+}
+
+/**
+ * Reads `documents.kind` out of the warm tree cache and renders the right
+ * editor. We don't have a separate Postgres roundtrip for this — the layout's
+ * prefetch + the rail's realtime keep this query fresh, so the branch is
+ * effectively synchronous.
+ *
+ * While the cache is cold (hard load that hasn't hydrated yet) we render the
+ * rich-text editor — it does its own loading + 404 handling internally.
+ * Once the kind shows up we swap.
+ */
+function ActiveDocument({
+  propertyId,
+  documentId,
+}: {
+  propertyId: string;
+  documentId: string;
+}) {
+  const { data: tree } = useQuery({
+    ...documentsTreeQueryOptions(propertyId),
+    retry: 2,
+  });
+  const row = tree?.find((d) => d.id === documentId);
+  if (row?.kind === "sheet") {
+    return <SheetEditor propertyId={propertyId} documentId={documentId} />;
+  }
+  return <DocumentEditor propertyId={propertyId} documentId={documentId} />;
 }

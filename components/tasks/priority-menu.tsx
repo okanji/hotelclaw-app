@@ -27,6 +27,13 @@ type PriorityChipProps = {
   onChanged?: () => void;
   /** Stop the parent's drag listeners from hijacking the click. */
   stopDrag?: boolean;
+  /**
+   * `chip` (default) wraps the glyph in a rounded bordered pill — used when
+   * the priority needs its own affordance (e.g. detail panel buttons).
+   * `bare` renders just the glyph with a hit-area, matching Linear's
+   * kanban-card priority indicator that sits inline with other metadata.
+   */
+  appearance?: "chip" | "bare";
   className?: string;
 };
 
@@ -35,11 +42,13 @@ export function PriorityChip({
   priority,
   onChanged,
   stopDrag = true,
+  appearance = "chip",
   className,
 }: PriorityChipProps) {
   const [pending, startTransition] = useTransition();
   const meta = PRIORITY_META[priority];
   const isNone = priority === "none";
+  const isBare = appearance === "bare";
 
   function setPriority(next: TaskPriority) {
     if (next === priority) return;
@@ -64,17 +73,21 @@ export function PriorityChip({
             onClick={stopDrag ? (e) => e.stopPropagation() : undefined}
             disabled={pending}
             className={cn(
-              isNone
-                ? // Ring + dashes live in the SVG — no extra chrome on the button.
-                  "inline-flex size-5 items-center justify-center rounded-full border-0 bg-transparent p-0 shadow-none"
-                : "inline-flex h-5 w-6 items-center justify-center rounded-full border border-border/60 bg-transparent",
+              isBare
+                ? "inline-flex size-5 items-center justify-center rounded-sm border-0 bg-transparent p-0 shadow-none"
+                : isNone
+                  ? // Ring + dashes live in the SVG — no extra chrome on the button.
+                    "inline-flex size-5 items-center justify-center rounded-full border-0 bg-transparent p-0 shadow-none"
+                  : "inline-flex h-5 w-6 items-center justify-center rounded-full border border-border/60 bg-transparent",
               "text-muted-foreground transition-colors",
-              !isNone &&
+              !isNone && !isBare &&
                 "hover:border-border hover:bg-foreground/5 hover:text-foreground",
+              isBare && "hover:bg-foreground/8 hover:text-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              !isNone && "aria-expanded:border-border aria-expanded:bg-foreground/5",
-              !isNone && "data-popup-open:border-border data-popup-open:bg-foreground/5",
-              isNone && "hover:text-foreground/90",
+              !isNone && !isBare && "aria-expanded:border-border aria-expanded:bg-foreground/5",
+              !isNone && !isBare && "data-popup-open:border-border data-popup-open:bg-foreground/5",
+              isBare && "aria-expanded:bg-foreground/8 data-popup-open:bg-foreground/8",
+              isNone && !isBare && "hover:text-foreground/90",
               "disabled:opacity-50",
               className,
             )}

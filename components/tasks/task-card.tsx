@@ -5,28 +5,15 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  useTransition,
   type CSSProperties,
 } from "react";
 import Link from "next/link";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MoreHorizontal, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { deleteTask } from "./actions";
-import { COLUMNS, taskShortId, type Task } from "./kanban";
+import { taskShortId, type Task } from "./kanban";
 import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
 import { taskHref } from "@/lib/tasks/task-href";
@@ -75,29 +62,6 @@ function useFlip<T extends HTMLElement>(enabled: boolean) {
 /* Date helpers                                                               */
 /* -------------------------------------------------------------------------- */
 
-function formatDueDate(due: Date, now: number) {
-  const dueDay = new Date(due);
-  dueDay.setHours(0, 0, 0, 0);
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.round(
-    (dueDay.getTime() - today.getTime()) / 86_400_000,
-  );
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  if (diffDays === -1) return "Yesterday";
-  if (diffDays > -7 && diffDays < 0) return `${Math.abs(diffDays)}d ago`;
-  if (diffDays > 0 && diffDays < 7)
-    return due.toLocaleDateString(undefined, { weekday: "short" });
-  const sameYear = dueDay.getFullYear() === today.getFullYear();
-  return due.toLocaleDateString(
-    undefined,
-    sameYear
-      ? { month: "short", day: "numeric" }
-      : { month: "short", day: "numeric", year: "numeric" },
-  );
-}
-
 /** Absolute "MMM D" / "MMM D, YY" for created timestamps — Linear-style. */
 function formatCreated(iso: string, now: number) {
   const d = new Date(iso);
@@ -130,12 +94,14 @@ function AssigneeSlot({
   assigneeId: string | null;
 }) {
   if (!assigneeId) {
+    // Linear's unassigned glyph: a dashed circular hairline ring with a
+    // centered person silhouette inside.
     return (
       <span
         aria-label="Unassigned"
-        className="inline-flex size-[18px] items-center justify-center text-muted-foreground/40"
+        className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/60"
       >
-        <UserRound className="size-3.5" />
+        <UserRound className="size-3" strokeWidth={1.75} />
       </span>
     );
   }
@@ -143,11 +109,11 @@ function AssigneeSlot({
   return (
     <Avatar
       size="sm"
-      className="size-[18px] shrink-0"
+      className="size-[22px] shrink-0"
       title={`Assigned to ${name}`}
     >
       {info?.avatar ? <AvatarImage src={info.avatar} alt={name} /> : null}
-      <AvatarFallback className="bg-muted text-[0.5625rem] font-medium text-foreground">
+      <AvatarFallback className="bg-muted text-[0.625rem] font-medium text-foreground">
         {initials(name)}
       </AvatarFallback>
     </Avatar>
@@ -161,16 +127,17 @@ function CardPropertyRow({
   task: Task;
   onChanged: () => void;
 }) {
-  // Linear-style "properties" strip — small chips for priority (always
-  // present; "No priority" renders as a dashed placeholder) and any other
-  // inline properties we add over time. Left-aligned with the task ID so it
-  // reads as its own column of metadata, not a continuation of the title.
+  // Linear-style "properties" strip — the priority glyph rendered bare
+  // (no chip border) so it reads as inline metadata rather than its own
+  // affordance. Other inline properties (labels, due-date pill, etc.)
+  // can be appended here over time.
   return (
-    <div className="mt-1.5 flex items-center gap-1">
+    <div className="mt-2.5 flex items-center gap-1">
       <PriorityChip
         taskId={task.id}
         priority={task.priority}
         onChanged={onChanged}
+        appearance="bare"
       />
     </div>
   );
@@ -179,40 +146,16 @@ function CardPropertyRow({
 function CardCreatedAt({ iso, now }: { iso: string | undefined; now: number }) {
   if (!iso) return null;
   return (
-    <div className="mt-1.5 text-[0.75rem] leading-4 text-muted-foreground">
+    <div className="mt-2.5 text-[0.75rem] leading-4 text-muted-foreground">
       Created {formatCreated(iso, now)}
     </div>
   );
 }
 
-function CardDueDate({
-  task,
-  now,
-}: {
-  task: Task;
-  now: number;
-}) {
-  const due = task.due_at ? new Date(task.due_at) : null;
-  if (!due) return null;
-  const overdue = task.status !== "done" && due.getTime() < now;
-  return (
-    <div
-      className={cn(
-        "mt-1 text-[0.75rem] leading-4 tabular-nums",
-        overdue
-          ? "font-medium text-red-600 dark:text-red-400"
-          : "text-muted-foreground",
-      )}
-    >
-      Due {formatDueDate(due, now)}
-    </div>
-  );
-}
-
 const CARD_BASE = cn(
-  // Padding kept tight (Linear sits around 8px) so the card stays compact
-  // even with a priority chip + created date stacked underneath the title.
-  "relative rounded-md border border-border/70 bg-card p-2 shadow-xs",
+  // Roomy padding (Linear sits ~12px) so the ID row, title, priority, and
+  // created-date each have their own breathing room.
+  "relative rounded-md border border-border/70 bg-card p-3 shadow-xs",
 );
 
 /**
@@ -236,9 +179,7 @@ export function TaskCardOverlay({
     >
       <CardHeader task={task} assignee={assignee} />
       <CardTitle title={task.title} status={task.status} />
-      <CardDescription description={task.description} />
       <CardPropertyRow task={task} onChanged={() => undefined} />
-      <CardDueDate task={task} now={now} />
       <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );
@@ -267,24 +208,14 @@ function CardHeader({
 
 function CardTitle({ title, status }: { title: string; status: TaskStatus }) {
   return (
-    <div className="mt-1.5 flex items-start gap-1.5">
-      <span className="flex h-[1.125rem] shrink-0 items-center">
+    <div className="mt-2.5 flex items-start gap-1.5">
+      <span className="flex h-4.5 shrink-0 items-center">
         <StatusIcon status={status} className="size-3.5" />
       </span>
-      <p className="line-clamp-2 text-[0.8125rem] leading-[1.125rem] font-normal text-foreground">
+      <p className="line-clamp-2 text-[0.8125rem] leading-4.5 font-medium text-foreground">
         {title}
       </p>
     </div>
-  );
-}
-
-function CardDescription({ description }: { description: string | null }) {
-  const text = description?.trim();
-  if (!text) return null;
-  return (
-    <p className="mt-1 ml-5 line-clamp-1 text-[0.75rem] leading-4 text-muted-foreground/80">
-      {text}
-    </p>
   );
 }
 
@@ -301,7 +232,6 @@ type Props = {
   dragActive: boolean;
   /** Name of a teammate currently dragging this card, if any. */
   draggedByName: string | null;
-  onMove: (taskId: string, status: TaskStatus) => void;
   onChanged: () => void;
 };
 
@@ -311,10 +241,8 @@ export function SortableTaskCard({
   assignee,
   dragActive,
   draggedByName,
-  onMove,
   onChanged,
 }: Props) {
-  const [pending, startTransition] = useTransition();
   const [now] = useState(() => Date.now());
   const lockedByOther = draggedByName != null;
   const openTask = useOpenTask(propertyId);
@@ -348,18 +276,6 @@ export function SortableTaskCard({
     transition,
   };
 
-  function remove() {
-    startTransition(async () => {
-      const result = await deleteTask(task.id);
-      if ("error" in result) {
-        toast.error(result.error);
-      } else {
-        toast.success("Task deleted");
-        onChanged();
-      }
-    });
-  }
-
   return (
     <div
       ref={setRefs}
@@ -384,55 +300,6 @@ export function SortableTaskCard({
         </div>
       ) : null}
 
-      {/* Hover-only menu — absolutely positioned over the top-right so the
-          resting card stays uncluttered like Linear's. The card-colored
-          background keeps the trigger readable when it overlays the
-          assignee chip. */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="icon"
-              variant="ghost"
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Task options"
-              className={cn(
-                "absolute right-1 top-1 z-10 size-6 rounded-sm bg-card p-0 text-muted-foreground/80",
-                "opacity-0 transition-opacity",
-                "group-hover:opacity-100 focus-visible:opacity-100",
-                "aria-expanded:opacity-100 data-popup-open:opacity-100",
-                "hover:bg-foreground/8 hover:text-foreground",
-              )}
-              disabled={pending}
-            />
-          }
-        >
-          <MoreHorizontal className="size-3.5" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Move to</DropdownMenuLabel>
-            {COLUMNS.map((c) => (
-              <DropdownMenuItem
-                key={c.id}
-                disabled={c.id === task.status}
-                onClick={() => onMove(task.id, c.id)}
-              >
-                <StatusIcon status={c.id} className="size-3.5" />
-                {c.label}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={remove}
-              className="text-destructive focus:text-destructive"
-            >
-              Delete task
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <CardHeader task={task} assignee={assignee} />
 
       <Link
@@ -441,11 +308,9 @@ export function SortableTaskCard({
         className="block focus-visible:outline-none"
       >
         <CardTitle title={task.title} status={task.status} />
-        <CardDescription description={task.description} />
       </Link>
 
       <CardPropertyRow task={task} onChanged={onChanged} />
-      <CardDueDate task={task} now={now} />
       <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );

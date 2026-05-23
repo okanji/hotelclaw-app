@@ -132,6 +132,10 @@ export interface Database {
           title: string;
           parent_id: string | null;
           position: number;
+          // 'doc' = Tiptap rich-text (Yjs); 'sheet' = spreadsheet (Liveblocks
+          // Storage). Added in migration 0024. Drives the editor-fork in
+          // <DocumentsSurface>.
+          kind: "doc" | "sheet";
           // Yjs binary update written by the Liveblocks `ydocUpdated` webhook
           // (see app/api/liveblocks/webhook/route.ts + migration 0018). bytea
           // surfaces as a Buffer / Uint8Array via supabase-js; for the rare
@@ -143,6 +147,13 @@ export interface Database {
           // Tiptap ProseMirror JSON snapshot; nullable, useful for SSR/AI.
           body_json: unknown;
           body_updated_at: string | null;
+          // Spreadsheet state — Liveblocks Storage snapshot serialized to
+          // JSON by the `storageUpdated` webhook for `kind='sheet'` rows
+          // (migration 0024). { columns, rows, cells }. Null for doc rows.
+          sheet_state: unknown;
+          // TSV plaintext rendering of the sheet body — drives body_fts.
+          sheet_text: string | null;
+          sheet_updated_at: string | null;
           created_by: string | null;
           last_edited_by: string | null;
           archived_at: string | null;
@@ -155,10 +166,14 @@ export interface Database {
           title?: string;
           parent_id?: string | null;
           position?: number;
+          kind?: "doc" | "sheet";
           body_state?: Uint8Array | null;
           body_text?: string;
           body_json?: unknown;
           body_updated_at?: string | null;
+          sheet_state?: unknown;
+          sheet_text?: string | null;
+          sheet_updated_at?: string | null;
           created_by?: string | null;
           last_edited_by?: string | null;
           archived_at?: string | null;
@@ -167,10 +182,14 @@ export interface Database {
           title: string;
           parent_id: string | null;
           position: number;
+          kind: "doc" | "sheet";
           body_state: Uint8Array | null;
           body_text: string;
           body_json: unknown;
           body_updated_at: string | null;
+          sheet_state: unknown;
+          sheet_text: string | null;
+          sheet_updated_at: string | null;
           last_edited_by: string | null;
           archived_at: string | null;
         }>;
@@ -193,6 +212,9 @@ export interface Database {
           scheduled_start: string | null;
           scheduled_end: string | null;
           position: number;
+          parent_id: string | null;
+          labels: string[];
+          project_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -209,6 +231,9 @@ export interface Database {
           scheduled_start?: string | null;
           scheduled_end?: string | null;
           position?: number;
+          parent_id?: string | null;
+          labels?: string[];
+          project_name?: string | null;
         };
         Update: Partial<{
           title: string;
@@ -220,6 +245,164 @@ export interface Database {
           scheduled_start: string | null;
           scheduled_end: string | null;
           position: number;
+          parent_id: string | null;
+          labels: string[];
+          project_name: string | null;
+        }>;
+        Relationships: [];
+      };
+      task_links: {
+        Row: {
+          id: string;
+          task_id: string;
+          url: string;
+          title: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          url: string;
+          title?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          url: string;
+          title: string | null;
+        }>;
+        Relationships: [];
+      };
+      task_relations: {
+        Row: {
+          id: string;
+          task_id: string;
+          related_task_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          related_task_id: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          related_task_id: string;
+        }>;
+        Relationships: [];
+      };
+      task_favorites: {
+        Row: {
+          user_id: string;
+          task_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          task_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      task_description_revisions: {
+        Row: {
+          id: string;
+          task_id: string;
+          description: string | null;
+          edited_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          description?: string | null;
+          edited_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          description: string | null;
+        }>;
+        Relationships: [];
+      };
+      task_notification_mutes: {
+        Row: {
+          user_id: string;
+          task_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          task_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      task_reminders: {
+        Row: {
+          id: string;
+          task_id: string;
+          user_id: string;
+          remind_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          user_id: string;
+          remind_at: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          remind_at: string;
+        }>;
+        Relationships: [];
+      };
+      task_document_links: {
+        Row: {
+          id: string;
+          task_id: string;
+          document_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          document_id: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      task_attachments: {
+        Row: {
+          id: string;
+          task_id: string;
+          file_name: string;
+          storage_path: string;
+          mime_type: string | null;
+          byte_size: number | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          file_name: string;
+          storage_path: string;
+          mime_type?: string | null;
+          byte_size?: number | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          file_name: string;
         }>;
         Relationships: [];
       };

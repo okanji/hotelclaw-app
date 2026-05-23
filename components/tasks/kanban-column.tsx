@@ -47,7 +47,6 @@ type Props = {
   onToggleCollapse: (status: TaskStatus) => void;
   /** Map of taskId -> name of a teammate dragging it. */
   remoteDragMap: Map<string, string>;
-  onMove: (taskId: string, status: TaskStatus) => void;
   onChanged: () => void;
   /** Opens the full modal for this column — for "more options" path. */
   onOpenFullCreate: (status: TaskStatus) => void;
@@ -64,7 +63,6 @@ export function KanbanColumn({
   collapsed,
   onToggleCollapse,
   remoteDragMap,
-  onMove,
   onChanged,
   onOpenFullCreate,
 }: Props) {
@@ -203,7 +201,6 @@ export function KanbanColumn({
                 assignee={info}
                 dragActive={dragActive}
                 draggedByName={remoteDragMap.get(id) ?? null}
-                onMove={onMove}
                 onChanged={onChanged}
               />
             );

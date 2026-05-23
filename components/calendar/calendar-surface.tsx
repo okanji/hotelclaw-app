@@ -38,6 +38,8 @@ export function CalendarSurface({
         draggingTaskId: null,
         editingEventId: null,
         focusedDay: null,
+        selectedCell: null,
+        selectionRange: null,
       }}
     >
       {/* Suspense boundary keeps the calendar from flashing while the

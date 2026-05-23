@@ -374,32 +374,6 @@ export function KanbanView({
     setBoard(buildBoard(tasks));
   }
 
-  /** "Move to" from a card's menu — drops the card at the top of a column. */
-  const handleMoveToColumn = useCallback(
-    (taskId: string, status: TaskStatus) => {
-      const from = columnOf(board.columns, taskId);
-      if (!from || from === status) return;
-      const topId = board.columns[status][0];
-      const position = computePosition(
-        null,
-        topId ? (board.byId[topId]?.position ?? null) : null,
-      );
-      setBoard((prev) => ({
-        ...prev,
-        columns: {
-          ...prev.columns,
-          [from]: prev.columns[from].filter((x) => x !== taskId),
-          [status]: [
-            taskId,
-            ...prev.columns[status].filter((x) => x !== taskId),
-          ],
-        },
-      }));
-      void persistMove(taskId, status, position);
-    },
-    [board, persistMove],
-  );
-
   const toggleCollapsed = useCallback(
     (status: TaskStatus) =>
       setCollapsed((prev) => ({ ...prev, [status]: !prev[status] })),
@@ -440,7 +414,6 @@ export function KanbanView({
               collapsed={isCollapsed}
               onToggleCollapse={toggleCollapsed}
               remoteDragMap={remoteDragMap}
-              onMove={handleMoveToColumn}
               onChanged={notifyChanged}
               onOpenFullCreate={onOpenFullCreate}
             />

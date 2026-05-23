@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   DndContext,
@@ -21,7 +20,7 @@ import {
   documentBoardsQueryOptions,
   documentsQueryOptions,
 } from "@/lib/query/section-queries";
-import { createDocument } from "./actions";
+import { CreateDocumentDialog } from "./create-document-dialog";
 import { DocBoardsSection, useBoardMutations } from "./doc-boards-section";
 import { DocsActivitySheet } from "./docs-activity-panel";
 import { DocsHomePresenceProvider } from "./docs-home-presence";
@@ -47,9 +46,7 @@ const RECENTLY_EDITED_LIMIT = 6;
  * `unpin-zone` All-documents wrapper to remove it from boards).
  */
 export function DocumentsHome({ propertyId }: { propertyId: string }) {
-  const router = useRouter();
-  const [creating, startCreate] = useTransition();
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data: docs, isError: docsError } = useQuery(documentsQueryOptions(propertyId));
   const { data: boards = [] } = useQuery(documentBoardsQueryOptions(propertyId));
@@ -78,18 +75,6 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
 
   const hasDocs = docsList.length > 0;
   const hasRecentlyEdited = recentlyEdited.length > 0;
-
-  function handleCreate() {
-    setCreateError(null);
-    startCreate(async () => {
-      const res = await createDocument(propertyId);
-      if ("error" in res) {
-        setCreateError(res.error);
-        return;
-      }
-      router.push(`/p/${propertyId}/documents/${res.id}`);
-    });
-  }
 
   // ── DnD ───────────────────────────────────────────────────────────────────
   // 6px activation distance: a plain click on a row navigates; a 6px drag
@@ -155,20 +140,28 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
       onDragCancel={handleDragCancel}
     >
       <div className="mx-auto flex h-full w-full max-w-6xl flex-col px-6 py-8 sm:py-10 lg:max-w-7xl">
-        {/* Title row and description sit on separate lines so the actions
-            hug the heading at the right edge instead of being pushed off
-            into the dead space `justify-between` would create. Mobile
-            stacks: title → actions → description. */}
-        <header className="mb-10 flex flex-col gap-3 sm:gap-2">
+        {/* Title row keeps actions hugging the heading; the description
+            stacks underneath so the page breathes without forcing a
+            justify-between gap on smaller widths. */}
+        <header className="mb-8 flex flex-col gap-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-balance">
+            <h1 className="text-[1.5rem] font-semibold tracking-tight text-balance">
               Documents
             </h1>
-            <DocsActivitySheet propertyId={propertyId} />
+            <div className="flex items-center gap-1.5">
+              <DocsActivitySheet propertyId={propertyId} />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="size-4" />
+                New
+              </Button>
+            </div>
           </div>
-          <p className="max-w-[64ch] text-sm text-pretty text-muted-foreground">
-            Pin favorites to boards, see what changed recently, or browse the
-            full library.
+          <p className="max-w-[60ch] text-[0.8125rem] tracking-tight text-pretty text-muted-foreground">
+            Pin favorites to boards, browse recent edits, or open the full library.
           </p>
         </header>
 
@@ -185,16 +178,16 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
           <DocumentSearch propertyId={propertyId} />
         </div>
 
-        <div className="flex flex-col gap-10 lg:gap-12">
+        <div className="flex flex-col gap-8 lg:gap-10">
           <DocBoardsSection propertyId={propertyId} />
 
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-7">
             {hasRecentlyEdited ? (
               <section>
                 <SectionHeading
                   icon={<Pencil strokeWidth={1.75} className="size-3.5" />}
                   right={
-                    <span className="text-sm text-muted-foreground tabular-nums">
+                    <span className="text-[0.75rem] tracking-tight text-muted-foreground tabular-nums">
                       {recentlyEdited.length}
                     </span>
                   }
@@ -216,9 +209,7 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
             <AllDocumentsSection
               hasDocs={hasDocs}
               count={docsList.length}
-              createError={createError}
-              creating={creating}
-              onCreate={handleCreate}
+              onCreate={() => setCreateOpen(true)}
             >
               <DocumentList propertyId={propertyId} />
             </AllDocumentsSection>
@@ -229,6 +220,12 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
       <DragOverlay dropAnimation={null}>
         {activeGhost ? <DragGhost title={activeGhost.title} /> : null}
       </DragOverlay>
+
+      <CreateDocumentDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        propertyId={propertyId}
+      />
     </DndContext>
     </DocsHomePresenceProvider>
   );
@@ -238,15 +235,11 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
 function AllDocumentsSection({
   hasDocs,
   count,
-  createError,
-  creating,
   onCreate,
   children,
 }: {
   hasDocs: boolean;
   count: number;
-  createError: string | null;
-  creating: boolean;
   onCreate: () => void;
   children: React.ReactNode;
 }) {
@@ -257,31 +250,27 @@ function AllDocumentsSection({
         right={
           <div className="flex shrink-0 items-center gap-2">
             {hasDocs ? (
-              <span className="text-sm text-muted-foreground tabular-nums">
+              <span className="text-[0.75rem] tracking-tight text-muted-foreground tabular-nums">
                 {count} {count === 1 ? "doc" : "docs"}
               </span>
             ) : null}
             <Button
               type="button"
               size="sm"
+              variant="outline"
               onClick={onCreate}
-              disabled={creating}
             >
               <Plus className="size-4" />
-              {creating ? "Creating…" : "New document"}
+              New
             </Button>
           </div>
         }
       >
         All documents
       </SectionHeading>
-      {createError ? (
-        <p className="mb-3 text-sm text-destructive">{createError}</p>
-      ) : (
-        <p className="mb-3 text-sm text-pretty text-muted-foreground">
-          Drag a document onto a board to pin it for your team.
-        </p>
-      )}
+      <p className="mb-3 text-[0.75rem] tracking-tight text-pretty text-muted-foreground">
+        Drag a document onto a board to pin it for your team.
+      </p>
       <div
         className={cn(
           "rounded-lg transition-shadow",
@@ -305,7 +294,7 @@ function SectionHeading({
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+      <h2 className="flex items-center gap-1.5 text-[0.8125rem] font-medium tracking-tight text-foreground">
         {icon ? (
           <span className="text-muted-foreground" aria-hidden="true">
             {icon}

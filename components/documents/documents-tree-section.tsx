@@ -19,6 +19,7 @@ import {
   Home,
   MoreHorizontal,
   Plus,
+  Table2,
 } from "lucide-react";
 import {
   DndContext,
@@ -65,6 +66,7 @@ import {
   moveDocument,
 } from "./actions";
 import { ArchivedDocumentsDialog } from "./archived-documents-dialog";
+import { CreateDocumentDialog } from "./create-document-dialog";
 
 type DocRow = DocumentTreeRow;
 
@@ -101,6 +103,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   const docs = data ?? EMPTY_DOCS;
   const loaded = !isPending;
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
@@ -242,6 +245,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
             position: maxPos + 1024,
             updated_at: new Date().toISOString(),
             last_edited_by: null,
+            kind: "doc",
           },
         ];
       });
@@ -388,8 +392,8 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
         <SidebarGroup>
           <SidebarGroupLabel>Documents</SidebarGroupLabel>
           <SidebarGroupAction
-            onClick={() => void onCreate(null)}
-            title="New document"
+            onClick={() => setCreateOpen(true)}
+            title="Create new"
           >
             <Plus />
           </SidebarGroupAction>
@@ -440,6 +444,11 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
         propertyId={propertyId}
         open={archivedOpen}
         onOpenChange={setArchivedOpen}
+      />
+      <CreateDocumentDialog
+        propertyId={propertyId}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
       />
     </DndContext>
   );
@@ -597,7 +606,7 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
               : undefined
           }
         >
-          <FileText />
+          {doc.kind === "sheet" ? <Table2 /> : <FileText />}
           <span className="truncate">{doc.title || "Untitled"}</span>
         </SidebarMenuButton>
 
@@ -741,6 +750,7 @@ function reduce(current: DocRow[], payload: RealtimePayload): DocRow[] {
     position: row.position ?? 0,
     updated_at: row.updated_at ?? new Date().toISOString(),
     last_edited_by: row.last_edited_by ?? null,
+    kind: (row.kind as "doc" | "sheet") ?? "doc",
   };
   return [...without, next];
 }

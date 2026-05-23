@@ -28,6 +28,16 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .limit(50);
+  // TEMP: trace "All documents disappears" — remove once root cause found.
+  console.log(
+    "[getDocuments]",
+    "property=",
+    propertyId.slice(0, 8),
+    "error=",
+    error?.message ?? "none",
+    "rows=",
+    data?.length ?? 0,
+  );
   if (error) throw new Error(error.message);
   return data ?? [];
 }
@@ -51,7 +61,9 @@ export async function getDocumentsTree(
 ): Promise<DocumentTreeRow[]> {
   const { data, error } = await supabase
     .from("documents")
-    .select("id, title, parent_id, position, updated_at, last_edited_by")
+    .select(
+      "id, title, parent_id, position, updated_at, last_edited_by, kind",
+    )
     .eq("property_id", propertyId)
     .is("archived_at", null)
     .order("position", { ascending: true })
