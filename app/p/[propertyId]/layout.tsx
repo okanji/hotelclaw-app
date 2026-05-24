@@ -178,6 +178,7 @@ export default async function PropertyLayout({
                           <ActivitySurface
                             propertyId={propertyId}
                             userId={user.id}
+                            userName={profile.data?.full_name ?? null}
                           />
                           <ThreadsSurface />
                           <InboxSurface

@@ -213,7 +213,7 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
           {creatingBoard ? "Creating…" : "New board"}
         </Button>
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {boards.map((board) => (
           <BoardStrip
             key={board.id}
@@ -276,7 +276,7 @@ function BoardStrip({
   const hasItems = items.length > 0;
 
   return (
-    <div className="group/board border-b border-border/50 pb-8 last:border-b-0 last:pb-0">
+    <div className="group/board bg-zinc-200/70 px-7 pt-6 pb-5 dark:bg-white/[0.04]">
       <BoardHeader board={board} />
       <div
         ref={setNodeRef}
@@ -366,7 +366,7 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
   }
 
   return (
-    <div className="mb-2 flex items-center gap-2">
+    <div className="mb-4 flex items-center gap-2">
       <input
         ref={inputRef}
         value={name}
@@ -385,7 +385,7 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
         placeholder="Untitled board"
         aria-label="Board name"
         className={cn(
-          "min-w-0 flex-1 truncate bg-transparent text-lg font-semibold tracking-tight text-foreground",
+          "min-w-0 flex-1 truncate bg-transparent text-xl font-semibold tracking-tight text-foreground",
           "outline-none placeholder:text-muted-foreground/60",
         )}
       />

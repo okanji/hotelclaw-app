@@ -15,11 +15,19 @@ const ACTIVITY_ROUTE = /^\/p\/[^/]+\/activity\/?$/;
 export function ActivitySurface({
   propertyId,
   userId,
+  userName,
 }: {
   propertyId: string;
   userId: string;
+  userName: string | null;
 }) {
   const pathname = usePathname();
   if (!ACTIVITY_ROUTE.test(pathname)) return null;
-  return <ActivityView propertyId={propertyId} userId={userId} />;
+  return (
+    <ActivityView
+      propertyId={propertyId}
+      userId={userId}
+      userName={userName}
+    />
+  );
 }
