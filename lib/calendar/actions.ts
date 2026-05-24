@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { MeetingRecurrence } from "@/lib/db/types";
 
@@ -11,23 +12,44 @@ import type { MeetingRecurrence } from "@/lib/db/types";
  * changes, so we only invalidate the calling user's cache.
  */
 
-type SaveMeetingInput = {
-  propertyId: string;
-  meetingId?: string;
-  title: string;
-  description?: string;
-  location?: string;
-  start: string; // ISO
-  end: string; // ISO
-  allDay: boolean;
-  attendeeIds: string[];
-  /** When true, the meeting is also a Stream Video call (default). */
-  withVideoCall: boolean;
-  /** Null for a one-off meeting. */
-  recurrence: MeetingRecurrence | null;
-};
+const RecurrenceSchema: z.ZodType<MeetingRecurrence | null> = z
+  .object({
+    freq: z.enum(["daily", "weekly", "monthly", "yearly"]),
+    interval: z.number().int().positive().optional(),
+    until: z.string().optional(),
+    count: z.number().int().positive().optional(),
+    byweekday: z.array(z.string()).optional(),
+  })
+  .passthrough()
+  .nullable() as unknown as z.ZodType<MeetingRecurrence | null>;
+
+const SaveMeetingSchema = z
+  .object({
+    propertyId: z.string().uuid(),
+    meetingId: z.string().uuid().optional(),
+    title: z.string(),
+    description: z.string().optional(),
+    location: z.string().optional(),
+    start: z.string().datetime(),
+    end: z.string().datetime(),
+    allDay: z.boolean(),
+    attendeeIds: z.array(z.string().uuid()),
+    withVideoCall: z.boolean(),
+    recurrence: RecurrenceSchema,
+  })
+  .refine((v) => new Date(v.end).getTime() >= new Date(v.start).getTime(), {
+    message: "end must be after start",
+    path: ["end"],
+  });
+
+type SaveMeetingInput = z.infer<typeof SaveMeetingSchema>;
 
 export async function saveMeeting(input: SaveMeetingInput) {
+  const parsed = SaveMeetingSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "invalid input" };
+  }
+  input = parsed.data;
   const supabase = await createClient();
   const {
     data: { user },

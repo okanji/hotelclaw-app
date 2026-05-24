@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
+import { propertyIdFromRoomId } from "@/lib/liveblocks/rooms";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
       .eq("user_id", user.id),
   ]);
 
+  const memberPropertyIds = new Set(
+    (memberships ?? []).map((m) => m.property_id),
+  );
+
   const liveblocks = getLiveblocksServer();
   const session = liveblocks.prepareSession(user.id, {
     userInfo: {
@@ -41,10 +46,17 @@ export async function POST(request: Request) {
   });
 
   if (room) {
+    // Without this check, any logged-in user could request access to any room
+    // id (e.g. `property:<other-property-uuid>:doc:<any>`) and Liveblocks would
+    // grant FULL_ACCESS, leaking every other tenant's documents/tasks/boards.
+    const requestedProperty = propertyIdFromRoomId(room);
+    if (!requestedProperty || !memberPropertyIds.has(requestedProperty)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
     session.allow(room, session.FULL_ACCESS);
   } else {
-    for (const m of memberships ?? []) {
-      session.allow(`property:${m.property_id}:*`, session.FULL_ACCESS);
+    for (const propertyId of memberPropertyIds) {
+      session.allow(`property:${propertyId}:*`, session.FULL_ACCESS);
     }
   }
 

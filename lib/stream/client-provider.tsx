@@ -60,6 +60,9 @@ export function StreamProvider({
 }: Props) {
   const [client, setClient] = useState<StreamChat | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<Error | null>(null);
+  // Bumped by the retry button so the token-fetch and connect effects rerun.
+  const [retryNonce, setRetryNonce] = useState(0);
   const { resolvedTheme } = useTheme();
   const streamTheme =
     resolvedTheme === "dark" ? "str-chat__theme-dark" : "str-chat__theme-light";
@@ -79,11 +82,15 @@ export function StreamProvider({
       .then((j: { token: string }) => {
         if (!cancelled) setToken(j.token);
       })
-      .catch((e) => console.error("Stream token fetch failed", e));
+      .catch((e) => {
+        if (cancelled) return;
+        console.error("Stream token fetch failed", e);
+        setConnectError(e instanceof Error ? e : new Error(String(e)));
+      });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, retryNonce]);
 
   // Step 2: once token arrives, connect — strict-mode safe.
   useEffect(() => {
@@ -107,6 +114,9 @@ export function StreamProvider({
         await c.connectUser(user, token);
       } catch (e) {
         console.error("Stream connectUser failed", e);
+        if (mounted) {
+          setConnectError(e instanceof Error ? e : new Error(String(e)));
+        }
         return;
       }
       if (!mounted) {
@@ -123,7 +133,13 @@ export function StreamProvider({
       connectedClient?.disconnectUser().catch(() => {});
       setClient(null);
     };
-  }, [token, userId]);
+  }, [token, userId, retryNonce]);
+
+  const handleRetry = () => {
+    setConnectError(null);
+    setToken(null);
+    setRetryNonce((n) => n + 1);
+  };
 
   // Profile edits (name/avatar) — push the new metadata into the live
   // connection without reconnecting. Stream propagates this as a user.updated
@@ -144,6 +160,23 @@ export function StreamProvider({
   // a flood of "called outside the ChatContext provider" warnings, so we hold
   // the whole shell behind a minimal loading state until Stream is connected.
   if (!client) {
+    if (connectError) {
+      return (
+        <div className="flex h-svh flex-col items-center justify-center gap-3 text-sm">
+          <p className="text-muted-foreground">Couldn’t connect to chat.</p>
+          <p className="max-w-md text-center text-xs text-muted-foreground/80">
+            {connectError.message}
+          </p>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-foreground hover:bg-foreground/[0.04]"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex h-svh items-center justify-center text-sm text-muted-foreground">
         Connecting…

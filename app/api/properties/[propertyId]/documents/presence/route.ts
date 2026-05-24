@@ -70,7 +70,14 @@ export async function GET(
               })),
           ),
         };
-      } catch {
+      } catch (err) {
+        // Per-doc failure shouldn't fail the whole batch — log and return an
+        // empty user list for this doc only so the others stay populated.
+        console.error(
+          "[documents-presence] getActiveUsers failed",
+          { documentId, roomId },
+          err,
+        );
         return { documentId, users: [] };
       }
     }),

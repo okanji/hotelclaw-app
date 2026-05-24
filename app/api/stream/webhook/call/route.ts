@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
   let body: WebhookBody;
   try {
     body = stream.verifyAndParseWebhook(rawBody, signature) as WebhookBody;
-  } catch {
+  } catch (err) {
+    console.error("[stream-webhook-call] verifyAndParseWebhook failed", err);
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 

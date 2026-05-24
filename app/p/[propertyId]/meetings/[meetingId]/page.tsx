@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMeetingDetail } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
-import { ArrowLeft, FileText, Hash, Video } from "lucide-react";
+import { ArrowLeft, FileText, Hash, Square, Video } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -134,11 +134,12 @@ function SummarySection({
           <ul className="space-y-1">
             {summary.action_items.map((a, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  disabled
-                  className="mt-1 size-3.5"
-                  aria-label={a.text}
+                {/* Read-only summary — use a presentational icon instead of
+                    a disabled <input> so screen readers don't announce a
+                    non-interactive "checkbox, disabled". */}
+                <Square
+                  aria-hidden
+                  className="mt-1 size-3.5 text-muted-foreground"
                 />
                 <span>
                   {a.text}

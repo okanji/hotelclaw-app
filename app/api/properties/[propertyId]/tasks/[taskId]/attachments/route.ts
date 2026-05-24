@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getMembershipForProperty } from "@/lib/auth/session";
 import { registerTaskAttachment } from "@/components/tasks/task-detail-actions";
 
 const BUCKET = "task-attachments";
@@ -16,6 +17,14 @@ export async function POST(
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Defense in depth: don't rely solely on RLS for upload authorization.
+  // If the tasks RLS policy ever regresses, the storage upload would still
+  // happen before the registerTaskAttachment insert fails.
+  const membership = await getMembershipForProperty(propertyId);
+  if (!membership) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { data: task } = await supabase

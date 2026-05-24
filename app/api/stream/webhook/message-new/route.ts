@@ -1,10 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
 import { getStreamServer } from "@/lib/stream/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   createNotifications,
   findAlreadyNotifiedUserIds,
 } from "@/lib/notifications/server";
+import { getBotUserId } from "@/lib/stream/ai-adapter";
+import {
+  shouldBotChimeIn,
+  type ChimeSensitivity,
+} from "@/lib/stream/ai-auto-classifier";
+import { loadChannelHistory } from "@/lib/stream/ai-history";
+import { generateAndPostReply } from "@/lib/stream/ai-reply";
 
 /**
  * Stream Chat webhook → in-app notification fan-out.
@@ -71,7 +79,8 @@ export async function POST(request: NextRequest) {
   let body: WebhookBody;
   try {
     body = JSON.parse(rawBody) as WebhookBody;
-  } catch {
+  } catch (err) {
+    console.error("[stream-webhook-message-new] JSON parse failed", err);
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
@@ -98,10 +107,13 @@ export async function POST(request: NextRequest) {
     .map((u) => u.id)
     .filter((id): id is string => !!id && id !== senderId);
   const broadcastMentioned = BROADCAST_RX.test(text);
-
-  if (directMentionIds.length === 0 && !broadcastMentioned) {
-    return NextResponse.json({ ok: true, skipped: "no-mentions" });
-  }
+  const botUserId = getBotUserId();
+  const botMentioned = directMentionIds.includes(botUserId);
+  const senderIsBot = senderId === botUserId;
+  // Stream marks the bot's own placeholders with this flag (see ai-reply.ts).
+  // Belt-and-suspenders so we never loop on our own messages.
+  const isAiGenerated = (msg as { ai_generated?: boolean }).ai_generated ===
+    true;
 
   // Resolve the channel to a property — `chat_channels.stream_channel_id` is
   // unique per property and the lookup is indexed.
@@ -114,6 +126,31 @@ export async function POST(request: NextRequest) {
 
   if (!channelRow || channelRow.archived_at) {
     return NextResponse.json({ ok: true, skipped: "unknown-channel" });
+  }
+
+  // AI reply trigger. Runs before the notification path so we can short-circuit
+  // the webhook quickly — generation happens via `after()` so the webhook
+  // returns to Stream within the timeout window.
+  if (!senderIsBot && !isAiGenerated) {
+    const aiTriggered = await maybeTriggerAiReply({
+      channelId,
+      channelType: channelType as "team",
+      propertyId: channelRow.property_id,
+      botUserId,
+      botMentioned,
+      triggerMessage: {
+        id: msg.id,
+        text,
+        userId: senderId ?? "unknown",
+        userName: msg.user?.name ?? null,
+      },
+    });
+    // Logged for observability; the webhook response shape is unchanged.
+    void aiTriggered;
+  }
+
+  if (directMentionIds.length === 0 && !broadcastMentioned) {
+    return NextResponse.json({ ok: true, skipped: "no-mentions" });
   }
 
   // Build the recipient set.
@@ -166,4 +203,103 @@ export async function POST(request: NextRequest) {
 
   await createNotifications(toInsert);
   return NextResponse.json({ ok: true, inserted: toInsert.length });
+}
+
+/**
+ * Decide whether the AI bot should reply to this message, and if so, schedule
+ * the generation to run after the webhook responds.
+ *
+ * Reply gating:
+ *   - The bot must be a member of the channel (activated via the AI tab).
+ *   - Then depending on the channel's `ai_mode`:
+ *       "always"  → respond to every non-bot message.
+ *       "mention" → respond only when the bot is @-mentioned.
+ *       "auto"    → respond on mention, OR when a Haiku classifier decides
+ *                   the bot would add value. `ai_sensitivity` tunes the
+ *                   classifier (conservative / balanced / eager).
+ *
+ * We use `after()` for the generation pass so the webhook returns to Stream
+ * within its timeout window. The classifier runs inside `after()` too —
+ * 1-2s of Haiku latency on top of a Sonnet generation easily exceeds the
+ * webhook budget.
+ */
+async function maybeTriggerAiReply(args: {
+  channelId: string;
+  channelType: "team" | "messaging";
+  propertyId: string;
+  botUserId: string;
+  botMentioned: boolean;
+  triggerMessage: {
+    id: string;
+    text: string;
+    userId: string;
+    userName: string | null;
+  };
+}): Promise<boolean> {
+  const stream = getStreamServer();
+  const channel = stream.channel(args.channelType, args.channelId);
+  let state;
+  try {
+    state = await channel.query({ members: { limit: 200 } });
+  } catch (err) {
+    console.error("[ai-trigger] channel.query failed", err);
+    return false;
+  }
+  const botIsMember = (state.members ?? []).some(
+    (m) => m.user?.id === args.botUserId,
+  );
+  if (!botIsMember) return false;
+
+  const channelData = state.channel as
+    | { ai_mode?: string; ai_sensitivity?: string }
+    | undefined;
+  const mode = (channelData?.ai_mode ?? "mention") as
+    | "mention"
+    | "auto"
+    | "always";
+  const sensitivity = (channelData?.ai_sensitivity ?? "balanced") as
+    ChimeSensitivity;
+
+  // Fast paths: mention always responds, always-mode always responds.
+  const shouldRespondNow =
+    args.botMentioned || mode === "always";
+
+  if (!shouldRespondNow && mode !== "auto") return false;
+
+  after(async () => {
+    try {
+      // Auto mode without mention: run the classifier first. Direct mentions
+      // and always-mode skip this — no point spending a Haiku call to confirm
+      // the obvious.
+      if (mode === "auto" && !args.botMentioned) {
+        const history = await loadChannelHistory(channel, args.botUserId);
+        const decision = await shouldBotChimeIn({
+          history,
+          triggerMessage: {
+            text: args.triggerMessage.text,
+            userId: args.triggerMessage.userId,
+            userName: args.triggerMessage.userName,
+          },
+          sensitivity,
+        });
+        console.log("[ai-trigger:auto]", {
+          channelId: args.channelId,
+          sensitivity,
+          should_respond: decision.should_respond,
+          reason: decision.reason,
+        });
+        if (!decision.should_respond) return;
+      }
+
+      await generateAndPostReply({
+        streamChannelId: args.channelId,
+        channelType: args.channelType,
+        triggerMessage: args.triggerMessage,
+        propertyId: args.propertyId,
+      });
+    } catch (err) {
+      console.error("[ai-trigger] reply pipeline failed", err);
+    }
+  });
+  return true;
 }

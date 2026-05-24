@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getMembershipForProperty } from "@/lib/auth/session";
 
 /**
  * Mark a meeting as ended. Client-side leave already disconnects the user
@@ -32,6 +33,13 @@ export async function POST(
     .maybeSingle();
   if (!meeting) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  // Defense in depth: RLS already filtered the read, but the service-client
+  // update below bypasses RLS. Re-verify membership against the property id
+  // we just read so a future RLS regression can't escalate.
+  const membership = await getMembershipForProperty(meeting.property_id);
+  if (!membership) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   if (meeting.ended_at) {
     return NextResponse.json({ ok: true, alreadyEnded: true });

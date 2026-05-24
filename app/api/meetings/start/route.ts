@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getMembershipForProperty } from "@/lib/auth/session";
 
 /**
  * Open a new meeting tied to a chat channel.
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
 
   if (!channel || channel.archived_at) {
     return NextResponse.json({ error: "channel not found" }, { status: 404 });
+  }
+
+  // Defense in depth: the chat_channels read above is RLS-scoped, but the
+  // service-client insert below isn't. Re-verify membership in the property
+  // the channel belongs to before minting a meeting row under that scope.
+  const membership = await getMembershipForProperty(channel.property_id);
+  if (!membership) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   // Service client to insert with elevated trust — meetings.insert RLS would

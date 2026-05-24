@@ -13,6 +13,7 @@ import { useInfoPanel } from "./context";
 import { MembersTab } from "./members-tab";
 import { PinnedTab } from "./pinned-tab";
 import { AboutTab } from "./about-tab";
+import { AiTab } from "./ai-tab";
 import { FilesTab } from "@/components/chat/files/files-tab";
 
 /**
@@ -41,10 +42,11 @@ export function ChannelInfoPanel({ propertyId }: { propertyId: string }) {
           onValueChange={(t) => setTab(t as typeof tab)}
           className="flex flex-1 flex-col gap-0"
         >
-          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4">
+          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-5">
             <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="pinned">Pinned</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
           <TabsContent value="members" className="flex-1 overflow-y-auto p-3">
@@ -55,6 +57,9 @@ export function ChannelInfoPanel({ propertyId }: { propertyId: string }) {
           </TabsContent>
           <TabsContent value="files" className="flex-1 overflow-y-auto p-3">
             <FilesTab />
+          </TabsContent>
+          <TabsContent value="ai" className="flex-1 overflow-y-auto p-3">
+            <AiTab />
           </TabsContent>
           <TabsContent value="about" className="flex-1 overflow-y-auto p-3">
             <AboutTab propertyId={propertyId} />

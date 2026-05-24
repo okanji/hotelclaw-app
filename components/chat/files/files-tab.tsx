@@ -22,6 +22,7 @@ import {
   glyphFor,
   mediaThumbUrl,
 } from "./file-utils";
+import { MediaGallerySheet } from "./media-gallery-sheet";
 
 const MEDIA_GRID_PREVIEW = 6;
 
@@ -36,6 +37,7 @@ const MEDIA_GRID_PREVIEW = 6;
  */
 export function FilesTab() {
   const [query, setQuery] = useState("");
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const media = useChannelFiles({ mode: "media" });
   const docs = useChannelFiles({ mode: "docs" });
@@ -78,8 +80,15 @@ export function FilesTab() {
       <section>
         <div className="flex items-center justify-between px-1 pb-2">
           <h3 className="text-[13px] text-muted-foreground">Photos and videos</h3>
-          {/* No dedicated `See all` destination yet — kept as TODO so we
-              don't ship a dead link. */}
+          {mediaHits.length > MEDIA_GRID_PREVIEW ? (
+            <button
+              type="button"
+              onClick={() => setGalleryOpen(true)}
+              className="text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              See all
+            </button>
+          ) : null}
         </div>
         {media.isLoading && filteredMedia.length === 0 ? (
           <div className="grid grid-cols-3 gap-2">
@@ -138,6 +147,8 @@ export function FilesTab() {
           </button>
         ) : null}
       </section>
+
+      <MediaGallerySheet open={galleryOpen} onOpenChange={setGalleryOpen} />
     </div>
   );
 }

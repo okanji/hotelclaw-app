@@ -11,6 +11,7 @@ import {
   persistSheetSnapshot,
 } from "@/lib/spreadsheet/snapshot";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getCommentBot } from "@/lib/ai/bot-scaffold";
 
 /**
  * Liveblocks webhook receiver.
@@ -181,8 +182,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // TODO(stage 2): hand off comment events to the Vercel Chat SDK adapter
-  // (see lib/ai/bot-scaffold.ts) to implement bots that respond in Comments
-  // threads. https://liveblocks.io/blog/chat-sdk-adapter-for-liveblocks
+  // Comment events (commentCreated, commentReactionAdded, commentReactionRemoved)
+  // are routed to the Vercel Chat SDK bot via @liveblocks/chat-sdk-adapter.
+  // The bot does its own signature verification, so we reconstruct a fresh
+  // Request from the raw body and headers and hand it off.
+  if (
+    event.type === "commentCreated" ||
+    event.type === "commentReactionAdded" ||
+    event.type === "commentReactionRemoved"
+  ) {
+    try {
+      const bot = getCommentBot();
+      const forwarded = new Request(request.url, {
+        method: "POST",
+        headers,
+        body: rawBody,
+      });
+      return await bot.webhooks.liveblocks(forwarded, {
+        waitUntil: (p) => void p,
+      });
+    } catch (err) {
+      // Don't 5xx — the comment was already created in Liveblocks; the bot
+      // failing to reply shouldn't make Liveblocks retry forever.
+      console.error(
+        "[liveblocks-webhook] comment bot dispatch failed",
+        event.type,
+        err,
+      );
+      return NextResponse.json({ ok: true, botFailed: true });
+    }
+  }
+
   return new NextResponse(null, { status: 204 });
 }

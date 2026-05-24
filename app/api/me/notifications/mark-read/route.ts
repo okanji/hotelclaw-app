@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    body = {};
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
   const parsed = Body.safeParse(body);
   if (!parsed.success) {

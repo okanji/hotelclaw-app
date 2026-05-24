@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
   let raw: unknown;
   try {
     raw = await request.json();
-  } catch {
+  } catch (err) {
+    console.error("[from-chat-event] JSON parse failed", err);
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
   const parsed = Body.safeParse(raw);

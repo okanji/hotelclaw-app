@@ -30,6 +30,7 @@ import { InfoPanelProvider } from "@/components/chat/info-panel/context";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-context";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { ChatEventNotifier } from "@/components/shell/chat-event-notifier";
+import { ConnectionStatus } from "@/components/shell/connection-status";
 import { UserProfilePanelProvider } from "@/components/chat/user-profile-panel/context";
 import { UserProfilePanel } from "@/components/chat/user-profile-panel/panel";
 import { TimeFormatProvider } from "@/lib/preferences/time-format-context";
@@ -192,6 +193,7 @@ export default async function PropertyLayout({
                   </div>
                   <CommandPalette propertyId={propertyId} />
                   <ChatEventNotifier propertyId={propertyId} />
+                  <ConnectionStatus />
                   <HuddleWidget />
                   <ActiveMeeting />
                   <BrowserNotifications />
