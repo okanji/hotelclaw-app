@@ -135,6 +135,13 @@ export async function shouldBotChimeIn(
     });
     // Cap history; we don't need 20 turns for a binary decision.
     const recent = input.history.slice(-8);
+    // temperature: 0 — binary classification benefits from determinism.
+    // Same prompt + same context should give the same decision; entropy here
+    // hurts more than it helps.
+    //
+    // Note: considered Output.choice (cheaper structured-output primitive)
+    // but kept generateObject so we can include `reason` for log-based prompt
+    // tuning. Revisit once prompts are stable.
     const result = await generateObject({
       model: anthropic(CLASSIFIER_MODEL_ID),
       system: promptFor(input.sensitivity),
@@ -143,6 +150,7 @@ export async function shouldBotChimeIn(
         ...recent.map((h) => ({ role: h.role, content: h.content })),
         { role: "user" as const, content: triggerLine },
       ],
+      temperature: 0,
     });
     return result.object;
   } catch (err) {

@@ -25,7 +25,7 @@ import { setChannelAiSettings } from "@/lib/stream/ai-adapter";
 const Body = z.object({
   channelId: z.string().min(1),
   channelType: z.enum(["team", "messaging"]).default("team"),
-  mode: z.enum(["mention", "auto", "always"]),
+  mode: z.enum(["mention", "auto", "always", "engaged"]),
   sensitivity: z.enum(["conservative", "balanced", "eager"]).optional(),
 });
 

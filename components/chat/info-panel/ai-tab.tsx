@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BOT_DISPLAY_NAME, BOT_USER_ID } from "@/lib/ai/bot-identity";
 
-type AiMode = "mention" | "auto" | "always";
+type AiMode = "mention" | "engaged" | "auto" | "always";
 type AiSensitivity = "conservative" | "balanced" | "eager";
 
 const MODE_OPTIONS: { value: AiMode; label: string }[] = [
-  { value: "mention", label: "Only when mentioned" },
+  { value: "mention", label: "Mention" },
+  { value: "engaged", label: "Engaged" },
   { value: "auto", label: "Auto" },
-  { value: "always", label: "Always respond" },
+  { value: "always", label: "Always" },
 ];
 
 const SENSITIVITY_OPTIONS: { value: AiSensitivity; label: string }[] = [
@@ -24,9 +25,11 @@ const SENSITIVITY_OPTIONS: { value: AiSensitivity; label: string }[] = [
 ];
 
 const MODE_DESCRIPTIONS: Record<AiMode, string> = {
-  mention: `The bot replies only when you @${BOT_USER_ID}.`,
+  mention: `Replies only when you @${BOT_USER_ID}. Replies in the same thread you mentioned it in.`,
+  engaged: `Mention the bot to start a conversation. It keeps replying to follow-ups in that thread (and follows the conversation if it forks) until the topic resolves or moves on, then signs off. Best for "I want to work with the bot on something."`,
   auto: "The bot listens to every message and chimes in when it has something useful to add — answers, context, corrections, or offers to set something up. Direct mentions still always get a reply.",
-  always: "The bot replies to every message in this channel. Best for 1:1 AI threads.",
+  always:
+    "Replies to every top-level channel message. Thread replies still require a mention. Best for 1:1 AI channels.",
 };
 
 const SENSITIVITY_DESCRIPTIONS: Record<AiSensitivity, string> = {
@@ -280,7 +283,7 @@ function isBotMember(
 
 function readMode(data: Record<string, unknown> | undefined): AiMode {
   const raw = (data as { ai_mode?: string } | undefined)?.ai_mode;
-  if (raw === "always" || raw === "auto") return raw;
+  if (raw === "always" || raw === "auto" || raw === "engaged") return raw;
   return "mention";
 }
 

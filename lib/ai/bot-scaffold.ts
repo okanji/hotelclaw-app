@@ -32,7 +32,7 @@ import {
   createLiveblocksAdapter,
   type LiveblocksAdapter,
 } from "@liveblocks/chat-sdk-adapter";
-import { generateText, type ModelMessage } from "ai";
+import { generateText, stepCountIs, type ModelMessage } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createMemoryState } from "./memory-state";
 import { buildPropertyTools } from "./tools";
@@ -200,11 +200,15 @@ async function resolveRoomContext(roomId: string): Promise<RoomContext> {
 function baseSystemPrompt(): string {
   return [
     `You are ${BOT_DISPLAY_NAME}, a teammate replying inside a Liveblocks comment thread.`,
-    "Be concise (1-3 sentences by default). Be actionable. If you don't know, say so plainly.",
+    "Be concise: 1-3 sentences by default. Be actionable. If you don't know, say so plainly.",
   ].join(" ");
 }
 
 function groundedSystemPrompt(ctx: RoomContext): string {
+  // Don't enumerate tools — the SDK auto-injects schemas and the model reads
+  // them. Tool selection guidance belongs in the tool descriptions themselves
+  // (see lib/ai/tools.ts). The system prompt here is for grounding (which
+  // document/task this thread is attached to) and tone/behavior.
   const lines = [baseSystemPrompt()];
   if (ctx.scope?.kind === "document" && ctx.scopeLabel) {
     lines.push(
@@ -220,7 +224,7 @@ function groundedSystemPrompt(ctx: RoomContext): string {
     lines.push("This thread is attached to the calendar for this property.");
   }
   lines.push(
-    "You have tools to look up tasks, documents, and upcoming meetings in this property. Use them when the user asks about workload, docs, or scheduling — never make up data.",
+    "When the user asks about specific property data, use the available tools rather than guessing. If a tool returns 0 results, say so plainly — never fabricate.",
   );
   return lines.join(" ");
 }
@@ -289,11 +293,17 @@ async function postReply(args: {
   const anthropic = createAnthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
+  // stopWhen: default is stepCountIs(1) which means tool calls execute but
+  // the model never gets a synthesis pass with the results. Need ≥2; 5
+  // allows chained tool calls without unbounded loops.
+  // temperature: 0 for deterministic tool-arg generation (AI SDK rec).
   const { text } = await generateText({
     model: anthropic(getBotModelId()),
     system: args.systemPrompt,
     messages: args.history,
     tools: args.tools,
+    temperature: 0,
+    stopWhen: stepCountIs(5),
   });
   await args.thread.post(text.trim() || "(no reply)");
 }

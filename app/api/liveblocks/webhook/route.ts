@@ -13,6 +13,11 @@ import {
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCommentBot } from "@/lib/ai/bot-scaffold";
 
+// Comment-bot generation (Anthropic Sonnet + tools + Liveblocks REST post-back)
+// can take several seconds — lift the default 10s function ceiling so the bot
+// has headroom. See node_modules/ai/docs/06-advanced/10-vercel-deployment-guide.mdx.
+export const maxDuration = 60;
+
 /**
  * Liveblocks webhook receiver.
  *
