@@ -35,9 +35,8 @@ const DecisionSchema = z.object({
     .describe("Whether the bot should chime in on the latest message."),
   reason: z
     .string()
-    .max(160)
     .describe(
-      "One short sentence justifying the decision. For logging only — not shown to users.",
+      "One short sentence justifying the decision. For logging only — not shown to users. Keep brief but don't artificially truncate.",
     ),
 });
 

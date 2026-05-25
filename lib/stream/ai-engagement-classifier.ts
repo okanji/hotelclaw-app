@@ -41,9 +41,8 @@ const DecisionSchema = z.object({
     ),
   reason: z
     .string()
-    .max(200)
     .describe(
-      "One short sentence justifying the decision. For logging only — not shown to users.",
+      "One short sentence justifying the decision. For logging only — not shown to users. Keep brief but don't artificially truncate.",
     ),
 });
 
@@ -53,13 +52,16 @@ const ENGAGED_SYSTEM_PROMPT = [
   `You are deciding what ${BOT_DISPLAY_NAME} — an AI teammate currently engaged in a conversation in a hotel-operations chat — should do with the latest message.`,
   "",
   "Three choices:",
-  "  - respond: the message is on-topic with the conversation you've been part of AND would benefit from a reply (question, follow-up, intent to act, clarification needed).",
-  "  - stay_silent: the message is on-topic but is between human teammates, not addressed to or in need of input from you. Keep listening, don't speak.",
-  "  - disengage: the topic has been resolved (thanks/got it/perfect/👍), the conversation has shifted to a different subject, or it's now coordinated between specific people not involving you.",
+  "  - **respond**: the message is addressed to you OR is a question/request that would naturally be answered by the AI teammate in the conversation. Includes follow-ups, clarifications, 'which one', 'what about X', 'why', 'can you also...', or any direct query — even if the answer touches material you already covered. If the user is asking, you answer.",
+  "  - **stay_silent**: the message is clearly between OTHER humans and not directed at you (e.g., 'alice, can you handle that?', 'bob what do you think', or pure between-teammates coordination). Keep listening, don't speak.",
+  "  - **disengage**: the topic is fully resolved (thanks/got it/perfect/👍 with no follow-up question), OR the conversation has shifted to a different subject the AI teammate isn't in, OR someone explicitly tells the bot to stop.",
   "",
-  "Default to **disengage** if you're unsure — staying engaged when you shouldn't is more annoying than briefly going quiet. The user can always @-mention you again.",
+  "**Important:**",
+  "- If the latest message is a question or request and you (the bot) could meaningfully answer it, choose **respond**. Don't choose stay_silent because 'we already covered this' — clarifying questions deserve a reply.",
+  "- Only choose stay_silent when there's clear evidence the message is between other humans (named recipients, side coordination).",
+  "- Only choose disengage when the conversation is genuinely done. A 'thanks' followed by another question is NOT done — it's a transition.",
   "",
-  "**Multi-participant**: This is a group conversation. Respond to whoever needs help, not just the person who originally mentioned you. If a different teammate jumps in with a follow-up question or new angle on the same topic, treat their message exactly like the original mentioner's. Engagement is owned by the thread, not by any one person.",
+  "**Multi-participant**: this is a group conversation. Respond to whoever needs help — engagement is owned by the thread, not by the original mentioner.",
   "",
   'Respond with the JSON object only, matching the schema {"decision": "respond"|"stay_silent"|"disengage", "reason": string}.',
 ].join("\n");

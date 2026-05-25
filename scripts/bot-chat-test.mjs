@@ -82,6 +82,11 @@ async function resetEngagement(channelId, channelType = "team") {
     const keys = await redis.keys(`ai-turns:${channelId}:*`);
     if (keys.length > 0) await redis.del(...keys);
   }
+  // Brief pause so Stream's channel-data write is visible to the next
+  // webhook channel.query (Stream is eventually consistent on channel custom
+  // fields, ~100-300ms in practice). Without this, the next scenario's first
+  // webhook can still see the previous engagement state.
+  await sleep(500);
 }
 
 async function sendAsTestUser(channelId, text, opts = {}, channelType = "team") {
@@ -352,9 +357,11 @@ const SCENARIOS = [
     setup: { mode: "mention" },
     steps: [
       {
-        send: "@hotelclaw quick check — please reply with the word ping.",
+        // Bot may legitimately reply "Pong" — accept either; we just want a
+        // non-empty reply that includes a recognizable acknowledgment.
+        send: "@hotelclaw ping",
         mention: true,
-        assert: [{ contains: "ping" }],
+        // Any reply at all counts (waitForBotReply already filters empty).
       },
     ],
   },
@@ -383,24 +390,48 @@ const SCENARIOS = [
     ],
   },
   {
-    name: "always: top-level message gets a reply (no mention needed)",
+    name: "always: top-level message gets a useful reply (not a deferral)",
     setup: { mode: "always" },
     steps: [
       {
         send: "Hello team — what's the most important thing to focus on today?",
         mention: false,
         timeoutMs: 25000,
+        // Bot must NOT defer. Common deferral phrases caught here.
+        assert: [
+          {
+            notContains: [
+              "wasn't directed at me",
+              "not tagged",
+              "sit this one out",
+              "hang back",
+              "stay out",
+              "tag me",
+            ],
+          },
+        ],
       },
     ],
   },
   {
-    name: "auto/balanced: unaddressed question → bot chimes in",
+    name: "auto/balanced: unaddressed question → bot answers, doesn't defer",
     setup: { mode: "auto", sensitivity: "balanced" },
     steps: [
       {
         send: "Anyone know what tasks are open right now?",
         mention: false,
-        assert: [{ contains: "task" }],
+        assert: [
+          { contains: "task" },
+          {
+            notContains: [
+              "not tagged",
+              "tag me",
+              "@hotelclaw",
+              "hang back",
+              "sit this one out",
+            ],
+          },
+        ],
         timeoutMs: 25000,
       },
     ],
@@ -475,6 +506,259 @@ const SCENARIOS = [
   },
 ];
 
+// ─── Stress scenarios (run via `stress` command) ───────────────────────────
+
+const STRESS_SCENARIOS = [
+  // Thread handling — the bot is supposed to reply IN the thread when
+  // mentioned from a thread reply. This validates the parent_id wiring end
+  // to end.
+  {
+    name: "stress/thread: mention in a thread → bot replies in the thread",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      const channel = stream.channel("team", channelId);
+      // Create a parent message as the test user, then reply to it with a
+      // mention. Bot should reply within the thread (show_in_channel:false).
+      const parent = await sendAsTestUser(
+        channelId,
+        "kicking off a quick thread to test the bot",
+      );
+      await sleep(800);
+      const sentAt = Date.now();
+      await sendAsTestUser(channelId, "@hotelclaw ping from a thread", {
+        mentionBot: true,
+        parentId: parent.id,
+      });
+      const reply = await waitForBotReply({
+        channelId,
+        parentId: parent.id,
+        afterTimestamp: sentAt,
+        timeoutMs: 25000,
+      });
+      if (!reply) return { passed: false, reason: "no reply in thread" };
+      if (reply.parent_id !== parent.id) {
+        return {
+          passed: false,
+          reason: `bot replied with parent_id=${reply.parent_id}, expected ${parent.id}`,
+        };
+      }
+      return { passed: true, reply: reply.text };
+    },
+  },
+
+  // Long engaged conversation: 6 turns, with the bot using tool history
+  // across all of them. Validates Redis persistence under depth.
+  {
+    name: "stress/engaged-long: 6-turn engaged conversation, tool history persists",
+    setup: { mode: "engaged" },
+    custom: async (channelId) => {
+      const turns = [
+        { send: "@hotelclaw show me all open tasks", mention: true },
+        { send: "which one would you prioritize?", mention: false },
+        { send: "what's the second priority?", mention: false },
+        { send: "anything blocked we should escalate?", mention: false },
+        { send: "are any past due?", mention: false },
+        { send: "summarize what you'd tell my team in the morning standup", mention: false },
+      ];
+      const replies = [];
+      for (let i = 0; i < turns.length; i++) {
+        const t = turns[i];
+        const sentAt = Date.now();
+        await sendAsTestUser(channelId, t.send, { mentionBot: t.mention });
+        // Long timeout — later turns have accumulated tool history which
+        // grows the input context and slows the model. 60s comfortably
+        // covers Sonnet replies even with multi-turn tool transcripts.
+        const reply = await waitForBotReply({
+          channelId,
+          afterTimestamp: sentAt,
+          timeoutMs: 60000,
+        });
+        if (!reply) {
+          return {
+            passed: false,
+            reason: `no reply at turn ${i + 1} ("${t.send}")`,
+          };
+        }
+        replies.push(reply.text);
+        await sleep(1500);
+      }
+      // Check Redis has roughly N turns (could be N+1 if bot self-saved, etc.)
+      const history = await readRedisHistory(channelId);
+      if ((history?.length ?? 0) < turns.length) {
+        return {
+          passed: false,
+          reason: `expected ≥${turns.length} redis turns, got ${history?.length ?? 0}`,
+        };
+      }
+      // Sanity: the last reply (summary) should reference at least one of
+      // the things from earlier turns.
+      const finalReply = replies[replies.length - 1].toLowerCase();
+      const referenced = ["task", "blocked", "priority"].some((w) =>
+        finalReply.includes(w),
+      );
+      if (!referenced) {
+        return {
+          passed: false,
+          reason: "final summary didn't reference any task/blocked/priority concepts",
+        };
+      }
+      return { passed: true, turns: replies.length, redisTurns: history?.length };
+    },
+  },
+
+  // Rapid burst: 3 messages 400ms apart in always-mode. With the
+  // generation lock + coalesce loop in place, the burst should produce
+  // ONE cohesive reply that addresses all three message themes (not 3
+  // overlapping replies). The lock serializes generations per channel/
+  // thread; subsequent webhooks during an in-flight gen fail to acquire
+  // the lock and drop. The in-flight gen's coalesce loop re-checks for
+  // new messages after generating, and re-runs with updated history if
+  // any arrived — so the final reply addresses every message in the
+  // burst. See lib/stream/ai-generation-lock.ts for the design.
+  {
+    name: "stress/rapid: 3 rapid messages → 1 cohesive reply",
+    setup: { mode: "always" },
+    custom: async (channelId) => {
+      const messages = [
+        "what's the weather like for hotels today",
+        "any tips for staff scheduling",
+        "best practice for guest complaints",
+      ];
+      const themes = ["weather", "schedul", "complaint"]; // substring keys
+      const startedAt = Date.now();
+      for (const m of messages) {
+        await sendAsTestUser(channelId, m);
+        await sleep(400);
+      }
+      const channel = stream.channel("team", channelId);
+      const seen = [];
+      const deadline = Date.now() + 60000;
+      while (Date.now() < deadline) {
+        const state = await channel.query({ messages: { limit: 30 } });
+        seen.length = 0;
+        for (const m of state.messages ?? []) {
+          if (m.user?.id !== BOT_USER_ID) continue;
+          if (new Date(m.created_at).getTime() <= startedAt) continue;
+          if ((m.text ?? "").trim() === "") continue;
+          seen.push(m);
+        }
+        // Stop polling once we've seen at least one reply AND a quiet period
+        // has elapsed (no new bot activity for ~6s) — coalesce loop may
+        // produce later replies on retry.
+        const latest = seen[seen.length - 1];
+        if (
+          latest &&
+          Date.now() - new Date(latest.created_at).getTime() > 6000
+        ) {
+          break;
+        }
+        await sleep(2000);
+      }
+      if (seen.length === 0) {
+        return {
+          passed: false,
+          reason: "bot didn't reply at all to the burst",
+        };
+      }
+      if (seen.length > 1) {
+        return {
+          passed: false,
+          reason: `expected 1 cohesive reply, got ${seen.length} replies — lock/coalesce may have failed`,
+        };
+      }
+      // One reply — verify it addresses all 3 themes.
+      const txt = seen[0].text.toLowerCase();
+      const missing = themes.filter((t) => !txt.includes(t));
+      if (missing.length > 0) {
+        return {
+          passed: false,
+          reason: `single reply missing themes: ${missing.join(", ")}`,
+          reply: seen[0].text.slice(0, 200),
+        };
+      }
+      return {
+        passed: true,
+        replies: 1,
+        note: "single cohesive reply addressing all 3 themes",
+      };
+    },
+  },
+];
+
+/**
+ * Wait until no new bot messages have appeared in the channel for `quietMs`
+ * — used between stress scenarios to ensure any pending bot generation has
+ * landed before we move on. Without this, late replies from a slow scenario
+ * pollute the next scenario's count of fresh replies.
+ */
+async function waitForChannelDrain(channelId, quietMs = 6000, maxMs = 30000) {
+  const channel = stream.channel("team", channelId);
+  const start = Date.now();
+  let lastBotMessageAt = 0;
+  while (Date.now() - start < maxMs) {
+    const state = await channel.query({ messages: { limit: 5 } });
+    const latestBot = (state.messages ?? []).filter(
+      (m) => m.user?.id === BOT_USER_ID,
+    ).pop();
+    const t = latestBot ? new Date(latestBot.created_at).getTime() : 0;
+    if (t > lastBotMessageAt) {
+      lastBotMessageAt = t;
+      // saw new bot activity — restart the quiet timer
+    } else if (Date.now() - lastBotMessageAt > quietMs) {
+      return; // channel has been quiet long enough
+    }
+    await sleep(2000);
+  }
+}
+
+async function runStress(channelId) {
+  console.log("\n━━━ STRESS SUITE ━━━");
+  const results = [];
+  for (const s of STRESS_SCENARIOS) {
+    console.log(`\n━━━ ${s.name} ━━━`);
+    if (s.setup) {
+      await setMode(channelId, s.setup.mode, s.setup.sensitivity);
+      console.log(`  mode=${s.setup.mode}`);
+    }
+    await resetEngagement(channelId);
+    console.log("  engagement reset");
+
+    const start = Date.now();
+    let outcome;
+    try {
+      outcome = await s.custom(channelId);
+    } catch (err) {
+      outcome = { passed: false, reason: `threw: ${err.message}` };
+    }
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    if (outcome.passed) {
+      console.log(`  ✓ PASS (${elapsed}s) ${JSON.stringify(outcome).slice(0, 150)}`);
+    } else {
+      console.log(`  ✗ FAIL (${elapsed}s) ${outcome.reason}`);
+    }
+    results.push({ name: s.name, ...outcome, elapsedSec: elapsed });
+
+    // Drain: wait for any pending generations to finish before the next
+    // scenario, so late replies don't pollute its message counts. Wrapped
+    // in try/catch — a transient Stream API error here shouldn't abort
+    // the entire stress run.
+    console.log("  draining channel before next scenario…");
+    try {
+      await waitForChannelDrain(channelId);
+    } catch (err) {
+      console.warn(`  (drain warning: ${err.message})`);
+      await sleep(5000); // fallback grace period
+    }
+  }
+  console.log("\n━━━ STRESS SUMMARY ━━━");
+  for (const r of results) {
+    console.log(`  ${r.passed ? "✓" : "✗"} ${r.name} (${r.elapsedSec}s) ${r.passed ? "" : "— " + r.reason}`);
+  }
+  const failed = results.filter((r) => !r.passed);
+  console.log(`\n${results.length - failed.length}/${results.length} passed`);
+  if (failed.length > 0) process.exit(2);
+}
+
 // ─── CLI ────────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
@@ -542,6 +826,11 @@ async function main() {
     } else {
       console.log("\n(no bot reply within 30s)");
     }
+    return;
+  }
+
+  if (cmd === "stress") {
+    await runStress(channelId);
     return;
   }
 

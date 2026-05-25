@@ -24,7 +24,11 @@ import {
   loadChannelHistory,
   loadThreadHistory,
 } from "@/lib/stream/ai-history";
-import { generateAndPostReply, postSignOff } from "@/lib/stream/ai-reply";
+import {
+  generateAndPostReply,
+  postSignOff,
+  type ActivationReason,
+} from "@/lib/stream/ai-reply";
 import {
   clearThread,
   loadTurns,
@@ -209,12 +213,16 @@ async function processMessageNew(
 
   if (directMentionIds.length === 0 && !broadcastMentioned) return;
 
-  // Build the recipient set.
-  const recipients = new Set<string>(directMentionIds);
+  // Build the recipient set. Drop the bot — it doesn't need notifications
+  // about being mentioned (and its id isn't a UUID, so notifications.user_id
+  // would reject the insert with "invalid input syntax for type uuid").
+  const recipients = new Set<string>(
+    directMentionIds.filter((id) => id !== botUserId),
+  );
   if (broadcastMentioned) {
     for (const m of body.members ?? []) {
       const uid = m.user_id ?? m.user?.id;
-      if (uid && uid !== senderId) recipients.add(uid);
+      if (uid && uid !== senderId && uid !== botUserId) recipients.add(uid);
     }
   }
 
@@ -372,7 +380,12 @@ function maybeTriggerAiReply(args: {
           reason: decision.reason,
         });
         if (!decision.should_respond) return;
-        await generateAndPostReply(buildReplyContext(args));
+        // Auto mode classifier said yes — pass that reason through so the
+        // system prompt tells the model it's been intentionally invited
+        // (otherwise the model sees no @-mention in history and defers).
+        await generateAndPostReply(
+          buildReplyContext(args, "auto-classifier"),
+        );
         return;
       }
 
@@ -388,7 +401,7 @@ function maybeTriggerAiReply(args: {
             engagement,
             threadKey,
           );
-          await replyWithEngagedPersistence(args, threadKey);
+          await replyWithEngagedPersistence(args, threadKey, "mention");
           return;
         }
 
@@ -419,26 +432,34 @@ function maybeTriggerAiReply(args: {
           });
           switch (decision.decision) {
             case "respond":
-              await replyWithEngagedPersistence(args, threadKey);
+              await replyWithEngagedPersistence(
+                args,
+                threadKey,
+                "engaged-follow-up",
+              );
               return;
             case "stay_silent":
               return;
             case "disengage":
-              await postSignOff(
-                args.channelId,
-                args.channelType,
-                args.parentId,
-              );
+              // Order matters: do state cleanup BEFORE the user-facing
+              // sign-off post. If the cleanup ran after, observers (the
+              // test harness, future code that listens to message.new for
+              // sign-offs, or a real user re-reading the channel) could
+              // race the cleanup and see inconsistent state. Now: by the
+              // time the user sees "Going quiet here", engagement +
+              // tool-history are already wiped.
               await disengageThread(
                 args.channelId,
                 args.channelType,
                 engagement,
                 threadKey,
               );
-              // Conversation ended — wipe the persisted tool history so
-              // a future engagement starts fresh rather than inheriting
-              // stale context from this one.
               await clearThread(args.channelId, threadKey);
+              await postSignOff(
+                args.channelId,
+                args.channelType,
+                args.parentId,
+              );
               return;
           }
         }
@@ -486,7 +507,11 @@ function maybeTriggerAiReply(args: {
             // tool history from the parent engagement. replyWithEngagedPersistence
             // will load whatever exists for this threadKey (empty here) and
             // start writing fresh.
-            await replyWithEngagedPersistence(args, threadKey);
+            await replyWithEngagedPersistence(
+              args,
+              threadKey,
+              "engaged-follow-up",
+            );
           } else {
             // stay_silent / disengage both mean "don't engage here". Mark
             // skipped so we don't re-evaluate on every subsequent message
@@ -506,7 +531,11 @@ function maybeTriggerAiReply(args: {
       }
 
       // ─── Mention or Always (no classifier gate) ─────────────────────────
-      await generateAndPostReply(buildReplyContext(args));
+      // botMentioned → direct mention; otherwise we got here via always-mode
+      // (mention-mode would have returned early earlier in the function).
+      await generateAndPostReply(
+        buildReplyContext(args, args.botMentioned ? "mention" : "always-mode"),
+      );
       } catch (err) {
         console.error("[ai-trigger] mode handler failed", err);
       }
@@ -517,24 +546,28 @@ function maybeTriggerAiReply(args: {
   return true;
 }
 
-function buildReplyContext(args: {
-  channelId: string;
-  channelType: "team" | "messaging";
-  propertyId: string;
-  parentId: string | null;
-  triggerMessage: {
-    id: string;
-    text: string;
-    userId: string;
-    userName: string | null;
-  };
-}) {
+function buildReplyContext(
+  args: {
+    channelId: string;
+    channelType: "team" | "messaging";
+    propertyId: string;
+    parentId: string | null;
+    triggerMessage: {
+      id: string;
+      text: string;
+      userId: string;
+      userName: string | null;
+    };
+  },
+  activationReason: ActivationReason = "mention",
+) {
   return {
     streamChannelId: args.channelId,
     channelType: args.channelType,
     triggerMessage: args.triggerMessage,
     propertyId: args.propertyId,
     parentId: args.parentId,
+    activationReason,
   };
 }
 
@@ -556,10 +589,11 @@ async function replyWithEngagedPersistence(
     botMentioned: boolean;
   },
   threadKey: string,
+  activationReason: ActivationReason,
 ): Promise<void> {
   const priorTurns = await loadTurns(args.channelId, threadKey);
   await generateAndPostReply({
-    ...buildReplyContext(args),
+    ...buildReplyContext(args, activationReason),
     priorTurns,
     onTurnComplete: async (modelMessages) => {
       await saveTurn(args.channelId, threadKey, modelMessages);

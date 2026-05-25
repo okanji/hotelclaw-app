@@ -55,26 +55,50 @@ export function buildPropertyTools(propertyId: string) {
           .describe("Max tasks to return. Default 10 is right for most asks."),
       }),
       execute: async ({ status, assignee_name, limit }) => {
+        // Two-query pattern: PostgREST can't auto-embed the assignee profile
+        // because tasks.assignee_id has its FK pointing at auth.users(id),
+        // not public.profiles(id). The implicit relationship works in the
+        // app (via separate joins) but the embed syntax requires a direct
+        // FK between the two tables and there isn't one. Pull tasks first,
+        // then resolve assignee names in a second batched query.
         let query = supabase
           .from("tasks")
-          .select(
-            "id, title, status, priority, due_at, assignee:profiles!tasks_assignee_id_fkey(full_name)",
-          )
+          .select("id, title, status, priority, due_at, assignee_id")
           .eq("property_id", propertyId)
           .order("updated_at", { ascending: false })
           .limit(limit);
         if (status) query = query.eq("status", status);
         else query = query.neq("status", "done");
-        const { data, error } = await query;
+        const { data: tasks, error } = await query;
         if (error) return { error: error.message };
-        let rows = (data ?? []).map((t) => ({
+
+        // Resolve assignee names with one batched profile lookup.
+        const assigneeIds = Array.from(
+          new Set(
+            (tasks ?? [])
+              .map((t) => t.assignee_id)
+              .filter((id): id is string => !!id),
+          ),
+        );
+        let nameById = new Map<string, string>();
+        if (assigneeIds.length > 0) {
+          const { data: profiles, error: profErr } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", assigneeIds);
+          if (!profErr) {
+            for (const p of profiles ?? []) {
+              if (p.full_name) nameById.set(p.id, p.full_name);
+            }
+          }
+        }
+
+        let rows = (tasks ?? []).map((t) => ({
           title: t.title,
           status: STATUS_LABELS[t.status] ?? t.status,
           priority: t.priority,
           due: t.due_at,
-          assignee:
-            (t.assignee as { full_name?: string | null } | null)?.full_name ??
-            null,
+          assignee: t.assignee_id ? nameById.get(t.assignee_id) ?? null : null,
         }));
         if (assignee_name) {
           const needle = assignee_name.toLowerCase();
