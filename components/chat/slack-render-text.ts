@@ -2,6 +2,9 @@
 
 import { renderText as defaultRenderText } from "stream-chat-react";
 import type { UserResponse } from "stream-chat";
+import { rehypeSanitizeTableBr } from "./rehype-sanitize-table-br";
+
+type RenderTextOptions = NonNullable<Parameters<typeof defaultRenderText>[2]>;
 
 /**
  * Slack-style broadcast mentions: `@channel`, `@here`, `@everyone`.
@@ -21,12 +24,25 @@ import type { UserResponse } from "stream-chat";
  */
 const BROADCAST_TOKENS = ["channel", "here", "everyone"] as const;
 
+function withSanitizedTableBr(options?: RenderTextOptions): RenderTextOptions {
+  const getRehypePlugins = options?.getRehypePlugins;
+  return {
+    ...options,
+    getRehypePlugins: (defaultPlugins) => [
+      ...(getRehypePlugins ? getRehypePlugins(defaultPlugins) : defaultPlugins),
+      rehypeSanitizeTableBr,
+    ],
+  };
+}
+
 export const slackRenderText: typeof defaultRenderText = (
   text,
   mentionedUsers,
   options,
 ) => {
-  if (!text) return defaultRenderText(text, mentionedUsers, options);
+  const renderOptions = withSanitizedTableBr(options);
+
+  if (!text) return defaultRenderText(text, mentionedUsers, renderOptions);
 
   let augmented: UserResponse[] | undefined = mentionedUsers;
   for (const token of BROADCAST_TOKENS) {
@@ -38,5 +54,5 @@ export const slackRenderText: typeof defaultRenderText = (
     ];
   }
 
-  return defaultRenderText(text, augmented, options);
+  return defaultRenderText(text, augmented, renderOptions);
 };
