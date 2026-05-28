@@ -50,6 +50,7 @@ import {
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
 import { renameDocument } from "./actions";
+import { DocumentAiPanel } from "./document-ai-panel";
 import { DocumentLastEdited } from "./document-last-edited";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
@@ -300,6 +301,7 @@ function EditorInner({
             updatedAt={updatedAt}
             className="hidden text-sm text-muted-foreground tabular-nums sm:block"
           />
+          <DocumentAiPanel propertyId={propertyId} documentId={documentId} />
           <DocumentRoomAvatarStack max={5} size={28} />
         </div>
       </div>

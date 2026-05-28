@@ -1,7 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { getStreamVideoServer } from "@/lib/stream/video-server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processTranscriptReady } from "@/lib/meetings/summarize";
+import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
 
 /**
  * Stream Video webhook → meeting lifecycle.
@@ -101,6 +102,16 @@ export async function POST(request: NextRequest) {
         .eq("id", meeting.id)
         .is("ended_at", null);
     }
+    after(async () => {
+      await emitWorkflowEvent({
+        propertyId: meeting.property_id,
+        source: "stream.call",
+        eventType: "meeting.ended",
+        entityId: meeting.id,
+        entityKind: "meeting",
+        payload: { meeting: { id: meeting.id, title: meeting.title, channel_id: meeting.channel_id } },
+      });
+    });
     return NextResponse.json({ ok: true, type: body.type });
   }
 

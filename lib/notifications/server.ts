@@ -13,7 +13,8 @@ export type NotificationType =
   | "channel_added"
   | "invite_received"
   | "mention"
-  | "meeting_summary";
+  | "meeting_summary"
+  | "workflow";
 
 export type NotificationPayload = Record<string, unknown>;
 

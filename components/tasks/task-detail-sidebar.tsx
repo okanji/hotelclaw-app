@@ -22,6 +22,7 @@ import {
   Tag,
   Trash2,
   UserRound,
+  Workflow,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,7 @@ export function TaskDetailSidebar({
   onCopyLink,
   onDelete,
   onAddSubIssue,
+  onAutomate,
 }: {
   propertyId: string;
   taskId: string;
@@ -146,6 +148,7 @@ export function TaskDetailSidebar({
   onCopyLink: () => void;
   onDelete: () => void;
   onAddSubIssue: () => void;
+  onAutomate: () => void;
 }) {
   return (
     <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border/60">
@@ -303,6 +306,11 @@ export function TaskDetailSidebar({
           }
           label={meta?.muted ? "Unsubscribed" : "Unsubscribe"}
           onClick={removers.toggleMute}
+        />
+        <SidebarActionRow
+          icon={<Workflow className="size-3.5" />}
+          label="Automate from this task…"
+          onClick={onAutomate}
         />
       </SidebarSection>
 

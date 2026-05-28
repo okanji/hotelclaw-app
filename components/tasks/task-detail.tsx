@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThreads } from "@liveblocks/react/suspense";
 import { Composer, Thread } from "@liveblocks/react-ui";
@@ -17,6 +18,7 @@ import {
   TaskDetailSidebar,
 } from "./task-detail-sidebar";
 import { TaskDetailInlineProperties } from "./task-detail-inline-properties";
+import { TaskAiPanel } from "./task-ai-panel";
 import { useTaskDetailMutations } from "./task-detail-mutations";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
@@ -58,6 +60,7 @@ export function TaskDetail({
   task: Task;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const { threads } = useThreads();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -150,6 +153,25 @@ export function TaskDetail({
   function copyTitle() {
     void navigator.clipboard.writeText(title.trim() || task.title);
     toast.success("Title copied");
+  }
+
+  function automateFromTask() {
+    const labelHints = (task as unknown as { labels?: string[] }).labels ?? [];
+    const goal =
+      labelHints.length > 0
+        ? `When a task labeled ${labelHints.join(" or ")} is created, …`
+        : `When a task like "${task.title}" is created, …`;
+    const url = `/p/${propertyId}/workflows/new?prefill=${encodeURIComponent(
+      btoa(
+        JSON.stringify({
+          goal,
+          source: "task-detail",
+          task_id: task.id,
+          labels: labelHints,
+        }),
+      ),
+    )}`;
+    router.push(url);
   }
 
   function removeTask() {
@@ -283,6 +305,8 @@ export function TaskDetail({
               <div className="mt-4 rounded-lg border border-border/60 bg-muted/15 p-1">
                 <Composer metadata={{ taskId: task.id }} />
               </div>
+
+              <TaskAiPanel propertyId={propertyId} taskId={task.id} />
             </section>
             </div>
           </div>
@@ -308,6 +332,7 @@ export function TaskDetail({
           onCopyLink={copyTaskLink}
           onDelete={removeTask}
           onAddSubIssue={() => setAddingSubIssue(true)}
+          onAutomate={automateFromTask}
         />
       </div>
 

@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getStreamServer } from "@/lib/stream/server";
 import { getModel, type ModelKey } from "@/lib/ai/providers";
 import { createNotifications } from "@/lib/notifications/server";
+import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
 
 /**
  * Webhook → transcript → summary pipeline.
@@ -175,6 +176,19 @@ export async function processTranscriptReady(args: {
     decisions: summary.decisions,
     document_id: documentId,
     chat_message_id: chatMessageId,
+  });
+
+  await emitWorkflowEvent({
+    propertyId: args.meeting.propertyId,
+    source: "stream.call",
+    eventType: "meeting.summary_ready",
+    entityId: args.meeting.id,
+    entityKind: "meeting",
+    payload: {
+      meeting: { id: args.meeting.id, title: args.meeting.title, channel_id: args.meeting.channelId },
+      summary: { summary_md: summary.summary_md, decisions: summary.decisions },
+      action_items: summary.action_items,
+    },
   });
 
   await notifyParticipants({

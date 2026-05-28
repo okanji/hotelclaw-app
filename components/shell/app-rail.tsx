@@ -10,6 +10,7 @@ import {
   MessageCircle,
   MessagesSquare,
   Video,
+  Workflow,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
@@ -153,6 +154,13 @@ export function AppRail({
         icon: FileText,
         href: `/p/${propertyId}/documents`,
         routeKey: "/documents",
+      },
+      {
+        section: "workflows",
+        label: "Workflows",
+        icon: Workflow,
+        href: `/p/${propertyId}/workflows`,
+        routeKey: "/workflows",
       },
       {
         section: "meetings",

@@ -19,10 +19,10 @@ import "server-only";
  * Non-streaming. We trade per-token streaming for a much simpler arch:
  * one final message, native typing indicator, no partial updates.
  */
-import { generateText, stepCountIs, type ModelMessage } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { type ModelMessage } from "ai";
 import { BOT_DISPLAY_NAME } from "@/lib/ai/bot-identity";
 import { buildPropertyTools } from "@/lib/ai/tools";
+import { runBot, type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
 import {
@@ -37,62 +37,20 @@ import {
 } from "./ai-history";
 import { getStreamServer } from "./server";
 
-const MODEL_ID = process.env.STREAM_BOT_MODEL ?? "claude-sonnet-4-6";
+/**
+ * Re-export ActivationReason from the bot runtime so existing imports
+ * from this file continue to compile (the webhook + tests rely on this).
+ * The runtime owns the canonical type.
+ */
+export type ActivationReason = RuntimeActivationReason;
 
 /**
- * Activation reason — why the webhook decided to invoke the model for this
- * message. Passed through to the system prompt so the model understands
- * its role and doesn't mimic deferral patterns from prior in-context turns
- * (a real failure mode: when the channel has past bot replies that say
- * "tag me to bring me back", the model continues the pattern even with a
- * strong system prompt because in-context examples can outweigh static
- * instructions).
+ * Channel-bot persona — the only thing about prompt assembly that's
+ * specific to this surface. Everything else (activation note, response
+ * guidelines, deferral guard) lives in `runBot()` so all in-app bots
+ * stay consistent. See AGENTS.md "Two-tier AI architecture".
  */
-export type ActivationReason =
-  | "mention"
-  | "auto-classifier"
-  | "always-mode"
-  | "engaged-follow-up";
-
-// System prompt design notes:
-//   • Don't enumerate tools — the SDK auto-injects tool schemas.
-//   • Express the activation reason inline so the model knows WHY it's
-//     being asked to respond. This breaks pattern-matching from
-//     conversation history (see ActivationReason).
-//   • Reserve "outside my reach" for genuinely out-of-scope topics
-//     (billing, code, account admin) — NOT broad operational questions.
-//   • Short prompts (<1024 tok for Sonnet) can't use Anthropic prompt
-//     caching, so token efficiency matters more than length.
-function activationNote(reason: ActivationReason): string {
-  switch (reason) {
-    case "mention":
-      return "The user just @-mentioned you. They want your direct attention — respond.";
-    case "auto-classifier":
-      return "A classifier just judged that this message would benefit from your input even though you weren't @-mentioned. Don't second-guess that decision and don't ask to be tagged — you're already in the conversation.";
-    case "always-mode":
-      return "This channel is in 'always respond' mode: the team wants you to respond to every message in this channel, even ones not addressed to you. Respond as a participating teammate. Do NOT say 'I wasn't tagged' or ask the user to mention you — you've been explicitly invited to participate in every message here.";
-    case "engaged-follow-up":
-      return "You're currently engaged in this conversation. Respond as a continuing participant — the user is following up on something you were just discussing. Don't ask to be re-tagged; you're already in the conversation.";
-  }
-}
-
-function systemPromptFor(reason: ActivationReason): string {
-  return [
-    `You are ${BOT_DISPLAY_NAME}, an in-channel teammate inside a Slack-style chat for a hotel operations app.`,
-    "",
-    `# Why you're responding now`,
-    activationNote(reason),
-    "",
-    "# How to respond",
-    "Be concise: 1-3 sentences by default. Expand only when the user explicitly asks for detail.",
-    "When the question is about specific property data (tasks, docs, meetings), use the available tools rather than guessing. If a tool returns 0 results, say so plainly — never fabricate.",
-    "When the question is broader (operations, planning, judgment calls), share your best take like a knowledgeable colleague.",
-    "Only decline when something is genuinely outside your scope: account admin, billing, code changes, anything legally sensitive.",
-    "",
-    "# Ignore deferral patterns in history",
-    "If you see prior assistant turns in the conversation history where you said things like 'I wasn't tagged' or 'mention me to bring me back', those were from a buggier version of you. Do not continue that pattern. Per the activation note above, you ARE being asked to respond now.",
-  ].join("\n");
-}
+const CHANNEL_BOT_PERSONA = `You are ${BOT_DISPLAY_NAME}, an in-channel teammate inside a Slack-style chat for a hotel operations app.`;
 
 /**
  * Resolve the property id for a Stream channel via the `chat_channels` mirror.
@@ -216,16 +174,6 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
           : await loadChannelHistory(channel, botUserId);
         appendTriggerIfMissing(history, ctx.triggerMessage);
 
-        if (!process.env.ANTHROPIC_API_KEY) {
-          finalText =
-            "I need `ANTHROPIC_API_KEY` configured to respond — ask an admin to set it up.";
-          break;
-        }
-
-        const anthropic = createAnthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
-        });
-        const tools = buildPropertyTools(ctx.propertyId);
         const messages: ModelMessage[] = [
           ...(ctx.priorTurns ?? []),
           ...history.map((h) => ({
@@ -233,18 +181,29 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
             content: h.content,
           }) as ModelMessage),
         ];
-        const result = await generateText({
-          model: anthropic(MODEL_ID),
-          system: systemPromptFor(ctx.activationReason ?? "mention"),
+
+        // Delegate generation to the shared bot runtime. This is the only
+        // call to the model — runBot wires in the channel persona, the
+        // shared gbrain + delegate tools, the system prompt assembly, and
+        // the standard model settings (Sonnet 4.6, temperature 0,
+        // stopWhen: stepCountIs(5)). Surface-specific concerns (lock,
+        // coalesce, typing indicators, Stream sendMessage) stay here.
+        const result = await runBot({
+          persona: CHANNEL_BOT_PERSONA,
+          activationReason: ctx.activationReason ?? "mention",
+          scopedTools: buildPropertyTools(ctx.propertyId),
           messages,
-          tools,
-          temperature: 0,
-          stopWhen: stepCountIs(5),
+          scope: {
+            propertyId: ctx.propertyId,
+            userId: ctx.triggerMessage.userId,
+            surface: "channel",
+          },
+          modelId: process.env.STREAM_BOT_MODEL, // legacy override
         });
-        finalText = (result.text ?? "").trim() || "(no reply)";
-        finalModelMessages = result.response?.messages;
+        finalText = result.text;
+        finalModelMessages = result.modelMessages;
       } catch (err) {
-        console.error("[ai-reply] generateText failed", err);
+        console.error("[ai-reply] runBot failed", err);
         finalText =
           "I hit an error generating that reply — try again in a moment.";
         break;

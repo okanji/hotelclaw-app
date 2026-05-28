@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
-/** The seven rail sections. */
+/** The rail sections. */
 export type ShellSection =
   | "activity"
   | "chat"
@@ -11,7 +11,8 @@ export type ShellSection =
   | "tasks"
   | "calendar"
   | "docs"
-  | "meetings";
+  | "meetings"
+  | "workflows";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
@@ -20,6 +21,7 @@ export type ShellSection =
  */
 function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/activity")) return "activity";
+  if (pathname.includes("/workflows")) return "workflows";
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/calendar")) return "calendar";
   if (pathname.includes("/documents")) return "docs";
@@ -38,6 +40,12 @@ function sectionFromPath(pathname: string): ShellSection | null {
 type ShellSectionContextValue = {
   section: ShellSection;
   setSection: (section: ShellSection) => void;
+  /**
+   * When `true`, the secondary sidebar is hidden so a surface can claim the
+   * full content width. Currently only the workflow canvas builder sets this.
+   */
+  sidebarHidden: boolean;
+  setSidebarHidden: (hidden: boolean) => void;
 };
 
 const ShellSectionContext = createContext<ShellSectionContextValue | null>(null);
@@ -50,6 +58,7 @@ const ALL_SECTIONS: ShellSection[] = [
   "calendar",
   "docs",
   "meetings",
+  "workflows",
 ];
 
 /** Narrow an untrusted string (e.g. a cookie value) to a ShellSection. */
@@ -80,6 +89,7 @@ export function ShellSectionProvider({
   const [section, setSection] = useState<ShellSection>(
     () => sectionFromPath(pathname) ?? asSection(initialSection) ?? "chat",
   );
+  const [sidebarHidden, setSidebarHidden] = useState(false);
 
   // Persist the active section so the next hard refresh on a /chat/* route
   // restores the matching sidebar (the property layout reads this cookie).
@@ -95,11 +105,14 @@ export function ShellSectionProvider({
     setPrevPathname(pathname);
     const pinned = sectionFromPath(pathname);
     if (pinned && pinned !== section) setSection(pinned);
+    // Any navigation cancels a hidden-sidebar request — surfaces opt in fresh
+    // on mount so leaving the workflow canvas always restores the sidebar.
+    if (sidebarHidden) setSidebarHidden(false);
   }
 
   const value = useMemo<ShellSectionContextValue>(
-    () => ({ section, setSection }),
-    [section],
+    () => ({ section, setSection, sidebarHidden, setSidebarHidden }),
+    [section, sidebarHidden],
   );
 
   return (

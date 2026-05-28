@@ -18,6 +18,15 @@ export type MeetingRecurrence = {
 };
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
+export type WorkflowMode = "instant" | "durable";
+export type WorkflowRunStatus =
+  | "queued"
+  | "running"
+  | "waiting"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "filtered";
 // Kept in sync with the CHECK in migration 0013_document_boards.sql.
 export type BoardColor =
   | "slate"
@@ -215,6 +224,7 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
+          overdue_notified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -234,6 +244,7 @@ export interface Database {
           parent_id?: string | null;
           labels?: string[];
           project_name?: string | null;
+          overdue_notified_at?: string | null;
         };
         Update: Partial<{
           title: string;
@@ -248,6 +259,7 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
+          overdue_notified_at: string | null;
         }>;
         Relationships: [];
       };
@@ -785,6 +797,372 @@ export interface Database {
         }>;
         Relationships: [];
       };
+
+      // ─── Workflows (migration 0026) ────────────────────────────────────
+      // The spec/payload columns are intentionally typed as Record<string, unknown>
+      // — the strict shape lives in lib/workflows/spec.ts (Zod). The DB type just
+      // carries it as a JSON blob.
+
+      workflows: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          description: string | null;
+          enabled: boolean;
+          mode: "instant" | "durable";
+          current_version_id: string | null;
+          folder_id: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+          last_run_at: string | null;
+          last_run_status: string | null;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          description?: string | null;
+          enabled?: boolean;
+          mode?: "instant" | "durable";
+          current_version_id?: string | null;
+          folder_id?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          description: string | null;
+          enabled: boolean;
+          mode: "instant" | "durable";
+          current_version_id: string | null;
+          last_run_at: string | null;
+          last_run_status: string | null;
+          archived_at: string | null;
+          updated_by: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_versions: {
+        Row: {
+          id: string;
+          workflow_id: string;
+          version: number;
+          spec: Record<string, unknown>;
+          spec_hash: string;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workflow_id: string;
+          version: number;
+          spec: Record<string, unknown>;
+          spec_hash: string;
+          notes?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          spec: Record<string, unknown>;
+          spec_hash: string;
+          notes: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_events: {
+        Row: {
+          id: string;
+          property_id: string;
+          source: string;
+          event_type: string;
+          entity_id: string | null;
+          entity_kind: string | null;
+          payload: Record<string, unknown>;
+          received_at: string;
+          dispatched_at: string | null;
+          matched_workflow_ids: string[];
+          filtered_reason: Record<string, string>;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          source: string;
+          event_type: string;
+          entity_id?: string | null;
+          entity_kind?: string | null;
+          payload?: Record<string, unknown>;
+        };
+        Update: Partial<{
+          dispatched_at: string | null;
+          matched_workflow_ids: string[];
+          filtered_reason: Record<string, string>;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_runs: {
+        Row: {
+          id: string;
+          workflow_id: string;
+          workflow_version_id: string | null;
+          property_id: string;
+          trigger_event_id: string | null;
+          trigger_kind: string | null;
+          status:
+            | "queued"
+            | "running"
+            | "waiting"
+            | "succeeded"
+            | "failed"
+            | "cancelled"
+            | "filtered";
+          mode: "instant" | "durable";
+          durable_run_id: string | null;
+          triggered_by_user_id: string | null;
+          input: Record<string, unknown>;
+          output: Record<string, unknown> | null;
+          error: string | null;
+          error_step_id: string | null;
+          started_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workflow_id: string;
+          workflow_version_id?: string | null;
+          property_id: string;
+          trigger_event_id?: string | null;
+          trigger_kind?: string | null;
+          status: WorkflowRunStatus;
+          mode: "instant" | "durable";
+          durable_run_id?: string | null;
+          triggered_by_user_id?: string | null;
+          input?: Record<string, unknown>;
+        };
+        Update: Partial<{
+          status: WorkflowRunStatus;
+          durable_run_id: string | null;
+          output: Record<string, unknown> | null;
+          error: string | null;
+          error_step_id: string | null;
+          finished_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_step_runs: {
+        Row: {
+          id: string;
+          run_id: string;
+          step_id: string;
+          step_type: string;
+          status: "queued" | "running" | "succeeded" | "failed" | "skipped";
+          attempt: number;
+          input: Record<string, unknown>;
+          output: Record<string, unknown> | null;
+          error: Record<string, unknown> | null;
+          ai_trace: Record<string, unknown> | null;
+          started_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          step_id: string;
+          step_type: string;
+          status: "queued" | "running" | "succeeded" | "failed" | "skipped";
+          attempt?: number;
+          input?: Record<string, unknown>;
+          output?: Record<string, unknown> | null;
+          error?: Record<string, unknown> | null;
+          ai_trace?: Record<string, unknown> | null;
+          started_at?: string;
+          finished_at?: string | null;
+        };
+        Update: Partial<{
+          status: "queued" | "running" | "succeeded" | "failed" | "skipped";
+          attempt: number;
+          output: Record<string, unknown> | null;
+          error: Record<string, unknown> | null;
+          ai_trace: Record<string, unknown> | null;
+          finished_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_schedules: {
+        Row: {
+          workflow_id: string;
+          cron_expression: string;
+          timezone: string;
+          next_run_at: string | null;
+          pg_cron_jobid: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          workflow_id: string;
+          cron_expression: string;
+          timezone?: string;
+          next_run_at?: string | null;
+          pg_cron_jobid?: number | null;
+        };
+        Update: Partial<{
+          cron_expression: string;
+          timezone: string;
+          next_run_at: string | null;
+          pg_cron_jobid: number | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_templates: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          description: string;
+          category: string;
+          surfaces: string[];
+          spec: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          description: string;
+          category: string;
+          surfaces?: string[];
+          spec: Record<string, unknown>;
+        };
+        Update: Partial<{
+          name: string;
+          description: string;
+          category: string;
+          surfaces: string[];
+          spec: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_suggestions: {
+        Row: {
+          id: string;
+          property_id: string;
+          proposed_spec: Record<string, unknown>;
+          pattern_summary: string;
+          est_savings: string | null;
+          dismissed_at: string | null;
+          dismissed_by: string | null;
+          applied_workflow_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          proposed_spec: Record<string, unknown>;
+          pattern_summary: string;
+          est_savings?: string | null;
+        };
+        Update: Partial<{
+          dismissed_at: string | null;
+          dismissed_by: string | null;
+          applied_workflow_id: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      workflow_waits: {
+        Row: {
+          id: string;
+          workflow_id: string;
+          run_id: string;
+          step_id: string;
+          property_id: string;
+          token: string;
+          event_type: string;
+          correlate: Record<string, string>;
+          timeout_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workflow_id: string;
+          run_id: string;
+          step_id: string;
+          property_id: string;
+          token: string;
+          event_type: string;
+          correlate?: Record<string, string>;
+          timeout_at?: string | null;
+        };
+        Update: Partial<{
+          correlate: Record<string, string>;
+          timeout_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      entity_types: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          display_name: string;
+          schema: Record<string, unknown>;
+          display_config: Record<string, unknown>;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          display_name: string;
+          schema?: Record<string, unknown>;
+          display_config?: Record<string, unknown>;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          display_name: string;
+          schema: Record<string, unknown>;
+          display_config: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
+
+      entities: {
+        Row: {
+          id: string;
+          property_id: string;
+          entity_type_id: string;
+          data: Record<string, unknown>;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          entity_type_id: string;
+          data?: Record<string, unknown>;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          data: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -834,6 +1212,23 @@ export interface Database {
           updated_at: string;
           rank: number;
         }>;
+      };
+      // Workflow scheduling — migration 0028.
+      workflows_schedule_cron: {
+        Args: {
+          p_workflow_id: string;
+          p_cron: string;
+          p_timezone?: string;
+        };
+        Returns: number;
+      };
+      workflows_unschedule_cron: {
+        Args: { p_workflow_id: string };
+        Returns: undefined;
+      };
+      workflows_emit_cron_event: {
+        Args: { p_workflow_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

@@ -15,6 +15,7 @@ import {
   ROOT_THREAD_KEY,
   type ChannelEngagementState,
 } from "@/lib/stream/ai-adapter";
+import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
 import {
   shouldBotChimeIn,
   type ChimeSensitivity,
@@ -187,6 +188,52 @@ async function processMessageNew(
     .maybeSingle();
 
   if (!channelRow || channelRow.archived_at) return;
+
+  // Workflow event: chat.message_posted (always) + chat.mention (per direct
+  // mention). Wrapped so a workflow_events insert failure can't break chat.
+  if (!senderIsBot && !isAiGenerated) {
+    after(async () => {
+      try {
+        await emitWorkflowEvent({
+          propertyId: channelRow.property_id,
+          source: "stream.message",
+          eventType: "chat.message_posted",
+          entityId: msg.id,
+          entityKind: "message",
+          payload: {
+            message: {
+              id: msg.id,
+              text,
+              parent_id: msg.parent_id ?? null,
+              user_id: senderId,
+              user_name: msg.user?.name ?? null,
+            },
+            channel: {
+              id: channelId,
+              type: channelType,
+              name: channelRow.name,
+            },
+          },
+        });
+        for (const uid of directMentionIds) {
+          await emitWorkflowEvent({
+            propertyId: channelRow.property_id,
+            source: "stream.message",
+            eventType: "chat.mention",
+            entityId: msg.id,
+            entityKind: "message",
+            payload: {
+              message: { id: msg.id, text, user_id: senderId },
+              mentioned_user_id: uid,
+              channel: { id: channelId, type: channelType, name: channelRow.name },
+            },
+          });
+        }
+      } catch (err) {
+        console.error("[stream-webhook-message-new] emitWorkflowEvent failed", err);
+      }
+    });
+  }
 
   // AI reply trigger. maybeTriggerAiReply schedules its own after() so the
   // synchronous handler still returns quickly (and processMessageNew can

@@ -16,6 +16,7 @@ import { DocumentsSurface } from "@/components/documents/documents-surface";
 import { ActivitySurface } from "@/components/shell/activity/activity-surface";
 import { ThreadsSurface } from "@/components/chat/threads/threads-surface";
 import { InboxSurface } from "@/components/chat/inbox/inbox-surface";
+import { WorkflowsSurface } from "@/components/workflows/workflows-surface";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
@@ -176,6 +177,7 @@ export default async function PropertyLayout({
                             currentUserId={user.id}
                           />
                           <DocumentsSurface propertyId={propertyId} />
+                          <WorkflowsSurface propertyId={propertyId} />
                           <ActivitySurface
                             propertyId={propertyId}
                             userId={user.id}

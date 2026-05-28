@@ -19,7 +19,9 @@ import {
   MoreHorizontal,
   Plus,
   Sparkles,
+  Workflow,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
@@ -66,9 +68,23 @@ export function KanbanColumn({
   onChanged,
   onOpenFullCreate,
 }: Props) {
+  const router = useRouter();
   const { setNodeRef } = useDroppable({ id: column.id });
   const [adding, setAdding] = useState(false);
   const empty = taskIds.length === 0;
+
+  function automateColumn() {
+    const prefill = {
+      trigger: "task.status_changed",
+      column: column.id,
+      column_label: column.label,
+    };
+    const goal = `When a task moves to ${column.label}`;
+    const url = `/p/${propertyId}/workflows/new?prefill=${encodeURIComponent(
+      btoa(JSON.stringify({ goal, ...prefill })),
+    )}`;
+    router.push(url);
+  }
   const overWip =
     column.wipLimit != null && taskIds.length > column.wipLimit;
 
@@ -158,6 +174,10 @@ export function KanbanColumn({
               <DropdownMenuItem onClick={() => onOpenFullCreate(column.id)}>
                 <Sparkles className="size-3.5" />
                 New task with details…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={automateColumn}>
+                <Workflow className="size-3.5" />
+                Automate this column…
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

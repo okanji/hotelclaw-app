@@ -40,7 +40,7 @@ export function LeftShell({
   defaultWidth?: number;
   activityDefaultWidth?: number;
 }) {
-  const { section } = useShellSection();
+  const { section, sidebarHidden } = useShellSection();
   const standard = useResizableWidth(defaultWidth, STANDARD_WIDTH);
   const activity = useResizableWidth(
     activityDefaultWidth,
@@ -60,14 +60,16 @@ export function LeftShell({
           userId={user.id}
           user={user}
         />
-        <SectionSidebar
-          currentPropertyId={currentPropertyId}
-          memberships={memberships}
-          user={user}
-          width={resize.width}
-          dragging={resize.dragging}
-          handleProps={resize.handleProps}
-        />
+        {!sidebarHidden && (
+          <SectionSidebar
+            currentPropertyId={currentPropertyId}
+            memberships={memberships}
+            user={user}
+            width={resize.width}
+            dragging={resize.dragging}
+            handleProps={resize.handleProps}
+          />
+        )}
       </div>
     </div>
   );
