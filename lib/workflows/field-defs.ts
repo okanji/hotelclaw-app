@@ -66,6 +66,14 @@ export type FieldDef =
       help?: string;
       itemPlaceholder?: string;
       minItems?: number;
+    }
+  | {
+      kind: "key-value";
+      key: string;
+      label: string;
+      help?: string;
+      keyPlaceholder?: string;
+      valuePlaceholder?: string;
     };
 
 const TEMPLATE_HELP =
@@ -337,5 +345,71 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       placeholder: "completed",
       help: "Shown in run history and analytics.",
     },
+  ],
+
+  // ─── Backfilled task / chat / doc / entity forms ───────────────────────────
+  "action.task.update": [
+    { kind: "template", key: "task_id", label: "Task", placeholder: "{{trigger.new.id}}", required: true },
+    {
+      kind: "enum",
+      key: "status",
+      label: "Set status",
+      options: [
+        { value: "todo", label: "To do" },
+        { value: "in_progress", label: "In progress" },
+        { value: "blocked", label: "Blocked" },
+        { value: "done", label: "Done" },
+      ],
+    },
+    {
+      kind: "enum",
+      key: "priority",
+      label: "Set priority",
+      options: [
+        { value: "none", label: "None" },
+        { value: "low", label: "Low" },
+        { value: "medium", label: "Medium" },
+        { value: "high", label: "High" },
+        { value: "urgent", label: "Urgent" },
+      ],
+    },
+    { kind: "template", key: "assignee_id", label: "Assign to", placeholder: "{{trigger.new.assignee_id}}" },
+  ],
+  "action.task.assign": [
+    { kind: "template", key: "task_id", label: "Task", placeholder: "{{trigger.new.id}}", required: true },
+    { kind: "template", key: "assignee_id", label: "Assign to", placeholder: "a user id", required: true },
+  ],
+  "action.chat.post_thread_reply": [
+    { kind: "template", key: "channel_id", label: "Channel", placeholder: "front-desk", required: true },
+    { kind: "template", key: "parent_id", label: "Parent message", placeholder: "{{trigger.message.id}}", required: true },
+    { kind: "textarea", key: "text", label: "Reply", placeholder: "On it — sending someone up now.", help: TEMPLATE_HELP, required: true, rows: 3 },
+  ],
+  "action.chat.mention_user": [
+    { kind: "template", key: "channel_id", label: "Channel", placeholder: "front-desk", required: true },
+    { kind: "template", key: "user_id", label: "User to mention", placeholder: "{{trigger.new.assignee_id}}", required: true },
+    { kind: "textarea", key: "text", label: "Message", placeholder: "can you take this one?", help: TEMPLATE_HELP, required: true, rows: 2 },
+  ],
+  "action.doc.create": [
+    { kind: "template", key: "title", label: "Title", placeholder: "Shift handover — {{trigger.new.title}}", required: true },
+    { kind: "textarea", key: "body_markdown", label: "Body", placeholder: "Markdown content…", help: TEMPLATE_HELP, rows: 4 },
+    { kind: "text", key: "parent_id", label: "Parent doc (optional)", placeholder: "a document id" },
+  ],
+  "action.doc.archive": [
+    { kind: "template", key: "document_id", label: "Document", placeholder: "{{trigger.new.id}}", required: true },
+  ],
+  "action.entity.create": [
+    { kind: "template", key: "entity_type", label: "Entity type", placeholder: "room", required: true },
+    { kind: "key-value", key: "data", label: "Fields", keyPlaceholder: "field", valuePlaceholder: "value or {{ref}}" },
+  ],
+  "action.entity.update": [
+    { kind: "template", key: "entity_id", label: "Entity", placeholder: "{{trigger.new.id}}", required: true },
+    { kind: "key-value", key: "patch", label: "Fields to change", keyPlaceholder: "field", valuePlaceholder: "value or {{ref}}" },
+  ],
+  "action.gbrain.capture": [
+    { kind: "textarea", key: "text", label: "What to remember", placeholder: "VIP guest prefers a quiet room away from the elevator.", help: TEMPLATE_HELP, required: true, rows: 3 },
+    { kind: "string-list", key: "tags", label: "Tags", itemPlaceholder: "e.g. vip" },
+  ],
+  "action.external.delegate_to_openclaw": [
+    { kind: "textarea", key: "goal", label: "Goal for the agent", placeholder: "Monitor this thread and escalate if unresolved in 30 min.", help: TEMPLATE_HELP, required: true, rows: 3 },
   ],
 };

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, GitBranch, LayoutPanelLeft, List, X } from "lucide-react";
+import { Check, LayoutPanelLeft, List, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
+import { validateSpec } from "@/lib/workflows/validate";
+import { STEP_FIELDS } from "@/lib/workflows/field-defs";
 import { AiCopilot } from "./ai-copilot";
-import { WorkflowGraphView } from "./graph-view";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
 
@@ -16,6 +17,10 @@ import { TreeList } from "./tree-list/tree-list";
 //   • the "saved baseline" (last persisted spec) for Reject
 //   • the unaccepted diff set (step ids the AI added since last accept)
 //   • save / accept-all / reject actions
+//
+// Two views share that spec: "Flow" (the vertical editing rail — primary) and
+// "Map" (the @xyflow canvas — a spatial read-mostly overview). Cmd/Ctrl+G
+// toggles between them.
 
 export function BuilderShell({
   propertyId,
@@ -33,19 +38,16 @@ export function BuilderShell({
   const [unaccepted, setUnaccepted] = useState<Set<string>>(new Set());
   const [selectedStepId, setSelectedStepId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<"list" | "graph" | "canvas">("list");
+  const [view, setView] = useState<"flow" | "map">("flow");
   const dirty = spec !== savedSpec;
   const hasUnaccepted = unaccepted.size > 0;
 
-  // Cmd+G / Ctrl+G cycles list → graph → canvas → list. Quick way to flip the
-  // primary edit surface without leaving the keyboard.
+  // Cmd+G / Ctrl+G toggles Flow ↔ Map.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        setView((v) =>
-          v === "list" ? "graph" : v === "graph" ? "canvas" : "list",
-        );
+        setView((v) => (v === "flow" ? "map" : "flow"));
       }
     }
     window.addEventListener("keydown", onKey);
@@ -54,6 +56,11 @@ export function BuilderShell({
 
   // classifyMode might flip from instant → durable as the AI adds delay/wait nodes.
   const currentIsDurable = useMemo(() => classifyMode(spec) === "durable", [spec]);
+
+  // Per-step problems surfaced inline on the cards *before* Save: empty required
+  // fields (from STEP_FIELDS) plus dangling refs / bad branch targets (from the
+  // shared validator). First message per step wins.
+  const invalidById = useMemo(() => computeInvalid(spec), [spec]);
 
   function applyAiSpec(next: WorkflowSpec) {
     const before = new Set(Object.keys(spec.steps));
@@ -81,14 +88,11 @@ export function BuilderShell({
     if (!dirty || busy) return;
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/properties/${propertyId}/workflows/${workflowId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ spec }),
-        },
-      );
+      const res = await fetch(`/api/properties/${propertyId}/workflows/${workflowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spec }),
+      });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
@@ -103,26 +107,17 @@ export function BuilderShell({
     }
   }
 
-  // Layout
-  //   • Header (status + view tabs + save) stays fixed at the top in every
-  //     view, so users can flip between list/graph/canvas without losing
-  //     orientation.
-  //   • List / Graph use a constrained 820px reading column inside a
-  //     vertical scroller — the existing comfortable width.
-  //   • Canvas takes the full viewport edge-to-edge — node editors need
-  //     all the horizontal real estate they can get; constraining to 820px
-  //     overlaps nodes immediately.
-  const isCanvas = view === "canvas";
+  const isMap = view === "map";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header
         className={cn(
           "flex flex-shrink-0 flex-col items-stretch gap-2 border-b border-border/60 bg-background/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between",
-          !isCanvas && "border-transparent bg-transparent",
+          !isMap && "border-transparent bg-transparent",
         )}
       >
-        <p className={cn("text-[12px] text-muted-foreground", !isCanvas && "px-6 pt-2")}>
+        <p className={cn("text-[12px] text-muted-foreground", !isMap && "px-6 pt-2")}>
           {dirty
             ? "Unsaved changes — review and save when ready."
             : "All caught up."}
@@ -130,26 +125,20 @@ export function BuilderShell({
             ? " · Mode changed — this workflow now runs durably."
             : ""}
         </p>
-        <div className={cn("flex items-center justify-end gap-2", !isCanvas && "px-6 pt-2")}>
+        <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <ViewTab
               icon={<List className="size-3" />}
-              label="List"
-              active={view === "list"}
-              onClick={() => setView("list")}
-            />
-            <ViewTab
-              icon={<GitBranch className="size-3" />}
-              label="Graph"
-              shortcut="⌘G"
-              active={view === "graph"}
-              onClick={() => setView("graph")}
+              label="Flow"
+              active={view === "flow"}
+              onClick={() => setView("flow")}
             />
             <ViewTab
               icon={<LayoutPanelLeft className="size-3" />}
-              label="Canvas"
-              active={view === "canvas"}
-              onClick={() => setView("canvas")}
+              label="Map"
+              shortcut="⌘G"
+              active={view === "map"}
+              onClick={() => setView("map")}
             />
           </div>
           <button
@@ -167,18 +156,14 @@ export function BuilderShell({
         <div
           className={cn(
             "flex-shrink-0",
-            isCanvas ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
           )}
         >
-          <AcceptBar
-            count={unaccepted.size}
-            onAccept={acceptAll}
-            onReject={rejectAll}
-          />
+          <AcceptBar count={unaccepted.size} onAccept={acceptAll} onReject={rejectAll} />
         </div>
       ) : null}
 
-      {isCanvas ? (
+      {isMap ? (
         <div className="flex min-h-0 flex-1 flex-col p-3">
           <WorkflowCanvas
             propertyId={propertyId}
@@ -190,30 +175,21 @@ export function BuilderShell({
             setBusy={setBusy}
             selectedNodeId={selectedStepId ?? null}
             setSelectedNodeId={(id) => setSelectedStepId(id ?? undefined)}
-            onClose={() => setView("list")}
+            onClose={() => setView("flow")}
           />
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-[820px] flex-col gap-4 px-10 pt-6 pb-12">
-            {view === "list" && (
-              <TreeList
-                spec={spec}
-                isDurable={currentIsDurable}
-                selectedStepId={selectedStepId}
-                onSelectStep={setSelectedStepId}
-                onChange={setSpec}
-                unacceptedIds={unaccepted}
-              />
-            )}
-            {view === "graph" && (
-              <WorkflowGraphView
-                spec={spec}
-                unacceptedIds={unaccepted}
-                selectedStepId={selectedStepId}
-                onSelectStep={setSelectedStepId}
-              />
-            )}
+            <TreeList
+              spec={spec}
+              isDurable={currentIsDurable}
+              selectedStepId={selectedStepId}
+              onSelectStep={setSelectedStepId}
+              onChange={setSpec}
+              unacceptedIds={unaccepted}
+              invalidById={invalidById}
+            />
             <AiCopilot
               propertyId={propertyId}
               currentSpec={spec}
@@ -226,6 +202,36 @@ export function BuilderShell({
       )}
     </div>
   );
+}
+
+// Map step id → first human-readable problem, for inline card validation.
+function computeInvalid(spec: WorkflowSpec): Map<string, string> {
+  const out = new Map<string, string>();
+
+  // Empty required fields (drives the friendly "X is required" inline note).
+  for (const [id, step] of Object.entries(spec.steps)) {
+    const fields = STEP_FIELDS[step.type as keyof typeof STEP_FIELDS];
+    if (!fields) continue;
+    const cfg = (step as { config?: Record<string, unknown> }).config ?? {};
+    for (const f of fields) {
+      if (!("required" in f) || !f.required) continue;
+      const v = cfg[f.key];
+      const empty = v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
+      if (empty) {
+        out.set(id, `${f.label} is required`);
+        break;
+      }
+    }
+  }
+
+  // Structural problems (dangling refs, bad branch targets) — don't overwrite a
+  // required-field message already set for the step.
+  for (const issue of validateSpec(spec).issues) {
+    if (issue.severity !== "error" || !issue.step_id) continue;
+    if (!out.has(issue.step_id)) out.set(issue.step_id, issue.message);
+  }
+
+  return out;
 }
 
 function ViewTab({
@@ -267,11 +273,7 @@ function AcceptBar({
   onReject: () => void;
 }) {
   return (
-    <div
-      className={cn(
-        "sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-[var(--chart-2)]/40 bg-[var(--chart-2)]/10 px-3 py-2 text-[13px]",
-      )}
-    >
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-[var(--chart-2)]/40 bg-[var(--chart-2)]/10 px-3 py-2 text-[13px]">
       <span className="font-medium text-foreground">
         AI added {count} {count === 1 ? "step" : "steps"}
       </span>

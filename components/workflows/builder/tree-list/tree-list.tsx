@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -95,6 +95,7 @@ export function TreeList({
   onSelectStep,
   onChange,
   unacceptedIds,
+  invalidById,
 }: {
   spec: WorkflowSpec;
   isDurable: boolean;
@@ -102,6 +103,8 @@ export function TreeList({
   onSelectStep?: (stepId: string) => void;
   onChange?: (next: WorkflowSpec) => void;
   unacceptedIds?: Set<string>;
+  /** step id → first inline validation message, shown on the card. */
+  invalidById?: Map<string, string>;
 }) {
   const [paletteAt, setPaletteAt] = useState<SlotTarget | null>(null);
   const [inspectorOpenFor, setInspectorOpenFor] = useState<string | null>(null);
@@ -260,6 +263,7 @@ export function TreeList({
         ordinalMap={ordinalMap}
         selectedStepId={selectedStepId}
         unacceptedIds={unacceptedIds}
+        invalidById={invalidById}
         onClickStep={selectStep}
         onDeleteStep={deleteStep}
         onOpenPalette={setPaletteAt}
@@ -352,6 +356,7 @@ function Rail({
   ordinalMap,
   selectedStepId,
   unacceptedIds,
+  invalidById,
   onClickStep,
   onDeleteStep,
   onOpenPalette,
@@ -363,6 +368,7 @@ function Rail({
   ordinalMap: Map<string, string>;
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
+  invalidById?: Map<string, string>;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
@@ -422,6 +428,7 @@ function Rail({
                 ordinal={ordinal}
                 selected={selectedStepId === step.id}
                 unaccepted={unacceptedIds?.has(step.id)}
+                invalidReason={invalidById?.get(step.id)}
                 draggable={!isBranch}
                 onClick={() => onClickStep(step.id)}
                 onDelete={() => onDeleteStep(step.id)}
@@ -435,6 +442,7 @@ function Rail({
                   ordinalMap={ordinalMap}
                   selectedStepId={selectedStepId}
                   unacceptedIds={unacceptedIds}
+                  invalidById={invalidById}
                   onClickStep={onClickStep}
                   onDeleteStep={onDeleteStep}
                   onOpenPalette={onOpenPalette}
@@ -543,6 +551,7 @@ function StepRow({
   ordinal,
   selected,
   unaccepted,
+  invalidReason,
   draggable,
   onClick,
   onDelete,
@@ -551,6 +560,8 @@ function StepRow({
   ordinal: string;
   selected: boolean;
   unaccepted?: boolean;
+  /** First validation problem on this step, shown inline. */
+  invalidReason?: string;
   /** Branch steps are pinned at the chain tail and not reorderable. */
   draggable: boolean;
   onClick: () => void;
@@ -630,7 +641,9 @@ function StepRow({
           "group relative mb-1 flex flex-1 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           selected
             ? "border-primary ring-2 ring-primary/30"
-            : "border-border/60 hover:border-foreground/30",
+            : invalidReason
+              ? "border-destructive/60 hover:border-destructive"
+              : "border-border/60 hover:border-foreground/30",
           unaccepted && "ring-2 ring-[var(--chart-2)]/60",
           sortable.isDragging &&
             "border-primary shadow-xl ring-2 ring-primary/40",
@@ -662,6 +675,11 @@ function StepRow({
           <p className="mt-0.5 line-clamp-2 text-[12.5px] text-muted-foreground">
             {summary}
           </p>
+          {invalidReason && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-destructive">
+              <span aria-hidden>▲</span> {invalidReason}
+            </p>
+          )}
         </div>
         <div className="mt-1 flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
@@ -692,6 +710,7 @@ function BranchLanes({
   ordinalMap,
   selectedStepId,
   unacceptedIds,
+  invalidById,
   onClickStep,
   onDeleteStep,
   onOpenPalette,
@@ -702,6 +721,7 @@ function BranchLanes({
   ordinalMap: Map<string, string>;
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
+  invalidById?: Map<string, string>;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
@@ -742,6 +762,7 @@ function BranchLanes({
                   ordinalMap={ordinalMap}
                   selectedStepId={selectedStepId}
                   unacceptedIds={unacceptedIds}
+                  invalidById={invalidById}
                   onClickStep={onClickStep}
                   onDeleteStep={onDeleteStep}
                   onOpenPalette={onOpenPalette}
@@ -880,6 +901,23 @@ const SURFACE_DISPLAY: Record<Surface, string> = {
   external: "External",
 };
 
+// The 80% hotel-ops set, pinned to the top when there's no query.
+const COMMON_STEP_IDS: StepType[] = [
+  "action.task.create",
+  "action.chat.post_message",
+  "action.notify.role",
+  "control.branch_if",
+  "control.branch_switch",
+  "ai.classify_into",
+  "ai.summarize_text",
+  "control.delay",
+];
+
+interface PaletteSection {
+  title: string;
+  items: StepCatalogEntry[];
+}
+
 function PaletteDialog({
   open,
   onClose,
@@ -890,205 +928,153 @@ function PaletteDialog({
   onPick: (type: StepType) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [surfaceFilter, setSurfaceFilter] = useState<Surface | "all">("all");
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  // Reset transient state when reopened.
   useEffect(() => {
     if (open) {
       setQuery("");
-      setSurfaceFilter("all");
+      setActiveIndex(0);
     }
   }, [open]);
 
-  // Counts per surface (independent of filter so chips show real totals).
-  const countsBySurface = useMemo(() => {
-    const map = new Map<Surface, number>();
-    for (const s of STEPS) {
-      map.set(s.surface, (map.get(s.surface) ?? 0) + 1);
-    }
-    return map;
-  }, []);
-
-  const activeSurfaces = useMemo(
-    () => SURFACE_ORDER.filter((s) => (countsBySurface.get(s) ?? 0) > 0),
-    [countsBySurface],
-  );
-
-  // Visible steps, grouped by surface, after search + filter.
-  const grouped = useMemo(() => {
+  // Sections shown in the list. No query → Common + each surface group.
+  // Query → a single ranked "Matches" section (label/id/description/prompts).
+  const sections = useMemo<PaletteSection[]>(() => {
     const q = query.trim().toLowerCase();
-    const matches = STEPS.filter((s) => {
-      if (surfaceFilter !== "all" && s.surface !== surfaceFilter) return false;
-      if (!q) return true;
-      return (
-        s.label.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)
-      );
-    });
-    const map = new Map<Surface, StepCatalogEntry[]>();
-    for (const s of matches) {
-      const k = s.surface;
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(s);
+    if (q) {
+      const scored = STEPS.map((s) => {
+        const hay = `${s.label} ${s.id} ${s.description} ${s.examplePrompts.join(" ")}`.toLowerCase();
+        if (!hay.includes(q)) return null;
+        // Rank: label prefix > label includes > other.
+        const label = s.label.toLowerCase();
+        const rank = label.startsWith(q) ? 0 : label.includes(q) ? 1 : 2;
+        return { s, rank };
+      }).filter((x): x is { s: StepCatalogEntry; rank: number } => x !== null);
+      scored.sort((a, b) => a.rank - b.rank);
+      return scored.length ? [{ title: "Matches", items: scored.map((x) => x.s) }] : [];
     }
-    return SURFACE_ORDER.filter((s) => map.has(s)).map(
-      (s) => [s, map.get(s)!] as const,
+    const byId = new Map(STEPS.map((s) => [s.id, s]));
+    const common = COMMON_STEP_IDS.map((id) => byId.get(id)).filter(
+      (s): s is StepCatalogEntry => Boolean(s),
     );
-  }, [query, surfaceFilter]);
+    const groups: PaletteSection[] = SURFACE_ORDER.map((surface) => ({
+      title: SURFACE_DISPLAY[surface],
+      items: STEPS.filter((s) => s.surface === surface),
+    })).filter((g) => g.items.length > 0);
+    return [{ title: "Common", items: common }, ...groups];
+  }, [query]);
 
-  const totalVisible = grouped.reduce((acc, [, list]) => acc + list.length, 0);
+  // Flat list of items in display order for arrow-key navigation. Clamp the
+  // active index at render time (results shrink as the query narrows) rather
+  // than syncing it through an effect.
+  const flat = useMemo(() => sections.flatMap((sec) => sec.items), [sections]);
+  const safeIndex = flat.length === 0 ? 0 : Math.min(activeIndex, flat.length - 1);
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex(Math.min(safeIndex + 1, flat.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex(Math.max(safeIndex - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const pick = flat[safeIndex];
+      if (pick) onPick(pick.id);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      {/* sm:!max-w-4xl overrides the shadcn DialogContent default of
-       * sm:max-w-sm (which otherwise wins at the sm breakpoint and pins the
-       * modal to 384px). */}
-      <DialogContent className="flex max-h-[85vh] w-full max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:!max-w-4xl">
-        <DialogHeader className="space-y-3 border-b p-4">
-          <div>
-            <DialogTitle className="text-[14px]">Add a step</DialogTitle>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Pick what should happen next. Search by name or browse by category.
-            </p>
-          </div>
+      <DialogContent className="flex max-h-[80vh] w-full max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:!max-w-2xl">
+        <DialogHeader className="border-b p-0">
+          <DialogTitle className="sr-only">Add a step</DialogTitle>
           <Input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search steps — “summarize”, “notify”, “branch”…"
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIndex(0);
+            }}
+            onKeyDown={onKeyDown}
+            placeholder="Search steps — try “notify”, “summarize”, “if”…"
             autoFocus
-            className="h-9 text-[13px]"
+            className="h-12 rounded-none border-0 px-4 text-[14px] focus-visible:ring-0"
           />
-          {/* Surface filter chips */}
-          <div className="-mx-1 flex flex-wrap items-center gap-1">
-            <FilterChip
-              label="All"
-              count={STEPS.length}
-              active={surfaceFilter === "all"}
-              onClick={() => setSurfaceFilter("all")}
-            />
-            {activeSurfaces.map((s) => (
-              <FilterChip
-                key={s}
-                label={SURFACE_DISPLAY[s]}
-                count={countsBySurface.get(s) ?? 0}
-                active={surfaceFilter === s}
-                onClick={() => setSurfaceFilter(s)}
-                tone={s}
-              />
-            ))}
-          </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          {totalVisible === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-1 py-12 text-center">
-              <p className="text-[13px] font-medium text-foreground">
-                No steps match
-              </p>
-              <p className="text-[12px] text-muted-foreground">
-                Try a different search or category.
-              </p>
-            </div>
+        <div className="flex-1 overflow-y-auto p-1.5">
+          {flat.length === 0 ? (
+            <p className="px-3 py-12 text-center text-[12.5px] text-muted-foreground">
+              No steps match “{query}”.
+            </p>
           ) : (
-            <div className="space-y-5">
-              {grouped.map(([surface, items]) => (
-                <section key={surface}>
-                  <h3 className="mb-2 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    {SURFACE_DISPLAY[surface]}
-                    <span className="rounded-sm bg-muted/40 px-1.5 font-mono text-[10px] text-muted-foreground">
-                      {items.length}
-                    </span>
-                  </h3>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {items.map((s) => (
-                      <PaletteCard
-                        key={s.id}
-                        entry={s}
-                        onClick={() => onPick(s.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            sections.map((sec) => (
+              <section key={sec.title} className="mb-1.5 last:mb-0">
+                <h3 className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  {sec.title}
+                </h3>
+                {sec.items.map((entry) => {
+                  const idx = flat.indexOf(entry);
+                  return (
+                    <PaletteRow
+                      key={`${sec.title}:${entry.id}`}
+                      entry={entry}
+                      active={idx === safeIndex}
+                      onHover={() => setActiveIndex(idx)}
+                      onClick={() => onPick(entry.id)}
+                    />
+                  );
+                })}
+              </section>
+            ))
           )}
+        </div>
+
+        <div className="flex items-center gap-3 border-t px-3 py-1.5 text-[10.5px] text-muted-foreground">
+          <span><kbd className="font-sans">↑↓</kbd> navigate</span>
+          <span><kbd className="font-sans">↵</kbd> add</span>
+          <span><kbd className="font-sans">esc</kbd> close</span>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-  tone,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-  tone?: Surface;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
-        active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground",
-      )}
-    >
-      {tone && (
-        <SurfaceBadge
-          surface={tone}
-          className={cn("!size-3.5", active && "opacity-90")}
-        />
-      )}
-      {label}
-      <span
-        className={cn(
-          "rounded-sm px-1 font-mono text-[10px]",
-          active
-            ? "bg-background/20 text-background/80"
-            : "bg-muted/40 text-muted-foreground",
-        )}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function PaletteCard({
+function PaletteRow({
   entry,
+  active,
+  onHover,
   onClick,
 }: {
   entry: StepCatalogEntry;
+  active: boolean;
+  onHover: () => void;
   onClick: () => void;
 }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
-      className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 text-left transition-all hover:-translate-y-px hover:border-primary/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onMouseMove={onHover}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors",
+        active ? "bg-secondary" : "hover:bg-secondary/60",
+      )}
     >
-      <SurfaceBadge surface={entry.surface} className="mt-0.5 !size-8 shrink-0" />
+      <SurfaceBadge surface={entry.surface} className="!size-7 shrink-0" />
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">
-          {entry.label}
-        </p>
-        <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-muted-foreground">
-          {entry.description}
-        </p>
-        <p className="mt-1.5 truncate font-mono text-[10px] text-muted-foreground/70">
-          {entry.id}
-        </p>
+        <p className="truncate text-[13px] font-medium text-foreground">{entry.label}</p>
+        <p className="truncate text-[11.5px] text-muted-foreground">{entry.description}</p>
       </div>
+      <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/60">
+        {SURFACE_DISPLAY[entry.surface]}
+      </span>
     </button>
   );
 }
