@@ -167,7 +167,7 @@ function validateRef(
   return `Unknown root in ref: {{${ref}}} (expected trigger|steps|vars|context|now)`;
 }
 
-function buildUpstreamMap(spec: WorkflowSpec): Map<string, Set<string>> {
+export function buildUpstreamMap(spec: WorkflowSpec): Map<string, Set<string>> {
   const result = new Map<string, Set<string>>();
   for (const id of Object.keys(spec.steps)) result.set(id, new Set());
 

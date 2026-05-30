@@ -44,7 +44,7 @@ import {
 } from "@/lib/workflows/catalog";
 import type { StepCatalogEntry, Surface } from "@/lib/workflows/catalog/types";
 import type { StepNode, StepType, WorkflowSpec } from "@/lib/workflows/spec";
-import { nextStepId, removeStep, TRIGGER_NODE_ID } from "@/lib/workflows/graph";
+import { nextStepId, TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 import { NodeInspector } from "@/components/workflows/builder/canvas/node-inspector";
 
 // Vertical, Zapier-style builder.
@@ -118,42 +118,63 @@ export function TreeList({
     (type: StepType, target: SlotTarget) => {
       if (!onChange) return;
       const id = nextStepId(spec, type);
-      const step = { id, type, config: {} } as unknown as StepNode;
 
-      let nextSpec: WorkflowSpec = {
-        ...spec,
-        steps: { ...spec.steps, [id]: step },
+      // Mutable working copy of the steps map — add the new step, optionally
+      // seed branch lanes, then wire it into the slot below.
+      const steps: Record<string, StepNode> = {
+        ...spec.steps,
+        [id]: { id, type, config: {} } as unknown as StepNode,
       };
 
+      // Branch steps fan out. Seed each lane with its own bare End node so the
+      // fork renders — and validates (branch targets must point at real steps)
+      // — the instant it's added. Empty lanes show an "add first step" prompt.
+      if (isBranchType(type)) {
+        const labels =
+          type === "control.branch_switch" ? ["_default"] : ["true", "false"];
+        const branches: Record<string, string> = {};
+        for (const label of labels) {
+          const endId = freshEndId(steps);
+          steps[endId] = { id: endId, type: "control.end", config: {} } as StepNode;
+          branches[label] = endId;
+        }
+        steps[id] = { ...steps[id], branches } as StepNode;
+      }
+
+      // Thread the slot's previous occupant onto the new step's `.next` so an
+      // insert in the middle of a chain keeps the tail reachable. Branch steps
+      // route via their lanes, not `.next`, so we don't thread through them.
+      const thread = (prev: string | undefined) => {
+        if (prev && steps[prev] && !isBranchType(type)) {
+          steps[id] = { ...steps[id], next: prev } as StepNode;
+        }
+      };
+
+      let entry_step_id = spec.entry_step_id;
       if (target.asEntry) {
-        nextSpec = { ...nextSpec, entry_step_id: id };
+        thread(spec.entry_step_id);
+        entry_step_id = id;
       } else if (target.parentId) {
-        const parent = nextSpec.steps[target.parentId];
+        const parent = steps[target.parentId];
         if (parent) {
           if (target.branch) {
+            const prev = (parent as { branches?: Record<string, string> }).branches?.[
+              target.branch
+            ];
+            thread(prev);
             const branches = {
               ...((parent as { branches?: Record<string, string> }).branches ?? {}),
               [target.branch]: id,
             };
-            nextSpec = {
-              ...nextSpec,
-              steps: {
-                ...nextSpec.steps,
-                [target.parentId]: { ...parent, branches } as StepNode,
-              },
-            };
+            steps[target.parentId] = { ...parent, branches } as StepNode;
           } else {
-            nextSpec = {
-              ...nextSpec,
-              steps: {
-                ...nextSpec.steps,
-                [target.parentId]: { ...parent, next: id } as StepNode,
-              },
-            };
+            thread((parent as { next?: string }).next);
+            steps[target.parentId] = { ...parent, next: id } as StepNode;
           }
         }
       }
-      onChange(nextSpec);
+
+      onChange({ ...spec, steps, entry_step_id });
       setPaletteAt(null);
       setInspectorOpenFor(id);
       onSelectStep?.(id);
@@ -164,7 +185,7 @@ export function TreeList({
   const deleteStep = useCallback(
     (id: string) => {
       if (!onChange) return;
-      onChange(removeStep(spec, id));
+      onChange(deleteStepSpliced(spec, id));
     },
     [spec, onChange],
   );
@@ -347,10 +368,12 @@ function Rail({
   onOpenPalette: (slot: SlotTarget) => void;
 }) {
   const chain = useMemo(() => walkChain(spec, startId), [spec, startId]);
-  const hasAny = chain.length > 0;
 
-  // Empty lane fallback — shown inside a branch column when its slot is unset.
-  if (!hasAny) {
+  // Empty lane fallback — shown inside a branch column when its slot is unset
+  // OR when it holds only a freshly-seeded bare End (the path ends with nothing
+  // on it yet). Either way we invite the user to add the first step.
+  const isEmpty = chain.length === 0 || (chain.length === 1 && isBareEnd(chain[0]));
+  if (isEmpty) {
     return (
       <div className="flex gap-3">
         <RailColumn lineVariant="up" chipPosition="center">
@@ -363,12 +386,11 @@ function Rail({
     );
   }
 
-  // Separate the chain into the sortable (linear) portion and an optional
-  // trailing branch step. Branch steps own the chain tail (they fan into
-  // lanes); making them sortable would let users insert steps after a
-  // branch, which doesn't translate cleanly to `.next` pointers.
+  // Sortable portion: linear steps only. Branch steps own the chain tail (they
+  // fan into lanes) and End nodes are structural terminals — neither is
+  // reorderable.
   const sortableIds = chain
-    .filter((s) => !isBranchStep(s))
+    .filter((s) => !isBranchStep(s) && s.type !== "control.end")
     .map((s) => s.id);
 
   return (
@@ -379,6 +401,20 @@ function Rail({
         {chain.map((step, i) => {
           const ordinal = ordinalMap.get(step.id) ?? "•";
           const isBranch = isBranchStep(step);
+
+          // A control.end renders as the terminal marker itself (not a config
+          // card), so it never doubles up with the auto End row below.
+          if (step.type === "control.end") {
+            return (
+              <EndStepRow
+                key={step.id}
+                selected={selectedStepId === step.id}
+                outcome={(step as { config?: { outcome?: string } }).config?.outcome}
+                onClick={() => onClickStep(step.id)}
+              />
+            );
+          }
+
           return (
             <Fragment key={step.id}>
               <StepRow
@@ -409,7 +445,8 @@ function Rail({
                 />
               )}
 
-              {/* End marker when this is the last step AND it's not a branch */}
+              {/* End marker only when the last step isn't a branch or an End
+               * node (those render their own terminus). */}
               {i === chain.length - 1 && !isBranch && <EndRow />}
             </Fragment>
           );
@@ -618,9 +655,6 @@ function StepRow({
             {isBranch && (
               <GitBranch className="size-3 text-amber-500" aria-hidden />
             )}
-            <span className="ml-auto rounded-sm bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-              {step.id}
-            </span>
           </div>
           <p className="mt-0.5 truncate text-[14.5px] font-semibold text-foreground">
             {step.label || meta?.label || step.type}
@@ -729,12 +763,19 @@ function BranchHeader({ label }: { label: string }) {
         ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
         : "bg-muted text-muted-foreground";
 
+  const text =
+    label === "true"
+      ? "If true"
+      : label === "false"
+        ? "If false"
+        : label === "_default"
+          ? "Otherwise"
+          : label;
+
   return (
     <div className={cn("flex items-center gap-1 border-b border-border/40 px-3 py-1.5", tone)}>
       <GitBranch className="size-3" aria-hidden />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.08em]">
-        {label === "true" || label === "false" ? `If ${label}` : label}
-      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.08em]">{text}</span>
     </div>
   );
 }
@@ -754,6 +795,46 @@ function EndRow() {
           End
         </span>
       </div>
+    </div>
+  );
+}
+
+// A real `control.end` step rendered as the terminal marker. Clickable to edit
+// its outcome label, but not deletable from here — a branch lane points at it,
+// and dropping it would dangle the branch. Visually mirrors EndRow.
+function EndStepRow({
+  selected,
+  outcome,
+  onClick,
+}: {
+  selected: boolean;
+  outcome?: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="relative flex gap-3 py-1">
+      <RailColumn lineVariant="up" chipPosition="center">
+        <RailChip variant="muted">
+          <CheckCircle2 className="size-3.5" aria-hidden />
+        </RailChip>
+      </RailColumn>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "group flex flex-1 items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border/60 hover:bg-muted/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          selected && "border-border/60 bg-muted/[0.06]",
+        )}
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          End
+        </span>
+        {outcome ? (
+          <span className="rounded-sm bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            {outcome}
+          </span>
+        ) : null}
+      </button>
     </div>
   );
 }
@@ -1034,6 +1115,115 @@ function isBranchStep(step: StepNode): boolean {
   return "branches" in step;
 }
 
+const BRANCH_TYPES = new Set<StepType>([
+  "control.branch_if",
+  "control.branch_switch",
+  "ai.branch_decision",
+]);
+
+function isBranchType(type: StepType): boolean {
+  return BRANCH_TYPES.has(type);
+}
+
+/** A control.end with no analytics outcome — a plain "this path ends" node. */
+function isBareEnd(step: StepNode | undefined): boolean {
+  return (
+    !!step &&
+    step.type === "control.end" &&
+    !(step as { config?: { outcome?: string } }).config?.outcome
+  );
+}
+
+/** Next unique "control_end_N" id against an in-progress steps map. */
+function freshEndId(steps: Record<string, StepNode>): string {
+  let i = 1;
+  let id = `control_end_${i}`;
+  while (steps[id]) {
+    i += 1;
+    id = `control_end_${i}`;
+  }
+  return id;
+}
+
+/**
+ * Remove a step, splicing it out: every reference to it (a linear `.next` or a
+ * branch target) is reconnected to the step's own `.next`. Branch keys must
+ * always point at a real step, so when there's no successor we substitute a
+ * fresh bare End — the lane reverts to empty rather than dangling (which would
+ * fail save-time validation). Orphaned bare Ends are then pruned.
+ */
+function deleteStepSpliced(spec: WorkflowSpec, id: string): WorkflowSpec {
+  const victim = spec.steps[id];
+  if (!victim) return spec;
+  const succ = (victim as { next?: string }).next;
+
+  const steps: Record<string, StepNode> = { ...spec.steps };
+  delete steps[id];
+
+  const hasSucc = (s: string | undefined): s is string => !!s && !!steps[s];
+
+  const branchTarget = (): string => {
+    if (hasSucc(succ)) return succ;
+    const endId = freshEndId(steps);
+    steps[endId] = { id: endId, type: "control.end", config: {} } as StepNode;
+    return endId;
+  };
+
+  for (const [sid, s] of Object.entries(steps)) {
+    let updated = s;
+    if ((s as { next?: string }).next === id) {
+      updated = { ...updated, next: hasSucc(succ) ? succ : undefined } as StepNode;
+    }
+    const branches = (s as { branches?: Record<string, string> }).branches;
+    if (branches) {
+      let changed = false;
+      const nextBranches = { ...branches };
+      for (const [k, t] of Object.entries(branches)) {
+        if (t === id) {
+          nextBranches[k] = branchTarget();
+          changed = true;
+        }
+      }
+      if (changed) updated = { ...updated, branches: nextBranches } as StepNode;
+    }
+    if (updated !== s) steps[sid] = updated;
+  }
+
+  const entry_step_id =
+    spec.entry_step_id === id ? (hasSucc(succ) ? succ : "") : spec.entry_step_id;
+
+  const pruned = pruneOrphanBareEnds(steps, entry_step_id);
+
+  let layout = spec.layout;
+  if (layout) {
+    layout = { ...layout };
+    for (const k of Object.keys(layout)) if (!pruned[k]) delete layout[k];
+  }
+
+  return { ...spec, steps: pruned, entry_step_id, layout };
+}
+
+/** Drop bare End nodes that nothing points at (and that aren't the entry). */
+function pruneOrphanBareEnds(
+  steps: Record<string, StepNode>,
+  entryId: string,
+): Record<string, StepNode> {
+  const referenced = new Set<string>();
+  if (entryId) referenced.add(entryId);
+  for (const s of Object.values(steps)) {
+    const n = (s as { next?: string }).next;
+    if (n) referenced.add(n);
+    const branches = (s as { branches?: Record<string, string> }).branches;
+    if (branches) for (const t of Object.values(branches)) referenced.add(t);
+  }
+  const out: Record<string, StepNode> = {};
+  for (const [id, s] of Object.entries(steps)) {
+    if (isBareEnd(s) && !referenced.has(id)) continue;
+    out[id] = s;
+  }
+  return out;
+}
+
 /**
  * Walk the spec depth-first and assign each step an ordinal string. Branch
  * children get prefixed numbers ("2a.1", "2b.1") so users can talk about
@@ -1094,7 +1284,7 @@ function buildChainMap(spec: WorkflowSpec): Map<string, string[]> {
     seenStarts.add(startId);
     const fullChain = walkChain(spec, startId);
     const sortable = fullChain
-      .filter((s) => !isBranchStep(s))
+      .filter((s) => !isBranchStep(s) && s.type !== "control.end")
       .map((s) => s.id);
     for (const id of sortable) out.set(id, sortable);
     // Recurse into branch lanes

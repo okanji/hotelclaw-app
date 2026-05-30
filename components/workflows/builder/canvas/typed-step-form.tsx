@@ -5,8 +5,9 @@ import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { FieldDef } from "@/lib/workflows/field-defs";
+import type { RefCandidate } from "@/lib/workflows/refs";
+import { TemplateField } from "@/components/workflows/builder/config/template-field";
 
 // Renders an ordered list of FieldDef forms against a config object and
 // emits a partial-merged config back. Each field reads/writes a single key
@@ -19,10 +20,13 @@ export function TypedStepForm({
   fields,
   value,
   onChange,
+  refs = [],
 }: {
   fields: FieldDef[];
   value: Config;
   onChange: (next: Config) => void;
+  /** Insertable data refs for this step (trigger + upstream outputs + vars). */
+  refs?: RefCandidate[];
 }) {
   const set = useCallback(
     (key: string, v: unknown) => {
@@ -41,6 +45,7 @@ export function TypedStepForm({
           key={f.key}
           field={f}
           value={value[f.key]}
+          refs={refs}
           onChange={(v) => set(f.key, v)}
         />
       ))}
@@ -52,10 +57,12 @@ function FieldRenderer({
   field,
   value,
   onChange,
+  refs,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
+  refs: RefCandidate[];
 }) {
   return (
     <div className="space-y-1.5">
@@ -67,7 +74,7 @@ function FieldRenderer({
           </span>
         )}
       </Label>
-      <FieldInput field={field} value={value} onChange={onChange} />
+      <FieldInput field={field} value={value} onChange={onChange} refs={refs} />
       {"help" in field && field.help && (
         <p className="text-[11px] leading-snug text-muted-foreground">{field.help}</p>
       )}
@@ -79,34 +86,44 @@ function FieldInput({
   field,
   value,
   onChange,
+  refs,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
+  refs: RefCandidate[];
 }) {
   switch (field.kind) {
     case "text":
-    case "template":
       return (
         <Input
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
-          className={cn(
-            "h-9 text-[13px]",
-            field.kind === "template" && "font-mono text-[12px]",
-          )}
+          className="h-9 text-[13px]"
+        />
+      );
+
+    case "template":
+      return (
+        <TemplateField
+          value={typeof value === "string" ? value : ""}
+          onChange={(v) => onChange(v)}
+          placeholder={field.placeholder}
+          mono
+          refs={refs}
         />
       );
 
     case "textarea":
       return (
-        <Textarea
+        <TemplateField
           value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(v) => onChange(v)}
           placeholder={field.placeholder}
+          multiline
           rows={field.rows ?? 3}
-          className="text-[13px]"
+          refs={refs}
         />
       );
 

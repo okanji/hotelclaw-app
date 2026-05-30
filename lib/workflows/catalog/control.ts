@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type StepCatalogEntry } from "./types";
+import { explainCondition, humanizeRef } from "@/lib/workflows/explain-expr";
 
 const actions: StepCatalogEntry[] = [
   {
@@ -14,7 +15,12 @@ const actions: StepCatalogEntry[] = [
       "stop if the channel isn't #front-desk",
     ],
     outputSchema: z.object({ passed: z.boolean() }),
-    explain: () => "Filter (stop if condition fails)",
+    explain: (config) => {
+      const expr = (config as { expr?: unknown } | undefined)?.expr;
+      return expr === undefined
+        ? "Set a condition to filter on →"
+        : `Only continue if ${explainCondition(expr)}`;
+    },
   },
   {
     id: "control.branch_if",
@@ -25,7 +31,10 @@ const actions: StepCatalogEntry[] = [
       "Evaluate a JSONLogic predicate; route into `branches.true` or `branches.false` based on the result.",
     examplePrompts: ["if urgent then... else...", "branch on priority"],
     outputSchema: z.object({ branch: z.enum(["true", "false"]) }),
-    explain: () => "Branch (if/else)",
+    explain: (config) => {
+      const expr = (config as { expr?: unknown } | undefined)?.expr;
+      return expr === undefined ? "Set a condition →" : `If ${explainCondition(expr)}`;
+    },
   },
   {
     id: "control.branch_switch",
@@ -36,7 +45,10 @@ const actions: StepCatalogEntry[] = [
       "Look up a value (from `input`) in `branches` (a map of value → next step id). Falls back to `branches._default` if no match.",
     examplePrompts: ["route by severity", "switch on the classifier label"],
     outputSchema: z.object({ branch: z.string() }),
-    explain: () => "Branch (switch on value)",
+    explain: (config) => {
+      const input = (config as { input?: string } | undefined)?.input;
+      return input ? `Route by ${humanizeRef(input)}` : "Route by a value";
+    },
   },
   {
     id: "control.delay",
