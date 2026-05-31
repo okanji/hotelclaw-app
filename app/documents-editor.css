@@ -327,3 +327,82 @@
   outline: 2px solid var(--ring);
   outline-offset: 1px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Inline AI Toolkit — the floating "Ask AI" toolbar + suggestion menu
+ * (see <AiToolbar> in document-editor.tsx). Base styling ships in
+ * `@liveblocks/react-tiptap/styles.css` and already tracks `.dark` via the
+ * imported dark attributes sheet; these are OVERRIDES only.
+ *
+ * 1. The AI toolbar portals to <body> under `.lb-tiptap-ai-toolbar-portal`
+ *    with no z-index of its own — same problem the floating composer had, so
+ *    lift it above the app sidebar (z-10) and rail (z-20). */
+.lb-tiptap-ai-toolbar-portal {
+  z-index: 50;
+  /* Align the AI accent + radius with the shadcn theme so the toolbar's
+   * primary affordances match the rest of the app in both modes. */
+  --lb-accent: var(--primary);
+  --lb-accent-foreground: var(--primary-foreground);
+  --lb-radius: var(--radius);
+}
+
+/* 2. Match the floating-composer card treatment so the AI toolbar reads as
+ *    part of the same editor chrome family. */
+.lb-tiptap-ai-toolbar {
+  border-radius: 14px;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px rgb(0 0 0 / 0.07),
+    0 20px 48px -16px rgb(0 0 0 / 0.1);
+}
+.dark .lb-tiptap-ai-toolbar {
+  outline-color: rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.04),
+    0 8px 28px rgb(0 0 0 / 0.45);
+}
+
+/* 3. Tint the doc text the AI is currently acting on. */
+.lb-tiptap-active-selection {
+  background-color: color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Inline AI suggestion diff — the red/green review marks rendered by the
+ * `aiInsert` / `aiDelete` marks (see lib/documents/ai-suggestion.ts). Shown
+ * while an AI edit is pending; resolved by the floating AiReviewBar.
+ *
+ * Code-editor styling: additions get a green wash + left accent, deletions a
+ * red wash with a strikethrough. Block-level marks (a whole changed paragraph)
+ * read as a tinted line, which is why we box-decoration-break so multi-line
+ * spans stay continuous. */
+.tiptap .ai-insert {
+  background-color: color-mix(in oklab, #16a34a 16%, transparent);
+  color: color-mix(in oklab, #14532d 88%, var(--foreground));
+  text-decoration: none;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 1px;
+}
+.tiptap .ai-delete {
+  background-color: color-mix(in oklab, #dc2626 14%, transparent);
+  color: color-mix(in oklab, #7f1d1d 80%, var(--muted-foreground));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, #dc2626 70%, transparent);
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 1px;
+}
+.dark .tiptap .ai-insert {
+  background-color: color-mix(in oklab, #22c55e 24%, transparent);
+  color: color-mix(in oklab, #bbf7d0 90%, var(--foreground));
+}
+.dark .tiptap .ai-delete {
+  background-color: color-mix(in oklab, #ef4444 22%, transparent);
+  color: color-mix(in oklab, #fecaca 70%, var(--muted-foreground));
+  text-decoration-color: color-mix(in oklab, #ef4444 75%, transparent);
+}

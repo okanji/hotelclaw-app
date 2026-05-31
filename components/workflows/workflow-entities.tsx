@@ -8,6 +8,7 @@ import {
   entityTypesQueryOptions,
 } from "@/lib/query/workflow-queries";
 import { PageHeader } from "@/components/shell/page-header";
+import { WorkflowsTabs } from "./workflows-tabs";
 import { EntitiesClient } from "@/app/p/[propertyId]/workflows/entities/entities-client";
 import { EntityTypeClient } from "@/app/p/[propertyId]/workflows/entities/[typeName]/entity-type-client";
 
@@ -19,9 +20,9 @@ export function WorkflowEntitiesList({ propertyId }: { propertyId: string }) {
       <PageHeader
         breadcrumbs={[
           { label: "Workflows", icon: <Workflow />, href: `/p/${propertyId}/workflows` },
-          { label: "Entities" },
         ]}
       />
+      <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
           <EntitiesClient

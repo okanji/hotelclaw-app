@@ -77,7 +77,7 @@ function NonModalSidePanel({
         <BaseDialog.Popup
           data-slot="inspector-panel"
           className={cn(
-            "fixed top-0 right-0 z-40 flex h-full w-full max-w-md flex-col gap-0",
+            "fixed top-0 right-0 z-40 flex h-full w-full max-w-xl flex-col gap-0",
             "border-l border-border bg-popover text-popover-foreground shadow-2xl",
             "transition-transform duration-200 ease-out",
             "data-starting-style:translate-x-full data-ending-style:translate-x-full",
@@ -110,13 +110,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-2">
+    <section className="space-y-2.5">
       <div>
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <h3 className="text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {title}
         </h3>
         {description && (
-          <p className="mt-0.5 text-[11.5px] text-muted-foreground/80">{description}</p>
+          <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted-foreground/80">
+            {description}
+          </p>
         )}
       </div>
       {children}
@@ -300,7 +302,7 @@ function StepEditor({
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4">
         {readsAs ? (
-          <p className="rounded-md border border-border/60 bg-muted/[0.04] px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="rounded-lg border border-border/60 bg-muted/[0.04] px-3.5 py-2.5 text-[0.8125rem] leading-relaxed text-muted-foreground">
             <span className="font-medium uppercase tracking-[0.06em] text-foreground/60">
               Reads as{" "}
             </span>
@@ -311,7 +313,7 @@ function StepEditor({
         {isConditional ? (
           <Section
             title="When this is true"
-            description="Compose a condition; we'll save it as JSONLogic. Switch to JSON for full power."
+            description="Pick a field, an operator, and a value. The step only runs when these match."
           >
             <ConditionBuilder
               value={(cfg as { expr?: unknown }).expr}
@@ -332,25 +334,22 @@ function StepEditor({
         {/* Identity & references — the snake_case + {{template}} layer lives one
          * disclosure away, not in the user's face on open. */}
         <details className="rounded-md border border-border/60 bg-muted/[0.03]">
-          <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-[11.5px] text-muted-foreground select-none hover:text-foreground">
-            <Braces className="size-3" aria-hidden />
-            <span>Identity &amp; references</span>
-            <code className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
-              {stepId}
-            </code>
+          <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2.5 text-[0.8125rem] text-muted-foreground select-none hover:text-foreground">
+            <Braces className="size-3.5" aria-hidden />
+            <span>Advanced — identifier</span>
           </summary>
           <div className="grid gap-2 border-t border-border/60 p-3">
-            <Label className="text-[11px] text-muted-foreground">Step ID</Label>
+            <Label className="text-[0.8125rem] text-muted-foreground">Identifier</Label>
             <Input
               value={draftId}
               onChange={(e) => setDraftId(e.target.value.replace(/[^a-z0-9_]/gi, "_"))}
               onBlur={commitRename}
-              className="font-mono text-[12px]"
-              placeholder="step_id"
+              className="text-[0.8125rem]"
+              placeholder="my_step"
             />
-            <p className="text-[11px] text-muted-foreground">
-              Reference this step in templates as{" "}
-              <code className="font-mono text-muted-foreground">
+            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+              Other steps can use this step&apos;s result. Reference it with{" "}
+              <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.75rem] text-foreground/70">
                 {`{{steps.${draftId}.output}}`}
               </code>
             </p>
@@ -454,7 +453,7 @@ function InspectorHeader({
             <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {kicker}
             </span>
-            <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               {surfaceMeta(surface).label}
             </span>
           </div>

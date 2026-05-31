@@ -100,9 +100,13 @@ function parseClause(node: unknown): Clause | null {
   if (entries.length !== 1) return null;
   const [op, args] = entries[0]!;
 
-  // Bare {var} used as a truthiness test → "is not empty".
-  if (op === "var" && typeof args === "string") {
-    return { path: args, op: "not_empty", value: "", values: [], type: "string" };
+  // A bare {var} is a JS-truthiness test — {var:0} and {var:""} are both
+  // falsy. Our flat model can't express that: the closest, "is not empty"
+  // ({"!=":[v,""]}), evaluates 0 as true, so adopting it would silently change
+  // the predicate's meaning. Decline instead and let the builder keep the raw
+  // JSONLogic in JSON mode, lossless.
+  if (op === "var") {
+    return null;
   }
 
   // {not: {var}} or legacy {"!": [{var}]} → "is empty".
@@ -150,7 +154,10 @@ function parseClause(node: unknown): Clause | null {
 export function serializeCondition(model: ConditionModel): unknown | undefined {
   const nodes = model.clauses.map(serializeClause).filter((n): n is object => n !== null);
   if (nodes.length === 0) return undefined;
-  if (nodes.length === 1) return nodes[0];
+  // One clause needs no and/or wrapper — but only ALL emits the bare node.
+  // If the user explicitly chose ANY we still wrap ({or:[node]}) so the choice
+  // round-trips back to "any" instead of silently resetting to "all".
+  if (nodes.length === 1 && model.combine === "all") return nodes[0];
   return { [model.combine === "all" ? "and" : "or"]: nodes };
 }
 

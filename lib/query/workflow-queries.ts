@@ -87,6 +87,32 @@ export function workflowRunsQueryOptions(propertyId: string, workflowId: string)
   });
 }
 
+type PropertyWorkflowRun = {
+  id: string;
+  workflow_id: string;
+  workflow_name: string;
+  status: string;
+  mode: string;
+  trigger_kind: string | null;
+  started_at: string;
+  finished_at: string | null;
+  error: string | null;
+};
+
+export function allPropertyRunsQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["all-workflow-runs", propertyId] as const,
+    queryFn: async (): Promise<PropertyWorkflowRun[]> => {
+      const res = await fetch(`/api/properties/${propertyId}/workflows/runs`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load runs");
+      const { runs } = (await res.json()) as { runs: PropertyWorkflowRun[] };
+      return runs;
+    },
+  });
+}
+
 type WorkflowRunDetail = {
   run: {
     id: string;

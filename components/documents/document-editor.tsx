@@ -21,9 +21,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ClientSideSuspense,
   RoomProvider,
+  useRoom,
   useThreads,
 } from "@liveblocks/react/suspense";
 import {
+  AiToolbar,
   AnchoredThreads,
   FloatingComposer,
   FloatingThreads,
@@ -58,6 +60,10 @@ import {
   type DocumentCrumb,
 } from "./document-breadcrumbs";
 import { ComposerCloseContext, DocumentComposer } from "./document-composer";
+import { DocAiSuggestions } from "./doc-ai-suggestions";
+import { AiReviewBar } from "./ai-review-bar";
+import { DocumentHistory } from "./document-history";
+import { AiSuggestion } from "@/lib/documents/ai-suggestion";
 import { DocumentTaskItem } from "./document-task-item";
 import {
   DocumentFloatingThread,
@@ -202,6 +208,38 @@ function EditorInner({
     // moved into their own `ClientSideSuspense` boundary instead of
     // suspending the whole editor.
     offlineSupport_experimental: true,
+    // Inline AI Toolkit (the floating "Ask AI" toolbar + suggestion menu).
+    // `resolveContextualPrompt` routes to our own doc-contextual endpoint —
+    // WITHOUT it, the extension silently falls back to Liveblocks' hosted AI.
+    // It MUST resolve a single `{ type, text }` (no streaming); the server
+    // decides insert-vs-replace from whether there's a selection. Setting
+    // `ai` auto-enables permanentUserData (needed for the review-phase diff).
+    ai: {
+      name: "Claw AI",
+      resolveContextualPrompt: async ({ prompt, context, previous, signal }) => {
+        const res = await fetch(
+          `/api/properties/${propertyId}/documents/${documentId}/ai/contextual`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // `context` = { beforeSelection, selection, afterSelection }.
+            // `previous.response` is the prior `{ type, text }` on a "Try
+            // again" refinement (Liveblocks wraps it in { prompt, response }).
+            body: JSON.stringify({
+              prompt,
+              context,
+              previous: previous?.response,
+            }),
+            signal, // Escape/cancel aborts the controller → aborts this fetch.
+          },
+        );
+        if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+        return (await res.json()) as {
+          type: "insert" | "replace" | "other";
+          text: string;
+        };
+      },
+    },
   });
 
   const editor = useEditor({
@@ -250,6 +288,9 @@ function EditorInner({
       // that creates a child document and inserts the block in one step.
       SubPage,
       SlashCommand.configure({ propertyId, documentId }),
+      // Inline AI diff: renders proposed edits as reviewable red/green marks
+      // (see lib/documents/ai-suggestion.ts) accepted/rejected via AiReviewBar.
+      AiSuggestion,
     ],
   });
 
@@ -266,10 +307,23 @@ function EditorInner({
   }, [editor, isReady, syncTimedOut, initialTitle]);
 
   const liveTitle = useLiveTitle(editor, initialTitle);
+  const room = useRoom();
   const closeComposer = useCallback(() => {
     if (!editor) return;
     closePendingCommentChain(editor);
   }, [editor]);
+  // Snapshot a version each time an AI edit is accepted, so the change is a
+  // restorable point in history. `createTextVersion` exists at runtime but
+  // isn't on the public typed Room surface — cast through to reach it.
+  const handleAiEditAccepted = useCallback(() => {
+    const createVersion = (
+      room as unknown as { createTextVersion?: () => Promise<void> }
+    ).createTextVersion;
+    if (!createVersion) return;
+    void createVersion.call(room).catch((err: unknown) => {
+      console.warn("[documents] createTextVersion failed", err);
+    });
+  }, [room]);
   useFloatingEditorUIDismiss(editor);
 
   if (!editor) return <EditorSkeleton />;
@@ -284,7 +338,7 @@ function EditorInner({
     // Light mode: match the chat canvas, which is white (Stream paints
     // `--str-chat__background-core-app` → `chrome-0` → `#ffffff`). Dark mode
     // keeps `--background` as before.
-    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
+    <div className="relative flex h-full min-h-0 flex-col bg-white dark:bg-background">
       <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/20 px-6 py-1.5">
         <DocumentBreadcrumbs
           propertyId={propertyId}
@@ -301,15 +355,23 @@ function EditorInner({
             updatedAt={updatedAt}
             className="hidden text-sm text-muted-foreground tabular-nums sm:block"
           />
-          <DocumentAiPanel propertyId={propertyId} documentId={documentId} />
+          <DocumentHistory editor={editor} />
           <DocumentRoomAvatarStack max={5} size={28} />
         </div>
       </div>
       <div className="flex-1 overflow-auto px-6 pb-24">
+        <AiReviewBar editor={editor} onAccepted={handleAiEditAccepted} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
           <div className="relative mx-auto w-full max-w-3xl pt-16">
             <EditorContent editor={editor} />
-            <FloatingToolbar editor={editor} />
+            {/* `before` prepends an "Ask AI" button to the selection toolbar
+                while keeping the default formatting controls. It opens the
+                AI toolbar in its "asking" phase via editor.commands.askAi(). */}
+            <FloatingToolbar editor={editor} before={<Toolbar.SectionAi />} />
+            {/* The floating AI toolbar itself — self-portals, renders only
+                while an AI prompt is active. `suggestions` customizes the
+                "asking"-phase menu (Accept/Try-again/Discard are built in). */}
+            <AiToolbar editor={editor} suggestions={<DocAiSuggestions />} />
             <ComposerCloseContext.Provider value={closeComposer}>
               <FloatingComposer
                 editor={editor}
@@ -329,6 +391,11 @@ function EditorInner({
           </div>
         </ThreadIndicatorEditorContext.Provider>
       </div>
+      <DocumentAiPanel
+        propertyId={propertyId}
+        documentId={documentId}
+        editor={editor}
+      />
     </div>
   );
 }

@@ -1,0 +1,180 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Maximize, Minus, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// A lightweight pan/zoom viewport for the Flow builder. Pan and zoom are driven
+// entirely by wheel/gesture events — two-finger trackpad scroll pans (deltaX/Y),
+// pinch (or ctrl/⌘ + wheel) zooms around the cursor — so it never competes with
+// the pointer-based dnd-kit drag inside it. The content is translated+scaled via
+// a single transform; overlays (inspector, palette, drag clone) are portalled to
+// <body>, so they live outside the transform and stay crisp.
+
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2;
+
+// Base spacing of the dot grid in world units. Scaled by zoom and offset by the
+// pan so the dots stay locked to the content (React Flow's background trick).
+const DOT_GAP = 22;
+
+type Transform = { x: number; y: number; z: number };
+
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+export function PanZoomCanvas({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [t, setT] = useState<Transform>({ x: 48, y: 32, z: 1 });
+
+  const zoomAround = useCallback((clientX: number, clientY: number, factor: number) => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const rect = vp.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    setT((cur) => {
+      const z = clampZoom(cur.z * factor);
+      if (z === cur.z) return cur;
+      // Keep the world point under the cursor fixed while zooming.
+      const wx = (px - cur.x) / cur.z;
+      const wy = (py - cur.y) / cur.z;
+      return { x: px - wx * z, y: py - wy * z, z };
+    });
+  }, []);
+
+  // Wheel must be a non-passive listener so we can preventDefault the page
+  // scroll/zoom — React's onWheel is passive, so attach it manually.
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        zoomAround(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+      } else {
+        setT((c) => ({ ...c, x: c.x - e.deltaX, y: c.y - e.deltaY }));
+      }
+    };
+    vp.addEventListener("wheel", onWheel, { passive: false });
+    return () => vp.removeEventListener("wheel", onWheel);
+  }, [zoomAround]);
+
+  const fit = useCallback(() => {
+    const vp = viewportRef.current;
+    const content = contentRef.current;
+    if (!vp || !content) return;
+    const cw = content.scrollWidth;
+    const ch = content.scrollHeight;
+    if (!cw || !ch) return;
+    const z = clampZoom(Math.min(vp.clientWidth / (cw + 96), vp.clientHeight / (ch + 96), 1));
+    setT({
+      x: Math.max(24, (vp.clientWidth - cw * z) / 2),
+      y: Math.max(24, (vp.clientHeight - ch * z) / 2),
+      z,
+    });
+  }, []);
+
+  // Fit once, as soon as the content has measurable size.
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    let done = false;
+    const ro = new ResizeObserver(() => {
+      if (!done && content.scrollWidth > 0) {
+        done = true;
+        fit();
+      }
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [fit]);
+
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const vp = viewportRef.current;
+      if (!vp) return;
+      const rect = vp.getBoundingClientRect();
+      zoomAround(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+    },
+    [zoomAround],
+  );
+
+  return (
+    <div
+      ref={viewportRef}
+      className={cn(
+        "relative h-full w-full overflow-hidden [overscroll-behavior:contain] [touch-action:none]",
+        className,
+      )}
+    >
+      {/* Dot grid — locked to the content: position follows the pan, size
+          follows the zoom. Sits below the content and ignores pointer events. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,var(--border)_1px,transparent_1px)]"
+        style={{
+          backgroundSize: `${DOT_GAP * t.z}px ${DOT_GAP * t.z}px`,
+          backgroundPosition: `${t.x}px ${t.y}px`,
+        }}
+      />
+
+      <div
+        ref={contentRef}
+        className="absolute top-0 left-0 origin-top-left will-change-transform"
+        style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.z})` }}
+      >
+        {children}
+      </div>
+
+      <div className="absolute right-3 bottom-3 z-10 flex items-center gap-px rounded-lg border border-border/60 bg-card/90 p-0.5 shadow-sm backdrop-blur">
+        <ZoomButton label="Zoom out" onClick={() => zoomBy(1 / 1.2)}>
+          <Minus className="size-3.5" />
+        </ZoomButton>
+        <button
+          type="button"
+          onClick={fit}
+          title="Reset zoom"
+          className="min-w-11 rounded-md px-1.5 py-1 text-[11px] font-medium tabular-nums text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          {Math.round(t.z * 100)}%
+        </button>
+        <ZoomButton label="Zoom in" onClick={() => zoomBy(1.2)}>
+          <Plus className="size-3.5" />
+        </ZoomButton>
+        <span className="mx-0.5 h-4 w-px bg-border/60" aria-hidden />
+        <ZoomButton label="Fit to view" onClick={fit}>
+          <Maximize className="size-3.5" />
+        </ZoomButton>
+      </div>
+    </div>
+  );
+}
+
+function ZoomButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      {children}
+    </button>
+  );
+}

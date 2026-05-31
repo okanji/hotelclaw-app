@@ -37,6 +37,7 @@ import {
   ListOrdered,
   ListTodo,
   Minus,
+  Sparkles,
   TextQuote,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +61,21 @@ type SlashItem = {
 
 function buildItems(options: SlashCommandOptions): SlashItem[] {
   return [
+    {
+      title: "Ask AI",
+      description: "Write or edit with AI",
+      icon: Sparkles,
+      searchTerms: ["ai", "ask", "write", "generate", "claw", "edit"],
+      command: ({ editor, range }) => {
+        // Drop the "/query" text first — its positions go stale, and we want
+        // the AI toolbar anchored to a clean cursor, not the slash text.
+        editor.chain().focus().deleteRange(range).run();
+        // `askAi()` with no arg opens the empty "Ask AI…" prompt box. The
+        // command only exists when the `ai` option is configured on
+        // useLiveblocksExtension (it is, in document-editor.tsx).
+        editor.commands.askAi();
+      },
+    },
     {
       title: "Sub-page",
       description: "Create a page nested inside this one",

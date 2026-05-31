@@ -11,6 +11,7 @@ import { STEP_FIELDS } from "@/lib/workflows/field-defs";
 import { AiCopilot } from "./ai-copilot";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
+import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 
 // Builder shell — owns:
 //   • the in-memory spec
@@ -179,24 +180,31 @@ export function BuilderShell({
           />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-[820px] flex-col gap-4 px-10 pt-6 pb-12">
-            <TreeList
-              spec={spec}
-              isDurable={currentIsDurable}
-              selectedStepId={selectedStepId}
-              onSelectStep={setSelectedStepId}
-              onChange={setSpec}
-              unacceptedIds={unaccepted}
-              invalidById={invalidById}
-            />
-            <AiCopilot
-              propertyId={propertyId}
-              currentSpec={spec}
-              onSpec={applyAiSpec}
-              busy={busy}
-              setBusy={setBusy}
-            />
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <PanZoomCanvas className="flex-1">
+            <div className="px-10 pt-6 pb-40">
+              <TreeList
+                spec={spec}
+                isDurable={currentIsDurable}
+                selectedStepId={selectedStepId}
+                onSelectStep={setSelectedStepId}
+                onChange={setSpec}
+                unacceptedIds={unaccepted}
+                invalidById={invalidById}
+              />
+            </div>
+          </PanZoomCanvas>
+          {/* AI co-pilot floats over the canvas, centered at the bottom. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3">
+            <div className="pointer-events-auto w-full max-w-2xl">
+              <AiCopilot
+                propertyId={propertyId}
+                currentSpec={spec}
+                onSpec={applyAiSpec}
+                busy={busy}
+                setBusy={setBusy}
+              />
+            </div>
           </div>
         </div>
       )}

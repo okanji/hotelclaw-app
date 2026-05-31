@@ -26,6 +26,8 @@ const TurnSchema = z.object({
 
 const Body = z.object({
   messages: z.array(TurnSchema).min(1),
+  /** Live editor HTML — lets the bot reproduce unchanged blocks for clean diffs. */
+  documentHtml: z.string().optional(),
 });
 
 export async function POST(
@@ -76,8 +78,11 @@ export async function POST(
       userId: user.id,
       documentId,
       messages: parsed.data.messages,
+      documentHtml: parsed.data.documentHtml,
     });
-    return NextResponse.json({ reply: result.text });
+    // `edit` is non-null when the bot drafted content to write into the doc —
+    // the client renders it with an "Insert into document" action.
+    return NextResponse.json({ reply: result.text, edit: result.edit });
   } catch (err) {
     console.error("[doc-bot] runDocBot failed", err);
     return NextResponse.json(

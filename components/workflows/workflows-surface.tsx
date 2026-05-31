@@ -6,6 +6,7 @@ import { WorkflowsList } from "./workflows-list";
 import { WorkflowsNew } from "./workflows-new";
 import { WorkflowDetail } from "./workflow-detail";
 import { WorkflowRunsList } from "./workflow-runs";
+import { AllRunsList } from "./all-runs";
 import { WorkflowRunDetail } from "./workflow-run-detail";
 import { WorkflowTemplates } from "./workflow-templates";
 import {
@@ -19,6 +20,7 @@ const IN_WORKFLOWS = /^\/p\/[^/]+\/workflows(?:\/|$)/;
 const ROUTES = {
   list: /^\/p\/[^/]+\/workflows\/?$/,
   new: /^\/p\/[^/]+\/workflows\/new\/?$/,
+  allRuns: /^\/p\/[^/]+\/workflows\/runs\/?$/,
   templates: /^\/p\/[^/]+\/workflows\/templates\/?$/,
   entitiesList: /^\/p\/[^/]+\/workflows\/entities\/?$/,
   entitiesType: /^\/p\/[^/]+\/workflows\/entities\/([^/]+)\/?$/,
@@ -73,6 +75,9 @@ function pickView(pathname: string, propertyId: string) {
   }
   if (ROUTES.new.test(pathname)) {
     return <WorkflowsNew key="new" propertyId={propertyId} />;
+  }
+  if (ROUTES.allRuns.test(pathname)) {
+    return <AllRunsList key="all-runs" propertyId={propertyId} />;
   }
   if (ROUTES.templates.test(pathname)) {
     return <WorkflowTemplates key="templates" propertyId={propertyId} />;

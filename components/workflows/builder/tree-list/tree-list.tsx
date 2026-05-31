@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -87,6 +88,12 @@ const LINE_LEFT = "left-[17px]"; // line sits in the middle of the rail column
 const LINE_FULL = "absolute inset-y-0 w-px bg-border";
 const LINE_DOWN = "absolute top-1/2 bottom-0 w-px bg-border"; // trigger/branch chips
 const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-border"; // end marker
+
+// Fixed card width. Cards hang off the left rail at a comfortable reading width
+// (rather than stretching the whole canvas), so a branch can place two of them
+// side by side. The lane width below is this + the nested rail + padding.
+const CARD_W = "w-[460px]";
+const LANE_W = "w-[500px]";
 
 export function TreeList({
   spec,
@@ -236,6 +243,8 @@ export function TreeList({
     [chainMap, spec, onChange],
   );
 
+  const draggingStep = draggingId ? spec.steps[draggingId] : null;
+
   return (
     <DndContext
       sensors={sensors}
@@ -244,7 +253,7 @@ export function TreeList({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDraggingId(null)}
     >
-      <div className="mx-auto w-full max-w-[640px]">
+      <div className="w-fit">
       <TriggerRow
         spec={spec}
         isDurable={isDurable}
@@ -282,7 +291,71 @@ export function TreeList({
         onChange={(next) => onChange?.(next)}
       />
       </div>
+
+      {/* Floating clone that tracks the cursor during a drag. The source row
+       * stays put as a dimmed placeholder (see StepRow), so this is the only
+       * thing that moves — a far clearer signal than nudging the in-place card. */}
+      <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0.7,0.5,1.1)" }}>
+        {draggingStep ? (
+          <StepDragCard
+            step={draggingStep}
+            ordinal={ordinalMap.get(draggingStep.id) ?? "•"}
+          />
+        ) : null}
+      </DragOverlay>
     </DndContext>
+  );
+}
+
+// Presentational clone shown inside <DragOverlay> while a step is being
+// dragged. Mirrors the StepRow card's look (badge · category · name · summary)
+// with a "lifted" treatment, minus the sortable wiring and hover actions.
+function StepDragCard({ step, ordinal }: { step: StepNode; ordinal: string }) {
+  const meta = getStep(step.type);
+  const surface = (meta?.surface ?? "system") as Surface;
+  const summary = meta?.explain((step as { config?: unknown }).config) ?? step.id;
+  const isAi = surface === "ai";
+  const isBranch = isBranchStep(step);
+  const category = isBranch ? "Decision" : isAi ? "AI action" : "Action";
+
+  return (
+    <div className="flex cursor-grabbing items-stretch gap-3">
+      <div className="flex w-9 shrink-0 items-center justify-center">
+        <span className="inline-flex size-7 items-center justify-center rounded-full bg-background text-[11px] font-semibold tabular-nums text-foreground ring-1 ring-black/10 dark:ring-white/10">
+          {ordinal}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "flex items-start gap-3 rounded-xl border border-primary/50 bg-card p-3.5 shadow-2xl ring-1 ring-primary/30 [transform:rotate(-1deg)]",
+          CARD_W,
+        )}
+      >
+        <SurfaceBadge surface={surface} className="mt-0.5 !size-8" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "text-[10px] font-semibold uppercase tracking-[0.08em]",
+                isBranch
+                  ? "text-amber-600 dark:text-amber-400"
+                  : isAi
+                    ? "text-primary"
+                    : "text-muted-foreground",
+              )}
+            >
+              {category}
+            </span>
+            {isAi && <Sparkles className="size-3 shrink-0 text-primary" aria-hidden />}
+            {isBranch && <GitBranch className="size-3 shrink-0 text-amber-500" aria-hidden />}
+          </div>
+          <p className="mt-0.5 truncate text-[13.5px] font-semibold text-foreground">
+            {step.label || meta?.label || step.type}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{summary}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -310,7 +383,8 @@ function TriggerRow({
         type="button"
         onClick={onEdit}
         className={cn(
-          "group mb-1 flex flex-1 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all",
+          "group mb-1 flex items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all",
+          CARD_W,
           selected
             ? "border-primary ring-2 ring-primary/30"
             : "border-primary/30 hover:border-primary/60",
@@ -503,7 +577,7 @@ function RailChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border shadow-sm tabular-nums",
+        "inline-flex items-center justify-center rounded-full border tabular-nums",
         variant === "primary" &&
           "size-7 border-primary bg-primary text-[10px] font-bold uppercase tracking-wide text-primary-foreground",
         variant === "default" &&
@@ -528,11 +602,11 @@ function InsertRow({ onClick }: { onClick: () => void }) {
   return (
     <div className="group/insert relative flex gap-3 py-1.5">
       <RailColumn lineVariant="full" chipPosition="center" />
-      <div className="flex flex-1 items-center justify-center">
+      <div className={cn("flex items-center justify-center", CARD_W)}>
         <button
           type="button"
           onClick={onClick}
-          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-background/60 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground opacity-60 shadow-sm transition-all hover:border-primary hover:bg-background hover:text-primary hover:opacity-100 group-hover/insert:opacity-100"
+          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-background/60 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground opacity-60 transition-all hover:border-primary hover:bg-background hover:text-primary hover:opacity-100 group-hover/insert:opacity-100"
           aria-label="Add step"
           title="Add step"
         >
@@ -603,7 +677,7 @@ function StepRow({
       className={cn(
         "group/row relative flex gap-3 touch-none",
         draggable && "cursor-grab active:cursor-grabbing",
-        sortable.isDragging && "z-10",
+        sortable.isDragging && "opacity-40",
       )}
     >
       <RailColumn lineVariant="full" chipPosition="center">
@@ -611,7 +685,7 @@ function StepRow({
          * icon appears on row hover to advertise the affordance. */}
         <div
           aria-hidden
-          className="relative inline-flex size-7 items-center justify-center rounded-full border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground shadow-sm"
+          className="relative inline-flex size-7 items-center justify-center rounded-full border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
         >
           <span
             className={cn(
@@ -638,15 +712,15 @@ function StepRow({
           }
         }}
         className={cn(
-          "group relative mb-1 flex flex-1 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative mb-1 flex items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          CARD_W,
           selected
             ? "border-primary ring-2 ring-primary/30"
             : invalidReason
               ? "border-destructive/60 hover:border-destructive"
               : "border-border/60 hover:border-foreground/30",
           unaccepted && "ring-2 ring-[var(--chart-2)]/60",
-          sortable.isDragging &&
-            "border-primary shadow-xl ring-2 ring-primary/40",
+          sortable.isDragging && "border-dashed border-primary/40 bg-muted/20",
         )}
       >
         <SurfaceBadge surface={surface} className="mt-0.5 !size-8" />
@@ -669,7 +743,7 @@ function StepRow({
               <GitBranch className="size-3 text-amber-500" aria-hidden />
             )}
           </div>
-          <p className="mt-0.5 truncate text-[14.5px] font-semibold text-foreground">
+          <p className="mt-0.5 truncate text-[13.5px] font-semibold text-foreground">
             {step.label || meta?.label || step.type}
           </p>
           <p className="mt-0.5 line-clamp-2 text-[12.5px] text-muted-foreground">
@@ -739,50 +813,81 @@ function BranchLanes({
 
   return (
     <div className="relative flex gap-3">
-      {/* Rail column connects the branch step's chip to the lanes below */}
+      {/* Rail column carries the main vertical line down past the branch */}
       <RailColumn lineVariant="down" chipPosition="top">
         <span aria-hidden />
       </RailColumn>
 
-      <div className="mt-1 grid flex-1 gap-3 sm:grid-cols-2">
-        {ordered.map((label) => {
-          const target = branches[label];
-          return (
-            <div
-              key={label}
-              className="overflow-hidden rounded-lg border border-border/60 bg-muted/[0.06]"
-            >
-              <BranchHeader label={label} />
-              <div className="p-2">
-                <Rail
-                  spec={spec}
-                  startId={target}
-                  parentForInsert={{ parentId: step.id, branch: label }}
-                  depth={depth + 1}
-                  ordinalMap={ordinalMap}
-                  selectedStepId={selectedStepId}
-                  unacceptedIds={unacceptedIds}
-                  invalidById={invalidById}
-                  onClickStep={onClickStep}
-                  onDeleteStep={onDeleteStep}
-                  onOpenPalette={onOpenPalette}
-                />
+      <div className="w-fit">
+        <BranchFork lanes={ordered.length} />
+        <div className="flex gap-3">
+          {ordered.map((label) => {
+            const target = branches[label];
+            return (
+              <div
+                key={label}
+                className={cn(
+                  "shrink-0 overflow-hidden rounded-xl border bg-muted/[0.04]",
+                  LANE_W,
+                  laneBorder(label),
+                )}
+              >
+                <BranchHeader label={label} />
+                <div className="p-2">
+                  <Rail
+                    spec={spec}
+                    startId={target}
+                    parentForInsert={{ parentId: step.id, branch: label }}
+                    depth={depth + 1}
+                    ordinalMap={ordinalMap}
+                    selectedStepId={selectedStepId}
+                    unacceptedIds={unacceptedIds}
+                    invalidById={invalidById}
+                    onClickStep={onClickStep}
+                    onDeleteStep={onDeleteStep}
+                    onOpenPalette={onOpenPalette}
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+// Connector between the decision card and its lanes: a short stem that forks
+// left/right into the two columns (the if/else case). A single lane — or an
+// unusual >2 fan-out that wraps the grid — degrades to a plain stem so the
+// connector never lies about where paths go.
+function BranchFork({ lanes }: { lanes: number }) {
+  if (lanes !== 2) {
+    return <div className="mx-auto h-3.5 w-px bg-border" aria-hidden />;
+  }
+  return (
+    <div className="relative h-4" aria-hidden>
+      <span className="absolute top-0 left-1/2 h-2 w-px -translate-x-1/2 bg-border" />
+      <span className="absolute top-2 right-1/4 left-1/4 h-px bg-border" />
+      <span className="absolute top-2 left-1/4 h-2 w-px bg-border" />
+      <span className="absolute top-2 right-1/4 h-2 w-px bg-border" />
+    </div>
+  );
+}
+
+function laneBorder(label: string): string {
+  if (label === "true") return "border-emerald-500/25";
+  if (label === "false") return "border-rose-500/25";
+  return "border-border/60";
+}
+
 function BranchHeader({ label }: { label: string }) {
   const tone =
     label === "true"
-      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
       : label === "false"
-        ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
-        : "bg-muted text-muted-foreground";
+        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+        : "bg-muted/40 text-muted-foreground";
 
   const text =
     label === "true"
@@ -794,8 +899,8 @@ function BranchHeader({ label }: { label: string }) {
           : label;
 
   return (
-    <div className={cn("flex items-center gap-1 border-b border-border/40 px-3 py-1.5", tone)}>
-      <GitBranch className="size-3" aria-hidden />
+    <div className={cn("flex items-center gap-1.5 border-b border-border/40 px-3 py-2", tone)}>
+      <GitBranch className="size-3 shrink-0" aria-hidden />
       <span className="text-[10px] font-semibold uppercase tracking-[0.08em]">{text}</span>
     </div>
   );
@@ -929,11 +1034,16 @@ function PaletteDialog({
 }) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  // Only auto-scroll the active row into view when it was moved by the keyboard.
+  // Hover-driven changes must never scroll, or the scroll shifts rows under the
+  // cursor and triggers another mousemove → active change → scroll feedback loop.
+  const keyboardNav = useRef(false);
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setActiveIndex(0);
+      keyboardNav.current = false;
     }
   }, [open]);
 
@@ -973,9 +1083,11 @@ function PaletteDialog({
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      keyboardNav.current = true;
       setActiveIndex(Math.min(safeIndex + 1, flat.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      keyboardNav.current = true;
       setActiveIndex(Math.max(safeIndex - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -1020,7 +1132,11 @@ function PaletteDialog({
                       key={`${sec.title}:${entry.id}`}
                       entry={entry}
                       active={idx === safeIndex}
-                      onHover={() => setActiveIndex(idx)}
+                      scrollOnActive={keyboardNav.current}
+                      onHover={() => {
+                        keyboardNav.current = false;
+                        setActiveIndex(idx);
+                      }}
                       onClick={() => onPick(entry.id)}
                     />
                   );
@@ -1043,18 +1159,20 @@ function PaletteDialog({
 function PaletteRow({
   entry,
   active,
+  scrollOnActive,
   onHover,
   onClick,
 }: {
   entry: StepCatalogEntry;
   active: boolean;
+  scrollOnActive: boolean;
   onHover: () => void;
   onClick: () => void;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: "nearest" });
-  }, [active]);
+    if (active && scrollOnActive) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [active, scrollOnActive]);
 
   return (
     <button
