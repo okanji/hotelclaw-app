@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { explainTemplateValue } from "@/lib/workflows/explain-template";
 import { type StepCatalogEntry, type TriggerCatalogEntry } from "./types";
 
 // System surface: triggers that don't belong to a content surface (schedule,
@@ -56,7 +57,11 @@ const actions: StepCatalogEntry[] = [
       "Send an in-app notification to a specific user. Renders in their notification inbox + bell.",
     examplePrompts: ["ping the manager", "send a notification to Eli"],
     outputSchema: z.object({ notification_id: z.string() }),
-    explain: () => "Notify a user",
+    explain: (config) => {
+      const c = config as { title?: string };
+      const title = explainTemplateValue(c.title);
+      return title ? `Notify user: ${title}` : "Notify a user";
+    },
   },
   {
     id: "action.notify.role",
@@ -68,31 +73,36 @@ const actions: StepCatalogEntry[] = [
     examplePrompts: ["notify all managers", "alert the owner team"],
     outputSchema: z.object({ notified_user_ids: z.array(z.string()) }),
     explain: (config) => {
-      const c = config as { role?: string };
-      return c.role ? `Notify all ${c.role}s` : "Notify role";
+      const c = config as { role?: string; title?: string; body?: string };
+      const role = c.role ? `all ${c.role}s` : "role";
+      const title = explainTemplateValue(c.title);
+      const body = explainTemplateValue(c.body);
+      if (title && body) return `Notify ${role}: ${title} — ${body}`;
+      if (title) return `Notify ${role}: ${title}`;
+      return c.role ? `Notify ${role}` : "Notify role";
     },
   },
   {
     id: "action.gbrain.capture",
     surface: "system",
     category: "action",
-    label: "Capture to gbrain memory",
+    label: "Save to shared memory",
     description:
-      "Write a durable observation/signal into the property's gbrain knowledge graph. Other bots (and future workflow runs) can `search` against it.",
+      "Saves a note into the property's shared memory so the AI — and future workflows — can recall it later.",
     examplePrompts: [
       "remember that this guest dislikes spicy food",
       "log this pattern to gbrain",
     ],
     outputSchema: z.object({ ok: z.boolean() }),
-    explain: () => "Capture to gbrain memory",
+    explain: () => "Save to shared memory",
   },
   {
     id: "action.external.delegate_to_openclaw",
     surface: "external",
     category: "action",
-    label: "Delegate to OpenClaw (Tier 2)",
+    label: "Hand off to OpenClaw agent",
     description:
-      "Hand off to OpenClaw (the persistent Tier 2 agent) for long-running, cross-surface, or skill-heavy work. Use when the task can't finish in this workflow (e.g. needs Composio skills, SMS, multi-day monitoring).",
+      "Hands off to OpenClaw, the always-on assistant, for work that outlives this workflow — ongoing monitoring, jobs that span days, or tasks that need outside tools like SMS.",
     examplePrompts: [
       "let OpenClaw handle the follow-up monitoring",
       "delegate to OpenClaw for SMS notification",

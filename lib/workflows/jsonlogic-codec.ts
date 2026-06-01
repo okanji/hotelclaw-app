@@ -118,10 +118,29 @@ function parseClause(node: unknown): Clause | null {
   }
 
   if (op === "in" && Array.isArray(args) && args.length === 2) {
-    const path = readVar(args[0]);
-    const arr = args[1];
-    if (path && Array.isArray(arr)) {
-      return { path, op: "is_any_of", value: "", values: arr.map(String), type: "string" };
+    // { in: [{var}, [a,b,c]] } — scalar field is one of a list
+    const pathLeft = readVar(args[0]);
+    const arrRight = args[1];
+    if (pathLeft && Array.isArray(arrRight)) {
+      return {
+        path: pathLeft,
+        op: "is_any_of",
+        value: "",
+        values: arrRight.map(String),
+        type: "string",
+      };
+    }
+    // { in: ["guest-complaint", {var: "trigger.added_labels"}] } — needle in array field
+    const pathRight = readVar(args[1]);
+    const needle = args[0];
+    if (pathRight && (typeof needle === "string" || typeof needle === "number")) {
+      return {
+        path: pathRight,
+        op: "is_any_of",
+        value: "",
+        values: [String(needle)],
+        type: "string[]",
+      };
     }
     return null;
   }
@@ -172,6 +191,14 @@ function serializeClause(c: Clause): object | null {
     case "is_any_of": {
       const list = c.values.map((x) => x.trim()).filter(Boolean);
       if (list.length === 0) return null;
+      // Array trigger fields (e.g. added_labels): needle ∈ haystack.
+      if (c.type === "string[]") {
+        if (list.length === 1) return { in: [list[0], v] };
+        return {
+          or: list.map((needle) => ({ in: [needle, v] })),
+        };
+      }
+      // Scalar fields: value ∈ allowed list.
       return { in: [v, list] };
     }
     default:

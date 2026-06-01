@@ -5,6 +5,17 @@
 export type Role = "owner" | "manager" | "staff";
 
 /**
+ * A document change the AI staged (mirrors `ProposedDocEdit` in
+ * lib/ai/bots/doc-bot.ts). Persisted on `doc_ai_messages.edit` so the
+ * "Re-apply" / inline-diff affordance survives a reload.
+ */
+export type DocAiEdit = {
+  op: "add" | "edit";
+  mode: "insert" | "append";
+  html: string;
+};
+
+/**
  * Recurrence rule for a meeting — a deliberate RRULE subset that covers
  * the standup/sync use cases without a full iCal parser. `byday` is
  * 1–7 (Mon=1, Sun=7) and `interval` defaults to 1 (every cycle).
@@ -201,6 +212,50 @@ export interface Database {
           sheet_updated_at: string | null;
           last_edited_by: string | null;
           archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      doc_ai_chats: {
+        Row: {
+          id: string;
+          document_id: string;
+          property_id: string;
+          created_by: string | null;
+          title: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          document_id: string;
+          property_id: string;
+          created_by?: string | null;
+          title?: string | null;
+        };
+        Update: Partial<{
+          title: string | null;
+        }>;
+        Relationships: [];
+      };
+      doc_ai_messages: {
+        Row: {
+          id: string;
+          chat_id: string;
+          role: "user" | "assistant";
+          content: string;
+          edit: DocAiEdit | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          chat_id: string;
+          role: "user" | "assistant";
+          content: string;
+          edit?: DocAiEdit | null;
+        };
+        Update: Partial<{
+          content: string;
+          edit: DocAiEdit | null;
         }>;
         Relationships: [];
       };

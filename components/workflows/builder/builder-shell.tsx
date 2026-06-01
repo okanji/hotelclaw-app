@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, LayoutPanelLeft, List, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import { validateSpec } from "@/lib/workflows/validate";
@@ -12,12 +13,15 @@ import { AiCopilot } from "./ai-copilot";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
 import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
+import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
+
+const AUTOSAVE_DELAY_MS = 1200;
 
 // Builder shell — owns:
 //   • the in-memory spec
 //   • the "saved baseline" (last persisted spec) for Reject
 //   • the unaccepted diff set (step ids the AI added since last accept)
-//   • save / accept-all / reject actions
+//   • debounced autosave + accept-all / reject actions
 //
 // Two views share that spec: "Flow" (the vertical editing rail — primary) and
 // "Map" (the @xyflow canvas — a spatial read-mostly overview). Cmd/Ctrl+G
@@ -39,21 +43,80 @@ export function BuilderShell({
   const [unaccepted, setUnaccepted] = useState<Set<string>>(new Set());
   const [selectedStepId, setSelectedStepId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [view, setView] = useState<"flow" | "map">("flow");
+  const saveSeq = useRef(0);
+  const lastAutosaveAttempt = useRef<WorkflowSpec | null>(null);
+  const debouncedSpec = useDebouncedValue(spec, AUTOSAVE_DELAY_MS);
   const dirty = spec !== savedSpec;
   const hasUnaccepted = unaccepted.size > 0;
+  const canPersist = useMemo(() => validateSpec(spec).ok, [spec]);
 
-  // Cmd+G / Ctrl+G toggles Flow ↔ Map.
+  const persistSpec = useCallback(
+    async (next: WorkflowSpec, options?: { silent?: boolean }): Promise<boolean> => {
+      const seq = ++saveSeq.current;
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const res = await fetch(`/api/properties/${propertyId}/workflows/${workflowId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ spec: next }),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(err.error ?? `HTTP ${res.status}`);
+        }
+        if (seq !== saveSeq.current) return false;
+        setSavedSpec(next);
+        setUnaccepted(new Set());
+        if (!options?.silent) toast.success("Workflow saved");
+        return true;
+      } catch (err) {
+        if (seq !== saveSeq.current) return false;
+        const message = err instanceof Error ? err.message : "Save failed";
+        setSaveError(message);
+        if (!options?.silent) toast.error(message);
+        return false;
+      } finally {
+        if (seq === saveSeq.current) setSaving(false);
+      }
+    },
+    [propertyId, workflowId],
+  );
+
+  // Debounced autosave — skips invalid specs and avoids retry loops on failure.
+  useEffect(() => {
+    if (debouncedSpec === savedSpec) {
+      lastAutosaveAttempt.current = null;
+      return;
+    }
+    if (!validateSpec(debouncedSpec).ok) return;
+    if (lastAutosaveAttempt.current === debouncedSpec) return;
+
+    lastAutosaveAttempt.current = debouncedSpec;
+    void persistSpec(debouncedSpec, { silent: true }).then((ok) => {
+      if (ok) lastAutosaveAttempt.current = null;
+    });
+  }, [debouncedSpec, savedSpec, persistSpec]);
+
+  // Cmd+G / Ctrl+G toggles Flow ↔ Map; Cmd+S / Ctrl+S saves immediately.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "g") {
         e.preventDefault();
         setView((v) => (v === "flow" ? "map" : "flow"));
+      } else if (key === "s") {
+        e.preventDefault();
+        if (dirty && canPersist && !saving) void persistSpec(spec);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [dirty, canPersist, saving, spec, persistSpec]);
 
   // classifyMode might flip from instant → durable as the AI adds delay/wait nodes.
   const currentIsDurable = useMemo(() => classifyMode(spec) === "durable", [spec]);
@@ -85,32 +148,20 @@ export function BuilderShell({
     toast.message("Reverted to last saved version");
   }
 
-  async function save() {
-    if (!dirty || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/properties/${propertyId}/workflows/${workflowId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spec }),
-      });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? `HTTP ${res.status}`);
-      }
-      setSavedSpec(spec);
-      setUnaccepted(new Set());
-      toast.success("Workflow saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const statusMessage = saving
+    ? "Saving…"
+    : saveError
+      ? saveError
+      : dirty
+        ? canPersist
+          ? "Unsaved changes…"
+          : "Unsaved changes — fix errors to save."
+        : "All caught up.";
 
   const isMap = view === "map";
 
   return (
+    <WorkflowBuilderDataProvider propertyId={propertyId}>
     <div className="flex h-full min-h-0 flex-col">
       <header
         className={cn(
@@ -118,10 +169,14 @@ export function BuilderShell({
           !isMap && "border-transparent bg-transparent",
         )}
       >
-        <p className={cn("text-[12px] text-muted-foreground", !isMap && "px-6 pt-2")}>
-          {dirty
-            ? "Unsaved changes — review and save when ready."
-            : "All caught up."}
+        <p
+          className={cn(
+            "text-[12px]",
+            saveError ? "text-destructive" : "text-muted-foreground",
+            !isMap && "px-6 pt-2",
+          )}
+        >
+          {statusMessage}
           {currentIsDurable !== initialIsDurable
             ? " · Mode changed — this workflow now runs durably."
             : ""}
@@ -142,14 +197,6 @@ export function BuilderShell({
               onClick={() => setView("map")}
             />
           </div>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!dirty || busy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background disabled:opacity-50"
-          >
-            {busy ? "Saving…" : "Save"}
-          </button>
         </div>
       </header>
 
@@ -185,6 +232,7 @@ export function BuilderShell({
             <div className="px-10 pt-6 pb-40">
               <TreeList
                 spec={spec}
+                propertyId={propertyId}
                 isDurable={currentIsDurable}
                 selectedStepId={selectedStepId}
                 onSelectStep={setSelectedStepId}
@@ -209,6 +257,7 @@ export function BuilderShell({
         </div>
       )}
     </div>
+    </WorkflowBuilderDataProvider>
   );
 }
 

@@ -8,7 +8,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Meeting ended",
     description:
-      "Fires when a Stream Video meeting session ends (call.session_ended). Payload exposes {{trigger.meeting}} and {{trigger.duration_seconds}}.",
+      "Fires when a video meeting ends. The meeting's details and how long it ran are available to later steps.",
     examplePrompts: ["when a meeting ends", "after a video call wraps up"],
     outputSchema: z.object({
       meeting: z.record(z.string(), z.unknown()),
@@ -22,7 +22,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Meeting summary ready",
     description:
-      "Fires when the AI-generated meeting summary is written to meeting_summaries. Payload exposes {{trigger.summary}}, {{trigger.meeting}}, and {{trigger.action_items}}.",
+      "Fires when the AI-written summary of a meeting is ready. The summary, the meeting, and its action items are available to later steps.",
     examplePrompts: [
       "when an AI meeting summary is ready",
       "after the transcript is summarized",

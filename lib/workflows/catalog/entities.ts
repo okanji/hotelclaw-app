@@ -13,7 +13,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Entity created",
     description:
-      "Fires when a new entity row is created. Specify {{trigger.entity_type}} to scope to one entity type (e.g. 'room', 'guest'). Payload exposes the new entity at {{trigger.new}}.",
+      "Fires when a new entity is created. Narrow it to one type (e.g. ‘room’ or ‘guest’); the new entity's details are available to later steps.",
     examplePrompts: [
       "when a new room is added",
       "every time a guest is checked in",
@@ -34,7 +34,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Entity field changed",
     description:
-      "Fires when an entity row is updated. Scope to a specific entity type and (optionally) a specific field via predicate (e.g. data.status changes to 'maintenance_needed').",
+      "Fires when an entity row is updated. Narrow it to a specific entity type and, optionally, a specific field with a condition (e.g. status changes to ‘maintenance_needed’).",
     examplePrompts: [
       "when a room status changes to maintenance_needed",
       "when a guest's preferences are updated",
@@ -58,7 +58,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Create entity",
     description:
-      "Create a new entity row of a given type. `entity_type` is the entity type name; `data` must conform to that type's JSON Schema (validated at insert). Returns the created entity.",
+      "Creates a new entity of a given type (e.g. a room or guest) with the fields you set. Later steps can use it.",
     examplePrompts: ["create a new room entity", "register a guest"],
     outputSchema: z.object({ entity: z.record(z.string(), z.unknown()) }),
     explain: (config) => {
@@ -72,7 +72,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Update entity",
     description:
-      "Patch fields on an existing entity row. `patch` is a partial object merged into the entity's `data` JSON. Returns the updated entity.",
+      "Updates fields on an existing entity. Only the fields you set change; the rest stay as they are.",
     examplePrompts: ["mark the room as clean", "update the guest's room number"],
     outputSchema: z.object({ entity: z.record(z.string(), z.unknown()) }),
     explain: () => "Update entity fields",
@@ -83,7 +83,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Find entities",
     description:
-      "Query entities of a given type by a `where` object (matches on `data.*` fields). Returns up to `limit` entities at {{steps.<id>.output.entities}}.",
+      "Looks up entities of a given type that match the filters you set, and hands the matches to later steps. You can cap how many come back.",
     examplePrompts: [
       "find all rooms on the second floor",
       "look up the guest by room number",

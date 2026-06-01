@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Braces, Search } from "lucide-react";
+import { Database, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -11,16 +11,26 @@ import {
 import { groupRefs, type RefCandidate } from "@/lib/workflows/refs";
 import { humanizeRef } from "@/lib/workflows/explain-expr";
 
-// A string config field that can embed {{data.refs}}. The "{ }" button opens a
-// picker so the user never types a dotted path; chosen data inserts at the
-// caret as `{{path}}` and is echoed below as friendly pills. The stored value
-// stays exactly `{{...}}` so the resolver + validator are unaffected.
+// A string config field that can also pull in live data. Users never see or
+// type a {{dotted.path}}:
+//   • "Insert data" opens a picker; the chosen data drops in at the caret.
+//   • When the whole value IS one piece of data, we render it as a friendly
+//     chip (e.g. "Description · From the trigger") instead of raw braces.
+//   • Mixed text + data still shows the chosen data as readable pills below.
+// The stored value stays exactly `{{...}}` so the resolver + validator are
+// unaffected — only the presentation changes.
 //
 // We render native <input>/<textarea> (not the ui wrappers) because we need a
 // stable DOM ref for caret-aware insertion.
 
 const FIELD_BASE =
-  "w-full rounded-lg border border-input bg-transparent px-2.5 text-[13px] transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "w-full rounded-lg border border-input bg-transparent px-3 text-[0.8125rem] transition-colors outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+/** A value that is exactly one `{{ref}}` and nothing else → its inner path. */
+function pureRefPath(value: string): string | null {
+  const m = (value ?? "").match(/^\s*\{\{\s*([^}]+?)\s*\}\}\s*$/);
+  return m ? m[1]!.trim() : null;
+}
 
 export function TemplateField({
   value,
@@ -66,40 +76,82 @@ export function TemplateField({
     });
   }
 
+  // Bound state: the whole value is a single data ref → show a friendly chip.
+  const boundPath = pureRefPath(value);
+  if (boundPath) {
+    const cand = refs.find((r) => r.path === boundPath);
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-input bg-muted/20 py-1.5 pr-1.5 pl-2.5">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-[0.8125rem] font-medium text-primary">
+            <Database className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{cand?.label ?? humanizeRef(boundPath)}</span>
+          </span>
+          {cand?.group && (
+            <span className="truncate text-[0.8125rem] text-muted-foreground">
+              {cand.group}
+            </span>
+          )}
+        </span>
+        <span className="flex shrink-0 items-center gap-0.5">
+          <InsertDataPopover refs={refs} onInsert={(p) => onChange(`{{${p}}}`)}>
+            <PopoverTrigger
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.75rem] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Use different data"
+            >
+              Change
+            </PopoverTrigger>
+          </InsertDataPopover>
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              requestAnimationFrame(() => elRef.current?.focus());
+            }}
+            aria-label="Clear data"
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-1">
-      <div className="relative">
-        {multiline ? (
-          <textarea
-            ref={elRef as React.RefObject<HTMLTextAreaElement>}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
-            placeholder={placeholder}
-            rows={rows}
-            className={cn(FIELD_BASE, "min-h-[72px] py-2 pr-9", mono && "font-mono text-[12px]")}
-          />
-        ) : (
-          <input
-            ref={elRef as React.RefObject<HTMLInputElement>}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
-            placeholder={placeholder}
-            className={cn(FIELD_BASE, "h-9 pr-9", mono && "font-mono text-[12px]")}
-          />
-        )}
+    <div className="space-y-1.5">
+      {multiline ? (
+        <textarea
+          ref={elRef as React.RefObject<HTMLTextAreaElement>}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          rows={rows}
+          className={cn(FIELD_BASE, "min-h-[72px] py-2", mono && "font-mono")}
+        />
+      ) : (
+        <input
+          ref={elRef as React.RefObject<HTMLInputElement>}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          className={cn(FIELD_BASE, "h-9", mono && "font-mono")}
+        />
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <InsertDataPopover refs={refs} onInsert={insertRef}>
           <PopoverTrigger
-            className="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            title="Insert data"
-            aria-label="Insert data"
+            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1 text-[0.75rem] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Insert data from the trigger or an earlier step"
           >
-            <Braces className="size-3.5" aria-hidden />
+            <Database className="size-3.5" aria-hidden /> Insert data
           </PopoverTrigger>
         </InsertDataPopover>
+        <RefPreview value={value} />
       </div>
-      <RefPreview value={value} />
     </div>
   );
 }
@@ -141,25 +193,25 @@ export function InsertDataPopover({
     >
       {children}
       <PopoverContent align="end" sideOffset={6} className="w-80 gap-0 p-0">
-        <div className="flex items-center gap-2 border-b border-border/60 px-2.5 py-2">
-          <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search data to insert…"
-            className="w-full bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
+            className="w-full bg-transparent text-[0.8125rem] outline-none placeholder:text-muted-foreground"
           />
         </div>
         <div className="max-h-72 overflow-y-auto p-1.5">
           {groups.length === 0 ? (
-            <p className="px-2 py-6 text-center text-[12px] text-muted-foreground">
+            <p className="px-2 py-6 text-center text-[0.8125rem] text-muted-foreground">
               No data available here yet.
             </p>
           ) : (
             groups.map(({ group, items }) => (
               <div key={group} className="mb-1.5 last:mb-0">
-                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                <p className="px-2 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                   {group}
                 </p>
                 {items.map((r) => (
@@ -172,15 +224,15 @@ export function InsertDataPopover({
                     }}
                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-secondary"
                   >
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-foreground">
                       {r.label}
                     </span>
                     {r.sample ? (
-                      <span className="max-w-[40%] truncate text-[11px] text-muted-foreground">
+                      <span className="max-w-[40%] truncate text-[0.75rem] text-muted-foreground">
                         {r.sample}
                       </span>
                     ) : (
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                      <span className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground/70">
                         {r.type}
                       </span>
                     )}
@@ -210,11 +262,11 @@ function RefPreview({ value }: { value: string }) {
   if (refs.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="text-[10.5px] text-muted-foreground">inserts</span>
+      <span className="text-[0.75rem] text-muted-foreground">includes</span>
       {refs.map((r, i) => (
         <span
           key={`${r}-${i}`}
-          className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10.5px] font-medium text-primary"
+          className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[0.75rem] font-medium text-primary"
         >
           {humanizeRef(r)}
         </span>

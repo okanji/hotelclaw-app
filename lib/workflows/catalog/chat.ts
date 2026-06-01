@@ -8,7 +8,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Message posted in chat",
     description:
-      "Fires on every non-bot message in a team channel. Payload exposes {{trigger.message}}, {{trigger.channel}}, {{trigger.user}}. Filter by channel_id, keyword, or user.",
+      "Fires on every message a person sends in a team channel. You can narrow it to a specific channel, keyword, or sender.",
     examplePrompts: [
       "when someone posts in #front-desk",
       "every message in the housekeeping channel",
@@ -46,7 +46,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Post message to channel",
     description:
-      "Post a top-level message in a channel. Text supports {{...}} refs. Returns the posted message at {{steps.<id>.output.message}}.",
+      "Posts a message in a channel. You can drop in data from the trigger or earlier steps, and later steps can use the message it posts.",
     examplePrompts: ["post in #escalations", "send a message to the front-desk channel"],
     outputSchema: z.object({ message: z.record(z.string(), z.unknown()) }),
     explain: () => "Post a message to a chat channel",

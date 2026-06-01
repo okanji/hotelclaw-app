@@ -1,5 +1,6 @@
 import { WorkflowSpec, type StepNode } from "@/lib/workflows/spec";
 import { getStep, getTrigger } from "@/lib/workflows/catalog";
+import { validatePredicateExpr } from "@/lib/workflows/predicate-vars";
 
 // Three-pass validation. Returns a flat issue list rather than throwing so the
 // canvas can render them inline next to the relevant step.
@@ -137,6 +138,67 @@ function passReferences(spec: WorkflowSpec): ValidationIssue[] {
   return issues;
 }
 
+// ─── Pass 4: predicate `var` paths + step id consistency ─────────────────────
+
+function passPredicates(spec: WorkflowSpec): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (spec.trigger.filter?.expr !== undefined) {
+    for (const message of validatePredicateExpr(spec.trigger.filter.expr, null, spec, {
+      allowSteps: false,
+    })) {
+      issues.push({
+        path: "trigger.filter.expr",
+        severity: "error",
+        message,
+      });
+    }
+  }
+
+  for (const [stepId, step] of Object.entries(spec.steps)) {
+    if (step.id !== stepId) {
+      issues.push({
+        path: `steps.${stepId}.id`,
+        severity: "warning",
+        message: `Step id "${step.id}" doesn't match its key "${stepId}" — rename it in Advanced or references may break`,
+        step_id: stepId,
+      });
+    }
+
+    const cfg = (step as { config?: { expr?: unknown } }).config;
+    const expr = cfg?.expr;
+    if (expr === undefined) {
+      if (step.type === "control.branch_if") {
+        issues.push({
+          path: `steps.${stepId}.config.expr`,
+          severity: "warning",
+          message: "No condition set — this branch will always take the false path",
+          step_id: stepId,
+        });
+      } else if (step.type === "control.filter") {
+        issues.push({
+          path: `steps.${stepId}.config.expr`,
+          severity: "warning",
+          message: "No condition set — this filter will always stop the workflow here",
+          step_id: stepId,
+        });
+      }
+      continue;
+    }
+
+    for (const message of validatePredicateExpr(expr, stepId, spec)) {
+      issues.push({
+        path: `steps.${stepId}.config.expr`,
+        severity: "error",
+        message,
+        step_id: stepId,
+      });
+    }
+  }
+
+  return issues;
+}
+
 function validateRef(
   ref: string,
   stepId: string,
@@ -230,7 +292,7 @@ export function validateSpec(input: unknown): ValidationResult {
   const parsed = parseSpec(input);
   if (!parsed.ok) return parsed;
   const spec = input as WorkflowSpec; // safe — parseSpec succeeded
-  const issues = [...passCatalog(spec), ...passReferences(spec)];
+  const issues = [...passCatalog(spec), ...passReferences(spec), ...passPredicates(spec)];
   return { ok: issues.every((i) => i.severity !== "error"), issues };
 }
 

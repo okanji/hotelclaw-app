@@ -21,7 +21,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ClientSideSuspense,
   RoomProvider,
-  useRoom,
   useThreads,
 } from "@liveblocks/react/suspense";
 import {
@@ -307,23 +306,10 @@ function EditorInner({
   }, [editor, isReady, syncTimedOut, initialTitle]);
 
   const liveTitle = useLiveTitle(editor, initialTitle);
-  const room = useRoom();
   const closeComposer = useCallback(() => {
     if (!editor) return;
     closePendingCommentChain(editor);
   }, [editor]);
-  // Snapshot a version each time an AI edit is accepted, so the change is a
-  // restorable point in history. `createTextVersion` exists at runtime but
-  // isn't on the public typed Room surface — cast through to reach it.
-  const handleAiEditAccepted = useCallback(() => {
-    const createVersion = (
-      room as unknown as { createTextVersion?: () => Promise<void> }
-    ).createTextVersion;
-    if (!createVersion) return;
-    void createVersion.call(room).catch((err: unknown) => {
-      console.warn("[documents] createTextVersion failed", err);
-    });
-  }, [room]);
   useFloatingEditorUIDismiss(editor);
 
   if (!editor) return <EditorSkeleton />;
@@ -360,7 +346,7 @@ function EditorInner({
         </div>
       </div>
       <div className="flex-1 overflow-auto px-6 pb-24">
-        <AiReviewBar editor={editor} onAccepted={handleAiEditAccepted} />
+        <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
           <div className="relative mx-auto w-full max-w-3xl pt-16">
             <EditorContent editor={editor} />

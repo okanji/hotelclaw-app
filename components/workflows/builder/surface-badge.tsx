@@ -105,3 +105,25 @@ export function SurfaceBadge({
     </span>
   );
 }
+
+/** Text pill for surface names in headers, palette rows, and map nodes. */
+export function SurfaceLabelBadge({
+  surface,
+  className,
+}: {
+  surface: Surface;
+  className?: string;
+}) {
+  const meta = SURFACE_META[surface];
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit shrink-0 items-center rounded-md border border-transparent px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none",
+        meta.tone,
+        className,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}

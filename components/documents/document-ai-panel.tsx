@@ -1,55 +1,73 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+/**
+ * Document AI assistant — bottom-anchored chat dock inside the editor.
+ *
+ * Conversations are PERSISTENT and MULTI-CHAT (migration 0031): each document
+ * has any number of named chats with full history. The dock's header carries a
+ * chat switcher (past chats + "New chat" + delete); selecting one loads its
+ * messages from the server. Sending posts a single new message + the target
+ * chatId — the server owns history, runs `runDocBot`, persists both turns, and
+ * returns the reply.
+ *
+ * The bot can also WRITE: a reply may carry an `edit` (op + HTML). It's applied
+ * immediately as an inline red/green diff (see lib/documents/ai-suggestion.ts)
+ * reviewed via the floating AiReviewBar; "Re-apply" re-stages it.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   Send,
   Loader2,
   ChevronDown,
-  X,
+  Plus,
+  MessageSquarePlus,
+  Trash2,
   Copy,
   CornerDownLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Editor } from "@tiptap/react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-/**
- * Document AI assistant — bottom-anchored chat dock inside the editor.
- *
- * Layout: input bar pinned to the bottom-center of the editor area, always
- * visible. Sending a message expands a transcript above the input; collapse
- * with the chevron. POSTs to /api/properties/:propertyId/documents/:documentId/ai
- * (`runDocBot()`), which reads live Yjs content via captureDocumentSnapshot,
- * so the bot sees what the user is currently looking at.
- *
- * The bot can also WRITE: when the user asks it to draft/add/rewrite, the
- * reply carries an `edit` (mode + HTML) which renders an "Insert into
- * document" action. Insertion happens client-side against the live Tiptap
- * editor, so the change syncs to every collaborator through Yjs.
- *
- * Conversation lives in component state and is re-sent each turn — no
- * server-side persistence (doc conversations are short and per-session).
- */
-
-/** A drafted change the bot staged — mirrors `ProposedDocEdit` server-side. */
-type DocEdit = {
-  op: "add" | "edit";
-  mode: "insert" | "append";
-  html: string;
-};
+type DocEdit = { op: "add" | "edit"; mode: "insert" | "append"; html: string };
 
 type Turn = {
   role: "user" | "assistant";
   content: string;
-  /** Present on assistant turns where the bot staged a document change. */
   edit?: DocEdit | null;
+};
+
+type ChatSummary = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /** Drop a leading title heading the bot may have echoed — the title node is
  *  separate from the body, so including it would duplicate the title. */
 function stripLeadingTitle(html: string): string {
   return html.replace(/^\s*<h1[^>]*>[\s\S]*?<\/h1>\s*/i, "");
+}
+
+function formatWhen(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diff = Date.now() - then;
+  const m = Math.round(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 export function DocumentAiPanel({
@@ -62,10 +80,15 @@ export function DocumentAiPanel({
   editor: Editor | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [chatsOpen, setChatsOpen] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  const base = `/api/properties/${propertyId}/documents/${documentId}/ai`;
 
   // Keep the transcript pinned to the latest message.
   useEffect(() => {
@@ -74,38 +97,109 @@ export function DocumentAiPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns, busy, expanded]);
 
+  const fetchChats = useCallback(async () => {
+    try {
+      const res = await fetch(`${base}/chats`);
+      if (!res.ok) return;
+      const { chats } = (await res.json()) as { chats: ChatSummary[] };
+      setChats(chats);
+    } catch {
+      /* best-effort */
+    }
+  }, [base]);
+
+  // Load the chat list once on mount. State is only set in the async `.then`
+  // continuations (never synchronously in the effect body).
+  useEffect(() => {
+    let on = true;
+    fetch(`${base}/chats`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { chats: ChatSummary[] } | null) => {
+        if (on && d) setChats(d.chats);
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, [base]);
+
+  async function selectChat(id: string) {
+    setChatsOpen(false);
+    if (id === activeChatId) return;
+    setActiveChatId(id);
+    setTurns([]);
+    try {
+      const res = await fetch(`${base}/chats/${id}`);
+      if (!res.ok) throw new Error();
+      const { messages } = (await res.json()) as {
+        messages: { role: "user" | "assistant"; content: string; edit: DocEdit | null }[];
+      };
+      setTurns(messages.map((m) => ({ role: m.role, content: m.content, edit: m.edit })));
+    } catch {
+      toast.error("Couldn't load that chat");
+    }
+  }
+
+  function newChat() {
+    setChatsOpen(false);
+    setActiveChatId(null);
+    setTurns([]);
+    setInput("");
+  }
+
+  async function deleteChat(id: string) {
+    setChats((c) => c.filter((x) => x.id !== id));
+    if (id === activeChatId) newChat();
+    try {
+      await fetch(`${base}/chats/${id}`, { method: "DELETE" });
+    } catch {
+      void fetchChats(); // resync on failure
+    }
+  }
+
+  /** Stage a drafted change as an inline diff the user reviews in the doc.
+   *  Clears any prior pending suggestion first so they don't stack. */
+  function applyEdit(edit: DocEdit) {
+    if (!editor || editor.isDestroyed) return;
+    editor.chain().focus().rejectAiEdit().run();
+    if (edit.op === "edit") {
+      editor.commands.previewAiReplace(stripLeadingTitle(edit.html));
+    } else {
+      editor.commands.previewAiInsert(edit.html, edit.mode === "append");
+    }
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || busy) return;
     setExpanded(true);
-    const next: Turn[] = [...turns, { role: "user", content: text }];
-    setTurns(next);
+    setTurns((t) => [...t, { role: "user", content: text }]);
     setInput("");
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/properties/${propertyId}/documents/${documentId}/ai`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // Send the live HTML so the bot can reproduce unchanged blocks and
-          // the inline diff only highlights what actually changed.
-          body: JSON.stringify({
-            messages: next,
-            documentHtml: editor?.getHTML(),
-          }),
-        },
-      );
+      const res = await fetch(base, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId: activeChatId ?? undefined,
+          message: text,
+          documentHtml: editor?.getHTML(),
+        }),
+      });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
       }
-      const { reply, edit } = (await res.json()) as {
+      const { chatId, reply, edit } = (await res.json()) as {
+        chatId: string;
+        title: string | null;
         reply: string;
         edit?: DocEdit | null;
       };
+      setActiveChatId(chatId);
       setTurns((t) => [...t, { role: "assistant", content: reply, edit }]);
       if (edit) applyEdit(edit);
+      void fetchChats(); // refresh titles + ordering (and surface a new chat)
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Couldn't reach the doc assistant",
@@ -117,30 +211,8 @@ export function DocumentAiPanel({
     }
   }
 
-  function reset() {
-    setTurns([]);
-    setExpanded(false);
-    setInput("");
-  }
-
-  /** Stage a drafted change as an inline diff the user reviews in the doc.
-   *  `edit` rewrites → block-level red/green diff; `add` → green pending
-   *  insertion. Clears any prior pending suggestion first so they don't stack.
-   *  The write goes through Yjs, so collaborators see the proposal too. */
-  function applyEdit(edit: DocEdit) {
-    if (!editor || editor.isDestroyed) return;
-    editor.chain().focus().rejectAiEdit().run(); // clear any prior pending diff
-    if (edit.op === "edit") {
-      editor.commands.previewAiReplace(stripLeadingTitle(edit.html));
-    } else {
-      editor.commands.previewAiInsert(edit.html, edit.mode === "append");
-    }
-  }
-
   async function copyEdit(html: string) {
     try {
-      // Copy as plain text (strip tags) — the editor already owns the rich
-      // version via Insert; clipboard is the manual-paste fallback.
       const text = html
         .replace(/<\/(h[1-3]|p|li|blockquote)>/gi, "\n")
         .replace(/<[^>]+>/g, "")
@@ -154,26 +226,94 @@ export function DocumentAiPanel({
   }
 
   const hasConversation = turns.length > 0 || busy;
+  const activeChat = chats.find((c) => c.id === activeChatId);
+  const activeTitle = activeChat?.title ?? "New chat";
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
       <div className="pointer-events-auto flex w-full max-w-2xl flex-col">
         {expanded && hasConversation ? (
           <div className="mb-2 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-popover/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80">
-            <header className="flex items-center justify-between border-b border-border/40 px-3 py-2">
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
-                <Sparkles className="size-4" />
-                Document assistant
-              </div>
-              <div className="flex items-center gap-1">
+            <header className="flex items-center justify-between gap-2 border-b border-border/40 px-2 py-1.5">
+              {/* Chat switcher */}
+              <Popover open={chatsOpen} onOpenChange={setChatsOpen}>
+                <PopoverTrigger
+                  render={(props) => (
+                    <button
+                      {...props}
+                      type="button"
+                      className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-semibold text-foreground transition hover:bg-muted/50"
+                    >
+                      <Sparkles className="size-4 shrink-0 text-violet-500" />
+                      <span className="truncate">{activeTitle}</span>
+                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  )}
+                />
+                <PopoverContent
+                  align="start"
+                  side="top"
+                  sideOffset={6}
+                  className="!w-72 !p-1"
+                >
+                  <button
+                    type="button"
+                    onClick={newChat}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <MessageSquarePlus className="size-4" />
+                    New chat
+                  </button>
+                  {chats.length > 0 ? (
+                    <div className="my-1 border-t border-border/50" />
+                  ) : null}
+                  <div className="max-h-64 overflow-y-auto">
+                    {chats.map((c) => (
+                      <div
+                        key={c.id}
+                        className={cn(
+                          "group flex items-center gap-1 rounded-md pr-1 text-[13px]",
+                          c.id === activeChatId
+                            ? "bg-accent/60"
+                            : "hover:bg-accent/40",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => void selectChat(c.id)}
+                          className="flex min-w-0 flex-1 flex-col items-start px-2 py-1.5 text-left"
+                        >
+                          <span className="w-full truncate text-foreground">
+                            {c.title ?? "Untitled chat"}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatWhen(c.updated_at)}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteChat(c.id)}
+                          className="rounded p-1 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                          aria-label="Delete chat"
+                          title="Delete chat"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <div className="flex items-center gap-0.5">
                 <button
                   type="button"
-                  onClick={reset}
+                  onClick={newChat}
                   className="rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                  aria-label="Clear conversation"
-                  title="Clear conversation"
+                  aria-label="New chat"
+                  title="New chat"
                 >
-                  <X className="size-4" />
+                  <Plus className="size-4" />
                 </button>
                 <button
                   type="button"
@@ -241,9 +381,7 @@ export function DocumentAiPanel({
         ) : null}
 
         <div
-          className={cn(
-            "flex items-end gap-2 rounded-xl border border-border/60 bg-popover/95 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80",
-          )}
+          className="flex items-end gap-2 rounded-xl border border-border/60 bg-popover/95 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80"
           onClick={() => {
             if (hasConversation && !expanded) setExpanded(true);
           }}

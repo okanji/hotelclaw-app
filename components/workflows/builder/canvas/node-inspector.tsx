@@ -1,21 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Braces, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SurfaceBadge, surfaceMeta } from "@/components/workflows/builder/surface-badge";
+import { SurfaceBadge, SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import { getStep, getTrigger, TRIGGERS } from "@/lib/workflows/catalog";
+import type { Surface } from "@/lib/workflows/catalog/types";
 import type { WorkflowSpec, StepNode } from "@/lib/workflows/spec";
 import { TRIGGER_EVENT_TYPES } from "@/lib/workflows/spec";
 import { TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 import { STEP_FIELDS } from "@/lib/workflows/field-defs";
 import { availableRefs, type RefCandidate } from "@/lib/workflows/refs";
 import { TypedStepForm } from "./typed-step-form";
+import { DataContextPanel } from "@/components/workflows/builder/config/data-context-panel";
+import { LabelTriggerFilter } from "@/components/workflows/builder/config/label-trigger-filter";
 import { ConditionBuilder } from "@/components/workflows/builder/config/condition-builder";
+import { explainTemplateValue } from "@/lib/workflows/explain-template";
+import {
+  ADDED_LABELS_PATH,
+  extractAddedLabelFilter,
+  explainTriggerFilter,
+  mergeTriggerFilter,
+  stripAddedLabelFilter,
+} from "@/lib/workflows/trigger-filter";
+import { isTaskTrigger, suggestedTriggerInput } from "@/lib/workflows/suggested-input";
+import { enrichRefsWithPropertyData } from "@/lib/workflows/enrich-refs";
+import { useWorkflowBuilderData } from "@/components/workflows/builder/workflow-builder-data";
+import { Button } from "@/components/ui/button";
+import { TriggerEditorFlowLayout } from "@/components/workflows/builder/trigger-editor-layouts";
+import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
+import { StepEditorFlowLayout } from "@/components/workflows/builder/step-editor-flow-layout";
+import { InspectorAdvancedSection } from "@/components/workflows/builder/inspector-advanced-section";
+import { AvailableFieldsPanel } from "@/components/workflows/builder/config/available-fields-panel";
+import { renameStepId } from "@/lib/workflows/rename-step";
 import { JsonEditor } from "@/components/workflows/builder/config/json-editor";
+import { explainCondition } from "@/lib/workflows/explain-expr";
+import {
+  findStepBranchContext,
+  getBranchPaths,
+  type BranchPathKey,
+} from "@/lib/workflows/branch-paths";
+import {
+  BranchPathContextBar,
+  type BranchPathFocus,
+} from "@/components/workflows/builder/branch-path-context-bar";
 
 // Right-side non-modal panel that opens when a node is selected.
 //
@@ -29,22 +58,51 @@ import { JsonEditor } from "@/components/workflows/builder/config/json-editor";
 
 export function NodeInspector({
   spec,
+  propertyId,
   selectedNodeId,
   onClose,
   onChange,
+  onStepRenamed,
+  onConfigureBranchPath,
+  branchPathFocus,
+  onOpenBranchStep,
+  onOpenBranchPath,
 }: {
   spec: WorkflowSpec;
+  propertyId?: string;
   selectedNodeId: string | null;
   onClose: () => void;
   onChange: (next: WorkflowSpec) => void;
+  /** Keep canvas/tree selection in sync after an Advanced identifier rename. */
+  onStepRenamed?: (newId: string) => void;
+  /** Open the true/false lane for a branch step — add steps or jump to the head. */
+  onConfigureBranchPath?: (branchStepId: string, branchKey: BranchPathKey) => void;
+  branchPathFocus?: BranchPathFocus | null;
+  onOpenBranchStep?: (branchStepId: string) => void;
+  onOpenBranchPath?: (branchStepId: string, branchKey: BranchPathKey) => void;
 }) {
   const open = selectedNodeId !== null;
   return (
     <NonModalSidePanel open={open} onClose={onClose}>
       {selectedNodeId === TRIGGER_NODE_ID ? (
-        <TriggerEditor spec={spec} onChange={onChange} />
+        <TriggerEditor
+          spec={spec}
+          propertyId={propertyId}
+          onChange={onChange}
+          onClose={onClose}
+        />
       ) : selectedNodeId ? (
-        <StepEditor spec={spec} stepId={selectedNodeId} onChange={onChange} />
+        <StepEditor
+          spec={spec}
+          stepId={selectedNodeId}
+          onChange={onChange}
+          onClose={onClose}
+          onStepRenamed={onStepRenamed}
+          onConfigureBranchPath={onConfigureBranchPath}
+          branchPathFocus={branchPathFocus}
+          onOpenBranchStep={onOpenBranchStep}
+          onOpenBranchPath={onOpenBranchPath}
+        />
       ) : null}
     </NonModalSidePanel>
   );
@@ -83,14 +141,6 @@ function NonModalSidePanel({
             "data-starting-style:translate-x-full data-ending-style:translate-x-full",
           )}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close inspector"
-            className="absolute top-3 right-3 z-10 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
           {children}
         </BaseDialog.Popup>
       </BaseDialog.Portal>
@@ -130,13 +180,46 @@ function Section({
 
 function TriggerEditor({
   spec,
+  propertyId,
   onChange,
+  onClose,
 }: {
   spec: WorkflowSpec;
+  propertyId?: string;
   onChange: (next: WorkflowSpec) => void;
+  onClose: () => void;
 }) {
   const meta = getTrigger(spec.trigger.event_type);
-  const refs = useMemo(() => availableRefs(spec), [spec]);
+  const builderData = useWorkflowBuilderData();
+  const refs = useMemo(() => {
+    const base = availableRefs(spec);
+    return enrichRefsWithPropertyData(base, {
+      taskLabels: builderData?.taskLabels,
+      channels: builderData?.channels,
+    });
+  }, [spec, builderData?.taskLabels]);
+  const isLabelAdded = spec.trigger.event_type === "task.label_added";
+  const filterExpr = spec.trigger.filter?.expr;
+
+  const selectedLabels = useMemo(
+    () => (isLabelAdded ? extractAddedLabelFilter(filterExpr) : []),
+    [isLabelAdded, filterExpr],
+  );
+
+  const summary = useMemo(
+    () => explainTriggerFilter(spec.trigger.event_type, filterExpr, meta?.label),
+    [spec.trigger.event_type, filterExpr, meta?.label],
+  );
+
+  function commitFilter(expr: unknown | undefined) {
+    onChange({
+      ...spec,
+      trigger: {
+        ...spec.trigger,
+        filter: expr === undefined ? undefined : { expr },
+      },
+    });
+  }
 
   function commitEventType(next: string) {
     onChange({
@@ -145,48 +228,71 @@ function TriggerEditor({
     });
   }
 
+  function commitLabels(labels: string[]) {
+    commitFilter(mergeTriggerFilter(labels, stripAddedLabelFilter(filterExpr)));
+  }
+
+  function commitAdditional(expr: unknown | undefined) {
+    commitFilter(mergeTriggerFilter(selectedLabels, expr));
+  }
+
   return (
     <>
       <InspectorHeader
         surface={meta?.surface ?? "system"}
-        kicker="TRIGGER"
+        kind="trigger"
         title={meta?.label ?? spec.trigger.event_type}
         description={meta?.description ?? "Choose what kicks this workflow off."}
+        onClose={onClose}
       />
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-4">
-        <Section title="Event">
-          <select
-            value={spec.trigger.event_type}
-            onChange={(e) => commitEventType(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {TRIGGER_EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {TRIGGERS.find((x) => x.id === t)?.label ?? t}
-              </option>
-            ))}
-          </select>
-        </Section>
-
-        <Section
-          title="Only fire when…"
-          description="Optional filter. Leave empty to fire on every event."
-        >
-          <ConditionBuilder
-            value={spec.trigger.filter?.expr}
-            refs={refs}
-            onChange={(expr) => {
-              onChange({
-                ...spec,
-                trigger: {
-                  ...spec.trigger,
-                  filter: expr === undefined ? undefined : { expr },
-                },
-              });
-            }}
-          />
-        </Section>
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+        <TriggerEditorFlowLayout
+          slots={{
+            eventSelect: (
+              <WorkflowSelect
+                ariaLabel="Trigger event"
+                value={spec.trigger.event_type}
+                onChange={(e) => commitEventType(e.target.value)}
+              >
+                {TRIGGER_EVENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TRIGGERS.find((x) => x.id === t)?.label ?? t}
+                  </option>
+                ))}
+              </WorkflowSelect>
+            ),
+            labelFilter: isLabelAdded ? (
+              <LabelTriggerFilter
+                propertyId={propertyId}
+                selected={selectedLabels}
+                onChange={commitLabels}
+                compact
+              />
+            ) : null,
+            summary,
+            dataContext: <DataContextPanel refs={refs} variant="trigger" />,
+            conditions: (
+              <div className="space-y-3">
+                {refs.length > 0 ? (
+                  <AvailableFieldsPanel refs={refs} mode="condition" />
+                ) : null}
+                <ConditionBuilder
+                  variant="trigger"
+                  value={isLabelAdded ? stripAddedLabelFilter(filterExpr) : filterExpr}
+                  refs={refs}
+                  onChange={(expr) => {
+                    if (isLabelAdded) commitAdditional(expr);
+                    else commitFilter(expr);
+                  }}
+                  hidePreview
+                  embedded
+                  excludePaths={isLabelAdded ? [ADDED_LABELS_PATH] : undefined}
+                />
+              </div>
+            ),
+          }}
+        />
       </div>
     </>
   );
@@ -198,25 +304,51 @@ function StepEditor({
   spec,
   stepId,
   onChange,
+  onClose,
+  onStepRenamed,
+  onConfigureBranchPath,
+  branchPathFocus,
+  onOpenBranchStep,
+  onOpenBranchPath,
 }: {
   spec: WorkflowSpec;
   stepId: string;
   onChange: (next: WorkflowSpec) => void;
+  onClose: () => void;
+  onStepRenamed?: (newId: string) => void;
+  onConfigureBranchPath?: (branchStepId: string, branchKey: BranchPathKey) => void;
+  branchPathFocus?: BranchPathFocus | null;
+  onOpenBranchStep?: (branchStepId: string) => void;
+  onOpenBranchPath?: (branchStepId: string, branchKey: BranchPathKey) => void;
 }) {
   const step = spec.steps[stepId];
   const meta = useMemo(() => (step ? getStep(step.type) : undefined), [step]);
-  const isConditional =
-    step?.type === "control.branch_if" || step?.type === "control.filter";
+  const isBranchIf = step?.type === "control.branch_if";
+  const isConditional = isBranchIf || step?.type === "control.filter";
 
   const [draftId, setDraftId] = useState(stepId);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [label, setLabel] = useState(step?.label ?? "");
 
   useEffect(() => {
     setDraftId(stepId);
+    setRenameError(null);
     setLabel(step?.label ?? "");
   }, [stepId, step]);
 
-  const refs = useMemo(() => availableRefs(spec, stepId), [spec, stepId]);
+  const builderData = useWorkflowBuilderData();
+  const refs = useMemo(() => {
+    const base = availableRefs(spec, stepId);
+    if (!isTaskTrigger(spec.trigger.event_type)) return base;
+    return enrichRefsWithPropertyData(base, {
+      taskLabels: builderData?.taskLabels,
+      channels: builderData?.channels,
+    });
+  }, [spec, stepId, spec.trigger.event_type, builderData?.taskLabels]);
+  const branchPaths = useMemo(
+    () => (isBranchIf ? getBranchPaths(spec, stepId) : undefined),
+    [isBranchIf, spec, stepId],
+  );
 
   if (!step) return null;
 
@@ -238,123 +370,232 @@ function StepEditor({
 
   function commitRename() {
     if (!step) return;
-    if (draftId === stepId || !draftId) return;
-    if (spec.steps[draftId]) {
+    if (draftId === stepId || !draftId) {
+      setRenameError(null);
+      return;
+    }
+    const nextSpec = renameStepId(spec, stepId, draftId);
+    if (!nextSpec) {
+      setRenameError(
+        spec.steps[draftId]
+          ? `Identifier "${draftId}" is already in use`
+          : "Could not rename this step",
+      );
       setDraftId(stepId);
       return;
     }
-    const { [stepId]: prev, ...rest } = spec.steps;
-    const renamed: Record<string, StepNode> = { ...rest, [draftId]: prev };
-
-    for (const [id, s] of Object.entries(renamed)) {
-      const next: Record<string, unknown> = { ...(s as object) };
-      if ((next as { next?: string }).next === stepId) next.next = draftId;
-      if ((next as { on_error?: string }).on_error === `branch:${stepId}`) {
-        next.on_error = `branch:${draftId}`;
-      }
-      if (
-        "branches" in (next as object) &&
-        (next as { branches?: Record<string, string> }).branches
-      ) {
-        const branches = { ...(next as { branches: Record<string, string> }).branches };
-        for (const [k, v] of Object.entries(branches)) {
-          if (v === stepId) branches[k] = draftId;
-        }
-        (next as { branches: Record<string, string> }).branches = branches;
-      }
-      renamed[id] = next as StepNode;
-    }
-
-    const layout = spec.layout ? { ...spec.layout } : undefined;
-    if (layout && layout[stepId]) {
-      layout[draftId] = layout[stepId];
-      delete layout[stepId];
-    }
-
-    onChange({
-      ...spec,
-      steps: renamed,
-      entry_step_id: spec.entry_step_id === stepId ? draftId : spec.entry_step_id,
-      layout,
-    });
+    setRenameError(null);
+    onChange(nextSpec);
+    onStepRenamed?.(draftId);
   }
 
   const cfg = (step as { config?: unknown }).config ?? {};
+  const cfgRecord = cfg as Record<string, unknown>;
   const readsAs = meta?.explain(cfg);
+  const inputHint =
+    !isConditional && "input" in cfgRecord
+      ? explainTemplateValue((cfgRecord as { input?: string }).input, refs)
+      : null;
+  const isFilter = step.type === "control.filter";
+  const filterExpr = (cfgRecord as { expr?: unknown }).expr;
+  const filterSummary =
+    isFilter && filterExpr === undefined
+      ? "No conditions yet — this step will always continue."
+      : isFilter
+        ? explainCondition(filterExpr)
+        : null;
+
+  const hasFormFields = Boolean(STEP_FIELDS[step.type as keyof typeof STEP_FIELDS]);
+
+  const laneContext = useMemo(() => findStepBranchContext(spec, stepId), [spec, stepId]);
+  const pathFocus = useMemo(() => {
+    if (branchPathFocus) {
+      const onLane =
+        branchPathFocus.branchStepId === stepId ||
+        laneContext?.branchStepId === branchPathFocus.branchStepId;
+      if (onLane) return branchPathFocus;
+    }
+    if (laneContext) {
+      return { branchStepId: laneContext.branchStepId, key: laneContext.branchKey };
+    }
+    return null;
+  }, [branchPathFocus, laneContext, stepId]);
+
+  const branchPathBar = useMemo(() => {
+    if (!pathFocus) return null;
+    const branchStep = spec.steps[pathFocus.branchStepId];
+    if (!branchStep) return null;
+    const branchMeta = getStep(branchStep.type);
+    const branchCfg = (branchStep as { config?: { expr?: unknown } }).config;
+    const branchTitle =
+      branchStep.label?.trim() || branchMeta?.label || "Branch (if/else)";
+    const conditionSummary = explainCondition(branchCfg?.expr);
+    const pathLabel = pathFocus.key === "true" ? "Then" : "Else";
+    const currentStepTitle =
+      stepId !== pathFocus.branchStepId
+        ? label.trim() || meta?.label || stepId
+        : null;
+
+    return (
+      <BranchPathContextBar
+        branchTitle={branchTitle}
+        conditionSummary={conditionSummary}
+        pathLabel={pathLabel}
+        currentStepTitle={currentStepTitle}
+        onOpenBranch={() => onOpenBranchStep?.(pathFocus.branchStepId)}
+        onOpenPath={
+          onOpenBranchPath
+            ? () => onOpenBranchPath(pathFocus.branchStepId, pathFocus.key)
+            : undefined
+        }
+      />
+    );
+  }, [
+    pathFocus,
+    spec,
+    stepId,
+    label,
+    meta?.label,
+    onOpenBranchStep,
+    onOpenBranchPath,
+  ]);
+
+  const activeBranchPath =
+    isBranchIf && branchPathFocus?.branchStepId === stepId
+      ? branchPathFocus.key
+      : undefined;
+
+  function onJsonConfigChange(next: unknown) {
+    if (next && typeof next === "object" && !Array.isArray(next)) {
+      commitConfig(next as Record<string, unknown>);
+    } else {
+      commitConfig({});
+    }
+  }
 
   return (
     <>
+      {branchPathBar}
       <InspectorHeader
         surface={meta?.surface ?? "system"}
-        kicker={
+        kind={
           meta?.category === "ai"
-            ? "AI ACTION"
+            ? "ai"
             : meta?.category === "control"
-              ? "CONTROL FLOW"
-              : "ACTION"
+              ? "logic"
+              : "action"
         }
         title={label}
+        titleResetKey={stepId}
         titlePlaceholder={meta?.label ?? step.type}
         onTitleChange={setLabel}
         onTitleCommit={commitLabel}
         description={meta?.description ?? ""}
+        onClose={onClose}
       />
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-4">
-        {readsAs ? (
-          <p className="rounded-lg border border-border/60 bg-muted/[0.04] px-3.5 py-2.5 text-[0.8125rem] leading-relaxed text-muted-foreground">
-            <span className="font-medium uppercase tracking-[0.06em] text-foreground/60">
-              Reads as{" "}
-            </span>
-            {readsAs}
-          </p>
-        ) : null}
-
-        {isConditional ? (
-          <Section
-            title="When this is true"
-            description="Pick a field, an operator, and a value. The step only runs when these match."
-          >
-            <ConditionBuilder
-              value={(cfg as { expr?: unknown }).expr}
-              refs={refs}
-              onChange={(expr) => commitConfig({ ...(cfg as object), expr })}
-            />
-          </Section>
-        ) : (
-          <StepConfigSection
-            stepType={step.type}
-            value={cfg as Record<string, unknown>}
-            onChange={commitConfig}
-            refs={refs}
-            explainHint={meta?.explain(cfg)}
-          />
-        )}
-
-        {/* Identity & references — the snake_case + {{template}} layer lives one
-         * disclosure away, not in the user's face on open. */}
-        <details className="rounded-md border border-border/60 bg-muted/[0.03]">
-          <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2.5 text-[0.8125rem] text-muted-foreground select-none hover:text-foreground">
-            <Braces className="size-3.5" aria-hidden />
-            <span>Advanced — identifier</span>
-          </summary>
-          <div className="grid gap-2 border-t border-border/60 p-3">
-            <Label className="text-[0.8125rem] text-muted-foreground">Identifier</Label>
-            <Input
-              value={draftId}
-              onChange={(e) => setDraftId(e.target.value.replace(/[^a-z0-9_]/gi, "_"))}
-              onBlur={commitRename}
-              className="text-[0.8125rem]"
-              placeholder="my_step"
-            />
-            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-              Other steps can use this step&apos;s result. Reference it with{" "}
-              <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.75rem] text-foreground/70">
-                {`{{steps.${draftId}.output}}`}
-              </code>
-            </p>
-          </div>
-        </details>
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+        <StepEditorFlowLayout
+          slots={{
+            mode: isFilter ? "filter" : isBranchIf ? "branch" : "action",
+            canvasSummary:
+              !isConditional && readsAs ? (
+                <p className="text-[0.8125rem] leading-relaxed text-foreground/90">{readsAs}</p>
+              ) : undefined,
+            configure: isConditional ? undefined : (
+              <StepConfigSection
+                stepType={step.type}
+                stepId={stepId}
+                triggerEventType={spec.trigger.event_type}
+                value={cfgRecord}
+                onChange={commitConfig}
+                refs={refs}
+                explainHint={meta?.explain(cfg)}
+                inputHint={inputHint}
+                embedded
+              />
+            ),
+            dataContext:
+              !isConditional && refs.length > 0 ? (
+                <div className="space-y-3">
+                  <DataContextPanel refs={refs} variant="step" />
+                  <AvailableFieldsPanel refs={refs} mode="template" />
+                </div>
+              ) : undefined,
+            condition: isFilter ? (
+              <ConditionBuilder
+                variant="filter"
+                value={filterExpr}
+                refs={refs}
+                onChange={(expr) => commitConfig({ ...cfgRecord, expr })}
+                hidePreview
+                embedded
+              />
+            ) : undefined,
+            branchCondition: isBranchIf ? (
+              <ConditionBuilder
+                variant="branch"
+                part="conditions"
+                value={filterExpr}
+                refs={refs}
+                onChange={(expr) => commitConfig({ ...cfgRecord, expr })}
+                hidePreview
+                embedded
+              />
+            ) : undefined,
+            branchPaths: isBranchIf ? (
+              <ConditionBuilder
+                variant="branch"
+                part="paths"
+                value={filterExpr}
+                refs={refs}
+                onChange={(expr) => commitConfig({ ...cfgRecord, expr })}
+                branchPaths={branchPaths}
+                onConfigureBranchPath={
+                  onConfigureBranchPath
+                    ? (key) => onConfigureBranchPath(stepId, key)
+                    : undefined
+                }
+                activeBranchPath={activeBranchPath}
+              />
+            ) : undefined,
+            conditionSummary: isFilter ? (
+              <p className="text-[0.8125rem] leading-relaxed text-foreground/90">
+                {filterSummary}
+              </p>
+            ) : undefined,
+            advanced: (
+              <InspectorAdvancedSection
+                draftId={draftId}
+                onDraftIdChange={setDraftId}
+                onDraftIdCommit={commitRename}
+                renameError={renameError}
+                refs={refs}
+                spec={spec}
+                stepId={stepId}
+                rawJson={
+                  isConditional
+                    ? {
+                        value: cfgRecord,
+                        onChange: onJsonConfigChange,
+                        hint: "Condition expression (expr) and any extra config keys. Prefer the visual editor above; edit here only for advanced JSONLogic.",
+                        validateExpr: true,
+                        showFieldCatalog: true,
+                        fieldCatalogMode: "condition",
+                      }
+                    : hasFormFields
+                      ? {
+                          value: cfgRecord,
+                          onChange: onJsonConfigChange,
+                          hint: "Full config object. Useful for fields the form doesn't expose.",
+                          showFieldCatalog: false,
+                        }
+                      : undefined
+                }
+              />
+            ),
+          }}
+        />
       </div>
     </>
   );
@@ -364,19 +605,29 @@ function StepEditor({
 
 function StepConfigSection({
   stepType,
+  stepId,
+  triggerEventType,
   value,
   onChange,
   refs,
   explainHint,
+  inputHint,
+  embedded = false,
 }: {
   stepType: string;
+  stepId: string;
+  triggerEventType: string;
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
   refs: RefCandidate[];
   explainHint?: string;
+  /** Shown when the primary `input` field is empty — nudges toward trigger data. */
+  inputHint?: string | null;
+  /** Inside the flow rail — no section chrome; raw JSON lives in Advanced step. */
+  embedded?: boolean;
 }) {
+  const builderData = useWorkflowBuilderData();
   const fields = STEP_FIELDS[stepType as keyof typeof STEP_FIELDS];
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const onJsonChange = (next: unknown) => {
     if (next && typeof next === "object" && !Array.isArray(next)) {
@@ -387,95 +638,219 @@ function StepConfigSection({
   };
 
   if (!fields) {
+    const editor = (
+      <JsonEditor value={value} onChange={onJsonChange} hint={explainHint} />
+    );
+    if (embedded) return editor;
     return (
       <Section
         title="Configuration"
         description="No friendly form yet for this step type — edit raw JSON."
       >
-        <JsonEditor value={value} onChange={onJsonChange} hint={explainHint} />
+        {editor}
       </Section>
     );
   }
 
-  return (
-    <Section title="Settings" description={explainHint}>
-      <TypedStepForm fields={fields} value={value} onChange={onChange} refs={refs} />
+  const hasInputField = fields.some((f) => f.key === "input");
+  const inputEmpty =
+    hasInputField &&
+    (value.input === undefined || value.input === "" || value.input === null);
+  const inputSuggestion = suggestedTriggerInput(triggerEventType);
 
-      <details
-        className="mt-3 rounded-md border border-border/60 bg-muted/[0.04]"
-        open={showAdvanced}
-        onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
-      >
-        <summary className="flex cursor-pointer items-center gap-1 px-3 py-2 text-[11.5px] text-muted-foreground select-none hover:text-foreground">
-          <Braces className="size-3" />
-          <span>Advanced — raw JSON</span>
-        </summary>
-        <div className="border-t border-border/60 p-3">
-          <JsonEditor
-            value={value}
-            onChange={onJsonChange}
-            hint="Full config object. Useful for fields the form doesn't expose."
-          />
+  function applySuggestedInput() {
+    if (!inputSuggestion) return;
+    onChange({ ...value, input: `{{${inputSuggestion.path}}}` });
+  }
+
+  const body = (
+    <div className="space-y-3">
+      {inputEmpty && stepType.startsWith("ai.") && inputSuggestion && (
+        <div className="flex flex-col gap-2 rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[0.8125rem] leading-relaxed text-foreground/85">
+            This step needs text to work on. For task workflows, the complaint or
+            details usually live in the task{" "}
+            <span className="font-medium">description</span>.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            onClick={applySuggestedInput}
+          >
+            {inputSuggestion.buttonLabel}
+          </Button>
         </div>
-      </details>
-    </Section>
+      )}
+      {inputEmpty && stepType.startsWith("ai.") && !inputSuggestion && (
+        <p className="rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[0.8125rem] leading-relaxed text-foreground/85">
+          Choose what text the AI should read — use{" "}
+          <span className="font-medium">Insert data</span> on the field below.
+        </p>
+      )}
+      {inputHint && !inputEmpty && stepType.startsWith("ai.") && (
+        <p className="text-[0.8125rem] text-muted-foreground">
+          Currently using: <span className="font-medium text-foreground">{inputHint}</span>
+        </p>
+      )}
+      <TypedStepForm
+        fields={fields}
+        value={value}
+        onChange={onChange}
+        refs={refs}
+        channels={builderData?.channels ?? []}
+        channelsLoading={builderData?.channelsLoading}
+        triggerEventType={triggerEventType}
+        formKey={stepId}
+      />
+    </div>
   );
+
+  if (embedded) return body;
+  return <Section title="Configure">{body}</Section>;
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
+type InspectorKind = "trigger" | "action" | "ai" | "logic";
+
+const INSPECTOR_KIND_LABEL: Record<InspectorKind, string> = {
+  trigger: "Trigger",
+  action: "Action",
+  ai: "AI action",
+  logic: "Logic",
+};
+
 function InspectorHeader({
   surface,
-  kicker,
+  kind,
   title,
   description,
+  titleResetKey,
   titlePlaceholder,
   onTitleChange,
   onTitleCommit,
+  onClose,
 }: {
-  surface: ReturnType<typeof surfaceMeta>["label"] extends never
-    ? never
-    : Parameters<typeof SurfaceBadge>[0]["surface"];
-  kicker: string;
+  surface: Surface;
+  kind: InspectorKind;
   title: string;
   description: string;
-  /** When provided, the title becomes an inline-editable name field. */
+  /** Resets rename mode when the selected step changes. */
+  titleResetKey?: string;
+  /** Catalog label shown when the step has no custom name. */
   titlePlaceholder?: string;
   onTitleChange?: (next: string) => void;
   onTitleCommit?: () => void;
+  onClose: () => void;
 }) {
+  const kindLabel = INSPECTOR_KIND_LABEL[kind];
+  const editable = Boolean(onTitleChange);
+  const [renaming, setRenaming] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const savedTitleRef = useRef(title);
+
+  const displayTitle = title.trim() || titlePlaceholder || "Untitled step";
+  const usingDefaultName = editable && !title.trim();
+
+  useEffect(() => {
+    setRenaming(false);
+  }, [titleResetKey]);
+
+  useEffect(() => {
+    if (!renaming) return;
+    const input = inputRef.current;
+    input?.focus();
+    input?.select();
+  }, [renaming]);
+
+  function startRenaming() {
+    if (!editable) return;
+    savedTitleRef.current = title;
+    setRenaming(true);
+  }
+
+  function commitRename() {
+    onTitleCommit?.();
+    setRenaming(false);
+  }
+
+  function cancelRename() {
+    onTitleChange?.(savedTitleRef.current);
+    setRenaming(false);
+  }
+
   return (
-    <header className="flex flex-col gap-2 border-b p-4 pr-12">
-      <div className="flex items-start gap-3">
-        <SurfaceBadge surface={surface} className="mt-0.5 !size-8" />
+    <header className="shrink-0 border-b border-border/60">
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+        <SurfaceBadge surface={surface} className="mt-0.5 size-9 rounded-lg" />
+
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              {kicker}
-            </span>
-            <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {surfaceMeta(surface).label}
-            </span>
-          </div>
-          {onTitleChange ? (
+          {editable && renaming ? (
             <input
+              ref={inputRef}
               value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
-              onBlur={onTitleCommit}
+              onChange={(e) => onTitleChange?.(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitRename();
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelRename();
+                }
+              }}
               placeholder={titlePlaceholder}
               aria-label="Step name"
-              className="mt-0.5 -ml-1.5 w-full rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[15px] font-semibold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
+              className="w-full rounded-md border border-input bg-background px-2 py-1 text-base font-semibold tracking-tight text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
             />
           ) : (
-            <p className="mt-0.5 text-[15px] font-semibold leading-snug text-foreground">
-              {title}
-            </p>
+            <div className="group/title flex items-start gap-1">
+              <h2
+                className={cn(
+                  "min-w-0 flex-1 text-base font-semibold tracking-tight text-balance",
+                  usingDefaultName ? "text-muted-foreground" : "text-foreground",
+                )}
+              >
+                {displayTitle}
+              </h2>
+              {editable ? (
+                <button
+                  type="button"
+                  onClick={startRenaming}
+                  aria-label="Rename step"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground group-hover/title:text-muted-foreground"
+                >
+                  <Pencil className="size-3.5" aria-hidden />
+                </button>
+              ) : null}
+            </div>
           )}
+
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground/75">{kindLabel}</span>
+            <SurfaceLabelBadge surface={surface} />
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close inspector"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
       </div>
-      {description && (
-        <p className="text-[12px] leading-relaxed text-muted-foreground">{description}</p>
-      )}
+
+      {description ? (
+        <div className="border-t border-border/40 bg-muted/20 px-4 py-3">
+          <p className="max-w-[56ch] text-sm text-pretty text-muted-foreground">{description}</p>
+        </div>
+      ) : null}
     </header>
   );
 }

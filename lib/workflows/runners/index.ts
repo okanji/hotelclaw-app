@@ -27,6 +27,17 @@ import {
   aiBranchDecisionRunner,
   aiFreeformRunner,
 } from "./ai";
+import {
+  createDocRunner,
+  archiveDocRunner,
+  addToBoardRunner,
+  postSummaryInChatRunner,
+} from "./docs";
+import {
+  createFollowupTasksRunner,
+  shareSummaryToChannelRunner,
+} from "./meetings";
+import { gbrainCaptureRunner, delegateToOpenclawRunner } from "./system";
 
 // Server-only runner registry. Keeping this on its own module — separate from
 // the catalog metadata — is what lets client components import the catalog
@@ -48,9 +59,23 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   "action.chat.post_thread_reply": postThreadReplyRunner as Runner,
   "action.chat.mention_user": mentionUserRunner as Runner,
 
+  // Docs
+  "action.doc.create": createDocRunner as Runner,
+  "action.doc.archive": archiveDocRunner as Runner,
+  "action.doc.add_to_board": addToBoardRunner as Runner,
+  "action.doc.post_summary_in_chat": postSummaryInChatRunner as Runner,
+
+  // Meetings
+  "action.meeting.create_followup_tasks": createFollowupTasksRunner as Runner,
+  "action.meeting.share_summary_to_channel": shareSummaryToChannelRunner as Runner,
+
   // Notify
   "action.notify.user": notifyUserRunner as Runner,
   "action.notify.role": notifyRoleRunner as Runner,
+
+  // System / external
+  "action.gbrain.capture": gbrainCaptureRunner as Runner,
+  "action.external.delegate_to_openclaw": delegateToOpenclawRunner as Runner,
 
   // Entities
   "action.entity.create": createEntityRunner as Runner,

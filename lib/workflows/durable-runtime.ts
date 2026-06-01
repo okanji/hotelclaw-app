@@ -31,8 +31,8 @@ import type { InstantRunArgs } from "./instant-runtime";
  *     workflow SDK's automatic step retry so the spec's `retry` +
  *     `on_error` policies are the sole source of retry behaviour.
  *
- * `control.foreach` and `control.parallel` are deferred (v1.1) — they
- * throw `FatalError` until implemented.
+ * `control.foreach` and `control.parallel` run subgraphs from branch start
+ * step ids until the control node's `next` merge point.
  */
 
 const MAX_STEPS_PER_RUN = 100;
@@ -424,10 +424,118 @@ async function executeStepDurable(
     };
   }
 
-  if (step.type === "control.foreach" || step.type === "control.parallel") {
-    throw new FatalError(
-      `${step.type} is not yet implemented in the durable runtime (planned for v1.1)`,
-    );
+  if (step.type === "control.foreach") {
+    const cfg = step.config as {
+      items: string;
+      item_var?: string;
+      body_start: string;
+    };
+    const rawItems = resolveValue(cfg.items, scope);
+    if (!Array.isArray(rawItems)) {
+      return {
+        ok: false,
+        error: "foreach items must resolve to an array",
+        input: cfg,
+      };
+    }
+    const itemVar = cfg.item_var ?? "item";
+    const mergeNext = (step as { next?: string }).next;
+    const iterationOutputs: Record<string, unknown>[] = [];
+
+    for (const item of rawItems) {
+      scope.vars = { ...(scope.vars ?? {}), [itemVar]: item };
+      const sub = await runSubgraphDurable({
+        startId: cfg.body_start,
+        mergeId: mergeNext,
+        scope,
+        runId,
+        workflowArgs: args,
+      });
+      if (!sub.ok) {
+        return { ok: false, error: sub.error, input: cfg };
+      }
+      iterationOutputs.push(sub.outputs);
+    }
+
+    return {
+      ok: true,
+      next: mergeNext,
+      output: { iterations: rawItems.length, results: iterationOutputs },
+      status: "succeeded",
+      input: { items: rawItems, item_var: itemVar, body_start: cfg.body_start },
+    };
+  }
+
+  if (step.type === "control.parallel") {
+    const cfg = step.config as {
+      branches: string[];
+      join?: "all" | "any";
+    };
+    const mergeNext = (step as { next?: string }).next;
+    const join = cfg.join ?? "all";
+
+    const runBranch = async (branchStart: string) => {
+      const branchScope: ResolutionScope = {
+        trigger: scope.trigger,
+        steps: { ...(scope.steps ?? {}) },
+        vars: { ...(scope.vars ?? {}) },
+        context: scope.context,
+      };
+      return runSubgraphDurable({
+        startId: branchStart,
+        mergeId: mergeNext,
+        scope: branchScope,
+        runId,
+        workflowArgs: args,
+      });
+    };
+
+    if (join === "any") {
+      try {
+        const winner = await Promise.race(
+          cfg.branches.map((branchStart) =>
+            runBranch(branchStart).then((result) => {
+              if (!result.ok) throw new Error(result.error);
+              return { branchStart, result };
+            }),
+          ),
+        );
+        for (const [stepId, output] of Object.entries(winner.result.outputs)) {
+          scope.steps![stepId] = { output };
+        }
+        return {
+          ok: true,
+          next: mergeNext,
+          output: { completed: [winner.branchStart], join },
+          status: "succeeded",
+          input: cfg,
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "all parallel branches failed",
+          input: cfg,
+        };
+      }
+    }
+
+    const branchResults = await Promise.all(cfg.branches.map(runBranch));
+    for (const result of branchResults) {
+      if (!result.ok) {
+        return { ok: false, error: result.error, input: cfg };
+      }
+      for (const [stepId, output] of Object.entries(result.outputs)) {
+        scope.steps![stepId] = { output };
+      }
+    }
+
+    return {
+      ok: true,
+      next: mergeNext,
+      output: { completed: cfg.branches, join },
+      status: "succeeded",
+      input: cfg,
+    };
   }
 
   // Action / AI nodes — runner call inside a step
@@ -475,6 +583,66 @@ async function executeStepDurable(
     status: "succeeded",
     input: resolvedConfig,
   };
+}
+
+const MAX_SUBGRAPH_STEPS = 25;
+
+async function runSubgraphDurable(args: {
+  startId: string;
+  mergeId: string | undefined;
+  scope: ResolutionScope;
+  runId: string;
+  workflowArgs: InstantRunArgs;
+}): Promise<
+  | { ok: true; outputs: Record<string, unknown> }
+  | { ok: false; error: string }
+> {
+  let cursor: string | undefined = args.startId;
+  let count = 0;
+  const outputs: Record<string, unknown> = {};
+
+  while (cursor) {
+    if (cursor === args.mergeId) break;
+    if (count++ >= MAX_SUBGRAPH_STEPS) {
+      return { ok: false, error: `subgraph exceeded max steps (${MAX_SUBGRAPH_STEPS})` };
+    }
+
+    const step = args.workflowArgs.spec.steps[cursor] as StepNode | undefined;
+    if (!step) {
+      return { ok: false, error: `subgraph step "${cursor}" not found` };
+    }
+
+    const stepResult = await executeStepDurable(
+      step,
+      args.scope,
+      args.runId,
+      args.workflowArgs,
+    );
+    if (!stepResult.ok) {
+      return { ok: false, error: stepResult.error };
+    }
+
+    if (stepResult.persisted !== false) {
+      await persistStepRunRow({
+        runId: args.runId,
+        stepId: step.id,
+        stepType: step.type,
+        status: "succeeded",
+        input: stepResult.input ?? {},
+        output: stepResult.output,
+        error: null,
+      });
+    }
+
+    args.scope.steps![step.id] = { output: stepResult.output };
+    outputs[step.id] = stepResult.output;
+
+    if (stepResult.status === "filtered") break;
+    cursor = stepResult.next;
+    if (cursor === args.mergeId) break;
+  }
+
+  return { ok: true, outputs };
 }
 
 // ─── Public API — called by dispatcher ──────────────────────────────────────

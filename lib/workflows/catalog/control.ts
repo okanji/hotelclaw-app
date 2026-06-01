@@ -7,9 +7,9 @@ const actions: StepCatalogEntry[] = [
     id: "control.filter",
     surface: "control",
     category: "control",
-    label: "Filter (stop if predicate is false)",
+    label: "Filter (continue only if…)",
     description:
-      "Evaluate a JSONLogic predicate against upstream variables. If false, the run is marked `filtered` and stops here without error.",
+      "Checks a condition against earlier data. If it isn't met, the workflow quietly stops here — no error, nothing downstream runs.",
     examplePrompts: [
       "only continue if the priority is high",
       "stop if the channel isn't #front-desk",
@@ -28,7 +28,7 @@ const actions: StepCatalogEntry[] = [
     category: "control",
     label: "Branch (if/else)",
     description:
-      "Evaluate a JSONLogic predicate; route into `branches.true` or `branches.false` based on the result.",
+      "Splits the workflow in two. When your condition is met, the steps on the “true” path run; otherwise the “false” path runs.",
     examplePrompts: ["if urgent then... else...", "branch on priority"],
     outputSchema: z.object({ branch: z.enum(["true", "false"]) }),
     explain: (config) => {
@@ -42,7 +42,7 @@ const actions: StepCatalogEntry[] = [
     category: "control",
     label: "Branch (switch on value)",
     description:
-      "Look up a value (from `input`) in `branches` (a map of value → next step id). Falls back to `branches._default` if no match.",
+      "Sends the workflow down a different path for each value of a field — with a catch-all path for anything that doesn't match.",
     examplePrompts: ["route by severity", "switch on the classifier label"],
     outputSchema: z.object({ branch: z.string() }),
     explain: (config) => {
@@ -90,7 +90,7 @@ const actions: StepCatalogEntry[] = [
     category: "control",
     label: "For each item in collection",
     description:
-      "Iterate over an array variable. Each iteration runs the sub-flow starting at `body_start` with `item_var` set to the current item.",
+      "Runs the steps inside it once for each item in a list — handy for acting on every action item, room, or guest.",
     examplePrompts: ["for each action item, create a task", "loop over the rooms"],
     outputSchema: z.object({ iterations: z.number() }),
     explain: () => "For each item in collection",
@@ -101,7 +101,7 @@ const actions: StepCatalogEntry[] = [
     category: "control",
     label: "Run in parallel",
     description:
-      "Fan out to multiple branches in parallel, then join. `join: 'all'` waits for all branches; `'any'` continues on the first to finish.",
+      "Runs several branches at the same time, then waits — either for all of them to finish, or just for the first one.",
     examplePrompts: ["do these three things in parallel"],
     outputSchema: z.object({ completed: z.array(z.string()) }),
     explain: () => "Run branches in parallel",
@@ -112,7 +112,7 @@ const actions: StepCatalogEntry[] = [
     category: "control",
     label: "End",
     description:
-      "Terminate the workflow. Optional `outcome` label is recorded for analytics.",
+      "Ends the workflow here. You can add an outcome label that shows up in run history.",
     examplePrompts: ["end the workflow"],
     outputSchema: z.object({ outcome: z.string().optional() }),
     explain: (config) => {

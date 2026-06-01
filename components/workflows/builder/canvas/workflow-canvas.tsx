@@ -446,9 +446,11 @@ function CanvasInner({
 
       <NodeInspector
         spec={spec}
+        propertyId={propertyId}
         selectedNodeId={selectedNodeId}
         onClose={() => setSelectedNodeId(null)}
         onChange={setSpec}
+        onStepRenamed={setSelectedNodeId}
       />
     </div>
   );

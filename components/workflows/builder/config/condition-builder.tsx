@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Braces, CornerDownRight, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Wand2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { groupRefs, type RefCandidate, type RefType } from "@/lib/workflows/refs";
 import {
@@ -14,23 +15,19 @@ import {
   type ConditionModel,
 } from "@/lib/workflows/jsonlogic-codec";
 import { explainCondition } from "@/lib/workflows/explain-expr";
-import { JsonEditor } from "./json-editor";
+import type { BranchPathInfo, BranchPathKey } from "@/lib/workflows/branch-paths";
+import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
 
 // Plain-English condition builder. Edits a flat ALL/ANY list of Field·Op·Value
-// rows and emits JSONLogic via the codec. Falls back to raw JSON for anything
-// the flat model can't represent (nested groups, exotic operators) so power is
-// never lost. Field choices come from `refs` (trigger + upstream outputs) so
-// nobody types a dotted path.
-//
-// Layout — each condition reads as a sentence on a single line
-// (Field → Operator → Value), and the AND/OR that joins them is shown as an
-// explicit connector between rows, mirroring how builders like Zapier Paths,
-// Slack, and n8n present branch logic.
+// rows. Everything the user touches is a picker — fields, operators, and (where
+// the field has known values) the value itself auto-populate as dropdowns or
+// chips, so nobody ever types a magic string or sees JSON.
 
-// JSONLogic carries no field types, so a round-tripped number-vs-string is only
-// recoverable from the field catalog. Re-stamp each clause's `type` from the
-// chosen field's ref so the right value widget (and coercion) survives a reload
-// even when the stored value looked like a string.
+function humanizeOption(token: string): string {
+  const words = token.replace(/[_-]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function enrichTypes(model: ConditionModel, refs: RefCandidate[]): ConditionModel {
   return {
     ...model,
@@ -41,20 +38,41 @@ function enrichTypes(model: ConditionModel, refs: RefCandidate[]): ConditionMode
   };
 }
 
+export type ConditionBuilderVariant = "branch" | "filter" | "trigger" | "generic";
+
+export type ConditionBuilderPart = "all" | "conditions" | "paths";
+
 export function ConditionBuilder({
   value,
   onChange,
   refs,
+  variant = "generic",
+  branchPaths,
+  onConfigureBranchPath,
+  activeBranchPath,
+  hidePreview = false,
+  embedded = false,
+  excludePaths,
+  part = "all",
 }: {
   value: unknown;
   onChange: (expr: unknown | undefined) => void;
   refs: RefCandidate[];
+  variant?: ConditionBuilderVariant;
+  /** True/false lane summaries — only for branch variant. */
+  branchPaths?: BranchPathInfo[];
+  onConfigureBranchPath?: (key: BranchPathKey) => void;
+  /** Highlights and nests the lane the user chose in the inspector. */
+  activeBranchPath?: BranchPathKey;
+  /** Parent shows the summary (e.g. trigger label picker + live line). */
+  hidePreview?: boolean;
+  /** Flatter rows — no nested cards per condition. */
+  embedded?: boolean;
+  /** Field paths hidden from the field picker (handled elsewhere). */
+  excludePaths?: string[];
+  /** Branch inspector: edit conditions and paths on separate flow steps. */
+  part?: ConditionBuilderPart;
 }) {
-  // Latest refs in a ref so the re-seed effect can recover field types without
-  // taking `refs` as a dependency — refs change identity on every spec edit,
-  // and re-seeding then would clobber in-progress rows. Synced in an effect (not
-  // during render); it runs before the value effect below, so a same-render
-  // refs+value change still re-seeds against fresh refs.
   const refsRef = useRef(refs);
   useEffect(() => {
     refsRef.current = refs;
@@ -64,12 +82,10 @@ export function ConditionBuilder({
     const parsed = parseCondition(value);
     return parsed ? enrichTypes(parsed, refs) : { combine: "all", clauses: [] };
   });
-  const [mode, setMode] = useState<"simple" | "json">(
-    value !== undefined && parseCondition(value) === null ? "json" : "simple",
+  const [advanced, setAdvanced] = useState(
+    value !== undefined && parseCondition(value) === null,
   );
 
-  // Keep the last expr we emitted so external value changes (switching steps)
-  // re-seed the model, while our own emits don't clobber in-progress blank rows.
   const lastEmitted = useRef<string>(JSON.stringify(value ?? null));
 
   useEffect(() => {
@@ -79,9 +95,9 @@ export function ConditionBuilder({
     const parsed = parseCondition(value);
     if (parsed) {
       setModel(enrichTypes(parsed, refsRef.current));
-      setMode("simple");
+      setAdvanced(false);
     } else if (value !== undefined) {
-      setMode("json");
+      setAdvanced(true);
     }
   }, [value]);
 
@@ -105,226 +121,624 @@ export function ConditionBuilder({
     update({ ...model, clauses: model.clauses.filter((_, idx) => idx !== i) });
   }
 
+  function rebuildFromScratch() {
+    setAdvanced(false);
+    update({ combine: "all", clauses: [] });
+  }
+
   const readsAs = useMemo(() => {
     const expr = serializeCondition(model);
     return expr === undefined ? null : explainCondition(expr);
   }, [model]);
 
+  if (advanced) {
+    return (
+      <div className="space-y-4 rounded-xl border border-border/70 bg-muted/15 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+            <Wand2 className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium text-foreground">Custom condition</p>
+            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+              This condition uses logic the visual editor can&apos;t edit. Keep it as-is,
+              or rebuild it with the editor below.
+            </p>
+          </div>
+        </div>
+        <p className="rounded-lg border border-border/60 bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground/90">
+          {explainCondition(value)}
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={rebuildFromScratch}>
+          <Wand2 className="size-3.5" aria-hidden />
+          Rebuild with editor
+        </Button>
+      </div>
+    );
+  }
+
   const hasClauses = model.clauses.length > 0;
   const multi = model.clauses.length > 1;
+  const visibleRefs = useMemo(
+    () =>
+      excludePaths?.length
+        ? refs.filter((r) => !excludePaths.includes(r.path))
+        : refs,
+    [refs, excludePaths],
+  );
+
+  const branchPathsOnly = variant === "branch" && part === "paths";
+  const branchConditionsOnly = variant === "branch" && part === "conditions";
+
+  if (branchPathsOnly) {
+    return (
+      <BranchPathsPanel
+        readsAs={readsAs}
+        hasClauses={hasClauses}
+        branchPaths={branchPaths}
+        onConfigureBranchPath={onConfigureBranchPath}
+        activeBranchPath={activeBranchPath}
+      />
+    );
+  }
+
+  const conditionEditor = (
+    <>
+      {multi && (
+        <CombineBar
+          combine={model.combine}
+          onChange={(combine) => update({ ...model, combine })}
+        />
+      )}
+
+      {hasClauses ? (
+        <ul role="list" className="space-y-0">
+          {model.clauses.map((c, i) => (
+            <li key={i}>
+              {i > 0 && <LogicConnector combine={model.combine} />}
+              <ClauseCard
+                index={i}
+                clause={c}
+                refs={visibleRefs}
+                embedded={embedded || branchConditionsOnly}
+                onChange={(patch) => setClause(i, patch)}
+                onRemove={() => removeClause(i)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyConditions variant={variant} onAdd={addClause} />
+      )}
+
+      {hasClauses && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addClause}
+          className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          Add another condition
+        </Button>
+      )}
+    </>
+  );
+
+  const preview =
+    !hidePreview && !branchConditionsOnly ? (
+      <DecisionPreview
+        variant={variant}
+        readsAs={readsAs}
+        hasClauses={hasClauses}
+        branchPaths={variant === "branch" && !hasClauses ? undefined : branchPaths}
+        onConfigureBranchPath={
+          variant === "branch" && !hasClauses ? undefined : onConfigureBranchPath
+        }
+      />
+    ) : null;
+
+  const branchOrder = variant === "branch" && part === "all";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <ModeToggle mode={mode} setMode={setMode} />
-        {mode === "simple" && hasClauses && (
-          <button
-            type="button"
-            onClick={() => update({ combine: "all", clauses: [] })}
-            className="rounded-lg px-2.5 py-1.5 text-[0.8125rem] text-muted-foreground hover:bg-secondary hover:text-foreground"
-            title="Remove all conditions"
-          >
-            Clear all
-          </button>
-        )}
-      </div>
-
-      {mode === "simple" ? (
-        <div className="space-y-3">
-          {/* Match-all / match-any — the AND/OR for the whole group. Disabled
-              until there are two clauses to actually combine. */}
-          <CombineToggle
-            combine={model.combine}
-            disabled={!multi}
-            onChange={(combine) => update({ ...model, combine })}
-          />
-
-          {hasClauses ? (
-            <ul role="list" className="space-y-0">
-              {model.clauses.map((c, i) => (
-                <li key={i}>
-                  {i > 0 && <Connector combine={model.combine} />}
-                  <ClauseRow
-                    index={i}
-                    clause={c}
-                    refs={refs}
-                    onChange={(patch) => setClause(i, patch)}
-                    onRemove={() => removeClause(i)}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-5 text-center">
-              <p className="text-[0.875rem] font-medium text-foreground">
-                No conditions yet
-              </p>
-              <p className="mx-auto mt-1 max-w-[42ch] text-[0.8125rem] text-muted-foreground">
-                The step runs every time it&apos;s reached. Add a condition to make
-                it selective.
-              </p>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={addClause}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-[0.8125rem] font-medium text-muted-foreground hover:border-primary hover:text-primary"
-          >
-            <Plus className="size-4" aria-hidden /> Add condition
-          </button>
-
-          {readsAs && (
-            <div className="rounded-xl border border-primary/15 bg-primary/[0.04] px-3.5 py-3">
-              <div className="flex items-center gap-1.5">
-                <CornerDownRight className="size-3.5 text-primary/70" aria-hidden />
-                <p className="text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Reads as
-                </p>
-              </div>
-              <p className="mt-1.5 text-[0.875rem] leading-relaxed text-pretty text-foreground/90">
-                {readsAs}
-              </p>
-            </div>
-          )}
-        </div>
+    <div className={embedded || branchConditionsOnly ? "space-y-3" : "space-y-4"}>
+      {branchOrder ? (
+        <>
+          {conditionEditor}
+          {preview}
+        </>
       ) : (
-        <JsonEditor
-          value={value ?? {}}
-          onChange={(next) => {
-            const expr =
-              next && typeof next === "object" && Object.keys(next).length === 0
-                ? undefined
-                : next;
-            lastEmitted.current = JSON.stringify(expr ?? null);
-            onChange(expr);
-          }}
-          hint="Raw JSONLogic. Supported ops: ==, !=, >, >=, <, <=, in, and, or, not, var"
-        />
+        <>
+          {preview}
+          {conditionEditor}
+        </>
       )}
     </div>
   );
 }
 
-// ─── Match-all / match-any toggle ───────────────────────────────────────────
+// ─── Branch paths (step 2 — after conditions) ────────────────────────────────
 
-function CombineToggle({
+function BranchPathsPanel({
+  readsAs,
+  hasClauses,
+  branchPaths,
+  onConfigureBranchPath,
+  activeBranchPath,
+}: {
+  readsAs: string | null;
+  hasClauses: boolean;
+  branchPaths?: BranchPathInfo[];
+  onConfigureBranchPath?: (key: BranchPathKey) => void;
+  activeBranchPath?: BranchPathKey;
+}) {
+  if (!hasClauses) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-3 py-4 text-center">
+        <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+          Add a condition above first — then you can set what runs on{" "}
+          <span className="font-medium text-foreground/80">Then</span> vs{" "}
+          <span className="font-medium text-foreground/80">Else</span>.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <BranchDecisionCard
+      readsAs={readsAs}
+      branchPaths={branchPaths}
+      onConfigureBranchPath={onConfigureBranchPath}
+      activeBranchPath={activeBranchPath}
+    />
+  );
+}
+
+function BranchDecisionCard({
+  readsAs,
+  branchPaths,
+  onConfigureBranchPath,
+  activeBranchPath,
+}: {
+  readsAs: string | null;
+  branchPaths?: BranchPathInfo[];
+  onConfigureBranchPath?: (key: BranchPathKey) => void;
+  activeBranchPath?: BranchPathKey;
+}) {
+  const truePath = branchPaths?.find((p) => p.key === "true");
+  const falsePath = branchPaths?.find((p) => p.key === "false");
+  const activePath =
+    activeBranchPath === "true" ? truePath : activeBranchPath === "false" ? falsePath : undefined;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
+        <span className="mt-0.5 shrink-0 rounded-md bg-foreground/10 px-2 py-0.5 text-[0.6875rem] font-bold uppercase tracking-wider text-foreground/70">
+          If
+        </span>
+        <p className="min-w-0 flex-1 text-[0.8125rem] leading-relaxed text-foreground">
+          {readsAs ?? "Condition is set"}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <PathChip
+          tone="true"
+          label="Then"
+          detail={truePath?.preview ?? "True path runs"}
+          empty={truePath?.isEmpty}
+          active={activeBranchPath === "true"}
+          onClick={
+            onConfigureBranchPath ? () => onConfigureBranchPath("true") : undefined
+          }
+        />
+        <PathChip
+          tone="false"
+          label="Else"
+          detail={falsePath?.preview ?? "False path runs"}
+          empty={falsePath?.isEmpty}
+          active={activeBranchPath === "false"}
+          onClick={
+            onConfigureBranchPath ? () => onConfigureBranchPath("false") : undefined
+          }
+        />
+      </div>
+      {activePath && activeBranchPath ? (
+        <BranchPathNestedPanel
+          pathKey={activeBranchPath}
+          path={activePath}
+          onConfigure={onConfigureBranchPath}
+        />
+      ) : onConfigureBranchPath ? (
+        <p className="text-center text-[0.6875rem] text-muted-foreground/80">
+          Click a path to add or edit its steps on the canvas
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function BranchPathNestedPanel({
+  pathKey,
+  path,
+  onConfigure,
+}: {
+  pathKey: BranchPathKey;
+  path: BranchPathInfo;
+  onConfigure?: (key: BranchPathKey) => void;
+}) {
+  const isTrue = pathKey === "true";
+  const label = isTrue ? "Then" : "Else";
+
+  return (
+    <div
+      className={cn(
+        "relative ml-2 space-y-2 border-l-2 py-1 pl-4",
+        isTrue ? "border-emerald-500/50" : "border-rose-500/50",
+      )}
+    >
+      <p
+        className={cn(
+          "text-[0.6875rem] font-semibold uppercase tracking-[0.08em]",
+          isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+        )}
+      >
+        {label} path
+      </p>
+      <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+        {path.isEmpty
+          ? "No steps yet — add the first step on the canvas lane below."
+          : path.stepCount === 1
+            ? `Runs: ${path.preview}`
+            : `${path.stepCount} steps — starts with ${path.preview}`}
+      </p>
+      {onConfigure ? (
+        <button
+          type="button"
+          onClick={() => onConfigure(pathKey)}
+          className={cn(
+            "text-[0.75rem] font-medium underline-offset-2 hover:underline",
+            isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {path.isEmpty ? "Add step on canvas" : "View on canvas"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Live decision preview ───────────────────────────────────────────────────
+
+function DecisionPreview({
+  variant,
+  readsAs,
+  hasClauses,
+  branchPaths,
+  onConfigureBranchPath,
+}: {
+  variant: ConditionBuilderVariant;
+  readsAs: string | null;
+  hasClauses: boolean;
+  branchPaths?: BranchPathInfo[];
+  onConfigureBranchPath?: (key: BranchPathKey) => void;
+}) {
+  if (variant === "branch") {
+    if (!hasClauses) return null;
+    return (
+      <BranchDecisionCard
+        readsAs={readsAs}
+        branchPaths={branchPaths}
+        onConfigureBranchPath={onConfigureBranchPath}
+      />
+    );
+  }
+
+  if (variant === "filter" || variant === "trigger") {
+    const title = variant === "trigger" ? "Only run when" : "Continue only when";
+    const empty =
+      variant === "trigger"
+        ? "Every matching event (no extra filter)"
+        : "Always continues (no filter)";
+
+    return (
+      <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          {title}
+        </p>
+        <p
+          className={cn(
+            "mt-1 text-[0.8125rem] leading-relaxed",
+            hasClauses && readsAs ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {hasClauses && readsAs ? readsAs : empty}
+        </p>
+      </div>
+    );
+  }
+
+  if (!readsAs) return null;
+
+  return (
+    <div className="rounded-xl border border-primary/15 bg-primary/[0.04] px-3.5 py-3">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        Summary
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{readsAs}</p>
+    </div>
+  );
+}
+
+function PathChip({
+  tone,
+  label,
+  detail,
+  empty,
+  active,
+  onClick,
+}: {
+  tone: "true" | "false";
+  label: string;
+  detail: string;
+  empty?: boolean;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const isTrue = tone === "true";
+  const interactive = !!onClick;
+
+  const body = (
+    <>
+      <span
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          isTrue ? "bg-emerald-500" : "bg-rose-500",
+        )}
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1 text-left">
+        <p
+          className={cn(
+            "text-[0.6875rem] font-semibold uppercase tracking-[0.08em]",
+            isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {label}
+        </p>
+        <p
+          className={cn(
+            "truncate text-[0.75rem]",
+            empty ? "text-muted-foreground/70 italic" : "text-muted-foreground",
+          )}
+        >
+          {detail}
+        </p>
+      </div>
+      <ArrowRight
+        className={cn(
+          "size-3.5 shrink-0 transition-transform",
+          interactive && "opacity-70 group-hover:translate-x-0.5 group-hover:opacity-100",
+          !interactive && "opacity-50",
+          isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+        )}
+        aria-hidden
+      />
+    </>
+  );
+
+  const className = cn(
+    "group flex w-full items-center gap-2 rounded-lg border px-2.5 py-2.5 text-left transition-colors",
+    isTrue
+      ? "border-emerald-500/25 bg-emerald-500/[0.06]"
+      : "border-rose-500/25 bg-rose-500/[0.06]",
+    active &&
+      (isTrue
+        ? "ring-2 ring-emerald-500/35 border-emerald-500/50 bg-emerald-500/10"
+        : "ring-2 ring-rose-500/35 border-rose-500/50 bg-rose-500/10"),
+    interactive &&
+      "cursor-pointer hover:border-opacity-60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    interactive &&
+      !active &&
+      (isTrue
+        ? "hover:bg-emerald-500/10 hover:border-emerald-500/40"
+        : "hover:bg-rose-500/10 hover:border-rose-500/40"),
+  );
+
+  if (interactive) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
+}
+
+// ─── Match-all / match-any ───────────────────────────────────────────────────
+
+function CombineBar({
   combine,
-  disabled,
   onChange,
 }: {
   combine: "all" | "any";
-  disabled: boolean;
   onChange: (combine: "all" | "any") => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+      <p className="text-[0.8125rem] text-muted-foreground">
+        {combine === "all" ? "All conditions must match" : "Any condition can match"}
+      </p>
       <div
         role="group"
         aria-label="How conditions combine"
-        className={cn(
-          "inline-flex rounded-lg border border-input bg-background p-0.5",
-          disabled && "opacity-60",
-        )}
+        className="inline-flex shrink-0 rounded-lg border border-input bg-muted/30 p-0.5"
       >
         {(["all", "any"] as const).map((opt) => (
           <button
             key={opt}
             type="button"
-            disabled={disabled}
             onClick={() => onChange(opt)}
             aria-pressed={combine === opt}
             className={cn(
-              "rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+              "rounded-md px-2.5 py-1 text-[0.75rem] font-medium transition-colors",
               combine === opt
-                ? "bg-secondary text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
-              disabled && "cursor-default hover:text-muted-foreground",
             )}
           >
-            Match {opt}
+            {opt === "all" ? "All" : "Any"}
           </button>
         ))}
       </div>
-      <p className="text-[0.8125rem] text-muted-foreground">
-        {disabled
-          ? "Add conditions below."
-          : combine === "all"
-            ? "Every condition must be true."
-            : "Any one condition can be true."}
-      </p>
     </div>
   );
 }
 
-// ─── AND / OR connector between rows ────────────────────────────────────────
-
-function Connector({ combine }: { combine: "all" | "any" }) {
+function LogicConnector({ combine }: { combine: "all" | "any" }) {
   return (
-    <div className="flex items-center gap-2 pl-3" aria-hidden>
-      <span className="h-3 w-px bg-border" />
-      <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <div className="flex items-center gap-2 py-1.5 pl-4" aria-hidden>
+      <span className="h-4 w-px bg-border" />
+      <span
+        className={cn(
+          "rounded-full px-2.5 py-0.5 text-[0.6875rem] font-bold uppercase tracking-[0.1em]",
+          combine === "all"
+            ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+            : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+        )}
+      >
         {combine === "all" ? "And" : "Or"}
       </span>
-      <span className="h-px flex-1 bg-border/60" />
+      <span className="h-px flex-1 bg-border/50" />
     </div>
   );
 }
 
-// ─── Clause row ─────────────────────────────────────────────────────────────
+// ─── Empty state ─────────────────────────────────────────────────────────────
 
-function ClauseRow({
+function EmptyConditions({
+  variant,
+  onAdd,
+}: {
+  variant: ConditionBuilderVariant;
+  onAdd: () => void;
+}) {
+  if (variant === "trigger") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onAdd}
+        className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        Add filter (optional)
+      </Button>
+    );
+  }
+
+  const hint =
+    variant === "branch"
+      ? "When this is true, the Then path runs. Otherwise the Else path runs."
+      : variant === "filter"
+        ? "No filter — workflow always continues here."
+        : "Add a condition to make this step selective.";
+
+  return (
+    <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-3 py-4 text-center">
+      <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>
+      <Button type="button" variant="outline" size="sm" onClick={onAdd} className="mt-3">
+        <Plus className="size-3.5" aria-hidden />
+        Add condition
+      </Button>
+    </div>
+  );
+}
+
+// ─── Clause card ─────────────────────────────────────────────────────────────
+
+function ClauseCard({
   index,
   clause,
   refs,
+  embedded,
   onChange,
   onRemove,
 }: {
   index: number;
   clause: Clause;
   refs: RefCandidate[];
+  embedded?: boolean;
   onChange: (patch: Partial<Clause>) => void;
   onRemove: () => void;
 }) {
   const grouped = useMemo(() => groupRefs(refs), [refs]);
   const ops = opsForType(clause.type);
   const needsValue = clause.op !== "empty" && clause.op !== "not_empty";
-  const fieldId = `cond-field-${index}`;
-  const opId = `cond-op-${index}`;
+
+  const field = refs.find((r) => r.path === clause.path);
+  const options = field?.options;
+  const chipsValue = needsValue && clause.op === "is_any_of" && !!options?.length;
 
   function pickField(path: string) {
     const ref = refs.find((r) => r.path === path);
     const type: RefType = ref?.type ?? "string";
-    // Keep the operator if still valid for the new type; else first valid op.
     const valid = opsForType(type).some((o) => o.id === clause.op);
-    onChange({
-      path,
-      type,
-      op: valid ? clause.op : (opsForType(type)[0]?.id ?? "=="),
-    });
+    const op = valid ? clause.op : (opsForType(type)[0]?.id ?? "==");
+    const patch: Partial<Clause> = { path, type, op };
+    if (op !== "is_any_of" && ref?.options?.length && !ref.options.includes(clause.value)) {
+      patch.value = ref.options[0];
+    }
+    onChange(patch);
   }
 
-  // Surface a legacy/custom path that isn't in the catalog refs.
   const pathInRefs = refs.some((r) => r.path === clause.path);
 
   const valueWarning =
     clause.op === "is_any_of" && !clause.values.some((v) => v.trim() !== "")
-      ? "Add at least one value, or this condition won't be saved."
+      ? "Pick at least one value"
       : null;
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/40 p-2.5">
-      <div className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <SelectShell
-            id={fieldId}
+    <div
+      className={cn(
+        "group relative",
+        embedded
+          ? "rounded-lg border border-border/50 bg-muted/20 py-2.5 pr-2 pl-3"
+          : "rounded-xl border border-border/70 bg-card/50 shadow-sm",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          embedded ? "mb-2" : "border-b border-border/40 px-3 py-2",
+        )}
+      >
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {embedded ? `Also when` : `Condition ${index + 1}`}
+        </span>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove condition"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-60 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      </div>
+
+      <div className={cn("space-y-3", embedded ? "" : "p-3")}>
+        <FieldBlock label="Field">
+          <WorkflowSelect
             ariaLabel="Field"
             value={clause.path}
             onChange={(e) => pickField(e.target.value)}
-            className="min-w-[10rem] flex-1"
+            className="w-full"
           >
             <option value="" disabled>
-              Choose data…
+              Choose a field…
             </option>
             {!pathInRefs && clause.path && (
               <option value={clause.path}>{clause.path}</option>
@@ -338,61 +752,121 @@ function ClauseRow({
                 ))}
               </optgroup>
             ))}
-          </SelectShell>
+          </WorkflowSelect>
+        </FieldBlock>
 
-          <SelectShell
-            id={opId}
-            ariaLabel="Operator"
-            value={clause.op}
-            onChange={(e) => onChange({ op: e.target.value as ClauseOp })}
-            className="min-w-[8rem]"
-          >
-            {ops.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </SelectShell>
+        <div className={cn("grid gap-3", needsValue && !chipsValue ? "grid-cols-2" : "grid-cols-1")}>
+          <FieldBlock label="Comparison">
+            <WorkflowSelect
+              ariaLabel="Operator"
+              value={clause.op}
+              onChange={(e) => onChange({ op: e.target.value as ClauseOp })}
+              className="w-full"
+            >
+              {ops.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </WorkflowSelect>
+          </FieldBlock>
 
-          {needsValue && (
-            <ValueInput
-              clause={clause}
-              onChange={onChange}
-              className="min-w-[9rem] flex-1"
-            />
+          {needsValue && !chipsValue && (
+            <FieldBlock label="Value">
+              <ValueInput
+                clause={clause}
+                options={options}
+                sample={field?.sample}
+                onChange={onChange}
+                className="w-full"
+              />
+            </FieldBlock>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label="Remove condition"
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </button>
-      </div>
+        {needsValue && chipsValue && (
+          <FieldBlock label="Values">
+            <ValueInput
+              clause={clause}
+              options={options}
+              sample={field?.sample}
+              onChange={onChange}
+            />
+          </FieldBlock>
+        )}
 
-      {valueWarning && (
-        <p className="mt-1.5 pl-0.5 text-[0.8125rem] text-amber-600 dark:text-amber-400">
-          {valueWarning}
-        </p>
-      )}
+        {valueWarning && (
+          <p className="text-[0.8125rem] text-amber-600 dark:text-amber-400">{valueWarning}</p>
+        )}
+      </div>
     </div>
+  );
+}
+
+function FieldBlock({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 
 function ValueInput({
   clause,
+  options,
+  sample,
   onChange,
   className,
 }: {
   clause: Clause;
+  options?: string[];
+  sample?: string;
   onChange: (patch: Partial<Clause>) => void;
   className?: string;
 }) {
   const base =
     "h-9 w-full rounded-lg border bg-background px-3 text-[0.8125rem] text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring";
+
+  if (clause.op === "is_any_of" && options?.length) {
+    const selected = new Set(clause.values.filter((v) => v.trim() !== ""));
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const on = selected.has(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              aria-pressed={on}
+              onClick={() => {
+                const next = new Set(selected);
+                if (on) next.delete(opt);
+                else next.add(opt);
+                onChange({ values: options.filter((o) => next.has(o)) });
+              }}
+              className={cn(
+                "rounded-lg border px-2.5 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                on
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-input bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {humanizeOption(opt)}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (clause.op === "is_any_of") {
     const hasValues = clause.values.some((v) => v.trim() !== "");
@@ -410,17 +884,36 @@ function ValueInput({
     );
   }
 
+  if (options?.length) {
+    const known = options.includes(clause.value);
+    return (
+      <WorkflowSelect
+        ariaLabel="Value"
+        value={clause.value || options[0]}
+        onChange={(e) => onChange({ value: e.target.value })}
+        className={className}
+      >
+        {!known && clause.value && <option value={clause.value}>{clause.value}</option>}
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {humanizeOption(o)}
+          </option>
+        ))}
+      </WorkflowSelect>
+    );
+  }
+
   if (clause.type === "boolean") {
     return (
-      <SelectShell
+      <WorkflowSelect
         ariaLabel="Value"
         value={clause.value || "true"}
         onChange={(e) => onChange({ value: e.target.value })}
         className={className}
       >
-        <option value="true">true</option>
-        <option value="false">false</option>
-      </SelectShell>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </WorkflowSelect>
     );
   }
 
@@ -429,101 +922,12 @@ function ValueInput({
       type={clause.type === "number" ? "number" : "text"}
       value={clause.value}
       onChange={(e) => onChange({ value: e.target.value })}
-      placeholder={clause.type === "number" ? "e.g. 5" : 'e.g. "urgent"'}
+      placeholder={
+        sample ? `e.g. ${sample}` : clause.type === "number" ? "e.g. 5" : "Enter a value"
+      }
       aria-label="Value"
       className={cn(base, "border-input", className)}
     />
   );
 }
 
-// ─── Custom-chevron select shell ────────────────────────────────────────────
-// Native <select> styled to match the rest of the builder, with a consistent
-// cross-browser chevron (per the form-control guidelines).
-
-function SelectShell({
-  id,
-  ariaLabel,
-  value,
-  onChange,
-  disabled,
-  className,
-  children,
-}: {
-  id?: string;
-  ariaLabel: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  disabled?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "inline-grid h-9 grid-cols-[1fr_--spacing(7)] items-center rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring",
-        disabled && "opacity-60",
-        className,
-      )}
-    >
-      <select
-        id={id}
-        aria-label={ariaLabel}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        className="col-span-full row-start-1 appearance-none truncate bg-transparent py-2 pr-7 pl-3 text-[0.8125rem] text-foreground focus:outline-none"
-      >
-        {children}
-      </select>
-      <svg
-        viewBox="0 0 8 5"
-        width="9"
-        height="6"
-        fill="none"
-        aria-hidden
-        className="pointer-events-none col-start-2 row-start-1 place-self-center text-muted-foreground"
-      >
-        <path d="M.5.5 4 4 7.5.5" stroke="currentColor" strokeWidth="1" />
-      </svg>
-    </div>
-  );
-}
-
-function ModeToggle({
-  mode,
-  setMode,
-}: {
-  mode: "simple" | "json";
-  setMode: (m: "simple" | "json") => void;
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-input bg-background p-0.5">
-      <button
-        type="button"
-        onClick={() => setMode("simple")}
-        aria-pressed={mode === "simple"}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[0.8125rem] font-medium",
-          mode === "simple"
-            ? "bg-secondary text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <Sparkles className="size-3.5" /> Builder
-      </button>
-      <button
-        type="button"
-        onClick={() => setMode("json")}
-        aria-pressed={mode === "json"}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[0.8125rem] font-medium",
-          mode === "json"
-            ? "bg-secondary text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <Braces className="size-3.5" /> JSON
-      </button>
-    </div>
-  );
-}

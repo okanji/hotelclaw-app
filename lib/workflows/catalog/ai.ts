@@ -1,5 +1,12 @@
 import { z } from "zod";
+import { explainTemplateValue } from "@/lib/workflows/explain-template";
 import { type StepCatalogEntry } from "./types";
+
+function explainInput(config: unknown, verb: string): string {
+  const c = config as { input?: string };
+  const src = explainTemplateValue(c.input);
+  return src ? `${verb} ${src}` : verb;
+}
 
 // All AI steps route through runBot() in lib/ai/run-bot.ts. The classify /
 // extract / branch_decision variants inject an emit_* tool with a Zod schema
@@ -13,13 +20,13 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: summarize text",
     description:
-      "Generate a concise summary of an input string. `length` controls verbosity (short ~25 words, medium ~75, long ~200). Returns {{steps.<id>.output.summary}}.",
+      "Writes a short summary of the text you give it. You choose the length — short, medium, or long. Later steps can use the summary.",
     examplePrompts: [
       "summarize the complaint",
       "give me a short summary of the message",
     ],
     outputSchema: z.object({ summary: z.string() }),
-    explain: () => "AI summarizes text",
+    explain: (config) => explainInput(config, "Summarize"),
   },
   {
     id: "ai.classify_into",
@@ -27,7 +34,7 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: classify into one of N labels",
     description:
-      "Classify an input into exactly one of the provided labels. Returns {{steps.<id>.output.label}} (one of `labels`), `confidence` (0-1), and `reasoning`. Routes downstream via control.branch_switch on the label.",
+      "Sorts the input into exactly one of the labels you list — great for routing (e.g. low / medium / high). Also returns how confident it was and why.",
     examplePrompts: [
       "classify the complaint severity (low/med/high)",
       "is this message urgent, normal, or spam?",
@@ -38,8 +45,12 @@ const actions: StepCatalogEntry[] = [
       reasoning: z.string(),
     }),
     explain: (config) => {
-      const c = config as { labels?: string[] };
-      return `AI classifies into ${(c.labels ?? []).join(" / ")}`;
+      const c = config as { labels?: string[]; input?: string };
+      const labels = (c.labels ?? []).join(" / ");
+      const src = explainTemplateValue(c.input);
+      return src
+        ? `Classify ${src} as ${labels || "…"}`
+        : `Classify into ${labels || "…"}`;
     },
   },
   {
@@ -48,7 +59,7 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: extract structured fields",
     description:
-      "Extract typed fields from an input string. Each entry in `fields` declares a name, type (string/number/boolean/string[]), description, and required flag. Returns the extracted object at {{steps.<id>.output.fields}}.",
+      "Pulls specific details out of the text into named fields you define — e.g. room number and issue from a complaint — so later steps can use them.",
     examplePrompts: [
       "extract the room number and issue from this complaint",
       "pull guest name and arrival date out of the message",
@@ -56,7 +67,7 @@ const actions: StepCatalogEntry[] = [
     outputSchema: z.object({
       fields: z.record(z.string(), z.unknown()),
     }),
-    explain: () => "AI extracts structured fields",
+    explain: (config) => explainInput(config, "Extract fields from"),
   },
   {
     id: "ai.draft_reply",
@@ -64,15 +75,17 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: draft a reply",
     description:
-      "Generate a reply text in a chosen tone (formal/warm/concise/apologetic/celebratory). Does NOT post the reply — chain a `post_message` step to actually send it. Returns {{steps.<id>.output.text}}.",
+      "Writes reply text in the tone you choose. It only drafts — add a “Post message” step after it to actually send the reply.",
     examplePrompts: [
       "draft a warm reply to the guest",
       "write an apology to the complainer",
     ],
     outputSchema: z.object({ text: z.string() }),
     explain: (config) => {
-      const c = config as { tone?: string };
-      return `AI drafts a ${c.tone ?? "warm"} reply`;
+      const c = config as { tone?: string; input?: string };
+      const src = explainTemplateValue(c.input);
+      const tone = c.tone ?? "warm";
+      return src ? `Draft a ${tone} reply to ${src}` : `Draft a ${tone} reply`;
     },
   },
   {
@@ -81,7 +94,7 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: branch on a yes/no decision",
     description:
-      "Ask the AI a yes/no question about the input. Routes downstream into the `branches.true` or `branches.false` step.",
+      "Ask the AI a yes/no question about the input. The workflow then takes the “yes” path or the “no” path based on its answer.",
     examplePrompts: [
       "is this a real complaint or just feedback?",
       "should the GM be paged for this?",
@@ -98,7 +111,7 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "AI: freeform agent",
     description:
-      "Full runBot() invocation with a custom persona, scoped tools, and up to `max_steps` tool turns. Use when classify/extract/draft don't fit — e.g. multi-step reasoning that pulls from gbrain.",
+      "A flexible AI step with its own instructions and access to tools. Reach for this when summarize, classify, or draft don't fit — e.g. multi-step reasoning that looks things up.",
     examplePrompts: [
       "investigate the issue and propose a fix",
       "look up similar past complaints and suggest an action",

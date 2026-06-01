@@ -22,11 +22,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   CheckCircle2,
-  ChevronRight,
-  GitBranch,
   GripVertical,
+  LayoutGrid,
   Plus,
-  Sparkles,
+  Search,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +36,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
+import {
+  SurfaceBadge,
+  SurfaceLabelBadge,
+  surfaceMeta,
+} from "@/components/workflows/builder/surface-badge";
 import {
   getStep,
   getTrigger,
@@ -47,6 +50,14 @@ import type { StepCatalogEntry, Surface } from "@/lib/workflows/catalog/types";
 import type { StepNode, StepType, WorkflowSpec } from "@/lib/workflows/spec";
 import { nextStepId, TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 import { NodeInspector } from "@/components/workflows/builder/canvas/node-inspector";
+import { panToBranchLane, panToWorkflowStep } from "@/components/workflows/builder/pan-to-target";
+import {
+  findStepBranchContext,
+  getBranchPaths,
+  type BranchPathKey,
+} from "@/lib/workflows/branch-paths";
+import type { BranchPathFocus } from "@/components/workflows/builder/branch-path-context-bar";
+import { triggerFilterChips } from "@/lib/workflows/trigger-filter";
 
 // Vertical, Zapier-style builder.
 //
@@ -81,22 +92,76 @@ interface SlotTarget {
   asEntry?: boolean;
 }
 
-const RAIL_W = "w-9"; // 36px column for the rail
-const LINE_LEFT = "left-[17px]"; // line sits in the middle of the rail column
+const RAIL_W = "w-8"; // 32px column for the rail
+const LINE_LEFT = "left-[15px]"; // line sits in the middle of the rail column
 
 // Line variants — each row draws its share of the continuous rail.
-const LINE_FULL = "absolute inset-y-0 w-px bg-border";
-const LINE_DOWN = "absolute top-1/2 bottom-0 w-px bg-border"; // trigger/branch chips
-const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-border"; // end marker
+const LINE_FULL = "absolute inset-y-0 w-px bg-border/60";
+const LINE_DOWN = "absolute top-1/2 bottom-0 w-px bg-border/60";
+const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-border/60";
 
 // Fixed card width. Cards hang off the left rail at a comfortable reading width
 // (rather than stretching the whole canvas), so a branch can place two of them
 // side by side. The lane width below is this + the nested rail + padding.
-const CARD_W = "w-[460px]";
-const LANE_W = "w-[500px]";
+const CARD_W = "w-[400px]";
+const LANE_W = "w-[420px]";
+/** Vertical breathing room between step cards, insert rows, and branch lanes. */
+const ROW_STACK_GAP = "gap-3";
+
+// Shared card styling — mirrors task-card.tsx (rounded-md, border-border/70, p-3).
+const FLOW_CARD = cn(
+  "relative rounded-md border border-border/70 bg-card p-3 text-left shadow-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+);
+
+function flowCardTone({
+  selected,
+  invalid,
+  unaccepted,
+  dragging,
+  className,
+}: {
+  selected?: boolean;
+  invalid?: boolean;
+  unaccepted?: boolean;
+  dragging?: boolean;
+  className?: string;
+}) {
+  return cn(
+    FLOW_CARD,
+    !selected && !invalid && "hover:border-foreground/15",
+    selected && "border-foreground/20 ring-1 ring-foreground/10",
+    invalid && "border-destructive/50 hover:border-destructive/70",
+    unaccepted && "ring-1 ring-amber-500/25",
+    dragging && "border-dashed border-foreground/20 bg-muted/20 opacity-40",
+    className,
+  );
+}
+
+function StepMeta({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[0.75rem] leading-4 text-muted-foreground">{children}</p>
+  );
+}
+
+function StepTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="line-clamp-2 text-[0.8125rem] font-medium leading-4.5 text-foreground">
+      {children}
+    </p>
+  );
+}
+
+function StepSummary({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1 line-clamp-2 text-[0.75rem] leading-4 text-muted-foreground">
+      {children}
+    </p>
+  );
+}
 
 export function TreeList({
   spec,
+  propertyId,
   isDurable,
   selectedStepId,
   onSelectStep,
@@ -105,6 +170,7 @@ export function TreeList({
   invalidById,
 }: {
   spec: WorkflowSpec;
+  propertyId?: string;
   isDurable: boolean;
   selectedStepId?: string;
   onSelectStep?: (stepId: string) => void;
@@ -115,13 +181,48 @@ export function TreeList({
 }) {
   const [paletteAt, setPaletteAt] = useState<SlotTarget | null>(null);
   const [inspectorOpenFor, setInspectorOpenFor] = useState<string | null>(null);
+  const [branchPathFocus, setBranchPathFocus] = useState<BranchPathFocus | null>(null);
 
   const selectStep = useCallback(
     (id: string) => {
       onSelectStep?.(id);
       setInspectorOpenFor(id);
+      const lane = findStepBranchContext(spec, id);
+      if (lane) {
+        setBranchPathFocus({ branchStepId: lane.branchStepId, key: lane.branchKey });
+      } else if (branchPathFocus?.branchStepId !== id) {
+        setBranchPathFocus(null);
+      }
     },
-    [onSelectStep],
+    [onSelectStep, spec, branchPathFocus?.branchStepId],
+  );
+
+  const configureBranchPath = useCallback(
+    (branchStepId: string, branchKey: BranchPathKey) => {
+      setBranchPathFocus({ branchStepId, key: branchKey });
+      setInspectorOpenFor(branchStepId);
+      onSelectStep?.(branchStepId);
+
+      const path = getBranchPaths(spec, branchStepId).find((p) => p.key === branchKey);
+      if (!path) return;
+
+      if (path.isEmpty) {
+        setPaletteAt({ parentId: branchStepId, branch: branchKey });
+        requestAnimationFrame(() => panToBranchLane(branchStepId, branchKey));
+        return;
+      }
+
+      const targetId = path.headStepId ?? path.targetStepId;
+      if (!targetId) return;
+      onSelectStep?.(targetId);
+      setInspectorOpenFor(targetId);
+      const lane = findStepBranchContext(spec, targetId);
+      if (lane) {
+        setBranchPathFocus({ branchStepId: lane.branchStepId, key: lane.branchKey });
+      }
+      requestAnimationFrame(() => panToWorkflowStep(targetId));
+    },
+    [spec, onSelectStep],
   );
 
   const insertStep = useCallback(
@@ -253,7 +354,7 @@ export function TreeList({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDraggingId(null)}
     >
-      <div className="w-fit">
+      <div className={cn("flex w-fit flex-col", ROW_STACK_GAP)}>
       <TriggerRow
         spec={spec}
         isDurable={isDurable}
@@ -273,6 +374,7 @@ export function TreeList({
         selectedStepId={selectedStepId}
         unacceptedIds={unacceptedIds}
         invalidById={invalidById}
+        branchPathFocus={branchPathFocus}
         onClickStep={selectStep}
         onDeleteStep={deleteStep}
         onOpenPalette={setPaletteAt}
@@ -286,9 +388,22 @@ export function TreeList({
 
       <NodeInspector
         spec={spec}
+        propertyId={propertyId}
         selectedNodeId={inspectorOpenFor}
-        onClose={() => setInspectorOpenFor(null)}
+        onClose={() => {
+          setInspectorOpenFor(null);
+          setBranchPathFocus(null);
+        }}
         onChange={(next) => onChange?.(next)}
+        onStepRenamed={setInspectorOpenFor}
+        onConfigureBranchPath={configureBranchPath}
+        branchPathFocus={branchPathFocus}
+        onOpenBranchStep={(branchStepId) => {
+          setInspectorOpenFor(branchStepId);
+          onSelectStep?.(branchStepId);
+          requestAnimationFrame(() => panToWorkflowStep(branchStepId));
+        }}
+        onOpenBranchPath={(branchStepId, branchKey) => configureBranchPath(branchStepId, branchKey)}
       />
       </div>
 
@@ -320,39 +435,19 @@ function StepDragCard({ step, ordinal }: { step: StepNode; ordinal: string }) {
 
   return (
     <div className="flex cursor-grabbing items-stretch gap-3">
-      <div className="flex w-9 shrink-0 items-center justify-center">
-        <span className="inline-flex size-7 items-center justify-center rounded-full bg-background text-[11px] font-semibold tabular-nums text-foreground ring-1 ring-black/10 dark:ring-white/10">
+      <div className="flex w-8 shrink-0 items-center justify-center">
+        <span className="inline-flex size-6 items-center justify-center rounded-full bg-background text-[0.625rem] font-medium tabular-nums text-muted-foreground ring-1 ring-black/10 dark:ring-white/10">
           {ordinal}
         </span>
       </div>
-      <div
-        className={cn(
-          "flex items-start gap-3 rounded-xl border border-primary/50 bg-card p-3.5 shadow-2xl ring-1 ring-primary/30 [transform:rotate(-1deg)]",
-          CARD_W,
-        )}
-      >
-        <SurfaceBadge surface={surface} className="mt-0.5 !size-8" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-[10px] font-semibold uppercase tracking-[0.08em]",
-                isBranch
-                  ? "text-amber-600 dark:text-amber-400"
-                  : isAi
-                    ? "text-primary"
-                    : "text-muted-foreground",
-              )}
-            >
-              {category}
-            </span>
-            {isAi && <Sparkles className="size-3 shrink-0 text-primary" aria-hidden />}
-            {isBranch && <GitBranch className="size-3 shrink-0 text-amber-500" aria-hidden />}
+      <div className={cn(flowCardTone({ className: CARD_W }), "shadow-lg ring-1 ring-black/10 dark:ring-white/10")}>
+        <StepMeta>{category}</StepMeta>
+        <div className="mt-2 flex items-start gap-2">
+          <SurfaceBadge surface={surface} className="mt-0.5 size-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <StepTitle>{step.label || meta?.label || step.type}</StepTitle>
+            <StepSummary>{summary}</StepSummary>
           </div>
-          <p className="mt-0.5 truncate text-[13.5px] font-semibold text-foreground">
-            {step.label || meta?.label || step.type}
-          </p>
-          <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{summary}</p>
         </div>
       </div>
     </div>
@@ -373,48 +468,57 @@ function TriggerRow({
   onEdit: () => void;
 }) {
   const trigger = getTrigger(spec.trigger.event_type);
+  const summary = trigger?.explain(spec.trigger.filter?.expr) ?? "";
+  const chips = useMemo(
+    () => triggerFilterChips(spec.trigger.event_type, spec.trigger.filter?.expr),
+    [spec.trigger.event_type, spec.trigger.filter?.expr],
+  );
+
   return (
     <div className="relative flex gap-3">
       <RailColumn lineVariant="down" chipPosition="center">
-        <RailChip variant="primary">T</RailChip>
+        <RailChip variant="trigger">T</RailChip>
       </RailColumn>
 
       <button
         type="button"
         onClick={onEdit}
         className={cn(
-          "group mb-1 flex items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all",
-          CARD_W,
-          selected
-            ? "border-primary ring-2 ring-primary/30"
-            : "border-primary/30 hover:border-primary/60",
+          flowCardTone({ selected, className: cn("group", CARD_W) }),
         )}
       >
-        <SurfaceBadge surface={trigger?.surface ?? "system"} className="mt-0.5 !size-8" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
-              When
-            </span>
-            <span
-              className={cn(
-                "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
-                isDurable
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-              )}
-            >
-              {isDurable ? "Runs durably" : "Runs instantly"}
-            </span>
-          </div>
-          <p className="mt-0.5 truncate text-[15px] font-semibold text-foreground">
-            {trigger?.label ?? spec.trigger.event_type}
-          </p>
-          <p className="mt-0.5 line-clamp-2 text-[12.5px] text-muted-foreground">
-            {trigger?.explain(spec.trigger.filter?.expr) ?? ""}
-          </p>
+        <div className="flex items-center justify-between gap-2">
+          <StepMeta>Trigger</StepMeta>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
+              isDurable
+                ? "bg-muted text-muted-foreground"
+                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+            )}
+          >
+            {isDurable ? "Runs durably" : "Runs instantly"}
+          </span>
         </div>
-        <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5" />
+        <div className="mt-2 flex items-start gap-2">
+          <SurfaceBadge surface={trigger?.surface ?? "system"} className="mt-0.5 size-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <StepTitle>{trigger?.label ?? spec.trigger.event_type}</StepTitle>
+            <StepSummary>{summary}</StepSummary>
+            {chips.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {chips.map((chip) => (
+                  <span
+                    key={chip}
+                    className="inline-flex max-w-full truncate rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.6875rem] font-medium text-foreground/80"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </button>
     </div>
   );
@@ -431,6 +535,7 @@ function Rail({
   selectedStepId,
   unacceptedIds,
   invalidById,
+  branchPathFocus,
   onClickStep,
   onDeleteStep,
   onOpenPalette,
@@ -443,6 +548,7 @@ function Rail({
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
   invalidById?: Map<string, string>;
+  branchPathFocus?: BranchPathFocus | null;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
@@ -475,7 +581,7 @@ function Rail({
 
   return (
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-      <div className="flex flex-col">
+      <div className={cn("flex flex-col", ROW_STACK_GAP)}>
         <InsertRow onClick={() => onOpenPalette(parentForInsert)} />
 
         {chain.map((step, i) => {
@@ -488,6 +594,7 @@ function Rail({
             return (
               <EndStepRow
                 key={step.id}
+                stepId={step.id}
                 selected={selectedStepId === step.id}
                 outcome={(step as { config?: { outcome?: string } }).config?.outcome}
                 onClick={() => onClickStep(step.id)}
@@ -501,6 +608,7 @@ function Rail({
                 step={step}
                 ordinal={ordinal}
                 selected={selectedStepId === step.id}
+                branchPathActive={branchPathFocus?.branchStepId === step.id}
                 unaccepted={unacceptedIds?.has(step.id)}
                 invalidReason={invalidById?.get(step.id)}
                 draggable={!isBranch}
@@ -517,6 +625,10 @@ function Rail({
                   selectedStepId={selectedStepId}
                   unacceptedIds={unacceptedIds}
                   invalidById={invalidById}
+                  branchPathFocus={branchPathFocus}
+                  activeBranchPath={
+                    branchPathFocus?.branchStepId === step.id ? branchPathFocus.key : undefined
+                  }
                   onClickStep={onClickStep}
                   onDeleteStep={onDeleteStep}
                   onOpenPalette={onOpenPalette}
@@ -572,20 +684,20 @@ function RailChip({
   variant = "default",
 }: {
   children: React.ReactNode;
-  variant?: "default" | "primary" | "muted" | "small";
+  variant?: "default" | "trigger" | "muted" | "small";
 }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border tabular-nums",
-        variant === "primary" &&
-          "size-7 border-primary bg-primary text-[10px] font-bold uppercase tracking-wide text-primary-foreground",
+        "inline-flex items-center justify-center rounded-full border border-border/70 bg-background tabular-nums",
+        variant === "trigger" &&
+          "size-6 text-[0.625rem] font-medium text-muted-foreground",
         variant === "default" &&
-          "size-7 border-border bg-background text-[11px] font-semibold text-foreground",
+          "size-6 text-[0.625rem] font-medium text-foreground",
         variant === "muted" &&
-          "size-7 border-border bg-background text-muted-foreground",
+          "size-6 text-muted-foreground",
         variant === "small" &&
-          "size-5 border-border bg-background text-[10px] font-medium text-muted-foreground",
+          "size-5 text-[0.625rem] font-medium text-muted-foreground",
       )}
     >
       {children}
@@ -596,21 +708,18 @@ function RailChip({
 // ─── Insert row ─────────────────────────────────────────────────────────────
 
 function InsertRow({ onClick }: { onClick: () => void }) {
-  // The rail keeps its continuous vertical line on the left, but the actual
-  // "+ Add step" affordance sits centered in the card column so it lands
-  // right between the cards visually (Zapier-style).
   return (
-    <div className="group/insert relative flex gap-3 py-1.5">
+    <div className="group/insert relative flex gap-3 py-0.5">
       <RailColumn lineVariant="full" chipPosition="center" />
       <div className={cn("flex items-center justify-center", CARD_W)}>
         <button
           type="button"
           onClick={onClick}
-          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-background/60 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground opacity-60 transition-all hover:border-primary hover:bg-background hover:text-primary hover:opacity-100 group-hover/insert:opacity-100"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.8125rem] font-medium text-muted-foreground opacity-70 transition-colors hover:bg-muted/40 hover:text-foreground group-hover/insert:opacity-100"
           aria-label="Add step"
           title="Add step"
         >
-          <Plus className="size-3" aria-hidden />
+          <Plus className="size-3.5" aria-hidden />
           Add step
         </button>
       </div>
@@ -624,6 +733,7 @@ function StepRow({
   step,
   ordinal,
   selected,
+  branchPathActive,
   unaccepted,
   invalidReason,
   draggable,
@@ -633,6 +743,8 @@ function StepRow({
   step: StepNode;
   ordinal: string;
   selected: boolean;
+  /** A Then/Else lane under this branch is focused. */
+  branchPathActive?: boolean;
   unaccepted?: boolean;
   /** First validation problem on this step, shown inline. */
   invalidReason?: string;
@@ -673,6 +785,7 @@ function StepRow({
     <div
       ref={sortable.setNodeRef}
       style={style}
+      data-workflow-step={step.id}
       {...activatorProps}
       className={cn(
         "group/row relative flex gap-3 touch-none",
@@ -681,11 +794,9 @@ function StepRow({
       )}
     >
       <RailColumn lineVariant="full" chipPosition="center">
-        {/* Chip — visual only. Drag is captured at the row level. The grip
-         * icon appears on row hover to advertise the affordance. */}
         <div
           aria-hidden
-          className="relative inline-flex size-7 items-center justify-center rounded-full border border-border bg-background text-[11px] font-semibold tabular-nums text-foreground"
+          className="relative inline-flex size-6 items-center justify-center rounded-full border border-border/70 bg-background text-[0.625rem] font-medium tabular-nums text-foreground"
         >
           <span
             className={cn(
@@ -696,7 +807,7 @@ function StepRow({
             {ordinal}
           </span>
           {draggable && (
-            <GripVertical className="absolute size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100" />
+            <GripVertical className="absolute size-3 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100" />
           )}
         </div>
       </RailColumn>
@@ -712,50 +823,21 @@ function StepRow({
           }
         }}
         className={cn(
-          "group relative mb-1 flex items-start gap-3 rounded-xl border bg-card p-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          CARD_W,
-          selected
-            ? "border-primary ring-2 ring-primary/30"
-            : invalidReason
-              ? "border-destructive/60 hover:border-destructive"
-              : "border-border/60 hover:border-foreground/30",
-          unaccepted && "ring-2 ring-[var(--chart-2)]/60",
-          sortable.isDragging && "border-dashed border-primary/40 bg-muted/20",
+          flowCardTone({
+            selected,
+            invalid: Boolean(invalidReason),
+            unaccepted,
+            dragging: sortable.isDragging,
+            className: cn(
+              "group relative",
+              CARD_W,
+              branchPathActive && !selected && "ring-2 ring-primary/25",
+            ),
+          }),
         )}
       >
-        <SurfaceBadge surface={surface} className="mt-0.5 !size-8" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-[10px] font-semibold uppercase tracking-[0.08em]",
-                isBranch
-                  ? "text-amber-600 dark:text-amber-400"
-                  : isAi
-                    ? "text-primary"
-                    : "text-muted-foreground",
-              )}
-            >
-              {category}
-            </span>
-            {isAi && <Sparkles className="size-3 text-primary" aria-hidden />}
-            {isBranch && (
-              <GitBranch className="size-3 text-amber-500" aria-hidden />
-            )}
-          </div>
-          <p className="mt-0.5 truncate text-[13.5px] font-semibold text-foreground">
-            {step.label || meta?.label || step.type}
-          </p>
-          <p className="mt-0.5 line-clamp-2 text-[12.5px] text-muted-foreground">
-            {summary}
-          </p>
-          {invalidReason && (
-            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-destructive">
-              <span aria-hidden>▲</span> {invalidReason}
-            </p>
-          )}
-        </div>
-        <div className="mt-1 flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex items-start justify-between gap-2">
+          <StepMeta>{category}</StepMeta>
           <button
             type="button"
             onClick={(e) => {
@@ -764,11 +846,22 @@ function StepRow({
             }}
             title="Remove step"
             aria-label="Remove step"
-            className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
           >
             <Trash2 className="size-3.5" aria-hidden />
           </button>
-          <ChevronRight className="size-4 text-muted-foreground/70" />
+        </div>
+        <div className="mt-2 flex items-start gap-2">
+          <SurfaceBadge surface={surface} className="mt-0.5 size-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <StepTitle>{step.label || meta?.label || step.type}</StepTitle>
+            <StepSummary>{summary}</StepSummary>
+            {invalidReason ? (
+              <p className="mt-1.5 flex items-center gap-1 text-[0.75rem] font-medium text-destructive">
+                <span aria-hidden>▲</span> {invalidReason}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -785,6 +878,8 @@ function BranchLanes({
   selectedStepId,
   unacceptedIds,
   invalidById,
+  branchPathFocus,
+  activeBranchPath,
   onClickStep,
   onDeleteStep,
   onOpenPalette,
@@ -796,6 +891,8 @@ function BranchLanes({
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
   invalidById?: Map<string, string>;
+  branchPathFocus?: BranchPathFocus | null;
+  activeBranchPath?: BranchPathKey;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
@@ -812,45 +909,57 @@ function BranchLanes({
   });
 
   return (
-    <div className="relative flex gap-3">
+    <div className="relative flex gap-3 py-1">
       {/* Rail column carries the main vertical line down past the branch */}
       <RailColumn lineVariant="down" chipPosition="top">
         <span aria-hidden />
       </RailColumn>
 
-      <div className="w-fit">
-        <BranchFork lanes={ordered.length} />
-        <div className="flex gap-3">
-          {ordered.map((label) => {
-            const target = branches[label];
-            return (
-              <div
-                key={label}
-                className={cn(
-                  "shrink-0 overflow-hidden rounded-xl border bg-muted/[0.04]",
-                  LANE_W,
-                  laneBorder(label),
-                )}
-              >
-                <BranchHeader label={label} />
-                <div className="p-2">
-                  <Rail
-                    spec={spec}
-                    startId={target}
-                    parentForInsert={{ parentId: step.id, branch: label }}
-                    depth={depth + 1}
-                    ordinalMap={ordinalMap}
-                    selectedStepId={selectedStepId}
-                    unacceptedIds={unacceptedIds}
-                    invalidById={invalidById}
-                    onClickStep={onClickStep}
-                    onDeleteStep={onDeleteStep}
-                    onOpenPalette={onOpenPalette}
-                  />
+      <div className={CARD_W}>
+        <div className="relative left-1/2 flex w-max -translate-x-1/2 flex-col">
+          <BranchFork lanes={ordered.length} />
+          {/* items-start so an empty lane stays compact instead of stretching to
+              match a filled sibling's height. */}
+          <div className="flex items-start gap-4">
+            {ordered.map((label) => {
+              const target = branches[label];
+              const laneActive = activeBranchPath === label;
+              return (
+                <div
+                  key={label}
+                  data-branch-lane={`${step.id}:${label}`}
+                  data-branch-lane-active={laneActive ? "" : undefined}
+                  className={cn(
+                    "shrink-0 overflow-hidden rounded-md border bg-muted/10 transition-shadow",
+                    LANE_W,
+                    laneActive
+                      ? label === "true"
+                        ? "border-emerald-500/45 bg-emerald-500/[0.04] ring-2 ring-emerald-500/20"
+                        : "border-rose-500/45 bg-rose-500/[0.04] ring-2 ring-rose-500/20"
+                      : "border-border/50",
+                  )}
+                >
+                  <BranchHeader label={label} active={laneActive} />
+                  <div className="p-2">
+                    <Rail
+                      spec={spec}
+                      startId={target}
+                      parentForInsert={{ parentId: step.id, branch: label }}
+                      depth={depth + 1}
+                      ordinalMap={ordinalMap}
+                      selectedStepId={selectedStepId}
+                      unacceptedIds={unacceptedIds}
+                      invalidById={invalidById}
+                      branchPathFocus={branchPathFocus}
+                      onClickStep={onClickStep}
+                      onDeleteStep={onDeleteStep}
+                      onOpenPalette={onOpenPalette}
+                    />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -863,31 +972,25 @@ function BranchLanes({
 // connector never lies about where paths go.
 function BranchFork({ lanes }: { lanes: number }) {
   if (lanes !== 2) {
-    return <div className="mx-auto h-3.5 w-px bg-border" aria-hidden />;
+    return <div className="mx-auto h-3 w-px bg-border/60" aria-hidden />;
   }
   return (
-    <div className="relative h-4" aria-hidden>
-      <span className="absolute top-0 left-1/2 h-2 w-px -translate-x-1/2 bg-border" />
-      <span className="absolute top-2 right-1/4 left-1/4 h-px bg-border" />
-      <span className="absolute top-2 left-1/4 h-2 w-px bg-border" />
-      <span className="absolute top-2 right-1/4 h-2 w-px bg-border" />
+    <div className="relative h-3.5 w-full" aria-hidden>
+      <span className="absolute top-0 left-1/2 h-1.5 w-px -translate-x-1/2 bg-border/60" />
+      <span className="absolute top-1.5 right-1/4 left-1/4 h-px bg-border/60" />
+      <span className="absolute top-1.5 left-1/4 h-1.5 w-px bg-border/60" />
+      <span className="absolute top-1.5 right-1/4 h-1.5 w-px bg-border/60" />
     </div>
   );
 }
 
-function laneBorder(label: string): string {
-  if (label === "true") return "border-emerald-500/25";
-  if (label === "false") return "border-rose-500/25";
-  return "border-border/60";
-}
-
-function BranchHeader({ label }: { label: string }) {
-  const tone =
+function BranchHeader({ label, active }: { label: string; active?: boolean }) {
+  const dot =
     label === "true"
-      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      ? "bg-emerald-500"
       : label === "false"
-        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-        : "bg-muted/40 text-muted-foreground";
+        ? "bg-rose-500"
+        : "bg-muted-foreground";
 
   const text =
     label === "true"
@@ -899,9 +1002,21 @@ function BranchHeader({ label }: { label: string }) {
           : label;
 
   return (
-    <div className={cn("flex items-center gap-1.5 border-b border-border/40 px-3 py-2", tone)}>
-      <GitBranch className="size-3 shrink-0" aria-hidden />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.08em]">{text}</span>
+    <div
+      className={cn(
+        "flex items-center gap-2 border-b px-3 py-2",
+        active ? "border-border/60 bg-background/40" : "border-border/40",
+      )}
+    >
+      <span className={cn("size-1.5 shrink-0 rounded-full", dot)} aria-hidden />
+      <span
+        className={cn(
+          "text-[0.75rem] font-medium",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {text}
+      </span>
     </div>
   );
 }
@@ -910,16 +1025,14 @@ function BranchHeader({ label }: { label: string }) {
 
 function EndRow() {
   return (
-    <div className="relative flex gap-3 py-2">
+    <div className="relative flex gap-3 py-1">
       <RailColumn lineVariant="up" chipPosition="center">
-        <RailChip variant="muted">
-          <CheckCircle2 className="size-3.5" aria-hidden />
+        <RailChip variant="small">
+          <CheckCircle2 className="size-3" aria-hidden />
         </RailChip>
       </RailColumn>
-      <div className="flex flex-1 items-center">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          End
-        </span>
+      <div className={cn("flex items-center", CARD_W)}>
+        <span className="text-[0.75rem] font-medium text-muted-foreground">End</span>
       </div>
     </div>
   );
@@ -929,34 +1042,36 @@ function EndRow() {
 // its outcome label, but not deletable from here — a branch lane points at it,
 // and dropping it would dangle the branch. Visually mirrors EndRow.
 function EndStepRow({
+  stepId,
   selected,
   outcome,
   onClick,
 }: {
+  stepId: string;
   selected: boolean;
   outcome?: string;
   onClick: () => void;
 }) {
   return (
-    <div className="relative flex gap-3 py-1">
+    <div className="relative flex gap-3 py-1" data-workflow-step={stepId}>
       <RailColumn lineVariant="up" chipPosition="center">
-        <RailChip variant="muted">
-          <CheckCircle2 className="size-3.5" aria-hidden />
+        <RailChip variant="small">
+          <CheckCircle2 className="size-3" aria-hidden />
         </RailChip>
       </RailColumn>
       <button
         type="button"
         onClick={onClick}
         className={cn(
-          "group flex flex-1 items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border/60 hover:bg-muted/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          selected && "border-border/60 bg-muted/[0.06]",
+          "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1 text-left transition-colors hover:border-border/60 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          CARD_W,
+          selected && "border-border/60 bg-muted/20",
         )}
       >
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          End
-        </span>
+        <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="text-[0.75rem] font-medium text-muted-foreground">End</span>
         {outcome ? (
-          <span className="rounded-sm bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[0.6875rem] text-muted-foreground">
             {outcome}
           </span>
         ) : null}
@@ -970,10 +1085,10 @@ function EmptyLane({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={onAdd}
-      className="my-1 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border bg-background/40 px-3 py-3 text-[12px] text-muted-foreground hover:border-primary hover:text-primary"
+      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-3 text-[0.8125rem] font-medium text-muted-foreground transition-colors hover:border-foreground/15 hover:bg-muted/20 hover:text-foreground"
     >
       <Plus className="size-3.5" aria-hidden />
-      Add the first step in this branch
+      Add the first step
     </button>
   );
 }
@@ -1018,9 +1133,33 @@ const COMMON_STEP_IDS: StepType[] = [
   "control.delay",
 ];
 
-interface PaletteSection {
+type PaletteCategory = "common" | Surface;
+
+interface PaletteNavItem {
+  id: PaletteCategory;
   title: string;
-  items: StepCatalogEntry[];
+  count: number;
+}
+
+function getCommonSteps(): StepCatalogEntry[] {
+  const byId = new Map(STEPS.map((s) => [s.id, s]));
+  return COMMON_STEP_IDS.map((id) => byId.get(id)).filter(
+    (s): s is StepCatalogEntry => Boolean(s),
+  );
+}
+
+function searchSteps(query: string): StepCatalogEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const scored = STEPS.map((s) => {
+    const hay = `${s.label} ${s.id} ${s.description} ${s.examplePrompts.join(" ")}`.toLowerCase();
+    if (!hay.includes(q)) return null;
+    const label = s.label.toLowerCase();
+    const rank = label.startsWith(q) ? 0 : label.includes(q) ? 1 : 2;
+    return { s, rank };
+  }).filter((x): x is { s: StepCatalogEntry; rank: number } => x !== null);
+  scored.sort((a, b) => a.rank - b.rank);
+  return scored.map((x) => x.s);
 }
 
 function PaletteDialog({
@@ -1033,120 +1172,151 @@ function PaletteDialog({
   onPick: (type: StepType) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<PaletteCategory>("common");
   const [activeIndex, setActiveIndex] = useState(0);
   // Only auto-scroll the active row into view when it was moved by the keyboard.
   // Hover-driven changes must never scroll, or the scroll shifts rows under the
   // cursor and triggers another mousemove → active change → scroll feedback loop.
-  const keyboardNav = useRef(false);
+  // State (not a ref) so reading it during render to gate the row effect is safe.
+  const [keyboardNav, setKeyboardNav] = useState(false);
+
+  const isSearching = query.trim().length > 0;
 
   useEffect(() => {
     if (open) {
       setQuery("");
+      setActiveCategory("common");
       setActiveIndex(0);
-      keyboardNav.current = false;
+      setKeyboardNav(false);
     }
   }, [open]);
 
-  // Sections shown in the list. No query → Common + each surface group.
-  // Query → a single ranked "Matches" section (label/id/description/prompts).
-  const sections = useMemo<PaletteSection[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (q) {
-      const scored = STEPS.map((s) => {
-        const hay = `${s.label} ${s.id} ${s.description} ${s.examplePrompts.join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return null;
-        // Rank: label prefix > label includes > other.
-        const label = s.label.toLowerCase();
-        const rank = label.startsWith(q) ? 0 : label.includes(q) ? 1 : 2;
-        return { s, rank };
-      }).filter((x): x is { s: StepCatalogEntry; rank: number } => x !== null);
-      scored.sort((a, b) => a.rank - b.rank);
-      return scored.length ? [{ title: "Matches", items: scored.map((x) => x.s) }] : [];
-    }
-    const byId = new Map(STEPS.map((s) => [s.id, s]));
-    const common = COMMON_STEP_IDS.map((id) => byId.get(id)).filter(
-      (s): s is StepCatalogEntry => Boolean(s),
-    );
-    const groups: PaletteSection[] = SURFACE_ORDER.map((surface) => ({
+  const navItems = useMemo<PaletteNavItem[]>(() => {
+    const commonCount = getCommonSteps().length;
+    const surfaces = SURFACE_ORDER.map((surface) => ({
+      id: surface,
       title: SURFACE_DISPLAY[surface],
-      items: STEPS.filter((s) => s.surface === surface),
-    })).filter((g) => g.items.length > 0);
-    return [{ title: "Common", items: common }, ...groups];
-  }, [query]);
+      count: STEPS.filter((s) => s.surface === surface).length,
+    })).filter((item) => item.count > 0);
+    return [{ id: "common", title: "Common", count: commonCount }, ...surfaces];
+  }, []);
 
-  // Flat list of items in display order for arrow-key navigation. Clamp the
-  // active index at render time (results shrink as the query narrows) rather
-  // than syncing it through an effect.
-  const flat = useMemo(() => sections.flatMap((sec) => sec.items), [sections]);
-  const safeIndex = flat.length === 0 ? 0 : Math.min(activeIndex, flat.length - 1);
+  const activeNav = navItems.find((item) => item.id === activeCategory) ?? navItems[0];
+
+  const visibleItems = useMemo(() => {
+    if (isSearching) return searchSteps(query);
+    if (activeCategory === "common") return getCommonSteps();
+    return STEPS.filter((s) => s.surface === activeCategory);
+  }, [query, activeCategory, isSearching]);
+
+  const safeIndex =
+    visibleItems.length === 0 ? 0 : Math.min(activeIndex, visibleItems.length - 1);
+
+  function selectCategory(category: PaletteCategory) {
+    setActiveCategory(category);
+    setActiveIndex(0);
+    setKeyboardNav(false);
+  }
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      keyboardNav.current = true;
-      setActiveIndex(Math.min(safeIndex + 1, flat.length - 1));
+      setKeyboardNav(true);
+      setActiveIndex(Math.min(safeIndex + 1, visibleItems.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      keyboardNav.current = true;
+      setKeyboardNav(true);
       setActiveIndex(Math.max(safeIndex - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const pick = flat[safeIndex];
+      const pick = visibleItems[safeIndex];
       if (pick) onPick(pick.id);
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[80vh] w-full max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:!max-w-2xl">
-        <DialogHeader className="border-b p-0">
+      <DialogContent className="flex h-[min(540px,80vh)] w-full max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:w-[48rem] sm:max-w-[48rem]">
+        <DialogHeader className="shrink-0 border-b p-0">
           <DialogTitle className="sr-only">Add a step</DialogTitle>
-          <Input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setActiveIndex(0);
-            }}
-            onKeyDown={onKeyDown}
-            placeholder="Search steps — try “notify”, “summarize”, “if”…"
-            autoFocus
-            className="h-12 rounded-none border-0 px-4 text-[14px] focus-visible:ring-0"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActiveIndex(0);
+                setKeyboardNav(false);
+              }}
+              onKeyDown={onKeyDown}
+              placeholder="Search steps — try “notify”, “summarize”, “if”…"
+              autoFocus
+              className="h-14 rounded-none border-0 pl-11 pr-4 text-base focus-visible:ring-0"
+            />
+          </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-1.5">
-          {flat.length === 0 ? (
-            <p className="px-3 py-12 text-center text-[12.5px] text-muted-foreground">
-              No steps match “{query}”.
-            </p>
-          ) : (
-            sections.map((sec) => (
-              <section key={sec.title} className="mb-1.5 last:mb-0">
-                <h3 className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  {sec.title}
-                </h3>
-                {sec.items.map((entry) => {
-                  const idx = flat.indexOf(entry);
-                  return (
-                    <PaletteRow
-                      key={`${sec.title}:${entry.id}`}
-                      entry={entry}
-                      active={idx === safeIndex}
-                      scrollOnActive={keyboardNav.current}
-                      onHover={() => {
-                        keyboardNav.current = false;
-                        setActiveIndex(idx);
-                      }}
-                      onClick={() => onPick(entry.id)}
-                    />
-                  );
-                })}
-              </section>
-            ))
-          )}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <nav
+            aria-label="Step categories"
+            aria-hidden={isSearching}
+            className={cn(
+              "flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto border-r bg-muted/20 p-2",
+              isSearching && "invisible pointer-events-none",
+            )}
+          >
+            {navItems.map((item) => (
+              <PaletteNavButton
+                key={item.id}
+                item={item}
+                active={activeCategory === item.id}
+                onClick={() => selectCategory(item.id)}
+              />
+            ))}
+          </nav>
+
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex h-14 shrink-0 flex-col justify-center border-b px-4">
+              <p className="truncate text-base font-medium text-foreground">
+                {isSearching ? "Search results" : activeNav?.title ?? "Steps"}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">
+                {isSearching
+                  ? visibleItems.length === 0
+                    ? `No matches for “${query.trim()}”`
+                    : `${visibleItems.length} match${visibleItems.length === 1 ? "" : "es"}`
+                  : `${visibleItems.length} step${visibleItems.length === 1 ? "" : "s"}`}
+              </p>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {visibleItems.length === 0 ? (
+                <p className="px-3 py-12 text-center text-sm text-muted-foreground">
+                  {isSearching
+                    ? `No steps match “${query.trim()}”.`
+                    : "No steps in this category."}
+                </p>
+              ) : (
+                visibleItems.map((entry, idx) => (
+                  <PaletteRow
+                    key={entry.id}
+                    entry={entry}
+                    active={idx === safeIndex}
+                    showSurface={isSearching || activeCategory === "common"}
+                    scrollOnActive={keyboardNav}
+                    onHover={() => {
+                      setKeyboardNav(false);
+                      setActiveIndex(idx);
+                    }}
+                    onClick={() => onPick(entry.id)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 border-t px-3 py-1.5 text-[10.5px] text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
           <span><kbd className="font-sans">↑↓</kbd> navigate</span>
           <span><kbd className="font-sans">↵</kbd> add</span>
           <span><kbd className="font-sans">esc</kbd> close</span>
@@ -1156,15 +1326,58 @@ function PaletteDialog({
   );
 }
 
+function PaletteNavButton({
+  item,
+  active,
+  onClick,
+}: {
+  item: PaletteNavItem;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon =
+    item.id === "common" ? LayoutGrid : surfaceMeta(item.id as Surface).icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
+        active
+          ? "bg-secondary text-foreground"
+          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-[4px]",
+          item.id === "common"
+            ? "bg-foreground/[0.08] text-foreground/80"
+            : surfaceMeta(item.id as Surface).tone,
+        )}
+      >
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
+        {item.count}
+      </span>
+    </button>
+  );
+}
+
 function PaletteRow({
   entry,
   active,
+  showSurface,
   scrollOnActive,
   onHover,
   onClick,
 }: {
   entry: StepCatalogEntry;
   active: boolean;
+  showSurface: boolean;
   scrollOnActive: boolean;
   onHover: () => void;
   onClick: () => void;
@@ -1181,18 +1394,20 @@ function PaletteRow({
       onClick={onClick}
       onMouseMove={onHover}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors",
+        "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors",
         active ? "bg-secondary" : "hover:bg-secondary/60",
       )}
     >
-      <SurfaceBadge surface={entry.surface} className="!size-7 shrink-0" />
+      <SurfaceBadge surface={entry.surface} className="!size-8 shrink-0" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-foreground">{entry.label}</p>
-        <p className="truncate text-[11.5px] text-muted-foreground">{entry.description}</p>
+        <p className="truncate text-base font-medium text-foreground">{entry.label}</p>
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+          {entry.description}
+        </p>
       </div>
-      <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/60">
-        {SURFACE_DISPLAY[entry.surface]}
-      </span>
+      {showSurface ? (
+        <SurfaceLabelBadge surface={entry.surface} className="shrink-0" />
+      ) : null}
     </button>
   );
 }

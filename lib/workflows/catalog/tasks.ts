@@ -1,5 +1,14 @@
 import { z } from "zod";
+import { explainTriggerFilter } from "@/lib/workflows/trigger-filter";
 import { type StepCatalogEntry, type TriggerCatalogEntry } from "./types";
+
+function explainTaskTrigger(
+  eventType: string,
+  defaultPhrase: string,
+  filter?: unknown,
+): string {
+  return explainTriggerFilter(eventType, filter, defaultPhrase);
+}
 
 // ─── Triggers ────────────────────────────────────────────────────────────────
 
@@ -10,14 +19,14 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Task created",
     description:
-      "Fires when any task is created in this property. Filter by label, project, priority, or assignee to scope it. Trigger payload exposes the new task at {{trigger.new}}.",
+      "Fires when any task is created in this property. Narrow it by label, project, priority, or assignee. The new task's details are available to later steps.",
     examplePrompts: [
       "when a task is created with label 'guest-complaint'",
       "every time someone creates a high-priority task",
       "whenever a new maintenance task appears",
     ],
     outputSchema: z.object({ new: z.record(z.string(), z.unknown()) }),
-    explain: () => "When a task is created",
+    explain: (filter) => explainTaskTrigger("task.created", "When a task is created", filter),
   },
   {
     id: "task.status_changed",
@@ -25,7 +34,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Task status changed",
     description:
-      "Fires when a task's status changes. Payload includes {{trigger.from}} and {{trigger.to}} alongside the full {{trigger.new}} row. Common filters: to 'blocked', to 'done'.",
+      "Fires when a task's status changes. You get the old and new status plus the full task — handy for reacting when something moves to ‘blocked’ or ‘done’.",
     examplePrompts: [
       "when a task is moved to blocked",
       "every time a task is completed",
@@ -36,7 +45,8 @@ const triggers: TriggerCatalogEntry[] = [
       to: z.string(),
       new: z.record(z.string(), z.unknown()),
     }),
-    explain: () => "When a task changes status",
+    explain: (filter) =>
+      explainTaskTrigger("task.status_changed", "When a task changes status", filter),
   },
   {
     id: "task.assigned",
@@ -44,7 +54,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Task assigned",
     description:
-      "Fires when a task is assigned to (or reassigned to) someone. Payload has {{trigger.from}}, {{trigger.to}} (user ids) and the task at {{trigger.new}}.",
+      "Fires when a task is assigned or reassigned. You get who it moved from and to, along with the task itself.",
     examplePrompts: [
       "when a task is assigned to me",
       "whenever a task gets reassigned",
@@ -54,7 +64,7 @@ const triggers: TriggerCatalogEntry[] = [
       to: z.string().nullable(),
       new: z.record(z.string(), z.unknown()),
     }),
-    explain: () => "When a task is assigned",
+    explain: (filter) => explainTaskTrigger("task.assigned", "When a task is assigned", filter),
   },
   {
     id: "task.overdue",
@@ -68,7 +78,7 @@ const triggers: TriggerCatalogEntry[] = [
       "every time a task passes its due date",
     ],
     outputSchema: z.object({ new: z.record(z.string(), z.unknown()) }),
-    explain: () => "When a task is overdue",
+    explain: (filter) => explainTaskTrigger("task.overdue", "When a task is overdue", filter),
   },
   {
     id: "task.label_added",
@@ -76,7 +86,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Label added to task",
     description:
-      "Fires when one or more labels are added to a task. Payload exposes {{trigger.added_labels}} (array) and the full task. Filter to a specific label using a predicate.",
+      "Fires when labels are added to a task. You get which labels were added plus the full task (title, description, priority, etc.) for later steps.",
     examplePrompts: [
       "when the 'vip' label is added to a task",
       "whenever a task gets labeled 'urgent'",
@@ -85,7 +95,8 @@ const triggers: TriggerCatalogEntry[] = [
       added_labels: z.array(z.string()),
       new: z.record(z.string(), z.unknown()),
     }),
-    explain: () => "When a label is added to a task",
+    explain: (filter) =>
+      explainTaskTrigger("task.label_added", "When a label is added to a task", filter),
   },
 ];
 
@@ -98,7 +109,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Create task",
     description:
-      "Create a new task. Title is required; everything else is optional. Use {{...}} refs to pull values from upstream steps. Returns the created task at {{steps.<id>.output.task}}.",
+      "Creates a new task. Only the title is required; everything else is optional, and you can fill fields with data from earlier steps. Later steps can use the created task.",
     examplePrompts: [
       "create a task titled 'follow up with guest'",
       "make a new task and assign it to the manager",
@@ -115,7 +126,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Update task",
     description:
-      "Patch fields on an existing task. Pass task_id (required) plus any subset of fields. Returns the updated task.",
+      "Changes fields on an existing task — status, priority, assignee, and more. Pick the task, then set whatever you want to change.",
     examplePrompts: [
       "update the task status to in_progress",
       "set the priority to urgent",
@@ -129,7 +140,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Assign task",
     description:
-      "Reassign a task to a user. Pass task_id and assignee_id (both required, both accept {{...}} refs).",
+      "Assigns a task to someone. Pick the task and who it should go to — both can come from earlier steps.",
     examplePrompts: ["assign this task to the manager", "reassign to Eli"],
     outputSchema: z.object({ task: z.record(z.string(), z.unknown()) }),
     explain: () => "Assign task to a user",

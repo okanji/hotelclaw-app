@@ -31,17 +31,44 @@ export interface RefCandidate {
   type: RefType;
   /** Optional example value to show beside the label. */
   sample?: string;
+  /**
+   * Known set of values this field can take (enum-like). When present, the
+   * condition builder offers these as a dropdown / chips instead of a free-text
+   * box, so users never have to type a magic string. Kept as raw tokens —
+   * humanised for display at the edge.
+   */
+  options?: string[];
 }
 
+// Canonical enum value lists, mirrored from lib/db/types.ts (TaskStatus /
+// TaskPriority). Those are type-only, so we keep runtime arrays here for the
+// field catalog. Update both together if the domain enums change.
+const TASK_STATUS_OPTIONS = ["todo", "in_progress", "blocked", "done"];
+const TASK_PRIORITY_OPTIONS = ["none", "low", "medium", "high", "urgent"];
+
 /** Curated, well-documented trigger fields by event-type prefix. */
-const TRIGGER_FIELDS: Record<string, Array<{ path: string; type: RefType; sample?: string }>> = {
+const TRIGGER_FIELDS: Record<
+  string,
+  Array<{ path: string; type: RefType; sample?: string; options?: string[] }>
+> = {
   task: [
     { path: "trigger.new.title", type: "string", sample: "Fix A/C in 203" },
-    { path: "trigger.new.priority", type: "string", sample: "urgent" },
-    { path: "trigger.new.status", type: "string", sample: "todo" },
+    {
+      path: "trigger.new.description",
+      type: "string",
+      sample: "Guest reports room is too cold",
+    },
+    {
+      path: "trigger.new.priority",
+      type: "string",
+      sample: "urgent",
+      options: TASK_PRIORITY_OPTIONS,
+    },
+    { path: "trigger.new.status", type: "string", sample: "todo", options: TASK_STATUS_OPTIONS },
     { path: "trigger.new.assignee_id", type: "string" },
     { path: "trigger.new.due_at", type: "string" },
     { path: "trigger.new.id", type: "string" },
+    { path: "trigger.new.labels", type: "string[]", sample: "guest-complaint" },
   ],
   chat: [
     { path: "trigger.message.text", type: "string", sample: "The room is freezing" },
@@ -58,10 +85,13 @@ const TRIGGER_FIELDS: Record<string, Array<{ path: string; type: RefType; sample
 };
 
 /** Extra fields specific to particular trigger event types. */
-const TRIGGER_EXTRAS: Record<string, Array<{ path: string; type: RefType }>> = {
+const TRIGGER_EXTRAS: Record<
+  string,
+  Array<{ path: string; type: RefType; options?: string[] }>
+> = {
   "task.status_changed": [
-    { path: "trigger.from", type: "string" },
-    { path: "trigger.to", type: "string" },
+    { path: "trigger.from", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.to", type: "string", options: TASK_STATUS_OPTIONS },
   ],
   "task.assigned": [
     { path: "trigger.from", type: "string" },
@@ -87,12 +117,33 @@ function zodType(schema: z.ZodTypeAny | undefined): RefType {
   return "json";
 }
 
+/** Enum option tokens for a Zod schema (unwrapping optional/nullable), or undefined. */
+function enumOptions(schema: z.ZodTypeAny | undefined): string[] | undefined {
+  try {
+    if (schema instanceof z.ZodEnum) {
+      return (schema.options as readonly unknown[]).map(String);
+    }
+    if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
+      return enumOptions((schema as z.ZodOptional<z.ZodTypeAny>).unwrap());
+    }
+  } catch {
+    /* fall through */
+  }
+  return undefined;
+}
+
 /** Top-level keys of a ZodObject, or [] for anything else. */
-function objectFields(schema: z.ZodTypeAny | undefined): Array<{ key: string; type: RefType }> {
+function objectFields(
+  schema: z.ZodTypeAny | undefined,
+): Array<{ key: string; type: RefType; options?: string[] }> {
   try {
     if (schema instanceof z.ZodObject) {
       const shape = schema.shape as Record<string, z.ZodTypeAny>;
-      return Object.entries(shape).map(([key, v]) => ({ key, type: zodType(v) }));
+      return Object.entries(shape).map(([key, v]) => ({
+        key,
+        type: zodType(v),
+        options: enumOptions(v),
+      }));
     }
   } catch {
     /* fall through */
@@ -114,13 +165,14 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
   const triggerLabel = getTrigger(eventType)?.label ?? "trigger";
   const triggerGroup = `From the trigger · ${triggerLabel}`;
   const seen = new Set<string>();
-  const pushTrigger = (path: string, type: RefType, sample?: string) => {
+  const pushTrigger = (path: string, type: RefType, sample?: string, options?: string[]) => {
     if (seen.has(path)) return;
     seen.add(path);
-    out.push({ label: humanizeRef(path), path, group: triggerGroup, type, sample });
+    out.push({ label: humanizeRef(path), path, group: triggerGroup, type, sample, options });
   };
-  for (const f of TRIGGER_FIELDS[family] ?? []) pushTrigger(f.path, f.type, f.sample);
-  for (const f of TRIGGER_EXTRAS[eventType] ?? []) pushTrigger(f.path, f.type);
+  for (const f of TRIGGER_FIELDS[family] ?? []) pushTrigger(f.path, f.type, f.sample, f.options);
+  for (const f of TRIGGER_EXTRAS[eventType] ?? [])
+    pushTrigger(f.path, f.type, undefined, f.options);
 
   // ── From upstream steps ─────────────────────────────────────────────────────
   if (stepId) {
@@ -132,12 +184,13 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
       if (fields.length === 0) continue;
       const stepName = step.label || meta?.label || id;
       const group = `From “${stepName}”`;
-      for (const { key, type } of fields) {
+      for (const { key, type, options } of fields) {
         out.push({
           label: humanizeRef(`${id}.${key}`),
           path: `steps.${id}.output.${key}`,
           group,
           type,
+          options,
         });
       }
     }

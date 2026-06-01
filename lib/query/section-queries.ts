@@ -13,6 +13,7 @@ import type { DocumentListItem } from "@/lib/documents/queries";
  */
 
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
+import type { PropertyChannel } from "@/lib/chat/channels";
 
 export function taskDetailMetaQueryOptions(propertyId: string, taskId: string) {
   return queryOptions({
@@ -36,6 +37,19 @@ export function tasksQueryOptions(propertyId: string) {
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Failed to load tasks");
+      return res.json();
+    },
+  });
+}
+
+export function channelsQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["channels", propertyId] as const,
+    queryFn: async (): Promise<PropertyChannel[]> => {
+      const res = await fetch(`/api/properties/${propertyId}/channels`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load channels");
       return res.json();
     },
   });

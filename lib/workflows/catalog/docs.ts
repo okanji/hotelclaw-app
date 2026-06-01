@@ -8,7 +8,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "Document created",
     description:
-      "Fires when a new document is created in this property. Payload includes {{trigger.document}}.",
+      "Fires when a new document is created in this property, with the document's details available to later steps.",
     examplePrompts: ["when a new doc is created", "every new document"],
     outputSchema: z.object({ document: z.record(z.string(), z.unknown()) }),
     explain: () => "When a document is created",

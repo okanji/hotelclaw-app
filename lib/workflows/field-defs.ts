@@ -3,11 +3,12 @@
 // schemas in `spec.ts`; an unknown step type falls back to the JSON editor.
 //
 // Field kinds
-//   • template   — a string that can contain {{variable.refs}}; we hint the
-//                  syntax in the help text and render a single-line input.
-//   • text       — a plain string with no variable hint
-//   • textarea   — multiline text (also supports templates)
-//   • enum       — radio-or-select with labelled options
+//   • template   — a string that can also pull in live data; the field shows an
+//                  "insert data" control and renders chosen data as a friendly
+//                  chip, so users never see or type a {{dotted.path}}.
+//   • text       — a plain string, no data insertion
+//   • textarea   — multiline text (also supports inserted data)
+//   • enum       — radio cards / chips with labelled options
 //   • number     — bounded integer/float
 //   • duration   — `\d+(s|m|h|d)` short-form, e.g. "30m", "2h"
 //   • string-list— editable array of strings
@@ -74,10 +75,21 @@ export type FieldDef =
       help?: string;
       keyPlaceholder?: string;
       valuePlaceholder?: string;
+    }
+  | {
+      kind: "channel";
+      key: string;
+      label: string;
+      help?: string;
+      required?: boolean;
     };
 
+// Shown under data-capable fields. No template syntax — the "Insert data"
+// control does the work, so we just point people at it.
 const TEMPLATE_HELP =
-  "Use {{trigger.new.X}} for trigger fields or {{steps.<id>.output.Y}} for prior step outputs.";
+  "Type text, or use Insert data to pull from the trigger or a previous step.";
+const TASK_TEXT_INPUT_HELP =
+  "Usually the task description from the trigger — that’s where complaint details live.";
 
 const PERSONA_HINT: FieldDef = {
   kind: "textarea",
@@ -94,9 +106,9 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "textarea",
       key: "input",
-      label: "Text to summarize",
-      placeholder: "{{trigger.new.description}}",
-      help: TEMPLATE_HELP,
+      label: "What to summarize",
+      placeholder: "e.g. task description from the trigger",
+      help: TASK_TEXT_INPUT_HELP,
       required: true,
       rows: 3,
     },
@@ -118,7 +130,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "input",
       label: "Text to classify",
-      placeholder: "{{trigger.new.title}}",
+      placeholder: "The text you want sorted into a label",
       help: TEMPLATE_HELP,
       required: true,
       rows: 2,
@@ -138,7 +150,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "input",
       label: "What to reply to",
-      placeholder: "{{trigger.message.text}}",
+      placeholder: "The message you want to reply to",
       help: TEMPLATE_HELP,
       required: true,
       rows: 3,
@@ -163,7 +175,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "input",
       label: "What to evaluate",
-      placeholder: "{{trigger.new.description}}",
+      placeholder: "The text the AI should look at",
       help: TEMPLATE_HELP,
       required: true,
       rows: 2,
@@ -190,7 +202,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "input",
       label: "User prompt",
-      placeholder: "{{trigger.message.text}}",
+      placeholder: "The user's message or request",
       help: TEMPLATE_HELP,
       required: true,
       rows: 3,
@@ -202,7 +214,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       default: 5,
       min: 1,
       max: 20,
-      help: ">5 forces the durable runtime.",
+      help: "More than 5 switches this workflow to the durable runtime.",
     },
   ],
 
@@ -212,7 +224,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "template",
       key: "title",
       label: "Title",
-      placeholder: "Follow up with {{trigger.new.guest_name}}",
+      placeholder: "Follow up with the guest",
       required: true,
     },
     {
@@ -247,8 +259,8 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "template",
       key: "task_id",
-      label: "Task ID",
-      placeholder: "{{trigger.new.id}}",
+      label: "Task",
+      placeholder: "The task to add the label to",
       required: true,
     },
     {
@@ -263,17 +275,16 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
   // ─── Chat actions ──────────────────────────────────────────────────────
   "action.chat.post_message": [
     {
-      kind: "template",
+      kind: "channel",
       key: "channel_id",
-      label: "Channel ID",
-      placeholder: "general or {{trigger.channel.id}}",
+      label: "Channel",
       required: true,
     },
     {
       kind: "textarea",
       key: "text",
       label: "Message",
-      placeholder: "🚨 New high-priority task: {{trigger.new.title}}",
+      placeholder: "🚨 New high-priority task",
       help: TEMPLATE_HELP,
       required: true,
       rows: 4,
@@ -285,23 +296,31 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "template",
       key: "user_id",
-      label: "User to notify",
-      placeholder: "{{trigger.new.assignee_id}}",
+      label: "Who to notify",
+      placeholder: "The person to notify",
       required: true,
     },
     {
       kind: "template",
-      key: "text",
-      label: "Message",
-      placeholder: "You were assigned a new task.",
+      key: "title",
+      label: "Notification title",
+      placeholder: "Guest complaint escalated",
       required: true,
+    },
+    {
+      kind: "textarea",
+      key: "body",
+      label: "Message body",
+      placeholder: "Use Insert data to include a summary from an earlier step",
+      help: TEMPLATE_HELP,
+      rows: 3,
     },
   ],
   "action.notify.role": [
     {
       kind: "enum",
       key: "role",
-      label: "Role",
+      label: "Who receives this",
       options: [
         { value: "owner", label: "Owners" },
         { value: "manager", label: "Managers" },
@@ -310,10 +329,19 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     },
     {
       kind: "template",
-      key: "text",
-      label: "Message",
-      placeholder: "Heads up: {{trigger.new.title}} needs attention.",
+      key: "title",
+      label: "Notification title",
+      placeholder: "Guest complaint escalated",
       required: true,
+    },
+    {
+      kind: "textarea",
+      key: "body",
+      label: "Message body",
+      placeholder: "e.g. summary from the AI step above",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 3,
     },
   ],
 
@@ -331,8 +359,8 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "template",
       key: "input",
-      label: "Value to switch on",
-      placeholder: "{{steps.classify.output.label}}",
+      label: "Value to branch on",
+      placeholder: "The value to route on",
       required: true,
       help: TEMPLATE_HELP,
     },
@@ -349,7 +377,13 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
 
   // ─── Backfilled task / chat / doc / entity forms ───────────────────────────
   "action.task.update": [
-    { kind: "template", key: "task_id", label: "Task", placeholder: "{{trigger.new.id}}", required: true },
+    {
+      kind: "template",
+      key: "task_id",
+      label: "Task",
+      placeholder: "The task to update",
+      required: true,
+    },
     {
       kind: "enum",
       key: "status",
@@ -373,43 +407,324 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
         { value: "urgent", label: "Urgent" },
       ],
     },
-    { kind: "template", key: "assignee_id", label: "Assign to", placeholder: "{{trigger.new.assignee_id}}" },
+    {
+      kind: "template",
+      key: "assignee_id",
+      label: "Assign to",
+      placeholder: "Who to assign it to",
+    },
   ],
   "action.task.assign": [
-    { kind: "template", key: "task_id", label: "Task", placeholder: "{{trigger.new.id}}", required: true },
-    { kind: "template", key: "assignee_id", label: "Assign to", placeholder: "a user id", required: true },
+    {
+      kind: "template",
+      key: "task_id",
+      label: "Task",
+      placeholder: "The task to assign",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "assignee_id",
+      label: "Assign to",
+      placeholder: "Who to assign it to",
+      required: true,
+    },
   ],
   "action.chat.post_thread_reply": [
-    { kind: "template", key: "channel_id", label: "Channel", placeholder: "front-desk", required: true },
-    { kind: "template", key: "parent_id", label: "Parent message", placeholder: "{{trigger.message.id}}", required: true },
-    { kind: "textarea", key: "text", label: "Reply", placeholder: "On it — sending someone up now.", help: TEMPLATE_HELP, required: true, rows: 3 },
+    {
+      kind: "channel",
+      key: "channel_id",
+      label: "Channel",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "parent_id",
+      label: "Reply under",
+      placeholder: "The message to reply under",
+      required: true,
+    },
+    {
+      kind: "textarea",
+      key: "text",
+      label: "Reply",
+      placeholder: "On it — sending someone up now.",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 3,
+    },
   ],
   "action.chat.mention_user": [
-    { kind: "template", key: "channel_id", label: "Channel", placeholder: "front-desk", required: true },
-    { kind: "template", key: "user_id", label: "User to mention", placeholder: "{{trigger.new.assignee_id}}", required: true },
-    { kind: "textarea", key: "text", label: "Message", placeholder: "can you take this one?", help: TEMPLATE_HELP, required: true, rows: 2 },
+    {
+      kind: "channel",
+      key: "channel_id",
+      label: "Channel",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "user_id",
+      label: "Who to mention",
+      placeholder: "The person to mention",
+      required: true,
+    },
+    {
+      kind: "textarea",
+      key: "text",
+      label: "Message",
+      placeholder: "can you take this one?",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 2,
+    },
   ],
   "action.doc.create": [
-    { kind: "template", key: "title", label: "Title", placeholder: "Shift handover — {{trigger.new.title}}", required: true },
-    { kind: "textarea", key: "body_markdown", label: "Body", placeholder: "Markdown content…", help: TEMPLATE_HELP, rows: 4 },
-    { kind: "text", key: "parent_id", label: "Parent doc (optional)", placeholder: "a document id" },
+    {
+      kind: "template",
+      key: "title",
+      label: "Title",
+      placeholder: "Shift handover — front desk",
+      required: true,
+    },
+    {
+      kind: "textarea",
+      key: "body_markdown",
+      label: "Body",
+      placeholder: "Markdown content…",
+      help: TEMPLATE_HELP,
+      rows: 4,
+    },
+    {
+      kind: "text",
+      key: "parent_id",
+      label: "Parent doc (optional)",
+      placeholder: "a document id",
+    },
   ],
   "action.doc.archive": [
-    { kind: "template", key: "document_id", label: "Document", placeholder: "{{trigger.new.id}}", required: true },
+    {
+      kind: "template",
+      key: "document_id",
+      label: "Document",
+      placeholder: "The document to archive",
+      required: true,
+    },
+  ],
+  "action.doc.add_to_board": [
+    {
+      kind: "template",
+      key: "document_id",
+      label: "Document",
+      placeholder: "The document to pin",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "board_id",
+      label: "Board",
+      placeholder: "The board id",
+      required: true,
+    },
+  ],
+  "action.doc.post_summary_in_chat": [
+    {
+      kind: "template",
+      key: "document_id",
+      label: "Document",
+      placeholder: "The document to summarize",
+      required: true,
+    },
+    {
+      kind: "channel",
+      key: "channel_id",
+      label: "Channel",
+      required: true,
+    },
+  ],
+  "action.meeting.create_followup_tasks": [
+    {
+      kind: "template",
+      key: "meeting_id",
+      label: "Meeting",
+      placeholder: "The meeting with action items",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "assignee_id",
+      label: "Assign all to (optional)",
+      placeholder: "User id — leave blank to leave unassigned",
+    },
+  ],
+  "action.meeting.share_summary_to_channel": [
+    {
+      kind: "template",
+      key: "meeting_id",
+      label: "Meeting",
+      placeholder: "The meeting to share",
+      required: true,
+    },
+    {
+      kind: "channel",
+      key: "channel_id",
+      label: "Channel",
+      required: true,
+    },
+  ],
+  "action.entity.find": [
+    {
+      kind: "template",
+      key: "entity_type",
+      label: "Entity type",
+      placeholder: "room",
+      required: true,
+    },
+    {
+      kind: "key-value",
+      key: "where",
+      label: "Filter by field",
+      keyPlaceholder: "field",
+      valuePlaceholder: "value",
+    },
+    {
+      kind: "number",
+      key: "limit",
+      label: "Max results",
+      default: 10,
+      min: 1,
+      max: 100,
+    },
+  ],
+  "action.entity.delete": [
+    {
+      kind: "template",
+      key: "entity_id",
+      label: "Entity",
+      placeholder: "The entity to delete",
+      required: true,
+    },
+  ],
+  "control.wait_for_event": [
+    {
+      kind: "enum",
+      key: "event_type",
+      label: "Event to wait for",
+      options: [
+        { value: "task.created", label: "Task created" },
+        { value: "task.status_changed", label: "Task status changed" },
+        { value: "task.assigned", label: "Task assigned" },
+        { value: "task.label_added", label: "Label added to task" },
+        { value: "chat.message_posted", label: "Chat message posted" },
+        { value: "chat.mention", label: "User mentioned in chat" },
+        { value: "doc.created", label: "Document created" },
+        { value: "meeting.summary_ready", label: "Meeting summary ready" },
+        { value: "manual.run", label: "Manual run" },
+      ],
+    },
+    {
+      kind: "duration",
+      key: "timeout",
+      label: "Timeout (optional)",
+      placeholder: "24h",
+      help: "Give up if the event doesn't arrive in time.",
+    },
+  ],
+  "control.foreach": [
+    {
+      kind: "template",
+      key: "items",
+      label: "List to loop over",
+      placeholder: "e.g. action items from the trigger",
+      required: true,
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "text",
+      key: "item_var",
+      label: "Variable name for each item",
+      placeholder: "item",
+    },
+    {
+      kind: "text",
+      key: "body_start",
+      label: "First step in the loop body",
+      placeholder: "step id",
+      required: true,
+    },
+  ],
+  "control.parallel": [
+    {
+      kind: "string-list",
+      key: "branches",
+      label: "Branch start step ids",
+      itemPlaceholder: "step id",
+      minItems: 2,
+      help: "Each branch runs from its start step until the step after this node.",
+    },
+    {
+      kind: "enum",
+      key: "join",
+      label: "Wait for",
+      default: "all",
+      options: [
+        { value: "all", label: "All branches" },
+        { value: "any", label: "First branch to finish" },
+      ],
+    },
   ],
   "action.entity.create": [
-    { kind: "template", key: "entity_type", label: "Entity type", placeholder: "room", required: true },
-    { kind: "key-value", key: "data", label: "Fields", keyPlaceholder: "field", valuePlaceholder: "value or {{ref}}" },
+    {
+      kind: "template",
+      key: "entity_type",
+      label: "Entity type",
+      placeholder: "room",
+      required: true,
+    },
+    {
+      kind: "key-value",
+      key: "data",
+      label: "Fields",
+      keyPlaceholder: "field",
+      valuePlaceholder: "value",
+    },
   ],
   "action.entity.update": [
-    { kind: "template", key: "entity_id", label: "Entity", placeholder: "{{trigger.new.id}}", required: true },
-    { kind: "key-value", key: "patch", label: "Fields to change", keyPlaceholder: "field", valuePlaceholder: "value or {{ref}}" },
+    {
+      kind: "template",
+      key: "entity_id",
+      label: "Entity",
+      placeholder: "The entity to update",
+      required: true,
+    },
+    {
+      kind: "key-value",
+      key: "patch",
+      label: "Fields to change",
+      keyPlaceholder: "field",
+      valuePlaceholder: "value",
+    },
   ],
   "action.gbrain.capture": [
-    { kind: "textarea", key: "text", label: "What to remember", placeholder: "VIP guest prefers a quiet room away from the elevator.", help: TEMPLATE_HELP, required: true, rows: 3 },
+    {
+      kind: "textarea",
+      key: "text",
+      label: "What to remember",
+      placeholder: "VIP guest prefers a quiet room away from the elevator.",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 3,
+    },
     { kind: "string-list", key: "tags", label: "Tags", itemPlaceholder: "e.g. vip" },
   ],
   "action.external.delegate_to_openclaw": [
-    { kind: "textarea", key: "goal", label: "Goal for the agent", placeholder: "Monitor this thread and escalate if unresolved in 30 min.", help: TEMPLATE_HELP, required: true, rows: 3 },
+    {
+      kind: "textarea",
+      key: "goal",
+      label: "Goal for the agent",
+      placeholder: "Monitor this thread and escalate if unresolved in 30 min.",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 3,
+    },
   ],
 };

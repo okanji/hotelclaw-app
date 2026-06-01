@@ -13,7 +13,7 @@ import {
   NodeAction,
 } from "@/components/ai-elements/node";
 import { Toolbar } from "@/components/ai-elements/toolbar";
-import { SurfaceBadge, surfaceMeta } from "@/components/workflows/builder/surface-badge";
+import { SurfaceBadge, SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import type { Surface } from "@/lib/workflows/catalog/types";
 import type { GraphNodeData } from "@/lib/workflows/graph";
 import { TRIGGER_NODE_ID } from "@/lib/workflows/graph";
@@ -76,7 +76,6 @@ function outputsFor(
 export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
   const ctx = useContext(WfNodeCtx);
   const isTrigger = data.kind === "trigger";
-  const meta = surfaceMeta(data.surface as Surface);
   const branchHandles = ctx?.branchHandlesByType[data.typeId] ?? [];
   const outputs = outputsFor(isTrigger, branchHandles);
 
@@ -112,12 +111,7 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
             </NodeDescription>
           </div>
           <NodeAction>
-            <span
-              aria-hidden
-              className="rounded-sm bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-            >
-              {meta.label}
-            </span>
+            <SurfaceLabelBadge surface={data.surface as Surface} className="text-[10px]" />
           </NodeAction>
         </NodeHeader>
         <NodeContent>

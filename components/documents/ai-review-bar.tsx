@@ -13,17 +13,21 @@
 import { useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { Check, Sparkles, X } from "lucide-react";
+import { useRoom } from "@liveblocks/react";
 import { hasPendingAiSuggestion } from "@/lib/documents/ai-suggestion";
 
 export function AiReviewBar({
   editor,
-  onAccepted,
 }: {
   editor: Editor | null;
-  /** Called after the user accepts, so the caller can snapshot a version. */
-  onAccepted?: () => void;
 }) {
   const [pending, setPending] = useState(false);
+  // Non-suspense useRoom (`@liveblocks/react`, not `/suspense`). Calling
+  // the suspense version in the parent EditorInner alongside
+  // useLiveblocksExtension triggers "Rendered more hooks than during the
+  // previous render" across the suspend/resume cycle. Here the room is
+  // already connected by the time AiReviewBar mounts.
+  const room = useRoom();
 
   useEffect(() => {
     if (!editor) return;
@@ -36,6 +40,20 @@ export function AiReviewBar({
   }, [editor]);
 
   if (!editor || !pending) return null;
+
+  // Snapshot a Liveblocks version each time an AI edit is accepted so the
+  // change becomes a restorable point in version history. `createTextVersion`
+  // exists at runtime but isn't on the public typed Room surface — cast
+  // through to reach it.
+  function snapshotVersion() {
+    const createVersion = (
+      room as unknown as { createTextVersion?: () => Promise<void> }
+    ).createTextVersion;
+    if (!createVersion) return;
+    void createVersion.call(room).catch((err: unknown) => {
+      console.warn("[documents] createTextVersion failed", err);
+    });
+  }
 
   return (
     <div className="pointer-events-none sticky top-3 z-40 -mb-2 flex justify-center px-4">
@@ -59,7 +77,7 @@ export function AiReviewBar({
             type="button"
             onClick={() => {
               editor.chain().focus().acceptAiEdit().run();
-              onAccepted?.();
+              snapshotVersion();
             }}
             className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-[13px] font-medium text-white transition hover:bg-emerald-500"
           >

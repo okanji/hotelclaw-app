@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FieldDef } from "@/lib/workflows/field-defs";
 import type { RefCandidate } from "@/lib/workflows/refs";
+import type { PropertyChannel } from "@/lib/chat/channels";
+import { ChannelField } from "@/components/workflows/builder/config/channel-field";
 import { TemplateField } from "@/components/workflows/builder/config/template-field";
+import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
 
 // Renders an ordered list of FieldDef forms against a config object and
 // emits a partial-merged config back. Each field reads/writes a single key
@@ -21,12 +24,21 @@ export function TypedStepForm({
   value,
   onChange,
   refs = [],
+  channels = [],
+  channelsLoading,
+  triggerEventType,
+  formKey,
 }: {
   fields: FieldDef[];
   value: Config;
   onChange: (next: Config) => void;
   /** Insertable data refs for this step (trigger + upstream outputs + vars). */
   refs?: RefCandidate[];
+  channels?: PropertyChannel[];
+  channelsLoading?: boolean;
+  triggerEventType?: string;
+  /** Resets channel prefill when the edited step changes. */
+  formKey?: string;
 }) {
   const set = useCallback(
     (key: string, v: unknown) => {
@@ -46,6 +58,10 @@ export function TypedStepForm({
           field={f}
           value={value[f.key]}
           refs={refs}
+          channels={channels}
+          channelsLoading={channelsLoading}
+          triggerEventType={triggerEventType}
+          formKey={formKey}
           onChange={(v) => set(f.key, v)}
         />
       ))}
@@ -58,15 +74,23 @@ function FieldRenderer({
   value,
   onChange,
   refs,
+  channels,
+  channelsLoading,
+  triggerEventType,
+  formKey,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
   refs: RefCandidate[];
+  channels: PropertyChannel[];
+  channelsLoading?: boolean;
+  triggerEventType?: string;
+  formKey?: string;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1 text-[12px]">
+    <div className="space-y-2">
+      <Label className="flex items-center gap-1 text-[0.8125rem] font-medium text-foreground">
         {field.label}
         {"required" in field && field.required && (
           <span className="text-destructive" aria-hidden>
@@ -74,9 +98,18 @@ function FieldRenderer({
           </span>
         )}
       </Label>
-      <FieldInput field={field} value={value} onChange={onChange} refs={refs} />
+      <FieldInput
+        field={field}
+        value={value}
+        onChange={onChange}
+        refs={refs}
+        channels={channels}
+        channelsLoading={channelsLoading}
+        triggerEventType={triggerEventType}
+        formKey={formKey}
+      />
       {"help" in field && field.help && (
-        <p className="text-[11px] leading-snug text-muted-foreground">{field.help}</p>
+        <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">{field.help}</p>
       )}
     </div>
   );
@@ -87,20 +120,41 @@ function FieldInput({
   value,
   onChange,
   refs,
+  channels,
+  channelsLoading,
+  triggerEventType,
+  formKey,
 }: {
   field: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
   refs: RefCandidate[];
+  channels: PropertyChannel[];
+  channelsLoading?: boolean;
+  triggerEventType?: string;
+  formKey?: string;
 }) {
   switch (field.kind) {
+    case "channel":
+      return (
+        <ChannelField
+          key={formKey}
+          value={typeof value === "string" ? value : ""}
+          onChange={(v) => onChange(v)}
+          channels={channels}
+          channelsLoading={channelsLoading}
+          triggerEventType={triggerEventType}
+          refs={refs}
+        />
+      );
+
     case "text":
       return (
         <Input
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
-          className="h-9 text-[13px]"
+          className="h-9 text-[0.8125rem]"
         />
       );
 
@@ -128,48 +182,7 @@ function FieldInput({
       );
 
     case "enum":
-      return (
-        <div className="grid gap-1.5">
-          {field.options.map((opt) => {
-            const selected =
-              (value as string | undefined) === opt.value ||
-              (value === undefined && field.default === opt.value);
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onChange(opt.value)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-[12.5px] transition-colors",
-                  selected
-                    ? "border-primary bg-primary/[0.06]"
-                    : "border-border bg-background hover:border-foreground/30",
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-3 shrink-0 rounded-full border-2",
-                    selected
-                      ? "border-primary bg-primary"
-                      : "border-muted-foreground/40",
-                  )}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-foreground">
-                    {opt.label}
-                  </span>
-                  {opt.description && (
-                    <span className="block text-[11px] text-muted-foreground">
-                      {opt.description}
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      );
+      return <EnumField field={field} value={value} onChange={onChange} />;
 
     case "number": {
       const n =
@@ -184,7 +197,7 @@ function FieldInput({
             const next = e.target.value === "" ? undefined : Number(e.target.value);
             if (next === undefined || Number.isFinite(next)) onChange(next);
           }}
-          className="h-9 w-32 text-[13px]"
+          className="h-9 w-32 text-[0.8125rem]"
         />
       );
     }
@@ -198,6 +211,87 @@ function FieldInput({
     case "key-value":
       return <KeyValueField field={field} value={value} onChange={onChange} />;
   }
+}
+
+// Single-choice picker. Option sets that carry descriptions (e.g. summary
+// length) read best as a tight radio-card list; plain sets (tone, role, status)
+// become a compact wrap of selectable chips — fewer pixels, easier to scan.
+function EnumField({
+  field,
+  value,
+  onChange,
+}: {
+  field: Extract<FieldDef, { kind: "enum" }>;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const isSelected = (v: string) =>
+    (value as string | undefined) === v || (value === undefined && field.default === v);
+  const hasDescriptions = field.options.some((o) => o.description);
+
+  if (!hasDescriptions) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {field.options.map((opt) => {
+          const selected = isSelected(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              aria-pressed={selected}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                selected
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-input bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      {field.options.map((opt) => {
+        const selected = isSelected(opt.value);
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={selected}
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors",
+              selected
+                ? "border-primary bg-primary/[0.06]"
+                : "border-input bg-background hover:border-foreground/30",
+            )}
+          >
+            <span
+              className={cn(
+                "grid size-4 shrink-0 place-items-center rounded-full border",
+                selected ? "border-primary" : "border-muted-foreground/40",
+              )}
+              aria-hidden
+            >
+              {selected && <span className="size-2 rounded-full bg-primary" />}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+              <span className="text-[0.8125rem] font-medium text-foreground">{opt.label}</span>
+              {opt.description && (
+                <span className="text-[0.78rem] text-muted-foreground">{opt.description}</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // Structured duration: a number + a unit, emitting the `\d+(s|m|h|d)` shape the
@@ -234,19 +328,20 @@ function DurationField({
         value={amount}
         onChange={(e) => emit(e.target.value, unit)}
         placeholder="30"
-        className="h-9 w-24 text-[13px]"
+        className="h-9 w-24 text-[0.8125rem]"
       />
-      <select
+      <WorkflowSelect
+        ariaLabel="Duration unit"
         value={unit}
         onChange={(e) => emit(amount || "1", e.target.value)}
-        className="h-9 rounded-md border border-input bg-background px-2 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-auto min-w-[5.5rem]"
       >
         {DURATION_UNITS.map((u) => (
           <option key={u.value} value={u.value}>
             {u.label}
           </option>
         ))}
-      </select>
+      </WorkflowSelect>
     </div>
   );
 }
@@ -279,7 +374,7 @@ function KeyValueField({
   return (
     <div className="space-y-1.5">
       {entries.length === 0 && (
-        <p className="rounded-md border border-dashed border-border bg-muted/10 px-3 py-2 text-[11.5px] text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-[0.8125rem] text-muted-foreground">
           No fields yet.
         </p>
       )}
@@ -292,7 +387,7 @@ function KeyValueField({
               emit(next);
             }}
             placeholder={field.keyPlaceholder ?? "field"}
-            className="h-8 flex-1 text-[12.5px]"
+            className="h-9 flex-1 text-[0.8125rem]"
           />
           <Input
             value={v}
@@ -301,24 +396,24 @@ function KeyValueField({
               emit(next);
             }}
             placeholder={field.valuePlaceholder ?? "value"}
-            className="h-8 flex-1 text-[12.5px]"
+            className="h-9 flex-1 text-[0.8125rem]"
           />
           <button
             type="button"
             onClick={() => emit(entries.filter((_, idx) => idx !== i))}
             aria-label="Remove field"
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
-            <Minus className="size-3.5" />
+            <Minus className="size-4" />
           </button>
         </div>
       ))}
       <button
         type="button"
         onClick={() => emit([...entries, ["", ""]])}
-        className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[0.8125rem] font-medium text-muted-foreground hover:border-primary hover:text-primary"
       >
-        <Plus className="size-3" /> Add field
+        <Plus className="size-3.5" /> Add field
       </button>
     </div>
   );
@@ -356,7 +451,7 @@ function StringListField({
   return (
     <div className="space-y-1.5">
       {items.length === 0 && (
-        <p className="rounded-md border border-dashed border-border bg-muted/10 px-3 py-2 text-[11.5px] text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-[0.8125rem] text-muted-foreground">
           No items yet.
         </p>
       )}
@@ -366,24 +461,24 @@ function StringListField({
             value={item}
             onChange={(e) => setAt(i, e.target.value)}
             placeholder={field.itemPlaceholder}
-            className="h-8 text-[12.5px]"
+            className="h-9 text-[0.8125rem]"
           />
           <button
             type="button"
             onClick={() => removeAt(i)}
             aria-label="Remove"
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
-            <Minus className="size-3.5" />
+            <Minus className="size-4" />
           </button>
         </div>
       ))}
       <button
         type="button"
         onClick={add}
-        className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[0.8125rem] font-medium text-muted-foreground hover:border-primary hover:text-primary"
       >
-        <Plus className="size-3" /> Add item
+        <Plus className="size-3.5" /> Add item
       </button>
     </div>
   );

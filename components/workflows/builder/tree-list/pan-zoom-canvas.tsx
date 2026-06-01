@@ -96,6 +96,33 @@ export function PanZoomCanvas({
     return () => ro.disconnect();
   }, [fit]);
 
+  // External pan requests (e.g. jumping to a branch lane from the inspector).
+  useEffect(() => {
+    const onPanTo = (e: Event) => {
+      const selector = (e as CustomEvent<{ selector: string }>).detail?.selector;
+      const vp = viewportRef.current;
+      const content = contentRef.current;
+      if (!selector || !vp || !content) return;
+      const el = content.querySelector(selector);
+      if (!el) return;
+
+      const elRect = el.getBoundingClientRect();
+      const vpRect = vp.getBoundingClientRect();
+      const elCx = elRect.left + elRect.width / 2;
+      const elCy = elRect.top + elRect.height / 2;
+      const vpCx = vpRect.left + vpRect.width / 2;
+      const vpCy = vpRect.top + vpRect.height / 2;
+
+      setT((cur) => ({
+        ...cur,
+        x: cur.x + (vpCx - elCx),
+        y: cur.y + (vpCy - elCy),
+      }));
+    };
+    window.addEventListener("workflow:pan-to", onPanTo);
+    return () => window.removeEventListener("workflow:pan-to", onPanTo);
+  }, []);
+
   const zoomBy = useCallback(
     (factor: number) => {
       const vp = viewportRef.current;
