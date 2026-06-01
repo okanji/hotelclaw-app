@@ -93,6 +93,8 @@ export type RunBotOptions = {
    * needs (e.g. a creative-writing assistant might want more verbosity).
    */
   responseGuidelines?: string;
+  /** Max tool-call rounds before stopping. Default 5. */
+  maxToolSteps?: number;
 };
 
 export type RunBotResult = {
@@ -223,7 +225,7 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
       // stopWhen: default is stepCountIs(1) — bot would call a tool and
       // never synthesize a reply with the result. 5 leaves headroom for
       // chained tool calls without unbounded loops.
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(opts.maxToolSteps ?? 5),
       // temperature 0 — tool-arg generation is much more reliable, and
       // classifier-style "should I respond" decisions become reproducible.
       temperature: 0,

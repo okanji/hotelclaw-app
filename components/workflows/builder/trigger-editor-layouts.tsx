@@ -18,6 +18,14 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       children: slots.labelFilter,
     });
   }
+  if (slots.scheduleConfig) {
+    steps.push({
+      id: "schedule",
+      marker: steps.length + 1,
+      title: "Schedule",
+      children: slots.scheduleConfig,
+    });
+  }
   steps.push({
     id: "summary",
     marker: steps.length + 1,
@@ -29,11 +37,13 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       </>
     ),
   });
-  steps.push({
-    id: "filters",
-    marker: "+",
-    title: "Optional filters",
-    children: slots.conditions,
-  });
+  if (slots.conditions) {
+    steps.push({
+      id: "filters",
+      marker: "+",
+      title: "Optional filters",
+      children: slots.conditions,
+    });
+  }
   return <InspectorFlowRail steps={steps} />;
 }

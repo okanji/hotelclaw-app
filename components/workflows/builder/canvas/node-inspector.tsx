@@ -15,6 +15,7 @@ import { availableRefs, type RefCandidate } from "@/lib/workflows/refs";
 import { TypedStepForm } from "./typed-step-form";
 import { DataContextPanel } from "@/components/workflows/builder/config/data-context-panel";
 import { LabelTriggerFilter } from "@/components/workflows/builder/config/label-trigger-filter";
+import { ScheduleTriggerConfig } from "@/components/workflows/builder/config/schedule-trigger-config";
 import { ConditionBuilder } from "@/components/workflows/builder/config/condition-builder";
 import { explainTemplateValue } from "@/lib/workflows/explain-template";
 import {
@@ -199,7 +200,14 @@ function TriggerEditor({
     });
   }, [spec, builderData?.taskLabels]);
   const isLabelAdded = spec.trigger.event_type === "task.label_added";
+  const isScheduled =
+    spec.trigger.event_type === "schedule.cron" ||
+    spec.trigger.event_type === "schedule.at_time";
   const filterExpr = spec.trigger.filter?.expr;
+  const showOptionalFilters =
+    !isScheduled &&
+    spec.trigger.event_type !== "manual.run" &&
+    (refs.length > 0 || filterExpr != null);
 
   const selectedLabels = useMemo(
     () => (isLabelAdded ? extractAddedLabelFilter(filterExpr) : []),
@@ -236,6 +244,13 @@ function TriggerEditor({
     commitFilter(mergeTriggerFilter(selectedLabels, expr));
   }
 
+  function commitSchedule(schedule: NonNullable<WorkflowSpec["trigger"]["schedule"]>) {
+    onChange({
+      ...spec,
+      trigger: { ...spec.trigger, schedule },
+    });
+  }
+
   return (
     <>
       <InspectorHeader
@@ -270,9 +285,12 @@ function TriggerEditor({
                 compact
               />
             ) : null,
+            scheduleConfig: isScheduled ? (
+              <ScheduleTriggerConfig trigger={spec.trigger} onChange={commitSchedule} />
+            ) : null,
             summary,
             dataContext: <DataContextPanel refs={refs} variant="trigger" />,
-            conditions: (
+            conditions: showOptionalFilters ? (
               <div className="space-y-3">
                 {refs.length > 0 ? (
                   <AvailableFieldsPanel refs={refs} mode="condition" />
@@ -290,7 +308,7 @@ function TriggerEditor({
                   excludePaths={isLabelAdded ? [ADDED_LABELS_PATH] : undefined}
                 />
               </div>
-            ),
+            ) : null,
           }}
         />
       </div>
@@ -350,6 +368,61 @@ function StepEditor({
     [isBranchIf, spec, stepId],
   );
 
+  const laneContext = useMemo(() => findStepBranchContext(spec, stepId), [spec, stepId]);
+  const pathFocus = useMemo(() => {
+    if (branchPathFocus) {
+      const onLane =
+        branchPathFocus.branchStepId === stepId ||
+        laneContext?.branchStepId === branchPathFocus.branchStepId;
+      if (onLane) return branchPathFocus;
+    }
+    if (laneContext) {
+      return { branchStepId: laneContext.branchStepId, key: laneContext.branchKey };
+    }
+    return null;
+  }, [branchPathFocus, laneContext, stepId]);
+
+  const branchPathBar = useMemo(() => {
+    if (!step) return null;
+    if (!pathFocus) return null;
+    const branchStep = spec.steps[pathFocus.branchStepId];
+    if (!branchStep) return null;
+    const branchMeta = getStep(branchStep.type);
+    const branchCfg = (branchStep as { config?: { expr?: unknown } }).config;
+    const branchTitle =
+      branchStep.label?.trim() || branchMeta?.label || "Branch (if/else)";
+    const conditionSummary = explainCondition(branchCfg?.expr);
+    const pathLabel = pathFocus.key === "true" ? "Then" : "Else";
+    const currentStepTitle =
+      stepId !== pathFocus.branchStepId
+        ? label.trim() || meta?.label || stepId
+        : null;
+
+    return (
+      <BranchPathContextBar
+        branchTitle={branchTitle}
+        conditionSummary={conditionSummary}
+        pathLabel={pathLabel}
+        currentStepTitle={currentStepTitle}
+        onOpenBranch={() => onOpenBranchStep?.(pathFocus.branchStepId)}
+        onOpenPath={
+          onOpenBranchPath
+            ? () => onOpenBranchPath(pathFocus.branchStepId, pathFocus.key)
+            : undefined
+        }
+      />
+    );
+  }, [
+    step,
+    pathFocus,
+    spec,
+    stepId,
+    label,
+    meta?.label,
+    onOpenBranchStep,
+    onOpenBranchPath,
+  ]);
+
   if (!step) return null;
 
   function commitLabel() {
@@ -406,59 +479,6 @@ function StepEditor({
         : null;
 
   const hasFormFields = Boolean(STEP_FIELDS[step.type as keyof typeof STEP_FIELDS]);
-
-  const laneContext = useMemo(() => findStepBranchContext(spec, stepId), [spec, stepId]);
-  const pathFocus = useMemo(() => {
-    if (branchPathFocus) {
-      const onLane =
-        branchPathFocus.branchStepId === stepId ||
-        laneContext?.branchStepId === branchPathFocus.branchStepId;
-      if (onLane) return branchPathFocus;
-    }
-    if (laneContext) {
-      return { branchStepId: laneContext.branchStepId, key: laneContext.branchKey };
-    }
-    return null;
-  }, [branchPathFocus, laneContext, stepId]);
-
-  const branchPathBar = useMemo(() => {
-    if (!pathFocus) return null;
-    const branchStep = spec.steps[pathFocus.branchStepId];
-    if (!branchStep) return null;
-    const branchMeta = getStep(branchStep.type);
-    const branchCfg = (branchStep as { config?: { expr?: unknown } }).config;
-    const branchTitle =
-      branchStep.label?.trim() || branchMeta?.label || "Branch (if/else)";
-    const conditionSummary = explainCondition(branchCfg?.expr);
-    const pathLabel = pathFocus.key === "true" ? "Then" : "Else";
-    const currentStepTitle =
-      stepId !== pathFocus.branchStepId
-        ? label.trim() || meta?.label || stepId
-        : null;
-
-    return (
-      <BranchPathContextBar
-        branchTitle={branchTitle}
-        conditionSummary={conditionSummary}
-        pathLabel={pathLabel}
-        currentStepTitle={currentStepTitle}
-        onOpenBranch={() => onOpenBranchStep?.(pathFocus.branchStepId)}
-        onOpenPath={
-          onOpenBranchPath
-            ? () => onOpenBranchPath(pathFocus.branchStepId, pathFocus.key)
-            : undefined
-        }
-      />
-    );
-  }, [
-    pathFocus,
-    spec,
-    stepId,
-    label,
-    meta?.label,
-    onOpenBranchStep,
-    onOpenBranchPath,
-  ]);
 
   const activeBranchPath =
     isBranchIf && branchPathFocus?.branchStepId === stepId

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CornerDownLeft,
-  Loader2,
   MessageCircleQuestion,
   Sparkles,
   Square,
@@ -22,10 +21,13 @@ import type { WorkflowSpec } from "@/lib/workflows/spec";
 // user types a goal, we POST to /workflows/author, then either replace the
 // spec, surface a clarification question, or surface a propose_entity_type
 // confirmation.
-//
-// Streaming + ai-elements adoption lands in the next pass — the API surface
-// already returns a discriminated outcome that maps cleanly to streamed
-// chunks.
+
+const LOADING_PHASES = [
+  "Reading your goal…",
+  "Scanning available triggers and actions…",
+  "Designing steps and wiring data…",
+  "Validating the workflow spec…",
+] as const;
 
 export type CopilotOutcome =
   | { kind: "spec"; spec: WorkflowSpec; narration: string }
@@ -48,11 +50,8 @@ export function AiCopilot({
   className,
 }: {
   propertyId: string;
-  /** Pass the current in-memory spec so iterative refinement works. */
   currentSpec: WorkflowSpec | null;
-  /** Called when the AI returns a new spec. */
   onSpec: (spec: WorkflowSpec) => void;
-  /** Called when the AI proposes a new entity type. */
   onProposedEntityType?: (entity: {
     name: string;
     display_name: string;
@@ -64,6 +63,18 @@ export function AiCopilot({
 }) {
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
+  const [loadingPhase, setLoadingPhase] = useState(0);
+
+  useEffect(() => {
+    if (!busy) {
+      setLoadingPhase(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setLoadingPhase((p) => (p + 1) % LOADING_PHASES.length);
+    }, 2800);
+    return () => window.clearInterval(id);
+  }, [busy]);
 
   async function send(goalOverride?: string) {
     const goal = (goalOverride ?? input).trim();
@@ -79,6 +90,10 @@ export function AiCopilot({
         body: JSON.stringify({
           goal,
           currentSpec: currentSpec ?? undefined,
+          conversation: transcript.map((t) => ({
+            role: t.role,
+            content: t.content,
+          })),
         }),
       });
       const outcome = (await res.json()) as CopilotOutcome;
@@ -144,22 +159,25 @@ export function AiCopilot({
 
   return (
     <section className={cn("flex flex-col gap-2", className)}>
+      {busy ? (
+        <AiCopilotLoadingPanel phase={LOADING_PHASES[loadingPhase]} />
+      ) : null}
+
       {transcript.length > 0 && (
         <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/60 bg-card/60 p-3">
           {transcript.map((t, i) => (
             <TranscriptRow key={i} turn={t} />
           ))}
-          {busy && (
-            <div className="flex items-center gap-2 px-2 py-1 text-[12px] text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              Thinking…
-            </div>
-          )}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <InputGroup className="overflow-hidden border-border/80 bg-card shadow-sm">
+        <InputGroup
+          className={cn(
+            "overflow-hidden border-border/80 bg-card shadow-sm",
+            busy && "opacity-80",
+          )}
+        >
           <InputGroupTextarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -170,9 +188,11 @@ export function AiCopilot({
               }
             }}
             placeholder={
-              currentSpec
-                ? "Refine — e.g. ‘also wait 30 minutes before posting’"
-                : "Describe what you want — e.g. ‘when a task labeled guest-complaint is created, summarize it and assign to the manager’"
+              busy
+                ? "Building your workflow…"
+                : currentSpec
+                  ? "Refine — e.g. ‘also wait 30 minutes before posting’"
+                  : "Describe what you want — e.g. ‘when a task labeled guest-complaint is created, summarize it and assign to the manager’"
             }
             rows={2}
             disabled={busy}
@@ -199,10 +219,10 @@ export function AiCopilot({
                 disabled={!canSubmit}
                 size="icon-sm"
                 variant="default"
-                aria-label={busy ? "Stop" : "Send"}
+                aria-label={busy ? "Working" : "Send"}
               >
                 {busy ? (
-                  <Square className="size-3.5" aria-hidden />
+                  <Square className="size-3.5 opacity-50" aria-hidden />
                 ) : (
                   <CornerDownLeft className="size-3.5" aria-hidden />
                 )}
@@ -212,6 +232,33 @@ export function AiCopilot({
         </InputGroup>
       </form>
     </section>
+  );
+}
+
+/** Full-width loading card — visible even on the first prompt before transcript exists. */
+export function AiCopilotLoadingPanel({ phase }: { phase: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card px-4 py-3 shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+          <Sparkles className="size-4 text-primary animate-pulse" aria-hidden />
+          <span className="absolute inset-0 rounded-full border border-primary/30 animate-ping opacity-40" />
+        </span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-[13px] font-medium text-foreground">Building workflow with AI</p>
+          <p className="text-[12px] text-muted-foreground transition-opacity duration-300">
+            {phase}
+          </p>
+          <div className="h-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full w-2/5 animate-pulse rounded-full bg-primary/60" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

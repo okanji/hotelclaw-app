@@ -228,6 +228,12 @@ export function BuilderShell({
         </div>
       ) : (
         <div className="relative flex min-h-0 flex-1 flex-col">
+          {busy ? (
+            <div
+              className="pointer-events-none absolute inset-0 z-20 bg-background/35 backdrop-blur-[2px]"
+              aria-hidden
+            />
+          ) : null}
           <PanZoomCanvas className="flex-1">
             <div className="px-10 pt-6 pb-40">
               <TreeList

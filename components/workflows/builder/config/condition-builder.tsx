@@ -131,6 +131,14 @@ export function ConditionBuilder({
     return expr === undefined ? null : explainCondition(expr);
   }, [model]);
 
+  const visibleRefs = useMemo(
+    () =>
+      excludePaths?.length
+        ? refs.filter((r) => !excludePaths.includes(r.path))
+        : refs,
+    [refs, excludePaths],
+  );
+
   if (advanced) {
     return (
       <div className="space-y-4 rounded-xl border border-border/70 bg-muted/15 p-4">
@@ -159,13 +167,6 @@ export function ConditionBuilder({
 
   const hasClauses = model.clauses.length > 0;
   const multi = model.clauses.length > 1;
-  const visibleRefs = useMemo(
-    () =>
-      excludePaths?.length
-        ? refs.filter((r) => !excludePaths.includes(r.path))
-        : refs,
-    [refs, excludePaths],
-  );
 
   const branchPathsOnly = variant === "branch" && part === "paths";
   const branchConditionsOnly = variant === "branch" && part === "conditions";
@@ -208,10 +209,10 @@ export function ConditionBuilder({
           ))}
         </ul>
       ) : (
-        <EmptyConditions variant={variant} onAdd={addClause} />
+        <EmptyConditions variant={variant} canAdd={variant !== "trigger" || refs.length > 0} onAdd={addClause} />
       )}
 
-      {hasClauses && (
+      {hasClauses && (variant !== "trigger" || refs.length > 0) && (
         <Button
           type="button"
           variant="outline"
@@ -619,12 +620,21 @@ function LogicConnector({ combine }: { combine: "all" | "any" }) {
 
 function EmptyConditions({
   variant,
+  canAdd = true,
   onAdd,
 }: {
   variant: ConditionBuilderVariant;
+  canAdd?: boolean;
   onAdd: () => void;
 }) {
   if (variant === "trigger") {
+    if (!canAdd) {
+      return (
+        <p className="text-[0.8125rem] text-muted-foreground">
+          No filter fields for this trigger type.
+        </p>
+      );
+    }
     return (
       <Button
         type="button"

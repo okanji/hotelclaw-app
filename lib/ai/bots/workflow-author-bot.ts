@@ -33,21 +33,37 @@ import {
   STEPS,
   TRIGGERS,
   getStep,
+  getTrigger,
   triggersBySurface,
   stepsBySurface,
 } from "@/lib/workflows/catalog";
 import { WorkflowSpec } from "@/lib/workflows/spec";
 import { validateSpec } from "@/lib/workflows/validate";
 import type { Surface } from "@/lib/workflows/catalog/types";
+import {
+  authorConfigFields,
+  authorExampleConfig,
+  authorTriggerFilterHint,
+} from "@/lib/workflows/author-config-hints";
+import type { StepType, TriggerEventType } from "@/lib/workflows/spec";
 
 const PERSONA = [
   "You are the Workflow Author for Hotelclaw — an expert at turning hotel-ops goals into reliable automations on this property's surfaces (tasks, chat, docs, meetings, calendar, and workflow-defined entities like rooms or guests).",
   "Your output is a single call to `emit_workflow` with a complete WorkflowSpec JSON. Never invent action types — call `list_available_actions` / `describe_action` first and only use ids that appear there.",
+  "Every step MUST include a fully populated `config` object. Empty configs or missing required keys fail validation. Call `describe_action` for each step type you use and copy the example_config shape.",
+  "Template refs: `{{trigger.new.description}}`, `{{trigger.new.id}}`, `{{steps.<step_id>.output.summary}}`, `{{vars.name}}`. Never leave required string fields undefined — use a template ref or call `ask_clarification` / `list_property_members` for assignees.",
+  "For task.label_added workflows, prefer putting label filters on `trigger.filter.expr` (not a separate control.filter step) unless you need mid-flow filtering.",
   "Prefer the fewest steps that achieve the goal. Don't add ceremony.",
+  "For schedule.cron workflows: set trigger.schedule.cron and timezone; never emit empty trigger.filter. Step output refs must use real step ids from the spec (e.g. {{steps.fetch_tasks.output.text}}), never invented names.",
   "Hotel-domain reflex: housekeeping, F&B, front desk, escalations to GM are real categories — map vague language to them. If the workflow would benefit from a new entity type (rooms, guests, bookings), call `propose_entity_type` and explain the value.",
-  "When the goal is ambiguous (which channel? which assignee? how long to wait?), call `ask_clarification` with 2-3 suggested answers rather than guessing.",
-  "Variable refs use `{{trigger.path}}`, `{{steps.<id>.output.path}}`, `{{vars.name}}`, `{{context.property_id}}`. Always use these — never hardcode values that should come from the trigger.",
+  "When the goal is ambiguous (which channel? which assignee? how long to wait?), call `list_property_members` or `ask_clarification` with 2-3 suggested answers rather than guessing.",
 ].join("\n\n");
+
+const AUTHOR_GUIDELINES = [
+  "You are building JSON, not narrating. Call describe_action for every step type before emit_workflow.",
+  "If emit_workflow returns validation errors, read them, fix the spec, and call emit_workflow again with the corrected full spec.",
+  "Do not emit placeholder step nodes with empty config objects.",
+].join(" ");
 
 const SURFACE_ENUM = z.enum([
   "tasks",
@@ -148,6 +164,7 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
       execute: async ({ id }) => {
         const entry = getStep(id as never);
         if (!entry) return { error: `unknown step id: ${id}` };
+        const stepType = entry.id as StepType;
         return {
           id: entry.id,
           surface: entry.surface,
@@ -155,9 +172,62 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
           label: entry.label,
           description: entry.description,
           examples: entry.examplePrompts,
-          // We don't serialize the Zod inputSchema here — the AI works better
-          // from the human-readable description + examples. The validate pass
-          // catches schema mismatches and lets the bot retry.
+          config_fields: authorConfigFields(stepType),
+          example_config: authorExampleConfig(stepType),
+          branches:
+            stepType === "control.branch_if" || stepType === "ai.branch_decision"
+              ? { true: "<step_id>", false: "<step_id>" }
+              : undefined,
+        };
+      },
+    }),
+
+    describe_trigger: tool({
+      description:
+        "Fetch trigger details including filter guidance and available trigger payload paths.",
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        const entry = getTrigger(id as TriggerEventType);
+        if (!entry) return { error: `unknown trigger id: ${id}` };
+        return {
+          id: entry.id,
+          surface: entry.surface,
+          label: entry.label,
+          description: entry.description,
+          examples: entry.examplePrompts,
+          filter_hint: authorTriggerFilterHint(entry.id),
+        };
+      },
+    }),
+
+    list_property_members: tool({
+      description:
+        "List members of this property (id, name, role). Use when a step needs assignee_id or you need to pick a specific person.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const supabase = createServiceClient();
+        const { data: members, error: membersErr } = await supabase
+          .from("memberships")
+          .select("user_id, role")
+          .eq("property_id", input.propertyId);
+        if (membersErr) return { error: membersErr.message };
+        if (!members?.length) return { count: 0, members: [] };
+
+        const userIds = members.map((m) => m.user_id);
+        const { data: profiles, error: profilesErr } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+        if (profilesErr) return { error: profilesErr.message };
+
+        const byId = new Map((profiles ?? []).map((p) => [p.id, p.full_name] as const));
+        return {
+          count: members.length,
+          members: members.map((row) => ({
+            user_id: row.user_id,
+            role: row.role,
+            name: byId.get(row.user_id) ?? row.user_id,
+          })),
         };
       },
     }),
@@ -217,15 +287,16 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
         spec: z.unknown().describe("A complete WorkflowSpec JSON object."),
       }),
       execute: async (args) => {
-        emitted = args as { spec: unknown };
-        // Surface validation errors so the bot can self-correct in another tool turn.
         const validation = validateSpec(args.spec);
         if (!validation.ok) {
           const issues = validation.issues
             .map((i) => `${i.path}: ${i.message}`)
             .join("; ");
-          return { error: `spec invalid — ${issues}` };
+          return {
+            error: `spec invalid — fix these and call emit_workflow again: ${issues}`,
+          };
         }
+        emitted = args as { spec: unknown };
         return { ok: true };
       },
     }),
@@ -246,6 +317,8 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
     activationReason: "mention",
     scopedTools: tools,
     messages,
+    responseGuidelines: AUTHOR_GUIDELINES,
+    maxToolSteps: 12,
     scope: {
       propertyId: input.propertyId,
       userId: input.userId,
@@ -277,7 +350,9 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
   if (!emittedSlot) {
     return {
       kind: "error",
-      message: "Bot did not call emit_workflow / ask_clarification / propose_entity_type.",
+      message:
+        result.text.trim() ||
+        "Bot did not produce a valid workflow. It may have run out of tool steps while fixing validation errors — try a simpler goal or refine in a follow-up message.",
     };
   }
 
@@ -323,6 +398,51 @@ function buildUserMessage(input: AuthorBotInput): string {
   lines.push("Quick catalog summary (call list_/describe_ for details):");
   lines.push(`- Triggers: ${TRIGGERS.map((t) => t.id).join(", ")}`);
   lines.push(`- Steps: ${STEPS.map((s) => s.id).join(", ")}`);
+
+  lines.push("");
+  lines.push(
+    "Reference spec (guest complaint — note trigger.filter + populated configs):",
+  );
+  lines.push("```json");
+  lines.push(
+    JSON.stringify(
+      {
+        workflow_spec_version: 1,
+        name: "Guest complaint escalation",
+        trigger: {
+          event_type: "task.label_added",
+          filter: {
+            expr: { in: ["guest-complaint", { var: "trigger.added_labels" }] },
+          },
+        },
+        entry_step_id: "summarize",
+        steps: {
+          summarize: {
+            id: "summarize",
+            type: "ai.summarize_text",
+            config: {
+              input: "{{trigger.new.description}}",
+              length: "short",
+            },
+            next: "notify",
+          },
+          notify: {
+            id: "notify",
+            type: "action.notify.role",
+            config: {
+              role: "manager",
+              title: "Guest complaint",
+              body: "{{steps.summarize.output.summary}}",
+              notification_type: "workflow",
+            },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  lines.push("```");
 
   return lines.join("\n");
 }

@@ -82,6 +82,16 @@ const TRIGGER_FIELDS: Record<
   meeting: [{ path: "trigger.meeting.id", type: "string" }],
   calendar: [{ path: "trigger.event.id", type: "string" }],
   entity: [{ path: "trigger.entity_type", type: "string" }],
+  schedule: [
+    {
+      path: "trigger.fired_at",
+      type: "string",
+      sample: "2026-06-01T09:00:00Z",
+    },
+  ],
+  manual: [
+    { path: "trigger.run_by_user_id", type: "string" },
+  ],
 };
 
 /** Extra fields specific to particular trigger event types. */
