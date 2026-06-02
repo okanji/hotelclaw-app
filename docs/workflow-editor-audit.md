@@ -30,7 +30,10 @@
 - ✅ **Dev-language empty states replaced.** "Templates will be seeded when migration 0027 runs" → friendly "No templates yet" + "Build one with AI" CTA; spec-less workflow detail now has real "Build with AI" / "Browse templates" buttons. (`templates-client.tsx`, `workflow-detail.tsx`)
 - ✅ **Date-aware predicate comparisons.** `>`/`<`/`between` now order numerically *and* chronologically (ISO dates), instead of coercing dates to `NaN` (always-false). Returns false (not a crash) for incomparable operands. (`predicate.ts`)
 
-**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; retry/on_error config UI; condition builder nested AND/OR groups + date/contains operators (builder side); loops/parallel authorability; undo/redo; duplicate/copy-paste; cycle/orphan + dangling-target validation; run cancel.
+- ✅ **Undo/redo in the builder.** All edits flow through a checkpointing `commitSpec` (rapid edits coalesce within 500ms); Cmd+Z / Cmd+Shift+Z (+ Cmd+Y) and header buttons; AI applies are forced checkpoints. (`builder-shell.tsx`)
+- ✅ **Control-flow + reachability validation.** Dangling `foreach.body_start` / `parallel.branches` / `on_error` targets now error (were unchecked); the upstream-ref BFS follows loop/parallel edges (fixes false "not upstream" for loop-body refs); orphan-step and cycle warnings added. (`validate.ts`)
+
+**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; retry/on_error config UI; condition builder nested AND/OR groups + date/contains operators (builder side); loops/parallel authorability; surface orphan/cycle warnings on cards; duplicate/copy-paste; run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
