@@ -151,15 +151,18 @@ function passReferences(spec: WorkflowSpec): ValidationIssue[] {
     }
   }
 
-  // Walk every string in every step's config; extract refs; verify each.
+  // Walk every string in every step's config; extract refs; verify each. Steps
+  // inside a foreach body may also reference the loop's item var (vars.<item>).
   const declaredVars = new Set(Object.keys(spec.variables ?? {}));
   for (const [stepId, step] of Object.entries(spec.steps)) {
+    const loopVars = loopItemVarsFor(spec, stepId);
+    const stepVars = loopVars.length ? new Set([...declaredVars, ...loopVars]) : declaredVars;
     walkStrings(step.config, (value, path) => {
       let m: RegExpExecArray | null;
       TEMPLATE_RE.lastIndex = 0;
       while ((m = TEMPLATE_RE.exec(value)) !== null) {
         const ref = m[1].trim();
-        const reason = validateRef(ref, stepId, upstream, declaredVars);
+        const reason = validateRef(ref, stepId, upstream, stepVars);
         if (reason) {
           issues.push({
             path: `steps.${stepId}.config.${path}`,
@@ -293,6 +296,35 @@ function stepEdges(step: StepNode): string[] {
     out.push(s.on_error.slice("branch:".length));
   }
   return out;
+}
+
+// All steps reachable from `startId` following every edge kind.
+function reachableSet(spec: WorkflowSpec, startId: string | undefined): Set<string> {
+  const out = new Set<string>();
+  const stack = startId ? [startId] : [];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (out.has(id) || !spec.steps[id]) continue;
+    out.add(id);
+    for (const t of stepEdges(spec.steps[id])) stack.push(t);
+  }
+  return out;
+}
+
+/**
+ * Item-variable names in scope for a step because it sits inside one (or more,
+ * if nested) foreach loop bodies. The runtime exposes the current item as
+ * `vars.<item_var>`, so these become valid refs for steps in the body.
+ */
+export function loopItemVarsFor(spec: WorkflowSpec, stepId: string): string[] {
+  const vars: string[] = [];
+  for (const step of Object.values(spec.steps)) {
+    if (step.type !== "control.foreach") continue;
+    const cfg = step.config as { body_start?: string; item_var?: string };
+    if (!cfg.body_start) continue;
+    if (reachableSet(spec, cfg.body_start).has(stepId)) vars.push(cfg.item_var || "item");
+  }
+  return vars;
 }
 
 export function buildUpstreamMap(spec: WorkflowSpec): Map<string, Set<string>> {

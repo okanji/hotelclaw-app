@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { WorkflowSpec } from "./spec";
 import { getStep, getTrigger } from "./catalog";
-import { buildUpstreamMap } from "./validate";
+import { buildUpstreamMap, loopItemVarsFor } from "./validate";
 
 /**
  * Turn a raw output/variable key into a readable label: drop a trailing `_id`,
@@ -236,6 +236,22 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
           options,
         });
       }
+    }
+  }
+
+  // ── Loop item (inside a foreach body) ────────────────────────────────────────
+  // The runtime sets vars.<item_var> to the current item for each iteration, so
+  // steps in the body can reference it.
+  if (stepId) {
+    for (const itemVar of loopItemVarsFor(spec, stepId)) {
+      const path = `vars.${itemVar}`;
+      if (out.some((r) => r.path === path)) continue;
+      out.push({
+        label: `Current ${prettyLeaf(itemVar)}`,
+        path,
+        group: "Loop item",
+        type: "json",
+      });
     }
   }
 
