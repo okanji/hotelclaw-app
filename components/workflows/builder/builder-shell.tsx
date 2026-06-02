@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Check, History, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -14,6 +14,7 @@ import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
 import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
+import { VersionHistoryDialog } from "./version-history-dialog";
 
 const AUTOSAVE_DELAY_MS = 1200;
 // Edits within this window collapse into a single undo checkpoint.
@@ -60,6 +61,7 @@ export function BuilderShell({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [view, setView] = useState<"flow" | "map">("flow");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const saveSeq = useRef(0);
   const lastAutosaveAttempt = useRef<WorkflowSpec | null>(null);
   const debouncedSpec = useDebouncedValue(spec, AUTOSAVE_DELAY_MS);
@@ -323,6 +325,9 @@ export function BuilderShell({
             >
               <Redo2 className="size-3.5" />
             </IconButton>
+            <IconButton label="Version history" onClick={() => setHistoryOpen(true)}>
+              <History className="size-3.5" />
+            </IconButton>
           </div>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <ViewTab
@@ -463,6 +468,13 @@ export function BuilderShell({
           </div>
         </div>
       )}
+
+      <VersionHistoryDialog
+        propertyId={propertyId}
+        workflowId={workflowId}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
     </div>
     </WorkflowBuilderDataProvider>
   );
