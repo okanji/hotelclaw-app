@@ -162,6 +162,10 @@ declare global {
       // Lets other collaborators filter cell-selection chrome to "only the
       // sheet I'm on" and powers the avatar dots on each tab.
       activeSheetId: string | null;
+      // Workflow builder: the step id this user currently has open in the
+      // inspector. Powers "Alice is on step 3" chips in the collaborator stack.
+      // Optional so other rooms' initialPresence needn't set it.
+      workflowSelectedStepId?: string | null;
     };
     /**
      * Storage tree.
@@ -263,7 +267,11 @@ declare global {
       // Receivers invalidate the calendar query immediately instead of
       // waiting for the Supabase Realtime hop, which can lag a second or
       // two under load. Postgres + Realtime stay authoritative.
-      | { type: "calendar-invalidate" };
+      | { type: "calendar-invalidate" }
+      // Workflow builder: a peer changed the spec (JSON-stringified for the
+      // wire). Receivers mirror it live for co-editing; only the editing client
+      // persists (the rev lets the receiver ignore its own echo).
+      | { type: "workflow-spec"; spec: string; rev: number };
     ThreadMetadata: {
       taskId?: string;
       // Spreadsheet cell-anchored threads. Set when a comment is posted on

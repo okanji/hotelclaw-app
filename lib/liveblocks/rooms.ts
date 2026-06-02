@@ -30,6 +30,16 @@ export function roomIdForCalendar(propertyId: string) {
 }
 
 /**
+ * The workflow-builder room — one per workflow. Everyone editing the same
+ * workflow joins it for live presence (avatar stack, "Alice is on step 3") and
+ * a live spec mirror. Follows the `property:<pid>:...` shape so the Liveblocks
+ * auth route's tenant check authorizes it without changes.
+ */
+export function roomIdForWorkflow(propertyId: string, workflowId: string) {
+  return `property:${propertyId}:workflow:${workflowId}`;
+}
+
+/**
  * Pull a property uuid out of any room id we generate. Returns null for room
  * ids that don't follow the `property:<uuid>:...` shape so callers can fail
  * closed instead of leaking across tenants.

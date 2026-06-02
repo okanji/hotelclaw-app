@@ -15,6 +15,7 @@ import { TreeList } from "./tree-list/tree-list";
 import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
 import { VersionHistoryDialog } from "./version-history-dialog";
+import { WorkflowCoEditing } from "./workflow-co-editing";
 
 const AUTOSAVE_DELAY_MS = 1200;
 // Edits within this window collapse into a single undo checkpoint.
@@ -38,6 +39,7 @@ export function BuilderShell({
   isDurable: initialIsDurable,
   initialVersionId = null,
   webhookToken = null,
+  enableCoEditing = false,
 }: {
   propertyId: string;
   workflowId: string;
@@ -47,6 +49,8 @@ export function BuilderShell({
   initialVersionId?: string | null;
   /** Per-workflow webhook token — shown in the trigger panel for webhook/form. */
   webhookToken?: string | null;
+  /** Render the live presence + spec-mirror layer (requires a WorkflowRoom). */
+  enableCoEditing?: boolean;
 }) {
   const [savedSpec, setSavedSpec] = useState<WorkflowSpec>(initialSpec);
   const [spec, setSpec] = useState<WorkflowSpec>(initialSpec);
@@ -132,6 +136,15 @@ export function BuilderShell({
       setSpec(next);
       return { past: [...h.past, specRef.current], future: h.future.slice(1) };
     });
+  }, []);
+
+  // Mirror a peer's spec for live co-editing: update the view without marking
+  // dirty (so the receiver never autosaves — only the editing client persists)
+  // and without re-recording undo history.
+  const applyRemoteSpec = useCallback((next: WorkflowSpec) => {
+    lastEditAt.current = 0;
+    setSpec(next);
+    setSavedSpec(next);
   }, []);
 
   const persistSpec = useCallback(
@@ -313,6 +326,13 @@ export function BuilderShell({
             : ""}
         </p>
         <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
+          {enableCoEditing ? (
+            <WorkflowCoEditing
+              spec={spec}
+              selectedStepId={selectedStepId}
+              onRemoteSpec={applyRemoteSpec}
+            />
+          ) : null}
           <div className="inline-flex rounded-md border border-border bg-background p-0.5">
             <IconButton
               label="Undo (⌘Z)"

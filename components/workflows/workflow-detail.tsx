@@ -8,6 +8,7 @@ import { workflowDetailQueryOptions } from "@/lib/query/workflow-queries";
 import { classifyMode } from "@/lib/workflows/spec";
 import { PageHeader } from "@/components/shell/page-header";
 import { BuilderShell } from "./builder/builder-shell";
+import { WorkflowRoom } from "./builder/workflow-room";
 
 export function WorkflowDetail({
   propertyId,
@@ -34,14 +35,17 @@ export function WorkflowDetail({
         // BuilderShell owns its own width + padding so the canvas view can
         // break out of the comfortable reading column (820px) into the full-
         // width workspace it needs.
-        <BuilderShell
-          propertyId={propertyId}
-          workflowId={workflowId}
-          initialSpec={spec}
-          isDurable={isDurable}
-          initialVersionId={data.workflow.current_version_id ?? null}
-          webhookToken={data.workflow.webhook_token ?? null}
-        />
+        <WorkflowRoom propertyId={propertyId} workflowId={workflowId}>
+          <BuilderShell
+            propertyId={propertyId}
+            workflowId={workflowId}
+            initialSpec={spec}
+            isDurable={isDurable}
+            initialVersionId={data.workflow.current_version_id ?? null}
+            webhookToken={data.workflow.webhook_token ?? null}
+            enableCoEditing
+          />
+        </WorkflowRoom>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
