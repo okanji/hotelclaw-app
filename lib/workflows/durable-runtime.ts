@@ -80,7 +80,13 @@ async function createDurableRunRow(args: {
 }
 
 type StepCallResult =
-  | { ok: true; output: unknown; startedAt: string; attempts: number }
+  | {
+      ok: true;
+      output: unknown;
+      startedAt: string;
+      attempts: number;
+      aiTrace: Record<string, unknown> | null;
+    }
   | { ok: false; error: string; startedAt: string; attempts: number };
 
 async function executeCatalogStep(args: {
@@ -97,6 +103,12 @@ async function executeCatalogStep(args: {
   if (!runner) {
     return { ok: false, error: `no runner for ${args.stepType}`, startedAt, attempts: 1 };
   }
+  // Capture an AI trace here, inside the step boundary — recordTrace is set on
+  // the deserialized ctx copy, so the function never has to be serialized.
+  let aiTrace: Record<string, unknown> | null = null;
+  args.runnerCtx.recordTrace = (t) => {
+    aiTrace = t;
+  };
   // In-step retry — keeps the workflow's on_error policy authoritative by
   // never propagating a transient error up to the workflow loop.
   let lastErr: string | null = null;
@@ -105,7 +117,7 @@ async function executeCatalogStep(args: {
     attempts = attempt + 1;
     try {
       const output = await runner({ config: args.resolvedConfig, ctx: args.runnerCtx });
-      return { ok: true, output, startedAt, attempts };
+      return { ok: true, output, startedAt, attempts, aiTrace };
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err);
       if (attempt === args.retryConfig.max) break;
@@ -638,6 +650,7 @@ async function executeStepDurable(
       input: resolvedConfig,
       startedAt: result.startedAt,
       attempts: result.attempts,
+      aiTrace: result.aiTrace,
     };
   }
 
@@ -649,6 +662,7 @@ async function executeStepDurable(
     input: resolvedConfig,
     startedAt: result.startedAt,
     attempts: result.attempts,
+    aiTrace: result.aiTrace,
   };
 }
 

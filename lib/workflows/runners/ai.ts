@@ -49,6 +49,7 @@ export const aiSummarizeRunner: RunnerImpl<SummarizeConfig, { summary: string }>
     ],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   return { summary: result.text };
 };
 
@@ -90,7 +91,7 @@ export const aiClassifyRunner: RunnerImpl<ClassifyConfig, ClassifyOutput> = asyn
       },
     }),
   };
-  await runBot({
+  const result = await runBot({
     persona: [
       "You classify a single input into exactly one of the provided labels.",
       "Call `emit_classification` with your choice. Pick the closest label even when none is perfect — confidence reflects fit.",
@@ -108,6 +109,7 @@ export const aiClassifyRunner: RunnerImpl<ClassifyConfig, ClassifyOutput> = asyn
     ],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   if (!captured) {
     throw new Error("ai.classify_into: model did not call emit_classification");
   }
@@ -165,7 +167,7 @@ export const aiExtractRunner: RunnerImpl<
       },
     }),
   };
-  await runBot({
+  const result = await runBot({
     persona: [
       "You extract structured fields from an input. Be literal — only emit what the input states or directly implies.",
       config.persona_hint,
@@ -177,6 +179,7 @@ export const aiExtractRunner: RunnerImpl<
     messages: [{ role: "user", content: config.input }],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   if (!captured) {
     throw new Error("ai.extract_fields: model did not call emit_extraction");
   }
@@ -222,6 +225,7 @@ export const aiDraftReplyRunner: RunnerImpl<DraftReplyConfig, { text: string }> 
     ],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   return { text: result.text };
 };
 
@@ -255,7 +259,7 @@ export const aiBranchDecisionRunner: RunnerImpl<
       },
     }),
   };
-  await runBot({
+  const result = await runBot({
     persona: [
       "You answer a single yes/no question about an input and call `emit_decision`.",
       config.persona_hint,
@@ -272,6 +276,7 @@ export const aiBranchDecisionRunner: RunnerImpl<
     ],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   if (!captured) {
     throw new Error("ai.branch_decision: model did not call emit_decision");
   }
@@ -302,5 +307,6 @@ export const aiFreeformRunner: RunnerImpl<FreeformConfig, { text: string }> = as
     messages: [{ role: "user", content: config.input }],
     scope: botScopeFor(ctx),
   });
+  if (result.trace) ctx.recordTrace?.(result.trace);
   return { text: result.text };
 };

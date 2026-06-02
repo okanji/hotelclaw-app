@@ -109,6 +109,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       break;
     }
 
+    let aiTrace: Record<string, unknown> | null = null;
     const ctx: RunnerContext = {
       propertyId: args.propertyId,
       workflowOwnerId: args.workflowOwnerId,
@@ -117,6 +118,9 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       stepId: step.id,
       scope: scope as Record<string, unknown>,
       dryRun: args.dryRun ?? false,
+      recordTrace: (t) => {
+        aiTrace = t;
+      },
     };
 
     const startedAt = new Date().toISOString();
@@ -127,6 +131,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
         input,
         attempts,
         startedAt,
+        aiTrace,
       });
       if (status === "filtered") {
         runStatus = "filtered";
@@ -140,6 +145,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
         input: safeResolve(step.config, scope),
         attempts,
         startedAt,
+        aiTrace,
       });
 
       // on_error: 'continue' → ignore error and follow next
@@ -326,7 +332,12 @@ async function persistStepRun(
   output: unknown,
   status: "succeeded" | "failed" | "filtered",
   error: string | null,
-  meta: { input: unknown; attempts: number; startedAt: string },
+  meta: {
+    input: unknown;
+    attempts: number;
+    startedAt: string;
+    aiTrace?: Record<string, unknown> | null;
+  },
 ): Promise<void> {
   await supabase.from("workflow_step_runs").insert({
     run_id: runId,
@@ -337,6 +348,7 @@ async function persistStepRun(
     input: (meta.input ?? {}) as Record<string, unknown>,
     output: (output ?? null) as Record<string, unknown> | null,
     error: error ? { message: error } : null,
+    ai_trace: meta.aiTrace ?? null,
     started_at: meta.startedAt,
     finished_at: new Date().toISOString(),
   });

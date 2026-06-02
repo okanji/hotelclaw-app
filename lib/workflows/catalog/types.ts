@@ -39,6 +39,9 @@ export interface RunnerContext {
   /** Resolved upstream values: { trigger, steps, vars, context }. */
   scope: Record<string, unknown>;
   dryRun: boolean;
+  /** AI runners call this with a compact model trace; the runtime persists it
+   *  to workflow_step_runs.ai_trace for the run inspector. */
+  recordTrace?: (trace: Record<string, unknown>) => void;
 }
 
 export type Runner = (args: {

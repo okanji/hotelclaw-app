@@ -100,6 +100,13 @@ export type RunBotOptions = {
 export type RunBotResult = {
   /** The bot's reply text — what gets posted to the user-facing surface. */
   text: string;
+  /** Compact observability trace (model, token counts, tool calls) for the
+   *  workflow run inspector. Absent on the error path. */
+  trace?: {
+    model: string;
+    tokens: { input: number | null; output: number | null; total: number | null };
+    tool_calls: { name: string; input: unknown }[];
+  };
   /**
    * Raw model messages from this generation (system + history + tool calls
    * + tool results + assistant text). Surface a copy for callers that
@@ -234,6 +241,18 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
     return {
       text,
       modelMessages: result.response?.messages,
+      trace: {
+        model: result.response?.modelId ?? opts.modelId ?? MODEL_ID,
+        tokens: {
+          input: result.totalUsage?.inputTokens ?? null,
+          output: result.totalUsage?.outputTokens ?? null,
+          total: result.totalUsage?.totalTokens ?? null,
+        },
+        tool_calls: result.toolCalls.map((tc) => ({
+          name: tc.toolName,
+          input: tc.input,
+        })),
+      },
     };
   } catch (err) {
     console.error("[run-bot] generateText failed", err);
