@@ -57,7 +57,10 @@
 
 **Audit pure-code queue: drained.** Every builder/authoring/observability/runtime gap the audit flagged is implemented.
 
-**Not built (out of scope / not requested):** generic inbound-webhook & hosted-form *trigger* families; real-time co-editing (would need presence/CRDT infra).
+- ✅ **Inbound webhook / form triggers.** `webhook.received` + `form.submitted` trigger types; a public token-authed endpoint (`/api/workflows/webhook/[token]`) that runs the current spec with the posted body; the trigger panel shows the copyable URL. (migration 0032 `workflows.webhook_token`)
+- ✅ **Real-time co-editing (v1).** Per-workflow Liveblocks room: collaborator avatar stack with "who's on which step", and a live spec mirror (edits broadcast; peers apply them live). Coexists with optimistic-locking — only the editing client persists. CRDT-backed shared spec is the natural v2. (`workflow-room.tsx`, `workflow-co-editing.tsx`)
+
+**Everything in the audit + all follow-ups are now implemented.** The only remaining evolution is the co-editing v2 (CRDT/Storage-backed shared spec for conflict-free simultaneous editing) — a deliberate future step, not a gap.
 
 > Note on migrations & HTTP: the version-history and optimistic-locking features needed **no new migration** — migration 0026's `workflow_versions` / `workflows.current_version_id` already had the columns. The HTTP action needs **no external provider** — the server makes the request via `fetch`; the step just exposes it configurably. Email/Telegram/WhatsApp need env vars: `RESEND_API_KEY` + `RESEND_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`.
 
