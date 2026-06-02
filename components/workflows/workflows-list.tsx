@@ -431,10 +431,14 @@ function ModeBadge({ mode }: { mode: "instant" | "durable" }) {
           ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
           : "bg-muted text-muted-foreground",
       )}
-      title={durable ? "Durable — survives restarts, waits for events" : "Instant — runs in a single pass"}
+      title={
+        durable
+          ? "Waits for events — this workflow can pause, wait for things to happen, and resume later"
+          : "Runs once — this workflow runs start to finish each time it's triggered"
+      }
     >
       {durable ? <Clock className="size-2.5" /> : <Zap className="size-2.5" />}
-      {mode}
+      {durable ? "Waits for events" : "Runs once"}
     </span>
   );
 }
@@ -500,12 +504,12 @@ function EmptyState({ propertyId }: { propertyId: string }) {
     <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
       <Workflow className="mx-auto mb-4 size-8 text-muted-foreground/70" aria-hidden />
       <h2 className="text-[15px] font-semibold text-foreground">
-        Automate anything in your property
+        Put your busywork on autopilot
       </h2>
-      <p className="mx-auto mt-2 max-w-[420px] text-[13px] leading-relaxed text-muted-foreground">
-        Describe what you want and AI will build it. Workflows can react to
-        tasks, chat, docs, meetings, calendar, and your own entities — and
-        run instantly or wait for events.
+      <p className="mx-auto mt-2 max-w-[440px] text-[13px] leading-relaxed text-muted-foreground">
+        Describe what you want in plain English and AI will build it. For example:
+        “When a task labeled guest-complaint is created, summarize it and notify the
+        manager on duty.”
       </p>
       <div className="mt-6 flex items-center justify-center gap-2">
         <Link

@@ -6,7 +6,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "chat.message_posted",
     surface: "chat",
     category: "trigger",
-    label: "Message posted in chat",
+    label: "When a message is posted in chat",
     description:
       "Fires on every message a person sends in a team channel. You can narrow it to a specific channel, keyword, or sender.",
     examplePrompts: [
@@ -24,7 +24,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "chat.mention",
     surface: "chat",
     category: "trigger",
-    label: "User mentioned in chat",
+    label: "When someone is mentioned in chat",
     description:
       "Fires when a specific user is @-mentioned in any channel. Filter by user_id.",
     examplePrompts: [

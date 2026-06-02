@@ -17,9 +17,9 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.created",
     surface: "tasks",
     category: "trigger",
-    label: "Task created",
+    label: "When a task is created",
     description:
-      "Fires when any task is created in this property. Narrow it by label, project, priority, or assignee. The new task's details are available to later steps.",
+      "Runs whenever a task is created in this property. Use the filters below to narrow it down (for example, only tasks with a certain label). The new task's details are available to later steps.",
     examplePrompts: [
       "when a task is created with label 'guest-complaint'",
       "every time someone creates a high-priority task",
@@ -32,7 +32,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.status_changed",
     surface: "tasks",
     category: "trigger",
-    label: "Task status changed",
+    label: "When a task’s status changes",
     description:
       "Fires when a task's status changes. You get the old and new status plus the full task — handy for reacting when something moves to ‘blocked’ or ‘done’.",
     examplePrompts: [
@@ -52,7 +52,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.assigned",
     surface: "tasks",
     category: "trigger",
-    label: "Task assigned",
+    label: "When a task is assigned",
     description:
       "Fires when a task is assigned or reassigned. You get who it moved from and to, along with the task itself.",
     examplePrompts: [
@@ -70,9 +70,9 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.overdue",
     surface: "tasks",
     category: "trigger",
-    label: "Task became overdue",
+    label: "When a task becomes overdue",
     description:
-      "Fires once per task when its due_at passes without the task being marked done. Driven by a per-property cron sweep.",
+      "Runs once per task when its due date passes without the task being marked done.",
     examplePrompts: [
       "when a task becomes overdue",
       "every time a task passes its due date",
@@ -84,7 +84,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.label_added",
     surface: "tasks",
     category: "trigger",
-    label: "Label added to task",
+    label: "When a label is added to a task",
     description:
       "Fires when labels are added to a task. You get which labels were added plus the full task (title, description, priority, etc.) for later steps.",
     examplePrompts: [
@@ -151,7 +151,7 @@ const actions: StepCatalogEntry[] = [
     category: "action",
     label: "Add label to task",
     description:
-      "Add a single label to a task. Idempotent — adding an existing label is a no-op.",
+      "Adds a single label to a task. Adding a label that's already there does nothing.",
     examplePrompts: ["add the 'escalated' label", "tag with 'follow-up'"],
     outputSchema: z.object({ task: z.record(z.string(), z.unknown()) }),
     explain: (config) => {

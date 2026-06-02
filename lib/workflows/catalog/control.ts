@@ -7,9 +7,9 @@ const actions: StepCatalogEntry[] = [
     id: "control.filter",
     surface: "control",
     category: "control",
-    label: "Filter (continue only if…)",
+    label: "Continue only if…",
     description:
-      "Checks a condition against earlier data. If it isn't met, the workflow quietly stops here — no error, nothing downstream runs.",
+      "Checks a condition against earlier data. If it isn't met, the workflow quietly stops here — no error, nothing after this runs.",
     examplePrompts: [
       "only continue if the priority is high",
       "stop if the channel isn't #front-desk",
@@ -26,9 +26,9 @@ const actions: StepCatalogEntry[] = [
     id: "control.branch_if",
     surface: "control",
     category: "control",
-    label: "Branch (if/else)",
+    label: "If / else",
     description:
-      "Splits the workflow in two. When your condition is met, the steps on the “true” path run; otherwise the “false” path runs.",
+      "Splits the workflow in two. When your condition is met, the steps on the “Then” path run; otherwise the “Else” path runs.",
     examplePrompts: ["if urgent then... else...", "branch on priority"],
     outputSchema: z.object({ branch: z.enum(["true", "false"]) }),
     explain: (config) => {
@@ -40,7 +40,7 @@ const actions: StepCatalogEntry[] = [
     id: "control.branch_switch",
     surface: "control",
     category: "control",
-    label: "Branch (switch on value)",
+    label: "Route by value",
     description:
       "Sends the workflow down a different path for each value of a field — with a catch-all path for anything that doesn't match.",
     examplePrompts: ["route by severity", "switch on the classifier label"],
@@ -54,9 +54,9 @@ const actions: StepCatalogEntry[] = [
     id: "control.delay",
     surface: "control",
     category: "control",
-    label: "Delay",
+    label: "Wait a while",
     description:
-      "Pause execution for a fixed duration (e.g. '30m', '2h', '1d'). Promotes the workflow to durable mode automatically.",
+      "Pauses the workflow for a set amount of time (e.g. 30 minutes, 2 hours, 1 day) before continuing.",
     examplePrompts: ["wait 30 minutes", "delay 2 hours"],
     outputSchema: z.object({ slept_for: z.string() }),
     explain: (config) => {
@@ -68,9 +68,9 @@ const actions: StepCatalogEntry[] = [
     id: "control.wait_for_event",
     surface: "control",
     category: "control",
-    label: "Wait for event",
+    label: "Wait for something to happen",
     description:
-      "Pause until a matching event arrives (correlated by id), with an optional timeout. Promotes the workflow to durable mode.",
+      "Pauses until a matching event arrives (like a task being marked done), with an optional time limit to give up.",
     examplePrompts: [
       "wait for the task to be marked done",
       "wait for the manager to reply in the thread",
@@ -88,18 +88,18 @@ const actions: StepCatalogEntry[] = [
     id: "control.foreach",
     surface: "control",
     category: "control",
-    label: "For each item in collection",
+    label: "Repeat for each item",
     description:
       "Runs the steps inside it once for each item in a list — handy for acting on every action item, room, or guest.",
     examplePrompts: ["for each action item, create a task", "loop over the rooms"],
     outputSchema: z.object({ iterations: z.number() }),
-    explain: () => "For each item in collection",
+    explain: () => "Repeat for each item",
   },
   {
     id: "control.parallel",
     surface: "control",
     category: "control",
-    label: "Run in parallel",
+    label: "Do several things at once",
     description:
       "Runs several branches at the same time, then waits — either for all of them to finish, or just for the first one.",
     examplePrompts: ["do these three things in parallel"],

@@ -52,7 +52,7 @@ export function InspectorAdvancedSection({
   return (
     <div className="space-y-4">
       <div className="grid gap-2">
-        <Label className="text-[0.8125rem] text-muted-foreground">Identifier</Label>
+        <Label className="text-[0.8125rem] text-muted-foreground">Reference name</Label>
         <Input
           value={draftId}
           onChange={(e) => onDraftIdChange(e.target.value.replace(/[^a-z0-9_]/gi, "_"))}
@@ -65,11 +65,8 @@ export function InspectorAdvancedSection({
           <p className="text-[0.8125rem] text-destructive">{renameError}</p>
         ) : (
           <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-            Stable name for this step. Other steps reference its output as{" "}
-            <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.75rem] text-foreground/70">
-              {`{{steps.${draftId || "my_step"}.output}}`}
-            </code>
-            . Renaming updates those references automatically.
+            A short name later steps use to pull in this step’s results. Changing it updates
+            those references automatically.
           </p>
         )}
       </div>
@@ -77,10 +74,10 @@ export function InspectorAdvancedSection({
       {rawJson?.showFieldCatalog !== false &&
       refs &&
       refs.length > 0 &&
-      (rawJson.showFieldCatalog || rawJson.validateExpr) ? (
+      (rawJson?.showFieldCatalog || rawJson?.validateExpr) ? (
         <AvailableFieldsPanel
           refs={refs}
-          mode={rawJson.fieldCatalogMode ?? (rawJson.validateExpr ? "condition" : "both")}
+          mode={rawJson?.fieldCatalogMode ?? (rawJson?.validateExpr ? "condition" : "both")}
         />
       ) : null}
 
@@ -88,7 +85,7 @@ export function InspectorAdvancedSection({
         <details className="rounded-lg border border-border/60 bg-muted/[0.04]">
           <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2.5 text-[0.8125rem] text-muted-foreground select-none hover:text-foreground">
             <Braces className="size-3.5" aria-hidden />
-            <span>Raw JSON</span>
+            <span>Advanced settings</span>
           </summary>
           <div className="space-y-2 border-t border-border/60 p-3">
             {exprErrors.length > 0 ? (
@@ -105,7 +102,7 @@ export function InspectorAdvancedSection({
               onChange={rawJson.onChange}
               hint={
                 rawJson.hint ??
-                "Full config object. Useful for fields the form doesn't expose."
+                "For power users — edit the raw settings directly. The fields above cover almost everything."
               }
             />
           </div>

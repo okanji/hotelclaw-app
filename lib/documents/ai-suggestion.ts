@@ -169,7 +169,24 @@ export const AiSuggestion = Extension.create({
           const newBlocks = (parsed.content ?? []).filter(Boolean);
           const newTexts = newBlocks.map((b) => textOf(b).trim());
 
-          const parts = diffArrays(oldTexts, newTexts);
+          // Drop empty blocks the model often inserts between sections — each
+          // becomes a tall paragraph in the editor and reads as a huge gap.
+          const filteredOld: JsonNode[] = [];
+          const filteredOldTexts: string[] = [];
+          for (let i = 0; i < oldBlocks.length; i++) {
+            if (oldTexts[i] === "") continue;
+            filteredOld.push(oldBlocks[i]);
+            filteredOldTexts.push(oldTexts[i]);
+          }
+          const filteredNew: JsonNode[] = [];
+          const filteredNewTexts: string[] = [];
+          for (let i = 0; i < newBlocks.length; i++) {
+            if (newTexts[i] === "") continue;
+            filteredNew.push(newBlocks[i]);
+            filteredNewTexts.push(newTexts[i]);
+          }
+
+          const parts = diffArrays(filteredOldTexts, filteredNewTexts);
           const result: JsonNode[] = [];
           let oi = 0;
           let ni = 0;
@@ -177,16 +194,16 @@ export const AiSuggestion = Extension.create({
             const len = part.value.length;
             if (part.removed) {
               for (let k = 0; k < len; k++) {
-                result.push(addMark(oldBlocks[oi + k], DELETE));
+                result.push(addMark(filteredOld[oi + k], DELETE));
               }
               oi += len;
             } else if (part.added) {
               for (let k = 0; k < len; k++) {
-                result.push(addMark(newBlocks[ni + k], INSERT));
+                result.push(addMark(filteredNew[ni + k], INSERT));
               }
               ni += len;
             } else {
-              for (let k = 0; k < len; k++) result.push(newBlocks[ni + k]);
+              for (let k = 0; k < len; k++) result.push(filteredNew[ni + k]);
               oi += len;
               ni += len;
             }

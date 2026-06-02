@@ -15,7 +15,14 @@
  * reviewed via the floating AiReviewBar; "Re-apply" re-stages it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
   Sparkles,
   Send,
@@ -35,6 +42,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { collapseEmptyDocParagraphs } from "@/lib/documents/normalize-doc-html";
 
 type DocEdit = { op: "add" | "edit"; mode: "insert" | "append"; html: string };
 
@@ -70,15 +78,24 @@ function formatWhen(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export function DocumentAiPanel({
-  propertyId,
-  documentId,
-  editor,
-}: {
-  propertyId: string;
-  documentId: string;
-  editor: Editor | null;
-}) {
+export type DocumentAiPanelHandle = {
+  /**
+   * Open the dock and ask the assistant to explain the given passage (or the
+   * whole document when empty) in a fresh chat thread. Used by the toolbar's
+   * "Explain" button — Explain is a read action, so it routes here instead of
+   * the inline edit pipeline (which would stage the answer into the doc).
+   */
+  explain: (selection: string) => void;
+};
+
+export const DocumentAiPanel = forwardRef<
+  DocumentAiPanelHandle,
+  {
+    propertyId: string;
+    documentId: string;
+    editor: Editor | null;
+  }
+>(function DocumentAiPanel({ propertyId, documentId, editor }, ref) {
   const [expanded, setExpanded] = useState(false);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -159,57 +176,89 @@ export function DocumentAiPanel({
 
   /** Stage a drafted change as an inline diff the user reviews in the doc.
    *  Clears any prior pending suggestion first so they don't stack. */
-  function applyEdit(edit: DocEdit) {
-    if (!editor || editor.isDestroyed) return;
-    editor.chain().focus().rejectAiEdit().run();
-    if (edit.op === "edit") {
-      editor.commands.previewAiReplace(stripLeadingTitle(edit.html));
-    } else {
-      editor.commands.previewAiInsert(edit.html, edit.mode === "append");
-    }
-  }
-
-  async function send() {
-    const text = input.trim();
-    if (!text || busy) return;
-    setExpanded(true);
-    setTurns((t) => [...t, { role: "user", content: text }]);
-    setInput("");
-    setBusy(true);
-    try {
-      const res = await fetch(base, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId: activeChatId ?? undefined,
-          message: text,
-          documentHtml: editor?.getHTML(),
-        }),
-      });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? `HTTP ${res.status}`);
+  const applyEdit = useCallback(
+    (edit: DocEdit) => {
+      if (!editor || editor.isDestroyed) return;
+      editor.chain().focus().rejectAiEdit().run();
+      const html = collapseEmptyDocParagraphs(edit.html);
+      if (edit.op === "edit") {
+        editor.commands.previewAiReplace(stripLeadingTitle(html));
+      } else {
+        editor.commands.previewAiInsert(html, edit.mode === "append");
       }
-      const { chatId, reply, edit } = (await res.json()) as {
-        chatId: string;
-        title: string | null;
-        reply: string;
-        edit?: DocEdit | null;
-      };
-      setActiveChatId(chatId);
-      setTurns((t) => [...t, { role: "assistant", content: reply, edit }]);
-      if (edit) applyEdit(edit);
-      void fetchChats(); // refresh titles + ordering (and surface a new chat)
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Couldn't reach the doc assistant",
-      );
-      setTurns((t) => t.slice(0, -1));
-      setInput(text);
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [editor],
+  );
+
+  /** Post a message and stream the reply into the transcript. `freshChat`
+   *  forces a brand-new thread (used by Explain so the answer never lands in
+   *  an unrelated conversation) and keeps the input box untouched on failure. */
+  const submit = useCallback(
+    async (raw: string, opts?: { freshChat?: boolean }) => {
+      const text = raw.trim();
+      if (!text || busy) return;
+      const fresh = opts?.freshChat ?? false;
+      const chatId = fresh ? undefined : activeChatId ?? undefined;
+      if (fresh) {
+        setActiveChatId(null);
+        setChatsOpen(false);
+      }
+      setExpanded(true);
+      setTurns((t) => [...(fresh ? [] : t), { role: "user", content: text }]);
+      setInput("");
+      setBusy(true);
+      try {
+        const res = await fetch(base, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            message: text,
+            documentHtml: editor?.getHTML(),
+          }),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(err.error ?? `HTTP ${res.status}`);
+        }
+        const { chatId: id, reply, edit } = (await res.json()) as {
+          chatId: string;
+          title: string | null;
+          reply: string;
+          edit?: DocEdit | null;
+        };
+        setActiveChatId(id);
+        setTurns((t) => [...t, { role: "assistant", content: reply, edit }]);
+        if (edit) applyEdit(edit);
+        void fetchChats(); // refresh titles + ordering (and surface a new chat)
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Couldn't reach the doc assistant",
+        );
+        setTurns((t) => t.slice(0, -1));
+        if (!fresh) setInput(text);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeChatId, busy, base, editor, applyEdit, fetchChats],
+  );
+
+  const send = useCallback(() => void submit(input), [submit, input]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      explain: (selection: string) => {
+        const trimmed = selection.trim().slice(0, 4000);
+        const message = trimmed
+          ? `Explain this passage from the document in plain language. Be concise:\n\n"""\n${trimmed}\n"""`
+          : "Explain what this document is about in plain language. Be concise.";
+        void submit(message, { freshChat: true });
+      },
+    }),
+    [submit],
+  );
 
   async function copyEdit(html: string) {
     try {
@@ -424,4 +473,4 @@ export function DocumentAiPanel({
       </div>
     </div>
   );
-}
+});

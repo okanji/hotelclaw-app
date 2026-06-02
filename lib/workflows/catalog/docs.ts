@@ -6,7 +6,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "doc.created",
     surface: "docs",
     category: "trigger",
-    label: "Document created",
+    label: "When a document is created",
     description:
       "Fires when a new document is created in this property, with the document's details available to later steps.",
     examplePrompts: ["when a new doc is created", "every new document"],
@@ -17,7 +17,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "doc.archived",
     surface: "docs",
     category: "trigger",
-    label: "Document archived",
+    label: "When a document is archived",
     description: "Fires when a document is soft-deleted (archived_at set).",
     examplePrompts: ["when a doc is archived", "when a document is deleted"],
     outputSchema: z.object({ document: z.record(z.string(), z.unknown()) }),

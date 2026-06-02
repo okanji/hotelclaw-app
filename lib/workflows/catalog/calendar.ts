@@ -6,7 +6,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "calendar.event.created",
     surface: "calendar",
     category: "trigger",
-    label: "External calendar event created",
+    label: "When an external calendar event is created",
     description:
       "Fires when an external calendar (Google or Microsoft) syncs a new event. Useful for reacting to bookings or appointments.",
     examplePrompts: [
@@ -23,7 +23,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "calendar.conflict_detected",
     surface: "calendar",
     category: "trigger",
-    label: "Calendar conflict detected",
+    label: "When a calendar conflict is detected",
     description:
       "Fires when a newly-created meeting overlaps with an existing event for any attendee. Payload includes the conflicting events.",
     examplePrompts: ["when there's a scheduling conflict", "when a double-booking happens"],

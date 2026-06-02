@@ -6,7 +6,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "meeting.ended",
     surface: "meetings",
     category: "trigger",
-    label: "Meeting ended",
+    label: "When a meeting ends",
     description:
       "Fires when a video meeting ends. The meeting's details and how long it ran are available to later steps.",
     examplePrompts: ["when a meeting ends", "after a video call wraps up"],
@@ -20,7 +20,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "meeting.summary_ready",
     surface: "meetings",
     category: "trigger",
-    label: "Meeting summary ready",
+    label: "When a meeting summary is ready",
     description:
       "Fires when the AI-written summary of a meeting is ready. The summary, the meeting, and its action items are available to later steps.",
     examplePrompts: [

@@ -63,6 +63,7 @@ const AUTHOR_GUIDELINES = [
   "You are building JSON, not narrating. Call describe_action for every step type before emit_workflow.",
   "If emit_workflow returns validation errors, read them, fix the spec, and call emit_workflow again with the corrected full spec.",
   "Do not emit placeholder step nodes with empty config objects.",
+  "Your final reply to the user (the narration shown in the UI) must be one or two plain-English sentences a non-technical hotel manager understands. Describe what the workflow does in their words. NEVER expose template syntax ({{...}}), field paths (trigger.new.x, steps.x.output), JSON, step type ids, or tool names in that reply.",
 ].join(" ");
 
 const SURFACE_ENUM = z.enum([

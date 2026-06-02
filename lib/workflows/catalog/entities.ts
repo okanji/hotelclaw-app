@@ -11,7 +11,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "entity.created",
     surface: "entities",
     category: "trigger",
-    label: "Entity created",
+    label: "When an entity is created",
     description:
       "Fires when a new entity is created. Narrow it to one type (e.g. ‘room’ or ‘guest’); the new entity's details are available to later steps.",
     examplePrompts: [
@@ -32,7 +32,7 @@ const triggers: TriggerCatalogEntry[] = [
     id: "entity.field_changed",
     surface: "entities",
     category: "trigger",
-    label: "Entity field changed",
+    label: "When an entity field changes",
     description:
       "Fires when an entity row is updated. Narrow it to a specific entity type and, optionally, a specific field with a condition (e.g. status changes to ‘maintenance_needed’).",
     examplePrompts: [

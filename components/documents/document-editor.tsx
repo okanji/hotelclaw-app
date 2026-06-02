@@ -15,7 +15,7 @@
  * already-synced Yjs content.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -44,14 +44,17 @@ import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorView } from "@tiptap/pm/view";
-import { Loader2 } from "lucide-react";
+import { HelpCircle, Loader2, Sparkles } from "lucide-react";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
 import {
   documentsTreeQueryOptions,
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
 import { renameDocument } from "./actions";
-import { DocumentAiPanel } from "./document-ai-panel";
+import {
+  DocumentAiPanel,
+  type DocumentAiPanelHandle,
+} from "./document-ai-panel";
 import { DocumentLastEdited } from "./document-last-edited";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
@@ -312,6 +315,19 @@ function EditorInner({
   }, [editor]);
   useFloatingEditorUIDismiss(editor);
 
+  // "Explain" is a read action, not an edit — route it to the bottom AI dock
+  // (quoting the current selection, or the whole doc when nothing's selected)
+  // instead of the inline edit pipeline that would stage the answer into the
+  // document body.
+  const aiPanelRef = useRef<DocumentAiPanelHandle>(null);
+  const handleExplain = useCallback(() => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    const selection =
+      from === to ? "" : editor.state.doc.textBetween(from, to, "\n");
+    aiPanelRef.current?.explain(selection);
+  }, [editor]);
+
   if (!editor) return <EditorSkeleton />;
 
   // Wait for Yjs before revealing content — `initialContent` and remote
@@ -325,35 +341,56 @@ function EditorInner({
     // `--str-chat__background-core-app` → `chrome-0` → `#ffffff`). Dark mode
     // keeps `--background` as before.
     <div className="relative flex h-full min-h-0 flex-col bg-white dark:bg-background">
-      <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/20 px-6 py-1.5">
+      {/* Top row: breadcrumbs (left) + document metadata (right). Keeping
+          "Edited by" / History / presence up here lets the formatting toolbar
+          below stay a single slim band. */}
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-muted/20 px-6 py-1.5">
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}
           currentTitle={liveTitle}
         />
-      </div>
-      <div className="documents-toolbar relative flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 pt-3 pb-2">
-        <Toolbar editor={editor} />
-        <div className="absolute right-6 top-1/2 flex -translate-y-1/2 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2.5">
           <DocumentLastEdited
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
-            className="hidden text-sm text-muted-foreground tabular-nums sm:block"
+            className="hidden text-xs text-muted-foreground tabular-nums md:block"
           />
           <DocumentHistory editor={editor} />
-          <DocumentRoomAvatarStack max={5} size={28} />
+          <DocumentRoomAvatarStack max={5} size={24} />
         </div>
+      </div>
+      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 py-1">
+        {/* Default Liveblocks toolbar content, rebuilt so the AI section uses
+            OUR "Explain" (→ bottom dock) instead of the built-in one that runs
+            through the inline edit pipeline. */}
+        <Toolbar editor={editor}>
+          <Toolbar.SectionHistory />
+          <Toolbar.Separator />
+          <DocAiToolbarSection editor={editor} onExplain={handleExplain} />
+          <Toolbar.Separator />
+          <Toolbar.BlockSelector />
+          <Toolbar.SectionInline />
+          <Toolbar.Separator />
+          <Toolbar.SectionCollaboration />
+        </Toolbar>
       </div>
       <div className="flex-1 overflow-auto px-6 pb-24">
         <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
           <div className="relative mx-auto w-full max-w-3xl pt-16">
             <EditorContent editor={editor} />
-            {/* `before` prepends an "Ask AI" button to the selection toolbar
-                while keeping the default formatting controls. It opens the
-                AI toolbar in its "asking" phase via editor.commands.askAi(). */}
-            <FloatingToolbar editor={editor} before={<Toolbar.SectionAi />} />
+            {/* `before` prepends our AI section to the selection toolbar while
+                keeping the default formatting controls. "Ask Claw AI" opens the
+                inline AI prompt (edit pipeline); "Explain" routes the selection
+                to the bottom dock as a read-only answer. */}
+            <FloatingToolbar
+              editor={editor}
+              before={
+                <DocAiToolbarSection editor={editor} onExplain={handleExplain} />
+              }
+            />
             {/* The floating AI toolbar itself — self-portals, renders only
                 while an AI prompt is active. `suggestions` customizes the
                 "asking"-phase menu (Accept/Try-again/Discard are built in). */}
@@ -378,11 +415,45 @@ function EditorInner({
         </ThreadIndicatorEditorContext.Provider>
       </div>
       <DocumentAiPanel
+        ref={aiPanelRef}
         propertyId={propertyId}
         documentId={documentId}
         editor={editor}
       />
     </div>
+  );
+}
+
+/**
+ * AI section for both the main toolbar and the floating selection toolbar.
+ * Mirrors Liveblocks' built-in `Toolbar.SectionAi` (Ask + Explain) but points
+ * "Explain" at our bottom dock — Explain answers a question about the text, so
+ * it should never run through the inline insert/replace edit pipeline.
+ */
+function DocAiToolbarSection({
+  editor,
+  onExplain,
+}: {
+  editor: Editor;
+  onExplain: () => void;
+}) {
+  return (
+    <>
+      <Toolbar.Button
+        name="Ask Claw AI"
+        icon={<Sparkles className="size-4" />}
+        onClick={() => editor.chain().focus().askAi().run()}
+      >
+        Ask Claw AI
+      </Toolbar.Button>
+      <Toolbar.Button
+        name="Explain"
+        icon={<HelpCircle className="size-4" />}
+        onClick={onExplain}
+      >
+        Explain
+      </Toolbar.Button>
+    </>
   );
 }
 

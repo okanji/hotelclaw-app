@@ -18,7 +18,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.summarize_text",
     surface: "ai",
     category: "ai",
-    label: "AI: summarize text",
+    label: "Summarize text",
     description:
       "Writes a short summary of the text you give it. You choose the length — short, medium, or long. Later steps can use the summary.",
     examplePrompts: [
@@ -32,7 +32,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.classify_into",
     surface: "ai",
     category: "ai",
-    label: "AI: classify into one of N labels",
+    label: "Classify into labels",
     description:
       "Sorts the input into exactly one of the labels you list — great for routing (e.g. low / medium / high). Also returns how confident it was and why.",
     examplePrompts: [
@@ -57,7 +57,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.extract_fields",
     surface: "ai",
     category: "ai",
-    label: "AI: extract structured fields",
+    label: "Extract details into fields",
     description:
       "Pulls specific details out of the text into named fields you define — e.g. room number and issue from a complaint — so later steps can use them.",
     examplePrompts: [
@@ -73,7 +73,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.draft_reply",
     surface: "ai",
     category: "ai",
-    label: "AI: draft a reply",
+    label: "Draft a reply",
     description:
       "Writes reply text in the tone you choose. It only drafts — add a “Post message” step after it to actually send the reply.",
     examplePrompts: [
@@ -92,7 +92,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.branch_decision",
     surface: "ai",
     category: "ai",
-    label: "AI: branch on a yes/no decision",
+    label: "Make a yes/no decision",
     description:
       "Ask the AI a yes/no question about the input. The workflow then takes the “yes” path or the “no” path based on its answer.",
     examplePrompts: [
@@ -109,7 +109,7 @@ const actions: StepCatalogEntry[] = [
     id: "ai.freeform",
     surface: "ai",
     category: "ai",
-    label: "AI: freeform agent",
+    label: "Custom AI task",
     description:
       "A flexible AI step with its own instructions and access to tools. Reach for this when summarize, classify, or draft don't fit — e.g. multi-step reasoning that looks things up.",
     examplePrompts: [
@@ -117,7 +117,7 @@ const actions: StepCatalogEntry[] = [
       "look up similar past complaints and suggest an action",
     ],
     outputSchema: z.object({ text: z.string() }),
-    explain: () => "AI freeform agent",
+    explain: () => "Custom AI task",
   },
 ];
 

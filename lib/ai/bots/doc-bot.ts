@@ -28,6 +28,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
 import { captureDocumentSnapshot } from "@/lib/documents/snapshot";
+import { collapseEmptyDocParagraphs } from "@/lib/documents/normalize-doc-html";
 
 /** A drafted edit the bot wants to apply to the document, captured from the
  *  `propose_document_content` tool so the route can hand it to the client. */
@@ -120,7 +121,7 @@ export function sanitizeDocHtml(input: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  return html;
+  return collapseEmptyDocParagraphs(html);
 }
 
 function buildDocScopedTools(
@@ -149,7 +150,7 @@ function buildDocScopedTools(
         html: z
           .string()
           .describe(
-            "For op='add': ONLY the new content. For op='edit': the COMPLETE revised document body — every block from the CURRENT DOCUMENT HTML in your instructions, with your changes applied and everything else copied through UNCHANGED, and WITHOUT the title (the first <h1>). The app diffs this against the live document, so unchanged blocks must be reproduced verbatim or they'll show as spurious changes. Valid HTML using ONLY these tags: <h1> <h2> <h3> <p> <ul> <ol> <li> <blockquote> <strong> <em> <a> <hr>. NEVER use <table> — the editor cannot render tables. For schedules, timelines, checklists, or tabular data, use an <h3> sub-heading per group with a <ul> of '<strong>Field:</strong> value' items. No markdown, no code fences, no <html>/<body> wrapper, no inline styles, no emoji-as-bullets.",
+            "For op='add': ONLY the new content. For op='edit': the COMPLETE revised document body — every block from the CURRENT DOCUMENT HTML in your instructions, with your changes applied and everything else copied through UNCHANGED, and WITHOUT the title (the first <h1>). Do NOT insert blank lines or empty <p></p> tags between sections — use one <p> per line of content with no filler paragraphs. The app diffs this against the live document, so unchanged blocks must be reproduced verbatim or they'll show as spurious changes. Valid HTML using ONLY these tags: <h1> <h2> <h3> <p> <ul> <ol> <li> <blockquote> <strong> <em> <a> <hr>. NEVER use <table> — the editor cannot render tables. For schedules, timelines, checklists, or tabular data, use an <h3> sub-heading per group with a <ul> of '<strong>Field:</strong> value' items. No markdown, no code fences, no <html>/<body> wrapper, no inline styles, no emoji-as-bullets.",
           ),
       }),
       execute: async ({ op, mode, html }) => {
@@ -303,7 +304,7 @@ const DOC_BOT_PERSONA = [
   "You are the document assistant for Hotelclaw — a focused AI scoped to a single document the user has open right now.",
   "You do two kinds of work. (1) ANSWER questions about this document — summarize sections, find action items, reason about its comment threads. (2) WRITE for the document — when the user asks you to draft, add, continue, expand, rewrite, fix, or reformat content, you produce the change and stage it for inline review.",
   "You CAN edit this document: call `propose_document_content`. The user sees your change highlighted inline (added text in green, removed in red) and Accepts or Rejects it — so never say you're unable to edit and never ask them to copy-paste. Use the tool for any write/edit request; answer questions in plain text instead.",
-  "Choosing op: use op='edit' to CHANGE existing text (the html must be the COMPLETE revised body with unchanged blocks copied through verbatim, minus the title), and op='add' to introduce NEW content that replaces nothing.",
+  "Choosing op: use op='edit' to CHANGE existing text (the html must be the COMPLETE revised body with unchanged blocks copied through verbatim, minus the title), and op='add' to introduce NEW content that replaces nothing. Never pad the HTML with empty <p> tags or extra line breaks between blocks.",
   "Use `list_doc_threads` to see what people are discussing inline. Stay tightly scoped to THIS document — don't fabricate facts you can't see. After staging a change, reply with one short sentence; don't repeat the content in chat.",
 ].join(" ");
 

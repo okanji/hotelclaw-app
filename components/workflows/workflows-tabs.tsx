@@ -26,10 +26,28 @@ export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
           : "workflows";
 
   const tabs = [
-    { key: "workflows", label: "Workflows", href: base, Icon: Workflow },
-    { key: "runs", label: "Runs", href: `${base}/runs`, Icon: History },
-    { key: "templates", label: "Templates", href: `${base}/templates`, Icon: LayoutTemplate },
-    { key: "entities", label: "Entities", href: `${base}/entities`, Icon: Database },
+    { key: "workflows", label: "Workflows", href: base, Icon: Workflow, hint: "All workflows in this property" },
+    {
+      key: "runs",
+      label: "Runs",
+      href: `${base}/runs`,
+      Icon: History,
+      hint: "History of every workflow run in this property",
+    },
+    {
+      key: "templates",
+      label: "Templates",
+      href: `${base}/templates`,
+      Icon: LayoutTemplate,
+      hint: "Ready-made workflows you can start from",
+    },
+    {
+      key: "entities",
+      label: "Entities",
+      href: `${base}/entities`,
+      Icon: Database,
+      hint: "Custom data types you track, like rooms or guests",
+    },
   ];
 
   return (
@@ -46,6 +64,7 @@ export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
             href={t.href}
             role="tab"
             aria-selected={isActive}
+            title={t.hint}
             className={cn(
               "relative inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium transition-colors",
               isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",

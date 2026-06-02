@@ -10,9 +10,9 @@ const triggers: TriggerCatalogEntry[] = [
     id: "schedule.cron",
     surface: "system",
     category: "trigger",
-    label: "On schedule (cron)",
+    label: "On a repeating schedule",
     description:
-      "Fires on a cron schedule (e.g. '0 9 * * 1' for every Monday at 9am). Specify timezone via the trigger config. Promotes the workflow to durable mode.",
+      "Runs automatically on a repeating schedule you set — for example, every Monday at 9am, or every day at 7am. You choose the days, time, and timezone.",
     examplePrompts: [
       "every Monday at 9am",
       "every day at 7am",
@@ -29,7 +29,7 @@ const triggers: TriggerCatalogEntry[] = [
     surface: "system",
     category: "trigger",
     label: "Once at a specific time",
-    description: "Fires exactly once at a future ISO datetime.",
+    description: "Runs exactly once, at a future date and time you pick.",
     examplePrompts: ["tomorrow at 3pm", "next Monday at 9am"],
     outputSchema: z.object({ fired_at: z.string().datetime() }),
     explain: () => "Once at a specific time",
@@ -38,9 +38,9 @@ const triggers: TriggerCatalogEntry[] = [
     id: "manual.run",
     surface: "system",
     category: "trigger",
-    label: "Manual (Run button)",
+    label: "When someone presses Run",
     description:
-      "The workflow runs only when a user clicks the Run button (or POSTs to /api/workflows/:id/run). Useful for one-off playbooks.",
+      "The workflow runs only when someone presses the Run button. Useful for one-off playbooks you trigger by hand.",
     examplePrompts: ["manual run", "on demand only"],
     outputSchema: z.object({ run_by_user_id: z.string() }),
     explain: () => "Manual run",

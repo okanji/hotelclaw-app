@@ -95,7 +95,8 @@ export function WorkflowRunsList({
             <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
               <History className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-[13px] text-muted-foreground">
-                No runs yet — turn the workflow on, then trigger it.
+                No runs yet. Once it’s turned on, this workflow runs automatically
+                whenever its trigger happens.
               </p>
             </div>
           )}

@@ -21,8 +21,8 @@ export function WorkflowTemplates({ propertyId }: { propertyId: string }) {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[920px] px-10 pt-10 pb-12">
           <p className="mb-4 text-[12px] text-muted-foreground">
-            Fork a starting point — every template is editable in the builder
-            once forked.
+            Start with a ready-made workflow — pick one to create your own copy, then
+            customize it however you like.
           </p>
           <TemplatesClient
             propertyId={propertyId}

@@ -48,7 +48,7 @@ export function AvailableFieldsPanel({
       )}
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-[0.8125rem] text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
-        <span className="font-medium">Available fields</span>
+        <span className="font-medium">Field reference (for advanced editing)</span>
         <ChevronDown
           className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-180")}
           aria-hidden
@@ -57,8 +57,8 @@ export function AvailableFieldsPanel({
       <div className="space-y-3 border-t border-border/60 px-3 py-3">
         {(mode === "condition" || mode === "both") && (
           <p className="text-[0.75rem] leading-relaxed text-muted-foreground">
-            In <span className="font-medium text-foreground/80">conditions</span> (branch, filter,
-            trigger), use JSONLogic:{" "}
+            Most people won’t need this — the builders above handle it for you. When editing a
+            condition by hand, reference a field like:{" "}
             <code className="rounded bg-muted/60 px-1 font-mono text-[0.6875rem]">
               {`{ "var": "trigger.new.priority" }`}
             </code>
@@ -66,8 +66,9 @@ export function AvailableFieldsPanel({
         )}
         {(mode === "template" || mode === "both") && (
           <p className="text-[0.75rem] leading-relaxed text-muted-foreground">
-            In <span className="font-medium text-foreground/80">text fields</span>, wrap the same
-            path:{" "}
+            In <span className="font-medium text-foreground/80">text fields</span>, prefer the{" "}
+            <span className="font-medium text-foreground/80">Insert data</span> button. To type a
+            reference by hand, wrap the path:{" "}
             <code className="rounded bg-muted/60 px-1 font-mono text-[0.6875rem]">
               {`{{trigger.new.priority}}`}
             </code>{" "}
