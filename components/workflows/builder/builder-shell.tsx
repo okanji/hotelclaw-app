@@ -220,6 +220,17 @@ export function BuilderShell({
   // shared validator). First message per step wins.
   const invalidById = useMemo(() => computeInvalid(spec), [spec]);
 
+  // Non-blocking, step-attached warnings (orphan / cycle) shown in amber. Errors
+  // already live in invalidById and take visual precedence on the card.
+  const warningById = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const issue of validation.issues) {
+      if (issue.severity !== "warning" || !issue.step_id) continue;
+      if (!out.has(issue.step_id)) out.set(issue.step_id, issue.message);
+    }
+    return out;
+  }, [validation]);
+
   function applyAiSpec(next: WorkflowSpec) {
     const before = new Set(Object.keys(spec.steps));
     const newIds = Object.keys(next.steps).filter((id) => !before.has(id));
@@ -345,6 +356,17 @@ export function BuilderShell({
         </div>
       ) : null}
 
+      {warningById.size > 0 ? (
+        <div
+          className={cn(
+            "flex-shrink-0",
+            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+          )}
+        >
+          <WarningBanner messages={[...warningById.values()]} />
+        </div>
+      ) : null}
+
       {isMap ? (
         <div className="flex min-h-0 flex-1 flex-col p-3">
           <WorkflowCanvas
@@ -379,6 +401,7 @@ export function BuilderShell({
                 onChange={commitSpec}
                 unacceptedIds={unaccepted}
                 invalidById={invalidById}
+                warningById={warningById}
               />
             </div>
           </PanZoomCanvas>
@@ -550,6 +573,22 @@ function SpecErrorBanner({ messages }: { messages: string[] }) {
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
       <div className="min-w-0">
         <p className="font-medium text-foreground">This workflow can&apos;t be saved yet</p>
+        <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">
+          {messages.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function WarningBanner({ messages }: { messages: string[] }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px]">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">Heads up — this still saves</p>
         <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">
           {messages.map((m, i) => (
             <li key={i}>{m}</li>

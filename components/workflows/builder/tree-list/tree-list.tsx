@@ -178,6 +178,7 @@ export function TreeList({
   onChange,
   unacceptedIds,
   invalidById,
+  warningById,
 }: {
   spec: WorkflowSpec;
   propertyId?: string;
@@ -186,8 +187,10 @@ export function TreeList({
   onSelectStep?: (stepId: string) => void;
   onChange?: (next: WorkflowSpec) => void;
   unacceptedIds?: Set<string>;
-  /** step id → first inline validation message, shown on the card. */
+  /** step id → first inline error message, shown in red on the card. */
   invalidById?: Map<string, string>;
+  /** step id → first non-blocking warning (orphan/cycle), shown in amber. */
+  warningById?: Map<string, string>;
 }) {
   const [paletteAt, setPaletteAt] = useState<SlotTarget | null>(null);
   const [inspectorOpenFor, setInspectorOpenFor] = useState<string | null>(null);
@@ -384,6 +387,7 @@ export function TreeList({
         selectedStepId={selectedStepId}
         unacceptedIds={unacceptedIds}
         invalidById={invalidById}
+        warningById={warningById}
         branchPathFocus={branchPathFocus}
         onClickStep={selectStep}
         onDeleteStep={deleteStep}
@@ -545,6 +549,7 @@ function Rail({
   selectedStepId,
   unacceptedIds,
   invalidById,
+  warningById,
   branchPathFocus,
   onClickStep,
   onDeleteStep,
@@ -558,6 +563,7 @@ function Rail({
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
   invalidById?: Map<string, string>;
+  warningById?: Map<string, string>;
   branchPathFocus?: BranchPathFocus | null;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
@@ -621,6 +627,7 @@ function Rail({
                 branchPathActive={branchPathFocus?.branchStepId === step.id}
                 unaccepted={unacceptedIds?.has(step.id)}
                 invalidReason={invalidById?.get(step.id)}
+                warningReason={warningById?.get(step.id)}
                 draggable={!isBranch}
                 onClick={() => onClickStep(step.id)}
                 onDelete={() => onDeleteStep(step.id)}
@@ -635,6 +642,7 @@ function Rail({
                   selectedStepId={selectedStepId}
                   unacceptedIds={unacceptedIds}
                   invalidById={invalidById}
+                  warningById={warningById}
                   branchPathFocus={branchPathFocus}
                   activeBranchPath={
                     branchPathFocus?.branchStepId === step.id ? branchPathFocus.key : undefined
@@ -752,6 +760,7 @@ function StepRow({
   branchPathActive,
   unaccepted,
   invalidReason,
+  warningReason,
   draggable,
   onClick,
   onDelete,
@@ -764,6 +773,8 @@ function StepRow({
   unaccepted?: boolean;
   /** First validation problem on this step, shown inline. */
   invalidReason?: string;
+  /** First non-blocking warning (orphan/cycle), shown in amber when no error. */
+  warningReason?: string;
   /** Branch steps are pinned at the chain tail and not reorderable. */
   draggable: boolean;
   onClick: () => void;
@@ -876,6 +887,10 @@ function StepRow({
               <p className="mt-1.5 flex items-center gap-1 text-[0.75rem] font-medium text-destructive">
                 <span aria-hidden>▲</span> {invalidReason}
               </p>
+            ) : warningReason ? (
+              <p className="mt-1.5 flex items-center gap-1 text-[0.75rem] font-medium text-amber-600 dark:text-amber-400">
+                <span aria-hidden>▲</span> {warningReason}
+              </p>
             ) : null}
           </div>
         </div>
@@ -894,6 +909,7 @@ function BranchLanes({
   selectedStepId,
   unacceptedIds,
   invalidById,
+  warningById,
   branchPathFocus,
   activeBranchPath,
   onClickStep,
@@ -907,6 +923,7 @@ function BranchLanes({
   selectedStepId?: string;
   unacceptedIds?: Set<string>;
   invalidById?: Map<string, string>;
+  warningById?: Map<string, string>;
   branchPathFocus?: BranchPathFocus | null;
   activeBranchPath?: BranchPathKey;
   onClickStep: (id: string) => void;
@@ -966,6 +983,7 @@ function BranchLanes({
                       selectedStepId={selectedStepId}
                       unacceptedIds={unacceptedIds}
                       invalidById={invalidById}
+                      warningById={warningById}
                       branchPathFocus={branchPathFocus}
                       onClickStep={onClickStep}
                       onDeleteStep={onDeleteStep}
