@@ -38,6 +38,12 @@ import {
   shareSummaryToChannelRunner,
 } from "./meetings";
 import { gbrainCaptureRunner, delegateToOpenclawRunner } from "./system";
+import {
+  httpRequestRunner,
+  emailSendRunner,
+  telegramSendRunner,
+  whatsappSendRunner,
+} from "./external";
 
 // Server-only runner registry. Keeping this on its own module — separate from
 // the catalog metadata — is what lets client components import the catalog
@@ -76,6 +82,12 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   // System / external
   "action.gbrain.capture": gbrainCaptureRunner as Runner,
   "action.external.delegate_to_openclaw": delegateToOpenclawRunner as Runner,
+
+  // Outbound integrations
+  "action.http.request": httpRequestRunner as Runner,
+  "action.email.send": emailSendRunner as Runner,
+  "action.telegram.send": telegramSendRunner as Runner,
+  "action.whatsapp.send": whatsappSendRunner as Runner,
 
   // Entities
   "action.entity.create": createEntityRunner as Runner,

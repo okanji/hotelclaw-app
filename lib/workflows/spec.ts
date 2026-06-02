@@ -272,6 +272,48 @@ const CaptureToGbrainStep = z.object({
   }),
 });
 
+// ─── Outbound integrations ──────────────────────────────────────────────────
+
+const HttpRequestStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.http.request"),
+  config: z.object({
+    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("POST"),
+    url: TplString,
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z.string().optional(), // template string — JSON or plain text
+  }),
+});
+
+const EmailSendStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.email.send"),
+  config: z.object({
+    to: TplString,
+    subject: TplString,
+    body: TplString, // plain text / simple HTML
+    from: z.string().optional(),
+  }),
+});
+
+const TelegramSendStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.telegram.send"),
+  config: z.object({
+    chat_id: TplString,
+    text: TplString,
+  }),
+});
+
+const WhatsappSendStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.whatsapp.send"),
+  config: z.object({
+    to: TplString, // E.164 phone number
+    text: TplString,
+  }),
+});
+
 // ─── AI steps ───────────────────────────────────────────────────────────────
 
 const AiSummarizeStep = z.object({
@@ -448,6 +490,10 @@ export const StepNode = z.discriminatedUnion("type", [
   DeleteEntityStep,
   DelegateToOpenclawStep,
   CaptureToGbrainStep,
+  HttpRequestStep,
+  EmailSendStep,
+  TelegramSendStep,
+  WhatsappSendStep,
   AiSummarizeStep,
   AiClassifyStep,
   AiExtractStep,
