@@ -39,7 +39,9 @@
   - **nested AND/OR groups** — the model is now a recursive tree; mixed logic like "urgent AND (todo OR blocked)" is buildable and round-trips losslessly (nesting no longer falls back to read-only JSON).
   - (`predicate.ts`, `refs.ts`, `jsonlogic-codec.ts`, `explain-expr.ts`, `condition-builder.tsx`, `trigger-filter.ts`)
 
-**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; retry/on_error config UI; loops/parallel authorability; surface orphan/cycle warnings on cards; duplicate/copy-paste; run cancel.
+- ✅ **Retry / on-error config UI.** Action & AI steps get an "If this step fails" section — a 0–10 retry count and Stop / Continue choice — writing the top-level `retry`/`on_error` the runtime already honors. (`node-inspector.tsx`)
+
+**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; loops/parallel authorability; surface orphan/cycle warnings on cards (needs a `warningById` prop threaded through the tree); duplicate/copy-paste; run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
