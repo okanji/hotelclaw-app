@@ -3,11 +3,16 @@
 import { useEffect, useRef } from "react";
 import { LiveMap, LiveObject } from "@liveblocks/client";
 import {
+  useCanRedo,
+  useCanUndo,
   useMutation,
   useOthers,
+  useRedo,
   useStorage,
+  useUndo,
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
+import { Redo2, Undo2 } from "lucide-react";
 import { TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 import { getStep } from "@/lib/workflows/catalog";
 import type { WorkflowSpec, StepNode } from "@/lib/workflows/spec";
@@ -42,6 +47,30 @@ export function WorkflowCoEditing({
 }) {
   const others = useOthers();
   const updatePresence = useUpdateMyPresence();
+  // Liveblocks history — Storage-scoped and per-user, so undo reverts only this
+  // user's ops (not a peer's concurrent edits, which the old full-snapshot stack
+  // would clobber).
+  const undo = useUndo();
+  const redo = useRedo();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   // Reconstruct the shared spec from Storage as a canonical JSON string — a
   // string result means useStorage only re-renders when the content actually
@@ -176,11 +205,34 @@ export function WorkflowCoEditing({
     updatePresence({ workflowSelectedStepId: selectedStepId ?? null });
   }, [selectedStepId, updatePresence]);
 
-  if (others.length === 0) return null;
-
   return (
-    <div className="flex items-center -space-x-1.5" aria-label="People editing this workflow">
-      {others.slice(0, 5).map(({ connectionId, info, presence }) => {
+    <div className="flex items-center gap-2">
+      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+        <button
+          type="button"
+          onClick={() => undo()}
+          disabled={!canUndo}
+          title="Undo (⌘Z)"
+          aria-label="Undo"
+          className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Undo2 className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => redo()}
+          disabled={!canRedo}
+          title="Redo (⌘⇧Z)"
+          aria-label="Redo"
+          className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Redo2 className="size-3.5" />
+        </button>
+      </div>
+
+      {others.length > 0 ? (
+        <div className="flex items-center -space-x-1.5" aria-label="People editing this workflow">
+          {others.slice(0, 5).map(({ connectionId, info, presence }) => {
         const stepId = presence.workflowSelectedStepId;
         const step =
           stepId && stepId !== TRIGGER_NODE_ID
@@ -202,10 +254,12 @@ export function WorkflowCoEditing({
           </span>
         );
       })}
-      {others.length > 5 ? (
-        <span className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground">
-          +{others.length - 5}
-        </span>
+          {others.length > 5 ? (
+            <span className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground">
+              +{others.length - 5}
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

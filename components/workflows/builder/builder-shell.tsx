@@ -226,18 +226,19 @@ export function BuilderShell({
       } else if (key === "s") {
         e.preventDefault();
         if (dirty && canPersist && !saving) void persistSpec(spec);
-      } else if (key === "z") {
+      } else if (!enableCoEditing && key === "z") {
+        // In co-edit mode the co-editing layer owns undo (Liveblocks history).
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
-      } else if (key === "y") {
+      } else if (!enableCoEditing && key === "y") {
         e.preventDefault();
         redo();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dirty, canPersist, saving, spec, persistSpec, undo, redo]);
+  }, [dirty, canPersist, saving, spec, persistSpec, undo, redo, enableCoEditing]);
 
   // Guard against losing unsaved work on tab close / reload / external nav.
   // Autosave debounces by AUTOSAVE_DELAY_MS, so there's always a window where
@@ -343,20 +344,26 @@ export function BuilderShell({
             </ClientSideSuspense>
           ) : null}
           <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-            <IconButton
-              label="Undo (⌘Z)"
-              disabled={history.past.length === 0}
-              onClick={undo}
-            >
-              <Undo2 className="size-3.5" />
-            </IconButton>
-            <IconButton
-              label="Redo (⌘⇧Z)"
-              disabled={history.future.length === 0}
-              onClick={redo}
-            >
-              <Redo2 className="size-3.5" />
-            </IconButton>
+            {/* In co-edit mode undo/redo live in the co-editing layer
+                (Liveblocks history, per-user). Solo mode uses the local stack. */}
+            {!enableCoEditing ? (
+              <>
+                <IconButton
+                  label="Undo (⌘Z)"
+                  disabled={history.past.length === 0}
+                  onClick={undo}
+                >
+                  <Undo2 className="size-3.5" />
+                </IconButton>
+                <IconButton
+                  label="Redo (⌘⇧Z)"
+                  disabled={history.future.length === 0}
+                  onClick={redo}
+                >
+                  <Redo2 className="size-3.5" />
+                </IconButton>
+              </>
+            ) : null}
             <IconButton label="Version history" onClick={() => setHistoryOpen(true)}>
               <History className="size-3.5" />
             </IconButton>
