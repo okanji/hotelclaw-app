@@ -33,7 +33,6 @@ import { TriggerEditorFlowLayout } from "@/components/workflows/builder/trigger-
 import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
 import { StepEditorFlowLayout } from "@/components/workflows/builder/step-editor-flow-layout";
 import { InspectorAdvancedSection } from "@/components/workflows/builder/inspector-advanced-section";
-import { AvailableFieldsPanel } from "@/components/workflows/builder/config/available-fields-panel";
 import { renameStepId } from "@/lib/workflows/rename-step";
 import { JsonEditor } from "@/components/workflows/builder/config/json-editor";
 import { explainCondition } from "@/lib/workflows/explain-expr";
@@ -292,9 +291,6 @@ function TriggerEditor({
             dataContext: <DataContextPanel refs={refs} variant="trigger" />,
             conditions: showOptionalFilters ? (
               <div className="space-y-3">
-                {refs.length > 0 ? (
-                  <AvailableFieldsPanel refs={refs} mode="condition" />
-                ) : null}
                 <ConditionBuilder
                   variant="trigger"
                   value={isLabelAdded ? stripAddedLabelFilter(filterExpr) : filterExpr}
@@ -441,6 +437,16 @@ function StepEditor({
     });
   }
 
+  // Merge a patch into top-level step fields (retry, on_error, …) — distinct
+  // from commitConfig, which only touches step.config.
+  function commitStepPatch(patch: Record<string, unknown>) {
+    if (!step) return;
+    onChange({
+      ...spec,
+      steps: { ...spec.steps, [stepId]: { ...step, ...patch } as StepNode },
+    });
+  }
+
   function commitRename() {
     if (!step) return;
     if (draftId === stepId || !draftId) {
@@ -537,10 +543,7 @@ function StepEditor({
             ),
             dataContext:
               !isConditional && refs.length > 0 ? (
-                <div className="space-y-3">
-                  <DataContextPanel refs={refs} variant="step" />
-                  <AvailableFieldsPanel refs={refs} mode="template" />
-                </div>
+                <DataContextPanel refs={refs} variant="step" />
               ) : undefined,
             condition: isFilter ? (
               <ConditionBuilder
@@ -585,20 +588,24 @@ function StepEditor({
               </p>
             ) : undefined,
             advanced: (
-              <InspectorAdvancedSection
-                draftId={draftId}
-                onDraftIdChange={setDraftId}
-                onDraftIdCommit={commitRename}
-                renameError={renameError}
-                refs={refs}
-                spec={spec}
-                stepId={stepId}
-                rawJson={
+              <div className="space-y-4">
+                {(step.type.startsWith("action.") || step.type.startsWith("ai.")) && (
+                  <StepErrorHandling step={step} onPatch={commitStepPatch} />
+                )}
+                <InspectorAdvancedSection
+                  draftId={draftId}
+                  onDraftIdChange={setDraftId}
+                  onDraftIdCommit={commitRename}
+                  renameError={renameError}
+                  refs={refs}
+                  spec={spec}
+                  stepId={stepId}
+                  rawJson={
                   isConditional
                     ? {
                         value: cfgRecord,
                         onChange: onJsonConfigChange,
-                        hint: "Condition expression (expr) and any extra config keys. Prefer the visual editor above; edit here only for advanced JSONLogic.",
+                        hint: "For power users — the raw condition and any extra settings. The visual builder above is the easier way; only edit here if you need something it can’t express.",
                         validateExpr: true,
                         showFieldCatalog: true,
                         fieldCatalogMode: "condition",
@@ -607,17 +614,91 @@ function StepEditor({
                       ? {
                           value: cfgRecord,
                           onChange: onJsonConfigChange,
-                          hint: "Full config object. Useful for fields the form doesn't expose.",
+                          hint: "For power users — the raw settings. The fields above cover almost everything.",
                           showFieldCatalog: false,
                         }
                       : undefined
-                }
-              />
+                  }
+                />
+              </div>
             ),
           }}
         />
       </div>
     </>
+  );
+}
+
+// ─── Error handling (retry + on-error) ─────────────────────────────────────
+// Surfaces the per-step retry / on_error settings the runtime already honors,
+// in plain language. Branch-on-error stays in the raw settings — the friendly
+// control covers the two common choices (stop vs continue).
+
+function StepErrorHandling({
+  step,
+  onPatch,
+}: {
+  step: StepNode;
+  onPatch: (patch: Record<string, unknown>) => void;
+}) {
+  const maxRetries = (step as { retry?: { max?: number } }).retry?.max ?? 0;
+  const onError = (step as { on_error?: string }).on_error ?? "fail";
+  const errorMode: "fail" | "continue" = onError === "continue" ? "continue" : "fail";
+
+  function setRetries(n: number) {
+    const clamped = Math.max(0, Math.min(10, Math.floor(Number.isFinite(n) ? n : 0)));
+    onPatch({ retry: clamped > 0 ? { max: clamped, backoff: "exp", initial_ms: 1000 } : undefined });
+  }
+
+  function setErrorMode(mode: "fail" | "continue") {
+    onPatch({ on_error: mode === "continue" ? "continue" : "fail" });
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/[0.04] p-3">
+      <p className="text-[0.8125rem] font-medium text-foreground">If this step fails</p>
+
+      <label className="grid gap-1.5">
+        <span className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+          Retry first
+        </span>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            max={10}
+            value={maxRetries}
+            onChange={(e) => setRetries(Number(e.target.value))}
+            aria-label="Retry attempts"
+            className="h-9 w-20 rounded-md border border-input bg-background px-2 text-[0.8125rem]"
+          />
+          <span className="text-[0.8125rem] text-muted-foreground">
+            {maxRetries === 0
+              ? "no retries"
+              : `${maxRetries === 1 ? "time" : "times"} before giving up`}
+          </span>
+        </div>
+      </label>
+
+      <label className="grid gap-1.5">
+        <span className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+          Then
+        </span>
+        <WorkflowSelect
+          ariaLabel="On error"
+          value={errorMode}
+          onChange={(e) => setErrorMode(e.target.value as "fail" | "continue")}
+        >
+          <option value="fail">Stop the workflow</option>
+          <option value="continue">Skip this step and keep going</option>
+        </WorkflowSelect>
+      </label>
+
+      <p className="text-[0.75rem] leading-relaxed text-muted-foreground">
+        Retries wait a little longer between each attempt. To send the workflow
+        to a specific step on failure, use the raw settings below.
+      </p>
+    </div>
   );
 }
 
@@ -728,7 +809,7 @@ function StepConfigSection({
   );
 
   if (embedded) return body;
-  return <Section title="Configure">{body}</Section>;
+  return <Section title="Set up this step">{body}</Section>;
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
