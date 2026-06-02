@@ -412,15 +412,40 @@ async function executeStepDurable(
     });
 
     const hook = createHook<Record<string, unknown>>({ token });
-    const eventPayload = await hook;
+
+    // Enforce the optional timeout by racing the hook against a durable sleep.
+    // Without this the run waits forever if the correlated event never arrives
+    // (showing "running" indefinitely with no recourse). On timeout we stop
+    // waiting and continue with received:false so downstream steps can branch.
+    let eventPayload: Record<string, unknown> | null = null;
+    let timedOut = false;
+    if (cfg.timeout) {
+      const raced = await Promise.race([
+        hook.then((payload) => ({ kind: "event" as const, payload })),
+        sleep(cfg.timeout as `${number}${"s" | "m" | "h" | "d"}`).then(
+          () => ({ kind: "timeout" as const }),
+        ),
+      ]);
+      if (raced.kind === "timeout") timedOut = true;
+      else eventPayload = raced.payload;
+    } else {
+      eventPayload = await hook;
+    }
     await disposeWait(token);
 
     return {
       ok: true,
       next: (step as { next?: string }).next,
-      output: { received: true, event: eventPayload, event_type: cfg.event_type, token },
+      output: timedOut
+        ? { received: false, timed_out: true, event_type: cfg.event_type, token }
+        : { received: true, event: eventPayload, event_type: cfg.event_type, token },
       status: "succeeded",
-      input: { event_type: cfg.event_type, correlate: resolvedCorrelate, token },
+      input: {
+        event_type: cfg.event_type,
+        correlate: resolvedCorrelate,
+        token,
+        timeout: cfg.timeout ?? null,
+      },
     };
   }
 

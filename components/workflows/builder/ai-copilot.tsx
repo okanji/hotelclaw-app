@@ -23,21 +23,31 @@ import type { WorkflowSpec } from "@/lib/workflows/spec";
 // confirmation.
 
 const LOADING_PHASES = [
-  "Reading your goal…",
-  "Scanning available triggers and actions…",
-  "Designing steps and wiring data…",
-  "Validating the workflow spec…",
+  "Reading your request…",
+  "Finding the right starting point…",
+  "Building the steps…",
+  "Double-checking everything…",
 ] as const;
+
+type ProposedEntity = { name: string; display_name: string; schema: Record<string, unknown> };
 
 export type CopilotOutcome =
   | { kind: "spec"; spec: WorkflowSpec; narration: string }
   | { kind: "clarification"; question: string; suggestions: string[]; narration: string }
-  | { kind: "propose_entity_type"; entity: { name: string; display_name: string; schema: Record<string, unknown> }; narration: string }
+  | { kind: "propose_entity_type"; entity: ProposedEntity; narration: string }
   | { kind: "error"; message: string };
 
 type Turn =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string }
+  | {
+      role: "assistant";
+      content: string;
+      suggestions?: string[];
+      // When set, the row renders a "Create this entity type" action. Creating
+      // it (via /entities/types) then resumes `resumeGoal` so the bot can finish
+      // the workflow it was blocked on — closing what was a hard dead-end.
+      entityProposal?: ProposedEntity & { resumeGoal: string };
+    }
   | { role: "system"; content: string };
 
 export function AiCopilot({
@@ -48,6 +58,8 @@ export function AiCopilot({
   busy,
   setBusy,
   className,
+  pendingPrompt,
+  onPendingPromptConsumed,
 }: {
   propertyId: string;
   currentSpec: WorkflowSpec | null;
@@ -60,10 +72,16 @@ export function AiCopilot({
   busy: boolean;
   setBusy: (b: boolean) => void;
   className?: string;
+  // A goal pushed in from outside (starter prompt, cross-surface ?prefill).
+  // Sent through the same conversational path as typed input — so clarifications
+  // and entity proposals are answerable, not swallowed into a toast.
+  pendingPrompt?: string | null;
+  onPendingPromptConsumed?: () => void;
 }) {
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [loadingPhase, setLoadingPhase] = useState(0);
+  const [creatingEntity, setCreatingEntity] = useState<string | null>(null);
 
   useEffect(() => {
     if (!busy) {
@@ -76,12 +94,24 @@ export function AiCopilot({
     return () => window.clearInterval(id);
   }, [busy]);
 
-  async function send(goalOverride?: string) {
+  // Consume an externally-pushed prompt exactly once, routing it through the
+  // normal send() path. Clearing it in the parent (via onPendingPromptConsumed)
+  // prevents a re-send when this effect re-runs.
+  useEffect(() => {
+    if (!pendingPrompt || busy) return;
+    onPendingPromptConsumed?.();
+    void send(pendingPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt, busy]);
+
+  async function send(goalOverride?: string, opts?: { pushUser?: boolean }) {
     const goal = (goalOverride ?? input).trim();
     if (!goal || busy) return;
-    const userTurn: Turn = { role: "user", content: goal };
-    setTranscript((t) => [...t, userTurn]);
-    setInput("");
+    if (opts?.pushUser !== false) {
+      const userTurn: Turn = { role: "user", content: goal };
+      setTranscript((t) => [...t, userTurn]);
+    }
+    if (!goalOverride) setInput("");
     setBusy(true);
     try {
       const res = await fetch(`/api/properties/${propertyId}/workflows/author`, {
@@ -101,7 +131,7 @@ export function AiCopilot({
         throw new Error("author bot request failed");
       }
 
-      handleOutcome(outcome);
+      handleOutcome(outcome, goal);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Author failed";
       toast.error(msg);
@@ -111,7 +141,7 @@ export function AiCopilot({
     }
   }
 
-  function handleOutcome(outcome: CopilotOutcome) {
+  function handleOutcome(outcome: CopilotOutcome, goal: string) {
     switch (outcome.kind) {
       case "spec":
         onSpec(outcome.spec);
@@ -126,18 +156,22 @@ export function AiCopilot({
           {
             role: "assistant",
             content: outcome.narration || outcome.question,
+            suggestions: outcome.suggestions,
           },
         ]);
         return;
       case "propose_entity_type":
-        if (onProposedEntityType) onProposedEntityType(outcome.entity);
+        // Notify the parent if it cares, but DON'T depend on it — the inline
+        // action below is the actual recovery path so this is never a dead-end.
+        onProposedEntityType?.(outcome.entity);
         setTranscript((t) => [
           ...t,
           {
             role: "assistant",
             content:
               outcome.narration ||
-              `Proposed new entity type: ${outcome.entity.display_name}`,
+              `This needs a “${outcome.entity.display_name}” record type, which doesn't exist yet.`,
+            entityProposal: { ...outcome.entity, resumeGoal: goal },
           },
         ]);
         return;
@@ -147,6 +181,41 @@ export function AiCopilot({
           ...t,
           { role: "system", content: outcome.message },
         ]);
+    }
+  }
+
+  async function createEntityType(proposal: ProposedEntity & { resumeGoal: string }) {
+    if (creatingEntity || busy) return;
+    setCreatingEntity(proposal.name);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/entities/types`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: proposal.name,
+          display_name: proposal.display_name,
+          schema: proposal.schema,
+        }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      toast.success(`Created “${proposal.display_name}”`);
+      // Drop the action from the proposal turn so it can't be created twice,
+      // then resume the original goal — the bot can now build the workflow.
+      setTranscript((t) =>
+        t.map((turn) =>
+          turn.role === "assistant" && turn.entityProposal?.name === proposal.name
+            ? { ...turn, entityProposal: undefined, content: `Created “${proposal.display_name}”. Continuing…` }
+            : turn,
+        ),
+      );
+      void send(proposal.resumeGoal, { pushUser: false });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't create the record type");
+    } finally {
+      setCreatingEntity(null);
     }
   }
 
@@ -166,7 +235,17 @@ export function AiCopilot({
       {transcript.length > 0 && (
         <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/60 bg-card/60 p-3">
           {transcript.map((t, i) => (
-            <TranscriptRow key={i} turn={t} />
+            <TranscriptRow
+              key={i}
+              turn={t}
+              // Only the latest assistant turn's suggestions stay actionable.
+              onPickSuggestion={
+                !busy && i === transcript.length - 1 ? (s) => void send(s) : undefined
+              }
+              onCreateEntity={createEntityType}
+              creatingEntity={creatingEntity}
+              actionsDisabled={busy}
+            />
           ))}
         </div>
       )}
@@ -191,7 +270,7 @@ export function AiCopilot({
               busy
                 ? "Building your workflow…"
                 : currentSpec
-                  ? "Refine — e.g. ‘also wait 30 minutes before posting’"
+                  ? "Make a change — e.g. ‘also wait 30 minutes before posting’"
                   : "Describe what you want — e.g. ‘when a task labeled guest-complaint is created, summarize it and assign to the manager’"
             }
             rows={2}
@@ -262,7 +341,19 @@ export function AiCopilotLoadingPanel({ phase }: { phase: string }) {
   );
 }
 
-function TranscriptRow({ turn }: { turn: Turn }) {
+function TranscriptRow({
+  turn,
+  onPickSuggestion,
+  onCreateEntity,
+  creatingEntity,
+  actionsDisabled,
+}: {
+  turn: Turn;
+  onPickSuggestion?: (suggestion: string) => void;
+  onCreateEntity?: (proposal: ProposedEntity & { resumeGoal: string }) => void;
+  creatingEntity?: string | null;
+  actionsDisabled?: boolean;
+}) {
   if (turn.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] rounded-md border border-border/60 bg-background px-3 py-2 text-[13px] text-foreground">
@@ -279,9 +370,41 @@ function TranscriptRow({ turn }: { turn: Turn }) {
     );
   }
   return (
-    <div className="flex items-start gap-2 rounded-md bg-muted/30 px-3 py-2 text-[13px] text-foreground">
-      <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden />
-      <span className="whitespace-pre-wrap">{turn.content}</span>
+    <div className="rounded-md bg-muted/30 px-3 py-2 text-[13px] text-foreground">
+      <div className="flex items-start gap-2">
+        <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden />
+        <span className="whitespace-pre-wrap">{turn.content}</span>
+      </div>
+      {turn.suggestions && turn.suggestions.length > 0 && onPickSuggestion ? (
+        <div className="mt-2 flex flex-wrap gap-1.5 pl-6">
+          {turn.suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onPickSuggestion(s)}
+              className="rounded-full border border-border bg-background px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {turn.entityProposal && onCreateEntity ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
+          <button
+            type="button"
+            disabled={actionsDisabled || creatingEntity === turn.entityProposal.name}
+            onClick={() => onCreateEntity(turn.entityProposal!)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <Sparkles className="size-3" aria-hidden />
+            {creatingEntity === turn.entityProposal.name
+              ? "Creating…"
+              : `Create “${turn.entityProposal.display_name}” record type`}
+          </button>
+          <span className="text-[11px] text-muted-foreground">then I’ll finish the workflow</span>
+        </div>
+      ) : null}
     </div>
   );
 }

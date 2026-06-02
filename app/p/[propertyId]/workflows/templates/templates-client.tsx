@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LibraryBig } from "lucide-react";
+import { LibraryBig, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -45,10 +45,10 @@ export function TemplatesClient({
         throw new Error(err.error ?? `HTTP ${res.status}`);
       }
       const { id } = (await res.json()) as { id: string };
-      toast.success("Template forked — review and turn it on when ready.");
+      toast.success("Copy created — review and turn it on when ready.");
       router.push(`/p/${propertyId}/workflows/${id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fork failed");
+      toast.error(err instanceof Error ? err.message : "Couldn’t create a copy");
     } finally {
       setForking(null);
     }
@@ -61,9 +61,19 @@ export function TemplatesClient({
           className="mx-auto mb-3 size-6 text-muted-foreground"
           aria-hidden
         />
-        <p className="text-[13px] text-muted-foreground">
-          Templates will be seeded when migration 0027 runs.
+        <p className="text-[13px] font-medium text-foreground">No templates yet</p>
+        <p className="mx-auto mt-1 max-w-sm text-[12px] text-muted-foreground">
+          You can still create a workflow from scratch — describe what you want
+          and the AI will design it for you.
         </p>
+        <button
+          type="button"
+          onClick={() => router.push(`/p/${propertyId}/workflows/new`)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background hover:opacity-90"
+        >
+          <Sparkles className="size-3.5" aria-hidden />
+          Build one with AI
+        </button>
       </div>
     );
   }
@@ -98,7 +108,7 @@ export function TemplatesClient({
                 "inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background disabled:opacity-50",
               )}
             >
-              {forking === t.slug ? "Forking…" : "Fork"}
+              {forking === t.slug ? "Creating…" : "Use template"}
             </button>
           </div>
         </li>

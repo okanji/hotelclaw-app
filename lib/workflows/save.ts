@@ -25,6 +25,15 @@ export interface SaveWorkflowResult {
   mode: "instant" | "durable";
 }
 
+// Canonical JSON of the spec's *semantic* content — everything except the
+// presentational `layout` map — used for version de-duplication. Two specs that
+// differ only in node positions produce the same string (and thus the same
+// version hash), so repositioning never creates a new version.
+function specSemanticJson(spec: WorkflowSpec): string {
+  const { layout: _layout, ...semantic } = spec;
+  return JSON.stringify(semantic);
+}
+
 export async function saveWorkflow(args: SaveWorkflowArgs): Promise<SaveWorkflowResult> {
   const supabase = createServiceClient();
   let currentVersionId: string | null = null;
@@ -39,20 +48,32 @@ export async function saveWorkflow(args: SaveWorkflowArgs): Promise<SaveWorkflow
     const parsed = WorkflowSpec.parse(args.spec);
     mode = classifyMode(parsed);
 
-    const canonical = JSON.stringify(parsed);
-    const specHash = createHash("sha256").update(canonical).digest("hex");
+    // The version hash is computed over the SEMANTIC spec — everything except
+    // `layout`, which is purely presentational (node x/y in the Map view).
+    // Otherwise a cosmetic node drag hashes differently and spawns a brand-new
+    // immutable version, spamming history and inflating the version number.
+    const specHash = createHash("sha256").update(specSemanticJson(parsed)).digest("hex");
 
     // Determine the next version number for this workflow.
     const { data: lastVersion } = await supabase
       .from("workflow_versions")
-      .select("version, spec_hash")
+      .select("id, version, spec_hash")
       .eq("workflow_id", args.workflowId)
       .order("version", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // No-op if the new spec hashes identically to the latest version.
+    // Semantic no-op (same logic, possibly new node positions). Don't write a
+    // new version — but DO refresh the latest version's stored spec in place so
+    // the moved node positions still persist across reloads. Layout is the only
+    // thing that can differ here, so this can't rewrite workflow logic.
     if (lastVersion?.spec_hash === specHash) {
+      if (lastVersion.id) {
+        await supabase
+          .from("workflow_versions")
+          .update({ spec: parsed as unknown as Record<string, unknown> })
+          .eq("id", lastVersion.id);
+      }
       currentVersionId = null;
     } else {
       const nextVersion = (lastVersion?.version ?? 0) + 1;

@@ -51,25 +51,19 @@ export function StepEditorFlowLayout({ slots }: { slots: StepEditorFlowSlots }) 
     steps.push({
       id: "paths",
       marker: 2,
-      title: "Then and else",
+      title: "Then / else",
       children: slots.branchPaths,
     });
   } else {
+    // Config inputs first, then the canvas recap last — "How it appears on the
+    // canvas" summarizes the configured step, so it follows the inputs it
+    // describes (mirrors the trigger editor, where Summary always comes last).
     let n = 0;
-    if (slots.canvasSummary) {
-      n += 1;
-      steps.push({
-        id: "canvas",
-        marker: n,
-        title: "On the canvas",
-        children: slots.canvasSummary,
-      });
-    }
     n += 1;
     steps.push({
       id: "configure",
       marker: n,
-      title: "Configure",
+      title: "Set up this step",
       children: slots.configure,
     });
     if (slots.dataContext) {
@@ -79,6 +73,15 @@ export function StepEditorFlowLayout({ slots }: { slots: StepEditorFlowSlots }) 
         marker: n,
         title: "Data you can use",
         children: slots.dataContext,
+      });
+    }
+    if (slots.canvasSummary) {
+      n += 1;
+      steps.push({
+        id: "canvas",
+        marker: n,
+        title: "How it appears on the canvas",
+        children: slots.canvasSummary,
       });
     }
   }

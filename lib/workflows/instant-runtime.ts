@@ -94,6 +94,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
   let stepCount = 0;
   let runStatus: InstantRunResult["status"] = "succeeded";
   let runError: string | undefined;
+  let errorStepId: string | undefined;
 
   while (cursor) {
     if (stepCount++ > MAX_STEPS_PER_RUN) {
@@ -118,10 +119,15 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       dryRun: args.dryRun ?? false,
     };
 
+    const startedAt = new Date().toISOString();
     try {
-      const { next, output, status } = await executeStep(step, ctx, scope);
+      const { next, output, status, input, attempts } = await executeStep(step, ctx, scope);
       scope.steps![step.id] = { output };
-      await persistStepRun(supabase, runId, step, ctx, output, status, null);
+      await persistStepRun(supabase, runId, step, output, status, null, {
+        input,
+        attempts,
+        startedAt,
+      });
       if (status === "filtered") {
         runStatus = "filtered";
         break;
@@ -129,7 +135,12 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       cursor = next;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await persistStepRun(supabase, runId, step, ctx, null, "failed", message);
+      const attempts = ((step as { retry?: { max?: number } }).retry?.max ?? 0) + 1;
+      await persistStepRun(supabase, runId, step, null, "failed", message, {
+        input: safeResolve(step.config, scope),
+        attempts,
+        startedAt,
+      });
 
       // on_error: 'continue' → ignore error and follow next
       // on_error: 'branch:X'  → jump to step X
@@ -142,6 +153,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       } else {
         runStatus = "failed";
         runError = message;
+        errorStepId = step.id;
         break;
       }
     }
@@ -154,6 +166,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       finished_at: new Date().toISOString(),
       output: scope.steps,
       error: runError ?? null,
+      error_step_id: errorStepId ?? null,
     })
     .eq("id", runId);
 
@@ -167,18 +180,31 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
 
 // ─── Step executor ──────────────────────────────────────────────────────────
 
+interface StepExecResult {
+  next: string | undefined;
+  output: unknown;
+  status: "succeeded" | "filtered";
+  /** The resolved config the step actually received — persisted as its input. */
+  input: unknown;
+  /** How many attempts it took (1 unless retried). */
+  attempts: number;
+}
+
 async function executeStep(
   step: StepNode,
   ctx: RunnerContext,
   scope: ResolutionScope,
-): Promise<{ next: string | undefined; output: unknown; status: "succeeded" | "filtered" }> {
-  // Control nodes — handled inline, never hit the catalog.
+): Promise<StepExecResult> {
+  // Control nodes — handled inline, never hit the catalog. Their "input" is the
+  // authored config (small, and meaningful for debugging the branch/filter).
   if (step.type === "control.filter") {
     const pass = evaluatePredicate((step.config as { expr: unknown }).expr, scope);
     return {
       next: pass ? step.next : undefined,
       output: { passed: pass },
       status: pass ? "succeeded" : "filtered",
+      input: step.config,
+      attempts: 1,
     };
   }
 
@@ -188,15 +214,27 @@ async function executeStep(
     const target = result
       ? (step.branches as { true: string }).true
       : (step.branches as { false: string }).false;
-    return { next: target, output: { branch: result ? "true" : "false" }, status: "succeeded" };
+    return {
+      next: target,
+      output: { branch: result ? "true" : "false" },
+      status: "succeeded",
+      input: step.config,
+      attempts: 1,
+    };
   }
 
   if (step.type === "control.branch_switch") {
-    const input = resolveValue((step.config as { input: string }).input, scope);
+    const value = resolveValue((step.config as { input: string }).input, scope);
     const branches = step.branches as Record<string, string>;
-    const key = input === null || input === undefined ? "" : String(input);
+    const key = value === null || value === undefined ? "" : String(value);
     const target = branches[key] ?? branches._default;
-    return { next: target, output: { branch: key }, status: "succeeded" };
+    return {
+      next: target,
+      output: { branch: key },
+      status: "succeeded",
+      input: { input: value },
+      attempts: 1,
+    };
   }
 
   if (step.type === "control.end") {
@@ -204,6 +242,8 @@ async function executeStep(
       next: undefined,
       output: { outcome: (step.config as { outcome?: string })?.outcome ?? null },
       status: "succeeded",
+      input: step.config,
+      attempts: 1,
     };
   }
 
@@ -224,7 +264,7 @@ async function executeStep(
   const runner = getRunner(step.type);
   if (!runner) throw new Error(`step type ${step.type} has no runner`);
   const resolvedConfig = resolveValue(step.config, scope);
-  const output = await runWithRetry(step, () =>
+  const { result: output, attempts } = await runWithRetry(step, () =>
     runner({ config: resolvedConfig, ctx }),
   );
 
@@ -236,22 +276,25 @@ async function executeStep(
       next: out.decision === "true" ? branches.true : branches.false,
       output,
       status: "succeeded",
+      input: resolvedConfig,
+      attempts,
     };
   }
 
-  return { next: step.next, output, status: "succeeded" };
+  return { next: step.next, output, status: "succeeded", input: resolvedConfig, attempts };
 }
 
 async function runWithRetry(
   step: StepNode,
   fn: () => Promise<unknown>,
-): Promise<unknown> {
+): Promise<{ result: unknown; attempts: number }> {
   const retry = (step as { retry?: { max: number; backoff: "exp" | "linear"; initial_ms: number } })
     .retry ?? { max: 0, backoff: "exp", initial_ms: 1000 };
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retry.max; attempt++) {
     try {
-      return await fn();
+      const result = await fn();
+      return { result, attempts: attempt + 1 };
     } catch (err) {
       lastErr = err;
       if (attempt === retry.max) break;
@@ -265,24 +308,36 @@ async function runWithRetry(
   throw lastErr;
 }
 
+// Best-effort resolve for the error path, where executeStep threw before it
+// could return the resolved input. Never throws — a bad resolve falls back to
+// the raw authored config so we still persist something useful.
+function safeResolve(config: unknown, scope: ResolutionScope): unknown {
+  try {
+    return resolveValue(config, scope);
+  } catch {
+    return config;
+  }
+}
+
 async function persistStepRun(
   supabase: ReturnType<typeof createServiceClient>,
   runId: string,
   step: StepNode,
-  ctx: RunnerContext,
   output: unknown,
   status: "succeeded" | "failed" | "filtered",
   error: string | null,
+  meta: { input: unknown; attempts: number; startedAt: string },
 ): Promise<void> {
   await supabase.from("workflow_step_runs").insert({
     run_id: runId,
     step_id: step.id,
     step_type: step.type,
     status: status === "filtered" ? "succeeded" : status,
-    attempt: 1,
-    input: (ctx.scope as { trigger?: unknown }).trigger as Record<string, unknown> ?? {},
+    attempt: meta.attempts,
+    input: (meta.input ?? {}) as Record<string, unknown>,
     output: (output ?? null) as Record<string, unknown> | null,
     error: error ? { message: error } : null,
+    started_at: meta.startedAt,
     finished_at: new Date().toISOString(),
   });
 }

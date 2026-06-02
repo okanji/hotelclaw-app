@@ -25,6 +25,63 @@ export interface DispatchResult {
   skipped_reasons: Record<string, string>;
 }
 
+/**
+ * Run a workflow's CURRENT version immediately with a supplied trigger payload,
+ * independent of its trigger type. Used by the run inspector's "Re-run" (replay
+ * the original run's input) and by test/dry-run. Unlike dispatchEvent, this
+ * bypasses the trigger-type match and event flow — it just executes the spec.
+ * `triggerEventId` is null so it never collides with the per-event idempotency
+ * key (Postgres treats NULLs as distinct), letting a workflow be replayed many
+ * times.
+ */
+export async function runWorkflowNow(opts: {
+  workflowId: string;
+  propertyId: string;
+  triggerPayload: Record<string, unknown>;
+  triggeredByUserId?: string | null;
+  dryRun?: boolean;
+}): Promise<{ runId: string; status: string }> {
+  const supabase = createServiceClient();
+  const { data: w } = await supabase
+    .from("workflows")
+    .select("id, current_version_id, created_by, mode")
+    .eq("id", opts.workflowId)
+    .eq("property_id", opts.propertyId)
+    .maybeSingle();
+  if (!w || !w.current_version_id) {
+    throw new Error("This workflow has no saved version to run yet.");
+  }
+  const { data: versionRow } = await supabase
+    .from("workflow_versions")
+    .select("id, spec")
+    .eq("id", w.current_version_id)
+    .maybeSingle();
+  if (!versionRow) throw new Error("Couldn't load the workflow's current version.");
+
+  const parsed = WorkflowSpec.safeParse(versionRow.spec);
+  if (!parsed.success) throw new Error("The workflow's saved spec is invalid.");
+  const spec = parsed.data;
+  const mode = w.mode ?? classifyMode(spec);
+
+  const runArgs = {
+    spec,
+    workflowId: w.id,
+    workflowVersionId: versionRow.id,
+    propertyId: opts.propertyId,
+    workflowOwnerId: w.created_by ?? "",
+    triggerEventId: null,
+    triggerPayload: opts.triggerPayload,
+    triggeredByUserId: opts.triggeredByUserId ?? null,
+    dryRun: opts.dryRun ?? false,
+  };
+
+  const result =
+    mode === "durable"
+      ? await runWorkflowDurable(runArgs)
+      : await runWorkflowInstant(runArgs);
+  return { runId: result.runId, status: result.status };
+}
+
 export async function dispatchEvent(eventId: string): Promise<DispatchResult> {
   const supabase = createServiceClient();
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, LayoutPanelLeft, List, X } from "lucide-react";
+import { AlertTriangle, Check, LayoutPanelLeft, List, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -41,6 +41,10 @@ export function BuilderShell({
   const [savedSpec, setSavedSpec] = useState<WorkflowSpec>(initialSpec);
   const [spec, setSpec] = useState<WorkflowSpec>(initialSpec);
   const [unaccepted, setUnaccepted] = useState<Set<string>>(new Set());
+  // Snapshot of the spec immediately before the last AI apply, so Reject removes
+  // only the AI's changes instead of reverting to the (possibly much older) last
+  // saved version and discarding the user's own unsaved edits.
+  const [preAiSpec, setPreAiSpec] = useState<WorkflowSpec | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,7 +55,19 @@ export function BuilderShell({
   const debouncedSpec = useDebouncedValue(spec, AUTOSAVE_DELAY_MS);
   const dirty = spec !== savedSpec;
   const hasUnaccepted = unaccepted.size > 0;
-  const canPersist = useMemo(() => validateSpec(spec).ok, [spec]);
+  const validation = useMemo(() => validateSpec(spec), [spec]);
+  const canPersist = validation.ok;
+  // Blocking errors that aren't pinned to a visible card (empty entry_step_id,
+  // top-level Zod failures, trigger problems). Without surfacing these, autosave
+  // silently stops while the status line says "fix the errors above" — but there
+  // is nothing above. We render them in a banner instead.
+  const unattachedErrors = useMemo(
+    () =>
+      validation.issues.filter(
+        (i) => i.severity === "error" && (!i.step_id || !spec.steps[i.step_id]),
+      ),
+    [validation, spec.steps],
+  );
 
   const persistSpec = useCallback(
     async (next: WorkflowSpec, options?: { silent?: boolean }): Promise<boolean> => {
@@ -87,11 +103,15 @@ export function BuilderShell({
   );
 
   // Debounced autosave — skips invalid specs and avoids retry loops on failure.
+  // Gated on acceptance: while AI-proposed steps are unaccepted, nothing is
+  // persisted, so the Accept/Reject bar is a real gate rather than cosmetic.
+  // Clearing `unaccepted` (Accept all) re-runs this effect and saves.
   useEffect(() => {
     if (debouncedSpec === savedSpec) {
       lastAutosaveAttempt.current = null;
       return;
     }
+    if (unaccepted.size > 0) return;
     if (!validateSpec(debouncedSpec).ok) return;
     if (lastAutosaveAttempt.current === debouncedSpec) return;
 
@@ -99,7 +119,7 @@ export function BuilderShell({
     void persistSpec(debouncedSpec, { silent: true }).then((ok) => {
       if (ok) lastAutosaveAttempt.current = null;
     });
-  }, [debouncedSpec, savedSpec, persistSpec]);
+  }, [debouncedSpec, savedSpec, persistSpec, unaccepted]);
 
   // Cmd+G / Ctrl+G toggles Flow ↔ Map; Cmd+S / Ctrl+S saves immediately.
   useEffect(() => {
@@ -118,6 +138,19 @@ export function BuilderShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [dirty, canPersist, saving, spec, persistSpec]);
 
+  // Guard against losing unsaved work on tab close / reload / external nav.
+  // Autosave debounces by AUTOSAVE_DELAY_MS, so there's always a window where
+  // edits aren't persisted; warn before the browser discards them.
+  useEffect(() => {
+    if (!dirty && !saving) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty, saving]);
+
   // classifyMode might flip from instant → durable as the AI adds delay/wait nodes.
   const currentIsDurable = useMemo(() => classifyMode(spec) === "durable", [spec]);
 
@@ -129,34 +162,40 @@ export function BuilderShell({
   function applyAiSpec(next: WorkflowSpec) {
     const before = new Set(Object.keys(spec.steps));
     const newIds = Object.keys(next.steps).filter((id) => !before.has(id));
+    setPreAiSpec(spec); // capture the pre-apply state so Reject can return here
     setSpec(next);
     setUnaccepted(new Set(newIds));
   }
 
   function acceptAll() {
-    setUnaccepted(new Set());
-    toast.success(
-      unaccepted.size === 1
-        ? "Accepted 1 AI-added step"
-        : `Accepted ${unaccepted.size} AI-added steps`,
-    );
+    const count = unaccepted.size;
+    setUnaccepted(new Set()); // clearing the gate lets autosave persist (effect)
+    setPreAiSpec(null);
+    toast.success(count === 1 ? "Accepted 1 AI-added step" : `Accepted ${count} AI-added steps`);
   }
 
   function rejectAll() {
-    setSpec(savedSpec);
+    // Restore only to the pre-AI state, preserving the user's own edits made
+    // before the AI ran (not all the way back to the last saved version).
+    if (preAiSpec) setSpec(preAiSpec);
     setUnaccepted(new Set());
-    toast.message("Reverted to last saved version");
+    setPreAiSpec(null);
+    toast.message("Removed the AI's changes");
   }
 
   const statusMessage = saving
     ? "Saving…"
     : saveError
       ? saveError
-      : dirty
-        ? canPersist
-          ? "Unsaved changes…"
-          : "Unsaved changes — fix errors to save."
-        : "All caught up.";
+      : hasUnaccepted
+        ? "Review the AI's changes above to save."
+        : dirty
+          ? canPersist
+            ? "Saving automatically…"
+            : unattachedErrors.length > 0
+              ? "Can't save yet — see the issue above."
+              : "Fix the highlighted steps to save."
+          : "All changes saved.";
 
   const isMap = view === "map";
 
@@ -178,14 +217,15 @@ export function BuilderShell({
         >
           {statusMessage}
           {currentIsDurable !== initialIsDurable
-            ? " · Mode changed — this workflow now runs durably."
+            ? " · This workflow now waits for events (you added a step that pauses or delays it)."
             : ""}
         </p>
         <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <ViewTab
               icon={<List className="size-3" />}
-              label="Flow"
+              label="Steps"
+              shortcut="⌘G"
               active={view === "flow"}
               onClick={() => setView("flow")}
             />
@@ -197,6 +237,12 @@ export function BuilderShell({
               onClick={() => setView("map")}
             />
           </div>
+          <SaveButton
+            dirty={dirty}
+            saving={saving}
+            canPersist={canPersist}
+            onSave={() => void persistSpec(spec)}
+          />
         </div>
       </header>
 
@@ -208,6 +254,17 @@ export function BuilderShell({
           )}
         >
           <AcceptBar count={unaccepted.size} onAccept={acceptAll} onReject={rejectAll} />
+        </div>
+      ) : null}
+
+      {dirty && unattachedErrors.length > 0 ? (
+        <div
+          className={cn(
+            "flex-shrink-0",
+            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+          )}
+        >
+          <SpecErrorBanner messages={unattachedErrors.map(humanizeSpecIssue)} />
         </div>
       ) : null}
 
@@ -267,6 +324,21 @@ export function BuilderShell({
   );
 }
 
+// Turn a spec-level (non-card) validation error into plain language for the
+// banner. Falls back to the raw validator message for anything unmapped.
+function humanizeSpecIssue(issue: { path: string; message: string }): string {
+  if (issue.path === "entry_step_id") {
+    return "This workflow has no starting step yet. Add a step so the trigger has somewhere to go.";
+  }
+  if (issue.path === "name") {
+    return "Give this workflow a name before saving.";
+  }
+  if (issue.path.startsWith("trigger")) {
+    return `The trigger needs attention: ${issue.message}`;
+  }
+  return issue.message;
+}
+
 // Map step id → first human-readable problem, for inline card validation.
 function computeInvalid(spec: WorkflowSpec): Map<string, string> {
   const out = new Map<string, string>();
@@ -323,6 +395,66 @@ function ViewTab({
       {icon}
       {label}
     </button>
+  );
+}
+
+function SaveButton({
+  dirty,
+  saving,
+  canPersist,
+  onSave,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  canPersist: boolean;
+  onSave: () => void;
+}) {
+  // Saved (clean) → calm, disabled. Dirty + valid → primary, enabled. Dirty +
+  // invalid → disabled (the banner / card errors say why). Saving → in-flight.
+  const label = saving ? "Saving…" : dirty ? "Save" : "Saved";
+  const disabled = saving || !dirty || !canPersist;
+  return (
+    <button
+      type="button"
+      onClick={onSave}
+      disabled={disabled}
+      title={
+        !dirty
+          ? "All changes saved"
+          : !canPersist
+            ? "Resolve the issues above to save"
+            : "Save now (⌘S)"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors",
+        !dirty
+          ? "text-muted-foreground"
+          : canPersist
+            ? "bg-foreground text-background hover:opacity-90"
+            : "cursor-not-allowed border border-border text-muted-foreground opacity-70",
+      )}
+    >
+      {!dirty && !saving ? (
+        <Check className="size-3.5" aria-hidden />
+      ) : null}
+      {label}
+    </button>
+  );
+}
+
+function SpecErrorBanner({ messages }: { messages: string[] }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px]">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">This workflow can&apos;t be saved yet</p>
+        <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">
+          {messages.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

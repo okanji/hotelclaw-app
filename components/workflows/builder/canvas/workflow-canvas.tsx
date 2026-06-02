@@ -7,12 +7,9 @@ import {
   ReactFlowProvider,
   applyNodeChanges,
   useReactFlow,
-  type Connection,
   type NodeChange,
-  type EdgeChange,
   type Node as RfNodeType,
   type Edge as RfEdgeType,
-  type IsValidConnection,
 } from "@xyflow/react";
 import { LayoutGrid, Maximize, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,25 +17,26 @@ import { useShellSection } from "@/components/shell/shell-section-context";
 import { Canvas } from "@/components/ai-elements/canvas";
 import { Controls } from "@/components/ai-elements/controls";
 import { Panel } from "@/components/ai-elements/panel";
-import { Connection as ConnectionLine } from "@/components/ai-elements/connection";
 import { Edge as AiEdges } from "@/components/ai-elements/edge";
 import { AiCopilot } from "@/components/workflows/builder/ai-copilot";
-import type { WorkflowSpec, StepNode, StepType } from "@/lib/workflows/spec";
+import type { WorkflowSpec, StepNode } from "@/lib/workflows/spec";
 import {
-  TRIGGER_NODE_ID,
   applyPositionsToSpec,
-  connect,
-  disconnect,
-  nextStepId,
-  removeStep,
   specToGraph,
-  type RFEdge,
   type RFNode,
 } from "@/lib/workflows/graph";
-import { getStep, getTrigger, STEPS } from "@/lib/workflows/catalog";
+import { getStep, getTrigger } from "@/lib/workflows/catalog";
 import { WfNode, WfNodeProvider } from "./wf-node";
-import { NodePalette } from "./node-palette";
 import { NodeInspector } from "./node-inspector";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The Map view is a read-only spatial OVERVIEW of the workflow. All structural
+// editing (adding, deleting, and re-wiring steps) happens in the Steps view,
+// which owns the correct splicing mutators. The Map historically had its own
+// add/delete paths that produced orphan nodes and severed chains — those have
+// been removed. What stays here: pan / zoom / fit / minimap, click-a-node to
+// open the inspector and edit its config, and drag-to-reposition (layout only).
+// ─────────────────────────────────────────────────────────────────────────────
 
 const NODE_TYPES = { wf: WfNode };
 const EDGE_TYPES = { wfAnimated: AiEdges.Animated, wfTemporary: AiEdges.Temporary };
@@ -168,19 +166,11 @@ function CanvasInner({
     [nodes, selectedNodeId],
   );
 
+  // Read-only canvas: the only spec mutation we persist is a position drag
+  // (layout, never structure). Selection/dimension changes stay transient.
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // Apply changes locally (xyflow uses these for transient updates), but we
-      // only persist `position` deltas back to the spec on dragstop, below.
-      // We still need this for selection/dimensions/etc to feel responsive.
       const next = applyNodeChanges(changes, displayNodes as RfNodeType[]);
-      // Detect removals
-      const removed = changes.filter((c) => c.type === "remove").map((c) => c.id);
-      let nextSpec = spec;
-      for (const id of removed) {
-        if (id !== TRIGGER_NODE_ID) nextSpec = removeStep(nextSpec, id);
-      }
-      // Position drag commits — only when an interaction completes (dragging=false)
       const dragCommits: Record<string, { x: number; y: number }> = {};
       for (const change of changes) {
         if (change.type === "position" && change.dragging === false && change.position) {
@@ -188,128 +178,29 @@ function CanvasInner({
         }
       }
       if (Object.keys(dragCommits).length > 0) {
-        nextSpec = applyPositionsToSpec(nextSpec, dragCommits);
+        setSpec(applyPositionsToSpec(spec, dragCommits));
       }
-      if (nextSpec !== spec) setSpec(nextSpec);
-      // We rely on the next render to repaint with the new spec; no local state needed.
+      // We rely on the next render to repaint from the spec; no local state.
       void next;
     },
     [displayNodes, spec, setSpec],
   );
-
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      let nextSpec = spec;
-      for (const change of changes) {
-        if (change.type === "remove") nextSpec = disconnect(nextSpec, change.id);
-      }
-      if (nextSpec !== spec) setSpec(nextSpec);
-    },
-    [spec, setSpec],
-  );
-
-  const onConnect = useCallback(
-    (c: Connection) => {
-      if (!c.source || !c.target) return;
-      const nextSpec = connect(spec, c.source, c.sourceHandle ?? undefined, c.target);
-      setSpec(nextSpec);
-    },
-    [spec, setSpec],
-  );
-
-  // Reject self-loops and connections targeting the trigger.
-  const isValidConnection: IsValidConnection = useCallback((c) => {
-    if (!c.source || !c.target) return false;
-    if (c.source === c.target) return false;
-    if (c.target === TRIGGER_NODE_ID) return false;
-    return true;
-  }, []);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, n: { id: string }) => setSelectedNodeId(n.id),
     [setSelectedNodeId],
   );
 
-  const onEdgeDoubleClick = useCallback(
-    (_: React.MouseEvent, e: { id: string }) => {
-      setSpec(disconnect(spec, e.id));
-    },
-    [spec, setSpec],
-  );
-
-  // ─── Add-step: click in palette or drop on canvas ────────────────────────
-
-  const addStepAt = useCallback(
-    (type: StepType, position: { x: number; y: number }) => {
-      const id = nextStepId(spec, type);
-      const meta = getStep(type);
-      // Use the catalog entry's outputSchema-implied defaults — for v1, just an
-      // empty config object. The inspector lets the user fill it in.
-      const newStep = { id, type, config: {} } as unknown as StepNode;
-
-      const nextSteps = { ...spec.steps, [id]: newStep };
-      const nextLayout = { ...(spec.layout ?? {}), [id]: position };
-      const nextEntry = spec.entry_step_id || id;
-      setSpec({
-        ...spec,
-        steps: nextSteps,
-        layout: nextLayout,
-        entry_step_id: nextEntry,
-      });
-      setSelectedNodeId(id);
-      void meta;
-    },
-    [spec, setSpec, setSelectedNodeId],
-  );
-
-  const onPaletteClick = useCallback(
-    (type: StepType) => {
-      // Drop new node near the viewport center.
-      const viewport = rf.getViewport();
-      const center = {
-        x: -viewport.x / viewport.zoom + 200,
-        y: -viewport.y / viewport.zoom + 80,
-      };
-      addStepAt(type, center);
-    },
-    [rf, addStepAt],
-  );
-
-  const onPaletteDragStart = useCallback((type: StepType, e: React.DragEvent) => {
-    e.dataTransfer.setData("application/x-wf-step-type", type);
-    e.dataTransfer.effectAllowed = "move";
-  }, []);
-
-  const onCanvasDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const type = e.dataTransfer.getData("application/x-wf-step-type") as StepType;
-      if (!type || !STEPS.find((s) => s.id === type)) return;
-      const bounds = wrapperRef.current?.getBoundingClientRect();
-      if (!bounds) return;
-      const position = rf.screenToFlowPosition({
-        x: e.clientX - bounds.left,
-        y: e.clientY - bounds.top,
-      });
-      addStepAt(type, position);
-    },
-    [rf, addStepAt],
-  );
-
-  const onCanvasDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }, []);
-
-  // ─── Inspector handlers passed through node context ──────────────────────
+  // ─── Inspector handler passed through node context ───────────────────────
+  // No onDelete — deletion lives in the Steps view. The node toolbar therefore
+  // shows only the Edit (open inspector) action.
 
   const ctx = useMemo(
     () => ({
       branchHandlesByType: BRANCH_HANDLES,
       onEdit: setSelectedNodeId,
-      onDelete: (id: string) => setSpec(removeStep(spec, id)),
     }),
-    [spec, setSpec, setSelectedNodeId],
+    [setSelectedNodeId],
   );
 
   // ─── Toolbar actions ────────────────────────────────────────────────────
@@ -334,8 +225,6 @@ function CanvasInner({
       className={cn(
         "relative size-full min-h-[480px] overflow-hidden rounded-lg border border-border/60 bg-sidebar",
       )}
-      onDrop={onCanvasDrop}
-      onDragOver={onCanvasDragOver}
     >
       <WfNodeProvider value={ctx}>
         <Canvas
@@ -344,19 +233,27 @@ function CanvasInner({
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-          connectionLineComponent={ConnectionLine}
-          isValidConnection={isValidConnection}
           onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
           onNodeClick={onNodeClick}
-          onEdgeDoubleClick={onEdgeDoubleClick}
           onPaneClick={() => setSelectedNodeId(null)}
+          // Read-only structure: no connecting, no edge deletion, no delete-key.
+          nodesConnectable={false}
+          edgesReconnectable={false}
+          deleteKeyCode={null}
           proOptions={{ hideAttribution: true }}
           minZoom={0.2}
           maxZoom={1.8}
         >
-          <NodePalette onAddStep={onPaletteClick} onDragStart={onPaletteDragStart} />
+          {/* Top-left: read-only overview hint, so the missing palette/edit
+              affordances read as intentional rather than broken. */}
+          {hasSteps && (
+            <Panel position="top-left" className="m-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/90 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur">
+                <Maximize className="size-3" aria-hidden />
+                Overview — edit steps in the Steps view
+              </span>
+            </Panel>
+          )}
 
           {/* Top-right cluster: zoom controls + layout actions + close X */}
           <Panel position="top-right" className="flex items-center gap-1 p-1">
@@ -399,16 +296,19 @@ function CanvasInner({
             )}
           </Panel>
 
-          {/* Empty state — Panel pinned to the center until the user adds a step */}
+          {/* Empty state — Panel pinned to the center until there are steps. The
+              Map is a read-only overview, so it points the user at the Steps
+              view (or the AI copilot below) rather than a palette. */}
           {!hasSteps && (
             <Panel position="top-center" className="mt-24 max-w-md p-6 text-center">
               <Sparkles className="mx-auto mb-2 size-5 text-primary" aria-hidden />
               <p className="text-[13px] font-medium text-foreground">
-                Build this workflow visually
+                Nothing to map yet
               </p>
               <p className="mt-1 text-[12px] text-muted-foreground">
-                Drag a step from the palette on the left, or describe what you
-                want below — the AI will scaffold it for you.
+                Add steps in the Steps view, or describe what you want below —
+                the AI will scaffold it for you. This Map is a read-only
+                overview of the workflow.
               </p>
             </Panel>
           )}

@@ -8,8 +8,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { groupRefs, type RefCandidate } from "@/lib/workflows/refs";
+import { groupRefs, type RefCandidate, type RefType } from "@/lib/workflows/refs";
 import { humanizeRef } from "@/lib/workflows/explain-expr";
+
+/** Plain-English names for the coarse ref types shown in the picker. */
+const FRIENDLY_TYPE: Record<RefType, string> = {
+  string: "Text",
+  number: "Number",
+  boolean: "Yes / no",
+  "string[]": "List",
+  json: "Data",
+};
 
 // A string config field that can also pull in live data. Users never see or
 // type a {{dotted.path}}:
@@ -41,6 +50,7 @@ export function TemplateField({
   rows = 3,
   mono,
   refs,
+  invalid,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -50,6 +60,7 @@ export function TemplateField({
   rows?: number;
   mono?: boolean;
   refs: RefCandidate[];
+  invalid?: boolean;
 }) {
   const elRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -97,7 +108,7 @@ export function TemplateField({
           <InsertDataPopover refs={refs} onInsert={(p) => onChange(`{{${p}}}`)}>
             <PopoverTrigger
               className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.75rem] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              title="Use different data"
+              title="Pick different data"
             >
               Change
             </PopoverTrigger>
@@ -128,7 +139,13 @@ export function TemplateField({
           onBlur={onBlur}
           placeholder={placeholder}
           rows={rows}
-          className={cn(FIELD_BASE, "min-h-[72px] py-2", mono && "font-mono")}
+          aria-invalid={invalid || undefined}
+          className={cn(
+            FIELD_BASE,
+            "min-h-[72px] py-2",
+            mono && "font-mono",
+            invalid && "border-destructive focus-visible:ring-destructive/30",
+          )}
         />
       ) : (
         <input
@@ -137,7 +154,13 @@ export function TemplateField({
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
           placeholder={placeholder}
-          className={cn(FIELD_BASE, "h-9", mono && "font-mono")}
+          aria-invalid={invalid || undefined}
+          className={cn(
+            FIELD_BASE,
+            "h-9",
+            mono && "font-mono",
+            invalid && "border-destructive focus-visible:ring-destructive/30",
+          )}
         />
       )}
 
@@ -229,11 +252,11 @@ export function InsertDataPopover({
                     </span>
                     {r.sample ? (
                       <span className="max-w-[40%] truncate text-[0.75rem] text-muted-foreground">
-                        {r.sample}
+                        e.g. {r.sample}
                       </span>
                     ) : (
-                      <span className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground/70">
-                        {r.type}
+                      <span className="text-[0.6875rem] tracking-wide text-muted-foreground/70">
+                        {FRIENDLY_TYPE[r.type]}
                       </span>
                     )}
                   </button>

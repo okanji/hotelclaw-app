@@ -5,7 +5,12 @@ import type { TriggerEditorSlots } from "./trigger-editor-layouts-types";
 
 export type { TriggerEditorSlots } from "./trigger-editor-layouts-types";
 
-/** Vertical timeline — event → labels (optional) → summary → optional filters. */
+/**
+ * Vertical timeline — event → labels (optional) → optional filters → summary.
+ * Every input that shapes the trigger (the event, label filter, schedule, and
+ * the optional field filters) is grouped ahead of the Summary, which is a
+ * recap and therefore always comes last.
+ */
 export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }) {
   const steps: FlowStep[] = [
     { id: "event", marker: 1, title: "Start with this event", children: slots.eventSelect },
@@ -26,17 +31,6 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       children: slots.scheduleConfig,
     });
   }
-  steps.push({
-    id: "summary",
-    marker: steps.length + 1,
-    title: "Summary",
-    children: (
-      <>
-        <p className="text-[0.8125rem] leading-relaxed text-foreground/90">{slots.summary}</p>
-        <div className="mt-2">{slots.dataContext}</div>
-      </>
-    ),
-  });
   if (slots.conditions) {
     steps.push({
       id: "filters",
@@ -45,5 +39,18 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       children: slots.conditions,
     });
   }
+  steps.push({
+    // Number sequentially after the numbered config steps — the "+" optional
+    // filters step doesn't consume a number, so don't count it here.
+    id: "summary",
+    marker: steps.filter((s) => typeof s.marker === "number").length + 1,
+    title: "Summary",
+    children: (
+      <>
+        <p className="text-[0.8125rem] leading-relaxed text-foreground/90">{slots.summary}</p>
+        <div className="mt-2">{slots.dataContext}</div>
+      </>
+    ),
+  });
   return <InspectorFlowRail steps={steps} />;
 }

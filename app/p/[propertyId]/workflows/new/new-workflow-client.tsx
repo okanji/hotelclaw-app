@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,17 @@ const STARTER_PROMPTS = [
   "When a meeting summary is ready, create follow-up tasks for each action item and share the summary in #ops",
 ];
 
+// Decode the base64 ?prefill= JSON and pull out its `goal` string, if any.
+function decodePrefillGoal(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(atob(raw)) as { goal?: unknown };
+    return typeof parsed.goal === "string" ? parsed.goal : null;
+  } catch {
+    return null;
+  }
+}
+
 export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,27 +34,15 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
-  const prefillUsed = useRef(false);
-
   // Cross-surface entry points (kanban column overflow, task menu, chat menu)
-  // pass a base64-encoded prefill JSON in ?prefill=. The shape is loose by
-  // design — we just extract a `goal` string and feed it to the AI as the
-  // first turn, with any additional context inlined.
-  useEffect(() => {
-    if (prefillUsed.current) return;
-    const raw = searchParams.get("prefill");
-    if (!raw) return;
-    let parsed: { goal?: string } & Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(atob(raw));
-    } catch {
-      return;
-    }
-    const goal = typeof parsed.goal === "string" ? parsed.goal : null;
-    if (!goal) return;
-    prefillUsed.current = true;
-    void sendStarter(goal);
-  }, [searchParams]);
+  // pass a base64-encoded prefill JSON in ?prefill=. We extract its `goal` once,
+  // up front, and hand it to the copilot as the first turn (via pendingPrompt)
+  // so any clarification / entity proposal it triggers stays answerable instead
+  // of vanishing into a toast. Seeding state directly (rather than in an effect)
+  // avoids a cascading re-render on mount.
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(() =>
+    decodePrefillGoal(searchParams.get("prefill")),
+  );
 
   function applyAiSpec(next: WorkflowSpec) {
     setSpec(next);
@@ -88,7 +87,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           </h1>
           <p className="mx-auto mt-2 max-w-[480px] text-[13px] leading-relaxed text-muted-foreground">
             Type a goal in plain English — AI will design the workflow on your
-            property's tasks, chat, docs, meetings, calendar, and entities.
+            property&apos;s tasks, chat, docs, meetings, calendar, and entities.
           </p>
         </header>
 
@@ -101,7 +100,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
               <li key={i}>
                 <button
                   type="button"
-                  onClick={() => sendStarter(p)}
+                  onClick={() => setPendingPrompt(p)}
                   className={cn(
                     "w-full rounded-md border border-border/60 bg-card px-3 py-2 text-left text-[12px] text-foreground hover:bg-muted/40",
                     busy && "opacity-50",
@@ -121,6 +120,8 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           onSpec={applyAiSpec}
           busy={busy}
           setBusy={setBusy}
+          pendingPrompt={pendingPrompt}
+          onPendingPromptConsumed={() => setPendingPrompt(null)}
         />
       </div>
     );
@@ -165,32 +166,4 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
       </div>
     </div>
   );
-
-  function sendStarter(prompt: string) {
-    if (busy) return;
-    // Re-use the same /author endpoint as AiCopilot — fire a hand-rolled fetch
-    // so the prompt fills the transcript without juggling refs into the child.
-    void (async () => {
-      setBusy(true);
-      try {
-        const res = await fetch(`/api/properties/${propertyId}/workflows/author`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goal: prompt }),
-        });
-        const outcome = await res.json();
-        if (outcome.kind === "spec") {
-          applyAiSpec(outcome.spec);
-        } else if (outcome.kind === "error") {
-          toast.error(outcome.message);
-        } else if (outcome.kind === "clarification") {
-          toast.message(outcome.question);
-        }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Author failed");
-      } finally {
-        setBusy(false);
-      }
-    })();
-  }
 }

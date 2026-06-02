@@ -16,9 +16,16 @@ import { Toolbar } from "@/components/ai-elements/toolbar";
 import { SurfaceBadge, SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import type { Surface } from "@/lib/workflows/catalog/types";
 import type { GraphNodeData } from "@/lib/workflows/graph";
-import { TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 
 export type WfRfNode = Node<GraphNodeData, "wf">;
+
+/** Plain-English node subtitle from a step type id (never the raw `ai.foo` id). */
+function friendlyKind(typeId: string): string {
+  if (typeId.startsWith("ai.")) return "AI step";
+  if (typeId.startsWith("control.")) return "Logic step";
+  if (typeId.startsWith("action.")) return "Action";
+  return "Step";
+}
 
 interface ExtraHandleSpec {
   id: string;
@@ -31,7 +38,9 @@ export interface WfNodeContextValue {
   /** Extra source handles per step type (e.g. branch labels). */
   branchHandlesByType: Record<string, ExtraHandleSpec[]>;
   onEdit: (nodeId: string) => void;
-  onDelete: (nodeId: string) => void;
+  /** Optional — when omitted (e.g. the read-only Map overview) the node
+   *  toolbar hides its delete action and structural edits live elsewhere. */
+  onDelete?: (nodeId: string) => void;
 }
 
 const WfNodeCtx = createContext<WfNodeContextValue | null>(null);
@@ -106,8 +115,8 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
             <NodeTitle className="truncate text-[13px] leading-tight">
               {data.label}
             </NodeTitle>
-            <NodeDescription className="truncate font-mono text-[10.5px]">
-              {isTrigger ? "Trigger" : data.typeId}
+            <NodeDescription className="truncate text-[10.5px]">
+              {isTrigger ? "Trigger" : friendlyKind(data.typeId)}
             </NodeDescription>
           </div>
           <NodeAction>
@@ -160,10 +169,10 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
           >
             <Pencil className="size-3.5" />
           </button>
-          {!isTrigger && (
+          {!isTrigger && ctx.onDelete && (
             <button
               type="button"
-              onClick={() => ctx.onDelete(id)}
+              onClick={() => ctx.onDelete?.(id)}
               className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               aria-label="Delete step"
             >

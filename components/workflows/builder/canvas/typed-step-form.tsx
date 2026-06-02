@@ -88,11 +88,13 @@ function FieldRenderer({
   triggerEventType?: string;
   formKey?: string;
 }) {
+  const required = "required" in field && Boolean(field.required);
+  const invalid = required && isBlankValue(value);
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-1 text-[0.8125rem] font-medium text-foreground">
         {field.label}
-        {"required" in field && field.required && (
+        {required && (
           <span className="text-destructive" aria-hidden>
             *
           </span>
@@ -107,12 +109,21 @@ function FieldRenderer({
         channelsLoading={channelsLoading}
         triggerEventType={triggerEventType}
         formKey={formKey}
+        invalid={invalid}
       />
-      {"help" in field && field.help && (
+      {invalid ? (
+        <p className="text-[0.8125rem] font-medium text-destructive">{field.label} is required</p>
+      ) : "help" in field && field.help ? (
         <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">{field.help}</p>
-      )}
+      ) : null}
     </div>
   );
+}
+
+// Matches builder-shell's computeInvalid so the inline note and the card badge
+// agree on what "empty" means: missing, empty string, or empty array.
+function isBlankValue(v: unknown): boolean {
+  return v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 }
 
 function FieldInput({
@@ -124,6 +135,7 @@ function FieldInput({
   channelsLoading,
   triggerEventType,
   formKey,
+  invalid,
 }: {
   field: FieldDef;
   value: unknown;
@@ -133,7 +145,9 @@ function FieldInput({
   channelsLoading?: boolean;
   triggerEventType?: string;
   formKey?: string;
+  invalid?: boolean;
 }) {
+  const invalidInput = invalid && "border-destructive focus-visible:ring-destructive/30";
   switch (field.kind) {
     case "channel":
       return (
@@ -154,7 +168,8 @@ function FieldInput({
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
-          className="h-9 text-[0.8125rem]"
+          aria-invalid={invalid || undefined}
+          className={cn("h-9 text-[0.8125rem]", invalidInput)}
         />
       );
 
@@ -166,6 +181,7 @@ function FieldInput({
           placeholder={field.placeholder}
           mono
           refs={refs}
+          invalid={invalid}
         />
       );
 
@@ -178,6 +194,7 @@ function FieldInput({
           multiline
           rows={field.rows ?? 3}
           refs={refs}
+          invalid={invalid}
         />
       );
 

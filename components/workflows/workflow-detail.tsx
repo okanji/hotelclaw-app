@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Workflow } from "lucide-react";
+import { LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { workflowDetailQueryOptions } from "@/lib/query/workflow-queries";
 import { classifyMode } from "@/lib/workflows/spec";
 import { PageHeader } from "@/components/shell/page-header";
@@ -43,10 +44,30 @@ export function WorkflowDetail({
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
             <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
-              <p className="text-[13px] text-muted-foreground">
-                This workflow has no spec yet — open it from a template or
-                build one with AI.
+              <Workflow className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
+              <p className="text-[13px] font-medium text-foreground">
+                This workflow is empty
               </p>
+              <p className="mx-auto mt-1 max-w-sm text-[12px] text-muted-foreground">
+                Start from a template, or describe what you want and let the AI
+                design it.
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <Link
+                  href={`/p/${propertyId}/workflows/new`}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background hover:opacity-90"
+                >
+                  <Sparkles className="size-3.5" aria-hidden />
+                  Build with AI
+                </Link>
+                <Link
+                  href={`/p/${propertyId}/workflows/templates`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-[12px] font-medium hover:bg-muted"
+                >
+                  <LibraryBig className="size-3.5" aria-hidden />
+                  Browse templates
+                </Link>
+              </div>
             </div>
           </div>
         </div>

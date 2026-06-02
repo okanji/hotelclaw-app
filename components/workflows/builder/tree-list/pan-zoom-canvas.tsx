@@ -33,6 +33,22 @@ export function PanZoomCanvas({
   const contentRef = useRef<HTMLDivElement>(null);
   const [t, setT] = useState<Transform>({ x: 48, y: 32, z: 1 });
 
+  // `will-change: transform` promotes the content to its own GPU layer, which
+  // the compositor rasterizes once at 1× and then stretches — so zooming in
+  // blurs the cards. We only want that layer during an active gesture (for
+  // smooth pan/zoom); at rest we drop it so the browser re-rasterizes at the
+  // current scale and text stays crisp.
+  const [interacting, setInteracting] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bumpInteracting = useCallback(() => {
+    setInteracting(true);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setInteracting(false), 200);
+  }, []);
+  useEffect(() => () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+  }, []);
+
   const zoomAround = useCallback((clientX: number, clientY: number, factor: number) => {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -56,6 +72,7 @@ export function PanZoomCanvas({
     if (!vp) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      bumpInteracting();
       if (e.ctrlKey || e.metaKey) {
         zoomAround(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
       } else {
@@ -64,7 +81,7 @@ export function PanZoomCanvas({
     };
     vp.addEventListener("wheel", onWheel, { passive: false });
     return () => vp.removeEventListener("wheel", onWheel);
-  }, [zoomAround]);
+  }, [zoomAround, bumpInteracting]);
 
   const fit = useCallback(() => {
     const vp = viewportRef.current;
@@ -128,9 +145,10 @@ export function PanZoomCanvas({
       const vp = viewportRef.current;
       if (!vp) return;
       const rect = vp.getBoundingClientRect();
+      bumpInteracting();
       zoomAround(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
     },
-    [zoomAround],
+    [zoomAround, bumpInteracting],
   );
 
   return (
@@ -154,8 +172,11 @@ export function PanZoomCanvas({
 
       <div
         ref={contentRef}
-        className="absolute top-0 left-0 origin-top-left will-change-transform"
-        style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.z})` }}
+        className="absolute top-0 left-0 origin-top-left"
+        style={{
+          transform: `translate(${t.x}px, ${t.y}px) scale(${t.z})`,
+          willChange: interacting ? "transform" : "auto",
+        }}
       >
         {children}
       </div>

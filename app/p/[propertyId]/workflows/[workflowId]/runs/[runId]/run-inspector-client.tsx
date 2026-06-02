@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, RotateCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, FlaskConical, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -70,8 +71,10 @@ export function RunInspectorClient({
   initialRun: RunRow;
   initialSteps: StepRow[];
 }) {
+  const router = useRouter();
   const [run, setRun] = useState<RunRow>(initialRun);
   const [steps, setSteps] = useState<StepRow[]>(initialSteps);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     // Live-tail only while the run is active. Once finished, no need to subscribe.
@@ -121,16 +124,33 @@ export function RunInspectorClient({
     };
   }, [run.id, run.status]);
 
-  async function rerun() {
+  // Replay this run's exact trigger payload through the current spec. `dryRun`
+  // produces synthetic output with no side effects (a safe test); otherwise it's
+  // a real re-run. Either way we land on the freshly-created run.
+  async function rerun(dryRun: boolean) {
+    if (running) return;
+    setRunning(true);
     try {
       const res = await fetch(
         `/api/properties/${propertyId}/workflows/${workflowId}/run`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ replayRunId: run.id, dryRun }),
+        },
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast.success("Workflow re-triggered manually");
+      const data = (await res.json().catch(() => ({}))) as { runId?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      toast.success(dryRun ? "Test run complete — no side effects" : "Re-run started");
+      if (data.runId && data.runId !== "skipped") {
+        router.push(`/p/${propertyId}/workflows/${workflowId}/runs/${data.runId}`);
+      } else {
+        router.refresh();
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Re-run failed");
+      toast.error(err instanceof Error ? err.message : "Run failed");
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -151,14 +171,28 @@ export function RunInspectorClient({
             {formatDuration(run.started_at, run.finished_at)} · {run.mode}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={rerun}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-[12px] hover:bg-muted"
-        >
-          <RotateCw className="size-3" aria-hidden />
-          Re-run
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => rerun(true)}
+            disabled={running}
+            title="Replay this run's data with no side effects"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-[12px] hover:bg-muted disabled:opacity-50"
+          >
+            <FlaskConical className="size-3" aria-hidden />
+            Test
+          </button>
+          <button
+            type="button"
+            onClick={() => rerun(false)}
+            disabled={running}
+            title="Replay this run's data for real"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-[12px] hover:bg-muted disabled:opacity-50"
+          >
+            <RotateCw className="size-3" aria-hidden />
+            Re-run
+          </button>
+        </div>
       </header>
 
       {run.error ? (
@@ -228,10 +262,16 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
       {open ? (
         <div className="border-t border-border/60 p-3 text-[12px]">
           {step.error ? (
-            <Section title="Error" tone="destructive">
-              <pre className="overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify(step.error, null, 2)}
-              </pre>
+            <Section title="What went wrong" tone="destructive">
+              <p className="font-sans">{humanizeStepError(step.error)}</p>
+              <details className="mt-2">
+                <summary className="cursor-pointer font-sans text-[10px] uppercase tracking-wide opacity-70 select-none">
+                  Technical details
+                </summary>
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(step.error, null, 2)}
+                </pre>
+              </details>
             </Section>
           ) : null}
           {step.output !== null ? (
@@ -252,6 +292,39 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
       ) : null}
     </li>
   );
+}
+
+/**
+ * Turn a stored step error ({ message } in practice) into a sentence a
+ * non-technical user can act on. Known runtime messages get a friendlier
+ * rewrite; everything else is shown as-is with a capital and full stop.
+ */
+function humanizeStepError(error: unknown): string {
+  const raw =
+    typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  if (!raw) return "This step failed. Open the technical details below to see what happened.";
+
+  const lower = raw.toLowerCase();
+  if (lower.includes("no runner for")) {
+    return "This step type isn’t available to run. It may have been removed or renamed — try re-adding it in the builder.";
+  }
+  if (lower.includes("must resolve to an array")) {
+    return "The “Repeat for each item” step expected a list to loop over, but didn’t get one. Check what you pointed it at.";
+  }
+  if (lower.includes("timed out") || lower.includes("timeout")) {
+    return "This step took too long and timed out before it finished.";
+  }
+  if (lower.includes("required") || lower.includes("non-empty") || lower.includes("expected")) {
+    return `A setting on this step wasn’t filled in correctly: ${raw}`;
+  }
+
+  const sentence = raw.charAt(0).toUpperCase() + raw.slice(1);
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
 }
 
 function Section({

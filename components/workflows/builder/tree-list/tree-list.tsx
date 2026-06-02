@@ -95,10 +95,20 @@ interface SlotTarget {
 const RAIL_W = "w-8"; // 32px column for the rail
 const LINE_LEFT = "left-[15px]"; // line sits in the middle of the rail column
 
-// Line variants — each row draws its share of the continuous rail.
-const LINE_FULL = "absolute inset-y-0 w-px bg-border/60";
-const LINE_DOWN = "absolute top-1/2 bottom-0 w-px bg-border/60";
+// Line variants — each row draws its share of the continuous rail. Rows are
+// stacked with a 12px flex gap (ROW_STACK_GAP), which a row-local `inset-y-0`
+// line can't reach across — leaving a blank break at every seam. So the
+// downward-flowing variants bleed one full gap (-bottom-3 = 12px) past the row,
+// meeting the next row's top edge so the rail reads as continuous. Terminals
+// (End markers) always use the `up` variant, so this bleed never dangles below
+// the last node; lanes additionally clip it with their own overflow-hidden.
+const LINE_FULL = "absolute top-0 -bottom-3 w-px bg-border/60";
+const LINE_DOWN = "absolute top-1/2 -bottom-3 w-px bg-border/60";
 const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-border/60";
+// Like `down`, but for a branch decision — which always owns the chain tail, so
+// its trunk stops at the row edge instead of bleeding toward a (non-existent)
+// next sibling.
+const LINE_DOWN_TAIL = "absolute top-1/2 bottom-0 w-px bg-border/60";
 
 // Fixed card width. Cards hang off the left rail at a comfortable reading width
 // (rather than stretching the whole canvas), so a branch can place two of them
@@ -497,7 +507,7 @@ function TriggerRow({
                 : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
             )}
           >
-            {isDurable ? "Runs durably" : "Runs instantly"}
+            {isDurable ? "Waits for events" : "Runs once"}
           </span>
         </div>
         <div className="mt-2 flex items-start gap-2">
@@ -658,11 +668,17 @@ function RailColumn({
   chipPosition = "center",
 }: {
   children?: React.ReactNode;
-  lineVariant?: "full" | "down" | "up";
+  lineVariant?: "full" | "down" | "down-tail" | "up";
   chipPosition?: "center" | "top";
 }) {
   const lineClass =
-    lineVariant === "down" ? LINE_DOWN : lineVariant === "up" ? LINE_UP : LINE_FULL;
+    lineVariant === "down"
+      ? LINE_DOWN
+      : lineVariant === "down-tail"
+        ? LINE_DOWN_TAIL
+        : lineVariant === "up"
+          ? LINE_UP
+          : LINE_FULL;
   return (
     <div className={cn("relative flex shrink-0 flex-col items-center", RAIL_W)}>
       <span className={cn(lineClass, LINE_LEFT)} aria-hidden />
@@ -911,7 +927,7 @@ function BranchLanes({
   return (
     <div className="relative flex gap-3 py-1">
       {/* Rail column carries the main vertical line down past the branch */}
-      <RailColumn lineVariant="down" chipPosition="top">
+      <RailColumn lineVariant="down-tail" chipPosition="top">
         <span aria-hidden />
       </RailColumn>
 
@@ -994,9 +1010,9 @@ function BranchHeader({ label, active }: { label: string; active?: boolean }) {
 
   const text =
     label === "true"
-      ? "If true"
+      ? "Then"
       : label === "false"
-        ? "If false"
+        ? "Else"
         : label === "_default"
           ? "Otherwise"
           : label;
