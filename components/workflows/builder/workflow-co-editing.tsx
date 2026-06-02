@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { LiveMap, LiveObject } from "@liveblocks/client";
 import {
   useMutation,
   useOthers,
@@ -48,24 +49,38 @@ export function WorkflowCoEditing({
   const remoteJson = useStorage((root) => {
     const wf = root.workflow;
     if (!wf) return null;
-    let rest: Record<string, unknown>;
+    let topRest: Record<string, unknown>;
     try {
-      rest = JSON.parse(wf.rest) as Record<string, unknown>;
+      topRest = JSON.parse(wf.rest) as Record<string, unknown>;
     } catch {
       return null;
     }
-    const src = wf.steps as ReadonlyMap<string, string> | Record<string, string>;
-    const entries =
-      src instanceof Map ? Array.from(src.entries()) : Object.entries(src);
+    // wf.steps deserializes to a record/map of stepId → { rest, config }.
+    type DeserStep = { rest: string; config: ReadonlyMap<string, string> | Record<string, string> };
+    const src = wf.steps as ReadonlyMap<string, DeserStep> | Record<string, DeserStep>;
+    const stepEntries = src instanceof Map ? Array.from(src.entries()) : Object.entries(src);
     const steps: Record<string, unknown> = {};
-    for (const [id, json] of entries) {
+    for (const [id, stepObj] of stepEntries) {
+      let stepRest: Record<string, unknown>;
       try {
-        steps[id] = JSON.parse(json);
+        stepRest = JSON.parse(stepObj.rest) as Record<string, unknown>;
       } catch {
-        /* skip a malformed step */
+        continue;
       }
+      const cfgSrc = stepObj.config;
+      const cfgEntries =
+        cfgSrc instanceof Map ? Array.from(cfgSrc.entries()) : Object.entries(cfgSrc ?? {});
+      const config: Record<string, unknown> = {};
+      for (const [k, vj] of cfgEntries) {
+        try {
+          config[k] = JSON.parse(vj);
+        } catch {
+          /* skip a malformed field */
+        }
+      }
+      steps[id] = { ...stepRest, config };
     }
-    return JSON.stringify({ ...rest, steps });
+    return JSON.stringify({ ...topRest, steps });
   });
 
   // The spec content we last wrote to / applied from Storage, so neither
@@ -93,19 +108,52 @@ export function WorkflowCoEditing({
   const writeSpec = useMutation(({ storage }, next: WorkflowSpec) => {
     const wf = storage.get("workflow");
     if (!wf) return;
-    const steps = wf.get("steps");
+    const stepsMap = wf.get("steps");
+
+    // Drop removed steps.
     const removed: string[] = [];
-    steps.forEach((_value, key) => {
+    stepsMap.forEach((_value, key) => {
       if (!next.steps[key]) removed.push(key);
     });
-    for (const key of removed) steps.delete(key);
+    for (const key of removed) stepsMap.delete(key);
+
+    // Upsert each step, diffing config field-by-field so concurrent edits to
+    // different fields of the same step merge.
     for (const [id, step] of Object.entries(next.steps)) {
-      const json = JSON.stringify(step);
-      if (steps.get(id) !== json) steps.set(id, json);
+      const config = (step as { config?: Record<string, unknown> }).config ?? {};
+      const stepRest = { ...step } as Record<string, unknown>;
+      delete stepRest.config;
+      const restJson = JSON.stringify(stepRest);
+
+      const existing = stepsMap.get(id);
+      if (!existing) {
+        stepsMap.set(
+          id,
+          new LiveObject({
+            rest: restJson,
+            config: new LiveMap<string, string>(
+              Object.entries(config).map(([k, v]) => [k, JSON.stringify(v)]),
+            ),
+          }),
+        );
+        continue;
+      }
+      if (existing.get("rest") !== restJson) existing.set("rest", restJson);
+      const cfgMap = existing.get("config");
+      const removedKeys: string[] = [];
+      cfgMap.forEach((_v, k) => {
+        if (!(k in config)) removedKeys.push(k);
+      });
+      for (const k of removedKeys) cfgMap.delete(k);
+      for (const [k, v] of Object.entries(config)) {
+        const vj = JSON.stringify(v);
+        if (cfgMap.get(k) !== vj) cfgMap.set(k, vj);
+      }
     }
-    const rest = { ...next } as Record<string, unknown>;
-    delete rest.steps;
-    const restJson = JSON.stringify(rest);
+
+    const topRest = { ...next } as Record<string, unknown>;
+    delete topRest.steps;
+    const restJson = JSON.stringify(topRest);
     if (wf.get("rest") !== restJson) wf.set("rest", restJson);
   }, []);
 

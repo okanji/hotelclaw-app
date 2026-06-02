@@ -28,13 +28,28 @@ export function WorkflowRoom({
 }) {
   const initialStorage = useMemo(() => {
     const { steps, ...rest } = initialSpec;
-    return {
-      workflow: new LiveObject({
-        steps: new LiveMap<string, string>(
-          Object.entries(steps).map(([id, step]) => [id, JSON.stringify(step)]),
-        ),
-        rest: JSON.stringify(rest),
+    const stepsMap = new LiveMap<
+      string,
+      LiveObject<{ rest: string; config: LiveMap<string, string> }>
+    >(
+      Object.entries(steps).map(([id, step]) => {
+        const s = step as { config?: Record<string, unknown> };
+        const config = s.config ?? {};
+        const stepRest = { ...step } as Record<string, unknown>;
+        delete stepRest.config;
+        return [
+          id,
+          new LiveObject({
+            rest: JSON.stringify(stepRest),
+            config: new LiveMap<string, string>(
+              Object.entries(config).map(([k, v]) => [k, JSON.stringify(v)]),
+            ),
+          }),
+        ];
       }),
+    );
+    return {
+      workflow: new LiveObject({ steps: stepsMap, rest: JSON.stringify(rest) }),
     };
     // initialStorage only applies on first room creation; recomputing on a new
     // spec identity is fine and cheap.

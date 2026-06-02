@@ -244,12 +244,18 @@ declare global {
       }>;
       /**
        * Workflow builder shared spec (CRDT co-editing). `steps` is a LiveMap
-       * keyed by step id so concurrent edits to *different* steps merge; each
-       * value is the JSON-stringified StepNode. `rest` is the rest of the spec
-       * (trigger, entry, name, variables, layout, metadata) as one JSON string.
+       * keyed by step id so concurrent edits to *different* steps merge. Each
+       * step is itself a LiveObject: `config` is a LiveMap keyed by field name
+       * (each value JSON-stringified) so two people editing *different fields*
+       * of the *same* step also merge; `rest` is the step minus its config
+       * (id/type/label/next/branches/retry/on_error) as one JSON string. The
+       * top-level `rest` is the spec minus steps (trigger, entry, name, …).
        */
       workflow?: LiveObject<{
-        steps: LiveMap<string, string>;
+        steps: LiveMap<
+          string,
+          LiveObject<{ rest: string; config: LiveMap<string, string> }>
+        >;
         rest: string;
       }>;
       /** Legacy — read-fallback only. Dropped after the migration. */
