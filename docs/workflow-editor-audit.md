@@ -45,7 +45,9 @@
 
 - ✅ **Loops/parallel are authorable.** foreach "body start" and parallel "branch starts" are now step pickers (dropdowns of real steps), not free-text reference names; combined with the dangling-target validation, they can't be mistyped. Steps inside a foreach body can reference the current item (`vars.<item_var>`) via a "Current <item>" pick — previously impossible (picker didn't offer it, validator rejected it). (`field-defs.ts`, `typed-step-form.tsx`, `node-inspector.tsx`, `validate.ts`, `refs.ts`)
 
-**Remaining pure-code (continuing):** durable-runtime observability parity + `ai_trace`; duplicate/copy-paste step; run cancel.
+- ✅ **Duplicate step.** A Copy action on linear action/AI cards clones the step (fresh id, "… copy" label) and splices the copy in after the original; undoable. (`tree-list.tsx`)
+
+**Remaining pure-code:** durable-runtime observability parity + `ai_trace` (the runtime-engine one — use the `/workflow` + `/ai-sdk` skills to read the Vercel Workflow SDK / generateText trace shape precisely); run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
