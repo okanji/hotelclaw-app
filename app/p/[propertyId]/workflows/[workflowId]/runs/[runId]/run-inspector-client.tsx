@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, FlaskConical, RotateCw } from "lucide-react";
+import { Ban, ChevronDown, FlaskConical, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -124,6 +124,29 @@ export function RunInspectorClient({
     };
   }, [run.id, run.status]);
 
+  const active =
+    run.status === "running" || run.status === "waiting" || run.status === "queued";
+
+  async function cancel() {
+    if (running) return;
+    setRunning(true);
+    try {
+      const res = await fetch(
+        `/api/properties/${propertyId}/workflows/${workflowId}/runs/${run.id}/cancel`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      toast.success("Run cancelled");
+      setRun((prev) => ({ ...prev, status: "cancelled" }));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel");
+    } finally {
+      setRunning(false);
+    }
+  }
+
   // Replay this run's exact trigger payload through the current spec. `dryRun`
   // produces synthetic output with no side effects (a safe test); otherwise it's
   // a real re-run. Either way we land on the freshly-created run.
@@ -172,6 +195,18 @@ export function RunInspectorClient({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {active ? (
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={running}
+              title="Stop this run"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-[12px] hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+            >
+              <Ban className="size-3" aria-hidden />
+              Cancel
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => rerun(true)}
