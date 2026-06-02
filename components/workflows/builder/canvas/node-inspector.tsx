@@ -359,6 +359,18 @@ function StepEditor({
       channels: builderData?.channels,
     });
   }, [spec, stepId, spec.trigger.event_type, builderData?.taskLabels]);
+  // Other steps this one can point at — drives the foreach/parallel pickers so
+  // users choose a real step instead of free-typing a reference name.
+  const stepOptions = useMemo(
+    () =>
+      Object.entries(spec.steps)
+        .filter(([id]) => id !== stepId)
+        .map(([id, s]) => ({
+          value: id,
+          label: (s as { label?: string }).label || getStep(s.type)?.label || id,
+        })),
+    [spec.steps, stepId],
+  );
   const branchPaths = useMemo(
     () => (isBranchIf ? getBranchPaths(spec, stepId) : undefined),
     [isBranchIf, spec, stepId],
@@ -536,6 +548,7 @@ function StepEditor({
                 value={cfgRecord}
                 onChange={commitConfig}
                 refs={refs}
+                stepOptions={stepOptions}
                 explainHint={meta?.explain(cfg)}
                 inputHint={inputHint}
                 embedded
@@ -711,6 +724,7 @@ function StepConfigSection({
   value,
   onChange,
   refs,
+  stepOptions,
   explainHint,
   inputHint,
   embedded = false,
@@ -721,6 +735,8 @@ function StepConfigSection({
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
   refs: RefCandidate[];
+  /** Other step ids (id + label) for foreach/parallel step pickers. */
+  stepOptions?: { value: string; label: string }[];
   explainHint?: string;
   /** Shown when the primary `input` field is empty — nudges toward trigger data. */
   inputHint?: string | null;
@@ -800,6 +816,7 @@ function StepConfigSection({
         value={value}
         onChange={onChange}
         refs={refs}
+        stepOptions={stepOptions}
         channels={builderData?.channels ?? []}
         channelsLoading={builderData?.channelsLoading}
         triggerEventType={triggerEventType}

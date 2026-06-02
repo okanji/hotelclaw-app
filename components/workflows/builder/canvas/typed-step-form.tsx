@@ -24,6 +24,7 @@ export function TypedStepForm({
   value,
   onChange,
   refs = [],
+  stepOptions = [],
   channels = [],
   channelsLoading,
   triggerEventType,
@@ -34,6 +35,8 @@ export function TypedStepForm({
   onChange: (next: Config) => void;
   /** Insertable data refs for this step (trigger + upstream outputs + vars). */
   refs?: RefCandidate[];
+  /** Other step ids (id + label) for foreach/parallel step pickers. */
+  stepOptions?: { value: string; label: string }[];
   channels?: PropertyChannel[];
   channelsLoading?: boolean;
   triggerEventType?: string;
@@ -58,6 +61,7 @@ export function TypedStepForm({
           field={f}
           value={value[f.key]}
           refs={refs}
+          stepOptions={stepOptions}
           channels={channels}
           channelsLoading={channelsLoading}
           triggerEventType={triggerEventType}
@@ -74,6 +78,7 @@ function FieldRenderer({
   value,
   onChange,
   refs,
+  stepOptions,
   channels,
   channelsLoading,
   triggerEventType,
@@ -83,6 +88,7 @@ function FieldRenderer({
   value: unknown;
   onChange: (v: unknown) => void;
   refs: RefCandidate[];
+  stepOptions: { value: string; label: string }[];
   channels: PropertyChannel[];
   channelsLoading?: boolean;
   triggerEventType?: string;
@@ -105,6 +111,7 @@ function FieldRenderer({
         value={value}
         onChange={onChange}
         refs={refs}
+        stepOptions={stepOptions}
         channels={channels}
         channelsLoading={channelsLoading}
         triggerEventType={triggerEventType}
@@ -131,6 +138,7 @@ function FieldInput({
   value,
   onChange,
   refs,
+  stepOptions,
   channels,
   channelsLoading,
   triggerEventType,
@@ -141,6 +149,7 @@ function FieldInput({
   value: unknown;
   onChange: (v: unknown) => void;
   refs: RefCandidate[];
+  stepOptions: { value: string; label: string }[];
   channels: PropertyChannel[];
   channelsLoading?: boolean;
   triggerEventType?: string;
@@ -149,6 +158,26 @@ function FieldInput({
 }) {
   const invalidInput = invalid && "border-destructive focus-visible:ring-destructive/30";
   switch (field.kind) {
+    case "step-ref":
+      return (
+        <WorkflowSelect
+          ariaLabel={field.label}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className={cn("w-full", invalidInput)}
+        >
+          <option value="">Pick a step…</option>
+          {stepOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </WorkflowSelect>
+      );
+
+    case "step-ref-list":
+      return <StepRefListField value={value} onChange={onChange} stepOptions={stepOptions} />;
+
     case "channel":
       return (
         <ChannelField
@@ -431,6 +460,75 @@ function KeyValueField({
         className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[0.8125rem] font-medium text-muted-foreground hover:border-primary hover:text-primary"
       >
         <Plus className="size-3.5" /> Add field
+      </button>
+    </div>
+  );
+}
+
+// Several step-id pickers (parallel branch starts). Empty rows are kept so the
+// validator can flag them rather than silently dropping a branch.
+function StepRefListField({
+  value,
+  onChange,
+  stepOptions,
+}: {
+  value: unknown;
+  onChange: (v: unknown) => void;
+  stepOptions: { value: string; label: string }[];
+}) {
+  const items = useMemo<string[]>(
+    () => (Array.isArray(value) ? (value as string[]) : []),
+    [value],
+  );
+
+  function setAt(i: number, v: string) {
+    const next = [...items];
+    next[i] = v;
+    onChange(next);
+  }
+  function removeAt(i: number) {
+    const next = items.filter((_, idx) => idx !== i);
+    onChange(next.length === 0 ? undefined : next);
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {items.length === 0 && (
+        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-[0.8125rem] text-muted-foreground">
+          No branches yet.
+        </p>
+      )}
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <WorkflowSelect
+            ariaLabel={`Branch ${i + 1}`}
+            value={item}
+            onChange={(e) => setAt(i, e.target.value)}
+            className="w-full"
+          >
+            <option value="">Pick a step…</option>
+            {stepOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </WorkflowSelect>
+          <button
+            type="button"
+            onClick={() => removeAt(i)}
+            aria-label="Remove branch"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Minus className="size-4" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, ""])}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[0.8125rem] font-medium text-muted-foreground hover:border-primary hover:text-primary"
+      >
+        <Plus className="size-3.5" /> Add branch
       </button>
     </div>
   );

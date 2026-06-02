@@ -82,6 +82,22 @@ export type FieldDef =
       label: string;
       help?: string;
       required?: boolean;
+    }
+  | {
+      // Pick one other step by id (e.g. a foreach loop body's first step).
+      kind: "step-ref";
+      key: string;
+      label: string;
+      help?: string;
+      required?: boolean;
+    }
+  | {
+      // Pick several other steps by id (e.g. parallel branch starts).
+      kind: "step-ref-list";
+      key: string;
+      label: string;
+      help?: string;
+      minItems?: number;
     };
 
 // Shown under data-capable fields. No template syntax — the "Insert data"
@@ -94,9 +110,9 @@ const TASK_TEXT_INPUT_HELP =
 const PERSONA_HINT: FieldDef = {
   kind: "textarea",
   key: "persona_hint",
-  label: "Persona hint (optional)",
-  placeholder: "How should the AI behave? e.g. ‘Be concise and friendly’",
-  help: "Steers the AI's tone and focus for this specific step.",
+  label: "Instructions for the AI (optional)",
+  placeholder: "e.g. ‘Be concise and friendly’ or ‘Use simple language for guests’",
+  help: "Tell the AI how to sound and what to focus on in this step. Leave blank for a neutral, professional tone.",
   rows: 2,
 };
 
@@ -129,7 +145,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "textarea",
       key: "input",
-      label: "Text to classify",
+      label: "What to classify",
       placeholder: "The text you want sorted into a label",
       help: TEMPLATE_HELP,
       required: true,
@@ -193,7 +209,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "textarea",
       key: "persona",
-      label: "Persona / system prompt",
+      label: "Who the AI should act as",
       placeholder: "You are a friendly front-desk concierge…",
       required: true,
       rows: 3,
@@ -201,8 +217,8 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "textarea",
       key: "input",
-      label: "User prompt",
-      placeholder: "The user's message or request",
+      label: "What the AI should do",
+      placeholder: "The message or request to act on",
       help: TEMPLATE_HELP,
       required: true,
       rows: 3,
@@ -210,11 +226,11 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "number",
       key: "max_steps",
-      label: "Max tool-calling steps",
+      label: "How many tries the AI gets",
       default: 5,
       min: 1,
       max: 20,
-      help: "More than 5 switches this workflow to the durable runtime.",
+      help: "How many times the AI can look things up or act before finishing. Most steps only need the default (5).",
     },
   ],
 
@@ -351,8 +367,8 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "duration",
       key: "duration",
       label: "Wait for",
-      placeholder: "30m",
-      help: "Use s, m, h, or d — e.g. 90s, 30m, 2h, 1d.",
+      placeholder: "30",
+      help: "Enter a number and choose a unit — e.g. 30 minutes, 2 hours, 1 day.",
     },
   ],
   "control.branch_switch": [
@@ -490,7 +506,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "body_markdown",
       label: "Body",
-      placeholder: "Markdown content…",
+      placeholder: "Write the document content here…",
       help: TEMPLATE_HELP,
       rows: 4,
     },
@@ -498,7 +514,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "text",
       key: "parent_id",
       label: "Parent doc (optional)",
-      placeholder: "a document id",
+      placeholder: "Leave blank for a top-level doc",
     },
   ],
   "action.doc.archive": [
@@ -522,7 +538,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "template",
       key: "board_id",
       label: "Board",
-      placeholder: "The board id",
+      placeholder: "The board to pin it to",
       required: true,
     },
   ],
@@ -553,7 +569,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "template",
       key: "assignee_id",
       label: "Assign all to (optional)",
-      placeholder: "User id — leave blank to leave unassigned",
+      placeholder: "Leave blank to leave them unassigned",
     },
   ],
   "action.meeting.share_summary_to_channel": [
@@ -582,17 +598,19 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "key-value",
       key: "where",
-      label: "Filter by field",
-      keyPlaceholder: "field",
-      valuePlaceholder: "value",
+      label: "Only matching (optional)",
+      keyPlaceholder: "e.g. room_number",
+      valuePlaceholder: "e.g. 203",
+      help: "Leave blank to find all. Add field/value pairs to narrow the results.",
     },
     {
       kind: "number",
       key: "limit",
-      label: "Max results",
+      label: "Return up to",
       default: 10,
       min: 1,
       max: 100,
+      help: "How many matches to bring back (1–100).",
     },
   ],
   "action.entity.delete": [
@@ -641,25 +659,25 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "text",
       key: "item_var",
-      label: "Variable name for each item",
+      label: "Name for each item",
       placeholder: "item",
+      help: "Each item in the list is given this name so later steps can refer to it (e.g. “room” or “item”).",
     },
     {
-      kind: "text",
+      kind: "step-ref",
       key: "body_start",
-      label: "First step in the loop body",
-      placeholder: "step id",
+      label: "First step to run for each item",
       required: true,
+      help: "Pick the step that starts the loop body.",
     },
   ],
   "control.parallel": [
     {
-      kind: "string-list",
+      kind: "step-ref-list",
       key: "branches",
-      label: "Branch start step ids",
-      itemPlaceholder: "step id",
+      label: "First step of each parallel branch",
       minItems: 2,
-      help: "Each branch runs from its start step until the step after this node.",
+      help: "Each branch runs from its first step until the step after this one.",
     },
     {
       kind: "enum",
