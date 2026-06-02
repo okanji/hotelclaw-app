@@ -112,6 +112,43 @@ function passReferences(spec: WorkflowSpec): ValidationIssue[] {
         }
       }
     }
+    // Control-flow targets that live in config, not in `next`/`branches`.
+    if (step.type === "control.foreach") {
+      const bs = (step.config as { body_start?: string }).body_start;
+      if (bs && !spec.steps[bs]) {
+        issues.push({
+          path: `steps.${stepId}.config.body_start`,
+          severity: "error",
+          message: `loop body "${bs}" does not match any step`,
+          step_id: stepId,
+        });
+      }
+    }
+    if (step.type === "control.parallel") {
+      const branches = (step.config as { branches?: string[] }).branches ?? [];
+      branches.forEach((target, i) => {
+        if (!spec.steps[target]) {
+          issues.push({
+            path: `steps.${stepId}.config.branches.${i}`,
+            severity: "error",
+            message: `parallel branch "${target}" does not match any step`,
+            step_id: stepId,
+          });
+        }
+      });
+    }
+    const onError = (step as { on_error?: string }).on_error;
+    if (typeof onError === "string" && onError.startsWith("branch:")) {
+      const target = onError.slice("branch:".length);
+      if (!spec.steps[target]) {
+        issues.push({
+          path: `steps.${stepId}.on_error`,
+          severity: "error",
+          message: `on-error target "${target}" does not match any step`,
+          step_id: stepId,
+        });
+      }
+    }
   }
 
   // Walk every string in every step's config; extract refs; verify each.
@@ -229,6 +266,35 @@ function validateRef(
   return `Unknown root in ref: {{${ref}}} (expected trigger|steps|vars|context|now)`;
 }
 
+// Every outgoing step-id edge from a step: `next`, branch targets, the foreach
+// loop body, parallel branch starts, and an on_error 'branch:' target. Used by
+// the upstream map, dangling-target checks, and reachability so all of them
+// agree on the graph shape (previously the upstream BFS ignored loop/parallel
+// edges, wrongly reporting "not upstream" for valid loop-body refs).
+function stepEdges(step: StepNode): string[] {
+  const s = step as {
+    next?: string;
+    branches?: Record<string, string>;
+    config?: Record<string, unknown>;
+    on_error?: string;
+  };
+  const out: string[] = [];
+  if (s.next) out.push(s.next);
+  if (s.branches) out.push(...Object.values(s.branches));
+  if (step.type === "control.foreach") {
+    const bs = (s.config as { body_start?: string } | undefined)?.body_start;
+    if (bs) out.push(bs);
+  }
+  if (step.type === "control.parallel") {
+    const br = (s.config as { branches?: string[] } | undefined)?.branches;
+    if (Array.isArray(br)) out.push(...br);
+  }
+  if (typeof s.on_error === "string" && s.on_error.startsWith("branch:")) {
+    out.push(s.on_error.slice("branch:".length));
+  }
+  return out;
+}
+
 export function buildUpstreamMap(spec: WorkflowSpec): Map<string, Set<string>> {
   const result = new Map<string, Set<string>>();
   for (const id of Object.keys(spec.steps)) result.set(id, new Set());
@@ -255,11 +321,8 @@ export function buildUpstreamMap(spec: WorkflowSpec): Map<string, Set<string>> {
     const nextAncestors = new Set(ancestors);
     nextAncestors.add(id);
 
-    if (step.next) queue.push({ id: step.next, ancestors: nextAncestors });
-    if ("branches" in step && step.branches && typeof step.branches === "object") {
-      for (const target of Object.values(step.branches as Record<string, string>)) {
-        queue.push({ id: target, ancestors: nextAncestors });
-      }
+    for (const target of stepEdges(step)) {
+      queue.push({ id: target, ancestors: nextAncestors });
     }
   }
 
@@ -286,13 +349,80 @@ function walkStrings(
   }
 }
 
+// ─── Pass 5: reachability (orphans + cycles) ────────────────────────────────
+// Warnings, not errors — a disconnected or looping step shouldn't block save,
+// but the user should know part of their flow won't run as they expect.
+function passReachability(spec: WorkflowSpec): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  // Reachable set from the entry, following every edge kind.
+  const reachable = new Set<string>();
+  const stack = [spec.entry_step_id];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (reachable.has(id) || !spec.steps[id]) continue;
+    reachable.add(id);
+    for (const t of stepEdges(spec.steps[id])) stack.push(t);
+  }
+
+  for (const id of Object.keys(spec.steps)) {
+    if (!reachable.has(id)) {
+      issues.push({
+        path: `steps.${id}`,
+        severity: "warning",
+        message:
+          "This step isn't connected to the workflow — nothing reaches it, so it never runs.",
+        step_id: id,
+      });
+    }
+  }
+
+  // Cycle detection (DFS over the edge graph). A back-edge means a step can run
+  // repeatedly without a loop construct — usually an accidental mis-wire.
+  const GRAY = 1;
+  const BLACK = 2;
+  const color = new Map<string, number>();
+  let cycleStep: string | null = null;
+  const visit = (id: string) => {
+    if (cycleStep || !spec.steps[id]) return;
+    color.set(id, GRAY);
+    for (const t of stepEdges(spec.steps[id])) {
+      const c = color.get(t);
+      if (c === GRAY) {
+        cycleStep = t;
+        return;
+      }
+      if (c === undefined) visit(t);
+      if (cycleStep) return;
+    }
+    color.set(id, BLACK);
+  };
+  visit(spec.entry_step_id);
+  if (cycleStep) {
+    issues.push({
+      path: `steps.${cycleStep}`,
+      severity: "warning",
+      message:
+        "This step is part of a loop in the workflow — it can run over and over. If that isn't intended, check the connections.",
+      step_id: cycleStep,
+    });
+  }
+
+  return issues;
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export function validateSpec(input: unknown): ValidationResult {
   const parsed = parseSpec(input);
   if (!parsed.ok) return parsed;
   const spec = input as WorkflowSpec; // safe — parseSpec succeeded
-  const issues = [...passCatalog(spec), ...passReferences(spec), ...passPredicates(spec)];
+  const issues = [
+    ...passCatalog(spec),
+    ...passReferences(spec),
+    ...passPredicates(spec),
+    ...passReachability(spec),
+  ];
   return { ok: issues.every((i) => i.severity !== "error"), issues };
 }
 
