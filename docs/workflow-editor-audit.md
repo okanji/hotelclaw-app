@@ -33,7 +33,9 @@
 - ✅ **Undo/redo in the builder.** All edits flow through a checkpointing `commitSpec` (rapid edits coalesce within 500ms); Cmd+Z / Cmd+Shift+Z (+ Cmd+Y) and header buttons; AI applies are forced checkpoints. (`builder-shell.tsx`)
 - ✅ **Control-flow + reachability validation.** Dangling `foreach.body_start` / `parallel.branches` / `on_error` targets now error (were unchecked); the upstream-ref BFS follows loop/parallel edges (fixes false "not upstream" for loop-body refs); orphan-step and cycle warnings added. (`validate.ts`)
 
-**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; retry/on_error config UI; condition builder nested AND/OR groups + date/contains operators (builder side); loops/parallel authorability; surface orphan/cycle warnings on cards; duplicate/copy-paste; run cancel.
+- ✅ **Condition builder: contains / starts-with / ends-with + date operators.** New string ops in the evaluator + codec; a `date` field type with chronological labels (is before / is after / is on) and a date picker. Round-trips losslessly. (`predicate.ts`, `refs.ts`, `jsonlogic-codec.ts`, `explain-expr.ts`, `condition-builder.tsx`)
+
+**Remaining pure-code (continuing):** condition builder **nested AND/OR groups** (structural rewrite of the flat model — deferred to its own change); durable observability parity + `ai_trace`; retry/on_error config UI; loops/parallel authorability; surface orphan/cycle warnings on cards; duplicate/copy-paste; run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
