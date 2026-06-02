@@ -80,8 +80,8 @@ async function createDurableRunRow(args: {
 }
 
 type StepCallResult =
-  | { ok: true; output: unknown }
-  | { ok: false; error: string };
+  | { ok: true; output: unknown; startedAt: string; attempts: number }
+  | { ok: false; error: string; startedAt: string; attempts: number };
 
 async function executeCatalogStep(args: {
   stepType: string;
@@ -90,17 +90,22 @@ async function executeCatalogStep(args: {
   retryConfig: { max: number; backoff: "exp" | "linear"; initial_ms: number };
 }): Promise<StepCallResult> {
   "use step";
+  // Captured inside the step (memoized), so it's a real start time without
+  // breaking the workflow function's determinism.
+  const startedAt = new Date().toISOString();
   const runner = getRunner(args.stepType as never);
   if (!runner) {
-    return { ok: false, error: `no runner for ${args.stepType}` };
+    return { ok: false, error: `no runner for ${args.stepType}`, startedAt, attempts: 1 };
   }
   // In-step retry — keeps the workflow's on_error policy authoritative by
   // never propagating a transient error up to the workflow loop.
   let lastErr: string | null = null;
+  let attempts = 0;
   for (let attempt = 0; attempt <= args.retryConfig.max; attempt++) {
+    attempts = attempt + 1;
     try {
       const output = await runner({ config: args.resolvedConfig, ctx: args.runnerCtx });
-      return { ok: true, output };
+      return { ok: true, output, startedAt, attempts };
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err);
       if (attempt === args.retryConfig.max) break;
@@ -111,7 +116,7 @@ async function executeCatalogStep(args: {
       await new Promise((res) => setTimeout(res, delay));
     }
   }
-  return { ok: false, error: lastErr ?? "unknown" };
+  return { ok: false, error: lastErr ?? "unknown", startedAt, attempts };
 }
 
 async function persistStepRunRow(args: {
@@ -122,6 +127,9 @@ async function persistStepRunRow(args: {
   input: unknown;
   output: unknown;
   error: string | null;
+  startedAt?: string;
+  attempts?: number;
+  aiTrace?: Record<string, unknown> | null;
 }): Promise<void> {
   "use step";
   const supabase = createServiceClient();
@@ -130,10 +138,14 @@ async function persistStepRunRow(args: {
     step_id: args.stepId,
     step_type: args.stepType,
     status: args.status,
-    attempt: 1,
+    attempt: args.attempts ?? 1,
     input: (args.input ?? {}) as Record<string, unknown>,
     output: (args.output ?? null) as Record<string, unknown> | null,
     error: args.error ? { message: args.error } : null,
+    ai_trace: args.aiTrace ?? null,
+    // started_at defaults to now() in the DB; only catalog steps capture a real
+    // one (control steps are instantaneous, so default ≈ finished is fine).
+    ...(args.startedAt ? { started_at: args.startedAt } : {}),
     finished_at: new Date().toISOString(),
   });
 }
@@ -178,6 +190,7 @@ async function finalizeRunRow(args: {
   workflowId: string;
   status: "succeeded" | "failed" | "filtered" | "cancelled";
   error: string | null;
+  errorStepId?: string | null;
   output: Record<string, unknown> | null;
 }): Promise<void> {
   "use step";
@@ -189,6 +202,7 @@ async function finalizeRunRow(args: {
       finished_at: new Date().toISOString(),
       output: args.output,
       error: args.error,
+      error_step_id: args.errorStepId ?? null,
     })
     .eq("id", args.runId);
   await supabase
@@ -243,6 +257,7 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
   let stepCount = 0;
   let runStatus: "succeeded" | "failed" | "filtered" | "cancelled" = "succeeded";
   let runError: string | null = null;
+  let errorStepId: string | null = null;
 
   while (cursor) {
     if (stepCount++ > MAX_STEPS_PER_RUN) {
@@ -267,6 +282,8 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
         input: stepResult.input ?? {},
         output: null,
         error: stepResult.error,
+        startedAt: stepResult.startedAt,
+        attempts: stepResult.attempts,
       });
       const policy = (step as { on_error?: string }).on_error ?? "fail";
       if (policy === "continue") {
@@ -279,6 +296,7 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
       }
       runStatus = "failed";
       runError = stepResult.error;
+      errorStepId = step.id;
       break;
     }
 
@@ -291,6 +309,9 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
         input: stepResult.input ?? {},
         output: stepResult.output,
         error: null,
+        startedAt: stepResult.startedAt,
+        attempts: stepResult.attempts,
+        aiTrace: stepResult.aiTrace,
       });
     }
     scope.steps![step.id] = { output: stepResult.output };
@@ -306,6 +327,7 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
     workflowId: args.workflowId,
     status: runStatus,
     error: runError,
+    errorStepId,
     output: (scope.steps ?? null) as Record<string, unknown> | null,
   });
 
@@ -313,8 +335,18 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
 }
 
 type StepResult =
-  | { ok: true; next: string | undefined; output: unknown; status: "succeeded" | "filtered"; input: unknown; persisted?: boolean }
-  | { ok: false; error: string; input: unknown };
+  | {
+      ok: true;
+      next: string | undefined;
+      output: unknown;
+      status: "succeeded" | "filtered";
+      input: unknown;
+      persisted?: boolean;
+      startedAt?: string;
+      attempts?: number;
+      aiTrace?: Record<string, unknown> | null;
+    }
+  | { ok: false; error: string; input: unknown; startedAt?: string; attempts?: number };
 
 async function executeStepDurable(
   step: StepNode,
@@ -585,7 +617,13 @@ async function executeStepDurable(
   });
 
   if (!result.ok) {
-    return { ok: false, error: result.error, input: resolvedConfig };
+    return {
+      ok: false,
+      error: result.error,
+      input: resolvedConfig,
+      startedAt: result.startedAt,
+      attempts: result.attempts,
+    };
   }
 
   // ai.branch_decision routes via the decision field.
@@ -598,6 +636,8 @@ async function executeStepDurable(
       output: result.output,
       status: "succeeded",
       input: resolvedConfig,
+      startedAt: result.startedAt,
+      attempts: result.attempts,
     };
   }
 
@@ -607,6 +647,8 @@ async function executeStepDurable(
     output: result.output,
     status: "succeeded",
     input: resolvedConfig,
+    startedAt: result.startedAt,
+    attempts: result.attempts,
   };
 }
 
