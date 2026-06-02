@@ -22,6 +22,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   CheckCircle2,
+  Copy,
   GripVertical,
   LayoutGrid,
   Plus,
@@ -314,6 +315,34 @@ export function TreeList({
     [spec, onChange],
   );
 
+  // Clone a linear step (action/AI) and splice the copy in right after it.
+  // Branch and End steps aren't duplicable here — branches own a whole subtree.
+  const duplicateStep = useCallback(
+    (id: string) => {
+      if (!onChange) return;
+      const step = spec.steps[id];
+      if (!step || isBranchStep(step) || step.type === "control.end") return;
+      const newId = nextStepId(spec, step.type);
+      const label = (step as { label?: string }).label;
+      const succ = (step as { next?: string }).next;
+      const clone = {
+        ...(step as object),
+        id: newId,
+        label: label ? `${label} copy` : undefined,
+        next: succ, // clone continues to the original's successor…
+      } as StepNode;
+      const steps: Record<string, StepNode> = {
+        ...spec.steps,
+        [newId]: clone,
+        [id]: { ...(step as object), next: newId } as StepNode, // …and the original points to the clone
+      };
+      onChange({ ...spec, steps });
+      setInspectorOpenFor(newId);
+      onSelectStep?.(newId);
+    },
+    [spec, onChange, onSelectStep],
+  );
+
   const ordinalMap = useMemo(() => buildOrdinals(spec), [spec]);
 
   // Pre-compute every linear (non-branch) chain in the spec — keyed by the
@@ -391,6 +420,7 @@ export function TreeList({
         branchPathFocus={branchPathFocus}
         onClickStep={selectStep}
         onDeleteStep={deleteStep}
+        onDuplicateStep={duplicateStep}
         onOpenPalette={setPaletteAt}
       />
 
@@ -553,6 +583,7 @@ function Rail({
   branchPathFocus,
   onClickStep,
   onDeleteStep,
+  onDuplicateStep,
   onOpenPalette,
 }: {
   spec: WorkflowSpec;
@@ -567,6 +598,7 @@ function Rail({
   branchPathFocus?: BranchPathFocus | null;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
+  onDuplicateStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
 }) {
   const chain = useMemo(() => walkChain(spec, startId), [spec, startId]);
@@ -631,6 +663,7 @@ function Rail({
                 draggable={!isBranch}
                 onClick={() => onClickStep(step.id)}
                 onDelete={() => onDeleteStep(step.id)}
+                onDuplicate={isBranch ? undefined : () => onDuplicateStep(step.id)}
               />
 
               {isBranch ? (
@@ -649,6 +682,7 @@ function Rail({
                   }
                   onClickStep={onClickStep}
                   onDeleteStep={onDeleteStep}
+                  onDuplicateStep={onDuplicateStep}
                   onOpenPalette={onOpenPalette}
                 />
               ) : (
@@ -764,6 +798,7 @@ function StepRow({
   draggable,
   onClick,
   onDelete,
+  onDuplicate,
 }: {
   step: StepNode;
   ordinal: string;
@@ -779,6 +814,8 @@ function StepRow({
   draggable: boolean;
   onClick: () => void;
   onDelete: () => void;
+  /** Duplicate this step (linear steps only; omitted for branches). */
+  onDuplicate?: () => void;
 }) {
   const meta = getStep(step.type);
   const surface = (meta?.surface ?? "system") as Surface;
@@ -865,18 +902,34 @@ function StepRow({
       >
         <div className="flex items-start justify-between gap-2">
           <StepMeta>{category}</StepMeta>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            title="Remove step"
-            aria-label="Remove step"
-            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-          >
-            <Trash2 className="size-3.5" aria-hidden />
-          </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {onDuplicate ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate();
+                }}
+                title="Duplicate step"
+                aria-label="Duplicate step"
+                className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+              >
+                <Copy className="size-3.5" aria-hidden />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              title="Remove step"
+              aria-label="Remove step"
+              className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            >
+              <Trash2 className="size-3.5" aria-hidden />
+            </button>
+          </div>
         </div>
         <div className="mt-2 flex items-start gap-2">
           <SurfaceBadge surface={surface} className="mt-0.5 size-5 shrink-0" />
@@ -914,6 +967,7 @@ function BranchLanes({
   activeBranchPath,
   onClickStep,
   onDeleteStep,
+  onDuplicateStep,
   onOpenPalette,
 }: {
   spec: WorkflowSpec;
@@ -928,6 +982,7 @@ function BranchLanes({
   activeBranchPath?: BranchPathKey;
   onClickStep: (id: string) => void;
   onDeleteStep: (id: string) => void;
+  onDuplicateStep: (id: string) => void;
   onOpenPalette: (slot: SlotTarget) => void;
 }) {
   const branches = (step as { branches?: Record<string, string> }).branches ?? {};
@@ -987,6 +1042,7 @@ function BranchLanes({
                       branchPathFocus={branchPathFocus}
                       onClickStep={onClickStep}
                       onDeleteStep={onDeleteStep}
+                      onDuplicateStep={onDuplicateStep}
                       onOpenPalette={onOpenPalette}
                     />
                   </div>
