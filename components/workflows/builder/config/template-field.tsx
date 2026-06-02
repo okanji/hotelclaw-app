@@ -17,6 +17,7 @@ const FRIENDLY_TYPE: Record<RefType, string> = {
   number: "Number",
   boolean: "Yes / no",
   "string[]": "List",
+  date: "Date",
   json: "Data",
 };
 

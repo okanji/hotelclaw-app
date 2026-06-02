@@ -18,6 +18,9 @@ const OP_PHRASES: Record<string, string> = {
   "<": "is less than",
   "<=": "is at most",
   in: "is any of",
+  contains: "contains",
+  starts_with: "starts with",
+  ends_with: "ends with",
 };
 
 /** Human phrase for a predicate, e.g. "priority is urgent". */

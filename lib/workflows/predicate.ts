@@ -90,6 +90,12 @@ function evalNode(node: unknown, scope: ResolutionScope): unknown {
       if (typeof h === "string") return h.includes(String(n));
       return false;
     }
+    case "contains":
+      return String(list()[0] ?? "").includes(String(list()[1] ?? ""));
+    case "starts_with":
+      return String(list()[0] ?? "").startsWith(String(list()[1] ?? ""));
+    case "ends_with":
+      return String(list()[0] ?? "").endsWith(String(list()[1] ?? ""));
     case "and":
       // Evaluate lazily so a short-circuit avoids touching later (possibly
       // expensive/undefined) branches; JSONLogic returns the last truthy/first

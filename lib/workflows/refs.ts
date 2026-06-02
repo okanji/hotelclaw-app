@@ -2,7 +2,17 @@ import { z } from "zod";
 import type { WorkflowSpec } from "./spec";
 import { getStep, getTrigger } from "./catalog";
 import { buildUpstreamMap } from "./validate";
-import { humanizeRef } from "./explain-expr";
+
+/**
+ * Turn a raw output/variable key into a readable label: drop a trailing `_id`,
+ * swap underscores for spaces, capitalise. e.g. "assignee_id" → "Assignee",
+ * "room_number" → "Room number", "summary" → "Summary".
+ */
+function prettyLeaf(key: string): string {
+  const cleaned = key.replace(/_id$/, "").replace(/_/g, " ").trim();
+  if (!cleaned) return key;
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
 
 // What data a step can reference — used by the config data-picker and the
 // condition field-picker so users never have to type a dotted `{{...}}` path
@@ -19,7 +29,7 @@ import { humanizeRef } from "./explain-expr";
 // the catalog descriptions + field-defs placeholders reference) and always
 // let the user free-type a leaf in the picker.
 
-export type RefType = "string" | "number" | "boolean" | "string[]" | "json";
+export type RefType = "string" | "number" | "boolean" | "string[]" | "date" | "json";
 
 export interface RefCandidate {
   /** Human label, e.g. "Priority" or "Chosen label". */
@@ -46,68 +56,84 @@ export interface RefCandidate {
 const TASK_STATUS_OPTIONS = ["todo", "in_progress", "blocked", "done"];
 const TASK_PRIORITY_OPTIONS = ["none", "low", "medium", "high", "urgent"];
 
-/** Curated, well-documented trigger fields by event-type prefix. */
+/**
+ * Curated, well-documented trigger fields by event-type prefix. Each carries a
+ * plain-English `label` — never derive the label from the raw path, or internal
+ * keys like `assignee_id` / `due_at` leak into the UI.
+ */
 const TRIGGER_FIELDS: Record<
   string,
-  Array<{ path: string; type: RefType; sample?: string; options?: string[] }>
+  Array<{ path: string; label: string; type: RefType; sample?: string; options?: string[] }>
 > = {
   task: [
-    { path: "trigger.new.title", type: "string", sample: "Fix A/C in 203" },
+    { path: "trigger.new.title", label: "Task title", type: "string", sample: "Fix A/C in 203" },
     {
       path: "trigger.new.description",
+      label: "Task description",
       type: "string",
       sample: "Guest reports room is too cold",
     },
     {
       path: "trigger.new.priority",
+      label: "Priority",
       type: "string",
       sample: "urgent",
       options: TASK_PRIORITY_OPTIONS,
     },
-    { path: "trigger.new.status", type: "string", sample: "todo", options: TASK_STATUS_OPTIONS },
-    { path: "trigger.new.assignee_id", type: "string" },
-    { path: "trigger.new.due_at", type: "string" },
-    { path: "trigger.new.id", type: "string" },
-    { path: "trigger.new.labels", type: "string[]", sample: "guest-complaint" },
+    {
+      path: "trigger.new.status",
+      label: "Status",
+      type: "string",
+      sample: "todo",
+      options: TASK_STATUS_OPTIONS,
+    },
+    { path: "trigger.new.assignee_id", label: "Assigned to", type: "string" },
+    { path: "trigger.new.due_at", label: "Due date", type: "date" },
+    { path: "trigger.new.id", label: "Task ID", type: "string" },
+    { path: "trigger.new.labels", label: "Labels", type: "string[]", sample: "guest-complaint" },
   ],
   chat: [
-    { path: "trigger.message.text", type: "string", sample: "The room is freezing" },
-    { path: "trigger.channel.id", type: "string", sample: "front-desk" },
-    { path: "trigger.user.id", type: "string" },
+    {
+      path: "trigger.message.text",
+      label: "Message text",
+      type: "string",
+      sample: "The room is freezing",
+    },
+    { path: "trigger.channel.id", label: "Channel", type: "string", sample: "front-desk" },
+    { path: "trigger.user.id", label: "Sender", type: "string" },
   ],
   doc: [
-    { path: "trigger.new.title", type: "string" },
-    { path: "trigger.new.id", type: "string" },
+    { path: "trigger.new.title", label: "Document title", type: "string" },
+    { path: "trigger.new.id", label: "Document ID", type: "string" },
   ],
-  meeting: [{ path: "trigger.meeting.id", type: "string" }],
-  calendar: [{ path: "trigger.event.id", type: "string" }],
-  entity: [{ path: "trigger.entity_type", type: "string" }],
+  meeting: [{ path: "trigger.meeting.id", label: "Meeting ID", type: "string" }],
+  calendar: [{ path: "trigger.event.id", label: "Event ID", type: "string" }],
+  entity: [{ path: "trigger.entity_type", label: "Type", type: "string" }],
   schedule: [
     {
       path: "trigger.fired_at",
-      type: "string",
+      label: "Scheduled time",
+      type: "date",
       sample: "2026-06-01T09:00:00Z",
     },
   ],
-  manual: [
-    { path: "trigger.run_by_user_id", type: "string" },
-  ],
+  manual: [{ path: "trigger.run_by_user_id", label: "Started by", type: "string" }],
 };
 
 /** Extra fields specific to particular trigger event types. */
 const TRIGGER_EXTRAS: Record<
   string,
-  Array<{ path: string; type: RefType; options?: string[] }>
+  Array<{ path: string; label: string; type: RefType; options?: string[] }>
 > = {
   "task.status_changed": [
-    { path: "trigger.from", type: "string", options: TASK_STATUS_OPTIONS },
-    { path: "trigger.to", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.from", label: "Previous status", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.to", label: "New status", type: "string", options: TASK_STATUS_OPTIONS },
   ],
   "task.assigned": [
-    { path: "trigger.from", type: "string" },
-    { path: "trigger.to", type: "string" },
+    { path: "trigger.from", label: "Previously assigned to", type: "string" },
+    { path: "trigger.to", label: "Now assigned to", type: "string" },
   ],
-  "task.label_added": [{ path: "trigger.added_labels", type: "string[]" }],
+  "task.label_added": [{ path: "trigger.added_labels", label: "Labels added", type: "string[]" }],
 };
 
 /** Map a Zod field type to our coarse RefType (best effort, never throws). */
@@ -175,14 +201,21 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
   const triggerLabel = getTrigger(eventType)?.label ?? "trigger";
   const triggerGroup = `From the trigger · ${triggerLabel}`;
   const seen = new Set<string>();
-  const pushTrigger = (path: string, type: RefType, sample?: string, options?: string[]) => {
+  const pushTrigger = (
+    path: string,
+    label: string,
+    type: RefType,
+    sample?: string,
+    options?: string[],
+  ) => {
     if (seen.has(path)) return;
     seen.add(path);
-    out.push({ label: humanizeRef(path), path, group: triggerGroup, type, sample, options });
+    out.push({ label, path, group: triggerGroup, type, sample, options });
   };
-  for (const f of TRIGGER_FIELDS[family] ?? []) pushTrigger(f.path, f.type, f.sample, f.options);
+  for (const f of TRIGGER_FIELDS[family] ?? [])
+    pushTrigger(f.path, f.label, f.type, f.sample, f.options);
   for (const f of TRIGGER_EXTRAS[eventType] ?? [])
-    pushTrigger(f.path, f.type, undefined, f.options);
+    pushTrigger(f.path, f.label, f.type, undefined, f.options);
 
   // ── From upstream steps ─────────────────────────────────────────────────────
   if (stepId) {
@@ -196,7 +229,7 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
       const group = `From “${stepName}”`;
       for (const { key, type, options } of fields) {
         out.push({
-          label: humanizeRef(`${id}.${key}`),
+          label: prettyLeaf(key),
           path: `steps.${id}.output.${key}`,
           group,
           type,
@@ -209,7 +242,7 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
   // ── Variables ───────────────────────────────────────────────────────────────
   for (const [name, decl] of Object.entries(spec.variables ?? {})) {
     out.push({
-      label: name,
+      label: prettyLeaf(name),
       path: `vars.${name}`,
       group: "Variables",
       type: (decl.type as RefType) ?? "string",

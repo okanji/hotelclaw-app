@@ -19,6 +19,9 @@ export type ClauseOp =
   | ">="
   | "<"
   | "<="
+  | "contains"
+  | "starts_with"
+  | "ends_with"
   | "is_any_of"
   | "empty"
   | "not_empty";
@@ -48,23 +51,44 @@ export interface OpDef {
 
 // Operator menu, ordered. Filtered per field type at render time.
 export const CLAUSE_OPS: OpDef[] = [
-  { id: "==", label: "is", types: ["string", "number", "boolean", "json"] },
-  { id: "!=", label: "is not", types: ["string", "number", "boolean", "json"] },
+  { id: "==", label: "is", types: ["string", "number", "boolean", "date", "json"] },
+  { id: "!=", label: "is not", types: ["string", "number", "boolean", "date", "json"] },
+  { id: "contains", label: "contains", types: ["string"] },
+  { id: "starts_with", label: "starts with", types: ["string"] },
+  { id: "ends_with", label: "ends with", types: ["string"] },
   { id: "is_any_of", label: "is any of", types: ["string", "string[]"] },
-  { id: ">", label: "is greater than", types: ["number"] },
-  { id: ">=", label: "is at least", types: ["number"] },
-  { id: "<", label: "is less than", types: ["number"] },
-  { id: "<=", label: "is at most", types: ["number"] },
-  { id: "empty", label: "is empty", types: ["string", "number", "boolean", "string[]", "json"] },
+  { id: ">", label: "is greater than", types: ["number", "date"] },
+  { id: ">=", label: "is at least", types: ["number", "date"] },
+  { id: "<", label: "is less than", types: ["number", "date"] },
+  { id: "<=", label: "is at most", types: ["number", "date"] },
+  {
+    id: "empty",
+    label: "is empty",
+    types: ["string", "number", "boolean", "string[]", "date", "json"],
+  },
   {
     id: "not_empty",
     label: "is not empty",
-    types: ["string", "number", "boolean", "string[]", "json"],
+    types: ["string", "number", "boolean", "string[]", "date", "json"],
   },
 ];
 
+// Date fields read more naturally with chronological labels than numeric ones.
+const DATE_OP_LABELS: Partial<Record<ClauseOp, string>> = {
+  "==": "is on",
+  "!=": "is not on",
+  ">": "is after",
+  ">=": "is on or after",
+  "<": "is before",
+  "<=": "is on or before",
+};
+
 export function opsForType(type: RefType): OpDef[] {
-  return CLAUSE_OPS.filter((o) => o.types.includes(type));
+  const ops = CLAUSE_OPS.filter((o) => o.types.includes(type));
+  if (type === "date") {
+    return ops.map((o) => (DATE_OP_LABELS[o.id] ? { ...o, label: DATE_OP_LABELS[o.id]! } : o));
+  }
+  return ops;
 }
 
 export function emptyClause(path = "", type: RefType = "string"): Clause {
@@ -114,6 +138,19 @@ function parseClause(node: unknown): Clause | null {
     const inner = Array.isArray(args) ? args[0] : args;
     const path = readVar(inner);
     if (path) return { path, op: "empty", value: "", values: [], type: "string" };
+    return null;
+  }
+
+  // { contains|starts_with|ends_with: [{var}, "text"] } — substring tests.
+  if (
+    (op === "contains" || op === "starts_with" || op === "ends_with") &&
+    Array.isArray(args) &&
+    args.length === 2
+  ) {
+    const path = readVar(args[0]);
+    if (path && (typeof args[1] === "string" || typeof args[1] === "number")) {
+      return { path, op, value: String(args[1]), values: [], type: "string" };
+    }
     return null;
   }
 
@@ -188,6 +225,12 @@ function serializeClause(c: Clause): object | null {
       return { not: v };
     case "not_empty":
       return { "!=": [v, ""] };
+    case "contains":
+      return { contains: [v, c.value] };
+    case "starts_with":
+      return { starts_with: [v, c.value] };
+    case "ends_with":
+      return { ends_with: [v, c.value] };
     case "is_any_of": {
       const list = c.values.map((x) => x.trim()).filter(Boolean);
       if (list.length === 0) return null;
@@ -236,5 +279,7 @@ function coerce(raw: string, type: RefType): unknown {
     return raw.trim() !== "" && Number.isFinite(n) ? n : raw;
   }
   if (type === "boolean") return raw === "true";
+  // Dates stay as the entered ISO string; predicate.ts compares them
+  // chronologically via Date.parse.
   return raw;
 }

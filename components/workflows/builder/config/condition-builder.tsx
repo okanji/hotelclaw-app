@@ -149,8 +149,8 @@ export function ConditionBuilder({
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium text-foreground">Custom condition</p>
             <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-              This condition uses logic the visual editor can&apos;t edit. Keep it as-is,
-              or rebuild it with the editor below.
+              This condition is too advanced for the simple editor, so it’s shown read-only.
+              It still works — leave it as-is, or start over to build a new one by hand.
             </p>
           </div>
         </div>
@@ -159,7 +159,7 @@ export function ConditionBuilder({
         </p>
         <Button type="button" variant="outline" size="sm" onClick={rebuildFromScratch}>
           <Wand2 className="size-3.5" aria-hidden />
-          Rebuild with editor
+          Clear and start over
         </Button>
       </div>
     );
@@ -706,10 +706,13 @@ function ClauseCard({
 
   const pathInRefs = refs.some((r) => r.path === clause.path);
 
-  const valueWarning =
-    clause.op === "is_any_of" && !clause.values.some((v) => v.trim() !== "")
-      ? "Pick at least one value"
-      : null;
+  const valueWarning = !clause.path
+    ? "Pick a field to check — this condition is ignored until you do."
+    : clause.op === "is_any_of" && !clause.values.some((v) => v.trim() !== "")
+      ? "Pick at least one value."
+      : needsValue && !chipsValue && (clause.value ?? "").trim() === ""
+        ? "Enter a value to compare against."
+        : null;
 
   return (
     <div
@@ -748,7 +751,7 @@ function ClauseCard({
             className="w-full"
           >
             <option value="" disabled>
-              Choose a field…
+              Pick a field to check…
             </option>
             {!pathInRefs && clause.path && (
               <option value={clause.path}>{clause.path}</option>
@@ -766,7 +769,7 @@ function ClauseCard({
         </FieldBlock>
 
         <div className={cn("grid gap-3", needsValue && !chipsValue ? "grid-cols-2" : "grid-cols-1")}>
-          <FieldBlock label="Comparison">
+          <FieldBlock label="How to match">
             <WorkflowSelect
               ariaLabel="Operator"
               value={clause.op}
@@ -807,6 +810,11 @@ function ClauseCard({
 
         {valueWarning && (
           <p className="text-[0.8125rem] text-amber-600 dark:text-amber-400">{valueWarning}</p>
+        )}
+        {!needsValue && clause.path && (
+          <p className="text-[0.75rem] text-muted-foreground">
+            No value needed — this just checks whether the field is filled in.
+          </p>
         )}
       </div>
     </div>
@@ -924,6 +932,20 @@ function ValueInput({
         <option value="true">Yes</option>
         <option value="false">No</option>
       </WorkflowSelect>
+    );
+  }
+
+  if (clause.type === "date") {
+    // Show a date picker but tolerate full ISO datetimes (e.g. trigger.fired_at
+    // samples) by binding only the YYYY-MM-DD prefix to the input.
+    return (
+      <input
+        type="date"
+        value={(clause.value || "").slice(0, 10)}
+        onChange={(e) => onChange({ value: e.target.value })}
+        aria-label="Value"
+        className={cn(base, "border-input", className)}
+      />
     );
   }
 
