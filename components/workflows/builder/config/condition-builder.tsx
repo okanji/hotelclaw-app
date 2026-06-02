@@ -7,11 +7,13 @@ import { cn } from "@/lib/utils";
 import { groupRefs, type RefCandidate, type RefType } from "@/lib/workflows/refs";
 import {
   emptyClause,
+  emptyGroup,
   opsForType,
   parseCondition,
   serializeCondition,
   type Clause,
   type ClauseOp,
+  type CondNode,
   type ConditionModel,
 } from "@/lib/workflows/jsonlogic-codec";
 import { explainCondition } from "@/lib/workflows/explain-expr";
@@ -29,13 +31,51 @@ function humanizeOption(token: string): string {
 }
 
 function enrichTypes(model: ConditionModel, refs: RefCandidate[]): ConditionModel {
-  return {
-    ...model,
-    clauses: model.clauses.map((c) => {
-      const ref = refs.find((r) => r.path === c.path);
-      return ref ? { ...c, type: ref.type } : c;
-    }),
-  };
+  return { ...model, clauses: enrichNodes(model.clauses, refs) };
+}
+
+function enrichNodes(nodes: CondNode[], refs: RefCandidate[]): CondNode[] {
+  return nodes.map((n) => {
+    if (n.kind === "group") return { ...n, clauses: enrichNodes(n.clauses, refs) };
+    const ref = refs.find((r) => r.path === n.path);
+    return ref ? { ...n, type: ref.type } : n;
+  });
+}
+
+// ─── Path-addressed, immutable tree edits ────────────────────────────────────
+// A path is an array of child indices from the root, e.g. [1, 0] = the first
+// child of the root's second node (a group).
+
+function mapNodeAt(
+  nodes: CondNode[],
+  path: number[],
+  fn: (n: CondNode) => CondNode | null,
+): CondNode[] {
+  const [idx, ...rest] = path;
+  const out: CondNode[] = [];
+  nodes.forEach((n, i) => {
+    if (i !== idx) {
+      out.push(n);
+      return;
+    }
+    if (rest.length === 0) {
+      const next = fn(n);
+      if (next) out.push(next);
+    } else if (n.kind === "group") {
+      out.push({ ...n, clauses: mapNodeAt(n.clauses, rest, fn) });
+    } else {
+      out.push(n);
+    }
+  });
+  return out;
+}
+
+function appendToGroup(nodes: CondNode[], parentPath: number[], node: CondNode): CondNode[] {
+  if (parentPath.length === 0) return [...nodes, node];
+  const [idx, ...rest] = parentPath;
+  return nodes.map((n, i) =>
+    i === idx && n.kind === "group" ? { ...n, clauses: appendToGroup(n.clauses, rest, node) } : n,
+  );
 }
 
 export type ConditionBuilderVariant = "branch" | "filter" | "trigger" | "generic";
@@ -108,18 +148,35 @@ export function ConditionBuilder({
     onChange(expr);
   }
 
-  function setClause(i: number, patch: Partial<Clause>) {
-    const clauses = model.clauses.map((c, idx) => (idx === i ? { ...c, ...patch } : c));
-    update({ ...model, clauses });
+  function patchClause(path: number[], patch: Partial<Clause>) {
+    update({
+      ...model,
+      clauses: mapNodeAt(model.clauses, path, (n) =>
+        n.kind === "clause" ? { ...n, ...patch } : n,
+      ),
+    });
   }
 
-  function addClause() {
-    update({ ...model, clauses: [...model.clauses, emptyClause()] });
+  function setGroupCombine(path: number[], combine: "all" | "any") {
+    update({
+      ...model,
+      clauses: mapNodeAt(model.clauses, path, (n) =>
+        n.kind === "group" ? { ...n, combine } : n,
+      ),
+    });
   }
 
-  function removeClause(i: number) {
-    update({ ...model, clauses: model.clauses.filter((_, idx) => idx !== i) });
+  function removeNode(path: number[]) {
+    update({ ...model, clauses: mapNodeAt(model.clauses, path, () => null) });
   }
+
+  function addNode(parentPath: number[], node: CondNode) {
+    update({ ...model, clauses: appendToGroup(model.clauses, parentPath, node) });
+  }
+
+  // Root-level convenience adders.
+  const addClause = () => addNode([], emptyClause());
+  const addGroup = () => addNode([], emptyGroup());
 
   function rebuildFromScratch() {
     setAdvanced(false);
@@ -183,6 +240,15 @@ export function ConditionBuilder({
     );
   }
 
+  const nodeHandlers = {
+    refs: visibleRefs,
+    embedded: embedded || branchConditionsOnly,
+    onPatchClause: patchClause,
+    onSetGroupCombine: setGroupCombine,
+    onRemove: removeNode,
+    onAdd: addNode,
+  };
+
   const conditionEditor = (
     <>
       {multi && (
@@ -193,36 +259,35 @@ export function ConditionBuilder({
       )}
 
       {hasClauses ? (
-        <ul role="list" className="space-y-0">
-          {model.clauses.map((c, i) => (
-            <li key={i}>
-              {i > 0 && <LogicConnector combine={model.combine} />}
-              <ClauseCard
-                index={i}
-                clause={c}
-                refs={visibleRefs}
-                embedded={embedded || branchConditionsOnly}
-                onChange={(patch) => setClause(i, patch)}
-                onRemove={() => removeClause(i)}
-              />
-            </li>
-          ))}
-        </ul>
+        <NodeList nodes={model.clauses} combine={model.combine} path={[]} {...nodeHandlers} />
       ) : (
         <EmptyConditions variant={variant} canAdd={variant !== "trigger" || refs.length > 0} onAdd={addClause} />
       )}
 
       {hasClauses && (variant !== "trigger" || refs.length > 0) && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addClause}
-          className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
-        >
-          <Plus className="size-3.5" aria-hidden />
-          Add another condition
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addClause}
+            className="flex-1 border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Add condition
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addGroup}
+            title="Add a nested group with its own And/Or — e.g. urgent AND (todo OR blocked)"
+            className="border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Add group
+          </Button>
+        </div>
       )}
     </>
   );
@@ -555,6 +620,105 @@ function PathChip({
   }
 
   return <div className={className}>{body}</div>;
+}
+
+// ─── Recursive node renderer (clauses + nested groups) ───────────────────────
+
+type NodeHandlers = {
+  refs: RefCandidate[];
+  embedded: boolean;
+  onPatchClause: (path: number[], patch: Partial<Clause>) => void;
+  onSetGroupCombine: (path: number[], combine: "all" | "any") => void;
+  onRemove: (path: number[]) => void;
+  onAdd: (parentPath: number[], node: CondNode) => void;
+};
+
+function NodeList({
+  nodes,
+  combine,
+  path,
+  ...handlers
+}: { nodes: CondNode[]; combine: "all" | "any"; path: number[] } & NodeHandlers) {
+  return (
+    <ul role="list" className="space-y-0">
+      {nodes.map((node, i) => {
+        const nodePath = [...path, i];
+        return (
+          <li key={i}>
+            {i > 0 && <LogicConnector combine={combine} />}
+            {node.kind === "group" ? (
+              <GroupCard group={node} path={nodePath} {...handlers} />
+            ) : (
+              <ClauseCard
+                index={i}
+                clause={node}
+                refs={handlers.refs}
+                embedded={handlers.embedded}
+                onChange={(patch) => handlers.onPatchClause(nodePath, patch)}
+                onRemove={() => handlers.onRemove(nodePath)}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function GroupCard({
+  group,
+  path,
+  ...handlers
+}: { group: Extract<CondNode, { kind: "group" }>; path: number[] } & NodeHandlers) {
+  return (
+    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
+          {(["all", "any"] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => handlers.onSetGroupCombine(path, opt)}
+              aria-pressed={group.combine === opt}
+              className={cn(
+                "rounded px-2 py-0.5 font-medium transition-colors",
+                group.combine === opt
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {opt === "all" ? "All" : "Any"}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => handlers.onRemove(path)}
+          aria-label="Remove group"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" aria-hidden />
+        </button>
+      </div>
+      {group.clauses.length > 0 ? (
+        <NodeList nodes={group.clauses} combine={group.combine} path={path} {...handlers} />
+      ) : (
+        <p className="px-1 py-1.5 text-[0.8125rem] text-muted-foreground">
+          Empty group — add a condition below.
+        </p>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => handlers.onAdd(path, emptyClause())}
+        className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        Add condition to group
+      </Button>
+    </div>
+  );
 }
 
 // ─── Match-all / match-any ───────────────────────────────────────────────────

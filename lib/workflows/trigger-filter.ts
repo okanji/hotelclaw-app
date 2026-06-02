@@ -3,14 +3,15 @@ import {
   parseCondition,
   serializeCondition,
   type Clause,
-  type ConditionModel,
+  type CondNode,
 } from "./jsonlogic-codec";
 
 /** Path used for “which label was added” filters on task.label_added. */
 export const ADDED_LABELS_PATH = "trigger.added_labels";
 
-function isLabelClause(c: Clause): boolean {
-  return c.path === ADDED_LABELS_PATH && c.op === "is_any_of";
+// Type guard so the label helpers skip nested groups and narrow to Clause.
+function isLabelClause(c: CondNode): c is Clause {
+  return c.kind === "clause" && c.path === ADDED_LABELS_PATH && c.op === "is_any_of";
 }
 
 /** Labels pinned by the dedicated label picker (may be empty = any label). */
@@ -46,6 +47,7 @@ export function buildAddedLabelFilterExpr(labels: string[]): unknown | undefined
     combine: "all",
     clauses: [
       {
+        kind: "clause",
         path: ADDED_LABELS_PATH,
         op: "is_any_of",
         value: "",

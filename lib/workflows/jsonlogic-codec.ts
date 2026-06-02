@@ -27,6 +27,7 @@ export type ClauseOp =
   | "not_empty";
 
 export interface Clause {
+  kind: "clause";
   path: string;
   op: ClauseOp;
   /** Scalar text value (for ==, !=, >, …). Ignored by empty/not_empty/is_any_of. */
@@ -37,9 +38,20 @@ export interface Clause {
   type: RefType;
 }
 
+/** A nested group of conditions with its own AND/OR — enables mixed logic like
+ *  "priority is urgent AND (status is todo OR blocked)". */
+export interface Group {
+  kind: "group";
+  combine: "all" | "any";
+  clauses: CondNode[];
+}
+
+export type CondNode = Clause | Group;
+
+/** The root is a group without the `kind` tag (it's always the outermost AND/OR). */
 export interface ConditionModel {
   combine: "all" | "any";
-  clauses: Clause[];
+  clauses: CondNode[];
 }
 
 export interface OpDef {
@@ -92,33 +104,52 @@ export function opsForType(type: RefType): OpDef[] {
 }
 
 export function emptyClause(path = "", type: RefType = "string"): Clause {
-  return { path, op: "==", value: "", values: [], type };
+  return { kind: "clause", path, op: "==", value: "", values: [], type };
+}
+
+export function emptyGroup(combine: "all" | "any" = "any"): Group {
+  return { kind: "group", combine, clauses: [emptyClause()] };
 }
 
 // ─── Parse: JSONLogic → model (null if not representable) ────────────────────
 
 export function parseCondition(expr: unknown): ConditionModel | null {
   if (expr === undefined || expr === null) return { combine: "all", clauses: [] };
-  if (typeof expr !== "object") return null;
-  const entries = Object.entries(expr as Record<string, unknown>);
+  const node = parseNode(expr);
+  if (!node) return null;
+  // A top-level group becomes the root; a bare leaf becomes a one-clause root.
+  if (node.kind === "group") return { combine: node.combine, clauses: node.clauses };
+  return { combine: "all", clauses: [node] };
+}
+
+// Recursive: an and/or node becomes a Group (enabling arbitrarily nested mixed
+// logic); anything else is a leaf Clause. Returns null if any part isn't
+// representable, so the builder falls back to lossless raw-JSON mode.
+function parseNode(node: unknown): CondNode | null {
+  if (!node || typeof node !== "object") return null;
+  const entries = Object.entries(node as Record<string, unknown>);
   if (entries.length !== 1) return null;
   const [op, args] = entries[0]!;
 
   if ((op === "and" || op === "or") && Array.isArray(args)) {
-    const clauses: Clause[] = [];
-    for (const node of args) {
-      const c = parseClause(node);
+    const children: CondNode[] = [];
+    for (const child of args) {
+      const c = parseNode(child);
       if (!c) return null;
-      clauses.push(c);
+      children.push(c);
     }
-    return { combine: op === "and" ? "all" : "any", clauses };
+    return { kind: "group", combine: op === "and" ? "all" : "any", clauses: children };
   }
 
-  const single = parseClause(expr);
-  return single ? { combine: "all", clauses: [single] } : null;
+  return parseClause(node);
 }
 
 function parseClause(node: unknown): Clause | null {
+  const leaf = parseLeaf(node);
+  return leaf ? { kind: "clause", ...leaf } : null;
+}
+
+function parseLeaf(node: unknown): Omit<Clause, "kind"> | null {
   if (!node || typeof node !== "object") return null;
   const entries = Object.entries(node as Record<string, unknown>);
   if (entries.length !== 1) return null;
@@ -208,13 +239,26 @@ function parseClause(node: unknown): Clause | null {
 // ─── Serialize: model → JSONLogic (undefined if no usable clauses) ───────────
 
 export function serializeCondition(model: ConditionModel): unknown | undefined {
-  const nodes = model.clauses.map(serializeClause).filter((n): n is object => n !== null);
-  if (nodes.length === 0) return undefined;
-  // One clause needs no and/or wrapper — but only ALL emits the bare node.
-  // If the user explicitly chose ANY we still wrap ({or:[node]}) so the choice
+  return serializeGroup(model.combine, model.clauses);
+}
+
+function serializeGroup(combine: "all" | "any", nodes: CondNode[]): object | undefined {
+  const serialized = nodes
+    .map(serializeNode)
+    .filter((n): n is object => n !== null);
+  if (serialized.length === 0) return undefined;
+  // One node needs no and/or wrapper — but only ALL emits the bare node. If the
+  // user explicitly chose ANY we still wrap ({or:[node]}) so the choice
   // round-trips back to "any" instead of silently resetting to "all".
-  if (nodes.length === 1 && model.combine === "all") return nodes[0];
-  return { [model.combine === "all" ? "and" : "or"]: nodes };
+  if (serialized.length === 1 && combine === "all") return serialized[0];
+  return { [combine === "all" ? "and" : "or"]: serialized };
+}
+
+function serializeNode(node: CondNode): object | null {
+  if (node.kind === "group") {
+    return serializeGroup(node.combine, node.clauses) ?? null;
+  }
+  return serializeClause(node);
 }
 
 function serializeClause(c: Clause): object | null {
