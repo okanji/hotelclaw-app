@@ -35,15 +35,22 @@ export function BuilderShell({
   workflowId,
   initialSpec,
   isDurable: initialIsDurable,
+  initialVersionId = null,
 }: {
   propertyId: string;
   workflowId: string;
   initialSpec: WorkflowSpec;
   isDurable: boolean;
+  /** current_version_id at load — used for optimistic-concurrency on save. */
+  initialVersionId?: string | null;
 }) {
   const [savedSpec, setSavedSpec] = useState<WorkflowSpec>(initialSpec);
   const [spec, setSpec] = useState<WorkflowSpec>(initialSpec);
   const [unaccepted, setUnaccepted] = useState<Set<string>>(new Set());
+  // The version our edits are based on; updated after each successful save. If
+  // the server's current version diverges, the save 409s (concurrent editor).
+  const baseVersionId = useRef<string | null>(initialVersionId);
+  const [conflict, setConflict] = useState(false);
   // Snapshot of the spec immediately before the last AI apply, so Reject removes
   // only the AI's changes instead of reverting to the (possibly much older) last
   // saved version and discarding the user's own unsaved edits.
@@ -131,13 +138,20 @@ export function BuilderShell({
         const res = await fetch(`/api/properties/${propertyId}/workflows/${workflowId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ spec: next }),
+          body: JSON.stringify({ spec: next, baseVersionId: baseVersionId.current }),
         });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          conflict?: boolean;
+          currentVersionId?: string | null;
+        };
         if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(err.error ?? `HTTP ${res.status}`);
+          if (res.status === 409 || data.conflict) setConflict(true);
+          throw new Error(data.error ?? `HTTP ${res.status}`);
         }
         if (seq !== saveSeq.current) return false;
+        // Advance our base version so the next save's optimistic check passes.
+        if (data.currentVersionId) baseVersionId.current = data.currentVersionId;
         setSavedSpec(next);
         setUnaccepted(new Set());
         if (!options?.silent) toast.success("Workflow saved");
@@ -164,6 +178,7 @@ export function BuilderShell({
       lastAutosaveAttempt.current = null;
       return;
     }
+    if (conflict) return; // stop autosaving once another editor has diverged
     if (unaccepted.size > 0) return;
     if (!validateSpec(debouncedSpec).ok) return;
     if (lastAutosaveAttempt.current === debouncedSpec) return;
@@ -172,7 +187,7 @@ export function BuilderShell({
     void persistSpec(debouncedSpec, { silent: true }).then((ok) => {
       if (ok) lastAutosaveAttempt.current = null;
     });
-  }, [debouncedSpec, savedSpec, persistSpec, unaccepted]);
+  }, [debouncedSpec, savedSpec, persistSpec, unaccepted, conflict]);
 
   // Cmd+G toggles Flow ↔ Map; Cmd+S saves; Cmd+Z undo / Cmd+Shift+Z (or Cmd+Y)
   // redo.
@@ -342,6 +357,35 @@ export function BuilderShell({
           )}
         >
           <AcceptBar count={unaccepted.size} onAccept={acceptAll} onReject={rejectAll} />
+        </div>
+      ) : null}
+
+      {conflict ? (
+        <div
+          className={cn(
+            "flex-shrink-0",
+            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px]">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+              <div>
+                <p className="font-medium text-foreground">This workflow changed elsewhere</p>
+                <p className="text-muted-foreground">
+                  Someone else (or another tab) saved a newer version. Autosave is paused to avoid
+                  overwriting it — reload to get the latest.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="shrink-0 rounded-md bg-foreground px-2.5 py-1 text-[12px] font-medium text-background hover:opacity-90"
+            >
+              Reload
+            </button>
+          </div>
         </div>
       ) : null}
 

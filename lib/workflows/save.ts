@@ -17,6 +17,18 @@ export interface SaveWorkflowArgs {
   enabled?: boolean;
   spec?: unknown; // when present, creates a new version
   notes?: string | null;
+  /** Optimistic lock: the current_version_id the editor based its edits on. If
+   *  it no longer matches the DB (someone else saved), the save is rejected. */
+  baseVersionId?: string | null;
+}
+
+export class WorkflowConflictError extends Error {
+  constructor() {
+    super(
+      "This workflow was changed somewhere else. Reload to get the latest version before saving again.",
+    );
+    this.name = "WorkflowConflictError";
+  }
 }
 
 export interface SaveWorkflowResult {
@@ -30,7 +42,8 @@ export interface SaveWorkflowResult {
 // differ only in node positions produce the same string (and thus the same
 // version hash), so repositioning never creates a new version.
 function specSemanticJson(spec: WorkflowSpec): string {
-  const { layout: _layout, ...semantic } = spec;
+  const semantic: Record<string, unknown> = { ...spec };
+  delete semantic.layout;
   return JSON.stringify(semantic);
 }
 
@@ -45,6 +58,21 @@ export async function saveWorkflow(args: SaveWorkflowArgs): Promise<SaveWorkflow
       const detail = validation.issues.map((i) => `${i.path}: ${i.message}`).join("; ");
       throw new Error(`invalid workflow spec — ${detail}`);
     }
+
+    // Optimistic-concurrency check: reject if the workflow's current version
+    // changed since the editor loaded it (a concurrent editor / stale tab).
+    if (args.baseVersionId !== undefined) {
+      const { data: cur } = await supabase
+        .from("workflows")
+        .select("current_version_id")
+        .eq("id", args.workflowId)
+        .eq("property_id", args.propertyId)
+        .maybeSingle();
+      if (cur && (cur.current_version_id ?? null) !== (args.baseVersionId ?? null)) {
+        throw new WorkflowConflictError();
+      }
+    }
+
     const parsed = WorkflowSpec.parse(args.spec);
     mode = classifyMode(parsed);
 

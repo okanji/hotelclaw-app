@@ -39,6 +39,7 @@ export function WorkflowDetail({
           workflowId={workflowId}
           initialSpec={spec}
           isDurable={isDurable}
+          initialVersionId={data.workflow.current_version_id ?? null}
         />
       ) : (
         <div className="flex-1 overflow-y-auto">

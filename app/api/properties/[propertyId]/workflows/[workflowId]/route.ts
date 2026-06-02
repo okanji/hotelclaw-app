@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
-import { saveWorkflow } from "@/lib/workflows/save";
+import { saveWorkflow, WorkflowConflictError } from "@/lib/workflows/save";
 
 const PatchBody = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -10,6 +10,7 @@ const PatchBody = z.object({
   enabled: z.boolean().optional(),
   spec: z.unknown().optional(),
   notes: z.string().nullable().optional(),
+  baseVersionId: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -75,9 +76,13 @@ export async function PATCH(
       enabled: body.enabled,
       spec: body.spec,
       notes: body.notes,
+      baseVersionId: body.baseVersionId,
     });
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof WorkflowConflictError) {
+      return NextResponse.json({ error: err.message, conflict: true }, { status: 409 });
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 400 },
