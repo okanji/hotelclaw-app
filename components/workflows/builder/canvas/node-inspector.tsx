@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Pencil, X } from "lucide-react";
+import { Check, Copy, Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SurfaceBadge, SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import { getStep, getTrigger, TRIGGERS } from "@/lib/workflows/catalog";
@@ -67,6 +67,7 @@ export function NodeInspector({
   branchPathFocus,
   onOpenBranchStep,
   onOpenBranchPath,
+  webhookToken,
 }: {
   spec: WorkflowSpec;
   propertyId?: string;
@@ -80,6 +81,8 @@ export function NodeInspector({
   branchPathFocus?: BranchPathFocus | null;
   onOpenBranchStep?: (branchStepId: string) => void;
   onOpenBranchPath?: (branchStepId: string, branchKey: BranchPathKey) => void;
+  /** Per-workflow webhook token — surfaces the trigger URL for webhook/form. */
+  webhookToken?: string | null;
 }) {
   const open = selectedNodeId !== null;
   return (
@@ -90,6 +93,7 @@ export function NodeInspector({
           propertyId={propertyId}
           onChange={onChange}
           onClose={onClose}
+          webhookToken={webhookToken}
         />
       ) : selectedNodeId ? (
         <StepEditor
@@ -183,13 +187,18 @@ function TriggerEditor({
   propertyId,
   onChange,
   onClose,
+  webhookToken,
 }: {
   spec: WorkflowSpec;
   propertyId?: string;
   onChange: (next: WorkflowSpec) => void;
   onClose: () => void;
+  webhookToken?: string | null;
 }) {
   const meta = getTrigger(spec.trigger.event_type);
+  const isWebhookTrigger =
+    spec.trigger.event_type === "webhook.received" ||
+    spec.trigger.event_type === "form.submitted";
   const builderData = useWorkflowBuilderData();
   const refs = useMemo(() => {
     const base = availableRefs(spec);
@@ -286,6 +295,9 @@ function TriggerEditor({
             ) : null,
             scheduleConfig: isScheduled ? (
               <ScheduleTriggerConfig trigger={spec.trigger} onChange={commitSchedule} />
+            ) : null,
+            webhookUrl: isWebhookTrigger ? (
+              <WebhookUrlPanel token={webhookToken ?? null} />
             ) : null,
             summary,
             dataContext: <DataContextPanel refs={refs} variant="trigger" />,
@@ -639,6 +651,45 @@ function StepEditor({
         />
       </div>
     </>
+  );
+}
+
+// ─── Webhook URL panel (webhook/form triggers) ─────────────────────────────
+
+function WebhookUrlPanel({ token }: { token: string | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!token) {
+    return (
+      <p className="text-[0.8125rem] text-muted-foreground">
+        Save the workflow to generate its webhook URL.
+      </p>
+    );
+  }
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const url = `${origin}/api/workflows/webhook/${token}`;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 rounded-md border border-input bg-muted/20 px-2.5 py-1.5">
+        <code className="min-w-0 flex-1 truncate text-[0.75rem] text-foreground">{url}</code>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-1 text-[0.75rem] text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+        POST here (JSON or form data) to run this workflow. The posted body is
+        available to later steps as <code className="text-foreground/80">{"{{trigger.…}}"}</code>.
+        Turn the workflow on for it to fire.
+      </p>
+    </div>
   );
 }
 

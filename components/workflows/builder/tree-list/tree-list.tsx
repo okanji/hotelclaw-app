@@ -180,6 +180,7 @@ export function TreeList({
   unacceptedIds,
   invalidById,
   warningById,
+  webhookToken,
 }: {
   spec: WorkflowSpec;
   propertyId?: string;
@@ -192,6 +193,8 @@ export function TreeList({
   invalidById?: Map<string, string>;
   /** step id → first non-blocking warning (orphan/cycle), shown in amber. */
   warningById?: Map<string, string>;
+  /** Per-workflow webhook token, forwarded to the trigger inspector. */
+  webhookToken?: string | null;
 }) {
   const [paletteAt, setPaletteAt] = useState<SlotTarget | null>(null);
   const [inspectorOpenFor, setInspectorOpenFor] = useState<string | null>(null);
@@ -448,6 +451,7 @@ export function TreeList({
           requestAnimationFrame(() => panToWorkflowStep(branchStepId));
         }}
         onOpenBranchPath={(branchStepId, branchKey) => configureBranchPath(branchStepId, branchKey)}
+        webhookToken={webhookToken}
       />
       </div>
 

@@ -86,6 +86,8 @@ type WorkflowCanvasProps = {
   setSelectedNodeId: (id: string | null) => void;
   /** Close the canvas view (returns to list). */
   onClose?: () => void;
+  /** Per-workflow webhook token, forwarded to the trigger inspector. */
+  webhookToken?: string | null;
 };
 
 export function WorkflowCanvas(props: WorkflowCanvasProps) {
@@ -108,6 +110,7 @@ function CanvasInner({
   selectedNodeId,
   setSelectedNodeId,
   onClose,
+  webhookToken,
 }: WorkflowCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rf = useReactFlow();
@@ -351,6 +354,7 @@ function CanvasInner({
         onClose={() => setSelectedNodeId(null)}
         onChange={setSpec}
         onStepRenamed={setSelectedNodeId}
+        webhookToken={webhookToken}
       />
     </div>
   );

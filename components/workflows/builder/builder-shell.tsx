@@ -37,6 +37,7 @@ export function BuilderShell({
   initialSpec,
   isDurable: initialIsDurable,
   initialVersionId = null,
+  webhookToken = null,
 }: {
   propertyId: string;
   workflowId: string;
@@ -44,6 +45,8 @@ export function BuilderShell({
   isDurable: boolean;
   /** current_version_id at load — used for optimistic-concurrency on save. */
   initialVersionId?: string | null;
+  /** Per-workflow webhook token — shown in the trigger panel for webhook/form. */
+  webhookToken?: string | null;
 }) {
   const [savedSpec, setSavedSpec] = useState<WorkflowSpec>(initialSpec);
   const [spec, setSpec] = useState<WorkflowSpec>(initialSpec);
@@ -429,6 +432,7 @@ export function BuilderShell({
             selectedNodeId={selectedStepId ?? null}
             setSelectedNodeId={(id) => setSelectedStepId(id ?? undefined)}
             onClose={() => setView("flow")}
+            webhookToken={webhookToken}
           />
         </div>
       ) : (
@@ -451,6 +455,7 @@ export function BuilderShell({
                 unacceptedIds={unaccepted}
                 invalidById={invalidById}
                 warningById={warningById}
+                webhookToken={webhookToken}
               />
             </div>
           </PanZoomCanvas>

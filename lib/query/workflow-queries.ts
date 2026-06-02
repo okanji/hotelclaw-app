@@ -39,6 +39,7 @@ type WorkflowDetail = {
     enabled: boolean;
     mode: "instant" | "durable";
     current_version_id: string | null;
+    webhook_token: string | null;
     last_run_at: string | null;
     last_run_status: string | null;
     created_at: string;

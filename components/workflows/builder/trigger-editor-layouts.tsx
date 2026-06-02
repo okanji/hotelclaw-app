@@ -31,6 +31,14 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       children: slots.scheduleConfig,
     });
   }
+  if (slots.webhookUrl) {
+    steps.push({
+      id: "webhook",
+      marker: steps.length + 1,
+      title: "Webhook URL",
+      children: slots.webhookUrl,
+    });
+  }
   if (slots.conditions) {
     steps.push({
       id: "filters",

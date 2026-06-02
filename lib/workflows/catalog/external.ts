@@ -1,6 +1,34 @@
 import { z } from "zod";
 import { explainTemplateValue } from "@/lib/workflows/explain-template";
-import { type StepCatalogEntry } from "./types";
+import { type StepCatalogEntry, type TriggerCatalogEntry } from "./types";
+
+// Inbound triggers started by an external HTTP POST to the workflow's webhook
+// URL (shown in the trigger panel). The payload is whatever was posted, exposed
+// as {{trigger.*}}.
+const triggers: TriggerCatalogEntry[] = [
+  {
+    id: "webhook.received",
+    surface: "external",
+    category: "trigger",
+    label: "When a webhook is received",
+    description:
+      "Runs when an external system POSTs to this workflow's webhook URL — connect a PMS, booking engine, or any tool that can call a URL. Whatever JSON they send is available to later steps.",
+    examplePrompts: ["when our PMS posts a new booking", "on incoming webhook from Stripe"],
+    outputSchema: z.record(z.string(), z.unknown()),
+    explain: () => "When a webhook is received",
+  },
+  {
+    id: "form.submitted",
+    surface: "external",
+    category: "trigger",
+    label: "When a form is submitted",
+    description:
+      "Runs when someone submits a form that posts to this workflow's URL — e.g. a guest request or maintenance form. Submitted fields are available to later steps.",
+    examplePrompts: ["when a guest submits the request form", "on maintenance form submission"],
+    outputSchema: z.record(z.string(), z.unknown()),
+    explain: () => "When a form is submitted",
+  },
+];
 
 // External surface: outbound integrations that reach systems outside the app —
 // a generic HTTP call, plus email (Resend) and messaging (Telegram / WhatsApp).
@@ -81,4 +109,5 @@ const actions: StepCatalogEntry[] = [
   },
 ];
 
+export const EXTERNAL_TRIGGERS = triggers;
 export const EXTERNAL_ACTIONS = actions;

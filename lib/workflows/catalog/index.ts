@@ -15,7 +15,7 @@ import { ENTITIES_TRIGGERS, ENTITIES_ACTIONS } from "./entities";
 import { AI_ACTIONS } from "./ai";
 import { CONTROL_ACTIONS } from "./control";
 import { SYSTEM_TRIGGERS, SYSTEM_ACTIONS } from "./system";
-import { EXTERNAL_ACTIONS } from "./external";
+import { EXTERNAL_TRIGGERS, EXTERNAL_ACTIONS } from "./external";
 
 export const TRIGGERS: TriggerCatalogEntry[] = [
   ...TASKS_TRIGGERS,
@@ -25,6 +25,7 @@ export const TRIGGERS: TriggerCatalogEntry[] = [
   ...CALENDAR_TRIGGERS,
   ...ENTITIES_TRIGGERS,
   ...SYSTEM_TRIGGERS,
+  ...EXTERNAL_TRIGGERS,
 ];
 
 export const STEPS: StepCatalogEntry[] = [

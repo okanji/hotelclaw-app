@@ -875,6 +875,7 @@ export interface Database {
           last_run_at: string | null;
           last_run_status: string | null;
           archived_at: string | null;
+          webhook_token: string;
         };
         Insert: {
           id?: string;
@@ -887,6 +888,7 @@ export interface Database {
           folder_id?: string | null;
           created_by?: string | null;
           updated_by?: string | null;
+          webhook_token?: string;
         };
         Update: Partial<{
           name: string;

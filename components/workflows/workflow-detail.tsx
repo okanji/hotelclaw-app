@@ -40,6 +40,7 @@ export function WorkflowDetail({
           initialSpec={spec}
           isDurable={isDurable}
           initialVersionId={data.workflow.current_version_id ?? null}
+          webhookToken={data.workflow.webhook_token ?? null}
         />
       ) : (
         <div className="flex-1 overflow-y-auto">

@@ -29,6 +29,8 @@ export const TRIGGER_EVENT_TYPES = [
   "schedule.cron",
   "schedule.at_time",
   "manual.run",
+  "webhook.received",
+  "form.submitted",
 ] as const;
 
 export type TriggerEventType = (typeof TRIGGER_EVENT_TYPES)[number];
