@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, LayoutPanelLeft, List, X } from "lucide-react";
+import { AlertTriangle, Check, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -16,6 +16,9 @@ import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
 
 const AUTOSAVE_DELAY_MS = 1200;
+// Edits within this window collapse into a single undo checkpoint.
+const HISTORY_COALESCE_MS = 500;
+const MAX_HISTORY = 100;
 
 // Builder shell — owns:
 //   • the in-memory spec
@@ -69,6 +72,56 @@ export function BuilderShell({
     [validation, spec.steps],
   );
 
+  // ─── Undo / redo ──────────────────────────────────────────────────────────
+  // The spec is the single source of truth, so all edits flow through
+  // commitSpec, which checkpoints the prior spec onto an undo stack. Rapid
+  // edits (e.g. typing in a config field) coalesce into one checkpoint within a
+  // short window so undo steps are meaningful rather than per-keystroke.
+  const specRef = useRef(spec);
+  useEffect(() => {
+    specRef.current = spec;
+  }, [spec]);
+  const lastEditAt = useRef(0);
+  const [history, setHistory] = useState<{ past: WorkflowSpec[]; future: WorkflowSpec[] }>({
+    past: [],
+    future: [],
+  });
+
+  const commitSpec = useCallback((next: WorkflowSpec, opts?: { checkpoint?: boolean }) => {
+    const prev = specRef.current;
+    if (next === prev) return;
+    const now = Date.now();
+    const coalesce = !opts?.checkpoint && now - lastEditAt.current < HISTORY_COALESCE_MS;
+    lastEditAt.current = now;
+    setHistory((h) => {
+      if (coalesce) return h.future.length ? { past: h.past, future: [] } : h;
+      const past = [...h.past, prev];
+      if (past.length > MAX_HISTORY) past.shift();
+      return { past, future: [] };
+    });
+    setSpec(next);
+  }, []);
+
+  const undo = useCallback(() => {
+    lastEditAt.current = 0;
+    setHistory((h) => {
+      if (h.past.length === 0) return h;
+      const prev = h.past[h.past.length - 1];
+      setSpec(prev);
+      return { past: h.past.slice(0, -1), future: [specRef.current, ...h.future] };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    lastEditAt.current = 0;
+    setHistory((h) => {
+      if (h.future.length === 0) return h;
+      const next = h.future[0];
+      setSpec(next);
+      return { past: [...h.past, specRef.current], future: h.future.slice(1) };
+    });
+  }, []);
+
   const persistSpec = useCallback(
     async (next: WorkflowSpec, options?: { silent?: boolean }): Promise<boolean> => {
       const seq = ++saveSeq.current;
@@ -121,7 +174,8 @@ export function BuilderShell({
     });
   }, [debouncedSpec, savedSpec, persistSpec, unaccepted]);
 
-  // Cmd+G / Ctrl+G toggles Flow ↔ Map; Cmd+S / Ctrl+S saves immediately.
+  // Cmd+G toggles Flow ↔ Map; Cmd+S saves; Cmd+Z undo / Cmd+Shift+Z (or Cmd+Y)
+  // redo.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -132,11 +186,18 @@ export function BuilderShell({
       } else if (key === "s") {
         e.preventDefault();
         if (dirty && canPersist && !saving) void persistSpec(spec);
+      } else if (key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (key === "y") {
+        e.preventDefault();
+        redo();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dirty, canPersist, saving, spec, persistSpec]);
+  }, [dirty, canPersist, saving, spec, persistSpec, undo, redo]);
 
   // Guard against losing unsaved work on tab close / reload / external nav.
   // Autosave debounces by AUTOSAVE_DELAY_MS, so there's always a window where
@@ -163,7 +224,7 @@ export function BuilderShell({
     const before = new Set(Object.keys(spec.steps));
     const newIds = Object.keys(next.steps).filter((id) => !before.has(id));
     setPreAiSpec(spec); // capture the pre-apply state so Reject can return here
-    setSpec(next);
+    commitSpec(next, { checkpoint: true }); // an AI apply is always its own undo step
     setUnaccepted(new Set(newIds));
   }
 
@@ -221,6 +282,22 @@ export function BuilderShell({
             : ""}
         </p>
         <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+            <IconButton
+              label="Undo (⌘Z)"
+              disabled={history.past.length === 0}
+              onClick={undo}
+            >
+              <Undo2 className="size-3.5" />
+            </IconButton>
+            <IconButton
+              label="Redo (⌘⇧Z)"
+              disabled={history.future.length === 0}
+              onClick={redo}
+            >
+              <Redo2 className="size-3.5" />
+            </IconButton>
+          </div>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <ViewTab
               icon={<List className="size-3" />}
@@ -273,7 +350,7 @@ export function BuilderShell({
           <WorkflowCanvas
             propertyId={propertyId}
             spec={spec}
-            setSpec={setSpec}
+            setSpec={commitSpec}
             unacceptedIds={unaccepted}
             applyAiSpec={applyAiSpec}
             busy={busy}
@@ -299,7 +376,7 @@ export function BuilderShell({
                 isDurable={currentIsDurable}
                 selectedStepId={selectedStepId}
                 onSelectStep={setSelectedStepId}
-                onChange={setSpec}
+                onChange={commitSpec}
                 unacceptedIds={unaccepted}
                 invalidById={invalidById}
               />
@@ -394,6 +471,31 @@ function ViewTab({
     >
       {icon}
       {label}
+    </button>
+  );
+}
+
+function IconButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+    >
+      {children}
     </button>
   );
 }
