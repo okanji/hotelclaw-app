@@ -41,7 +41,9 @@
 
 - ✅ **Retry / on-error config UI.** Action & AI steps get an "If this step fails" section — a 0–10 retry count and Stop / Continue choice — writing the top-level `retry`/`on_error` the runtime already honors. (`node-inspector.tsx`)
 
-**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; loops/parallel authorability; surface orphan/cycle warnings on cards (needs a `warningById` prop threaded through the tree); duplicate/copy-paste; run cancel.
+- ✅ **Orphan/cycle warnings surfaced.** A `warningById` map threads through the tree → amber card note (cycles); an amber "Heads up" banner lists all warnings so orphans (never rendered) surface too. Non-blocking. (`builder-shell.tsx`, `tree-list.tsx`)
+
+**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; loops/parallel authorability; duplicate/copy-paste; run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
