@@ -50,7 +50,16 @@
 - ✅ **Durable-runtime observability parity.** The durable path now records a real `started_at` (captured inside the step boundary so the workflow stays deterministic), real `attempt` counts, and `error_step_id` on failure — matching the instant runtime. (`durable-runtime.ts`)
 - ✅ **`ai_trace` populated.** `runBot` returns a compact trace (`model`, token counts, tool calls) from the `generateText` result; all six AI runners record it via a new `recordTrace` channel; both runtimes persist it to `workflow_step_runs.ai_trace`. The inspector's previously-empty "AI trace" panel now shows real data. (`run-bot.ts`, `runners/ai.ts`, `catalog/types.ts`, both runtimes)
 
-**Remaining pure-code:** run cancel (limited value for synchronous instant runs).
+- ✅ **Run cancel.** Cancel button on active runs marks the run cancelled (race-guarded) and disposes its waits so a matching event can't resume it. (`runs/[runId]/cancel/route.ts`, `run-inspector-client.tsx`)
+- ✅ **Outbound action steps.** `action.http.request` (generic server-side fetch — no provider), `action.email.send` (Resend), `action.telegram.send`, `action.whatsapp.send` (Meta Cloud API). Full vertical slices (spec + catalog + field-defs + runner + registry); provider runners fail-soft when their env vars are unset. (`spec.ts`, `catalog/external.ts`, `field-defs.ts`, `runners/external.ts`)
+- ✅ **Optimistic-concurrency on save.** Builder sends its base `current_version_id`; save 409s on divergence; builder pauses autosave + shows a "changed elsewhere — Reload" banner. No migration needed. (`save.ts`, `builder-shell.tsx`)
+- ✅ **Version history + restore.** History button → dialog listing versions with one-click restore (forward-only). No migration needed. (`versions/route.ts`, `version-history-dialog.tsx`)
+
+**Audit pure-code queue: drained.** Every builder/authoring/observability/runtime gap the audit flagged is implemented.
+
+**Not built (out of scope / not requested):** generic inbound-webhook & hosted-form *trigger* families; real-time co-editing (would need presence/CRDT infra).
+
+> Note on migrations & HTTP: the version-history and optimistic-locking features needed **no new migration** — migration 0026's `workflow_versions` / `workflows.current_version_id` already had the columns. The HTTP action needs **no external provider** — the server makes the request via `fetch`; the step just exposes it configurably. Email/Telegram/WhatsApp need env vars: `RESEND_API_KEY` + `RESEND_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
