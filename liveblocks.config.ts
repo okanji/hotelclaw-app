@@ -242,6 +242,16 @@ declare global {
           }>
         >;
       }>;
+      /**
+       * Workflow builder shared spec (CRDT co-editing). `steps` is a LiveMap
+       * keyed by step id so concurrent edits to *different* steps merge; each
+       * value is the JSON-stringified StepNode. `rest` is the rest of the spec
+       * (trigger, entry, name, variables, layout, metadata) as one JSON string.
+       */
+      workflow?: LiveObject<{
+        steps: LiveMap<string, string>;
+        rest: string;
+      }>;
       /** Legacy — read-fallback only. Dropped after the migration. */
       spreadsheet?: LiveObject<{
         cells: LiveMap<
@@ -267,11 +277,7 @@ declare global {
       // Receivers invalidate the calendar query immediately instead of
       // waiting for the Supabase Realtime hop, which can lag a second or
       // two under load. Postgres + Realtime stay authoritative.
-      | { type: "calendar-invalidate" }
-      // Workflow builder: a peer changed the spec (JSON-stringified for the
-      // wire). Receivers mirror it live for co-editing; only the editing client
-      // persists (the rev lets the receiver ignore its own echo).
-      | { type: "workflow-spec"; spec: string; rev: number };
+      | { type: "calendar-invalidate" };
     ThreadMetadata: {
       taskId?: string;
       // Spreadsheet cell-anchored threads. Set when a comment is posted on

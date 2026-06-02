@@ -14,6 +14,7 @@ import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
 import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
+import { ClientSideSuspense } from "@liveblocks/react";
 import { VersionHistoryDialog } from "./version-history-dialog";
 import { WorkflowCoEditing } from "./workflow-co-editing";
 
@@ -156,7 +157,13 @@ export function BuilderShell({
         const res = await fetch(`/api/properties/${propertyId}/workflows/${workflowId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ spec: next, baseVersionId: baseVersionId.current }),
+          // In co-edit mode the shared Storage doc IS the coordination point, so
+          // skip the optimistic-lock — otherwise co-editors would 409 each other
+          // on every save. Postgres is just the durable snapshot here.
+          body: JSON.stringify({
+            spec: next,
+            baseVersionId: enableCoEditing ? undefined : baseVersionId.current,
+          }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
@@ -184,7 +191,7 @@ export function BuilderShell({
         if (seq === saveSeq.current) setSaving(false);
       }
     },
-    [propertyId, workflowId],
+    [propertyId, workflowId, enableCoEditing],
   );
 
   // Debounced autosave — skips invalid specs and avoids retry loops on failure.
@@ -327,11 +334,13 @@ export function BuilderShell({
         </p>
         <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
           {enableCoEditing ? (
-            <WorkflowCoEditing
-              spec={spec}
-              selectedStepId={selectedStepId}
-              onRemoteSpec={applyRemoteSpec}
-            />
+            <ClientSideSuspense fallback={null}>
+              <WorkflowCoEditing
+                spec={spec}
+                selectedStepId={selectedStepId}
+                onRemoteSpec={applyRemoteSpec}
+              />
+            </ClientSideSuspense>
           ) : null}
           <div className="inline-flex rounded-md border border-border bg-background p-0.5">
             <IconButton

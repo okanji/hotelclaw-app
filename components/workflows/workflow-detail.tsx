@@ -35,7 +35,7 @@ export function WorkflowDetail({
         // BuilderShell owns its own width + padding so the canvas view can
         // break out of the comfortable reading column (820px) into the full-
         // width workspace it needs.
-        <WorkflowRoom propertyId={propertyId} workflowId={workflowId}>
+        <WorkflowRoom propertyId={propertyId} workflowId={workflowId} initialSpec={spec}>
           <BuilderShell
             propertyId={propertyId}
             workflowId={workflowId}
