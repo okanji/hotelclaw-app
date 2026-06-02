@@ -47,7 +47,10 @@
 
 - ✅ **Duplicate step.** A Copy action on linear action/AI cards clones the step (fresh id, "… copy" label) and splices the copy in after the original; undoable. (`tree-list.tsx`)
 
-**Remaining pure-code:** durable-runtime observability parity + `ai_trace` (the runtime-engine one — use the `/workflow` + `/ai-sdk` skills to read the Vercel Workflow SDK / generateText trace shape precisely); run cancel.
+- ✅ **Durable-runtime observability parity.** The durable path now records a real `started_at` (captured inside the step boundary so the workflow stays deterministic), real `attempt` counts, and `error_step_id` on failure — matching the instant runtime. (`durable-runtime.ts`)
+- ✅ **`ai_trace` populated.** `runBot` returns a compact trace (`model`, token counts, tool calls) from the `generateText` result; all six AI runners record it via a new `recordTrace` channel; both runtimes persist it to `workflow_step_runs.ai_trace`. The inspector's previously-empty "AI trace" panel now shows real data. (`run-bot.ts`, `runners/ai.ts`, `catalog/types.ts`, both runtimes)
+
+**Remaining pure-code:** run cancel (limited value for synchronous instant runs).
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
