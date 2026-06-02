@@ -43,7 +43,9 @@
 
 - ✅ **Orphan/cycle warnings surfaced.** A `warningById` map threads through the tree → amber card note (cycles); an amber "Heads up" banner lists all warnings so orphans (never rendered) surface too. Non-blocking. (`builder-shell.tsx`, `tree-list.tsx`)
 
-**Remaining pure-code (continuing):** durable observability parity + `ai_trace`; loops/parallel authorability; duplicate/copy-paste; run cancel.
+- ✅ **Loops/parallel are authorable.** foreach "body start" and parallel "branch starts" are now step pickers (dropdowns of real steps), not free-text reference names; combined with the dangling-target validation, they can't be mistyped. Steps inside a foreach body can reference the current item (`vars.<item_var>`) via a "Current <item>" pick — previously impossible (picker didn't offer it, validator rejected it). (`field-defs.ts`, `typed-step-form.tsx`, `node-inspector.tsx`, `validate.ts`, `refs.ts`)
+
+**Remaining pure-code (continuing):** durable-runtime observability parity + `ai_trace`; duplicate/copy-paste step; run cancel.
 
 **Decision/infra-gated (paused for input):** DB migrations (version-history UI, optimistic-locking); external providers (HTTP / email / SMS action steps); inbound-webhook & form triggers; real-time co-editing.
 
