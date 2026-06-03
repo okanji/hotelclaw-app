@@ -171,6 +171,8 @@ export default async function PropertyLayout({
                           <HomeSurface
                             propertyId={propertyId}
                             propertyName={property.name}
+                            userId={user.id}
+                            userName={profile.data?.full_name ?? null}
                           />
                           <ChatSurface propertyId={propertyId} />
                           <TasksSurface

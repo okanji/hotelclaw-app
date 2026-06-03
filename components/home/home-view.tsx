@@ -1,197 +1,185 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Bell,
-  CalendarDays,
-  FileText,
-  ListChecks,
-  MessagesSquare,
-  Plus,
-  Sparkles,
-  Video,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { documentsQueryOptions } from "@/lib/query/section-queries";
-import type { DocumentListItem } from "@/lib/documents/queries";
-import { DocBoardsSection } from "@/components/documents/doc-boards-section";
-import { DocBoardsBoard } from "@/components/documents/doc-boards-board";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
 import { GenerateDocumentDialog } from "@/components/documents/generate-document-dialog";
-import { documentHref } from "@/lib/documents/document-href";
-import { useOpenDocument } from "@/lib/documents/use-open-document";
-import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
-
-const RECENT_LIMIT = 6;
-
-type Shortcut = {
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  href: (propertyId: string) => string;
-};
-
-/** The work surfaces reachable from Home — same destinations as the rail. */
-const SHORTCUTS: Shortcut[] = [
-  {
-    label: "Tasks",
-    description: "Board & assignments",
-    icon: ListChecks,
-    href: (p) => `/p/${p}/tasks`,
-  },
-  {
-    label: "Docs",
-    description: "Team knowledge base",
-    icon: FileText,
-    href: (p) => `/p/${p}/documents`,
-  },
-  {
-    label: "Calendar",
-    description: "Schedule & shifts",
-    icon: CalendarDays,
-    href: (p) => `/p/${p}/calendar`,
-  },
-  {
-    label: "Chat",
-    description: "Channels & threads",
-    icon: MessagesSquare,
-    href: (p) => `/p/${p}/chat`,
-  },
-  {
-    label: "Workflows",
-    description: "Automations",
-    icon: Workflow,
-    href: (p) => `/p/${p}/workflows`,
-  },
-  {
-    label: "Meetings",
-    description: "Calls & recaps",
-    icon: Video,
-    href: (p) => `/p/${p}/meetings`,
-  },
-  {
-    label: "Activity",
-    description: "Mentions & updates",
-    icon: Bell,
-    href: (p) => `/p/${p}/activity`,
-  },
-];
+import { tasksQueryOptions } from "@/lib/query/section-queries";
+import { useNotifications } from "@/components/shell/use-notifications";
+import {
+  DASHBOARD_WIDGETS,
+  DASHBOARD_WIDGET_IDS,
+  WIDGETS_BY_ID,
+} from "./dashboard-registry";
+import { useDashboardLayout } from "./use-dashboard-layout";
+import { EditorialSection, Stats } from "./editorial-section";
 
 /**
- * Property "Home" — the team landing surface (mirrors Linear's Team Home).
- * Quick doc creation, the same team-pinned Boards strip the Docs home shows,
- * shortcuts into every work surface, and the most recently edited docs. The
- * Boards strip reuses `DocBoardsBoard` so pin/unpin drag behaves identically
- * here and on the Docs home — one source of truth.
+ * Property "Home" — a personalized dashboard in the editorial language of the
+ * Docs "Directory": a generous header with a personal at-a-glance summary, then
+ * stacked sections (kicker + heading + hairline content, not cards). Each
+ * section is drag-reorderable and can be hidden; the arrangement saves per
+ * user. The personal activity feed lives in the second sidebar (HomeSection).
  */
 export function HomeView({
   propertyId,
+  userId,
+  userName,
   propertyName,
 }: {
   propertyId: string;
+  userId: string;
+  userName: string | null;
   propertyName: string;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
-  const { data: docs } = useQuery(documentsQueryOptions(propertyId));
+  const greeting = useGreeting(userName);
 
-  const recent = useMemo(
-    () => (docs ?? []).slice(0, RECENT_LIMIT),
-    [docs],
+  const {
+    order,
+    visible,
+    isHidden,
+    isCollapsed,
+    setOrder,
+    toggleHidden,
+    toggleCollapsed,
+    reset,
+  } = useDashboardLayout(propertyId, userId, DASHBOARD_WIDGET_IDS);
+
+  const summary = usePersonalSummary(propertyId, userId);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = order.indexOf(String(active.id));
+    const to = order.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    setOrder(arrayMove(order, from, to));
+  }
+
   return (
-    <DocBoardsBoard propertyId={propertyId}>
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-        <header className="flex flex-col gap-8">
-          <div className="flex items-end justify-between gap-6">
-            <div className="flex flex-col gap-2">
-              <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Team Home
-              </p>
-              <h1 className="text-[2.75rem] leading-none font-semibold tracking-tight text-foreground sm:text-[3.25rem]">
-                {propertyName}
-              </h1>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setGenerateOpen(true)}
-              >
-                <Sparkles className="size-4" />
-                Generate
-              </Button>
-              <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-                <Plus className="size-4" />
-                New doc
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        <hr className="my-10 border-border" />
-
-        <section>
-          <SectionHeading kicker="Jump to">Workspaces</SectionHeading>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
-            {SHORTCUTS.map((s) => (
-              <Link
-                key={s.label}
-                href={s.href(propertyId)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-3 transition-all",
-                  "hover:border-foreground/15 hover:bg-muted/40 hover:shadow-sm",
-                )}
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/60 text-muted-foreground transition-colors group-hover:text-foreground">
-                  <s.icon className="size-[18px]" />
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-[0.875rem] font-medium tracking-tight text-foreground">
-                    {s.label}
-                  </span>
-                  <span className="truncate text-[0.75rem] tracking-tight text-muted-foreground">
-                    {s.description}
-                  </span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <div className="mt-14 flex flex-col gap-14">
-          <section>
-            <SectionHeading kicker="Pinned by the team">
-              Resources
-            </SectionHeading>
-            <DocBoardsSection propertyId={propertyId} />
-          </section>
-
-          <section>
-            <SectionHeading
-              kicker="In motion"
-              right={
-                <Link
-                  href={`/p/${propertyId}/documents`}
-                  className="text-[0.75rem] tracking-tight text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  All documents
-                </Link>
-              }
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <header className="flex flex-col gap-10">
+        <div className="flex items-end justify-between gap-6">
+          <p className="truncate text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            {propertyName}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <CustomizeMenu
+              visibleCount={visible.length}
+              isHidden={isHidden}
+              onToggle={toggleHidden}
+              onReset={reset}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setGenerateOpen(true)}
             >
-              Recent documents
-            </SectionHeading>
-            <RecentDocs propertyId={propertyId} docs={recent} />
-          </section>
+              <Sparkles className="size-4" />
+              Generate
+            </Button>
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              New doc
+            </Button>
+          </div>
         </div>
-      </div>
+        <div className="flex flex-col gap-5">
+          <h1 className="text-[3.25rem] leading-none font-semibold tracking-tight text-foreground sm:text-[4rem]">
+            {greeting}
+          </h1>
+          <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
+            A snapshot of your day and what the team is moving — rearrange it to
+            your liking, or hide what you don&apos;t need.
+          </p>
+          <div className="pt-3">
+            <Stats
+              items={[
+                { label: "open tasks", value: summary.open },
+                { label: "due ≤ 7d", value: summary.dueSoon },
+                { label: "unread", value: summary.unread },
+              ]}
+            />
+          </div>
+        </div>
+      </header>
+
+      <hr className="my-12 border-border" />
+
+      {visible.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            Every section is hidden.
+          </p>
+          <Button type="button" size="sm" variant="outline" onClick={reset}>
+            <RotateCcw className="size-4" />
+            Restore default layout
+          </Button>
+        </div>
+      ) : (
+        <div className="@container">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={visible} strategy={rectSortingStrategy}>
+              <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-10 gap-y-16 @4xl:grid-cols-2">
+                {visible.map((id) => {
+                  const def = WIDGETS_BY_ID.get(id);
+                  if (!def) return null;
+                  const { Component } = def;
+                  return (
+                    <EditorialSection
+                      key={id}
+                      id={id}
+                      kicker={def.kicker}
+                      title={def.title}
+                      wide={def.wide}
+                      collapsed={isCollapsed(id)}
+                      onToggleCollapse={() => toggleCollapsed(id)}
+                    >
+                      <Component propertyId={propertyId} userId={userId} />
+                    </EditorialSection>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
 
       <CreateDocumentDialog
         open={createOpen}
@@ -203,121 +191,87 @@ export function HomeView({
         onOpenChange={setGenerateOpen}
         propertyId={propertyId}
       />
-    </DocBoardsBoard>
-  );
-}
-
-function RecentDocs({
-  propertyId,
-  docs,
-}: {
-  propertyId: string;
-  docs: DocumentListItem[];
-}) {
-  if (docs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 px-6 py-12 text-center">
-        <FileText
-          strokeWidth={1.5}
-          className="size-7 text-muted-foreground/50"
-        />
-        <p className="text-sm text-pretty text-muted-foreground">
-          No documents yet — create one to get started.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <ul
-      role="list"
-      className="flex flex-col divide-y divide-border/40 border-t border-border/40"
-    >
-      {docs.map((d) => (
-        <RecentDocRow key={d.id} propertyId={propertyId} doc={d} />
-      ))}
-    </ul>
-  );
-}
-
-function RecentDocRow({
-  propertyId,
-  doc,
-}: {
-  propertyId: string;
-  doc: DocumentListItem;
-}) {
-  const openDocument = useOpenDocument(propertyId);
-  const prewarm = usePrewarmDocument(propertyId);
-
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    openDocument(doc.id);
-  }
-
-  return (
-    <li className="group/row relative">
-      <Link
-        href={documentHref(propertyId, doc.id)}
-        onClick={handleClick}
-        onMouseEnter={() => prewarm(doc.id)}
-        className="flex items-center gap-3 px-2 py-2.5"
-      >
-        <FileText
-          strokeWidth={1.5}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium tracking-tight text-foreground">
-          {doc.title || "Untitled"}
-        </span>
-        <span className="shrink-0 text-[0.75rem] tracking-tight text-muted-foreground tabular-nums">
-          {formatRelativeShort(doc.updated_at)}
-        </span>
-      </Link>
-    </li>
-  );
-}
-
-function SectionHeading({
-  kicker,
-  children,
-  right,
-}: {
-  kicker: string;
-  children: React.ReactNode;
-  right?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
-      <div className="flex flex-col gap-1">
-        <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          {kicker}
-        </span>
-        <h2 className="text-[1.375rem] font-semibold tracking-tight text-foreground">
-          {children}
-        </h2>
-      </div>
-      {right}
     </div>
   );
 }
 
-/** Compact relative time ("now", "3m", "2h", "5d", or absolute date past 7d). */
-function formatRelativeShort(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60) return "now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+function CustomizeMenu({
+  visibleCount,
+  isHidden,
+  onToggle,
+  onReset,
+}: {
+  visibleCount: number;
+  isHidden: (id: string) => boolean;
+  onToggle: (id: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" size="sm" variant="ghost">
+            <SlidersHorizontal className="size-4" />
+            Customize
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" sideOffset={6} className="w-52">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
+            Sections
+          </DropdownMenuLabel>
+          {DASHBOARD_WIDGETS.map((w) => (
+            <DropdownMenuCheckboxItem
+              key={w.id}
+              checked={!isHidden(w.id)}
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => onToggle(w.id)}
+              disabled={!isHidden(w.id) && visibleCount === 1}
+            >
+              {w.title}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onReset}>
+          <RotateCcw className="size-4" />
+          Reset layout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Personal at-a-glance counts for the header: my open tasks, due-soon, and
+ *  unread activity. Cheap client aggregation over already-cached queries. */
+function usePersonalSummary(propertyId: string, userId: string) {
+  const { data: tasks = [] } = useQuery(tasksQueryOptions(propertyId));
+  const { unseenCount } = useNotifications(userId);
+
+  return useMemo(() => {
+    const mineOpen = tasks.filter(
+      (t) => t.assignee_id === userId && t.status !== "done",
+    );
+    // eslint-disable-next-line react-hooks/purity
+    const cutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const dueSoon = mineOpen.filter(
+      (t) => t.due_at && new Date(t.due_at).getTime() <= cutoff,
+    ).length;
+    return { open: mineOpen.length, dueSoon, unread: unseenCount };
+  }, [tasks, userId, unseenCount]);
+}
+
+/** Time-of-day greeting; computed in an effect so it's SSR-safe (and pure). */
+function useGreeting(name: string | null): string {
+  const [greeting, setGreeting] = useState("Welcome back");
+  useEffect(() => {
+    const h = new Date().getHours();
+    const part =
+      h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    const first = name?.trim().split(/\s+/)[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGreeting(first ? `${part}, ${first}` : part);
+  }, [name]);
+  return greeting;
 }

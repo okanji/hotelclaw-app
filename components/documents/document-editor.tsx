@@ -40,6 +40,13 @@ import { TaskList } from "@tiptap/extension-list";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Typography } from "@tiptap/extension-typography";
 import Youtube from "@tiptap/extension-youtube";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { common, createLowlight } from "lowlight";
+import "highlight.js/styles/github-dark.css";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -75,10 +82,25 @@ import {
 } from "./document-thread-indicator";
 import { SlashCommand } from "./slash-command";
 import { SubPage } from "./sub-page-node";
+import GlobalDragHandle from "tiptap-extension-global-drag-handle";
+import { Callout } from "@/lib/documents/nodes/callout";
+import { Toggle as ToggleNode } from "@/lib/documents/nodes/toggle";
+import { FileAttachment } from "@/lib/documents/nodes/file-attachment";
+import { Embed } from "@/lib/documents/nodes/embed";
+import { SpreadsheetEmbed } from "@/lib/documents/nodes/spreadsheet-embed";
+import { Chart } from "@/lib/documents/nodes/chart";
+import "./document-drag-handle.css";
 import { takePendingGeneration } from "@/lib/documents/pending-generation";
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
+
+// Shared lowlight registry for the code-block extension. `common` is a
+// curated ~37-language set (js, ts, py, sh, html, css, json, sql, yaml,
+// markdown, etc.) — enough for hotel-ops snippets without bundling the
+// full 190-language list. Lives at module scope so we don't rebuild the
+// registry on every editor mount.
+const lowlight = createLowlight(common);
 // Body persistence is server-driven now: the Liveblocks `ydocUpdated`
 // webhook captures a snapshot (binary + plaintext + JSON) per room per
 // ~60s — see app/api/liveblocks/webhook/route.ts. No client-side
@@ -248,6 +270,16 @@ function EditorInner({
 
   const editor = useEditor({
     immediatelyRender: false,
+    // Validate prosemirror content against the schema. When an old doc
+    // contains a node type a newer schema doesn't recognise (e.g. we add
+    // Callout, then somebody opens a doc authored with Callout in a build
+    // where Callout has been removed), Tiptap would silently break Yjs sync
+    // without this. The handler logs and lets Tiptap drop the unknown
+    // nodes — better than a hard error or a corrupted document.
+    enableContentCheck: true,
+    onContentError({ error }) {
+      console.warn("[document-editor] schema mismatch", error);
+    },
     editorProps: {
       attributes: {
         class:
@@ -273,6 +305,10 @@ function EditorInner({
         // recurring Tiptap warning and can race during initial editor
         // mount (which is exactly when the readiness gate matters).
         link: false,
+        // StarterKit's plain CodeBlock is replaced by CodeBlockLowlight
+        // below for syntax highlighting. Disabling here prevents two
+        // extensions sharing the `codeBlock` node name.
+        codeBlock: false,
         heading: { levels: [1, 2, 3] },
       }),
       Highlight,
@@ -295,6 +331,55 @@ function EditorInner({
       // Inline AI diff: renders proposed edits as reviewable red/green marks
       // (see lib/documents/ai-suggestion.ts) accepted/rejected via AiReviewBar.
       AiSuggestion,
+      // Native tables. Resizable columns; header row support. Rendered with
+      // ProseMirror's default table view (no custom React view needed — the
+      // editor's `prose` styles + a few overrides in globals make it look
+      // close enough to Notion's table.)
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      // Code block with syntax highlighting via lowlight. Replaces
+      // StarterKit's plain CodeBlock (disabled above). The github-dark
+      // theme is imported at the top of this file.
+      CodeBlockLowlight.configure({ lowlight }),
+      // Notion-style colored callout. Inline content only (no nested blocks),
+      // editable like any other paragraph. Variant/icon in Yjs attrs.
+      Callout,
+      // Collapsible toggle (chevron + summary + hidden body). Open/closed
+      // state is synced via Yjs attr so collaborators see the same fold.
+      ToggleNode,
+      // Non-image file attachments. Uploaded via /api/documents/files/upload
+      // (Supabase Storage bucket `documents-files`). Renders as a download
+      // card; PDFs get an inline preview.
+      FileAttachment,
+      // Generic URL embed (YouTube/Vimeo/Loom/Figma/Twitter/Spotify/CodePen
+      // + bookmark fallback). Detection in lib/documents/url-embeds.ts;
+      // bookmark fallback uses /api/documents/og-preview for metadata.
+      Embed,
+      // Google Sheets / Excel Online iframe. Edit happens in the provider's
+      // UI; we just render the embed.
+      SpreadsheetEmbed,
+      // Inline chart with editable data grid. Stored as JSON attrs; rendered
+      // with recharts (bar/line/area/pie). See lib/documents/nodes/chart.ts.
+      Chart,
+      // Notion-style hover drag handle on every block. Auto-positions a
+      // `<div class="drag-handle">` next to whichever block the user hovers.
+      // Styled in document-drag-handle.css. New custom node types (Callout,
+      // Toggle, Chart, etc.) are auto-detected via their `data-type` attrs;
+      // any leaf node that needs to be picked up here is registered in
+      // `customNodes`.
+      GlobalDragHandle.configure({
+        dragHandleWidth: 24,
+        customNodes: [
+          "callout",
+          "toggle",
+          "fileAttachment",
+          "embed",
+          "chart",
+          "spreadsheetEmbed",
+        ],
+      }),
     ],
   });
 

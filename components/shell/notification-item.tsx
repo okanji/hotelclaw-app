@@ -39,7 +39,7 @@ export function NotificationItem({
   onSelect,
   active = false,
 }: Props) {
-  const view = renderView(notification, propertyId);
+  const view = notificationView(notification, propertyId);
   const unseen = !notification.seen_at;
 
   return (
@@ -93,14 +93,20 @@ export function NotificationItem({
   );
 }
 
-type View = {
+export type NotificationView = {
   icon: React.ReactNode;
   lead: React.ReactNode;
   sub: React.ReactNode | null;
   href: string | null;
 };
 
-function renderView(n: NotificationRow, propertyId: string): View {
+/** Maps a notification row to its icon / lead / sub / destination. Exported so
+ *  other surfaces (e.g. the Home Activity widget) render the same content in a
+ *  different shell. */
+export function notificationView(
+  n: NotificationRow,
+  propertyId: string,
+): NotificationView {
   switch (n.type) {
     case "task_assigned": {
       const p = n.payload as Partial<TaskAssignedPayload>;

@@ -45,35 +45,74 @@ export type ProposedDocEdit = {
   html: string;
 };
 
-// Tags the Tiptap editor's schema actually understands (StarterKit + the
-// extensions wired in document-editor.tsx). Anything else is unwrapped to its
-// text so `insertContent` never receives nodes it can't parse.
+// Tags the Tiptap editor's schema actually understands. Kept in sync with
+// the extension set in document-editor.tsx — when a new block type lands
+// there, add its tag here so the model can author it via
+// `propose_document_content`. Includes:
+//   - block text + lists + dividers (paragraph / heading / list / blockquote / hr)
+//   - native table (Table extension)
+//   - <details>/<summary> mapping for Toggle (sanitizer rewrites to a
+//     prosemirror `toggle` node at insert time via parseHTML)
+//   - <aside> for Callout
+//   - <pre>/<code> for code blocks
 const ALLOWED_TAGS = new Set([
+  // Block text
   "h1",
   "h2",
   "h3",
   "p",
+  "blockquote",
+  // Lists
   "ul",
   "ol",
   "li",
-  "blockquote",
+  // Inline
   "strong",
   "em",
   "a",
-  "hr",
   "br",
+  "hr",
+  "code",
+  // Code blocks
+  "pre",
+  // Tables (native)
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  // Callout (Tiptap parseHTML matches <aside data-type='callout'>)
+  "aside",
+  // Toggle (Tiptap parseHTML matches <div data-type='toggle'>)
+  "div",
+  // details/summary are accepted on input — Tiptap's parser will treat
+  // unrecognized tags as their children, which is acceptable for plain
+  // <details>/<summary>; richer toggle authoring goes through the slash menu.
+  "details",
+  "summary",
 ]);
 
+// Attributes preserved per tag. Everything else is stripped. Tags absent
+// from this map drop ALL attributes (safe default for block tags).
+const ATTR_ALLOWLIST: Record<string, string[]> = {
+  a: ["href"],
+  aside: ["data-type", "data-variant", "data-icon"],
+  div: ["data-type", "data-open"],
+  details: ["open"],
+};
+
 /**
- * Defense-in-depth for the model's HTML: it's told to use a small tag set, but
- * LLMs love reaching for `<table>` + inline styles, which the editor (no Table
- * extension) would shred. This:
+ * Defense-in-depth for the model's HTML: it's told to use a specific tag set
+ * (see ALLOWED_TAGS), but models occasionally include inline styles,
+ * <font>/<span>, or attributes we don't want. This:
  *  - strips a stray markdown code fence,
- *  - degrades tables to bullet lists (rows → list items, cells → " · "),
  *  - normalizes b/i → strong/em,
- *  - removes every attribute except `href` on links,
- *  - unwraps any tag not in ALLOWED_TAGS (keeping its text).
- * Best-effort string surgery — good enough for well-formed model output.
+ *  - drops every attribute not in ATTR_ALLOWLIST for that tag,
+ *  - unwraps any tag not in ALLOWED_TAGS (keeping its inner text).
+ *
+ * Tables are kept verbatim (the editor now supports them via the Table
+ * extension wired in document-editor.tsx).
  */
 export function sanitizeDocHtml(input: string): string {
   let html = input.trim();
@@ -81,42 +120,39 @@ export function sanitizeDocHtml(input: string): string {
   const fence = html.match(/^```[^\n]*\n([\s\S]*?)\n?```$/);
   if (fence) html = fence[1].trim();
 
-  // Tables → lists. Drop section wrappers, map rows to <li>, cells to a
-  // separator, and the table itself to <ul>.
-  html = html
-    .replace(/<\/?(?:thead|tbody|tfoot|colgroup|col)[^>]*>/gi, "")
-    .replace(/<table[^>]*>/gi, "<ul>")
-    .replace(/<\/table>/gi, "</ul>")
-    .replace(/<tr[^>]*>/gi, "<li>")
-    .replace(/<\/tr>/gi, "</li>")
-    .replace(/<(?:td|th)[^>]*>/gi, "")
-    .replace(/<\/(?:td|th)>/gi, " · ");
-
   // b/i aliases → canonical marks.
   html = html
     .replace(/<(\/?)b\b[^>]*>/gi, "<$1strong>")
     .replace(/<(\/?)i\b[^>]*>/gi, "<$1em>");
 
-  // Per-tag pass: strip attributes (keep href on <a>), unwrap unknown tags.
+  // Per-tag pass: drop attributes not in the per-tag allowlist; unwrap
+  // unknown tags (keep their inner text).
   html = html.replace(
     /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g,
     (_m, slash: string, rawTag: string, attrs: string) => {
       const tag = rawTag.toLowerCase();
       if (!ALLOWED_TAGS.has(tag)) return ""; // unwrap — keep inner text
       if (slash) return `</${tag}>`;
-      if (tag === "a") {
-        const href = attrs.match(/\shref\s*=\s*("([^"]*)"|'([^']*)')/i);
-        const url = href ? (href[2] ?? href[3] ?? "") : "";
-        return url ? `<a href="${url}">` : "<a>";
+      const allowed = ATTR_ALLOWLIST[tag];
+      if (!allowed || allowed.length === 0) return `<${tag}>`;
+      const kept: string[] = [];
+      for (const name of allowed) {
+        const re = new RegExp(
+          `\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`,
+          "i",
+        );
+        const m = attrs.match(re);
+        if (m) {
+          const val = m[2] ?? m[3] ?? "";
+          kept.push(`${name}="${val}"`);
+        }
       }
-      return `<${tag}>`;
+      return kept.length > 0 ? `<${tag} ${kept.join(" ")}>` : `<${tag}>`;
     },
   );
 
-  // Tidy artifacts from the table→list mapping.
+  // Tidy noise.
   html = html
-    .replace(/ · (?=<\/li>)/g, "") // trailing cell separator
-    .replace(/<li>\s*(?:·\s*)*<\/li>/g, "") // empty rows
     .replace(/<(ul|ol)>\s*<\/\1>/g, "") // empty lists
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -150,7 +186,7 @@ function buildDocScopedTools(
         html: z
           .string()
           .describe(
-            "For op='add': ONLY the new content. For op='edit': the COMPLETE revised document body — every block from the CURRENT DOCUMENT HTML in your instructions, with your changes applied and everything else copied through UNCHANGED, and WITHOUT the title (the first <h1>). Do NOT insert blank lines or empty <p></p> tags between sections — use one <p> per line of content with no filler paragraphs. The app diffs this against the live document, so unchanged blocks must be reproduced verbatim or they'll show as spurious changes. Valid HTML using ONLY these tags: <h1> <h2> <h3> <p> <ul> <ol> <li> <blockquote> <strong> <em> <a> <hr>. NEVER use <table> — the editor cannot render tables. For schedules, timelines, checklists, or tabular data, use an <h3> sub-heading per group with a <ul> of '<strong>Field:</strong> value' items. No markdown, no code fences, no <html>/<body> wrapper, no inline styles, no emoji-as-bullets.",
+            "For op='add': ONLY the new content. For op='edit': the COMPLETE revised document body — every block from the CURRENT DOCUMENT HTML in your instructions, with your changes applied and everything else copied through UNCHANGED, and WITHOUT the title (the first <h1>). Do NOT insert blank lines or empty <p></p> tags between sections — use one <p> per line of content with no filler paragraphs. The app diffs this against the live document, so unchanged blocks must be reproduced verbatim or they'll show as spurious changes. Valid HTML using ONLY these tags: <h1> <h2> <h3> <p> <ul> <ol> <li> <blockquote> <strong> <em> <a> <code> <pre> <hr> <table> <thead> <tbody> <tr> <th> <td> <aside data-type=\"callout\" data-variant=\"info|success|warning|danger|note\" data-icon=\"💡\">. Tables are rendered natively — use <table><thead><tr><th>...</th></tr></thead><tbody><tr><td>...</td></tr></tbody></table> for tabular data. Callouts wrap a single sentence in <aside data-type=\"callout\" data-variant=\"info\" data-icon=\"💡\">text</aside>. No markdown, no code fences, no <html>/<body> wrapper, no inline styles, no emoji-as-bullets.",
           ),
       }),
       execute: async ({ op, mode, html }) => {

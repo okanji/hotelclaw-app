@@ -18,13 +18,18 @@ const IN_HOME = /^\/p\/[^/]+\/home(?:\/|$)/;
 export function HomeSurface({
   propertyId,
   propertyName,
+  userId,
+  userName,
 }: {
   propertyId: string;
   propertyName: string;
+  userId: string;
+  userName: string | null;
 }) {
   const nextPathname = usePathname();
   const [pathname, setPathname] = useState(nextPathname);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPathname(nextPathname);
   }, [nextPathname]);
   useEffect(() => {
@@ -41,7 +46,12 @@ export function HomeSurface({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <HomeView propertyId={propertyId} propertyName={propertyName} />
+      <HomeView
+        propertyId={propertyId}
+        propertyName={propertyName}
+        userId={userId}
+        userName={userName}
+      />
     </div>
   );
 }

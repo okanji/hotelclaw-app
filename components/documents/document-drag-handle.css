@@ -1,0 +1,140 @@
+/*
+ * Block-level visuals for the document editor:
+ *  1. Drag handle (`tiptap-extension-global-drag-handle`) — the package is
+ *     headless, so we draw the ⋮⋮ glyph here via ::before.
+ *  2. ProseMirror tables — the @tiptap/extension-table package ships no CSS;
+ *     without these rules cell borders, header tone, and the resize handle
+ *     are all invisible.
+ *  3. Code block (CodeBlockLowlight) — give the <pre> a dark surface so the
+ *     github-dark token theme reads correctly.
+ */
+
+/* ── Drag handle ─────────────────────────────────────────────────────────── */
+
+.drag-handle {
+  position: absolute;
+  /* The extension computes top/left relative to the hovered block. We sit
+   * 28px to the left of the block content to land in the editor's gutter. */
+  margin-left: -28px;
+  width: 22px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  background: transparent;
+  cursor: grab;
+  user-select: none;
+  z-index: 10;
+  transition: background-color 80ms ease, color 80ms ease;
+}
+
+/* ⋮⋮ glyph — two columns of three dots. Inline via the unicode "VERTICAL
+ * FOUR DOTS" approximation; tight letter-spacing flattens the column. */
+.drag-handle::before {
+  content: "⋮⋮";
+  display: block;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -3px;
+  transform: translateY(-1px);
+}
+
+.drag-handle:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* While a drag is in progress the editor adds a `.dragging` class; hide
+ * the handle so it doesn't jitter between source/destination positions. */
+.ProseMirror.dragging .drag-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Tables (ProseMirror table extension) ────────────────────────────────── */
+
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  min-width: 1em;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.ProseMirror table th {
+  background: color-mix(in oklch, var(--muted) 50%, transparent);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Empty cell still needs a baseline so the row height matches its peers. */
+.ProseMirror table td > *,
+.ProseMirror table th > * {
+  margin: 0;
+}
+
+/* Highlight the currently selected cell range (multi-cell selection). */
+.ProseMirror table .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Column resize handle — a thin draggable strip on the right edge of each
+ * cell that appears when the user hovers near a column boundary. */
+.ProseMirror table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: color-mix(in oklch, var(--primary) 60%, transparent);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+/* ── Code block (CodeBlockLowlight) ──────────────────────────────────────── */
+
+.ProseMirror pre {
+  background: #0d1117; /* matches github-dark theme's body */
+  color: #c9d1d9;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+}

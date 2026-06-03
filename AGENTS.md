@@ -49,11 +49,25 @@ Many lightweight, purpose-specific bots, each scoped to a single feature surface
 - **Channel bot** — `lib/stream/ai-reply.ts` (built)
 - **Liveblocks comment bot** — `lib/ai/bot-scaffold.ts` (built)
 - **Task detail bot** — `lib/ai/bots/task-bot.ts` + `app/api/properties/[propertyId]/tasks/[taskId]/ai/route.ts` + `components/tasks/task-ai-panel.tsx` (built)
-- **Document bot** — `lib/ai/bots/doc-bot.ts` + `app/api/properties/[propertyId]/documents/[documentId]/ai/route.ts` + `components/documents/document-ai-panel.tsx` (built, read-only Q&A; inline write actions like `/ai`-slash and floating-toolbar Rewrite still planned)
+- **Document bot** — `lib/ai/bots/doc-bot.ts` + `app/api/properties/[propertyId]/documents/[documentId]/ai/route.ts` + `components/documents/document-ai-panel.tsx` (built — Q&A + inline write via `propose_document_content`, with the bot's HTML output covering paragraph, headings, lists, blockquote, code, tables, callouts. Floating-toolbar inline rewrite is wired separately via Liveblocks's `AiToolbar` + the `resolveContextualPrompt` endpoint at `/api/properties/[propertyId]/documents/[documentId]/ai/contextual`.)
 - **Calendar AI** — Liveblocks Copilot wired in `components/calendar/calendar-ai-panel.tsx` (built — uses Liveblocks's `AiChat` rather than `runBot()`, since it lives inside a Liveblocks room)
 - Search bot / Onboarding bot — planned
 
 **Adding a new in-app bot:** create `lib/ai/bots/<name>-bot.ts` with a persona + scoped tool set, call `runBot()` from `lib/ai/run-bot.ts`. Don't reinvent prompt assembly, model settings, or tool wiring — the runtime handles it (gbrain tools and `delegate_to_openclaw` are auto-injected; activation-reason handling, deferral-guard, temperature/stopWhen settings are uniform across bots). Wire your bot to a Next.js API route and a client component on its surface.
+
+## Document editor — Notion-style blocks
+
+The Tiptap document editor (`components/documents/document-editor.tsx`) supports a Notion-style block palette. Every block is reorderable via a hover drag handle (`tiptap-extension-global-drag-handle` — see `components/documents/document-drag-handle.css`). Block schema is protected by `enableContentCheck: true` + `onContentError` so old docs survive schema additions.
+
+Current block set (slash `/` to insert):
+- **Basic** — H1/H2/H3, bulleted/numbered/to-do list, quote, divider, **code block with syntax highlighting** (lowlight + github-dark theme).
+- **Blocks** — sub-page, **table** (native, resizable), **callout** (5 tones + emoji icon), **toggle** (collapsible, open-state synced via Yjs), **chart** (bar/line/area/pie via recharts with an editable data grid).
+- **Media** — image (paste/drop), **file/PDF attachment** (uploaded to Supabase `documents-files` bucket via `/api/documents/files/upload`), **embed** (YouTube/Vimeo/Loom/Figma/Twitter/Spotify/CodePen with og:meta bookmark fallback via `/api/documents/og-preview` — detection in `lib/documents/url-embeds.ts`), **spreadsheet** (Google Sheets / Excel Online iframe).
+
+Custom node implementations live in `lib/documents/nodes/`; their React views live in `components/documents/nodes/`. When adding a new node type, also:
+1. Register it in the GlobalDragHandle `customNodes` array in `document-editor.tsx` so the drag handle picks it up.
+2. Add a slash-menu entry in `components/documents/slash-command.tsx` with a `section` field.
+3. If the bot should be able to author it, extend `ALLOWED_TAGS` + `ATTR_ALLOWLIST` in `lib/ai/bots/doc-bot.ts` and update the `propose_document_content` tool description.
 
 ## Tier 2 — OpenClaw (separate service, not in this repo)
 
