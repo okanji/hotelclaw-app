@@ -4,30 +4,27 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * Per-user, per-property memory of the Home dashboard arrangement — widget
- * order, which widgets are collapsed (header only), and which are hidden
- * entirely — kept in `localStorage`. The dashboard ships a sensible default;
- * this lets each person reorder sections, collapse the ones they want out of
- * the way, and fully remove the ones they don't need, persisted on their
- * device.
+ * order and which widgets are hidden — kept in `localStorage`. The dashboard
+ * ships a sensible default; this lets each person reorder sections and hide the
+ * ones they don't need, persisted on their device. Hidden widgets aren't gone:
+ * they drop into the "Hidden" tray at the bottom of the dashboard, one tap from
+ * coming back.
  *
  * v1 is client-only (like `usePinnedDocs`). Swap the body for a `home_layouts`
  * table behind the same hook surface if cross-device sync is ever wanted.
  *
  * Reconciliation: stored ids are intersected with the live widget registry, and
- * any newly-added widget (not in stored order) is appended visible + expanded —
- * so adding a widget in code surfaces it for everyone without wiping their
- * arrangement.
+ * any newly-added widget (not in stored order) is appended visible — so adding
+ * a widget in code surfaces it for everyone without wiping their arrangement.
  */
 
 const KEY_PREFIX = "hotelclaw:home-layout:";
 
 export type DashboardLayout = {
-  /** Widget ids in render order. */
+  /** Widget ids in render order (includes hidden). */
   order: string[];
-  /** Widget ids removed from the dashboard (re-add via the Customize menu). */
+  /** Widget ids dropped to the Hidden tray. */
   hidden: string[];
-  /** Widget ids shown collapsed (heading only). */
-  collapsed: string[];
 };
 
 function storageKey(propertyId: string, userId: string): string {
@@ -39,11 +36,7 @@ function read(
   userId: string,
   allIds: string[],
 ): DashboardLayout {
-  const fallback: DashboardLayout = {
-    order: allIds,
-    hidden: [],
-    collapsed: [],
-  };
+  const fallback: DashboardLayout = { order: allIds, hidden: [] };
   try {
     const raw = window.localStorage.getItem(storageKey(propertyId, userId));
     if (!raw) return fallback;
@@ -52,8 +45,7 @@ function read(
     const order = (parsed.order ?? []).filter((id) => known.has(id));
     for (const id of allIds) if (!order.includes(id)) order.push(id);
     const hidden = (parsed.hidden ?? []).filter((id) => known.has(id));
-    const collapsed = (parsed.collapsed ?? []).filter((id) => known.has(id));
-    return { order, hidden, collapsed };
+    return { order, hidden };
   } catch {
     return fallback;
   }
@@ -79,17 +71,16 @@ export type UseDashboardLayout = {
   order: string[];
   /** Visible widget ids, in order (excludes hidden). */
   visible: string[];
+  /** Hidden widget ids, in order. */
+  hidden: string[];
   /** True once the layout has been read from storage. */
   ready: boolean;
   isHidden: (id: string) => boolean;
-  isCollapsed: (id: string) => boolean;
   /** Persist a new full order (after a drag). */
   setOrder: (order: string[]) => void;
-  /** Add or remove a widget from the dashboard entirely. */
+  /** Hide a widget (to the tray) or bring it back. */
   toggleHidden: (id: string) => void;
-  /** Collapse or expand a widget's body. */
-  toggleCollapsed: (id: string) => void;
-  /** Restore the shipped default (all visible, expanded, registry order). */
+  /** Restore the shipped default (all visible, registry order). */
   reset: () => void;
 };
 
@@ -102,7 +93,6 @@ export function useDashboardLayout(
   const [layout, setLayout] = useState<DashboardLayout>({
     order: allIds,
     hidden: [],
-    collapsed: [],
   });
   const [ready, setReady] = useState(false);
 
@@ -123,48 +113,37 @@ export function useDashboardLayout(
   );
 
   const setOrder = useCallback(
-    (order: string[]) => commit({ ...layout, order }),
-    [commit, layout],
+    (order: string[]) => commit({ order, hidden: layout.hidden }),
+    [commit, layout.hidden],
   );
 
   const toggleHidden = useCallback(
     (id: string) =>
       commit({
-        ...layout,
+        order: layout.order,
         hidden: layout.hidden.includes(id)
           ? layout.hidden.filter((x) => x !== id)
           : [...layout.hidden, id],
       }),
-    [commit, layout],
-  );
-
-  const toggleCollapsed = useCallback(
-    (id: string) =>
-      commit({
-        ...layout,
-        collapsed: layout.collapsed.includes(id)
-          ? layout.collapsed.filter((x) => x !== id)
-          : [...layout.collapsed, id],
-      }),
-    [commit, layout],
+    [commit, layout.order, layout.hidden],
   );
 
   const reset = useCallback(
-    () => commit({ order: allIds, hidden: [], collapsed: [] }),
+    () => commit({ order: allIds, hidden: [] }),
     [commit, allIds],
   );
 
   const visible = layout.order.filter((id) => !layout.hidden.includes(id));
+  const hidden = layout.order.filter((id) => layout.hidden.includes(id));
 
   return {
     order: layout.order,
     visible,
+    hidden,
     ready,
     isHidden: (id) => layout.hidden.includes(id),
-    isCollapsed: (id) => layout.collapsed.includes(id),
     setOrder,
     toggleHidden,
-    toggleCollapsed,
     reset,
   };
 }

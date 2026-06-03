@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, GripVertical } from "lucide-react";
+import { EyeOff, GripVertical } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +18,7 @@ export function EditorialSection({
   id,
   kicker,
   title,
-  collapsed = false,
-  onToggleCollapse,
+  onHide,
   headerRight,
   wide = false,
   children,
@@ -27,8 +26,7 @@ export function EditorialSection({
   id: string;
   kicker: string;
   title: string;
-  collapsed?: boolean;
-  onToggleCollapse: () => void;
+  onHide: () => void;
   headerRight?: React.ReactNode;
   /** Span both columns on wide containers (boards, full-width lists). */
   wide?: boolean;
@@ -54,12 +52,7 @@ export function EditorialSection({
         isDragging && "opacity-60",
       )}
     >
-      <div
-        className={cn(
-          "flex items-end justify-between gap-3 border-b border-border pb-3",
-          collapsed ? "mb-0" : "mb-6",
-        )}
-      >
+      <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
         <div className="flex min-w-0 items-center gap-1.5">
           <button
             ref={setActivatorNodeRef}
@@ -84,22 +77,16 @@ export function EditorialSection({
           {headerRight}
           <button
             type="button"
-            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-            title={collapsed ? "Expand" : "Collapse"}
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={`Hide ${title}`}
+            title="Hide"
+            onClick={onHide}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/section:opacity-100 hover:bg-muted hover:text-foreground"
           >
-            <ChevronDown
-              className={cn(
-                "size-4 transition-transform",
-                collapsed && "-rotate-90",
-              )}
-            />
+            <EyeOff className="size-3.5" />
           </button>
         </div>
       </div>
-      {collapsed ? null : children}
+      {children}
     </section>
   );
 }

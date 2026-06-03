@@ -15,7 +15,7 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Eye, Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -61,16 +61,8 @@ export function HomeView({
   const [generateOpen, setGenerateOpen] = useState(false);
   const greeting = useGreeting(userName);
 
-  const {
-    order,
-    visible,
-    isHidden,
-    isCollapsed,
-    setOrder,
-    toggleHidden,
-    toggleCollapsed,
-    reset,
-  } = useDashboardLayout(propertyId, userId, DASHBOARD_WIDGET_IDS);
+  const { order, visible, hidden, isHidden, setOrder, toggleHidden, reset } =
+    useDashboardLayout(propertyId, userId, DASHBOARD_WIDGET_IDS);
 
   const summary = usePersonalSummary(propertyId, userId);
 
@@ -141,7 +133,7 @@ export function HomeView({
       {visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            Every section is hidden.
+            Every section is hidden — bring one back from the tray below.
           </p>
           <Button type="button" size="sm" variant="outline" onClick={reset}>
             <RotateCcw className="size-4" />
@@ -168,8 +160,7 @@ export function HomeView({
                       kicker={def.kicker}
                       title={def.title}
                       wide={def.wide}
-                      collapsed={isCollapsed(id)}
-                      onToggleCollapse={() => toggleCollapsed(id)}
+                      onHide={() => toggleHidden(id)}
                     >
                       <Component propertyId={propertyId} userId={userId} />
                     </EditorialSection>
@@ -180,6 +171,8 @@ export function HomeView({
           </DndContext>
         </div>
       )}
+
+      <HiddenTray hidden={hidden} onRestore={toggleHidden} />
 
       <CreateDocumentDialog
         open={createOpen}
@@ -240,6 +233,43 @@ function CustomizeMenu({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Placeholder tray for hidden sections — each a chip that brings the section
+ *  back. So hiding tucks a widget away here rather than vanishing it. */
+function HiddenTray({
+  hidden,
+  onRestore,
+}: {
+  hidden: string[];
+  onRestore: (id: string) => void;
+}) {
+  if (hidden.length === 0) return null;
+  return (
+    <div className="mt-14 border-t border-border/60 pt-6">
+      <p className="mb-3 text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+        Hidden
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {hidden.map((id) => {
+          const def = WIDGETS_BY_ID.get(id);
+          if (!def) return null;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onRestore(id)}
+              title={`Show ${def.title}`}
+              className="flex items-center gap-2 rounded-full border border-dashed border-border/70 bg-muted/30 px-3 py-1.5 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted hover:text-foreground"
+            >
+              <Eye className="size-3.5" />
+              {def.title}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

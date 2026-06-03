@@ -12,10 +12,13 @@
 /* ── Drag handle ─────────────────────────────────────────────────────────── */
 
 .drag-handle {
-  position: absolute;
-  /* The extension computes top/left relative to the hovered block. We sit
-   * 28px to the left of the block content to land in the editor's gutter. */
-  margin-left: -28px;
+  /* MUST be `fixed`, not `absolute`. The extension sets `style.left` and
+   * `style.top` from getBoundingClientRect() — viewport-relative pixels —
+   * and appends the handle to the editor wrapper. With `absolute`, the
+   * coords get reinterpreted against the closest positioned ancestor
+   * (our centered editor container), throwing the handle hundreds of
+   * pixels off to the right. `fixed` honors the viewport coords directly. */
+  position: fixed;
   width: 22px;
   height: 24px;
   display: flex;
@@ -26,8 +29,14 @@
   background: transparent;
   cursor: grab;
   user-select: none;
-  z-index: 10;
+  z-index: 30;
   transition: background-color 80ms ease, color 80ms ease;
+}
+
+/* The extension toggles a `.hide` class when the pointer leaves the editor
+ * surface — respect it so the handle disappears when we're not interacting. */
+.drag-handle.hide {
+  display: none;
 }
 
 /* ⋮⋮ glyph — two columns of three dots. Inline via the unicode "VERTICAL
