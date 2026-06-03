@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { upsertLabel } from "@/components/labels/actions";
 
 const Uuid = z.string().uuid();
 
@@ -175,6 +176,9 @@ export async function addTaskLabel(
   if (!parsed.success) return { error: "Invalid label" };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data: task } = await supabase
     .from("tasks")
     .select("property_id, labels")
@@ -191,6 +195,10 @@ export async function addTaskLabel(
     .update({ labels: [...labels, label] })
     .eq("id", parsed.data.taskId);
   if (error) return { error: error.message };
+  // Mirror into the shared catalog so the label carries a color and documents
+  // can reuse it (the unified label system). Best-effort — task labels still
+  // live in the array, which the workflow `task.label_added` trigger reads.
+  await upsertLabel(supabase, task.property_id, label, user?.id ?? null);
   revalidateTask(task.property_id, parsed.data.taskId);
   return { ok: true };
 }

@@ -64,6 +64,7 @@ import {
 } from "./document-ai-panel";
 import { DocumentLastEdited } from "./document-last-edited";
 import { DocumentLinkedTasks } from "./document-linked-tasks";
+import { DocumentLabels } from "./document-labels";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
   DocumentBreadcrumbs,
@@ -449,6 +450,7 @@ function EditorInner({
             updatedAt={updatedAt}
             className="hidden text-xs text-muted-foreground tabular-nums md:block"
           />
+          <DocumentLabels propertyId={propertyId} documentId={documentId} />
           <DocumentLinkedTasks
             propertyId={propertyId}
             documentId={documentId}

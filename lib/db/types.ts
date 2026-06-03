@@ -339,6 +339,44 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      labels: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          color: EntityColor;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          color?: EntityColor;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          color: EntityColor;
+        }>;
+        Relationships: [];
+      };
+      document_labels: {
+        Row: {
+          document_id: string;
+          label_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          document_id: string;
+          label_id: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
       teams: {
         Row: {
           id: string;

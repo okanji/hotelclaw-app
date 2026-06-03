@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, FileText, Trash2 } from "lucide-react";
+import { Check, FileText, Plus, Search, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -20,14 +20,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { StatusIcon } from "@/components/tasks/task-icons";
 import type { EntityColor, ProjectStatus, TaskStatus } from "@/lib/db/types";
 import { teamsQueryOptions } from "@/lib/query/project-queries";
+import {
+  documentsQueryOptions,
+  tasksQueryOptions,
+} from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import {
   archiveProject,
+  setDocumentProject,
   setProjectTeams,
+  setTaskProject,
   updateProject,
 } from "./actions";
 
@@ -114,6 +121,21 @@ export function ProjectDetail({
   const openDocument = useOpenDocument(propertyId);
   const { data, isPending } = useQuery(projectDetailQuery(projectId));
   const { data: allTeams = [] } = useQuery(teamsQueryOptions(propertyId));
+  const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
+  const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
+
+  const taskCandidates = useMemo(() => {
+    const assigned = new Set((data?.tasks ?? []).map((t) => t.id));
+    return allTasks
+      .filter((t) => !assigned.has(t.id))
+      .map((t) => ({ id: t.id, title: t.title }));
+  }, [allTasks, data?.tasks]);
+  const docCandidates = useMemo(() => {
+    const assigned = new Set((data?.docs ?? []).map((d) => d.id));
+    return allDocs
+      .filter((d) => !assigned.has(d.id))
+      .map((d) => ({ id: d.id, title: d.title }));
+  }, [allDocs, data?.docs]);
 
   const project = data?.project;
   const [name, setName] = useState("");
@@ -154,6 +176,27 @@ export function ProjectDetail({
       ? current.filter((x) => x !== teamId)
       : [...current, teamId];
     const res = await setProjectTeams(projectId, next);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+
+  async function addTask(taskId: string) {
+    const res = await setTaskProject(taskId, projectId);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function removeTask(taskId: string) {
+    const res = await setTaskProject(taskId, null);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function addDoc(documentId: string) {
+    const res = await setDocumentProject(documentId, projectId);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function removeDoc(documentId: string) {
+    const res = await setDocumentProject(documentId, null);
     if ("error" in res) toast.error(res.error);
     else refresh();
   }
@@ -244,7 +287,17 @@ export function ProjectDetail({
 
       <div className="flex flex-col gap-14">
         <section>
-          <EditorialHeading kicker="In this project" count={data?.tasks.length}>
+          <EditorialHeading
+            kicker="In this project"
+            count={data?.tasks.length}
+            action={
+              <AddPicker
+                label="Add tasks"
+                candidates={taskCandidates}
+                onAdd={addTask}
+              />
+            }
+          >
             Tasks
           </EditorialHeading>
           {data && data.tasks.length > 0 ? (
@@ -253,28 +306,43 @@ export function ProjectDetail({
               className="flex flex-col divide-y divide-border/40 border-t border-border/40"
             >
               {data.tasks.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="group/row relative">
                   <Link
                     href={`/p/${propertyId}/tasks/${t.id}`}
-                    className="flex items-center gap-3 rounded-md px-1 py-2.5 transition-colors hover:bg-muted"
+                    className="flex items-center gap-3 rounded-md px-1 py-2.5 pr-9 transition-colors hover:bg-muted"
                   >
                     <StatusIcon status={t.status} className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
                       {t.title || "Untitled task"}
                     </span>
                   </Link>
+                  <RemoveButton
+                    label="Remove from project"
+                    onClick={() => removeTask(t.id)}
+                  />
                 </li>
               ))}
             </ul>
           ) : (
             <p className="py-4 text-[0.8125rem] text-muted-foreground">
-              No tasks yet. Assign a task to this project from its detail panel.
+              No tasks yet — use <span className="font-medium">Add tasks</span> to
+              pull work into this project.
             </p>
           )}
         </section>
 
         <section>
-          <EditorialHeading kicker="In this project" count={data?.docs.length}>
+          <EditorialHeading
+            kicker="In this project"
+            count={data?.docs.length}
+            action={
+              <AddPicker
+                label="Add docs"
+                candidates={docCandidates}
+                onAdd={addDoc}
+              />
+            }
+          >
             Documents
           </EditorialHeading>
           {data && data.docs.length > 0 ? (
@@ -283,7 +351,7 @@ export function ProjectDetail({
               className="flex flex-col divide-y divide-border/40 border-t border-border/40"
             >
               {data.docs.map((d) => (
-                <li key={d.id}>
+                <li key={d.id} className="group/row relative">
                   <Link
                     href={documentHref(propertyId, d.id)}
                     onClick={(e) => {
@@ -292,7 +360,7 @@ export function ProjectDetail({
                       e.preventDefault();
                       openDocument(d.id);
                     }}
-                    className="flex items-center gap-3 rounded-md px-1 py-2.5 transition-colors hover:bg-muted"
+                    className="flex items-center gap-3 rounded-md px-1 py-2.5 pr-9 transition-colors hover:bg-muted"
                   >
                     <FileText
                       strokeWidth={1.5}
@@ -302,12 +370,17 @@ export function ProjectDetail({
                       {d.title || "Untitled"}
                     </span>
                   </Link>
+                  <RemoveButton
+                    label="Remove from project"
+                    onClick={() => removeDoc(d.id)}
+                  />
                 </li>
               ))}
             </ul>
           ) : (
             <p className="py-4 text-[0.8125rem] text-muted-foreground">
-              No documents linked to this project yet.
+              No documents yet — use <span className="font-medium">Add docs</span>{" "}
+              to link pages here.
             </p>
           )}
         </section>
@@ -412,13 +485,35 @@ function TeamsPicker({
   );
 }
 
+function RemoveButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-background hover:text-destructive"
+    >
+      <X className="size-3.5" />
+    </button>
+  );
+}
+
 function EditorialHeading({
   kicker,
   count,
+  action,
   children,
 }: {
   kicker: string;
   count?: number;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -431,11 +526,73 @@ function EditorialHeading({
           {children}
         </h2>
       </div>
-      {typeof count === "number" ? (
-        <span className="text-[0.75rem] text-muted-foreground tabular-nums">
-          {count}
-        </span>
-      ) : null}
+      <div className="flex items-center gap-3">
+        {typeof count === "number" ? (
+          <span className="text-[0.75rem] text-muted-foreground tabular-nums">
+            {count}
+          </span>
+        ) : null}
+        {action}
+      </div>
     </div>
+  );
+}
+
+/** Search-and-add popover used to assign tasks / documents to a project. */
+function AddPicker({
+  label,
+  candidates,
+  onAdd,
+}: {
+  label: string;
+  candidates: { id: string; title: string }[];
+  onAdd: (id: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = candidates
+    .filter((c) =>
+      q.trim() ? (c.title || "").toLowerCase().includes(q.trim().toLowerCase()) : true,
+    )
+    .slice(0, 8);
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={<Button type="button" size="sm" variant="outline" />}
+      >
+        <Plus className="size-4" />
+        {label}
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={6} className="w-64 p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search…"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
+        <ul className="mt-1.5 max-h-56 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+              Nothing to add
+            </li>
+          ) : (
+            filtered.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => onAdd(c.id)}
+                  className="w-full truncate rounded-md px-2 py-1.5 text-left text-sm tracking-tight transition-colors hover:bg-muted"
+                >
+                  {c.title || "Untitled"}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
