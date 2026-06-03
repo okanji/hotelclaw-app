@@ -6,6 +6,7 @@ import {
   Bell,
   CalendarDays,
   FileText,
+  Home,
   ListChecks,
   MessageCircle,
   MessagesSquare,
@@ -111,6 +112,13 @@ export function AppRail({
 
   const items = useMemo<RailItem[]>(
     () => [
+      {
+        section: "home",
+        label: "Home",
+        icon: Home,
+        href: `/p/${propertyId}/home`,
+        routeKey: "/home",
+      },
       {
         section: "activity",
         label: "Activity",

@@ -86,6 +86,13 @@ export type DocumentAiPanelHandle = {
    * the inline edit pipeline (which would stage the answer into the doc).
    */
   explain: (selection: string) => void;
+  /**
+   * Open the dock and ask the assistant to draft the whole document from a
+   * plain-language brief. Used by the "Generate doc" flow: the new doc opens
+   * and the draft lands as a staged AI suggestion the user accepts (same
+   * review pipeline as every other edit).
+   */
+  generate: (brief: string) => void;
 };
 
 export const DocumentAiPanel = forwardRef<
@@ -254,6 +261,12 @@ export const DocumentAiPanel = forwardRef<
         const message = trimmed
           ? `Explain this passage from the document in plain language. Be concise:\n\n"""\n${trimmed}\n"""`
           : "Explain what this document is about in plain language. Be concise.";
+        void submit(message, { freshChat: true });
+      },
+      generate: (brief: string) => {
+        const trimmed = brief.trim().slice(0, 2000);
+        if (!trimmed) return;
+        const message = `Draft a complete first version of this document. Use a clear title, headings, short paragraphs, and lists where they help. Write the actual content (not an outline of what you'd write).\n\nWhat the document should cover:\n"""\n${trimmed}\n"""`;
         void submit(message, { freshChat: true });
       },
     }),

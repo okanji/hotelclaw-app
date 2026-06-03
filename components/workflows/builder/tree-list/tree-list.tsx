@@ -103,13 +103,13 @@ const LINE_LEFT = "left-[15px]"; // line sits in the middle of the rail column
 // meeting the next row's top edge so the rail reads as continuous. Terminals
 // (End markers) always use the `up` variant, so this bleed never dangles below
 // the last node; lanes additionally clip it with their own overflow-hidden.
-const LINE_FULL = "absolute top-0 -bottom-3 w-px bg-border/60";
-const LINE_DOWN = "absolute top-1/2 -bottom-3 w-px bg-border/60";
-const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-border/60";
+const LINE_FULL = "absolute top-0 -bottom-3 w-px bg-muted-foreground/40 dark:bg-muted-foreground/35";
+const LINE_DOWN = "absolute top-1/2 -bottom-3 w-px bg-muted-foreground/40 dark:bg-muted-foreground/35";
+const LINE_UP = "absolute top-0 bottom-1/2 w-px bg-muted-foreground/40 dark:bg-muted-foreground/35";
 // Like `down`, but for a branch decision — which always owns the chain tail, so
 // its trunk stops at the row edge instead of bleeding toward a (non-existent)
 // next sibling.
-const LINE_DOWN_TAIL = "absolute top-1/2 bottom-0 w-px bg-border/60";
+const LINE_DOWN_TAIL = "absolute top-1/2 bottom-0 w-px bg-muted-foreground/40 dark:bg-muted-foreground/35";
 
 // Fixed card width. Cards hang off the left rail at a comfortable reading width
 // (rather than stretching the whole canvas), so a branch can place two of them
@@ -119,19 +119,20 @@ const LANE_W = "w-[420px]";
 /** Vertical breathing room between step cards, insert rows, and branch lanes. */
 const ROW_STACK_GAP = "gap-3";
 
-// Branch-fork connector geometry (px). The fork hangs the lanes off the decision
-// card's rail rather than floating a separate centred stem: a short STEM
-// continues the trunk down, a horizontal bar reaches across, and a DROP lands on
-// each lane's *own* rail line. The X offsets are derived from the rail/lane
-// metrics above so every drop lines up with the lane's internal rail:
-//   • trunk sits at LINE_LEFT (15px).
-//   • lane content starts at RAIL_W (32) + gap-3 (12) = 44px (≙ `pl-11`), and each
-//     lane's rail is a further p-2 (8) + LINE_LEFT (15) = 23px in → first at 67px.
-//   • lanes stride by LANE_W (420) + gap-4 (16) = 436px.
-const BRANCH_STEM_H = 14;
-const BRANCH_DROP_H = 14;
-const BRANCH_TRUNK_X = 15;
-const BRANCH_LANE_RAIL_X = 67;
+// Branch-fork connector geometry (px). The fork is always centred on the parent
+// decision card: a STEM drops from the card's bottom-centre, a symmetric bar
+// fans out, and one DROP lands on each lane's top-centre. The connector is
+// positioned inside the CARD_W column, so X is measured from the card's left:
+//   • the axis (card centre, where the lanes block is also centred) is CARD_W/2
+//     = 200px.
+//   • lanes are equal LANE_W (420) columns with a gap-4 (16) gutter, so adjacent
+//     lane centres are LANE_W + gap = 436px apart and sit symmetrically about 200.
+// STEM_H + DROP_H = 28px = the lanes' `pt-7` clearance; STEM also bridges the
+// 12px row gap up to the card so the line reads as leaving the card itself.
+const BRANCH_STEM_H = 16;
+const BRANCH_DROP_H = 12;
+const BRANCH_ROW_GAP = 12; // ROW_STACK_GAP — bridged so the stem meets the card
+const BRANCH_AXIS_X = 200; // card centre (CARD_W/2) — the fork is centred here
 const BRANCH_LANE_STRIDE = 436;
 
 // Shared card styling — mirrors task-card.tsx (rounded-md, border-border/70, p-3).
@@ -885,7 +886,10 @@ function StepRow({
         sortable.isDragging && "opacity-40",
       )}
     >
-      <RailColumn lineVariant="full" chipPosition="center">
+      {/* A branch caps its rail at the chip — the continuation below is the
+          centred fork (BranchLanes), not the left rail, so bleeding the rail
+          down would leave a stray stub beside the fork. */}
+      <RailColumn lineVariant={isBranch ? "up" : "full"} chipPosition="center">
         <div
           aria-hidden
           className="relative inline-flex size-6 items-center justify-center rounded-full border border-border/70 bg-background text-[0.625rem] font-medium tabular-nums text-foreground"
@@ -1025,92 +1029,99 @@ function BranchLanes({
   });
 
   return (
-    // The decision card's rail (LINE_FULL above) bleeds 12px into this row's top,
-    // where the connector picks it up. `pl-11` (44px) starts the lanes under the
-    // card area; `pt-7` (28px = stem + drop) clears the fork.
-    <div className="relative pb-1">
-      <BranchConnector ordered={ordered} activeBranchPath={activeBranchPath} />
-      {/* items-start so an empty lane stays compact instead of stretching to
-          match a filled sibling's height. */}
-      <div className="flex items-start gap-4 pt-7 pl-11">
-        {ordered.map((label) => {
-          const target = branches[label];
-          const laneActive = activeBranchPath === label;
-          return (
-            <div
-              key={label}
-              data-branch-lane={`${step.id}:${label}`}
-              data-branch-lane-active={laneActive ? "" : undefined}
-              className={cn(
-                "shrink-0 overflow-hidden rounded-md border bg-muted/10 transition-shadow",
-                LANE_W,
-                laneActive
-                  ? label === "true"
-                    ? "border-emerald-500/45 bg-emerald-500/[0.04] ring-2 ring-emerald-500/20"
-                    : "border-rose-500/45 bg-rose-500/[0.04] ring-2 ring-rose-500/20"
-                  : "border-border/50",
-              )}
-            >
-              <BranchHeader label={label} active={laneActive} />
-              <div className="p-2">
-                <Rail
-                  spec={spec}
-                  startId={target}
-                  parentForInsert={{ parentId: step.id, branch: label }}
-                  depth={depth + 1}
-                  isLane
-                  ordinalMap={ordinalMap}
-                  selectedStepId={selectedStepId}
-                  unacceptedIds={unacceptedIds}
-                  invalidById={invalidById}
-                  warningById={warningById}
-                  branchPathFocus={branchPathFocus}
-                  onClickStep={onClickStep}
-                  onDeleteStep={onDeleteStep}
-                  onDuplicateStep={onDuplicateStep}
-                  onOpenPalette={onOpenPalette}
-                />
+    <div className="relative flex gap-3 pb-1">
+      {/* Spacer matching the rail column above, so the card area (and the lanes
+          centred within it) line up under the decision card. The fork is drawn
+          by BranchConnector, centred on that card. */}
+      <div className={cn("shrink-0", RAIL_W)} aria-hidden />
+      <div className={cn("relative", CARD_W)}>
+        <BranchConnector count={ordered.length} ordered={ordered} activeBranchPath={activeBranchPath} />
+        {/* Lanes centred under the card; `pt-7` clears the fork above them.
+            items-start so an empty lane stays compact instead of stretching to
+            match a filled sibling's height. */}
+        <div className="relative left-1/2 flex w-max -translate-x-1/2 items-start gap-4 pt-7">
+          {ordered.map((label) => {
+            const target = branches[label];
+            const laneActive = activeBranchPath === label;
+            return (
+              <div
+                key={label}
+                data-branch-lane={`${step.id}:${label}`}
+                data-branch-lane-active={laneActive ? "" : undefined}
+                className={cn(
+                  "shrink-0 overflow-hidden rounded-md border bg-muted/10 transition-shadow",
+                  LANE_W,
+                  laneActive
+                    ? label === "true"
+                      ? "border-emerald-500/45 bg-emerald-500/[0.04] ring-2 ring-emerald-500/20"
+                      : "border-rose-500/45 bg-rose-500/[0.04] ring-2 ring-rose-500/20"
+                    : "border-border/50",
+                )}
+              >
+                <BranchHeader label={label} active={laneActive} />
+                <div className="p-2">
+                  <Rail
+                    spec={spec}
+                    startId={target}
+                    parentForInsert={{ parentId: step.id, branch: label }}
+                    depth={depth + 1}
+                    isLane
+                    ordinalMap={ordinalMap}
+                    selectedStepId={selectedStepId}
+                    unacceptedIds={unacceptedIds}
+                    invalidById={invalidById}
+                    warningById={warningById}
+                    branchPathFocus={branchPathFocus}
+                    onClickStep={onClickStep}
+                    onDeleteStep={onDeleteStep}
+                    onDuplicateStep={onDuplicateStep}
+                    onOpenPalette={onOpenPalette}
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-// Fork connector between a decision card and its lanes. Anchored to the trunk
-// (the rail the decision hangs on) so it reads as the rail forking — not a
-// floating stem: a STEM continues the trunk down, a bar reaches across, and one
-// DROP per lane lands on that lane's own rail line. Handles any lane count
-// (if/else is the common 2); a single lane is just stem → bar → one drop.
+// Fork connector — always centred on the parent decision card. A stem drops from
+// the card's bottom-centre (BRANCH_AXIS_X, bridging the row gap so it reads as
+// leaving the card), a symmetric bar fans out, and one drop lands on each lane's
+// top-centre. Lanes sit symmetrically about the axis, so the whole fork is
+// mirror-symmetric for any lane count (if/else is the common 2; a single lane is
+// just a straight stem → drop).
 function BranchConnector({
+  count,
   ordered,
   activeBranchPath,
 }: {
+  count: number;
   ordered: string[];
   activeBranchPath?: BranchPathKey;
 }) {
-  if (ordered.length === 0) return null;
-  const railXs = ordered.map((_, i) => BRANCH_LANE_RAIL_X + BRANCH_LANE_STRIDE * i);
-  const lastX = railXs[railXs.length - 1];
+  if (count === 0) return null;
+  // Lane centres, mirror-symmetric about the axis: 200 ± k·436.
+  const laneX = (i: number) => BRANCH_AXIS_X + (i - (count - 1) / 2) * BRANCH_LANE_STRIDE;
+  const firstX = laneX(0);
+  const lastX = laneX(count - 1);
   return (
-    <div
-      className="pointer-events-none absolute inset-x-0 top-0"
-      style={{ height: BRANCH_STEM_H + BRANCH_DROP_H }}
-      aria-hidden
-    >
-      {/* Stem — continues the decision card's rail down to the fork bar. */}
+    <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {/* Stem — from the card's bottom-centre down to the bar. */}
       <span
-        className="absolute w-px bg-border/60"
-        style={{ left: BRANCH_TRUNK_X, top: 0, height: BRANCH_STEM_H }}
+        className="absolute w-px bg-muted-foreground/40 dark:bg-muted-foreground/35"
+        style={{ left: BRANCH_AXIS_X, top: -BRANCH_ROW_GAP, height: BRANCH_ROW_GAP + BRANCH_STEM_H }}
       />
-      {/* Bar — reaches from the trunk across to the far lane. */}
-      <span
-        className="absolute h-px bg-border/60"
-        style={{ left: BRANCH_TRUNK_X, top: BRANCH_STEM_H, width: lastX - BRANCH_TRUNK_X }}
-      />
-      {/* Drops — one per lane, each landing on that lane's own rail. The focused
+      {/* Bar — symmetric span across the lane centres (omitted for a lone lane). */}
+      {count > 1 && (
+        <span
+          className="absolute h-px bg-muted-foreground/40 dark:bg-muted-foreground/35"
+          style={{ left: firstX, top: BRANCH_STEM_H, width: lastX - firstX }}
+        />
+      )}
+      {/* Drops — one per lane, landing on the lane's top-centre. The focused
           lane's drop takes its branch colour to tie the active highlight together. */}
       {ordered.map((label, i) => (
         <span
@@ -1123,9 +1134,9 @@ function BranchConnector({
                 : label === "false"
                   ? "bg-rose-500/60"
                   : "bg-foreground/40"
-              : "bg-border/60",
+              : "bg-muted-foreground/40 dark:bg-muted-foreground/35",
           )}
-          style={{ left: railXs[i], top: BRANCH_STEM_H, height: BRANCH_DROP_H }}
+          style={{ left: laneX(i), top: BRANCH_STEM_H, height: BRANCH_DROP_H }}
         />
       ))}
     </div>

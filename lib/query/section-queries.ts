@@ -132,6 +132,55 @@ export function documentsTreeQueryOptions(propertyId: string) {
   });
 }
 
+/** A task linked to a document — the doc-side backlink (see migration 0033). */
+export type LinkedTask = {
+  /** `task_document_links.id` — used to unlink. */
+  linkId: string;
+  id: string;
+  title: string;
+  status: string;
+};
+
+/**
+ * Tasks that reference `documentId`, via `task_document_links`. The document
+ * editor's "Linked tasks" panel reads this; the task side already shows the
+ * inverse (a task's linked docs). Two-step (links → tasks) to dodge the nested-
+ * join typing, mirroring `lib/tasks/task-detail-meta.ts`. RLS scopes both reads.
+ */
+export function documentLinkedTasksQueryOptions(
+  propertyId: string,
+  documentId: string,
+) {
+  return queryOptions({
+    queryKey: ["doc-linked-tasks", propertyId, documentId] as const,
+    queryFn: async (): Promise<LinkedTask[]> => {
+      const supabase = createBrowserClient();
+      const { data: links, error } = await supabase
+        .from("task_document_links")
+        .select("id, task_id")
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      const rows = links ?? [];
+      if (rows.length === 0) return [];
+
+      const linkIdByTaskId = new Map(rows.map((r) => [r.task_id, r.id]));
+      const { data: tasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id, title, status")
+        .in("id", [...linkIdByTaskId.keys()]);
+      if (tasksError) throw new Error(tasksError.message);
+
+      return (tasks ?? []).map((t) => ({
+        linkId: linkIdByTaskId.get(t.id)!,
+        id: t.id,
+        title: t.title,
+        status: t.status,
+      }));
+    },
+  });
+}
+
 /** Display accents for boards — kept in sync with the CHECK in migration 0013. */
 export const BOARD_COLORS = [
   "slate",

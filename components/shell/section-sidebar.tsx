@@ -10,6 +10,7 @@ import {
 import { PropertySwitcher } from "./property-switcher";
 import { SearchButton } from "./search-button";
 import { useShellSection } from "./shell-section-context";
+import { HomeSection } from "./sections/home-section";
 import { ActivitySection } from "./sections/activity-section";
 import { ChatSection } from "./sections/chat-section";
 import { DmsSection } from "./sections/dms-section";
@@ -77,9 +78,12 @@ export function SectionSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* All five sections stay mounted; only visibility toggles. Each
-            loads its data once (on property entry), so switching the rail is
-            an instant show/hide — no remount, no re-fetch, no skeleton. */}
+        {/* All sections stay mounted; only visibility toggles. Each loads its
+            data once (on property entry), so switching the rail is an instant
+            show/hide — no remount, no re-fetch, no skeleton. */}
+        <SectionPane active={section === "home"}>
+          <HomeSection propertyId={currentPropertyId} />
+        </SectionPane>
         <SectionPane active={section === "activity"}>
           <Suspense fallback={null}>
             <ActivitySection propertyId={currentPropertyId} userId={user.id} />

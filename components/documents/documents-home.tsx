@@ -3,19 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { FileText, GripVertical, Plus } from "lucide-react";
+import { FileText, GripVertical, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DocumentRow } from "./document-row";
 import { Button } from "@/components/ui/button";
@@ -27,12 +17,11 @@ import {
 } from "@/lib/query/section-queries";
 import type { DocumentListItem } from "@/lib/documents/queries";
 import { CreateDocumentDialog } from "./create-document-dialog";
-import { DocBoardsSection, useBoardMutations } from "./doc-boards-section";
+import { GenerateDocumentDialog } from "./generate-document-dialog";
+import { DocBoardsSection } from "./doc-boards-section";
+import { DocBoardsBoard } from "./doc-boards-board";
 import { DocsActivitySheet } from "./docs-activity-panel";
-import {
-  DocsHomePresenceProvider,
-  useDocsHomePresence,
-} from "./docs-home-presence";
+import { useDocsHomePresence } from "./docs-home-presence";
 import { DocumentSearch } from "./document-search";
 import { DocumentViewerAvatarStack } from "@/components/documents/document-presence-stack";
 import { useMemberName } from "@/lib/documents/use-member-name";
@@ -46,21 +35,25 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /**
  * Documents section home — Editorial layout.
  *
- * Wraps the page in `DocsHomePresenceProvider` and a single `DndContext`
- * (so a row drag in any list variant can land on a board, or be dragged
- * back into the library section to unpin it). The actual layout is in
- * `<EditorialLayout>` so it has access to the shared presence map.
+ * `DocBoardsBoard` provides the shared `DocsHomePresenceProvider` + `DndContext`
+ * (so a row drag in any list variant can land on a board, or be dragged back
+ * into the library section to unpin it) — the same shell the property Home
+ * surface uses. The actual layout is in `<EditorialLayout>` so it has access to
+ * the shared presence map.
  */
 export function DocumentsHome({ propertyId }: { propertyId: string }) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
   return (
-    <DocsHomePresenceProvider propertyId={propertyId}>
+    <DocBoardsBoard propertyId={propertyId}>
       <DocumentsHomeBody
         propertyId={propertyId}
         createOpen={createOpen}
         setCreateOpen={setCreateOpen}
+        generateOpen={generateOpen}
+        setGenerateOpen={setGenerateOpen}
       />
-    </DocsHomePresenceProvider>
+    </DocBoardsBoard>
   );
 }
 
@@ -68,30 +61,21 @@ function DocumentsHomeBody({
   propertyId,
   createOpen,
   setCreateOpen,
+  generateOpen,
+  setGenerateOpen,
 }: {
   propertyId: string;
   createOpen: boolean;
   setCreateOpen: (open: boolean) => void;
+  generateOpen: boolean;
+  setGenerateOpen: (open: boolean) => void;
 }) {
   const { data: docs, isError: docsError } = useQuery(
     documentsQueryOptions(propertyId),
   );
   const { data: boards = [] } = useQuery(documentBoardsQueryOptions(propertyId));
-  const { pin, unpin } = useBoardMutations(propertyId);
 
   const docsList = docs ?? [];
-  const docsById = useMemo(
-    () => new Map(docsList.map((d) => [d.id, d])),
-    [docsList],
-  );
-  const boardByDocId = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const b of boards) {
-      for (const i of b.items) m.set(i.document_id, b.id);
-    }
-    return m;
-  }, [boards]);
-
   const recentlyEdited = useMemo(
     () => docsList.slice(0, RECENTLY_EDITED_LIMIT),
     [docsList],
@@ -105,66 +89,8 @@ function DocumentsHomeBody({
   const hasDocs = docsList.length > 0;
   const hasRecentlyEdited = recentlyEdited.length > 0;
 
-  // ── DnD ───────────────────────────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
-  const [activeGhost, setActiveGhost] = useState<{
-    documentId: string;
-    title: string;
-  } | null>(null);
-
-  function handleDragStart(event: DragStartEvent) {
-    const id = String(event.active.id);
-    const documentId = id.split(":")[1];
-    if (!documentId) return;
-    const doc = docsById.get(documentId);
-    if (doc) setActiveGhost({ documentId: doc.id, title: doc.title });
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveGhost(null);
-    const { active, over } = event;
-    if (!over) return;
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    const isCardSource = activeId.startsWith("card:");
-    const documentId = activeId.split(":")[1];
-    if (!documentId) return;
-
-    // Each list-style option declares its own "unpin-zone:editorial:<style>"
-    // droppable so dnd-kit doesn't see colliding IDs across mounted-but-hidden
-    // picker options.
-    if (overId === "unpin-zone" || overId.startsWith("unpin-zone:")) {
-      if (isCardSource) void unpin(documentId);
-      return;
-    }
-
-    let targetBoardId: string | undefined;
-    if (overId.startsWith("board:")) {
-      targetBoardId = overId.slice("board:".length);
-    } else if (overId.startsWith("card:")) {
-      const targetDocId = overId.slice("card:".length);
-      if (targetDocId === documentId) return;
-      targetBoardId = boardByDocId.get(targetDocId);
-    }
-    if (!targetBoardId) return;
-
-    void pin(documentId, targetBoardId);
-  }
-
-  function handleDragCancel() {
-    setActiveGhost(null);
-  }
-
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
+    <>
       <EditorialLayout
         propertyId={propertyId}
         docsError={docsError}
@@ -175,18 +101,20 @@ function DocumentsHomeBody({
         boardsCount={boards.length}
         editsThisWeek={editsThisWeek}
         onCreate={() => setCreateOpen(true)}
+        onGenerate={() => setGenerateOpen(true)}
       />
-
-      <DragOverlay dropAnimation={null}>
-        {activeGhost ? <DragGhost title={activeGhost.title} /> : null}
-      </DragOverlay>
 
       <CreateDocumentDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         propertyId={propertyId}
       />
-    </DndContext>
+      <GenerateDocumentDialog
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        propertyId={propertyId}
+      />
+    </>
   );
 }
 
@@ -204,6 +132,7 @@ function EditorialLayout({
   boardsCount,
   editsThisWeek,
   onCreate,
+  onGenerate,
 }: {
   propertyId: string;
   docsError: boolean;
@@ -214,6 +143,7 @@ function EditorialLayout({
   boardsCount: number;
   editsThisWeek: number;
   onCreate: () => void;
+  onGenerate: () => void;
 }) {
   const today = useTodayLabel();
   return (
@@ -225,6 +155,15 @@ function EditorialLayout({
           </p>
           <div className="flex items-center gap-1.5">
             <DocsActivitySheet propertyId={propertyId} />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onGenerate}
+            >
+              <Sparkles className="size-4" />
+              Generate
+            </Button>
             <Button type="button" size="sm" onClick={onCreate}>
               <Plus className="size-4" />
               New
@@ -588,18 +527,6 @@ function UnpinZone({
     >
       {children}
     </section>
-  );
-}
-
-function DragGhost({ title }: { title: string }) {
-  return (
-    <div className="flex h-12 w-56 items-center gap-2.5 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
-      <FileText
-        strokeWidth={1.5}
-        className="size-4 shrink-0 text-muted-foreground"
-      />
-      <span className="truncate text-sm font-medium">{title}</span>
-    </div>
   );
 }
 

@@ -24,6 +24,7 @@ const KEY_PREFIX = "hotelclaw:last-path:";
  * stale entries lands the rail on a channel under the DMs sidebar.
  */
 const SECTION_PREFIX: Record<string, string> = {
+  home: "/home",
   activity: "/activity",
   chat: "/chat/",
   dms: "/dms/",

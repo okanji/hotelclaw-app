@@ -10,6 +10,7 @@ import { isOnboarded } from "@/lib/auth/onboarding";
 import { LeftShell } from "@/components/shell/left-shell";
 import { ShellSectionProvider } from "@/components/shell/shell-section-context";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
+import { HomeSurface } from "@/components/home/home-surface";
 import { ChatSurface } from "@/components/chat/chat-surface";
 import { TasksSurface } from "@/components/tasks/tasks-surface";
 import { DocumentsSurface } from "@/components/documents/documents-surface";
@@ -47,7 +48,7 @@ export default async function PropertyLayout({
   const { propertyId } = await params;
   const user = await requireUser();
   if (!(await isOnboarded(user.id))) {
-    redirect(`/welcome?next=${encodeURIComponent(`/p/${propertyId}/chat`)}`);
+    redirect(`/welcome?next=${encodeURIComponent(`/p/${propertyId}/home`)}`);
   }
   const supabase = await createClient();
 
@@ -167,6 +168,10 @@ export default async function PropertyLayout({
                               `page.tsx` is `null` and the surface here owns
                               rendering. */}
                           {children}
+                          <HomeSurface
+                            propertyId={propertyId}
+                            propertyName={property.name}
+                          />
                           <ChatSurface propertyId={propertyId} />
                           <TasksSurface
                             propertyId={propertyId}

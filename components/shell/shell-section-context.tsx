@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 /** The rail sections. */
 export type ShellSection =
+  | "home"
   | "activity"
   | "chat"
   | "dms"
@@ -20,6 +21,7 @@ export type ShellSection =
  * the route split, so both pin their sections directly.
  */
 function sectionFromPath(pathname: string): ShellSection | null {
+  if (pathname.includes("/home")) return "home";
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/workflows")) return "workflows";
   if (pathname.includes("/tasks")) return "tasks";
@@ -51,6 +53,7 @@ type ShellSectionContextValue = {
 const ShellSectionContext = createContext<ShellSectionContextValue | null>(null);
 
 const ALL_SECTIONS: ShellSection[] = [
+  "home",
   "activity",
   "chat",
   "dms",

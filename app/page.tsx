@@ -11,5 +11,5 @@ export default async function Home() {
 
   const memberships = await getUserMemberships();
   if (memberships.length === 0) redirect("/onboarding");
-  redirect(`/p/${memberships[0].property_id}/chat`);
+  redirect(`/p/${memberships[0].property_id}/home`);
 }

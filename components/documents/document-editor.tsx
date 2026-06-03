@@ -56,6 +56,7 @@ import {
   type DocumentAiPanelHandle,
 } from "./document-ai-panel";
 import { DocumentLastEdited } from "./document-last-edited";
+import { DocumentLinkedTasks } from "./document-linked-tasks";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
   DocumentBreadcrumbs,
@@ -74,6 +75,7 @@ import {
 } from "./document-thread-indicator";
 import { SlashCommand } from "./slash-command";
 import { SubPage } from "./sub-page-node";
+import { takePendingGeneration } from "@/lib/documents/pending-generation";
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
@@ -328,6 +330,22 @@ function EditorInner({
     aiPanelRef.current?.explain(selection);
   }, [editor]);
 
+  // "Generate doc from a prompt": the dialog stashed a brief keyed by this doc
+  // id and navigated here. Once the editor is ready, consume it (once) and ask
+  // the AI panel to draft the body — it lands as a staged suggestion in the
+  // existing review pipeline. `take*` deletes the entry so a reload won't
+  // re-fire generation.
+  const generationFired = useRef(false);
+  useEffect(() => {
+    if (generationFired.current || !editor) return;
+    if (!isReady && !syncTimedOut) return;
+    const brief = takePendingGeneration(documentId);
+    if (!brief) return;
+    generationFired.current = true;
+    const t = setTimeout(() => aiPanelRef.current?.generate(brief), 300);
+    return () => clearTimeout(t);
+  }, [editor, isReady, syncTimedOut, documentId]);
+
   if (!editor) return <EditorSkeleton />;
 
   // Wait for Yjs before revealing content — `initialContent` and remote
@@ -356,6 +374,10 @@ function EditorInner({
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
             className="hidden text-xs text-muted-foreground tabular-nums md:block"
+          />
+          <DocumentLinkedTasks
+            propertyId={propertyId}
+            documentId={documentId}
           />
           <DocumentHistory editor={editor} />
           <DocumentRoomAvatarStack max={5} size={24} />
