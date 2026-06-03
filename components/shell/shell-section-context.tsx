@@ -22,6 +22,9 @@ export type ShellSection =
  */
 function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/home")) return "home";
+  // Projects live under the Home rail (their sidebar lists them), so a project
+  // route keeps the Home section active rather than pinning its own.
+  if (pathname.includes("/projects")) return "home";
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/workflows")) return "workflows";
   if (pathname.includes("/tasks")) return "tasks";

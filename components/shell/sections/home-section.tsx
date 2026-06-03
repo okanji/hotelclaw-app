@@ -9,13 +9,10 @@ import {
   FolderKanban,
   Inbox,
   ListChecks,
-  Plus,
-  Star,
   UserCheck,
 } from "lucide-react";
 import {
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
@@ -25,6 +22,7 @@ import {
 import { documentsQueryOptions } from "@/lib/query/section-queries";
 import { usePinnedDocs } from "@/lib/documents/use-pinned-docs";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
+import { ProjectsSidebar } from "@/components/projects/projects-sidebar";
 
 /**
  * Home secondary-sidebar content — ClickUp-style. A few work-centric quick
@@ -112,26 +110,7 @@ export function HomeSection({ propertyId }: { propertyId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarGroup>
-        <SidebarGroupLabel>Projects</SidebarGroupLabel>
-        <SidebarGroupAction title="New project" aria-disabled="true">
-          <Plus />
-        </SidebarGroupAction>
-        <SidebarGroupContent>
-          <div className="flex flex-col items-start gap-1.5 px-2 py-3">
-            <span className="flex size-7 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-foreground/70">
-              <Star className="size-3.5" />
-            </span>
-            <p className="text-xs font-medium text-sidebar-foreground">
-              Projects are coming soon
-            </p>
-            <p className="text-xs text-pretty text-sidebar-foreground/60">
-              Group work by team (F&amp;B, Maintenance) and run cross-team
-              initiatives like Festival or Wedding.
-            </p>
-          </div>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <ProjectsSidebar propertyId={propertyId} />
     </>
   );
 }

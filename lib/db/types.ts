@@ -29,6 +29,15 @@ export type MeetingRecurrence = {
 };
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
+/** Accent colors shared by document boards, teams, and projects. */
+export type EntityColor =
+  | "slate"
+  | "blue"
+  | "green"
+  | "amber"
+  | "rose"
+  | "violet";
+export type ProjectStatus = "active" | "planned" | "completed" | "archived";
 export type WorkflowMode = "instant" | "durable";
 export type WorkflowRunStatus =
   | "queued"
@@ -174,6 +183,8 @@ export interface Database {
           // TSV plaintext rendering of the sheet body — drives body_fts.
           sheet_text: string | null;
           sheet_updated_at: string | null;
+          team_id: string | null;
+          project_id: string | null;
           created_by: string | null;
           last_edited_by: string | null;
           archived_at: string | null;
@@ -194,6 +205,8 @@ export interface Database {
           sheet_state?: unknown;
           sheet_text?: string | null;
           sheet_updated_at?: string | null;
+          team_id?: string | null;
+          project_id?: string | null;
           created_by?: string | null;
           last_edited_by?: string | null;
           archived_at?: string | null;
@@ -210,6 +223,8 @@ export interface Database {
           sheet_state: unknown;
           sheet_text: string | null;
           sheet_updated_at: string | null;
+          team_id: string | null;
+          project_id: string | null;
           last_edited_by: string | null;
           archived_at: string | null;
         }>;
@@ -279,6 +294,8 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
+          team_id: string | null;
+          project_id: string | null;
           overdue_notified_at: string | null;
           created_at: string;
           updated_at: string;
@@ -299,6 +316,8 @@ export interface Database {
           parent_id?: string | null;
           labels?: string[];
           project_name?: string | null;
+          team_id?: string | null;
+          project_id?: string | null;
           overdue_notified_at?: string | null;
         };
         Update: Partial<{
@@ -314,8 +333,114 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
+          team_id: string | null;
+          project_id: string | null;
           overdue_notified_at: string | null;
         }>;
+        Relationships: [];
+      };
+      teams: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          color: EntityColor;
+          icon: string | null;
+          position: number;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          color?: BoardColor;
+          icon?: string | null;
+          position?: number;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          color: EntityColor;
+          icon: string | null;
+          position: number;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      team_members: {
+        Row: {
+          team_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          team_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      projects: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          description: string | null;
+          color: EntityColor;
+          icon: string | null;
+          status: ProjectStatus;
+          start_date: string | null;
+          target_date: string | null;
+          position: number;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          description?: string | null;
+          color?: BoardColor;
+          icon?: string | null;
+          status?: ProjectStatus;
+          start_date?: string | null;
+          target_date?: string | null;
+          position?: number;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          description: string | null;
+          color: EntityColor;
+          icon: string | null;
+          status: ProjectStatus;
+          start_date: string | null;
+          target_date: string | null;
+          position: number;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      project_teams: {
+        Row: {
+          project_id: string;
+          team_id: string;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          team_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
         Relationships: [];
       };
       task_links: {
@@ -529,7 +654,7 @@ export interface Database {
           id: string;
           property_id: string;
           name: string;
-          color: BoardColor;
+          color: EntityColor;
           position: number;
           created_by: string | null;
           created_at: string;
@@ -545,7 +670,7 @@ export interface Database {
         };
         Update: Partial<{
           name: string;
-          color: BoardColor;
+          color: EntityColor;
           position: number;
         }>;
         Relationships: [];

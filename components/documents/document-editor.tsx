@@ -82,7 +82,7 @@ import {
 } from "./document-thread-indicator";
 import { SlashCommand } from "./slash-command";
 import { SubPage } from "./sub-page-node";
-import GlobalDragHandle from "tiptap-extension-global-drag-handle";
+import { BlockReorder } from "@/lib/documents/block-reorder";
 import { Callout } from "@/lib/documents/nodes/callout";
 import { Toggle as ToggleNode } from "@/lib/documents/nodes/toggle";
 import { FileAttachment } from "@/lib/documents/nodes/file-attachment";
@@ -363,23 +363,12 @@ function EditorInner({
       // Inline chart with editable data grid. Stored as JSON attrs; rendered
       // with recharts (bar/line/area/pie). See lib/documents/nodes/chart.ts.
       Chart,
-      // Notion-style hover drag handle on every block. Auto-positions a
-      // `<div class="drag-handle">` next to whichever block the user hovers.
-      // Styled in document-drag-handle.css. New custom node types (Callout,
-      // Toggle, Chart, etc.) are auto-detected via their `data-type` attrs;
-      // any leaf node that needs to be picked up here is registered in
-      // `customNodes`.
-      GlobalDragHandle.configure({
-        dragHandleWidth: 24,
-        customNodes: [
-          "callout",
-          "toggle",
-          "fileAttachment",
-          "embed",
-          "chart",
-          "spreadsheetEmbed",
-        ],
-      }),
+      // Notion-style rail-locked block reorder. Pointer-driven (not HTML5
+      // drag), so the drag preview stays in the block's column and tracks
+      // only vertical position. Implementation:
+      // lib/documents/block-reorder.ts. Title and empty paragraphs are
+      // excluded from both source and target candidates.
+      BlockReorder,
     ],
   });
 

@@ -1,7 +1,7 @@
 /*
  * Block-level visuals for the document editor:
- *  1. Drag handle (`tiptap-extension-global-drag-handle`) — the package is
- *     headless, so we draw the ⋮⋮ glyph here via ::before.
+ *  1. Drag handle + ghost + indicator for BlockReorder
+ *     (lib/documents/block-reorder.ts) — pointer-driven, rail-locked sort.
  *  2. ProseMirror tables — the @tiptap/extension-table package ships no CSS;
  *     without these rules cell borders, header tone, and the resize handle
  *     are all invisible.
@@ -12,15 +12,10 @@
 /* ── Drag handle ─────────────────────────────────────────────────────────── */
 
 .drag-handle {
-  /* MUST be `fixed`, not `absolute`. The extension sets `style.left` and
-   * `style.top` from getBoundingClientRect() — viewport-relative pixels —
-   * and appends the handle to the editor wrapper. With `absolute`, the
-   * coords get reinterpreted against the closest positioned ancestor
-   * (our centered editor container), throwing the handle hundreds of
-   * pixels off to the right. `fixed` honors the viewport coords directly. */
+  /* position: fixed so we can place by viewport coords directly. */
   position: fixed;
-  width: 22px;
-  height: 24px;
+  width: 20px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,18 +24,14 @@
   background: transparent;
   cursor: grab;
   user-select: none;
+  pointer-events: auto;
+  border: 0;
+  padding: 0;
   z-index: 30;
   transition: background-color 80ms ease, color 80ms ease;
 }
 
-/* The extension toggles a `.hide` class when the pointer leaves the editor
- * surface — respect it so the handle disappears when we're not interacting. */
-.drag-handle.hide {
-  display: none;
-}
-
-/* ⋮⋮ glyph — two columns of three dots. Inline via the unicode "VERTICAL
- * FOUR DOTS" approximation; tight letter-spacing flattens the column. */
+/* ⋮⋮ glyph — two columns of three dots, drawn with letter-spacing. */
 .drag-handle::before {
   content: "⋮⋮";
   display: block;
@@ -59,11 +50,48 @@
   cursor: grabbing;
 }
 
-/* While a drag is in progress the editor adds a `.dragging` class; hide
- * the handle so it doesn't jitter between source/destination positions. */
-.ProseMirror.dragging .drag-handle {
-  opacity: 0;
+/* ── Drag ghost (rail-locked preview) ────────────────────────────────────── */
+
+.block-drag-ghost {
+  /* Faded clone of the source block. Position-fixed at the source's X so
+   * it stays in the block's column; only Y follows the cursor. */
+  position: fixed;
   pointer-events: none;
+  user-select: none;
+  opacity: 0.55;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 0 6px 18px color-mix(in oklch, var(--foreground) 12%, transparent);
+  z-index: 100;
+  /* Cap height so a long block doesn't fill the viewport during drag. */
+  max-height: 220px;
+  overflow: hidden;
+}
+
+/* ── Drop indicator (horizontal bar between blocks) ──────────────────────── */
+
+.block-drag-indicator {
+  position: fixed;
+  pointer-events: none;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  z-index: 99;
+  /* Match the slight pulse of a typical drop cursor. */
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 25%, transparent);
+}
+
+/* While a drag is in progress, use the grabbing cursor everywhere and
+ * suppress text selection so the user doesn't accidentally highlight prose. */
+body.block-dragging {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+body.block-dragging .ProseMirror {
+  cursor: grabbing;
 }
 
 /* ── Tables (ProseMirror table extension) ────────────────────────────────── */
