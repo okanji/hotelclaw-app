@@ -9,6 +9,8 @@ type CreateTaskConfig = {
   due_at?: string;
   labels?: string[];
   project_name?: string;
+  space_id?: string;
+  project_id?: string;
   priority?: "none" | "low" | "medium" | "high" | "urgent";
   parent_id?: string;
 };
@@ -37,6 +39,8 @@ export const createTaskRunner: RunnerImpl<
       due_at: config.due_at ?? null,
       labels: config.labels ?? [],
       project_name: config.project_name ?? null,
+      space_id: config.space_id ?? null,
+      project_id: config.project_id ?? null,
       priority: config.priority ?? "none",
       parent_id: config.parent_id ?? null,
       created_by: ctx.workflowOwnerId,
@@ -57,6 +61,8 @@ type UpdateTaskConfig = {
   assignee_id?: string;
   due_at?: string;
   labels?: string[];
+  space_id?: string;
+  project_id?: string;
 };
 
 export const updateTaskRunner: RunnerImpl<

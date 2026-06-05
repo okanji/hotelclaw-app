@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
-import { TaskProjectTeamPicker } from "./task-project-team-picker";
+import { TaskProjectSpacePicker } from "./task-project-space-picker";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import type { EntityColor } from "@/lib/db/types";
 
@@ -179,7 +179,7 @@ export function TaskDetailSidebar({
           onSelect={onAssigneeChange}
         />
         <DueDatePicker dueAt={dueAt} onChange={onDueAtChange} />
-        <TaskProjectTeamPicker propertyId={propertyId} taskId={taskId} />
+        <TaskProjectSpacePicker propertyId={propertyId} taskId={taskId} />
         {(meta?.labels ?? []).map((label) => (
           <MetaChipRow
             key={label}

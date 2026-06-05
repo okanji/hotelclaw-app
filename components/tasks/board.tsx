@@ -18,6 +18,10 @@ import { WorkloadView } from "./workload-view";
 import { PRIORITY_META, type Task } from "./kanban";
 import type { TaskStatus } from "@/lib/db/types";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
+import {
+  projectsQueryOptions,
+  spacesQueryOptions,
+} from "@/lib/query/project-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 
 const EMPTY_TASKS: Task[] = [];
@@ -42,6 +46,8 @@ export function TasksBoard({
   const qc = useQueryClient();
   const broadcast = useBroadcastEvent();
   const mineOnly = searchParams.get("view") === "mine";
+  const spaceFilter = searchParams.get("space");
+  const projectFilter = searchParams.get("project");
 
   /**
    * Invalidate the local cache AND broadcast to teammates so other clients
@@ -79,14 +85,31 @@ export function TasksBoard({
   );
   const assignees = useAssigneesMap(assigneeIds);
 
-  // Tasks visible to this user before filters (the "Mine" cut).
-  const scopedTasks = useMemo(
-    () =>
-      mineOnly
-        ? topLevelTasks.filter((t) => t.assignee_id === currentUserId)
-        : topLevelTasks,
-    [topLevelTasks, mineOnly, currentUserId],
-  );
+  // Tasks visible before the toolbar filters: the "Mine" cut + an optional
+  // Space/Project scope (driven by `?space=`/`?project=` — set by the Tasks
+  // sidebar's saved views).
+  const scopedTasks = useMemo(() => {
+    let out = topLevelTasks;
+    if (mineOnly) out = out.filter((t) => t.assignee_id === currentUserId);
+    if (spaceFilter) out = out.filter((t) => t.space_id === spaceFilter);
+    if (projectFilter) out = out.filter((t) => t.project_id === projectFilter);
+    return out;
+  }, [topLevelTasks, mineOnly, currentUserId, spaceFilter, projectFilter]);
+
+  // Resolve the active scope's name for the breadcrumb (cheap, cached).
+  const { data: spaces = [] } = useQuery({
+    ...spacesQueryOptions(propertyId),
+    enabled: !!spaceFilter,
+  });
+  const { data: projects = [] } = useQuery({
+    ...projectsQueryOptions(propertyId),
+    enabled: !!projectFilter,
+  });
+  const scopeName = spaceFilter
+    ? spaces.find((s) => s.id === spaceFilter)?.name
+    : projectFilter
+      ? projects.find((p) => p.id === projectFilter)?.name
+      : null;
 
   const filteredTasks = useMemo(() => {
     const needle = filters.search.trim().toLowerCase();
@@ -164,7 +187,16 @@ export function TasksBoard({
                 },
                 { label: "My tasks" },
               ]
-            : [{ label: "Tasks", icon: <ListChecks /> }]
+            : scopeName
+              ? [
+                  {
+                    label: "Tasks",
+                    href: `/p/${propertyId}/tasks`,
+                    icon: <ListChecks />,
+                  },
+                  { label: scopeName },
+                ]
+              : [{ label: "Tasks", icon: <ListChecks /> }]
         }
         actions={
           <>
@@ -227,6 +259,8 @@ export function TasksBoard({
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={notifyChanged}
+        defaultSpaceId={spaceFilter}
+        defaultProjectId={projectFilter}
       />
     </div>
   );

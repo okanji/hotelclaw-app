@@ -24,6 +24,8 @@ function slugify(s: string) {
 export async function createChannel(input: {
   propertyId: string;
   name: string;
+  /** Optional: make this a Space's home channel. */
+  spaceId?: string | null;
 }): Promise<{ channelId: string; streamChannelId: string } | { error: string }> {
   const parsed = Schema.safeParse({
     propertyId: input.propertyId,
@@ -87,6 +89,7 @@ export async function createChannel(input: {
       stream_channel_type: "team",
       name: parsed.data.name,
       is_private: false,
+      space_id: input.spaceId ?? null,
       created_by: user.id,
     })
     .select("id")

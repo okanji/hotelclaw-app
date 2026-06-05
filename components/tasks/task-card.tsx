@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { taskShortId, type Task } from "./kanban";
 import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
+import { TaskScopeChips } from "./task-scope-chips";
 import { taskHref } from "@/lib/tasks/task-href";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
@@ -132,13 +133,14 @@ function CardPropertyRow({
   // affordance. Other inline properties (labels, due-date pill, etc.)
   // can be appended here over time.
   return (
-    <div className="mt-2.5 flex items-center gap-1">
+    <div className="mt-2.5 flex flex-wrap items-center gap-1">
       <PriorityChip
         taskId={task.id}
         priority={task.priority}
         onChanged={onChanged}
         appearance="bare"
       />
+      <TaskScopeChips task={task} />
     </div>
   );
 }

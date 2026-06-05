@@ -132,6 +132,7 @@ export interface Database {
           stream_channel_type: string;
           name: string;
           is_private: boolean;
+          space_id: string | null;
           created_by: string | null;
           created_at: string;
           archived_at: string | null;
@@ -143,6 +144,7 @@ export interface Database {
           stream_channel_type?: string;
           name: string;
           is_private?: boolean;
+          space_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           archived_at?: string | null;
@@ -150,6 +152,7 @@ export interface Database {
         Update: Partial<{
           name: string;
           is_private: boolean;
+          space_id: string | null;
           archived_at: string | null;
         }>;
         Relationships: [];

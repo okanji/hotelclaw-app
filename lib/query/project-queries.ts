@@ -49,6 +49,22 @@ export function spacesQueryOptions(propertyId: string) {
   });
 }
 
+/** User ids belonging to a space (mapped against property members for names). */
+export function spaceMemberIdsQueryOptions(spaceId: string) {
+  return queryOptions({
+    queryKey: ["space-members", spaceId] as const,
+    queryFn: async (): Promise<string[]> => {
+      const supabase = createBrowserClient();
+      const { data, error } = await supabase
+        .from("space_members")
+        .select("user_id")
+        .eq("space_id", spaceId);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => r.user_id);
+    },
+  });
+}
+
 export function projectsQueryOptions(propertyId: string) {
   return queryOptions({
     queryKey: ["projects", propertyId] as const,

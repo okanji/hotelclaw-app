@@ -270,6 +270,20 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       label: "Labels",
       itemPlaceholder: "e.g. guest-complaint",
     },
+    {
+      kind: "template",
+      key: "space_id",
+      label: "Space (optional)",
+      placeholder: "Space id, or {{trigger.new.space_id}}",
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "template",
+      key: "project_id",
+      label: "Project (optional)",
+      placeholder: "Project id, or {{trigger.new.project_id}}",
+      help: TEMPLATE_HELP,
+    },
   ],
   "action.task.add_label": [
     {

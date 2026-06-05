@@ -22,6 +22,8 @@ const CreateSchema = z.object({
   priority: z.enum(Priorities).default("none"),
   assigneeId: z.string().uuid().nullable().optional(),
   parentId: z.string().uuid().nullable().optional(),
+  spaceId: z.string().uuid().nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateSchema = z.object({
@@ -73,6 +75,8 @@ export async function createTask(
       created_by: user.id,
       position,
       parent_id: parsed.data.parentId ?? null,
+      space_id: parsed.data.spaceId ?? null,
+      project_id: parsed.data.projectId ?? null,
     })
     .select("id")
     .single();

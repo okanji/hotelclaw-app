@@ -16,13 +16,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   projectsQueryOptions,
-  teamsQueryOptions,
+  spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import type { EntityColor } from "@/lib/db/types";
 
 export type DashboardFilter =
   | { kind: "all" }
-  | { kind: "team"; id: string }
+  | { kind: "space"; id: string }
   | { kind: "project"; id: string };
 
 const DOT: Record<EntityColor, string> = {
@@ -52,13 +52,13 @@ export function useDashboardFilter() {
   return useContext(FilterContext);
 }
 
-/** Filter a task list by the active dashboard scope (team / project / all). */
+/** Filter a task list by the active dashboard scope (space / project / all). */
 export function applyTaskFilter<
-  T extends { team_id?: string | null; project_id?: string | null },
+  T extends { space_id?: string | null; project_id?: string | null },
 >(tasks: T[], filter: DashboardFilter): T[] {
   if (filter.kind === "all") return tasks;
-  if (filter.kind === "team")
-    return tasks.filter((t) => t.team_id === filter.id);
+  if (filter.kind === "space")
+    return tasks.filter((t) => t.space_id === filter.id);
   return tasks.filter((t) => t.project_id === filter.id);
 }
 
@@ -72,14 +72,14 @@ export function DashboardFilterMenu({
   value: DashboardFilter;
   onChange: (next: DashboardFilter) => void;
 }) {
-  const { data: teams = [] } = useQuery(teamsQueryOptions(propertyId));
+  const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
 
   const label =
     value.kind === "all"
       ? "All work"
-      : value.kind === "team"
-        ? (teams.find((t) => t.id === value.id)?.name ?? "Team")
+      : value.kind === "space"
+        ? (spaces.find((t) => t.id === value.id)?.name ?? "Space")
         : (projects.find((p) => p.id === value.id)?.name ?? "Project");
 
   return (
@@ -118,21 +118,21 @@ export function DashboardFilterMenu({
             ))}
           </DropdownMenuGroup>
         ) : null}
-        {teams.length > 0 ? (
+        {spaces.length > 0 ? (
           <DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
-              Teams
+              Spaces
             </DropdownMenuLabel>
-            {teams.map((t) => (
+            {spaces.map((t) => (
               <DropdownMenuItem
                 key={t.id}
-                onClick={() => onChange({ kind: "team", id: t.id })}
+                onClick={() => onChange({ kind: "space", id: t.id })}
                 className="gap-2"
               >
                 <span className={cn("size-2 rounded-full", DOT[t.color])} />
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                {value.kind === "team" && value.id === t.id ? (
+                {value.kind === "space" && value.id === t.id ? (
                   <Check className="size-3.5" />
                 ) : null}
               </DropdownMenuItem>

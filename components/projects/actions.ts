@@ -4,7 +4,9 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/db/types";
+import type { Database, EntityColor } from "@/lib/db/types";
+
+type CreateOpts = { color?: EntityColor; icon?: string | null };
 
 type ActionError = { error: string };
 
@@ -58,6 +60,7 @@ async function nextPosition(
 export async function createSpace(
   propertyId: string,
   name: string,
+  opts?: CreateOpts,
 ): Promise<{ id: string } | ActionError> {
   const pid = Uuid.safeParse(propertyId);
   const parsedName = Name.safeParse(name);
@@ -78,6 +81,8 @@ export async function createSpace(
       name: parsedName.data,
       position,
       created_by: user.id,
+      ...(opts?.color ? { color: opts.color } : {}),
+      ...(opts?.icon ? { icon: opts.icon } : {}),
     })
     .select("id")
     .single();
@@ -162,6 +167,7 @@ export async function archiveSpace(
 export async function createProject(
   propertyId: string,
   name: string,
+  opts?: CreateOpts,
 ): Promise<{ id: string } | ActionError> {
   const pid = Uuid.safeParse(propertyId);
   const parsedName = Name.safeParse(name);
@@ -182,6 +188,8 @@ export async function createProject(
       name: parsedName.data,
       position,
       created_by: user.id,
+      ...(opts?.color ? { color: opts.color } : {}),
+      ...(opts?.icon ? { icon: opts.icon } : {}),
     })
     .select("id")
     .single();

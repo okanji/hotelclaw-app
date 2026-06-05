@@ -98,6 +98,44 @@ const triggers: TriggerCatalogEntry[] = [
     explain: (filter) =>
       explainTaskTrigger("task.label_added", "When a label is added to a task", filter),
   },
+  {
+    id: "task.added_to_space",
+    surface: "tasks",
+    category: "trigger",
+    label: "When a task is added to a space",
+    description:
+      "Fires when a task's space (department) is set or changed — e.g. moved into F&B or Maintenance. You get the previous and new space plus the full task.",
+    examplePrompts: [
+      "when a task is added to the Maintenance space",
+      "whenever a task moves into a different department",
+    ],
+    outputSchema: z.object({
+      from: z.string().nullable(),
+      to: z.string().nullable(),
+      new: z.record(z.string(), z.unknown()),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.added_to_space", "When a task is added to a space", filter),
+  },
+  {
+    id: "task.added_to_project",
+    surface: "tasks",
+    category: "trigger",
+    label: "When a task is added to a project",
+    description:
+      "Fires when a task's project (a cross-space initiative like a Wedding or Festival) is set or changed. You get the previous and new project plus the full task.",
+    examplePrompts: [
+      "when a task is added to the Wedding project",
+      "whenever a task moves to a different project",
+    ],
+    outputSchema: z.object({
+      from: z.string().nullable(),
+      to: z.string().nullable(),
+      new: z.record(z.string(), z.unknown()),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.added_to_project", "When a task is added to a project", filter),
+  },
 ];
 
 // ─── Actions ─────────────────────────────────────────────────────────────────

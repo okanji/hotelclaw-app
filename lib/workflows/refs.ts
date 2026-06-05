@@ -91,6 +91,8 @@ const TRIGGER_FIELDS: Record<
     { path: "trigger.new.due_at", label: "Due date", type: "date" },
     { path: "trigger.new.id", label: "Task ID", type: "string" },
     { path: "trigger.new.labels", label: "Labels", type: "string[]", sample: "guest-complaint" },
+    { path: "trigger.new.space_id", label: "Space", type: "string" },
+    { path: "trigger.new.project_id", label: "Project", type: "string" },
   ],
   chat: [
     {
@@ -134,6 +136,14 @@ const TRIGGER_EXTRAS: Record<
     { path: "trigger.to", label: "Now assigned to", type: "string" },
   ],
   "task.label_added": [{ path: "trigger.added_labels", label: "Labels added", type: "string[]" }],
+  "task.added_to_space": [
+    { path: "trigger.from", label: "Previous space", type: "string" },
+    { path: "trigger.to", label: "New space", type: "string" },
+  ],
+  "task.added_to_project": [
+    { path: "trigger.from", label: "Previous project", type: "string" },
+    { path: "trigger.to", label: "New project", type: "string" },
+  ],
 };
 
 /** Map a Zod field type to our coarse RefType (best effort, never throws). */

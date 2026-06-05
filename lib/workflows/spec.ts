@@ -16,6 +16,8 @@ export const TRIGGER_EVENT_TYPES = [
   "task.assigned",
   "task.overdue",
   "task.label_added",
+  "task.added_to_space",
+  "task.added_to_project",
   "chat.message_posted",
   "chat.mention",
   "doc.created",
@@ -99,6 +101,8 @@ const CreateTaskStep = z.object({
     due_at: z.string().optional(),
     labels: z.array(z.string()).optional(),
     project_name: z.string().optional(),
+    space_id: z.string().optional(),
+    project_id: z.string().optional(),
     priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
     parent_id: z.string().optional(),
   }),
@@ -116,6 +120,8 @@ const UpdateTaskStep = z.object({
     assignee_id: z.string().optional(),
     due_at: z.string().optional(),
     labels: z.array(z.string()).optional(),
+    space_id: z.string().optional(),
+    project_id: z.string().optional(),
   }),
 });
 

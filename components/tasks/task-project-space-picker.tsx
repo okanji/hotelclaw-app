@@ -13,10 +13,10 @@ import {
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
   projectsQueryOptions,
-  teamsQueryOptions,
+  spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import type { EntityColor } from "@/lib/db/types";
-import { setTaskProject, setTaskTeam } from "@/components/projects/actions";
+import { setTaskProject, setTaskSpace } from "@/components/projects/actions";
 
 const DOT: Record<EntityColor, string> = {
   slate: "bg-slate-500",
@@ -31,12 +31,12 @@ const ROW =
   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[0.8125rem] transition-colors hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none";
 
 /**
- * Project + Team assignment for the task detail sidebar. Self-contained — reads
- * the task's `project_id`/`team_id` directly and writes via setTaskProject /
- * setTaskTeam, so it doesn't depend on the task-meta API. Mirrors the sidebar's
+ * Project + Space assignment for the task detail sidebar. Self-contained — reads
+ * the task's `project_id`/`space_id` directly and writes via setTaskProject /
+ * setTaskSpace, so it doesn't depend on the task-meta API. Mirrors the sidebar's
  * other property rows.
  */
-export function TaskProjectTeamPicker({
+export function TaskProjectSpacePicker({
   propertyId,
   taskId,
 }: {
@@ -48,25 +48,25 @@ export function TaskProjectTeamPicker({
     queryKey: ["task-assign", taskId] as const,
     queryFn: async (): Promise<{
       project_id: string | null;
-      team_id: string | null;
+      space_id: string | null;
     }> => {
       const supabase = createBrowserClient();
       const { data } = await supabase
         .from("tasks")
-        .select("project_id, team_id")
+        .select("project_id, space_id")
         .eq("id", taskId)
         .maybeSingle();
       return {
         project_id: data?.project_id ?? null,
-        team_id: data?.team_id ?? null,
+        space_id: data?.space_id ?? null,
       };
     },
   });
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
-  const { data: teams = [] } = useQuery(teamsQueryOptions(propertyId));
+  const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
 
   const project = projects.find((p) => p.id === assign?.project_id) ?? null;
-  const team = teams.find((t) => t.id === assign?.team_id) ?? null;
+  const space = spaces.find((t) => t.id === assign?.space_id) ?? null;
 
   function refresh(projectId?: string | null) {
     void qc.invalidateQueries({ queryKey: ["task-assign", taskId] });
@@ -80,8 +80,8 @@ export function TaskProjectTeamPicker({
     if ("error" in res) toast.error(res.error);
     else refresh(projectId ?? assign?.project_id ?? null);
   }
-  async function pickTeam(teamId: string | null) {
-    const res = await setTaskTeam(taskId, teamId);
+  async function pickSpace(spaceId: string | null) {
+    const res = await setTaskSpace(taskId, spaceId);
     if ("error" in res) toast.error(res.error);
     else refresh();
   }
@@ -129,28 +129,28 @@ export function TaskProjectTeamPicker({
           render={
             <button
               type="button"
-              className={cn(ROW, team ? "text-foreground" : "text-muted-foreground")}
+              className={cn(ROW, space ? "text-foreground" : "text-muted-foreground")}
             />
           }
         >
           <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
-            <Users className={team ? textDot(team.color) : "size-3.5"} />
+            <Users className={space ? textDot(space.color) : "size-3.5"} />
           </span>
-          <span className="truncate">{team ? team.name : "Team"}</span>
+          <span className="truncate">{space ? space.name : "Space"}</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
-          <DropdownMenuItem onClick={() => void pickTeam(null)}>
-            No team
+          <DropdownMenuItem onClick={() => void pickSpace(null)}>
+            No space
           </DropdownMenuItem>
-          {teams.map((t) => (
+          {spaces.map((t) => (
             <DropdownMenuItem
               key={t.id}
-              onClick={() => void pickTeam(t.id)}
+              onClick={() => void pickSpace(t.id)}
               className="gap-2"
             >
               <span className={cn("size-2.5 rounded-full", DOT[t.color])} />
               <span className="min-w-0 flex-1 truncate">{t.name}</span>
-              {t.id === team?.id ? <Check className="size-3.5" /> : null}
+              {t.id === space?.id ? <Check className="size-3.5" /> : null}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

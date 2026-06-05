@@ -34,6 +34,9 @@ type Props = {
   /** Column the new task lands in — controlled by the board. */
   status: TaskStatus;
   onStatusChange: (status: TaskStatus) => void;
+  /** When the board is scoped (?space=/?project=), new tasks inherit it. */
+  defaultSpaceId?: string | null;
+  defaultProjectId?: string | null;
 };
 
 const PRIORITIES: { id: TaskPriority; label: string }[] = [
@@ -51,6 +54,8 @@ export function CreateTaskDialog({
   onCreated,
   status,
   onStatusChange,
+  defaultSpaceId,
+  defaultProjectId,
 }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -66,6 +71,8 @@ export function CreateTaskDialog({
         description: description || undefined,
         status,
         priority,
+        spaceId: defaultSpaceId ?? null,
+        projectId: defaultProjectId ?? null,
       });
       if ("error" in result) {
         toast.error(result.error);

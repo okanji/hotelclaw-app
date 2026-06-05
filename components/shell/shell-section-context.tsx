@@ -26,7 +26,7 @@ function sectionFromPath(pathname: string): ShellSection | null {
   // sidebar lists them), so those routes keep the Home section active rather
   // than pinning their own.
   if (pathname.includes("/projects")) return "home";
-  if (pathname.includes("/teams")) return "home";
+  if (pathname.includes("/spaces")) return "home";
   if (pathname.includes("/labels")) return "home";
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/workflows")) return "workflows";
