@@ -39,6 +39,10 @@ type Props = {
   /** Width (px) — owned by `LeftShell`. */
   width: number;
   dragging: boolean;
+  /** Dragged below `min` — content fades to signal "release to collapse". */
+  tooSmall: boolean;
+  /** Spring-collapse in flight — content blurs as the width springs to zero. */
+  collapsing: boolean;
   handleProps: ResizeHandleProps;
 };
 
@@ -52,6 +56,8 @@ export function SectionSidebar({
   user,
   width,
   dragging,
+  tooSmall,
+  collapsing,
   handleProps,
 }: Props) {
   const { section } = useShellSection();
@@ -63,9 +69,17 @@ export function SectionSidebar({
 
   return (
     <aside
-      className="relative flex h-full shrink-0 flex-col bg-sidebar"
+      className="relative flex h-full shrink-0 flex-col overflow-hidden bg-sidebar"
       style={{ width }}
     >
+      {/* Content fades in the too-small zone and blurs as the spring-collapse
+          runs (ported from the prototype's aside-content treatment). The resize
+          handle below stays outside this wrapper so it remains draggable. */}
+      <div
+        data-too-small={tooSmall ? "" : undefined}
+        data-collapsing={collapsing ? "" : undefined}
+        className="flex min-h-0 w-full flex-1 flex-col transition-[filter,opacity] duration-500 ease-out data-collapsing:blur-[5px] data-too-small:pointer-events-none data-too-small:opacity-30"
+      >
       <SidebarHeader>
         <PropertySwitcher
           currentPropertyId={currentPropertyId}
@@ -119,21 +133,24 @@ export function SectionSidebar({
           <MeetingsSection propertyId={currentPropertyId} />
         </SectionPane>
       </SidebarContent>
+      </div>
 
-      {/* Drag-to-resize handle on the trailing edge. */}
+      {/* Drag-to-resize handle on the trailing edge. The prototype's pill
+          indicator sits centered on the seam and brightens on hover/drag;
+          drag it narrow to fade the content, release there to spring it shut. */}
       <div
         {...handleProps}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize sidebar"
-        className="group/resize absolute inset-y-0 right-0 z-20 w-1.5 cursor-col-resize touch-none"
+        className="group/resize absolute inset-y-0 right-0 z-20 flex w-2.5 cursor-col-resize touch-none items-center justify-center"
       >
         <span
           className={cn(
-            "absolute inset-y-0 right-0 w-px transition-colors",
+            "h-6 w-1 rounded-full transition-colors",
             dragging
-              ? "bg-primary/60"
-              : "bg-transparent group-hover/resize:bg-sidebar-border",
+              ? "bg-contrast-high/25"
+              : "bg-contrast-high/10 group-hover/resize:bg-contrast-high/20",
           )}
         />
       </div>

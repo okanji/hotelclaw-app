@@ -17,6 +17,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +54,15 @@ export type BoardFilters = {
 };
 
 export type ViewMode = "board" | "list" | "timeline" | "workload";
+
+/** How the board view groups columns — by status (default), space, or project. */
+export type BoardGroupBy = "status" | "space" | "project";
+
+const GROUP_LABELS: Record<BoardGroupBy, string> = {
+  status: "Status",
+  space: "Space",
+  project: "Project",
+};
 
 const STATUS_TABS: { id: StatusPreset; label: string }[] = [
   { id: "all", label: "All issues" },
@@ -82,6 +97,8 @@ type Props = {
   onToggleMine: () => void;
   view: ViewMode;
   onChangeView: (view: ViewMode) => void;
+  groupBy: BoardGroupBy;
+  onChangeGroupBy: (groupBy: BoardGroupBy) => void;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -97,6 +114,8 @@ export function BoardToolbar({
   onToggleMine,
   view,
   onChangeView,
+  groupBy,
+  onChangeGroupBy,
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -190,6 +209,33 @@ export function BoardToolbar({
             );
           })}
         </div>
+
+        {/* Group-by — only meaningful for the board view. */}
+        {view === "board" ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-[0.75rem]"
+                />
+              }
+            >
+              <Columns3 className="size-3.5" />
+              Group: {GROUP_LABELS[groupBy]}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={6}>
+              {(["status", "space", "project"] as BoardGroupBy[]).map((g) => (
+                <DropdownMenuItem key={g} onClick={() => onChangeGroupBy(g)}>
+                  <span className="flex-1">{GROUP_LABELS[g]}</span>
+                  {g === groupBy ? <Check className="size-3.5" /> : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
         {/* Search — compact input. `/` keyboard shortcut still focuses it. */}
         <div className="relative ml-1">

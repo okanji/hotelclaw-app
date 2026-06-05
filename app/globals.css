@@ -42,6 +42,11 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* Contrast ramp ported from the rail/aside prototype — used for the aside's
+     item rows, group labels, counts, dividers and the resize handle. */
+  --color-contrast-high: var(--foreground);
+  --color-contrast-medium: var(--muted-foreground);
+  --color-contrast-low: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

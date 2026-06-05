@@ -1,7 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
 import { useShellSection } from "./shell-section-context";
-import { useResizableWidth } from "./use-resizable-width";
+import { useResizableAside } from "./use-resizable-aside";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
 import { LastPathRecorder } from "./last-path-recorder";
@@ -40,13 +41,18 @@ export function LeftShell({
   defaultWidth?: number;
   activityDefaultWidth?: number;
 }) {
-  const { section, sidebarHidden } = useShellSection();
-  const standard = useResizableWidth(defaultWidth, STANDARD_WIDTH);
-  const activity = useResizableWidth(
-    activityDefaultWidth,
-    ACTIVITY_WIDTH,
-    "activity_sidebar_width",
+  const { section, sidebarHidden, setSidebarHidden } = useShellSection();
+  const collapse = useCallback(
+    () => setSidebarHidden(true),
+    [setSidebarHidden],
   );
+  const standard = useResizableAside(defaultWidth, STANDARD_WIDTH, {
+    onCollapse: collapse,
+  });
+  const activity = useResizableAside(activityDefaultWidth, ACTIVITY_WIDTH, {
+    cookieName: "activity_sidebar_width",
+    onCollapse: collapse,
+  });
   const resize = section === "activity" ? activity : standard;
 
   return (
@@ -67,6 +73,8 @@ export function LeftShell({
             user={user}
             width={resize.width}
             dragging={resize.dragging}
+            tooSmall={resize.tooSmall}
+            collapsing={resize.collapsing}
             handleProps={resize.handleProps}
           />
         )}

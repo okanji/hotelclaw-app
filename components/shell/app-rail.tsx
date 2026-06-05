@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
-import { cn } from "@/lib/utils";
 import { lastSectionPath } from "@/lib/shell/last-path";
 import {
   tasksQueryOptions,
@@ -23,9 +22,29 @@ import {
   documentsTreeQueryOptions,
   mentionsQueryOptions,
 } from "@/lib/query/section-queries";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
+import { RailLogo } from "./rail-logo";
+
+/**
+ * Icon-button styling ported 1:1 from the rail prototype. The rail is always
+ * dark, so icons are white; the active item gets a slightly raised `#333` fill
+ * with a top-left radial highlight + inset hairline ring, and a br gradient
+ * sheen overlay (the child span). Inactive items lift on hover.
+ */
+const railLinkClass =
+  "group relative flex size-10 items-center justify-center rounded-lg text-white transition-colors " +
+  "outline-hidden focus-visible:ring-2 focus-visible:ring-white/30 " +
+  "data-current:bg-[#333333] data-current:inset-ring-1 data-current:inset-ring-white/3 " +
+  "data-current:bg-radial-[at_0%_0%] data-current:from-white/10 data-current:to-transparent " +
+  "hover:not-data-current:bg-white/10";
 
 type RailItem = {
   section: ShellSection;
@@ -107,7 +126,7 @@ export function AppRail({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { client } = useChatContext();
-  const { section, setSection } = useShellSection();
+  const { section, setSection, setSidebarHidden } = useShellSection();
   const { unseenCount } = useNotifications(userId);
 
   const items = useMemo<RailItem[]>(
@@ -224,6 +243,9 @@ export function AppRail({
 
   function handleClick(item: RailItem) {
     setSection(item.section);
+    // Any rail click reopens a drag-collapsed sidebar — do this before the
+    // early returns so clicking the already-active section still restores it.
+    setSidebarHidden(false);
     if (!item.href) return;
     // Skip navigation when the user is already viewing this section's content
     // — just swap the sidebar, don't yank them off the page. Chat and DMs now
@@ -266,59 +288,66 @@ export function AppRail({
   }
 
   return (
-    <aside
-      // Rail leads with its first icon; the secondary sidebar leads with the
-      // property switcher. Each column owns its own top, separated by the
-      // `border-r` between them — no synthetic baseline to maintain.
-      className="flex h-full w-(--rail-width) shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar pt-3 pb-3"
-      aria-label="Sections"
-    >
-      <div className="flex flex-col items-center gap-1">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const isActive = section === item.section;
-        const showBadge = item.section === "activity" && unseenCount > 0;
-        return (
-          <button
-            key={item.section}
-            type="button"
-            onClick={() => handleClick(item)}
-            aria-current={isActive ? "page" : undefined}
-            title={item.label}
-            className="group flex w-14 flex-col items-center gap-1 rounded-md py-1 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-          >
-            <span
-              className={cn(
-                "relative flex size-9 items-center justify-center rounded-lg transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 group-hover:bg-sidebar-accent/60 group-hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <Icon className="size-[18px]" />
-              {showBadge ? (
-                <span className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] leading-none font-semibold text-destructive-foreground tabular-nums">
-                  {unseenCount > 99 ? "99+" : unseenCount}
-                </span>
-              ) : null}
-            </span>
-            <span
-              className={cn(
-                "text-[11px] leading-none",
-                isActive
-                  ? "font-medium text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70",
-              )}
-            >
-              {item.label}
-            </span>
-          </button>
-        );
-      })}
-      </div>
-      <div className="mt-auto">
-        <UserMenu user={user} />
-      </div>
-    </aside>
+    <TooltipProvider delay={0}>
+      <aside
+        // Always-dark floating rail (ported from the prototype): a rounded
+        // `#090909` card with a soft drop shadow, separated from the secondary
+        // sidebar by the surrounding `bg-sidebar`. Icon-only — labels live in
+        // hover tooltips. `m-2` matches the inset card's gutter so the whole
+        // shell reads as evenly-spaced floating panels.
+        className="m-2 flex w-16 shrink-0 flex-col items-center rounded-xl bg-[#090909] p-3 shadow-[0px_259px_103px_rgba(0,0,0,0.03),0px_146px_87px_rgba(0,0,0,0.09),0px_65px_65px_rgba(0,0,0,0.15),0px_16px_36px_rgba(0,0,0,0.17)]"
+        aria-label="Sections"
+      >
+        <figure className="mb-6 mt-1">
+          <RailLogo />
+        </figure>
+
+        <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <ul className="flex flex-col gap-1.5">
+            {items.map((item) => {
+              const Icon = item.icon;
+              const isActive = section === item.section;
+              const showBadge =
+                item.section === "activity" && unseenCount > 0;
+              return (
+                <li key={item.section}>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          onClick={() => handleClick(item)}
+                          aria-label={item.label}
+                          aria-current={isActive ? "page" : undefined}
+                          {...(isActive ? { "data-current": "" } : {})}
+                          className={railLinkClass}
+                        >
+                          <Icon className="size-[18px]" />
+                          {showBadge ? (
+                            <span className="absolute -top-0.5 -right-0.5 z-10 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] leading-none font-semibold text-destructive-foreground tabular-nums">
+                              {unseenCount > 99 ? "99+" : unseenCount}
+                            </span>
+                          ) : null}
+                          {/* br gradient sheen — visible only on the active item */}
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 hidden rounded-[inherit] bg-linear-to-br from-white/15 to-transparent to-35% group-data-current:block"
+                          />
+                        </button>
+                      }
+                    />
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                  </Tooltip>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="mt-3 shrink-0">
+          <UserMenu user={user} />
+        </div>
+      </aside>
+    </TooltipProvider>
   );
 }

@@ -10,8 +10,14 @@ import { PageHeader } from "@/components/shell/page-header";
 import { CreateTaskDialog } from "./create-task-dialog";
 import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
-import { BoardToolbar, type BoardFilters, type ViewMode } from "./board-toolbar";
+import {
+  BoardToolbar,
+  type BoardFilters,
+  type BoardGroupBy,
+  type ViewMode,
+} from "./board-toolbar";
 import { KanbanView } from "./kanban-view";
+import { KanbanGroupedView } from "./kanban-grouped-view";
 import { ListView } from "./list-view";
 import { TimelineView } from "./timeline-view";
 import { WorkloadView } from "./workload-view";
@@ -75,6 +81,7 @@ export function TasksBoard({
   // honored separately for shareable "My tasks" links).
   const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS);
   const [view, setView] = useState<ViewMode>("board");
+  const [groupBy, setGroupBy] = useState<BoardGroupBy>("status");
   const [createOpen, setCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<TaskStatus>("todo");
 
@@ -217,16 +224,27 @@ export function TasksBoard({
         onToggleMine={toggleMine}
         view={view}
         onChangeView={setView}
+        groupBy={groupBy}
+        onChangeGroupBy={setGroupBy}
       />
 
       {view === "board" ? (
-        <KanbanView
-          propertyId={propertyId}
-          tasks={filteredTasks}
-          assignees={assignees}
-          hideDone={hideDone}
-          onOpenFullCreate={openCreate}
-        />
+        groupBy === "status" ? (
+          <KanbanView
+            propertyId={propertyId}
+            tasks={filteredTasks}
+            assignees={assignees}
+            hideDone={hideDone}
+            onOpenFullCreate={openCreate}
+          />
+        ) : (
+          <KanbanGroupedView
+            propertyId={propertyId}
+            tasks={filteredTasks}
+            assignees={assignees}
+            groupBy={groupBy}
+          />
+        )
       ) : view === "list" ? (
         <ListView
           propertyId={propertyId}

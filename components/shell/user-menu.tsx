@@ -49,9 +49,10 @@ export function UserMenu({ user }: { user: User }) {
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "flex size-9 items-center justify-center rounded-lg outline-hidden transition-colors",
-            "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            "focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+            "flex size-10 items-center justify-center rounded-lg outline-hidden transition-colors",
+            // Always-dark rail — white-on-dark, independent of theme.
+            "text-white/70 hover:bg-white/10 hover:text-white",
+            "focus-visible:ring-2 focus-visible:ring-white/30",
           )}
           title={displayName}
           aria-label={`Account menu for ${displayName}`}

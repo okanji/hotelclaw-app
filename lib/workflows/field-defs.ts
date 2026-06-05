@@ -443,6 +443,20 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       label: "Assign to",
       placeholder: "Who to assign it to",
     },
+    {
+      kind: "template",
+      key: "space_id",
+      label: "Move to space",
+      placeholder: "Space id, or {{trigger.new.space_id}}",
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "template",
+      key: "project_id",
+      label: "Move to project",
+      placeholder: "Project id, or {{trigger.new.project_id}}",
+      help: TEMPLATE_HELP,
+    },
   ],
   "action.task.assign": [
     {
