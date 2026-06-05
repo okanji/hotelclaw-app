@@ -167,11 +167,8 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
               {teams.map((t) => (
                 <SidebarMenuItem key={t.id}>
                   <SidebarMenuButton
-                    render={
-                      <Link
-                        href={`/p/${propertyId}/projects?team=${t.id}`}
-                      />
-                    }
+                    render={<Link href={`/p/${propertyId}/teams/${t.id}`} />}
+                    isActive={pathname.includes(`/teams/${t.id}`)}
                     tooltip={t.name}
                   >
                     <Users className={textDot(t.color)} />

@@ -72,6 +72,11 @@ class BlockReorderView {
   private hoveredBlock: { pos: number; nodeSize: number; rect: DOMRect } | null =
     null;
   private drag: DragSession | null = null;
+  // Throttle pointermove processing to ~60fps. The listener runs on
+  // `document` (so it catches the gutter region between view.dom and the
+  // handle), which is busy — but the work per event is small (a few
+  // getBoundingClientRect calls + iteration of top-level block children).
+  private lastMoveTime = 0;
 
   constructor(view: EditorView) {
     this.view = view;
@@ -88,14 +93,16 @@ class BlockReorderView {
     this.handle = handle;
 
     this.onPointerMove = this.onPointerMove.bind(this);
-    this.onPointerLeave = this.onPointerLeave.bind(this);
     this.onHandlePointerDown = this.onHandlePointerDown.bind(this);
     this.onDragMove = this.onDragMove.bind(this);
     this.onDragEnd = this.onDragEnd.bind(this);
     this.onScroll = this.onScroll.bind(this);
 
-    view.dom.addEventListener("pointermove", this.onPointerMove);
-    view.dom.addEventListener("pointerleave", this.onPointerLeave);
+    // Listen on `document` (not view.dom) so we get a continuous signal as
+    // the cursor crosses the visual gutter between the prose and the
+    // handle — pointer enter/leave on individual elements is too brittle
+    // because the gutter is several pixels of "neither" element.
+    document.addEventListener("pointermove", this.onPointerMove);
     handle.addEventListener("pointerdown", this.onHandlePointerDown);
     // The handle is position: fixed, so when the editor scrolls we need
     // to either reposition or hide it. Hiding is simpler and matches
@@ -105,8 +112,7 @@ class BlockReorderView {
 
   destroy() {
     this.endDrag(); // belt and braces if drag was in flight
-    this.view.dom.removeEventListener("pointermove", this.onPointerMove);
-    this.view.dom.removeEventListener("pointerleave", this.onPointerLeave);
+    document.removeEventListener("pointermove", this.onPointerMove);
     this.handle.removeEventListener("pointerdown", this.onHandlePointerDown);
     window.removeEventListener("scroll", this.onScroll, true);
     this.handle.remove();
@@ -114,20 +120,58 @@ class BlockReorderView {
 
   // ── Hover ──────────────────────────────────────────────────────────────
 
+  /**
+   * Document-level pointermove. Hit-tests the cursor against:
+   *   (1) the editor's bounding box (with a buffer for the gutter), and
+   *   (2) a block at the cursor's Y, with the cursor's X falling inside
+   *       the block's column (with a generous left buffer for the handle).
+   *
+   * Shows the handle when both checks pass; hides otherwise. The handle
+   * lives in the LEFT gutter outside view.dom, so we can't rely on
+   * view.dom's enter/leave events — pointermove on document is the only
+   * thing that fires uniformly across the gutter region.
+   */
   private onPointerMove(event: PointerEvent) {
     if (this.drag) return; // ignore hover while dragging
+
+    // Throttle: do at most one hit-test per ~16ms.
+    const now = performance.now();
+    if (now - this.lastMoveTime < 16) return;
+    this.lastMoveTime = now;
+
+    // Cheap early-out: cursor far from the editor → hide.
+    const editorRect = this.view.dom.getBoundingClientRect();
+    const FAR_BUFFER = 120;
+    if (
+      event.clientX < editorRect.left - FAR_BUFFER ||
+      event.clientX > editorRect.right + FAR_BUFFER ||
+      event.clientY < editorRect.top - FAR_BUFFER ||
+      event.clientY > editorRect.bottom + FAR_BUFFER
+    ) {
+      this.hideHandle();
+      return;
+    }
+
     const block = this.findBlockAtPoint(event.clientY);
     if (!block) {
       this.hideHandle();
       return;
     }
+
+    // Cursor must be in the block's column (with a left-side buffer wide
+    // enough to cover the handle's gutter position — handle is at
+    // block.left - HANDLE_WIDTH - HANDLE_GAP = block.left - 26).
+    const COLUMN_BUFFER = 60;
+    if (
+      event.clientX < block.rect.left - COLUMN_BUFFER ||
+      event.clientX > block.rect.right + COLUMN_BUFFER
+    ) {
+      this.hideHandle();
+      return;
+    }
+
     this.hoveredBlock = block;
     this.positionHandle(block.rect);
-  }
-
-  private onPointerLeave() {
-    if (this.drag) return;
-    this.hideHandle();
   }
 
   private onScroll() {

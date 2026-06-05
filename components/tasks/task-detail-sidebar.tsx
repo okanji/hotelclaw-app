@@ -43,6 +43,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
+import { TaskProjectTeamPicker } from "./task-project-team-picker";
+import { labelsQueryOptions } from "@/lib/query/label-queries";
+import type { EntityColor } from "@/lib/db/types";
+
+/** Catalog accent dots for label chips. */
+const LABEL_DOT: Record<EntityColor, string> = {
+  slate: "bg-slate-500",
+  blue: "bg-blue-500",
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  violet: "bg-violet-500",
+};
 import { taskDetailMetaQueryOptions } from "@/lib/query/section-queries";
 import { taskHref } from "@/lib/tasks/task-href";
 import type {
@@ -150,6 +163,10 @@ export function TaskDetailSidebar({
   onAddSubIssue: () => void;
   onAutomate: () => void;
 }) {
+  const { data: labelCatalog = [] } = useQuery(labelsQueryOptions(propertyId));
+  const labelColor = (name: string): EntityColor =>
+    labelCatalog.find((l) => l.name.toLowerCase() === name.toLowerCase())
+      ?.color ?? "slate";
   return (
     <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border/60">
       <SidebarSection title="Properties" defaultOpen>
@@ -162,10 +179,18 @@ export function TaskDetailSidebar({
           onSelect={onAssigneeChange}
         />
         <DueDatePicker dueAt={dueAt} onChange={onDueAtChange} />
+        <TaskProjectTeamPicker propertyId={propertyId} taskId={taskId} />
         {(meta?.labels ?? []).map((label) => (
           <MetaChipRow
             key={label}
-            icon={<Tag className="size-3.5" />}
+            icon={
+              <span
+                className={cn(
+                  "size-2.5 rounded-full",
+                  LABEL_DOT[labelColor(label)],
+                )}
+              />
+            }
             label={label}
             onRemove={() => removers.removeLabel(label)}
           />
@@ -176,24 +201,6 @@ export function TaskDetailSidebar({
           muted={!(meta?.labels.length ?? 0)}
           onClick={openers.addLabel}
         />
-        {meta?.projectName ? (
-          <MetaChipRow
-            icon={
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-            }
-            label={meta.projectName}
-            onRemove={removers.removeProject}
-          />
-        ) : (
-          <SidebarActionRow
-            icon={
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-            }
-            label="Add to project"
-            muted
-            onClick={openers.addProject}
-          />
-        )}
       </SidebarSection>
 
       <SidebarSection title="Links & attachments" defaultOpen>

@@ -12,6 +12,8 @@ export type Task = {
   parent_id?: string | null;
   labels?: string[];
   project_name?: string | null;
+  team_id?: string | null;
+  project_id?: string | null;
   /** ISO timestamps for the timeline/Gantt view (migration 0017). */
   scheduled_start?: string | null;
   scheduled_end?: string | null;

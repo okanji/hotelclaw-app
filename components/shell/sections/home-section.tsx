@@ -9,6 +9,7 @@ import {
   FolderKanban,
   Inbox,
   ListChecks,
+  Tag,
   UserCheck,
 } from "lucide-react";
 import {
@@ -57,6 +58,7 @@ export function HomeSection({ propertyId }: { propertyId: string }) {
     },
     { label: "All tasks", icon: ListChecks, href: `${base}/tasks`, match: `${base}/tasks` },
     { label: "Inbox", icon: Inbox, href: `${base}/activity`, match: `${base}/activity` },
+    { label: "Labels", icon: Tag, href: `${base}/labels`, match: `${base}/labels` },
   ];
 
   return (

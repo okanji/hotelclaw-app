@@ -3,12 +3,13 @@ import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { EntityColor, ProjectStatus } from "@/lib/db/types";
 
 /**
- * React Query options for Teams + Projects. Both fetch directly via the browser
+ * React Query options for Spaces + Projects. Both fetch directly via the browser
  * Supabase client (RLS scopes rows to property members). Shared by the Home
- * sidebar and the Projects surfaces.
+ * sidebar and the Spaces/Projects surfaces. A Space is the primary department
+ * container (formerly "Team"); a Project is a cross-Space initiative.
  */
 
-export type TeamRow = {
+export type SpaceRow = {
   id: string;
   property_id: string;
   name: string;
@@ -30,20 +31,20 @@ export type ProjectRow = {
   position: number;
 };
 
-export function teamsQueryOptions(propertyId: string) {
+export function spacesQueryOptions(propertyId: string) {
   return queryOptions({
-    queryKey: ["teams", propertyId] as const,
-    queryFn: async (): Promise<TeamRow[]> => {
+    queryKey: ["spaces", propertyId] as const,
+    queryFn: async (): Promise<SpaceRow[]> => {
       const supabase = createBrowserClient();
       const { data, error } = await supabase
-        .from("teams")
+        .from("spaces")
         .select("id, property_id, name, color, icon, position")
         .eq("property_id", propertyId)
         .is("archived_at", null)
         .order("position", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) throw new Error(error.message);
-      return (data ?? []) as TeamRow[];
+      return (data ?? []) as SpaceRow[];
     },
   });
 }

@@ -38,6 +38,11 @@ import {
 } from "./dashboard-registry";
 import { useDashboardLayout } from "./use-dashboard-layout";
 import { EditorialSection, Stats } from "./editorial-section";
+import {
+  DashboardFilterMenu,
+  DashboardFilterProvider,
+  type DashboardFilter,
+} from "./dashboard-filter";
 
 /**
  * Property "Home" — a personalized dashboard in the editorial language of the
@@ -59,6 +64,7 @@ export function HomeView({
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [filter, setFilter] = useState<DashboardFilter>({ kind: "all" });
   const greeting = useGreeting(userName);
 
   const { order, visible, hidden, isHidden, setOrder, toggleHidden, reset } =
@@ -80,6 +86,7 @@ export function HomeView({
   }
 
   return (
+    <DashboardFilterProvider value={filter}>
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-col gap-10">
         <div className="flex items-end justify-between gap-6">
@@ -87,6 +94,11 @@ export function HomeView({
             {propertyName}
           </p>
           <div className="flex items-center gap-1.5">
+            <DashboardFilterMenu
+              propertyId={propertyId}
+              value={filter}
+              onChange={setFilter}
+            />
             <CustomizeMenu
               visibleCount={visible.length}
               isHidden={isHidden}
@@ -185,6 +197,7 @@ export function HomeView({
         propertyId={propertyId}
       />
     </div>
+    </DashboardFilterProvider>
   );
 }
 

@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
 import { Stats, WidgetEmpty } from "../editorial-section";
+import { applyTaskFilter, useDashboardFilter } from "../dashboard-filter";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 6;
@@ -18,8 +19,13 @@ const WEEKS = 6;
 /** Company-wide momentum: tasks completed this week + a 6-week velocity area
  *  chart. "Now" is captured once in an effect so the week math stays pure. */
 export function PropertyPulseWidget({ propertyId }: { propertyId: string }) {
-  const { data: tasks = [], isPending } = useQuery(
+  const { data: allTasks = [], isPending } = useQuery(
     tasksQueryOptions(propertyId),
+  );
+  const filter = useDashboardFilter();
+  const tasks = useMemo(
+    () => applyTaskFilter(allTasks, filter),
+    [allTasks, filter],
   );
   const [nowTs, setNowTs] = useState<number | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect

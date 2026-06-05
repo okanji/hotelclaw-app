@@ -183,10 +183,15 @@ export interface Database {
           // TSV plaintext rendering of the sheet body — drives body_fts.
           sheet_text: string | null;
           sheet_updated_at: string | null;
-          team_id: string | null;
+          space_id: string | null;
           project_id: string | null;
           created_by: string | null;
           last_edited_by: string | null;
+          // Notion-style document header — both nullable, added in 0037.
+          // `icon` is a single emoji or short symbol; `cover_url` is a URL
+          // into the `documents-images` bucket.
+          icon: string | null;
+          cover_url: string | null;
           archived_at: string | null;
           created_at: string;
           updated_at: string;
@@ -205,10 +210,12 @@ export interface Database {
           sheet_state?: unknown;
           sheet_text?: string | null;
           sheet_updated_at?: string | null;
-          team_id?: string | null;
+          space_id?: string | null;
           project_id?: string | null;
           created_by?: string | null;
           last_edited_by?: string | null;
+          icon?: string | null;
+          cover_url?: string | null;
           archived_at?: string | null;
         };
         Update: Partial<{
@@ -223,9 +230,11 @@ export interface Database {
           sheet_state: unknown;
           sheet_text: string | null;
           sheet_updated_at: string | null;
-          team_id: string | null;
+          space_id: string | null;
           project_id: string | null;
           last_edited_by: string | null;
+          icon: string | null;
+          cover_url: string | null;
           archived_at: string | null;
         }>;
         Relationships: [];
@@ -294,7 +303,7 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
-          team_id: string | null;
+          space_id: string | null;
           project_id: string | null;
           overdue_notified_at: string | null;
           created_at: string;
@@ -316,7 +325,7 @@ export interface Database {
           parent_id?: string | null;
           labels?: string[];
           project_name?: string | null;
-          team_id?: string | null;
+          space_id?: string | null;
           project_id?: string | null;
           overdue_notified_at?: string | null;
         };
@@ -333,7 +342,7 @@ export interface Database {
           parent_id: string | null;
           labels: string[];
           project_name: string | null;
-          team_id: string | null;
+          space_id: string | null;
           project_id: string | null;
           overdue_notified_at: string | null;
         }>;
@@ -377,7 +386,7 @@ export interface Database {
         Update: Partial<Record<string, never>>;
         Relationships: [];
       };
-      teams: {
+      spaces: {
         Row: {
           id: string;
           property_id: string;
@@ -409,14 +418,14 @@ export interface Database {
         }>;
         Relationships: [];
       };
-      team_members: {
+      space_members: {
         Row: {
-          team_id: string;
+          space_id: string;
           user_id: string;
           created_at: string;
         };
         Insert: {
-          team_id: string;
+          space_id: string;
           user_id: string;
           created_at?: string;
         };
@@ -467,15 +476,15 @@ export interface Database {
         }>;
         Relationships: [];
       };
-      project_teams: {
+      project_spaces: {
         Row: {
           project_id: string;
-          team_id: string;
+          space_id: string;
           created_at: string;
         };
         Insert: {
           project_id: string;
-          team_id: string;
+          space_id: string;
           created_at?: string;
         };
         Update: Partial<Record<string, never>>;

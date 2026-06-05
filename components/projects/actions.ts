@@ -26,21 +26,21 @@ async function projectPropertyId(
   return data?.property_id ?? null;
 }
 
-async function teamPropertyId(
+async function spacePropertyId(
   supabase: Client,
-  teamId: string,
+  spaceId: string,
 ): Promise<string | null> {
   const { data } = await supabase
-    .from("teams")
+    .from("spaces")
     .select("property_id")
-    .eq("id", teamId)
+    .eq("id", spaceId)
     .maybeSingle();
   return data?.property_id ?? null;
 }
 
 async function nextPosition(
   supabase: Client,
-  table: "teams" | "projects",
+  table: "spaces" | "projects",
   propertyId: string,
 ): Promise<number> {
   const { data } = await supabase
@@ -53,9 +53,9 @@ async function nextPosition(
   return (data?.position ?? 0) + POSITION_GAP;
 }
 
-/* ── Teams ───────────────────────────────────────────────────────────────── */
+/* ── Spaces ───────────────────────────────────────────────────────────────── */
 
-export async function createTeam(
+export async function createSpace(
   propertyId: string,
   name: string,
 ): Promise<{ id: string } | ActionError> {
@@ -70,9 +70,9 @@ export async function createTeam(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  const position = await nextPosition(supabase, "teams", pid.data);
+  const position = await nextPosition(supabase, "spaces", pid.data);
   const { data, error } = await supabase
-    .from("teams")
+    .from("spaces")
     .insert({
       property_id: pid.data,
       name: parsedName.data,
@@ -81,27 +81,27 @@ export async function createTeam(
     })
     .select("id")
     .single();
-  if (error || !data) return { error: error?.message ?? "Could not create team" };
+  if (error || !data) return { error: error?.message ?? "Could not create space" };
 
   revalidatePath(`/p/${pid.data}/projects`);
   return { id: data.id };
 }
 
-export async function renameTeam(
-  teamId: string,
+export async function renameSpace(
+  spaceId: string,
   name: string,
 ): Promise<{ ok: true } | ActionError> {
-  const id = Uuid.safeParse(teamId);
+  const id = Uuid.safeParse(spaceId);
   const parsedName = Name.safeParse(name);
-  if (!id.success) return { error: "Invalid team" };
+  if (!id.success) return { error: "Invalid space" };
   if (!parsedName.success) return { error: "Name is required" };
 
   const supabase = await createClient();
-  const propertyId = await teamPropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Team not found" };
+  const propertyId = await spacePropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Space not found" };
 
   const { error } = await supabase
-    .from("teams")
+    .from("spaces")
     .update({ name: parsedName.data })
     .eq("id", id.data);
   if (error) return { error: error.message };
@@ -109,18 +109,47 @@ export async function renameTeam(
   return { ok: true };
 }
 
-export async function archiveTeam(
-  teamId: string,
+const SpacePatch = z.object({
+  name: Name.optional(),
+  color: z
+    .enum(["slate", "blue", "green", "amber", "rose", "violet"])
+    .optional(),
+});
+
+export async function updateSpace(
+  spaceId: string,
+  patch: z.input<typeof SpacePatch>,
 ): Promise<{ ok: true } | ActionError> {
-  const id = Uuid.safeParse(teamId);
-  if (!id.success) return { error: "Invalid team" };
+  const id = Uuid.safeParse(spaceId);
+  if (!id.success) return { error: "Invalid space" };
+  const parsed = SpacePatch.safeParse(patch);
+  if (!parsed.success) return { error: "Invalid input" };
 
   const supabase = await createClient();
-  const propertyId = await teamPropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Team not found" };
+  const propertyId = await spacePropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Space not found" };
 
   const { error } = await supabase
-    .from("teams")
+    .from("spaces")
+    .update(parsed.data)
+    .eq("id", id.data);
+  if (error) return { error: error.message };
+  revalidatePath(`/p/${propertyId}/projects`);
+  return { ok: true };
+}
+
+export async function archiveSpace(
+  spaceId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(spaceId);
+  if (!id.success) return { error: "Invalid space" };
+
+  const supabase = await createClient();
+  const propertyId = await spacePropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Space not found" };
+
+  const { error } = await supabase
+    .from("spaces")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", id.data);
   if (error) return { error: error.message };
@@ -212,24 +241,24 @@ export async function archiveProject(
   return { ok: true };
 }
 
-export async function setProjectTeams(
+export async function setProjectSpaces(
   projectId: string,
-  teamIds: string[],
+  spaceIds: string[],
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(projectId);
   if (!id.success) return { error: "Invalid project" };
-  const ids = z.array(Uuid).safeParse(teamIds);
-  if (!ids.success) return { error: "Invalid teams" };
+  const ids = z.array(Uuid).safeParse(spaceIds);
+  if (!ids.success) return { error: "Invalid spaces" };
 
   const supabase = await createClient();
   const propertyId = await projectPropertyId(supabase, id.data);
   if (!propertyId) return { error: "Project not found" };
 
   // Replace the membership set: clear, then insert the new rows.
-  await supabase.from("project_teams").delete().eq("project_id", id.data);
+  await supabase.from("project_spaces").delete().eq("project_id", id.data);
   if (ids.data.length > 0) {
-    const { error } = await supabase.from("project_teams").insert(
-      ids.data.map((teamId) => ({ project_id: id.data, team_id: teamId })),
+    const { error } = await supabase.from("project_spaces").insert(
+      ids.data.map((spaceId) => ({ project_id: id.data, space_id: spaceId })),
     );
     if (error) return { error: error.message };
   }
@@ -237,7 +266,7 @@ export async function setProjectTeams(
   return { ok: true };
 }
 
-/* ── Assigning work to a team / project ──────────────────────────────────── */
+/* ── Assigning work to a space / project ──────────────────────────────────── */
 
 export async function setTaskProject(
   taskId: string,
@@ -254,16 +283,16 @@ export async function setTaskProject(
   return { ok: true };
 }
 
-export async function setTaskTeam(
+export async function setTaskSpace(
   taskId: string,
-  teamId: string | null,
+  spaceId: string | null,
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(taskId);
   if (!id.success) return { error: "Invalid task" };
   const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
-    .update({ team_id: teamId })
+    .update({ space_id: spaceId })
     .eq("id", id.data);
   if (error) return { error: error.message };
   return { ok: true };
@@ -279,6 +308,21 @@ export async function setDocumentProject(
   const { error } = await supabase
     .from("documents")
     .update({ project_id: projectId })
+    .eq("id", id.data);
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+export async function setDocumentSpace(
+  documentId: string,
+  spaceId: string | null,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(documentId);
+  if (!id.success) return { error: "Invalid document" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("documents")
+    .update({ space_id: spaceId })
     .eq("id", id.data);
   if (error) return { error: error.message };
   return { ok: true };

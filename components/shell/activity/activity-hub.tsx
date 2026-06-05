@@ -3,23 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AtSign,
   Bell,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  CircleDot,
-  FileText,
   Hash,
   ListChecks,
   Mail,
   MessageSquareText,
-  Sparkles,
   Sun,
   Sunrise,
   Sunset,
   UserMinus,
   Video,
+  FileText,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -30,6 +24,14 @@ import {
 import { calendarEventsQueryOptions } from "@/lib/calendar/query-options";
 import { useNotifications } from "@/components/shell/use-notifications";
 import { channelHref } from "@/lib/chat/channel-href";
+import { StatusIcon } from "@/components/tasks/task-icons";
+import {
+  DividerList,
+  ROW_CLASS,
+  Stats,
+  WidgetEmpty,
+  relativeShort,
+} from "@/components/home/editorial-section";
 import type {
   CalendarEvent,
   MeetingEvent,
@@ -47,9 +49,11 @@ import type {
 
 /**
  * Personal activity hub — the default view of the main pane when no
- * notification is selected in the sidebar. Pulls from the same warmed
- * caches the rail already prefetches (notifications, tasks, calendar,
- * documents), so first paint is hydrated.
+ * notification is selected in the sidebar. Rendered in the same editorial
+ * language as Home (`components/home`): an oversized greeting, an inline
+ * stat row, then stacked kicker + heading + hairline sections laid out with
+ * whitespace and dividers rather than cards. Pulls from the warmed caches the
+ * rail already prefetches (notifications, tasks, calendar, documents).
  */
 export function ActivityHub({
   propertyId,
@@ -69,10 +73,7 @@ export function ActivityHub({
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const docs = useMemo(() => docsQuery.data ?? [], [docsQuery.data]);
-  const events = useMemo(
-    () => calendarQuery.data ?? [],
-    [calendarQuery.data],
-  );
+  const events = useMemo(() => calendarQuery.data ?? [], [calendarQuery.data]);
 
   const myTasks = useMemo(
     () =>
@@ -94,23 +95,22 @@ export function ActivityHub({
   );
 
   return (
-    <div className="@container/hub min-h-full bg-background">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-8 @3xl/hub:px-10 @3xl/hub:py-10">
-        <GreetingHeader
-          userName={userName}
-          counts={todayCounts}
-        />
+    <div className="@container/hub mx-auto w-full max-w-6xl px-8 pt-10 pb-16 sm:px-14">
+      <GreetingHeader userName={userName} counts={todayCounts} />
 
+      <hr className="my-12 border-border" />
+
+      <div className="flex flex-col gap-16">
         <UpNextSection items={upNext} propertyId={propertyId} />
 
-        <div className="grid grid-cols-1 gap-8 @3xl/hub:grid-cols-5 @3xl/hub:gap-10">
-          <div className="@3xl/hub:col-span-3">
+        <div className="grid grid-cols-1 gap-x-10 gap-y-16 @4xl/hub:grid-cols-5">
+          <div className="@4xl/hub:col-span-3">
             <ActivityTimeline
               notifications={notifications}
               propertyId={propertyId}
             />
           </div>
-          <div className="flex flex-col gap-8 @3xl/hub:col-span-2">
+          <div className="flex flex-col gap-16 @4xl/hub:col-span-2">
             <YourTasksSection tasks={myTasks} propertyId={propertyId} />
             <RecentDocsSection docs={docs} propertyId={propertyId} />
           </div>
@@ -121,7 +121,7 @@ export function ActivityHub({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Greeting + stat strip                                                     */
+/*  Greeting + stat row                                                       */
 /* -------------------------------------------------------------------------- */
 
 function GreetingHeader({
@@ -137,7 +137,7 @@ function GreetingHeader({
   };
 }) {
   const hour = new Date().getHours();
-  const { greeting, Icon } = greetingForHour(hour);
+  const { greeting } = greetingForHour(hour);
   const firstName = (userName ?? "").split(" ")[0]?.trim() || null;
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -147,79 +147,70 @@ function GreetingHeader({
 
   return (
     <header className="flex flex-col gap-5">
-      <div className="flex items-start gap-3">
-        <span
-          className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
-          aria-hidden="true"
-        >
-          <Icon className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-pretty text-2xl font-semibold tracking-tight text-foreground @3xl/hub:text-3xl">
-            {greeting}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {today} · Here&apos;s what&apos;s happening across your workspace.
-          </p>
-        </div>
+      <h1 className="text-[3.25rem] leading-none font-semibold tracking-tight text-foreground sm:text-[4rem]">
+        {greeting}
+        {firstName ? `, ${firstName}` : ""}
+      </h1>
+      <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
+        {today} · Here&apos;s what&apos;s happening across your workspace.
+      </p>
+      <div className="pt-3">
+        <Stats
+          items={[
+            { label: "unread", value: counts.unread },
+            { label: "mentions today", value: counts.mentionsToday },
+            { label: "tasks due today", value: counts.tasksDueToday },
+            { label: "meetings today", value: counts.meetingsToday },
+          ]}
+        />
       </div>
-
-      <StatStrip counts={counts} />
     </header>
   );
 }
 
-function StatStrip({
-  counts,
+/* -------------------------------------------------------------------------- */
+/*  Editorial section shell                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Kicker + heading over a hairline rule — the Home "EditorialSection" header,
+ *  minus the drag/hide affordances (the activity hub isn't rearrangeable). */
+function Section({
+  kicker,
+  title,
+  action,
+  children,
 }: {
-  counts: {
-    unread: number;
-    mentionsToday: number;
-    tasksDueToday: number;
-    meetingsToday: number;
-  };
+  kicker: string;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
 }) {
-  const items: Array<{ label: string; value: number; icon: React.ReactNode }> =
-    [
-      {
-        label: "Unread",
-        value: counts.unread,
-        icon: <Bell className="size-3.5" />,
-      },
-      {
-        label: "Mentions today",
-        value: counts.mentionsToday,
-        icon: <AtSign className="size-3.5" />,
-      },
-      {
-        label: "Tasks due today",
-        value: counts.tasksDueToday,
-        icon: <ListChecks className="size-3.5" />,
-      },
-      {
-        label: "Meetings today",
-        value: counts.meetingsToday,
-        icon: <Video className="size-3.5" />,
-      },
-    ];
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border @xl/hub:grid-cols-4">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className="flex flex-col gap-1 bg-card px-4 py-3"
-        >
-          <dt className="flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
-            <span aria-hidden="true">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
-          </dt>
-          <dd className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-            {item.value}
-          </dd>
+    <section className="min-w-0">
+      <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+            {kicker}
+          </span>
+          <h2 className="truncate text-[1.375rem] font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
         </div>
-      ))}
-    </dl>
+        {action ? <div className="shrink-0 pb-0.5">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SectionLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link
+      href={href}
+      className="text-[0.8125rem] font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -255,98 +246,48 @@ function UpNextSection({
   propertyId: string;
 }) {
   return (
-    <section aria-labelledby="up-next-heading" className="flex flex-col gap-3">
-      <SectionTitle
-        id="up-next-heading"
-        title="Up next"
-        action={
-          <Link
-            href={`/p/${propertyId}/calendar`}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            Open calendar
-          </Link>
-        }
-      />
+    <Section
+      kicker="On your calendar"
+      title="Up next"
+      action={
+        <SectionLink href={`/p/${propertyId}/calendar`}>
+          Open calendar
+        </SectionLink>
+      }
+    >
       {items.length === 0 ? (
-        <EmptyRow icon={<CalendarDays className="size-4" />}>
-          Nothing scheduled for the rest of today.
-        </EmptyRow>
+        <WidgetEmpty>Nothing scheduled for the rest of today.</WidgetEmpty>
       ) : (
-        <ul role="list" className="divide-y divide-border rounded-xl border border-border bg-card">
+        <DividerList>
           {items.map((item) => (
             <li key={`${item.kind}:${item.id}`}>
               <Link
                 href={item.href}
-                className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40"
+                className={cn(
+                  ROW_CLASS,
+                  "rounded-md transition-colors hover:bg-muted",
+                )}
               >
-                <TimeBlock
-                  start={item.kind === "meeting" ? item.start : item.due}
-                  allDay={item.kind === "meeting" ? item.allDay : false}
-                />
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                  {item.kind === "meeting" ? (
-                    <Video className="size-3.5" />
-                  ) : (
-                    <ListChecks className="size-3.5" />
-                  )}
+                {item.kind === "meeting" ? (
+                  <Video className="size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ListChecks className="size-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+                  {item.title}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {item.title}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.kind === "meeting"
-                      ? meetingSubline(item)
-                      : `Task · ${capitalize(item.priority)} priority`}
-                  </p>
-                </div>
+                <span className="shrink-0 text-[0.75rem] tracking-tight tabular-nums text-muted-foreground">
+                  {item.kind === "meeting" && item.allDay
+                    ? "All day"
+                    : timeLabel(item.kind === "meeting" ? item.start : item.due)}
+                </span>
               </Link>
             </li>
           ))}
-        </ul>
+        </DividerList>
       )}
-    </section>
+    </Section>
   );
-}
-
-function TimeBlock({ start, allDay }: { start: string; allDay: boolean }) {
-  if (allDay) {
-    return (
-      <div className="flex w-14 shrink-0 flex-col items-start">
-        <span className="text-[11px] font-medium text-muted-foreground">
-          All day
-        </span>
-      </div>
-    );
-  }
-  const d = new Date(start);
-  const time = d.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return (
-    <div className="flex w-14 shrink-0 flex-col items-start">
-      <span className="text-sm font-semibold tabular-nums text-foreground">
-        {time.replace(/\s?(AM|PM)/i, "")}
-      </span>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {time.match(/AM|PM/i)?.[0] ?? ""}
-      </span>
-    </div>
-  );
-}
-
-function meetingSubline(item: Extract<UpNextItem, { kind: "meeting" }>) {
-  if (item.location) return `Meeting · ${item.location}`;
-  const minutes = Math.round(
-    (new Date(item.end).getTime() - new Date(item.start).getTime()) / 60000,
-  );
-  if (minutes <= 0) return "Meeting";
-  if (minutes < 60) return `Meeting · ${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const rem = minutes % 60;
-  return `Meeting · ${hours}h${rem ? ` ${rem}m` : ""}`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -372,37 +313,36 @@ function ActivityTimeline({
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
   return (
-    <section aria-labelledby="activity-heading" className="flex flex-col gap-3">
-      <SectionTitle id="activity-heading" title="Recent activity" />
-      <FilterTabs value={filter} onChange={setFilter} />
-      {filtered.length === 0 ? (
-        <EmptyRow icon={<Sparkles className="size-4" />}>
-          You&apos;re all caught up.
-        </EmptyRow>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {grouped.map((group) => (
-            <div key={group.key} className="flex flex-col gap-2">
-              <h3 className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {group.label}
-              </h3>
-              <ol
-                role="list"
-                className="relative flex flex-col gap-0 border-l border-border pl-5"
-              >
-                {group.items.map((n) => (
-                  <TimelineItem
-                    key={n.id}
-                    notification={n}
-                    propertyId={propertyId}
-                  />
-                ))}
-              </ol>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
+    <Section kicker="What's new" title="Recent activity">
+      <div className="flex flex-col gap-6">
+        <FilterTabs value={filter} onChange={setFilter} />
+        {filtered.length === 0 ? (
+          <WidgetEmpty>You&apos;re all caught up.</WidgetEmpty>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {grouped.map((group) => (
+              <div key={group.key} className="flex flex-col gap-3">
+                <h3 className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+                  {group.label}
+                </h3>
+                <ol
+                  role="list"
+                  className="relative ml-[3px] flex flex-col border-l border-border pl-6"
+                >
+                  {group.items.map((n) => (
+                    <TimelineItem
+                      key={n.id}
+                      notification={n}
+                      propertyId={propertyId}
+                    />
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -436,10 +376,10 @@ function FilterTabs({
             aria-selected={active}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              "rounded-md px-2.5 py-1 text-[0.8125rem] font-medium tracking-tight transition-colors",
               active
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}
@@ -460,50 +400,50 @@ function TimelineItem({
   const view = renderTimelineView(notification, propertyId);
   const unseen = !notification.seen_at;
   return (
-    <li className="relative pb-5 last:pb-0">
+    <li className="relative pb-6 last:pb-0">
       <span
         aria-hidden="true"
         className={cn(
-          "absolute -left-[26px] top-1 flex size-4 items-center justify-center rounded-full border-2 border-background",
-          unseen ? "bg-primary" : "bg-muted-foreground/40",
+          "absolute -left-6 top-0.5 flex size-5 -translate-x-1/2 items-center justify-center rounded-full bg-card",
+          unseen ? "text-foreground" : "text-muted-foreground",
         )}
-      />
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md",
-            unseen
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground",
-          )}
-        >
-          {view.icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="min-w-0 text-sm leading-snug text-foreground">
-              {view.lead}
-            </p>
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-              {relativeTime(notification.created_at)}
-            </span>
-          </div>
-          {view.sub ? (
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {view.sub}
-            </p>
-          ) : null}
-          {view.href ? (
-            <Link
-              href={view.href}
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              {view.cta ?? "Open"}
-              <span aria-hidden="true">→</span>
-            </Link>
-          ) : null}
+      >
+        {view.icon}
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-baseline justify-between gap-3">
+          <p
+            className={cn(
+              "min-w-0 text-[0.875rem] leading-5 tracking-tight text-foreground",
+              unseen && "font-medium",
+            )}
+          >
+            {view.lead}
+          </p>
+          <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-[0.75rem] tabular-nums text-muted-foreground">
+            {unseen ? (
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-foreground"
+              />
+            ) : null}
+            {relativeShort(notification.created_at)}
+          </span>
         </div>
+        {view.sub ? (
+          <p className="mt-1 line-clamp-2 text-[0.8125rem] leading-5 text-muted-foreground">
+            {view.sub}
+          </p>
+        ) : null}
+        {view.href ? (
+          <Link
+            href={view.href}
+            className="mt-1.5 inline-flex items-center gap-1 text-[0.75rem] font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {view.cta ?? "Open"}
+            <span aria-hidden="true">→</span>
+          </Link>
+        ) : null}
       </div>
     </li>
   );
@@ -521,94 +461,49 @@ function YourTasksSection({
   propertyId: string;
 }) {
   return (
-    <section
-      aria-labelledby="your-tasks-heading"
-      className="flex flex-col gap-3"
+    <Section
+      kicker="Assigned to you"
+      title="Your tasks"
+      action={
+        <SectionLink href={`/p/${propertyId}/tasks`}>Open board</SectionLink>
+      }
     >
-      <SectionTitle
-        id="your-tasks-heading"
-        title="Your active tasks"
-        action={
-          <Link
-            href={`/p/${propertyId}/tasks`}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            Open board
-          </Link>
-        }
-      />
       {tasks.length === 0 ? (
-        <EmptyRow icon={<CheckCircle2 className="size-4" />}>
-          No active tasks assigned to you.
-        </EmptyRow>
+        <WidgetEmpty>No active tasks assigned to you.</WidgetEmpty>
       ) : (
-        <ul role="list" className="flex flex-col gap-2">
+        <DividerList>
           {tasks.map((task) => (
             <li key={task.id}>
               <Link
                 href={`/p/${propertyId}/tasks/${task.id}`}
-                className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-foreground/25"
+                className={cn(
+                  ROW_CLASS,
+                  "rounded-md transition-colors hover:bg-muted",
+                )}
               >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-0.5 flex size-4 shrink-0 items-center justify-center",
-                    statusColor(task.status),
-                  )}
-                >
-                  <StatusIcon status={task.status} />
+                <StatusIcon status={task.status} className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+                  {task.title || "Untitled task"}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {task.title}
-                  </p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                    <span className="capitalize">
-                      {task.status.replace("_", " ")}
-                    </span>
-                    {task.priority !== "none" && task.priority !== "low" ? (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span
-                          className={cn(
-                            "font-medium",
-                            priorityColor(task.priority),
-                          )}
-                        >
-                          {capitalize(task.priority)}
-                        </span>
-                      </>
-                    ) : null}
-                    {task.due_at ? (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span className={cn(dueColor(task.due_at))}>
-                          Due {formatDue(task.due_at)}
-                        </span>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
+                {task.due_at ? (
+                  <span
+                    className={cn(
+                      "shrink-0 text-[0.75rem] tracking-tight tabular-nums",
+                      isOverdue(task.due_at)
+                        ? "text-rose-500"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {formatDue(task.due_at)}
+                  </span>
+                ) : null}
               </Link>
             </li>
           ))}
-        </ul>
+        </DividerList>
       )}
-    </section>
+    </Section>
   );
-}
-
-function StatusIcon({ status }: { status: Task["status"] }) {
-  switch (status) {
-    case "done":
-      return <CheckCircle2 className="size-4" />;
-    case "in_progress":
-      return <CircleDot className="size-4" />;
-    case "blocked":
-      return <Circle className="size-4" />;
-    default:
-      return <Circle className="size-4" />;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -624,106 +519,39 @@ function RecentDocsSection({
 }) {
   const top = docs.slice(0, 5);
   return (
-    <section
-      aria-labelledby="recent-docs-heading"
-      className="flex flex-col gap-3"
+    <Section
+      kicker="Recently edited"
+      title="Recent documents"
+      action={
+        <SectionLink href={`/p/${propertyId}/documents`}>Open docs</SectionLink>
+      }
     >
-      <SectionTitle
-        id="recent-docs-heading"
-        title="Recent documents"
-        action={
-          <Link
-            href={`/p/${propertyId}/documents`}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            Open docs
-          </Link>
-        }
-      />
       {top.length === 0 ? (
-        <EmptyRow icon={<FileText className="size-4" />}>
-          No documents yet.
-        </EmptyRow>
+        <WidgetEmpty>No documents yet.</WidgetEmpty>
       ) : (
-        <ul role="list" className="flex flex-col">
-          {top.map((doc, i) => (
-            <li
-              key={doc.id}
-              className={cn(
-                "py-2",
-                i > 0 && "border-t border-border/60",
-              )}
-            >
+        <DividerList>
+          {top.map((doc) => (
+            <li key={doc.id}>
               <Link
                 href={`/p/${propertyId}/documents/${doc.id}`}
-                className="group flex items-center gap-3"
+                className={cn(
+                  ROW_CLASS,
+                  "rounded-md transition-colors hover:bg-muted",
+                )}
               >
-                <span
-                  aria-hidden="true"
-                  className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-                >
-                  <FileText className="size-3.5" />
+                <FileText className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+                  {doc.title || "Untitled"}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
-                    {doc.title || "Untitled"}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Updated {relativeTime(doc.updated_at)}
-                  </p>
-                </div>
+                <span className="shrink-0 text-[0.75rem] tracking-tight tabular-nums text-muted-foreground">
+                  {relativeShort(doc.updated_at)}
+                </span>
               </Link>
             </li>
           ))}
-        </ul>
+        </DividerList>
       )}
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Shared bits                                                                */
-/* -------------------------------------------------------------------------- */
-
-function SectionTitle({
-  id,
-  title,
-  action,
-}: {
-  id: string;
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <h2
-        id={id}
-        className="text-sm font-semibold tracking-tight text-foreground"
-      >
-        {title}
-      </h2>
-      {action}
-    </div>
-  );
-}
-
-function EmptyRow({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-      <span
-        aria-hidden="true"
-        className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-      >
-        {icon}
-      </span>
-      <span>{children}</span>
-    </div>
+    </Section>
   );
 }
 
@@ -739,6 +567,13 @@ function greetingForHour(hour: number): {
   if (hour < 12) return { greeting: "Good morning", Icon: Sunrise };
   if (hour < 17) return { greeting: "Good afternoon", Icon: Sun };
   return { greeting: "Good evening", Icon: Sunset };
+}
+
+function timeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function todayRange(): { from: string; to: string } {
@@ -1033,15 +868,11 @@ function renderTimelineView(
         lead: (
           <>
             Notes ready for{" "}
-            <strong className="font-semibold">
-              {p.title ?? "a meeting"}
-            </strong>
+            <strong className="font-semibold">{p.title ?? "a meeting"}</strong>
           </>
         ),
         sub: p.preview ?? null,
-        href: p.meetingId
-          ? `/p/${propertyId}/meetings/${p.meetingId}`
-          : null,
+        href: p.meetingId ? `/p/${propertyId}/meetings/${p.meetingId}` : null,
         cta: "Read summary",
       };
     }
@@ -1055,18 +886,8 @@ function renderTimelineView(
   }
 }
 
-function relativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+function isOverdue(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
 }
 
 function formatDue(iso: string): string {
@@ -1086,41 +907,4 @@ function formatDue(iso: string): string {
     return `${days}d ago`;
   }
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function dueColor(iso: string): string {
-  const t = new Date(iso).getTime();
-  const now = Date.now();
-  const dayMs = 86_400_000;
-  if (t < now) return "text-destructive font-medium";
-  if (t - now < dayMs) return "text-amber-600 dark:text-amber-400 font-medium";
-  return "";
-}
-
-function statusColor(status: Task["status"]): string {
-  switch (status) {
-    case "done":
-      return "text-emerald-600 dark:text-emerald-400";
-    case "in_progress":
-      return "text-sky-600 dark:text-sky-400";
-    case "blocked":
-      return "text-destructive";
-    default:
-      return "text-muted-foreground";
-  }
-}
-
-function priorityColor(priority: Task["priority"]): string {
-  switch (priority) {
-    case "urgent":
-      return "text-destructive";
-    case "high":
-      return "text-amber-600 dark:text-amber-400";
-    default:
-      return "text-foreground";
-  }
-}
-
-function capitalize(s: string): string {
-  return s ? s[0].toUpperCase() + s.slice(1) : s;
 }

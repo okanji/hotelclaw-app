@@ -43,16 +43,19 @@ export async function getCalendarEvents(
   //     every recurring meeting where `scheduled_start < to` because an
   //     occurrence inside the window is a function of the rule, not of
   //     the seed's stored end time. We filter properly after expansion.
+  // NOTE: we deliberately do NOT embed `profiles` under `meeting_attendees`
+  // here. The schema's FK on `meeting_attendees.user_id` points at
+  // `auth.users`, not `public.profiles`, so PostgREST can't resolve a
+  // `profile:profiles(...)` path and 500s the whole request (PGRST200) —
+  // even when there are zero meetings. Attendee profiles are merged in a
+  // second `.in("id", …)` query below, mirroring the members route.
   const meetingsP = supabase
     .from("meetings")
     .select(
       `id, title, description, location, color, all_day,
        scheduled_start, scheduled_end, started_at, ended_at,
        host_id, channel_id, stream_call_id, recurrence,
-       attendees:meeting_attendees(
-         user_id, response, is_organizer,
-         profile:profiles(id, full_name, avatar_url)
-       )`,
+       attendees:meeting_attendees(user_id, response, is_organizer)`,
     )
     .eq("property_id", propertyId)
     .or(
@@ -101,6 +104,30 @@ export async function getCalendarEvents(
   if (tasks.error) throw new Error(tasks.error.message);
   if (external.error) throw new Error(external.error.message);
 
+  // Merge attendee profiles in-memory (see the meetings-query note above).
+  const attendeeIds = new Set<string>();
+  for (const m of meetings.data ?? []) {
+    const rows = (m.attendees ?? []) as unknown as Array<{ user_id: string }>;
+    for (const a of rows) attendeeIds.add(a.user_id);
+  }
+  const profilesById = new Map<
+    string,
+    { full_name: string | null; avatar_url: string | null }
+  >();
+  if (attendeeIds.size > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .in("id", [...attendeeIds]);
+    if (profilesError) throw new Error(profilesError.message);
+    for (const p of profiles ?? []) {
+      profilesById.set(p.id, {
+        full_name: p.full_name,
+        avatar_url: p.avatar_url,
+      });
+    }
+  }
+
   const windowFrom = new Date(from);
   const windowTo = new Date(to);
   const meetingEvents: MeetingEvent[] = (meetings.data ?? []).flatMap((m) => {
@@ -112,20 +139,23 @@ export async function getCalendarEvents(
       new Date(new Date(start as string).getTime() + 30 * 60_000).toISOString();
     // Cast via unknown — supabase-js typegen doesn't model FK joins for our
     // hand-written Database types, so the inferred shape comes back as a
-    // SelectQueryError. The runtime payload matches the cast.
+    // SelectQueryError. The runtime payload matches the cast. Profiles are
+    // merged from `profilesById` (built above) rather than embedded.
     const rawAttendees = (m.attendees ?? []) as unknown as Array<{
       user_id: string;
       response: CalendarAttendee["response"];
       is_organizer: boolean;
-      profile: { full_name: string | null; avatar_url: string | null } | null;
     }>;
-    const attendees: CalendarAttendee[] = rawAttendees.map((a) => ({
-      user_id: a.user_id,
-      name: a.profile?.full_name ?? null,
-      avatar_url: a.profile?.avatar_url ?? null,
-      response: a.response,
-      is_organizer: a.is_organizer,
-    }));
+    const attendees: CalendarAttendee[] = rawAttendees.map((a) => {
+      const profile = profilesById.get(a.user_id);
+      return {
+        user_id: a.user_id,
+        name: profile?.full_name ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+        response: a.response,
+        is_organizer: a.is_organizer,
+      };
+    });
     const baseMeeting = {
       source: "meeting" as const,
       id: m.id,

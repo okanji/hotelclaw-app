@@ -65,6 +65,8 @@ import {
 import { DocumentLastEdited } from "./document-last-edited";
 import { DocumentLinkedTasks } from "./document-linked-tasks";
 import { DocumentLabels } from "./document-labels";
+import { DocumentShare } from "./document-share";
+import { DocumentHeader } from "./document-header";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
   DocumentBreadcrumbs,
@@ -84,6 +86,7 @@ import {
 import { SlashCommand } from "./slash-command";
 import { SubPage } from "./sub-page-node";
 import { BlockReorder } from "@/lib/documents/block-reorder";
+import { SpaceForAi } from "@/lib/documents/space-for-ai";
 import { Callout } from "@/lib/documents/nodes/callout";
 import { Toggle as ToggleNode } from "@/lib/documents/nodes/toggle";
 import { FileAttachment } from "@/lib/documents/nodes/file-attachment";
@@ -186,6 +189,28 @@ function ancestorsOf(
     cursor = node.parent_id;
   }
   return crumbs;
+}
+
+/**
+ * "Add comment" on the doc header → select the title node and trigger
+ * Liveblocks's pending-comment composer. The thread anchors to the title
+ * text, which functions as a doc-level comment (no body selection needed).
+ * If the title is empty, fall back to selecting the start-of-doc position
+ * so the composer at least opens.
+ */
+function addDocLevelComment(editor: Editor | null) {
+  if (!editor) return;
+  const titleNode = editor.state.doc.firstChild;
+  if (!titleNode) return;
+  const from = 1;
+  const to = Math.max(1, 1 + (titleNode.content.size || 0));
+  editor.chain().focus().setTextSelection({ from, to }).run();
+  const addPending = (
+    editor.commands as { addPendingComment?: () => boolean }
+  ).addPendingComment;
+  if (typeof addPending === "function") {
+    addPending();
+  }
 }
 
 function EditorSkeleton() {
@@ -316,10 +341,17 @@ function EditorInner({
       Image,
       Link.configure({ openOnClick: false }),
       Placeholder.configure({
-        // First node is the title; everything below is body. Hint accordingly.
-        placeholder: ({ editor, node }) =>
-          editor.state.doc.firstChild === node ? "Untitled" : "",
+        // First node is the title; empty paragraphs in the body get the
+        // Notion-style hint so users discover slash commands and AI.
+        placeholder: ({ editor, node }) => {
+          if (editor.state.doc.firstChild === node) return "Untitled";
+          if (node.type.name === "paragraph") {
+            return "Press 'space' for AI or '/' for commands";
+          }
+          return "";
+        },
       }),
+      SpaceForAi,
       DocumentTaskItem,
       TaskList,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -456,6 +488,7 @@ function EditorInner({
             documentId={documentId}
           />
           <DocumentHistory editor={editor} />
+          <DocumentShare propertyId={propertyId} documentId={documentId} />
           <DocumentRoomAvatarStack max={5} size={24} />
         </div>
       </div>
@@ -477,7 +510,12 @@ function EditorInner({
       <div className="flex-1 overflow-auto px-6 pb-24">
         <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
-          <div className="relative mx-auto w-full max-w-3xl pt-16">
+          <div className="relative mx-auto w-full max-w-3xl pt-10">
+            <DocumentHeader
+              propertyId={propertyId}
+              documentId={documentId}
+              onAddComment={() => addDocLevelComment(editor)}
+            />
             <EditorContent editor={editor} />
             {/* `before` prepends our AI section to the selection toolbar while
                 keeping the default formatting controls. "Ask Claw AI" opens the

@@ -34,7 +34,18 @@ import type {
   TaskDetailRemovers,
 } from "./task-detail-mutations";
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import type { EntityColor, TaskPriority, TaskStatus } from "@/lib/db/types";
+import { useQuery } from "@tanstack/react-query";
+import { labelsQueryOptions } from "@/lib/query/label-queries";
+
+const LABEL_DOT: Record<EntityColor, string> = {
+  slate: "bg-slate-500",
+  blue: "bg-blue-500",
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  violet: "bg-violet-500",
+};
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
 
@@ -132,6 +143,10 @@ export function TaskDetailInlineProperties({
   const attachments = meta?.attachments ?? [];
   const resourcesCount = links.length + docs.length + attachments.length;
   const labels = meta?.labels ?? [];
+  const { data: labelCatalog = [] } = useQuery(labelsQueryOptions(propertyId));
+  const labelColor = (name: string): EntityColor =>
+    labelCatalog.find((l) => l.name.toLowerCase() === name.toLowerCase())
+      ?.color ?? "slate";
 
   return (
     <div className="mt-5 space-y-2 text-[0.8125rem]">
@@ -293,27 +308,6 @@ export function TaskDetailInlineProperties({
           </PopoverContent>
         </Popover>
 
-        {meta?.projectName ? (
-          <RemovableChip
-            icon={
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-            }
-            label={meta.projectName}
-            onRemove={removers.removeProject}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={openers.addProject}
-            className={cn(CHIP_BASE, "text-muted-foreground")}
-          >
-            <ChipIcon>
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-            </ChipIcon>
-            <span className="truncate">Project</span>
-          </button>
-        )}
-
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -330,10 +324,6 @@ export function TaskDetailInlineProperties({
             <DropdownMenuItem onClick={openers.addLabel} className="gap-2">
               <Tag className="size-3.5" />
               Add label
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={openers.addProject} className="gap-2">
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/50" />
-              Add to project
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={openers.createRelated}
@@ -354,7 +344,7 @@ export function TaskDetailInlineProperties({
         {labels.map((label) => (
           <RemovableChip
             key={label}
-            icon={<LabelDot />}
+            icon={<LabelDot color={labelColor(label)} />}
             label={label}
             onRemove={() => removers.removeLabel(label)}
           />
@@ -554,6 +544,8 @@ function ResourceChip({
   );
 }
 
-function LabelDot() {
-  return <span className="inline-block size-2 rounded-full bg-blue-500" />;
+function LabelDot({ color = "slate" }: { color?: EntityColor }) {
+  return (
+    <span className={cn("inline-block size-2 rounded-full", LABEL_DOT[color])} />
+  );
 }

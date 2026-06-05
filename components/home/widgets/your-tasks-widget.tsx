@@ -14,6 +14,7 @@ import {
   Stats,
   WidgetEmpty,
 } from "../editorial-section";
+import { applyTaskFilter, useDashboardFilter } from "../dashboard-filter";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -33,8 +34,13 @@ export function YourTasksWidget({
   propertyId: string;
   userId: string;
 }) {
-  const { data: tasks = [], isPending } = useQuery(
+  const { data: allTasks = [], isPending } = useQuery(
     tasksQueryOptions(propertyId),
+  );
+  const filter = useDashboardFilter();
+  const tasks = useMemo(
+    () => applyTaskFilter(allTasks, filter),
+    [allTasks, filter],
   );
 
   const mine = useMemo(

@@ -38,6 +38,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Lightbulb,
   List,
   ListOrdered,
@@ -47,6 +48,7 @@ import {
   Table as TableIcon,
   Table2,
   TextQuote,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -279,6 +281,41 @@ function buildItems(options: SlashCommandOptions): SlashItem[] {
           .run(),
     },
     {
+      title: "Image",
+      description: "Upload an image",
+      icon: ImageIcon,
+      section: "media",
+      searchTerms: ["image", "img", "picture", "photo", "upload"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        const insertAt = editor.state.selection.from;
+        void pickAndUploadImage(options).then((url) => {
+          if (!url) return;
+          editor
+            .chain()
+            .focus()
+            .insertContentAt(insertAt, {
+              type: "image",
+              attrs: { src: url },
+            })
+            .run();
+        });
+      },
+    },
+    {
+      title: "Video",
+      description: "Embed a YouTube video by URL",
+      icon: Video,
+      section: "media",
+      searchTerms: ["video", "youtube", "yt", "embed"],
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        const raw = window.prompt("Paste a YouTube URL:");
+        if (!raw) return;
+        editor.chain().focus().setYoutubeVideo({ src: raw }).run();
+      },
+    },
+    {
       title: "File / PDF",
       description: "Upload an attachment or PDF",
       icon: FileUp,
@@ -429,6 +466,44 @@ function buildItems(options: SlashCommandOptions): SlashItem[] {
       },
     },
   ];
+}
+
+/** Open a hidden image picker, upload, return the public URL or null. */
+async function pickAndUploadImage(
+  options: SlashCommandOptions,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      try {
+        const res = await fetch(
+          `/api/documents/images/upload?propertyId=${options.propertyId}&documentId=${options.documentId}`,
+          { method: "POST", body: form },
+        );
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { error?: string };
+          toast.error(err.error ?? `Upload failed (${res.status})`);
+          resolve(null);
+          return;
+        }
+        const body = (await res.json()) as { url: string };
+        resolve(body.url);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Upload failed");
+        resolve(null);
+      }
+    });
+    input.click();
+  });
 }
 
 /** Open a hidden file picker, upload the selected file, return the metadata.
