@@ -35,7 +35,7 @@ import {
   setTaskProject,
   updateProject,
 } from "./actions";
-import { WorkspaceShell, type WorkspaceTab } from "./workspace-shell";
+import { RailRow, WorkspaceShell, type WorkspaceTab } from "./workspace-shell";
 import {
   DocsPanel,
   ProgressOverview,
@@ -245,18 +245,15 @@ export function ProjectDetail({
         <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
           Project
         </p>
-        <div className="flex items-center gap-1.5">
-          <StatusMenu status={project.status} onSelect={setStatus} />
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            title="Archive project"
-            onClick={handleArchive}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          title="Archive project"
+          onClick={handleArchive}
+        >
+          <Trash2 className="size-4" />
+        </Button>
       </div>
       <div className="flex items-center gap-3">
         <span className="shrink-0 text-2xl leading-none">
@@ -295,11 +292,6 @@ export function ProjectDetail({
               {project.description}
             </p>
           ) : null}
-          <SpacesPicker
-            allSpaces={allSpaces}
-            linkedSpaces={linkedSpaces}
-            onToggle={toggleSpace}
-          />
         </div>
       ),
     },
@@ -339,7 +331,85 @@ export function ProjectDetail({
     },
   ];
 
-  return <WorkspaceShell header={header} tabs={tabs} />;
+  const rightRail = (
+    <div className="flex flex-col gap-1">
+      <span className="mb-2 text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        Properties
+      </span>
+      <RailRow label="Status">
+        <StatusMenu status={project.status} onSelect={setStatus} />
+      </RailRow>
+      <RailRow label="Dates">
+        <DateRange start={project.start_date} target={project.target_date} />
+      </RailRow>
+      <RailRow label="People">
+        {contributors.length > 0 ? (
+          <AvatarRow people={contributors} />
+        ) : (
+          <span className="text-[0.8125rem] text-muted-foreground">—</span>
+        )}
+      </RailRow>
+      <div className="mt-3 border-t border-border/60 pt-4">
+        <SpacesPicker
+          allSpaces={allSpaces}
+          linkedSpaces={linkedSpaces}
+          onToggle={toggleSpace}
+        />
+      </div>
+    </div>
+  );
+
+  return <WorkspaceShell header={header} tabs={tabs} rightRail={rightRail} />;
+}
+
+function DateRange({
+  start,
+  target,
+}: {
+  start: string | null;
+  target: string | null;
+}) {
+  if (!start && !target)
+    return <span className="text-[0.8125rem] text-muted-foreground">—</span>;
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return (
+    <span className="text-[0.8125rem] tracking-tight text-foreground tabular-nums">
+      {start ? fmt(start) : "—"} → {target ? fmt(target) : "—"}
+    </span>
+  );
+}
+
+function AvatarRow({
+  people,
+}: {
+  people: { id: string; name: string | null; avatarUrl: string | null }[];
+}) {
+  const shown = people.slice(0, 5);
+  const extra = people.length - shown.length;
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-1.5">
+        {shown.map((p) => (
+          <Avatar
+            key={p.id}
+            className="size-6 ring-2 ring-background"
+            title={p.name ?? undefined}
+          >
+            {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
+            <AvatarFallback className="text-[0.5625rem]">
+              {(p.name ?? "?").slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ))}
+      </div>
+      {extra > 0 ? (
+        <span className="ml-2 text-[0.75rem] text-muted-foreground tabular-nums">
+          +{extra}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function Contributors({

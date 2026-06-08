@@ -131,6 +131,9 @@ export default async function PropertyLayout({
               <SidebarProvider>
                 <ShellSectionProvider
                   initialSection={cookieStore.get("shell_section")?.value}
+                  initialCollapsed={
+                    cookieStore.get("sidebar_collapsed")?.value === "1"
+                  }
                 >
                   {/* Slack-style shell: icon rail + contextual secondary
                       sidebar (both bg-sidebar, no divider) + inset content. */}

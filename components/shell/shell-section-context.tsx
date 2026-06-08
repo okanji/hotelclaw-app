@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 
 /** The rail sections. */
@@ -50,10 +57,18 @@ type ShellSectionContextValue = {
   setSection: (section: ShellSection) => void;
   /**
    * When `true`, the secondary sidebar is hidden so a surface can claim the
-   * full content width. Currently only the workflow canvas builder sets this.
+   * full content width. Transient + surface-driven (the workflow canvas
+   * builder sets this) — reset on every navigation.
    */
   sidebarHidden: boolean;
   setSidebarHidden: (hidden: boolean) => void;
+  /**
+   * User preference: the secondary sidebar is collapsed (Linear-style). Unlike
+   * `sidebarHidden` this persists to a cookie and survives navigation; toggled
+   * from the rail button, the `⌘\` shortcut, or a drag-to-collapse.
+   */
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 };
 
 const ShellSectionContext = createContext<ShellSectionContextValue | null>(null);
@@ -84,6 +99,7 @@ function asSection(value: string | undefined): ShellSection | undefined {
 export function ShellSectionProvider({
   children,
   initialSection,
+  initialCollapsed = false,
 }: {
   children: React.ReactNode;
   /**
@@ -93,12 +109,21 @@ export function ShellSectionProvider({
    * as a fallback default — preserved here for compatibility.
    */
   initialSection?: string;
+  /** Collapsed preference restored server-side from the `sidebar_collapsed`
+   *  cookie so the first paint already matches (no expand→collapse flash). */
+  initialCollapsed?: boolean;
 }) {
   const pathname = usePathname();
   const [section, setSection] = useState<ShellSection>(
     () => sectionFromPath(pathname) ?? asSection(initialSection) ?? "chat",
   );
   const [sidebarHidden, setSidebarHidden] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(initialCollapsed);
+
+  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
+    setSidebarCollapsedState(collapsed);
+    document.cookie = `sidebar_collapsed=${collapsed ? "1" : "0"}; path=/; max-age=31536000; SameSite=Lax`;
+  }, []);
 
   // Persist the active section so the next hard refresh on a /chat/* route
   // restores the matching sidebar (the property layout reads this cookie).
@@ -120,8 +145,15 @@ export function ShellSectionProvider({
   }
 
   const value = useMemo<ShellSectionContextValue>(
-    () => ({ section, setSection, sidebarHidden, setSidebarHidden }),
-    [section, sidebarHidden],
+    () => ({
+      section,
+      setSection,
+      sidebarHidden,
+      setSidebarHidden,
+      sidebarCollapsed,
+      setSidebarCollapsed,
+    }),
+    [section, sidebarHidden, sidebarCollapsed, setSidebarCollapsed],
   );
 
   return (

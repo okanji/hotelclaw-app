@@ -41,10 +41,11 @@ export function LeftShell({
   defaultWidth?: number;
   activityDefaultWidth?: number;
 }) {
-  const { section, sidebarHidden, setSidebarHidden } = useShellSection();
+  const { section, sidebarHidden, sidebarCollapsed, setSidebarCollapsed } =
+    useShellSection();
   const collapse = useCallback(
-    () => setSidebarHidden(true),
-    [setSidebarHidden],
+    () => setSidebarCollapsed(true),
+    [setSidebarCollapsed],
   );
   const standard = useResizableAside(defaultWidth, STANDARD_WIDTH, {
     onCollapse: collapse,
@@ -66,7 +67,7 @@ export function LeftShell({
           userId={user.id}
           user={user}
         />
-        {!sidebarHidden && (
+        {!sidebarHidden && !sidebarCollapsed && (
           <SectionSidebar
             currentPropertyId={currentPropertyId}
             memberships={memberships}

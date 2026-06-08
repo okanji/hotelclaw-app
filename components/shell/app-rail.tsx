@@ -126,7 +126,8 @@ export function AppRail({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { client } = useChatContext();
-  const { section, setSection, setSidebarHidden } = useShellSection();
+  const { section, setSection, sidebarCollapsed, setSidebarCollapsed } =
+    useShellSection();
   const { unseenCount } = useNotifications(userId);
 
   const items = useMemo<RailItem[]>(
@@ -241,11 +242,29 @@ export function AppRail({
     client.threads.activate();
   }, [client]);
 
+  // Linear-style sidebar toggle — ⌘\ (Mac) / Ctrl\ (Win/Linux). Ignored while
+  // typing so it doesn't swallow a literal backslash in an input/editor.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "\\" || !(e.metaKey || e.ctrlKey)) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.isContentEditable ||
+          el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [sidebarCollapsed, setSidebarCollapsed]);
+
   function handleClick(item: RailItem) {
     setSection(item.section);
-    // Any rail click reopens a drag-collapsed sidebar — do this before the
-    // early returns so clicking the already-active section still restores it.
-    setSidebarHidden(false);
     if (!item.href) return;
     // Skip navigation when the user is already viewing this section's content
     // — just swap the sidebar, don't yank them off the page. Chat and DMs now
@@ -295,7 +314,7 @@ export function AppRail({
         // sidebar by the surrounding `bg-sidebar`. Icon-only — labels live in
         // hover tooltips. `m-2` matches the inset card's gutter so the whole
         // shell reads as evenly-spaced floating panels.
-        className="m-2 flex w-16 shrink-0 flex-col items-center rounded-xl bg-[#090909] p-3 shadow-[0px_259px_103px_rgba(0,0,0,0.03),0px_146px_87px_rgba(0,0,0,0.09),0px_65px_65px_rgba(0,0,0,0.15),0px_16px_36px_rgba(0,0,0,0.17)]"
+        className="m-2 flex w-16 shrink-0 flex-col items-center rounded-xl bg-[#090909] p-3"
         aria-label="Sections"
       >
         <figure className="mb-6 mt-1">

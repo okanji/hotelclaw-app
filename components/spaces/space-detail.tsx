@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, FolderKanban, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -15,11 +15,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { EntityColor } from "@/lib/db/types";
 import {
   documentsQueryOptions,
+  propertyMembersQueryOptions,
   tasksQueryOptions,
 } from "@/lib/query/section-queries";
+import { spaceMemberIdsQueryOptions } from "@/lib/query/project-queries";
 import {
   archiveSpace,
   setDocumentSpace,
@@ -27,12 +30,14 @@ import {
   updateSpace,
 } from "@/components/projects/actions";
 import {
+  RailRow,
   WorkspaceShell,
   type WorkspaceTab,
 } from "@/components/projects/workspace-shell";
 import {
   DocsPanel,
   ProgressOverview,
+  ProjectProgressList,
   TasksPanel,
   type ScopedTask,
 } from "@/components/projects/workspace-panels";
@@ -56,7 +61,13 @@ type SpaceDetailData = {
     color: EntityColor;
     icon: string | null;
   } | null;
-  projects: { id: string; name: string; color: EntityColor }[];
+  projects: {
+    id: string;
+    name: string;
+    color: EntityColor;
+    done: number;
+    total: number;
+  }[];
   tasks: ScopedTask[];
   docs: { id: string; title: string }[];
 };
@@ -88,11 +99,33 @@ function spaceDetailQuery(spaceId: string) {
       let projects: SpaceDetailData["projects"] = [];
       const ids = (links.data ?? []).map((l) => l.project_id);
       if (ids.length > 0) {
-        const { data } = await supabase
-          .from("projects")
-          .select("id, name, color")
-          .in("id", ids);
-        projects = (data ?? []) as SpaceDetailData["projects"];
+        // Pull the linked projects and, in parallel, every task on them so we
+        // can show each project's completion (done / total) on the overview.
+        const [projRows, projTasks] = await Promise.all([
+          supabase.from("projects").select("id, name, color").in("id", ids),
+          supabase.from("tasks").select("project_id, status").in("project_id", ids),
+        ]);
+        const agg = new Map<string, { done: number; total: number }>();
+        for (const t of (projTasks.data ?? []) as {
+          project_id: string;
+          status: string;
+        }[]) {
+          const a = agg.get(t.project_id) ?? { done: 0, total: 0 };
+          a.total += 1;
+          if (t.status === "done") a.done += 1;
+          agg.set(t.project_id, a);
+        }
+        projects = (
+          (projRows.data ?? []) as {
+            id: string;
+            name: string;
+            color: EntityColor;
+          }[]
+        ).map((p) => ({
+          ...p,
+          done: agg.get(p.id)?.done ?? 0,
+          total: agg.get(p.id)?.total ?? 0,
+        }));
       }
       return {
         space: (space.data as SpaceDetailData["space"]) ?? null,
@@ -116,6 +149,12 @@ export function SpaceDetail({
   const { data, isPending } = useQuery(spaceDetailQuery(spaceId));
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
+  const { data: people = [] } = useQuery(propertyMembersQueryOptions(propertyId));
+  const { data: memberIds = [] } = useQuery(spaceMemberIdsQueryOptions(spaceId));
+  const roster = useMemo(() => {
+    const s = new Set(memberIds);
+    return people.filter((p) => s.has(p.id));
+  }, [people, memberIds]);
 
   const space = data?.space;
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
@@ -275,26 +314,20 @@ export function SpaceDetail({
       content: (
         <div className="flex flex-col gap-10">
           <ProgressOverview tasks={tasks} />
-          {data && data.projects.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
-                In these projects
+          <section className="flex flex-col gap-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-[0.8125rem] font-medium tracking-tight text-foreground">
+                Projects
+              </h3>
+              <span className="text-[0.75rem] tabular-nums text-muted-foreground">
+                {data?.projects.length ?? 0}
               </span>
-              <ul className="flex flex-wrap gap-1.5">
-                {data.projects.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/p/${propertyId}/projects/${p.id}`}
-                      className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-[0.75rem] tracking-tight text-foreground transition-colors hover:border-foreground/25"
-                    >
-                      <FolderKanban className="size-3" />
-                      {p.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </div>
-          ) : null}
+            <ProjectProgressList
+              propertyId={propertyId}
+              projects={data?.projects ?? []}
+            />
+          </section>
         </div>
       ),
     },
@@ -338,5 +371,58 @@ export function SpaceDetail({
     },
   ];
 
-  return <WorkspaceShell header={header} tabs={tabs} />;
+  const rightRail = (
+    <div className="flex flex-col gap-1">
+      <span className="mb-2 text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        Properties
+      </span>
+      <RailRow label="Members">
+        {roster.length > 0 ? (
+          <div className="flex items-center">
+            <div className="flex -space-x-1.5">
+              {roster.slice(0, 5).map((p) => (
+                <Avatar
+                  key={p.id}
+                  className="size-6 ring-2 ring-background"
+                  title={p.name ?? undefined}
+                >
+                  {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
+                  <AvatarFallback className="text-[0.5625rem]">
+                    {(p.name ?? "?").slice(0, 1).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+            {roster.length > 5 ? (
+              <span className="ml-2 text-[0.75rem] text-muted-foreground tabular-nums">
+                +{roster.length - 5}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <span className="text-[0.8125rem] text-muted-foreground">
+            No members yet
+          </span>
+        )}
+      </RailRow>
+      {data && data.projects.length > 0 ? (
+        <RailRow label="Projects">
+          <div className="flex flex-wrap gap-1">
+            {data.projects.map((p) => (
+              <Link
+                key={p.id}
+                href={`/p/${propertyId}/projects/${p.id}`}
+                className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.6875rem] tracking-tight text-foreground transition-colors hover:border-foreground/25"
+              >
+                <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
+                {p.name}
+              </Link>
+            ))}
+          </div>
+        </RailRow>
+      ) : null}
+    </div>
+  );
+
+  return <WorkspaceShell header={header} tabs={tabs} rightRail={rightRail} />;
 }

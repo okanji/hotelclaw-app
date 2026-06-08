@@ -11,13 +11,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusIcon } from "@/components/tasks/task-icons";
-import type { TaskStatus } from "@/lib/db/types";
+import type { EntityColor, TaskStatus } from "@/lib/db/types";
+import { cn } from "@/lib/utils";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 
 export type ScopedTask = { id: string; title: string; status: TaskStatus };
 export type ScopedDoc = { id: string; title: string };
 type Candidate = { id: string; title: string };
+
+const PROJECT_DOT: Record<EntityColor, string> = {
+  slate: "bg-slate-500",
+  blue: "bg-blue-500",
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  rose: "bg-rose-500",
+  violet: "bg-violet-500",
+};
 
 const STATUS_COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "todo", label: "To do" },
@@ -79,6 +89,84 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
         ))}
       </dl>
     </div>
+  );
+}
+
+/* ── Projects: per-project progress for the projects a space spans ────────── */
+
+export type ProjectProgress = {
+  id: string;
+  name: string;
+  color: EntityColor;
+  done: number;
+  total: number;
+};
+
+/**
+ * Lists the projects a space is part of, each with its own completion bar
+ * (share of that project's tasks that are `done`) and a `done/total` tally.
+ * Rows link through to the project. Surfaces "which initiatives run through
+ * this space, and how far along each is" on the space Overview.
+ */
+export function ProjectProgressList({
+  propertyId,
+  projects,
+}: {
+  propertyId: string;
+  projects: ProjectProgress[];
+}) {
+  if (projects.length === 0) {
+    return (
+      <p className="py-4 text-[0.8125rem] text-muted-foreground">
+        No projects span this space yet — link one from a project&apos;s{" "}
+        <span className="font-medium">Spaces</span> picker.
+      </p>
+    );
+  }
+  return (
+    <ul
+      role="list"
+      className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+    >
+      {projects.map((p) => {
+        const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+        return (
+          <li key={p.id} className="group/row">
+            <Link
+              href={`/p/${propertyId}/projects/${p.id}`}
+              className="flex items-center gap-3 rounded-md px-1 py-3 transition-colors hover:bg-muted"
+            >
+              <span
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  PROJECT_DOT[p.color],
+                )}
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+                {p.name || "Untitled project"}
+              </span>
+              <div className="flex w-32 shrink-0 items-center gap-2.5 sm:w-44">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  {p.total > 0 ? (
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-[width]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  ) : null}
+                </div>
+                <span className="w-9 shrink-0 text-right text-[0.75rem] font-medium tabular-nums text-foreground">
+                  {pct}%
+                </span>
+              </div>
+              <span className="hidden w-12 shrink-0 text-right text-[0.75rem] tabular-nums text-muted-foreground sm:inline">
+                {p.done}/{p.total}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
