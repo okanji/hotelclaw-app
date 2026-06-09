@@ -10,6 +10,8 @@ import {
   ListChecks,
   MessageCircle,
   MessagesSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
   Video,
   Workflow,
 } from "lucide-react";
@@ -363,7 +365,35 @@ export function AppRail({
           </ul>
         </nav>
 
-        <div className="mt-3 shrink-0">
+        <div className="mt-3 flex shrink-0 flex-col items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+                  aria-pressed={sidebarCollapsed}
+                  className="flex size-10 items-center justify-center rounded-lg text-white/70 outline-hidden transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30"
+                >
+                  {sidebarCollapsed ? (
+                    <PanelLeftOpen className="size-[18px]" />
+                  ) : (
+                    <PanelLeftClose className="size-[18px]" />
+                  )}
+                </button>
+              }
+            />
+            <TooltipContent side="right">
+              {sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+              <kbd
+                data-slot="kbd"
+                className="ml-1 rounded bg-background/15 px-1 font-sans text-[0.625rem] text-background/80"
+              >
+                ⌘\
+              </kbd>
+            </TooltipContent>
+          </Tooltip>
           <UserMenu user={user} />
         </div>
       </aside>

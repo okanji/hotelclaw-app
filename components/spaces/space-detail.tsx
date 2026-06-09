@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Trash2 } from "lucide-react";
+import { Archive, Check, Layers, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -30,17 +30,23 @@ import {
   updateSpace,
 } from "@/components/projects/actions";
 import {
-  RailRow,
+  PropertyRow,
+  RailDate,
+  RailGroup,
+  RailProgress,
+  railValueClass,
   WorkspaceShell,
   type WorkspaceTab,
 } from "@/components/projects/workspace-shell";
 import {
+  ActivityFeed,
   DocsPanel,
   ProgressOverview,
   ProjectProgressList,
   TasksPanel,
   type ScopedTask,
 } from "@/components/projects/workspace-panels";
+import { activityQuery } from "@/lib/query/activity-queries";
 import { SpaceMembersPanel } from "./space-members-panel";
 import { SpaceChannelsPanel } from "./space-channels-panel";
 
@@ -60,6 +66,7 @@ type SpaceDetailData = {
     name: string;
     color: EntityColor;
     icon: string | null;
+    created_at: string | null;
   } | null;
   projects: {
     id: string;
@@ -80,7 +87,7 @@ function spaceDetailQuery(spaceId: string) {
       const [space, links, tasks, docs] = await Promise.all([
         supabase
           .from("spaces")
-          .select("id, name, color, icon")
+          .select("id, name, color, icon, created_at")
           .eq("id", spaceId)
           .maybeSingle(),
         supabase.from("project_spaces").select("project_id").eq("space_id", spaceId),
@@ -147,6 +154,9 @@ export function SpaceDetail({
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isPending } = useQuery(spaceDetailQuery(spaceId));
+  const { data: activity = [], isPending: activityPending } = useQuery(
+    activityQuery(propertyId, { space: spaceId }),
+  );
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
   const { data: people = [] } = useQuery(propertyMembersQueryOptions(propertyId));
@@ -159,6 +169,10 @@ export function SpaceDetail({
   const space = data?.space;
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
   const docs = useMemo(() => data?.docs ?? [], [data?.docs]);
+  const doneCount = useMemo(
+    () => tasks.filter((t) => t.status === "done").length,
+    [tasks],
+  );
 
   const [name, setName] = useState("");
   useEffect(() => {
@@ -247,20 +261,9 @@ export function SpaceDetail({
 
   const header = (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Space
-        </p>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          title="Archive space"
-          onClick={handleArchive}
-        >
-          <Trash2 className="size-4" />
-        </Button>
-      </div>
+      <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        Space
+      </p>
       <div className="flex items-center gap-3">
         {space.icon ? (
           <span className="shrink-0 text-2xl leading-none">{space.icon}</span>
@@ -328,6 +331,12 @@ export function SpaceDetail({
               projects={data?.projects ?? []}
             />
           </section>
+          <section className="flex flex-col gap-4">
+            <h3 className="text-[0.8125rem] font-medium tracking-tight text-foreground">
+              Activity
+            </h3>
+            <ActivityFeed events={activity} pending={activityPending} />
+          </section>
         </div>
       ),
     },
@@ -372,57 +381,107 @@ export function SpaceDetail({
   ];
 
   const rightRail = (
-    <div className="flex flex-col gap-1">
-      <span className="mb-2 text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Properties
-      </span>
-      <RailRow label="Members">
-        {roster.length > 0 ? (
-          <div className="flex items-center">
-            <div className="flex -space-x-1.5">
-              {roster.slice(0, 5).map((p) => (
-                <Avatar
-                  key={p.id}
-                  className="size-6 ring-2 ring-background"
-                  title={p.name ?? undefined}
-                >
-                  {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-                  <AvatarFallback className="text-[0.5625rem]">
-                    {(p.name ?? "?").slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
+    <div className="flex flex-col">
+      <RailGroup label="Properties">
+        <PropertyRow label="Members">
+          {roster.length > 0 ? (
+            <div className="flex items-center gap-2 px-1.5 py-0.5">
+              <div className="flex -space-x-1.5">
+                {roster.slice(0, 5).map((p) => (
+                  <Avatar
+                    key={p.id}
+                    className="size-6 ring-2 ring-background"
+                    title={p.name ?? undefined}
+                  >
+                    {p.avatarUrl ? (
+                      <AvatarImage src={p.avatarUrl} alt="" />
+                    ) : null}
+                    <AvatarFallback className="text-[0.5625rem]">
+                      {(p.name ?? "?").slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              {roster.length > 5 ? (
+                <span className="text-[0.75rem] text-muted-foreground tabular-nums">
+                  +{roster.length - 5}
+                </span>
+              ) : null}
             </div>
-            {roster.length > 5 ? (
-              <span className="ml-2 text-[0.75rem] text-muted-foreground tabular-nums">
-                +{roster.length - 5}
-              </span>
-            ) : null}
-          </div>
-        ) : (
-          <span className="text-[0.8125rem] text-muted-foreground">
-            No members yet
+          ) : (
+            <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">
+              No members yet
+            </span>
+          )}
+        </PropertyRow>
+        <PropertyRow label="Issues">
+          <Link
+            href={`/p/${propertyId}/tasks?space=${spaceId}`}
+            className={railValueClass}
+          >
+            <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="tabular-nums">{tasks.length}</span>
+          </Link>
+        </PropertyRow>
+        <PropertyRow label="Documents">
+          <span className="px-1.5 py-1 text-[0.8125rem] tracking-tight text-foreground tabular-nums">
+            {docs.length}
           </span>
-        )}
-      </RailRow>
+        </PropertyRow>
+        <PropertyRow label="Created">
+          <span className="px-1.5 py-1">
+            <RailDate value={space.created_at} />
+          </span>
+        </PropertyRow>
+      </RailGroup>
+
+      <RailGroup label="Progress">
+        <RailProgress done={doneCount} total={tasks.length} />
+      </RailGroup>
+
       {data && data.projects.length > 0 ? (
-        <RailRow label="Projects">
+        <RailGroup label="Projects">
           <div className="flex flex-wrap gap-1">
             {data.projects.map((p) => (
               <Link
                 key={p.id}
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.6875rem] tracking-tight text-foreground transition-colors hover:border-foreground/25"
+                className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.6875rem] tracking-tight text-foreground hover:border-foreground/25"
               >
                 <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
                 {p.name}
               </Link>
             ))}
           </div>
-        </RailRow>
+        </RailGroup>
       ) : null}
     </div>
   );
 
-  return <WorkspaceShell header={header} tabs={tabs} rightRail={rightRail} />;
+  const overflow = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" size="icon-sm" variant="ghost" title="More" />
+        }
+      >
+        <MoreHorizontal className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6}>
+        <DropdownMenuItem onClick={handleArchive}>
+          <Archive className="size-3.5" />
+          <span className="flex-1">Archive space</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  return (
+    <WorkspaceShell
+      header={header}
+      headerActions={overflow}
+      tabs={tabs}
+      rightRail={rightRail}
+    />
+  );
 }

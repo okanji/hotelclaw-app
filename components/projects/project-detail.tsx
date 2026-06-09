@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Trash2 } from "lucide-react";
+import { Archive, Check, Layers, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { EntityColor, ProjectStatus } from "@/lib/db/types";
+import type { EntityColor, ProjectStatus, TaskStatus } from "@/lib/db/types";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   documentsQueryOptions,
@@ -35,13 +35,24 @@ import {
   setTaskProject,
   updateProject,
 } from "./actions";
-import { RailRow, WorkspaceShell, type WorkspaceTab } from "./workspace-shell";
+import { activityQuery } from "@/lib/query/activity-queries";
 import {
+  PropertyRow,
+  RailDate,
+  RailGroup,
+  RailProgress,
+  railValueClass,
+  WorkspaceShell,
+  type WorkspaceTab,
+} from "./workspace-shell";
+import {
+  ActivityFeed,
   DocsPanel,
   ProgressOverview,
   TasksPanel,
   type ScopedTask,
 } from "./workspace-panels";
+import { HEALTH_META, projectHealth } from "./tracking/tracking-shared";
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   active: "Active",
@@ -76,6 +87,7 @@ type ProjectDetailData = {
     status: ProjectStatus;
     start_date: string | null;
     target_date: string | null;
+    created_at: string | null;
   } | null;
   spaceIds: string[];
   tasks: DetailTask[];
@@ -91,7 +103,7 @@ function projectDetailQuery(projectId: string) {
         supabase
           .from("projects")
           .select(
-            "id, name, description, color, icon, status, start_date, target_date",
+            "id, name, description, color, icon, status, start_date, target_date, created_at",
           )
           .eq("id", projectId)
           .maybeSingle(),
@@ -128,6 +140,9 @@ export function ProjectDetail({
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isPending } = useQuery(projectDetailQuery(projectId));
+  const { data: activity = [], isPending: activityPending } = useQuery(
+    activityQuery(propertyId, { project: projectId }),
+  );
   const { data: allSpaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
@@ -166,6 +181,16 @@ export function ProjectDetail({
     );
     return people.filter((p) => ids.has(p.id));
   }, [tasks, people]);
+  const counts = useMemo(() => {
+    const c: Record<TaskStatus, number> = {
+      todo: 0,
+      in_progress: 0,
+      blocked: 0,
+      done: 0,
+    };
+    for (const t of tasks) c[t.status] += 1;
+    return c;
+  }, [tasks]);
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["project-detail", projectId] });
@@ -241,20 +266,9 @@ export function ProjectDetail({
 
   const header = (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Project
-        </p>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          title="Archive project"
-          onClick={handleArchive}
-        >
-          <Trash2 className="size-4" />
-        </Button>
-      </div>
+      <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        Project
+      </p>
       <div className="flex items-center gap-3">
         <span className="shrink-0 text-2xl leading-none">
           {project.icon || (
@@ -332,51 +346,91 @@ export function ProjectDetail({
   ];
 
   const rightRail = (
-    <div className="flex flex-col gap-1">
-      <span className="mb-2 text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Properties
-      </span>
-      <RailRow label="Status">
-        <StatusMenu status={project.status} onSelect={setStatus} />
-      </RailRow>
-      <RailRow label="Dates">
-        <DateRange start={project.start_date} target={project.target_date} />
-      </RailRow>
-      <RailRow label="People">
-        {contributors.length > 0 ? (
-          <AvatarRow people={contributors} />
-        ) : (
-          <span className="text-[0.8125rem] text-muted-foreground">—</span>
-        )}
-      </RailRow>
-      <div className="mt-3 border-t border-border/60 pt-4">
-        <SpacesPicker
-          allSpaces={allSpaces}
-          linkedSpaces={linkedSpaces}
-          onToggle={toggleSpace}
-        />
-      </div>
+    <div className="flex flex-col">
+      <RailGroup label="Properties">
+        <PropertyRow label="Status">
+          <StatusMenu status={project.status} onSelect={setStatus} />
+        </PropertyRow>
+        <PropertyRow label="Health">
+          <HealthValue
+            status={project.status}
+            targetDate={project.target_date}
+            done={counts.done}
+            total={tasks.length}
+          />
+        </PropertyRow>
+        <PropertyRow label="Members">
+          {contributors.length > 0 ? (
+            <div className="px-1.5 py-0.5">
+              <AvatarRow people={contributors} />
+            </div>
+          ) : (
+            <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">
+              None
+            </span>
+          )}
+        </PropertyRow>
+        <PropertyRow label="Issues">
+          <Link
+            href={`/p/${propertyId}/tasks?project=${projectId}`}
+            className={railValueClass}
+          >
+            <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="tabular-nums">{tasks.length}</span>
+          </Link>
+        </PropertyRow>
+        <PropertyRow label="Dates">
+          <DatesValue start={project.start_date} target={project.target_date} />
+        </PropertyRow>
+        <PropertyRow label="Teams">
+          <SpacesPicker
+            allSpaces={allSpaces}
+            linkedSpaces={linkedSpaces}
+            onToggle={toggleSpace}
+          />
+        </PropertyRow>
+        <PropertyRow label="Created">
+          <span className="px-1.5 py-1">
+            <RailDate value={project.created_at} />
+          </span>
+        </PropertyRow>
+      </RailGroup>
+
+      <RailGroup label="Progress">
+        <RailProgress done={counts.done} total={tasks.length} />
+      </RailGroup>
+
+      <RailGroup label="Activity">
+        <ActivityFeed events={activity.slice(0, 6)} pending={activityPending} />
+      </RailGroup>
     </div>
   );
 
-  return <WorkspaceShell header={header} tabs={tabs} rightRail={rightRail} />;
-}
+  const overflow = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" size="icon-sm" variant="ghost" title="More" />
+        }
+      >
+        <MoreHorizontal className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6}>
+        <DropdownMenuItem onClick={handleArchive}>
+          <Archive className="size-3.5" />
+          <span className="flex-1">Archive project</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-function DateRange({
-  start,
-  target,
-}: {
-  start: string | null;
-  target: string | null;
-}) {
-  if (!start && !target)
-    return <span className="text-[0.8125rem] text-muted-foreground">—</span>;
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
-    <span className="text-[0.8125rem] tracking-tight text-foreground tabular-nums">
-      {start ? fmt(start) : "—"} → {target ? fmt(target) : "—"}
-    </span>
+    <WorkspaceShell
+      header={header}
+      headerActions={overflow}
+      tabs={tabs}
+      rightRail={rightRail}
+    />
   );
 }
 
@@ -409,6 +463,52 @@ function AvatarRow({
         </span>
       ) : null}
     </div>
+  );
+}
+
+function HealthValue({
+  status,
+  targetDate,
+  done,
+  total,
+}: {
+  status: ProjectStatus;
+  targetDate: string | null;
+  done: number;
+  total: number;
+}) {
+  const health = projectHealth({
+    status,
+    target_date: targetDate,
+    done,
+    total,
+  });
+  const meta = HEALTH_META[health];
+  return (
+    <span className="flex items-center gap-1.5 px-1.5 py-1 text-[0.8125rem] tracking-tight text-foreground">
+      <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
+      {meta.label}
+    </span>
+  );
+}
+
+function DatesValue({
+  start,
+  target,
+}: {
+  start: string | null;
+  target: string | null;
+}) {
+  if (!start && !target)
+    return (
+      <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">—</span>
+    );
+  return (
+    <span className="flex items-center gap-1 px-1.5 py-1">
+      <RailDate value={start} />
+      <span className="text-muted-foreground">→</span>
+      <RailDate value={target} />
+    </span>
   );
 }
 
@@ -455,13 +555,11 @@ function StatusMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button type="button" size="sm" variant="outline">
-            <span className={cn("size-2 rounded-full", STATUS_DOT[status])} />
-            {STATUS_LABEL[status]}
-          </Button>
-        }
-      />
+        render={<button type="button" className={railValueClass} />}
+      >
+        <span className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[status])} />
+        {STATUS_LABEL[status]}
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6}>
         {(Object.keys(STATUS_LABEL) as ProjectStatus[]).map((s) => (
           <DropdownMenuItem key={s} onClick={() => onSelect(s)}>
@@ -487,9 +585,6 @@ function SpacesPicker({
   const linkedIds = new Set(linkedSpaces.map((s) => s.id));
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
-        Spaces this spans
-      </span>
       <div className="flex flex-wrap items-center gap-1.5">
         {linkedSpaces.map((s) => (
           <span

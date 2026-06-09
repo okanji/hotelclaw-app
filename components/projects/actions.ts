@@ -159,6 +159,50 @@ export async function archiveSpace(
     .eq("id", id.data);
   if (error) return { error: error.message };
   revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
+  return { ok: true };
+}
+
+/** Bring an archived space back (clears `archived_at`). */
+export async function restoreSpace(
+  spaceId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(spaceId);
+  if (!id.success) return { error: "Invalid space" };
+
+  const supabase = await createClient();
+  const propertyId = await spacePropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Space not found" };
+
+  const { error } = await supabase
+    .from("spaces")
+    .update({ archived_at: null })
+    .eq("id", id.data);
+  if (error) return { error: error.message };
+  revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
+  return { ok: true };
+}
+
+/**
+ * Permanently delete a space. Junction rows (members, project links) cascade;
+ * tasks/documents in the space have their `space_id` nulled by the FK. No undo
+ * — only offered from the archive.
+ */
+export async function deleteSpace(
+  spaceId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(spaceId);
+  if (!id.success) return { error: "Invalid space" };
+
+  const supabase = await createClient();
+  const propertyId = await spacePropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Space not found" };
+
+  const { error } = await supabase.from("spaces").delete().eq("id", id.data);
+  if (error) return { error: error.message };
+  revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
   return { ok: true };
 }
 
@@ -246,6 +290,49 @@ export async function archiveProject(
     .eq("id", id.data);
   if (error) return { error: error.message };
   revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
+  return { ok: true };
+}
+
+/** Bring an archived project back (clears `archived_at`). */
+export async function restoreProject(
+  projectId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(projectId);
+  if (!id.success) return { error: "Invalid project" };
+
+  const supabase = await createClient();
+  const propertyId = await projectPropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Project not found" };
+
+  const { error } = await supabase
+    .from("projects")
+    .update({ archived_at: null })
+    .eq("id", id.data);
+  if (error) return { error: error.message };
+  revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
+  return { ok: true };
+}
+
+/**
+ * Permanently delete a project. Space links cascade; tasks/documents have their
+ * `project_id` nulled by the FK. No undo — only offered from the archive.
+ */
+export async function deleteProject(
+  projectId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(projectId);
+  if (!id.success) return { error: "Invalid project" };
+
+  const supabase = await createClient();
+  const propertyId = await projectPropertyId(supabase, id.data);
+  if (!propertyId) return { error: "Project not found" };
+
+  const { error } = await supabase.from("projects").delete().eq("id", id.data);
+  if (error) return { error: error.message };
+  revalidatePath(`/p/${propertyId}/projects`);
+  revalidatePath(`/p/${propertyId}/archive`);
   return { ok: true };
 }
 

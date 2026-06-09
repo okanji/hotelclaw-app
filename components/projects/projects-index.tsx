@@ -1,44 +1,66 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Archive, CalendarRange, Columns3, Plus, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  projectsQueryOptions,
+  projectsTrackingQueryOptions,
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
-import type { EntityColor, ProjectStatus } from "@/lib/db/types";
+import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { CreateEntityDialog } from "./create-entity-dialog";
+import {
+  type ProjectMember,
+  type ProjectsViewMode,
+} from "./tracking/tracking-shared";
+import { ProjectsBoardView } from "./tracking/board-view";
+import { ProjectsTableView } from "./tracking/table-view";
+import { ProjectsTimelineView } from "./tracking/timeline-view";
 
-const COLOR_DOT: Record<EntityColor, string> = {
-  slate: "bg-slate-500",
-  blue: "bg-blue-500",
-  green: "bg-emerald-500",
-  amber: "bg-amber-500",
-  rose: "bg-rose-500",
-  violet: "bg-violet-500",
-};
-const STATUS_LABEL: Record<ProjectStatus, string> = {
-  active: "Active",
-  planned: "Planned",
-  completed: "Completed",
-  archived: "Archived",
-};
+const VIEW_TABS: {
+  id: ProjectsViewMode;
+  label: string;
+  Icon: typeof Columns3;
+}[] = [
+  { id: "table", label: "Table", Icon: Table2 },
+  { id: "board", label: "Board", Icon: Columns3 },
+  { id: "timeline", label: "Timeline", Icon: CalendarRange },
+];
+
+const VIEW_STORAGE_KEY = "projects:view";
 
 export function ProjectsIndex({ propertyId }: { propertyId: string }) {
   const searchParams = useSearchParams();
   const spaceFilter = searchParams.get("space");
+  const qc = useQueryClient();
 
   const { data: projects = [], isPending } = useQuery(
-    projectsQueryOptions(propertyId),
+    projectsTrackingQueryOptions(propertyId),
   );
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
+  const { data: members = [] } = useQuery(
+    propertyMembersQueryOptions(propertyId),
+  );
   const [createOpen, setCreateOpen] = useState(false);
+  const [view, setView] = useState<ProjectsViewMode>("table");
+
+  // Restore the last-used view (client-only; avoids a hydration mismatch).
+  useEffect(() => {
+    const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (saved === "board" || saved === "table" || saved === "timeline") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setView(saved);
+    }
+  }, []);
+  function changeView(next: ProjectsViewMode) {
+    setView(next);
+    window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+  }
 
   // When filtering by space, fetch that space's project ids.
   const { data: spaceProjectIds } = useQuery({
@@ -64,9 +86,25 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     return projects.filter((p) => ids.has(p.id));
   }, [projects, spaceFilter, spaceProjectIds]);
 
+  const memberList: ProjectMember[] = members;
+
+  function onChanged() {
+    void qc.invalidateQueries({
+      queryKey: ["projects-tracking", propertyId],
+    });
+    void qc.invalidateQueries({ queryKey: ["projects", propertyId] });
+  }
+
+  const viewProps = {
+    propertyId,
+    projects: shown,
+    members: memberList,
+    onChanged,
+  };
+
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-5">
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <header className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1.5">
             <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
@@ -76,71 +114,81 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
               Projects
             </h1>
           </div>
-          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            New project
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              title="Archive"
+              aria-label="Archive"
+              render={<Link href={`/p/${propertyId}/archive`} />}
+            >
+              <Archive className="size-4" />
+            </Button>
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              New project
+            </Button>
+          </div>
         </div>
-        <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
-          Cross-space initiatives — group the tasks and documents for something
-          like a Festival or a Wedding in one place.
-        </p>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border/70 p-0.5">
+            {VIEW_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => changeView(t.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[0.8125rem] font-medium tracking-tight transition-colors",
+                  view === t.id
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <t.Icon className="size-3.5" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[0.8125rem] tabular-nums text-muted-foreground">
+            {shown.length} {shown.length === 1 ? "project" : "projects"}
+          </span>
+        </div>
       </header>
 
-      <hr className="my-10 border-border" />
-
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading projects…</p>
-      ) : shown.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            {spaceName
-              ? `No projects involve ${spaceName} yet.`
-              : "No projects yet."}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {isPending ? (
+          <p className="px-8 pt-10 text-sm text-muted-foreground sm:px-14">
+            Loading projects…
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="size-4" />
-            New project
-          </Button>
-        </div>
-      ) : (
-        <ul
-          role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
-        >
-          {shown.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-3 rounded-md px-2 py-3.5 transition-colors hover:bg-muted"
+        ) : shown.length === 0 ? (
+          <div className="px-8 pt-10 sm:px-14">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
+              <p className="text-sm text-muted-foreground">
+                {spaceName
+                  ? `No projects involve ${spaceName} yet.`
+                  : "No projects yet."}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setCreateOpen(true)}
               >
-                <span
-                  className={cn("size-2.5 shrink-0 rounded", COLOR_DOT[p.color])}
-                  aria-hidden="true"
-                />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[0.9375rem] font-medium tracking-tight text-foreground">
-                    {p.name}
-                  </span>
-                  {p.description ? (
-                    <span className="truncate text-[0.8125rem] tracking-tight text-muted-foreground">
-                      {p.description}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-[0.75rem] tracking-tight text-muted-foreground">
-                  {STATUS_LABEL[p.status]}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+                <Plus className="size-4" />
+                New project
+              </Button>
+            </div>
+          </div>
+        ) : view === "board" ? (
+          <ProjectsBoardView {...viewProps} />
+        ) : view === "timeline" ? (
+          <ProjectsTimelineView {...viewProps} />
+        ) : (
+          <ProjectsTableView {...viewProps} />
+        )}
+      </div>
 
       <CreateEntityDialog
         open={createOpen}
