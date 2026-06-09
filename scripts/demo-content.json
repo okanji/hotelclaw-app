@@ -1,0 +1,3463 @@
+{
+  "bible": {
+    "company": {
+      "name": "Solana Cove Resort & Spa",
+      "tagline": "Where the Pacific meets quiet luxury",
+      "kind": "Luxury beachfront resort & spa"
+    },
+    "personas": [
+      {
+        "key": "marcus-haylward",
+        "fullName": "Marcus Haylward",
+        "firstName": "Marcus",
+        "role": "manager",
+        "title": "Director of Front Office",
+        "departmentKey": "front-office",
+        "email": "marcus@solanacove.com",
+        "avatarSeed": "lighthouse",
+        "bio": "Ran flagship city hotels for 15 years before chasing the ocean. Obsessed with arrival rituals and a flawless check-in."
+      },
+      {
+        "key": "priya-nair",
+        "fullName": "Priya Nair",
+        "firstName": "Priya",
+        "role": "staff",
+        "title": "Guest Experience Agent",
+        "departmentKey": "front-office",
+        "email": "priya@solanacove.com",
+        "avatarSeed": "seashell",
+        "bio": "Multilingual concierge who remembers every returning guest's favorite room and morning coffee order."
+      },
+      {
+        "key": "diego-ramos",
+        "fullName": "Diego Ramos",
+        "firstName": "Diego",
+        "role": "staff",
+        "title": "Night Manager",
+        "departmentKey": "front-office",
+        "email": "diego@solanacove.com",
+        "avatarSeed": "moon",
+        "bio": "Keeps the property calm and the late-arrival villas ready. Quietly solves the problems no one else sees."
+      },
+      {
+        "key": "amelia-cole",
+        "fullName": "Amelia Cole",
+        "firstName": "Amelia",
+        "role": "manager",
+        "title": "Director of Housekeeping",
+        "departmentKey": "housekeeping",
+        "email": "amelia@solanacove.com",
+        "avatarSeed": "linen",
+        "bio": "Turns rooms with military precision and a designer's eye. Champions sustainable amenities and zero-waste laundry."
+      },
+      {
+        "key": "rosa-mendes",
+        "fullName": "Rosa Mendes",
+        "firstName": "Rosa",
+        "role": "staff",
+        "title": "Room Attendant Lead",
+        "departmentKey": "housekeeping",
+        "email": "rosa@solanacove.com",
+        "avatarSeed": "orchid",
+        "bio": "Trains every new attendant and sets the standard for the perfect turndown. Twelve years on property."
+      },
+      {
+        "key": "chef-laurent-bisset",
+        "fullName": "Laurent Bisset",
+        "firstName": "Laurent",
+        "role": "manager",
+        "title": "Executive Chef",
+        "departmentKey": "food-and-beverage",
+        "email": "laurent@solanacove.com",
+        "avatarSeed": "saffron",
+        "bio": "Coastal-Mediterranean chef who forages the headland at dawn and rewrites the menu with the seasons."
+      },
+      {
+        "key": "tomas-vega",
+        "fullName": "Tomas Vega",
+        "firstName": "Tomas",
+        "role": "staff",
+        "title": "Head Sommelier & Bar Manager",
+        "departmentKey": "food-and-beverage",
+        "email": "tomas@solanacove.com",
+        "avatarSeed": "vine",
+        "bio": "Built the cellar from scratch. Pairs sunsets with small-batch mezcal and an encyclopedic memory for vintages."
+      },
+      {
+        "key": "nadia-feldman",
+        "fullName": "Nadia Feldman",
+        "firstName": "Nadia",
+        "role": "staff",
+        "title": "Banquet & Events Captain",
+        "departmentKey": "food-and-beverage",
+        "email": "nadia@solanacove.com",
+        "avatarSeed": "candle",
+        "bio": "Orchestrates 200-cover beach galas without breaking a sweat. The calm in every wedding-night storm."
+      },
+      {
+        "key": "owen-baptiste",
+        "fullName": "Owen Baptiste",
+        "firstName": "Owen",
+        "role": "manager",
+        "title": "Chief Engineer",
+        "departmentKey": "engineering",
+        "email": "owen@solanacove.com",
+        "avatarSeed": "anchor",
+        "bio": "Keeps salt air from winning. Leads the solar retrofit and knows every valve and breaker on the property by heart."
+      },
+      {
+        "key": "kenji-watanabe",
+        "fullName": "Kenji Watanabe",
+        "firstName": "Kenji",
+        "role": "staff",
+        "title": "Maintenance Technician",
+        "departmentKey": "engineering",
+        "email": "kenji@solanacove.com",
+        "avatarSeed": "wrench",
+        "bio": "Pool plant, HVAC, and the villa hot tubs all answer to him. Fixes it before the guest ever notices."
+      },
+      {
+        "key": "isabel-cruz",
+        "fullName": "Isabel Cruz",
+        "firstName": "Isabel",
+        "role": "manager",
+        "title": "Director of Sales & Events",
+        "departmentKey": "sales-events",
+        "email": "isabel@solanacove.com",
+        "avatarSeed": "compass",
+        "bio": "Closed the resort's first seven-figure wedding season. Lives in the RFP inbox and the OTA dashboards."
+      },
+      {
+        "key": "yuki-tanaka",
+        "fullName": "Yuki Tanaka",
+        "firstName": "Yuki",
+        "role": "staff",
+        "title": "Spa Director",
+        "departmentKey": "spa-wellness",
+        "email": "yuki@solanacove.com",
+        "avatarSeed": "lotus",
+        "bio": "Designed the seaside hydrotherapy circuit. Believes a great treatment starts the moment a guest exhales."
+      }
+    ],
+    "spaces": [
+      {
+        "key": "front-office",
+        "name": "Front Office",
+        "color": "blue",
+        "icon": "🛎️",
+        "purpose": "Reservations, arrivals, concierge, and the guest journey from booking to checkout.",
+        "memberKeys": [
+          "marcus-haylward",
+          "priya-nair",
+          "diego-ramos"
+        ]
+      },
+      {
+        "key": "housekeeping",
+        "name": "Housekeeping",
+        "color": "violet",
+        "icon": "🧺",
+        "purpose": "Room turns, public-area cleanliness, laundry, and amenity standards across all villas and suites.",
+        "memberKeys": [
+          "amelia-cole",
+          "rosa-mendes"
+        ]
+      },
+      {
+        "key": "food-and-beverage",
+        "name": "Food & Beverage",
+        "color": "amber",
+        "icon": "🍽️",
+        "purpose": "Restaurants, bars, in-villa dining, and banquet service for events and weddings.",
+        "memberKeys": [
+          "chef-laurent-bisset",
+          "tomas-vega",
+          "nadia-feldman"
+        ]
+      },
+      {
+        "key": "engineering",
+        "name": "Engineering & Maintenance",
+        "color": "slate",
+        "icon": "🔧",
+        "purpose": "Building systems, preventive maintenance, energy, pools, and capital projects.",
+        "memberKeys": [
+          "owen-baptiste",
+          "kenji-watanabe"
+        ]
+      },
+      {
+        "key": "sales-events",
+        "name": "Sales & Events",
+        "color": "green",
+        "icon": "📈",
+        "purpose": "Group sales, weddings, corporate retreats, OTA revenue, and distribution strategy.",
+        "memberKeys": [
+          "isabel-cruz",
+          "nadia-feldman"
+        ]
+      },
+      {
+        "key": "spa-wellness",
+        "name": "Spa & Wellness",
+        "color": "rose",
+        "icon": "🌿",
+        "purpose": "Spa treatments, hydrotherapy, fitness, and the resort's wellness programming.",
+        "memberKeys": [
+          "yuki-tanaka"
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "key": "oceanfront-villa-reno",
+        "name": "Oceanfront Villa Renovation",
+        "description": "Full refresh of the 18 oceanfront villas: new soft goods, smart climate controls, and rainfall showers, phased to protect occupancy.",
+        "status": "active",
+        "color": "blue",
+        "icon": "🏖️",
+        "startInDays": -45,
+        "targetInDays": 90,
+        "spaceKeys": [
+          "housekeeping",
+          "engineering",
+          "front-office"
+        ],
+        "leadKey": "owen-baptiste"
+      },
+      {
+        "key": "wedding-season-2026",
+        "name": "Peak Wedding Season 2026",
+        "description": "Operational readiness for the summer wedding season: beach gala buildouts, banquet staffing, and end-to-end event playbooks.",
+        "status": "active",
+        "color": "rose",
+        "icon": "💒",
+        "startInDays": -30,
+        "targetInDays": 120,
+        "spaceKeys": [
+          "sales-events",
+          "food-and-beverage"
+        ],
+        "leadKey": "isabel-cruz"
+      },
+      {
+        "key": "ota-revenue-push",
+        "name": "OTA Revenue & Distribution Push",
+        "description": "Optimize rate parity, channel mix, and content across Booking.com, Expedia, and direct to lift RevPAR through shoulder season.",
+        "status": "active",
+        "color": "green",
+        "icon": "📊",
+        "startInDays": -20,
+        "targetInDays": 60,
+        "spaceKeys": [
+          "sales-events",
+          "front-office"
+        ],
+        "leadKey": "isabel-cruz"
+      },
+      {
+        "key": "spa-relaunch",
+        "name": "Seaside Spa Relaunch",
+        "description": "Relaunch the spa with a new hydrotherapy circuit, signature treatment menu, and wellness retreat packages.",
+        "status": "planned",
+        "color": "rose",
+        "icon": "🌸",
+        "startInDays": 30,
+        "targetInDays": 150,
+        "spaceKeys": [
+          "spa-wellness",
+          "food-and-beverage"
+        ],
+        "leadKey": "yuki-tanaka"
+      },
+      {
+        "key": "sustainability-program",
+        "name": "Coastline Sustainability Program",
+        "description": "Solar retrofit, zero-waste laundry, reef-safe amenities, and the path to a recognized eco-certification.",
+        "status": "active",
+        "color": "green",
+        "icon": "♻️",
+        "startInDays": -90,
+        "targetInDays": 180,
+        "spaceKeys": [
+          "engineering",
+          "housekeeping"
+        ],
+        "leadKey": "amelia-cole"
+      },
+      {
+        "key": "pms-migration",
+        "name": "PMS & Tech Stack Migration",
+        "description": "Migrate from legacy PMS to a cloud property-management system with integrated POS, channel manager, and guest app.",
+        "status": "planned",
+        "color": "slate",
+        "icon": "🖥️",
+        "startInDays": 45,
+        "targetInDays": 165,
+        "spaceKeys": [
+          "front-office",
+          "sales-events"
+        ],
+        "leadKey": "marcus-haylward"
+      },
+      {
+        "key": "service-excellence-training",
+        "name": "Service Excellence Training",
+        "description": "Cross-department training in luxury service standards, guest recovery, and the new arrival ritual for all front-of-house teams.",
+        "status": "active",
+        "color": "amber",
+        "icon": "🎓",
+        "startInDays": -15,
+        "targetInDays": 75,
+        "spaceKeys": [
+          "front-office",
+          "housekeeping",
+          "food-and-beverage"
+        ],
+        "leadKey": "marcus-haylward"
+      },
+      {
+        "key": "summer-menu-refresh",
+        "name": "Summer Menu Refresh",
+        "description": "Seasonal coastal-Mediterranean menu rollout across the main restaurant, beach bar, and in-villa dining with new wine pairings.",
+        "status": "completed",
+        "color": "amber",
+        "icon": "🍷",
+        "startInDays": -75,
+        "targetInDays": -10,
+        "spaceKeys": [
+          "food-and-beverage"
+        ],
+        "leadKey": "chef-laurent-bisset"
+      },
+      {
+        "key": "winter-readiness-2025",
+        "name": "Off-Season Readiness 2025",
+        "description": "Last year's low-season deep-clean, preventive maintenance sweep, and staffing wind-down plan. Closed out and archived.",
+        "status": "archived",
+        "color": "slate",
+        "icon": "📦",
+        "startInDays": -240,
+        "targetInDays": -150,
+        "spaceKeys": [
+          "engineering",
+          "housekeeping"
+        ],
+        "leadKey": "owen-baptiste"
+      }
+    ],
+    "channels": [
+      {
+        "key": "general",
+        "name": "general",
+        "spaceKey": "",
+        "memberScope": "all",
+        "memberKeys": [],
+        "purpose": "Property-wide watercooler for all Solana Cove team members."
+      },
+      {
+        "key": "announcements",
+        "name": "announcements",
+        "spaceKey": "",
+        "memberScope": "all",
+        "memberKeys": [],
+        "purpose": "Official resort-wide announcements: policy changes, VIP arrivals, and leadership updates."
+      },
+      {
+        "key": "front-office",
+        "name": "front-office",
+        "spaceKey": "front-office",
+        "memberScope": "space",
+        "memberKeys": [],
+        "purpose": "Daily front desk handoffs, arrivals, and concierge coordination."
+      },
+      {
+        "key": "housekeeping",
+        "name": "housekeeping",
+        "spaceKey": "housekeeping",
+        "memberScope": "space",
+        "memberKeys": [],
+        "purpose": "Room status, turn priorities, and amenity restock coordination."
+      },
+      {
+        "key": "food-and-beverage",
+        "name": "food-and-beverage",
+        "spaceKey": "food-and-beverage",
+        "memberScope": "space",
+        "memberKeys": [],
+        "purpose": "Service lineup, 86'd items, reservations, and banquet prep."
+      },
+      {
+        "key": "wedding-ops",
+        "name": "wedding-ops",
+        "spaceKey": "sales-events",
+        "memberScope": "list",
+        "memberKeys": [
+          "isabel-cruz",
+          "nadia-feldman",
+          "chef-laurent-bisset",
+          "tomas-vega",
+          "marcus-haylward"
+        ],
+        "purpose": "Cross-team coordination for peak wedding season events and beach galas."
+      },
+      {
+        "key": "maintenance-hotline",
+        "name": "maintenance-hotline",
+        "spaceKey": "engineering",
+        "memberScope": "list",
+        "memberKeys": [
+          "owen-baptiste",
+          "kenji-watanabe",
+          "amelia-cole",
+          "diego-ramos",
+          "marcus-haylward"
+        ],
+        "purpose": "Urgent maintenance requests and work-order triage routed from all departments."
+      }
+    ],
+    "labels": [
+      {
+        "name": "guest-request",
+        "color": "blue"
+      },
+      {
+        "name": "vip",
+        "color": "violet"
+      },
+      {
+        "name": "maintenance",
+        "color": "slate"
+      },
+      {
+        "name": "urgent",
+        "color": "rose"
+      },
+      {
+        "name": "compliance",
+        "color": "amber"
+      },
+      {
+        "name": "budget",
+        "color": "green"
+      },
+      {
+        "name": "vendor",
+        "color": "blue"
+      },
+      {
+        "name": "recurring",
+        "color": "slate"
+      },
+      {
+        "name": "safety",
+        "color": "rose"
+      },
+      {
+        "name": "inventory",
+        "color": "amber"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "title": "Resolve VIP villa AC failure in Villa 12 before 3pm arrival",
+      "status": "in_progress",
+      "priority": "urgent",
+      "labels": [
+        "vip",
+        "maintenance",
+        "urgent"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 0,
+      "scheduledStartInDays": 0,
+      "scheduledDurationHours": 2,
+      "description": "Honeymoon guests arriving 3pm to Villa 12, climate control reading 28C and not cooling. Diagnose compressor and refrigerant charge."
+    },
+    {
+      "title": "Replace cracked rainfall showerhead in Oceanfront Villa 7",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "maintenance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 4
+    },
+    {
+      "title": "Install smart climate control panels in villas 1-6",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": -2,
+      "scheduledStartInDays": 9999,
+      "description": "Phase 1 climate retrofit. Vendor delivered panels; wiring behind schedule due to villa occupancy holds.",
+      "subtasks": [
+        "Pull guest occupancy hold list from front office",
+        "Run low-voltage wiring villas 1-3",
+        "Run low-voltage wiring villas 4-6",
+        "Commission and test app pairing"
+      ]
+    },
+    {
+      "title": "Source new soft goods (linens, throws, cushions) for villa reno",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "amelia-cole",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 12
+    },
+    {
+      "title": "Deep clean and stage villas 1-6 post-renovation",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "recurring"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Coordinate occupancy phasing so reno never closes more than 3 villas",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "marcus-haylward",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Audit villa minibar restocking compliance across oceanfront block",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "inventory",
+        "compliance"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "oceanfront-villa-reno",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Finalize beach gala buildout floor plan for Hendricks wedding",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "vip"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 6,
+      "scheduledStartInDays": 2,
+      "scheduledDurationHours": 3,
+      "description": "200-cover beach gala. Confirm tent footprint against high-tide line and generator placement."
+    },
+    {
+      "title": "Confirm banquet staffing levels for June wedding weekends",
+      "status": "todo",
+      "priority": "high",
+      "labels": [],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 10,
+      "subtasks": [
+        "Forecast covers per weekend",
+        "Confirm casual staffing agency availability",
+        "Build serving captain rota"
+      ]
+    },
+    {
+      "title": "Draft end-to-end wedding event playbook v2",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "sales-events",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 14
+    },
+    {
+      "title": "Tasting menu sign-off with Hendricks couple",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "vip",
+        "guest-request"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 8,
+      "scheduledStartInDays": 5,
+      "scheduledDurationHours": 2
+    },
+    {
+      "title": "Build wedding-season wine and bar pairing list",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "inventory"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "tomas-vega",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 18
+    },
+    {
+      "title": "Order ceremony chiavari chairs and arch rentals for peak weekends",
+      "status": "blocked",
+      "priority": "high",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": -1,
+      "description": "Blocked: rental vendor awaiting deposit approval from finance."
+    },
+    {
+      "title": "Inspect beach access path and railings ahead of gala season",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "safety",
+        "maintenance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 15
+    },
+    {
+      "title": "Create wedding-night turndown and room-gift SOP",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "vip"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "wedding-season-2026",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Fix rate parity discrepancy on Expedia vs direct",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "compliance"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": -3,
+      "description": "Expedia showing rates $40 below direct on deluxe ocean rooms for shoulder dates. Audit channel manager mapping."
+    },
+    {
+      "title": "Refresh Booking.com property photos and content",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 9
+    },
+    {
+      "title": "Analyze channel mix and RevPAR for shoulder season",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "budget"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Set up direct-booking upsell prompts at check-in",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "guest-request"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Reconcile last month's OTA commission invoices",
+      "status": "done",
+      "priority": "medium",
+      "labels": [
+        "budget",
+        "compliance"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Configure length-of-stay restrictions for peak weekends",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 5
+    },
+    {
+      "title": "Finalize hydrotherapy circuit equipment vendor selection",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "spa-wellness",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 20
+    },
+    {
+      "title": "Design signature treatment menu for spa relaunch",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "spa-wellness",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 25,
+      "subtasks": [
+        "Draft seaside hydrotherapy ritual",
+        "Source reef-safe product line",
+        "Price treatments against comp set"
+      ]
+    },
+    {
+      "title": "Develop wellness retreat package with F&B pairing",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "spa-wellness",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Plan healthy retreat menu with executive chef",
+      "status": "todo",
+      "priority": "low",
+      "labels": [],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Recruit and onboard two licensed massage therapists",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "compliance"
+      ],
+      "spaceKey": "spa-wellness",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 30
+    },
+    {
+      "title": "Spec plumbing and drainage for new hydrotherapy pools",
+      "status": "blocked",
+      "priority": "high",
+      "labels": [
+        "maintenance",
+        "vendor"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "spa-relaunch",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 9999,
+      "description": "Blocked pending final spa layout sign-off."
+    },
+    {
+      "title": "Commission rooftop solar array Phase 2",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": -5,
+      "description": "Inverter sync issues delaying grid tie-in. Vendor electrician on site."
+    },
+    {
+      "title": "Switch all guest amenities to reef-safe product line",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [
+        "inventory",
+        "vendor"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "amelia-cole",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 11
+    },
+    {
+      "title": "Implement zero-waste laundry detergent dosing system",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Compile documentation for eco-certification audit",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "compliance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 22,
+      "subtasks": [
+        "Gather energy consumption baselines",
+        "Document waste diversion metrics",
+        "Compile water reclamation data"
+      ]
+    },
+    {
+      "title": "Install low-flow fixtures across guest bathrooms",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "maintenance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Set up composting program for kitchen organic waste",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "sustainability-program",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Map legacy PMS data fields to new cloud schema",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "pms-migration",
+      "assigneeKey": "marcus-haylward",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 35
+    },
+    {
+      "title": "Evaluate integrated POS options for restaurant and bar",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "pms-migration",
+      "assigneeKey": "tomas-vega",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Plan staff training schedule for new PMS rollout",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "pms-migration",
+      "assigneeKey": "diego-ramos",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Validate channel manager integration in PMS sandbox",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "pms-migration",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 40
+    },
+    {
+      "title": "Define data retention and PCI compliance for new stack",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "compliance"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "pms-migration",
+      "assigneeKey": "marcus-haylward",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Run arrival ritual training session for front desk team",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "marcus-haylward",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 3,
+      "scheduledStartInDays": 3,
+      "scheduledDurationHours": 2
+    },
+    {
+      "title": "Build guest recovery and service-recovery playbook",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Deliver luxury service standards workshop for housekeeping",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "housekeeping",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "amelia-cole",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 16,
+      "scheduledStartInDays": 16,
+      "scheduledDurationHours": 3
+    },
+    {
+      "title": "Cross-train F&B servers on wine service etiquette",
+      "status": "todo",
+      "priority": "low",
+      "labels": [],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "tomas-vega",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Record arrival ritual demo video for onboarding",
+      "status": "done",
+      "priority": "low",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Audit guest-facing language and tone across teams",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "compliance"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "assigneeKey": "diego-ramos",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Final plating photography for summer menu launch",
+      "status": "done",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Print updated beach bar and in-villa dining menus",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "vendor"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Train line cooks on new coastal-Mediterranean dishes",
+      "status": "done",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Finalize wine pairings for summer tasting flights",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "inventory"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "assigneeKey": "tomas-vega",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Archive winter deep-clean checklists and sign-offs",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "compliance",
+        "recurring"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "winter-readiness-2025",
+      "assigneeKey": "amelia-cole",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Close out preventive maintenance sweep work orders",
+      "status": "done",
+      "priority": "low",
+      "labels": [
+        "maintenance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "winter-readiness-2025",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Re-key Villa 9 door lock after guest lockout report",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "maintenance",
+        "guest-request"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 2
+    },
+    {
+      "title": "Investigate intermittent WiFi dropouts in west wing suites",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "maintenance",
+        "guest-request"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "diego-ramos",
+      "dueInDays": -1,
+      "description": "Multiple guest complaints overnight. Suspect failing access point in west corridor."
+    },
+    {
+      "title": "Replace pool plant chlorine dosing pump",
+      "status": "blocked",
+      "priority": "high",
+      "labels": [
+        "maintenance",
+        "safety"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999,
+      "description": "Blocked: replacement pump on backorder from supplier, ETA 5 days."
+    },
+    {
+      "title": "Quarterly fire alarm and sprinkler inspection",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "compliance",
+        "safety",
+        "recurring"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 7,
+      "scheduledStartInDays": 7,
+      "scheduledDurationHours": 4
+    },
+    {
+      "title": "Service villa hot tubs and check water chemistry",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "maintenance",
+        "recurring",
+        "safety"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 5
+    },
+    {
+      "title": "Handle VIP late checkout request for Suite 304",
+      "status": "done",
+      "priority": "medium",
+      "labels": [
+        "vip",
+        "guest-request"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Coordinate airport transfer for arriving Nakamura party",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "vip",
+        "guest-request"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 1,
+      "scheduledStartInDays": 1,
+      "scheduledDurationHours": 1
+    },
+    {
+      "title": "Resolve double-booking on ocean deluxe room for July 4",
+      "status": "in_progress",
+      "priority": "urgent",
+      "labels": [
+        "urgent",
+        "guest-request"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "diego-ramos",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 0,
+      "description": "Two confirmed reservations on same room/date. Need walk plan or upgrade."
+    },
+    {
+      "title": "Update concierge local-experience binder for summer",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "recurring"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "priya-nair",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Process group rooming list for corporate retreat",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "diego-ramos",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 6
+    },
+    {
+      "title": "Follow up on negative review about slow check-in",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [
+        "guest-request"
+      ],
+      "spaceKey": "front-office",
+      "projectKey": "",
+      "assigneeKey": "marcus-haylward",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": -2
+    },
+    {
+      "title": "Stripped bed-linen inventory count and reorder",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "inventory",
+        "recurring"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 3
+    },
+    {
+      "title": "Address guest complaint of hair found in Suite 210",
+      "status": "done",
+      "priority": "medium",
+      "labels": [
+        "guest-request"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Reorganize amenity storeroom and label par levels",
+      "status": "in_progress",
+      "priority": "low",
+      "labels": [
+        "inventory"
+      ],
+      "spaceKey": "housekeeping",
+      "projectKey": "",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Train new room attendant on turndown standard",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [],
+      "spaceKey": "housekeeping",
+      "projectKey": "",
+      "assigneeKey": "rosa-mendes",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 4
+    },
+    {
+      "title": "86 list update: source replacement for out-of-stock halibut",
+      "status": "done",
+      "priority": "medium",
+      "labels": [
+        "inventory"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Quarterly wine cellar inventory and valuation",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "inventory",
+        "recurring"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "tomas-vega",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 13
+    },
+    {
+      "title": "Negotiate seafood supplier contract renewal",
+      "status": "in_progress",
+      "priority": "medium",
+      "labels": [
+        "vendor",
+        "budget"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9
+    },
+    {
+      "title": "Health inspection prep: kitchen temperature log audit",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "compliance",
+        "safety"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "chef-laurent-bisset",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 5,
+      "subtasks": [
+        "Verify walk-in cooler logs complete",
+        "Calibrate probe thermometers",
+        "Review allergen labeling"
+      ]
+    },
+    {
+      "title": "Repair walk-in freezer door seal in main kitchen",
+      "status": "blocked",
+      "priority": "high",
+      "labels": [
+        "maintenance",
+        "safety"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": -1,
+      "description": "Blocked: awaiting gasket part. Temporary tape seal in place, monitoring temps."
+    },
+    {
+      "title": "Set up in-villa dining breakfast pre-order system",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "guest-request"
+      ],
+      "spaceKey": "food-and-beverage",
+      "projectKey": "",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "chef-laurent-bisset",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Respond to corporate retreat RFP from Meridian Tech",
+      "status": "in_progress",
+      "priority": "high",
+      "labels": [
+        "budget"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 2
+    },
+    {
+      "title": "Site visit walkthrough for autumn wedding inquiry",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "vip"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "",
+      "assigneeKey": "nadia-feldman",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 4,
+      "scheduledStartInDays": 4,
+      "scheduledDurationHours": 2
+    },
+    {
+      "title": "Send contract and deposit invoice to Patel-Shah wedding",
+      "status": "todo",
+      "priority": "high",
+      "labels": [
+        "vip",
+        "budget"
+      ],
+      "spaceKey": "sales-events",
+      "projectKey": "",
+      "assigneeKey": "isabel-cruz",
+      "createdByKey": "isabel-cruz",
+      "dueInDays": 3
+    },
+    {
+      "title": "Schedule deep clean and descale of sauna and steam room",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "maintenance",
+        "recurring",
+        "safety"
+      ],
+      "spaceKey": "spa-wellness",
+      "projectKey": "",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 8
+    },
+    {
+      "title": "Handle VIP couples-massage booking conflict",
+      "status": "done",
+      "priority": "medium",
+      "labels": [
+        "vip",
+        "guest-request"
+      ],
+      "spaceKey": "spa-wellness",
+      "projectKey": "",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "yuki-tanaka",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Review spa towel par levels with housekeeping",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "inventory"
+      ],
+      "spaceKey": "spa-wellness",
+      "projectKey": "",
+      "assigneeKey": "yuki-tanaka",
+      "createdByKey": "amelia-cole",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Patch peeling deck paint near infinity pool edge",
+      "status": "todo",
+      "priority": "low",
+      "labels": [
+        "maintenance",
+        "safety"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "kenji-watanabe",
+      "createdByKey": "owen-baptiste",
+      "dueInDays": 9999
+    },
+    {
+      "title": "Calibrate guestroom door access system after firmware update",
+      "status": "todo",
+      "priority": "medium",
+      "labels": [
+        "maintenance"
+      ],
+      "spaceKey": "engineering",
+      "projectKey": "",
+      "assigneeKey": "owen-baptiste",
+      "createdByKey": "marcus-haylward",
+      "dueInDays": 9999
+    }
+  ],
+  "docs": [
+    {
+      "title": "Arrival Ritual SOP — The First Ninety Seconds",
+      "icon": "🛎️",
+      "createdByKey": "marcus-haylward",
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Arrival Ritual SOP — The First Ninety Seconds"
+        },
+        {
+          "type": "p",
+          "text": "A guest decides how they feel about Solana Cove within ninety seconds of stepping out of their car. This SOP defines exactly what happens in that window. It applies to every arrival, every shift, no exceptions. Memorize it; do not read it off a card in front of a guest."
+        },
+        {
+          "type": "callout",
+          "text": "The arrival ritual is the single most-rated touchpoint in our guest surveys. A flawless arrival recovers a mediocre stay; a clumsy one undermines a perfect one."
+        },
+        {
+          "type": "h2",
+          "text": "The Sequence"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Doorman greets within 10 seconds of the vehicle stopping. Open the guest's door first, never the driver's.",
+            "Use the guest's name if you have the arrivals sheet — returning guests should hear their name before they say it.",
+            "Offer a cold eucalyptus towel and a glass of hibiscus iced tea while luggage is tagged.",
+            "Escort, do not point. Walk the guest to the lobby; never gesture them toward a desk.",
+            "Pre-keyed villa: VIPs and returning guests skip the desk entirely and are walked straight to the room."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Reading the Guest"
+        },
+        {
+          "type": "p",
+          "text": "Tired red-eye arrivals want speed and quiet. Anniversary couples want warmth and a little ceremony. Families want the kids acknowledged by name. Match your energy to theirs — the ritual is a frame, not a script."
+        },
+        {
+          "type": "h3",
+          "text": "Language Notes"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Never say 'No problem' — say 'My pleasure' or 'Of course'.",
+            "Never say 'You'll have to' — say 'The best way is' or 'May I'.",
+            "If you don't know, say 'Let me find out for you right now,' then actually do it."
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "h2",
+          "text": "Pre-Shift Checklist"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Print the day's arrivals sheet with VIP and returning-guest flags",
+            "Confirm welcome amenities are staged for all flagged rooms",
+            "Stock the eucalyptus towel chiller and the iced-tea station",
+            "Verify all pre-keyed villas have working keys before the guest lands",
+            "Brief the doorman on the three highest-priority arrivals by name"
+          ]
+        },
+        {
+          "type": "quote",
+          "text": "We are not checking people in. We are welcoming them home for a week. — Marcus"
+        }
+      ]
+    },
+    {
+      "title": "Night Audit Runbook",
+      "icon": "🌙",
+      "createdByKey": "diego-ramos",
+      "spaceKey": "front-office",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Night Audit Runbook"
+        },
+        {
+          "type": "p",
+          "text": "The night audit closes the financial day, rolls the business date, and prepares the property for the morning team. This runbook is the authoritative order of operations. Run it the same way every night so that when something is wrong, you know exactly where it broke."
+        },
+        {
+          "type": "callout",
+          "text": "Warning: never roll the business date until every restaurant and spa POS terminal has been closed and posted. A premature roll strands charges in the wrong day and creates hours of reconciliation."
+        },
+        {
+          "type": "h2",
+          "text": "Pre-Audit (23:00 – 00:30)"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Confirm all outlets (restaurant, beach bar, spa, in-villa dining) have batched and closed their POS.",
+            "Post room and tax charges; verify no rooms show a zero rate without an authorized comp code.",
+            "Settle and reconcile the day's credit-card batch against the PMS folio total.",
+            "Resolve any guest-disputed charges flagged during the day; leave a note, never a guess."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "The Roll (00:30 – 01:00)"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Back up the PMS before rolling. No exceptions.",
+            "Run the no-show report; charge or release per the reservation's policy.",
+            "Roll the business date.",
+            "Generate the manager's flash report and the morning arrivals/departures sheets."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Late Arrivals & Quiet Hours"
+        },
+        {
+          "type": "p",
+          "text": "Between 01:00 and 06:00 the property belongs to the night team. Keep the lobby music low, the porte-cochère lit, and at least two pre-keyed villas ready for unannounced late arrivals. A guest who lands at 3am and finds a warm room is a guest for life."
+        },
+        {
+          "type": "h3",
+          "text": "Escalation"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Medical or safety: call emergency services first, then the Director of Front Office.",
+            "Maintenance flood/power: maintenance-hotline channel, then Owen directly.",
+            "Security or intoxicated-guest incident: log it in detail, photos if safe, MOD on duty."
+          ]
+        },
+        {
+          "type": "todo",
+          "items": [
+            "PMS backup confirmed before roll",
+            "Credit-card batch reconciled to the cent",
+            "Morning reports printed and left at the desk",
+            "Lobby reset and quiet-hours lighting set"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Beach Gala Wedding Playbook",
+      "icon": "💒",
+      "createdByKey": "nadia-feldman",
+      "spaceKey": "sales-events",
+      "projectKey": "wedding-season-2026",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Beach Gala Wedding Playbook"
+        },
+        {
+          "type": "p",
+          "text": "Our signature beach gala seats up to 200 covers on the south lawn with the ceremony at the waterline. This playbook is the end-to-end operational spine for every wedding from the planning call to the last shuttle. It assumes a standard Saturday gala; deviations get documented in the event's own brief."
+        },
+        {
+          "type": "h2",
+          "text": "T-Minus Timeline"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "T-30 days: final headcount, dietary matrix, floor plan, and rain-call decision tree locked.",
+            "T-7 days: BEO distributed to all departments; tasting and walkthrough complete.",
+            "T-2 days: tent, dance floor, and generator staged; lighting focus at dusk.",
+            "T-1 day: full setup, table top, and a dry-run timeline read with the couple's planner."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "The rain call is made by 10:00 the morning of, jointly by the captain, the planner, and the MOD. Once called, it is final. Indecision after 10:00 is what loses weddings, not weather."
+        },
+        {
+          "type": "h2",
+          "text": "Day-Of Roles"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Captain (Nadia): owns the timeline and is the single point of contact for the planner.",
+            "Kitchen lead: plated-vs-stations call, allergy trays flagged with colored picks.",
+            "Bar lead (Tomas): sunset pour timing, signature cocktail count, last call coordination.",
+            "Front office: guest-room blocks, late checkouts for the wedding party, shuttle manifest."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "The Sunset Window"
+        },
+        {
+          "type": "p",
+          "text": "Our entire timeline bends around golden hour. First dances and toasts are scheduled so the couple is on the floor as the sun hits the water. Confirm the day's exact sunset time during the T-7 brief and build backward from it."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "h2",
+          "text": "Teardown & Handoff"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Couple's gifts, cake top, and personal décor boxed and labeled for the suite",
+            "Rental count reconciled against the delivery manifest before vendor pickup",
+            "Lawn irrigation reset and sand-rake the ceremony site by 02:00",
+            "Lost-and-found swept and logged; AV and generator powered down",
+            "Post-event debrief scheduled within 72 hours while details are fresh"
+          ]
+        },
+        {
+          "type": "quote",
+          "text": "Two hundred people should feel like the only ones on the coast. That's the whole job. — Nadia"
+        }
+      ]
+    },
+    {
+      "title": "Summer Coastal-Mediterranean Menu",
+      "icon": "🍷",
+      "createdByKey": "chef-laurent-bisset",
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Summer Coastal-Mediterranean Menu"
+        },
+        {
+          "type": "p",
+          "text": "This is the live summer menu for the main restaurant, rolled out at the close of the menu refresh project. Everything here is built around what the headland and the morning boat actually deliver. Specials change daily; this is the backbone."
+        },
+        {
+          "type": "h2",
+          "text": "To Begin"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Chilled heirloom tomato & stone-fruit gazpacho, basil oil, toasted almond",
+            "Crudo of day-boat hamachi, finger lime, fermented chili, headland sea fennel",
+            "Grilled octopus, smoked paprika, white bean purée, preserved lemon",
+            "Burrata, charred apricot, wild oregano, sourdough cracker"
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Mains"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Whole grilled branzino, salsa verde, charred lemon (deboned tableside)",
+            "Saffron risotto, summer squash, headland herbs, aged pecorino",
+            "Slow-roasted lamb shoulder, smoked eggplant, pomegranate, mint",
+            "Charcoal half-chicken, garlic confit, blistered shishito, jus"
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Allergen tip: the gazpacho garnish and the burrata cracker both contain tree nuts. Always confirm before plating for a flagged table — the allergy matrix lives behind the pass."
+        },
+        {
+          "type": "h2",
+          "text": "Wine Pairing Notes"
+        },
+        {
+          "type": "p",
+          "text": "Tomas built the by-the-glass pairings to lean coastal and bright. The branzino wants the Assyrtiko; the lamb wants the Bandol rosé, not a heavy red, in this heat. If a guest insists on a big red with fish, pour it with a smile — our job is their pleasure, not our purity."
+        },
+        {
+          "type": "h3",
+          "text": "Sourcing Standards"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Fish is day-boat or it is not on the menu. No frozen substitutions, ever.",
+            "Produce comes from within 90 minutes of the property whenever the season allows.",
+            "Headland foraging is done at dawn by the chef team only — never by guests, for safety and conservation."
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "p",
+          "text": "86 list and daily specials are posted in the food-and-beverage channel by 15:00 each day. Read it before every service."
+        }
+      ]
+    },
+    {
+      "title": "Wine & Cellar Service Guide",
+      "icon": "🍾",
+      "createdByKey": "tomas-vega",
+      "spaceKey": "food-and-beverage",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Wine & Cellar Service Guide"
+        },
+        {
+          "type": "p",
+          "text": "The cellar is the most valuable single room on the property. This guide covers how we store it, pour it, and talk about it. Whether you're a server running a glass or a captain at a gala, the standards here don't change."
+        },
+        {
+          "type": "h2",
+          "text": "Storage & Handling"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Cellar holds at 13°C, 70% humidity. Log the readings twice daily; flag any drift over 2°C to the bar manager.",
+            "Bottles rest on their sides; standing storage is for service-day only.",
+            "Sunlight and vibration are the enemies. The cellar door stays closed and the back stair stays clear."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Service Standards"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Present the bottle label-out to the host before opening. State producer, region, vintage.",
+            "Pour a taste for the host, wait for approval, then serve ladies first, host last.",
+            "White and rosé serve at 10–12°C, reds at 16–18°C — never room temperature on the coast.",
+            "Decant reds over ten years old or any young, tight red the guest plans to drink now."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "If a guest sends a bottle back, never argue. Replace it, taste the returned bottle yourself to learn, and log genuine corked/faulted bottles for the supplier credit."
+        },
+        {
+          "type": "h2",
+          "text": "Sunset Hour"
+        },
+        {
+          "type": "p",
+          "text": "Our highest-margin, highest-emotion service window is the sunset pour at the beach bar. Pre-chill the rosé and the Assyrtiko, pre-batch the signature mezcal cocktail, and have the by-the-glass reds open and breathing by 17:00. A guest watching the sun hit the water should never wait for a pour."
+        },
+        {
+          "type": "h3",
+          "text": "Talking About Wine"
+        },
+        {
+          "type": "quote",
+          "text": "Sell the place, not the points. 'This grows on a cliff over the same ocean you're looking at' beats any tasting note."
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Twice-daily cellar temp and humidity logged",
+            "By-the-glass reds opened and noted at start of service",
+            "Sunset rosé and Assyrtiko chilled by 16:30",
+            "Faulted bottles logged for supplier credit weekly"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Room Turn & Turndown Standards",
+      "icon": "🧺",
+      "createdByKey": "rosa-mendes",
+      "spaceKey": "housekeeping",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Room Turn & Turndown Standards"
+        },
+        {
+          "type": "p",
+          "text": "Twelve years on property taught me one thing: a guest can't always say what makes a room feel right, but they always feel it when it's wrong. This is how we turn a villa so it feels right every single time. New attendants train against this document."
+        },
+        {
+          "type": "h2",
+          "text": "The Departure Turn"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Strip and air the room; open the doors to the ocean while you work.",
+            "Bathroom first — it's the room guests scrutinize most. Polish glass and chrome to no streaks.",
+            "Make the bed with the triple-sheet method; hospital corners, crisp, no wrinkles.",
+            "Dust top-down, vacuum last, working backward toward the door.",
+            "Final pass at the threshold: stand where the guest will stand and look. Fix what your eye catches."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "The threshold look is non-negotiable. Most misses — a crooked lamp shade, a smudge on the mirror, a cushion out of line — are invisible up close and obvious from the door."
+        },
+        {
+          "type": "h2",
+          "text": "Turndown"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Beds turned to a 45° fold, slippers placed bedside, blackout curtains drawn.",
+            "Lights to evening setting; bedside lamp on, overheads off.",
+            "Water carafe refreshed, glasses replaced, amenity (seasonal) on the pillow.",
+            "Bathroom reset, fresh towels, mat squared, a single tealight by the tub."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "Amenity & Sustainability Standard"
+        },
+        {
+          "type": "p",
+          "text": "We are a reef-safe, low-waste house. Refill stations replace mini bottles, turndown sweets are unwrapped or compostable-wrapped, and linens are changed on request or every third day, not daily, unless the guest asks. Place the linen card so guests know they're choosing, not being skipped."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "h2",
+          "text": "VIP & Returning Guests"
+        },
+        {
+          "type": "p",
+          "text": "Returning guests get their preferences pre-set: pillow type, room temperature, and morning amenity all pulled from the guest profile. If you turn a flagged room and the profile is blank, tell your lead — a missing preference is a missed chance to delight."
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Threshold look completed on every departure turn",
+            "Refill stations topped; no single-use plastics staged",
+            "Linen-choice card placed face-up",
+            "VIP preferences confirmed against profile before turndown"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Salt-Air Preventive Maintenance Runbook",
+      "icon": "🔧",
+      "createdByKey": "owen-baptiste",
+      "spaceKey": "engineering",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Salt-Air Preventive Maintenance Runbook"
+        },
+        {
+          "type": "p",
+          "text": "Salt air corrodes everything it touches, slowly and then suddenly. Preventive maintenance is how we keep the ocean from winning. This runbook lists the recurring sweeps that keep the property running and the guest from ever noticing what we do."
+        },
+        {
+          "type": "callout",
+          "text": "Reactive maintenance on the coast costs roughly four times what prevention does. Every skipped PM sweep is a future emergency with a guest standing next to it."
+        },
+        {
+          "type": "h2",
+          "text": "Weekly Sweeps"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Rinse and inspect all exterior hardware, hinges, and railings for corrosion bloom.",
+            "Pool plant chemistry and filter backwash; log every reading.",
+            "HVAC condensate lines and coil inspection — salt scale clogs them fast.",
+            "Test GFCI outlets in all wet areas and villa hot tubs."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Monthly Sweeps"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Anode and water-heater inspection across all villas.",
+            "Solar array panel clean and inverter output log against expected curve.",
+            "Generator load-test under real load, not idle.",
+            "Roof and gutter check ahead of any forecast weather."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Villa Hot Tub Protocol"
+        },
+        {
+          "type": "p",
+          "text": "Hot tubs are our highest guest-safety and highest-complaint risk in one fixture. Chemistry is checked daily, drained and sanitized on the schedule, and any tub out of range is closed with a discreet card and a work order — never left in service 'just until checkout'."
+        },
+        {
+          "type": "h3",
+          "text": "Work-Order Triage"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Guest-facing in an occupied room: respond within 30 minutes, no exceptions.",
+            "Safety (electrical, gas, structural): drop everything, route through maintenance-hotline.",
+            "Cosmetic / back-of-house: scheduled into the weekly board."
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Weekly exterior corrosion sweep logged",
+            "Pool and hot-tub chemistry within range and recorded",
+            "Solar output reconciled to expected curve",
+            "Generator load-tested this month",
+            "Open guest-facing work orders cleared before shift handoff"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Seaside Spa Relaunch — Treatment Menu & SOP",
+      "icon": "🌿",
+      "createdByKey": "yuki-tanaka",
+      "spaceKey": "spa-wellness",
+      "projectKey": "spa-relaunch",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Seaside Spa Relaunch — Treatment Menu & SOP"
+        },
+        {
+          "type": "p",
+          "text": "A great treatment starts the moment a guest exhales. The relaunch is built around that exhale — a hydrotherapy circuit, a signature menu, and a service standard that protects the guest's silence from arrival to afterglow. This is the working draft for the relaunch team."
+        },
+        {
+          "type": "h2",
+          "text": "Signature Treatment Menu"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Tidal Restoration (90 min) — seaweed wrap, scalp work, hot-stone spine release.",
+            "Headland Botanical Facial (60 min) — foraged herb steam, marine enzyme resurfacing.",
+            "Two-Therapist Synchrony Massage (90 min) — our flagship couples treatment.",
+            "Sunrise Movement & Breath (45 min) — guided session on the south lawn before the spa opens."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Hydrotherapy Circuit Order"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Warm mineral soak to open the body (10 min).",
+            "Steam or sauna (10 min) — guest's choice, never both back to back without a cold step.",
+            "Cold plunge (1–2 min) — the contrast is the point; coach first-timers gently.",
+            "Heated relaxation loungers and herbal tea to close (open-ended)."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Contraindications matter. Pregnancy, cardiac conditions, and recent surgery change or cancel the circuit. The intake form is not a formality — read it before you ever touch a guest."
+        },
+        {
+          "type": "h2",
+          "text": "The Silence Standard"
+        },
+        {
+          "type": "p",
+          "text": "From the relaxation lounge inward, we speak only when spoken to, and we whisper. Phones are checked at the desk. Therapists confirm pressure and temperature with a quiet word, then let the guest disappear. The afterglow is part of the treatment — never rush a guest off the table."
+        },
+        {
+          "type": "h3",
+          "text": "Retreat Packages"
+        },
+        {
+          "type": "p",
+          "text": "The relaunch introduces multi-day wellness retreats pairing the circuit with chef Laurent's lighter coastal menu and Tomas's no- and low-alcohol pairings. Cross-department coordination lives in the spa-relaunch project; nothing ships to guests until F&B has signed off on the menu side."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Therapist certifications current and on file",
+            "Intake and contraindication form reviewed before every treatment",
+            "Circuit temperatures logged at open and midday",
+            "Retreat menu signed off by F&B before publishing"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Oceanfront Villa Renovation — Project Plan",
+      "icon": "🏖️",
+      "createdByKey": "owen-baptiste",
+      "spaceKey": "engineering",
+      "projectKey": "oceanfront-villa-reno",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Oceanfront Villa Renovation — Project Plan"
+        },
+        {
+          "type": "p",
+          "text": "We are refreshing all 18 oceanfront villas — new soft goods, smart climate controls, and rainfall showers — while protecting occupancy. That last clause is the whole challenge. We renovate in phases so we never go dark and never put a guest next to a construction zone."
+        },
+        {
+          "type": "h2",
+          "text": "Scope"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Soft goods: bedding, drapery, upholstery, rugs — full replacement.",
+            "Smart climate controls with per-villa scheduling and guest-app integration.",
+            "Rainfall showers and refreshed wet areas with reef-safe refill fixtures.",
+            "Re-seal and re-coat all salt-exposed exterior hardware while walls are open."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Phasing"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Phase 1 (villas 1–6): low-occupancy midweek blocks, two villas at a time.",
+            "Phase 2 (villas 7–12): continues as Phase 1 villas return to inventory.",
+            "Phase 3 (villas 13–18): completed ahead of peak wedding season demand.",
+            "Buffer week between phases for snags and deep clean before re-letting."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Warning: noisy work stops at 16:00 sharp and never runs on a confirmed wedding day. Sales & Events holds a veto on the day-of-work calendar during wedding season."
+        },
+        {
+          "type": "h2",
+          "text": "Cross-Team Dependencies"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Front office: pull renovated villas from sellable inventory and re-merchandise on completion.",
+            "Housekeeping: deep-clean and re-stage each villa before it returns to inventory.",
+            "Sales & Events: protect wedding-block villas from any active phase."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "Risks"
+        },
+        {
+          "type": "p",
+          "text": "The long-lead items are the smart-control hardware and the imported soft goods. Both are ordered against the phase calendar with a two-week buffer. If a shipment slips, we re-sequence villas rather than push the whole project — never let one late pallet stall the line."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Long-lead climate hardware ordered with buffer",
+            "Phase 1 villa blocks confirmed with front office",
+            "Wedding-day work blackout dates synced with Sales & Events",
+            "Deep-clean handoff checklist agreed with housekeeping"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "OTA Revenue & Distribution Strategy",
+      "icon": "📊",
+      "createdByKey": "isabel-cruz",
+      "spaceKey": "sales-events",
+      "projectKey": "ota-revenue-push",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "OTA Revenue & Distribution Strategy"
+        },
+        {
+          "type": "p",
+          "text": "Our goal through shoulder season is to lift RevPAR without surrendering margin to the channels. That means defending rate parity, shifting mix toward direct, and making sure our content out-shines every competitor on every screen a guest sees."
+        },
+        {
+          "type": "h2",
+          "text": "The Three Levers"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Rate parity: our rate is never lower on an OTA than on our own site. Disparities get hunted weekly.",
+            "Channel mix: grow direct share each month; OTAs fill the gaps, they don't lead the strategy.",
+            "Content: hero imagery, accurate amenities, and review responses on every channel — stale content loses to fresh."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Direct is not just cheaper — it's ours. A direct guest's email, preferences, and loyalty live with us, not behind a channel's wall. Every point of direct share compounds."
+        },
+        {
+          "type": "h2",
+          "text": "Shoulder-Season Tactics"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Member-only direct rate, 8% below OTA, gated behind a free sign-up to stay parity-compliant.",
+            "Length-of-stay offers that the OTAs price poorly — third night value-add, not discount.",
+            "Geo-targeted promotions for our top three feeder cities during their cold weeks.",
+            "Spa and dining bundles that raise total spend without touching the room rate."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "Weekly Cadence"
+        },
+        {
+          "type": "p",
+          "text": "Every Monday we pull the pickup report, scan parity across Booking.com and Expedia, and re-forecast the next 90 days. Rate changes are deliberate and logged — we never chase a competitor's flash sale into a margin hole."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "h2",
+          "text": "PMS Migration Dependency"
+        },
+        {
+          "type": "p",
+          "text": "The cleanest path to real-time parity is the channel manager that ships with the new PMS. Until that migration lands, parity is a manual weekly discipline. Don't wait for the tool to do the work the spreadsheet can do today."
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Monday pickup + parity scan completed and logged",
+            "Direct share tracked against monthly target",
+            "Review responses current on all channels",
+            "Hero imagery refreshed for shoulder-season campaign"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Guest Recovery Playbook — Turning a Miss Into a Memory",
+      "icon": "🎓",
+      "createdByKey": "marcus-haylward",
+      "projectKey": "service-excellence-training",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Guest Recovery Playbook"
+        },
+        {
+          "type": "p",
+          "text": "Things will go wrong. A late villa, a cold plate, a missed wake-up call. What separates a luxury property from a nice one is what happens next. A well-handled recovery produces more loyalty than a flawless stay. This playbook is how we recover."
+        },
+        {
+          "type": "h2",
+          "text": "The LEARN Framework"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Listen — let the guest finish completely. Do not interrupt to defend.",
+            "Empathize — name the feeling: 'I'd be frustrated too. I'm sorry this happened.'",
+            "Apologize — sincerely, once, without excuses or blame.",
+            "Resolve — fix the actual problem now, then make a goodwill gesture on top.",
+            "Notify — log it so the whole team protects the rest of this guest's stay."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Every front-of-house team member is empowered to spend up to a set goodwill amount per incident without a manager's sign-off. Speed of recovery beats size of gesture. Ask Marcus for the current limit if you're unsure."
+        },
+        {
+          "type": "h2",
+          "text": "Match the Gesture to the Miss"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Minor delay or inconvenience: a sincere apology and a small in-room amenity.",
+            "Disrupted meal or experience: comp the item and offer to make it right that day.",
+            "Significant stay disruption: manager involvement, partial recovery, and a personal follow-up.",
+            "Never over-comp a guest who just wants to be heard — sometimes the apology is the whole fix."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "After the Recovery"
+        },
+        {
+          "type": "p",
+          "text": "The recovery isn't done when the guest stops being upset. Flag their profile, brief the next shift, and have a manager check in once more before departure. A guest who leaves feeling cared for after a problem tells more friends than one who never had one."
+        },
+        {
+          "type": "quote",
+          "text": "Nobody remembers the room that was always perfect. Everybody remembers the night we fixed it. — Marcus"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Incident logged with enough detail for the next shift to act on",
+            "Profile flagged so the rest of the stay is protected",
+            "Manager check-in before the guest departs",
+            "Root cause noted so we fix the system, not just the symptom"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "New Hire Onboarding — Front of House",
+      "icon": "📋",
+      "createdByKey": "priya-nair",
+      "spaceKey": "front-office",
+      "projectKey": "service-excellence-training",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "New Hire Onboarding — Front of House"
+        },
+        {
+          "type": "p",
+          "text": "Welcome to Solana Cove. Your first two weeks shape how you'll see this place for years. This guide walks you through them. The goal isn't to memorize everything — it's to know where to look and who to ask, and to understand the standard we hold."
+        },
+        {
+          "type": "h2",
+          "text": "Week One — Watch & Learn"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Property tour: every guest-facing space, plus the back-of-house routes guests never see",
+            "Shadow a full check-in shift and a full check-out shift",
+            "Read the Arrival Ritual SOP and watch it run live three times",
+            "Meet your buddy and each department lead by name",
+            "Complete PMS basics and the guest-profile training"
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Week Two — Do It With a Net"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Run check-ins with your buddy standing by",
+            "Handle your first guest request end to end",
+            "Practice the Guest Recovery LEARN framework in a role-play",
+            "Complete the safety and emergency-procedure walkthrough",
+            "Sit in on a morning stand-up and a shift handoff"
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Tip: the fastest way to look like you've worked here for years is to learn guests' names and use them. Ask your buddy how Priya does it — it's the whole job in one habit."
+        },
+        {
+          "type": "h2",
+          "text": "The Standard, In Plain Words"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Anticipate, don't react. The best service happens before the guest asks.",
+            "Own the problem you're handed, even if you didn't cause it.",
+            "Never point — escort. Never 'no problem' — 'my pleasure'.",
+            "When you don't know, find out fast. 'Let me find out for you right now.'"
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "Where to Find Things"
+        },
+        {
+          "type": "p",
+          "text": "SOPs and runbooks live in the Front Office space. Daily handoffs and arrivals run in the front-office channel. Anything urgent and property-wide shows up in announcements. When in doubt, ask in your space channel before guessing — nobody here minds a good question."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "quote",
+          "text": "You're not learning a job. You're joining a standard. — Priya"
+        }
+      ]
+    },
+    {
+      "title": "Coastline Sustainability Program — Standards & Goals",
+      "icon": "♻️",
+      "createdByKey": "amelia-cole",
+      "spaceKey": "housekeeping",
+      "projectKey": "sustainability-program",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Coastline Sustainability Program — Standards & Goals"
+        },
+        {
+          "type": "p",
+          "text": "We sit on a living reef. Quiet luxury and a healthy coastline are not in tension — done right, they're the same thing. This program covers the solar retrofit, zero-waste laundry, reef-safe amenities, and our path to a recognized eco-certification."
+        },
+        {
+          "type": "h2",
+          "text": "The Four Pillars"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Energy: solar retrofit covering a growing share of daytime load, tracked against the inverter curve.",
+            "Water & laundry: zero-waste laundry, linen-on-request, and greywater-friendly detergents.",
+            "Amenities: reef-safe, refillable, no single-use plastics anywhere a guest can see or touch.",
+            "Waste: compost back-of-house, eliminate single-use in F&B, divert from landfill by default."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Reef-safe is a hard line, not a preference. Any product containing oxybenzone or octinoxate does not enter this property — not in the spa, not in the villas, not in the gift shop."
+        },
+        {
+          "type": "h2",
+          "text": "Housekeeping's Role"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Refill stations replace mini bottles in every villa; report any that run low before a guest does.",
+            "Linen-choice cards placed so guests opt in to changes — most happily skip a day.",
+            "Cleaning products are the approved low-impact line only; never substitute off the shelf."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Certification Path"
+        },
+        {
+          "type": "p",
+          "text": "The eco-certification audit measures real data, not intentions. That's why every pillar above has a log. When the auditor asks 'show me,' we open the logbook, not a brochure. Keep your readings current — the certification is earned in the daily records, not the final inspection."
+        },
+        {
+          "type": "h3",
+          "text": "Telling the Story"
+        },
+        {
+          "type": "p",
+          "text": "Guests increasingly choose us partly for this. Front office and the spa should be able to speak to it warmly and accurately — never preachy, never greenwashed. If you're not sure a claim is true, don't make it."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Solar output logged daily against expected curve",
+            "Refill stations stocked across all villas",
+            "Approved reef-safe amenity line verified — no banned ingredients",
+            "Certification logbook current and audit-ready"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "PMS & Tech Stack Migration Plan",
+      "icon": "🖥️",
+      "createdByKey": "marcus-haylward",
+      "spaceKey": "front-office",
+      "projectKey": "pms-migration",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "PMS & Tech Stack Migration Plan"
+        },
+        {
+          "type": "p",
+          "text": "We're moving off the legacy PMS to a cloud platform with an integrated POS, channel manager, and guest app. This is the highest-risk operational project on the calendar — it touches every transaction the resort makes. This plan exists so nobody improvises on cutover night."
+        },
+        {
+          "type": "callout",
+          "text": "Warning: a PMS migration done badly can take down check-in, billing, and distribution at once. We move slowly, we test obsessively, and we keep a paper fallback ready until we've slept through a full week on the new system."
+        },
+        {
+          "type": "h2",
+          "text": "Phases"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Discovery & data mapping: every field in the legacy system mapped to the new one.",
+            "Parallel run: both systems live, reconciled nightly, until the numbers match for a full week.",
+            "Cutover: planned for the lowest-occupancy window, never during wedding season.",
+            "Stabilization: vendor on-site or on-call, daily issue triage, until it's boring."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Integrations"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "POS: restaurant, beach bar, spa, and in-villa dining all post to the right folio in real time.",
+            "Channel manager: real-time rate parity across Booking.com and Expedia — the OTA team's top ask.",
+            "Guest app: mobile check-in, key, and requests routed to the right department."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Data Migration Rules"
+        },
+        {
+          "type": "p",
+          "text": "Guest profiles are sacred — preferences, history, and loyalty must arrive intact. We migrate a sample, hand-verify it against the legacy records, and only then run the full set. No profile gets dropped or merged without a human confirming it. A returning guest who has to re-explain their pillow preference is a migration failure."
+        },
+        {
+          "type": "h3",
+          "text": "Go / No-Go Criteria"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Parallel-run financials reconciled to the cent for seven consecutive days",
+            "All POS terminals posting to correct folios in test",
+            "Channel manager pushing parity rates without manual touch",
+            "Paper fallback procedures printed and staff drilled",
+            "Cutover window confirmed clear with Sales & Events"
+          ]
+        },
+        {
+          "type": "quote",
+          "text": "The guest should never know we changed anything except that everything got faster. — Marcus"
+        }
+      ]
+    },
+    {
+      "title": "Summer Menu Refresh — Post-Mortem",
+      "icon": "📝",
+      "createdByKey": "chef-laurent-bisset",
+      "spaceKey": "food-and-beverage",
+      "projectKey": "summer-menu-refresh",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Summer Menu Refresh — Post-Mortem"
+        },
+        {
+          "type": "p",
+          "text": "The summer menu shipped on time and across all three outlets. Now that it's closed out, here's an honest look at what worked, what didn't, and what we carry into the next refresh. Written while it's fresh so the next chef team inherits the lessons, not just the recipes."
+        },
+        {
+          "type": "h2",
+          "text": "What Went Well"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Day-boat-only sourcing held all season — the branzino became our signature and never went frozen.",
+            "Tomas's by-the-glass pairings lifted wine attach rate noticeably without any upsell pressure.",
+            "Cross-outlet rollout meant the beach bar and in-villa menus felt like one kitchen, not three.",
+            "The allergy matrix behind the pass cut the near-misses we used to have on busy nights."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "What Didn't"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "We under-forecast the octopus and 86'd it twice on peak weekends — bad look at the price point.",
+            "The risotto slowed the pass on full covers; à la minute risotto and a 200-cover gala don't mix.",
+            "Two foraged ingredients weren't reliably available; we should have had a named substitute from day one."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Lesson that cost us the most: never put a labor-heavy à la minute dish on the menu without a service-volume stress test. The risotto tasted perfect and nearly broke the pass."
+        },
+        {
+          "type": "h2",
+          "text": "Action Items for Next Refresh"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Build a par-and-forecast model for low-yield proteins like octopus",
+            "Pre-name substitutes for every foraged or single-source ingredient",
+            "Stress-test any à la minute dish at gala volume before it ships",
+            "Keep the allergy matrix; expand it to the beach bar menu"
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "quote",
+          "text": "A menu is a promise you make to a full dining room on the worst night, not the best one. — Laurent"
+        }
+      ]
+    },
+    {
+      "title": "Approved Vendor & Supplier List",
+      "icon": "📇",
+      "createdByKey": "isabel-cruz",
+      "spaceKey": "sales-events",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Approved Vendor & Supplier List"
+        },
+        {
+          "type": "p",
+          "text": "This is the master list of vendors cleared to work on property or supply our outlets. 'Approved' means insured, vetted, and aligned with our standards. If a vendor isn't on this list, they don't come through the gate or onto a plate until they're added. No exceptions, especially during wedding season."
+        },
+        {
+          "type": "h2",
+          "text": "Food & Beverage"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Day-boat seafood — daily delivery, our hard 'no frozen' partner. Primary for all outlets.",
+            "Headland-adjacent produce farm — within 90 minutes, seasonal allocation.",
+            "Wine & spirits importers — Tomas's two cellar suppliers, on net terms.",
+            "Specialty pastry & bread — daily, pre-dawn delivery for the restaurant."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Events & Weddings"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Tent, dance floor & staging rental — our gala standard, knows the south-lawn site.",
+            "Floral & décor — two vetted studios, both insured for on-property installs.",
+            "AV & lighting — sunset-window experienced; carries backup generator.",
+            "Generator & power — required for every beach gala over a set headcount."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Engineering & Facilities"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Pool plant chemicals & service — corrosion-coast experienced.",
+            "HVAC & refrigeration — emergency call-out within four hours, contracted.",
+            "Solar & electrical — the retrofit partner, also on the PM call list.",
+            "Reef-safe amenity & cleaning supplier — sustainability-program approved line only."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Warning: every vendor working on property during an event must show current liability insurance to the captain before setup begins. An uninsured vendor on the south lawn is the kind of risk that ends careers, not just events."
+        },
+        {
+          "type": "h3",
+          "text": "Adding or Removing a Vendor"
+        },
+        {
+          "type": "p",
+          "text": "New vendors are added only after insurance verification and a department lead's sign-off. Underperforming or lapsed-insurance vendors are pulled immediately and the team is notified in the relevant channel. Keep this list current — it's the difference between a smooth event and a liability."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Insurance certificates current for all active vendors",
+            "Wedding-season vendors re-confirmed before peak begins",
+            "Lapsed or underperforming vendors removed and team notified",
+            "Reef-safe supplier verified against the approved amenity line"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Solana Cove Brand Voice & Guest Communication Guide",
+      "icon": "🗣️",
+      "createdByKey": "isabel-cruz",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Solana Cove Brand Voice & Guest Communication Guide"
+        },
+        {
+          "type": "p",
+          "text": "Where the Pacific meets quiet luxury. That tagline is also our voice. Everything we write to a guest — a confirmation email, a turndown card, a review response, an SMS — should sound like the same calm, warm, confident person. This guide is how we stay that person."
+        },
+        {
+          "type": "h2",
+          "text": "Who We Sound Like"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Warm, not gushing. We're glad you're here; we don't shout about it.",
+            "Confident, not stiff. We know our property cold and we make it look easy.",
+            "Specific, not generic. 'Your villa faces the sunset' beats 'enjoy your stay.'",
+            "Calm, always. Even in a recovery email, our voice lowers the temperature."
+          ]
+        },
+        {
+          "type": "callout",
+          "text": "Quiet luxury means we never have to say 'luxury.' If a sentence is bragging, cut it. The experience does the talking; our words just open the door."
+        },
+        {
+          "type": "h2",
+          "text": "Words We Use & Avoid"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Use 'my pleasure,' 'of course,' 'we'd love to.' Avoid 'no problem,' 'you'll have to,' 'unfortunately.'",
+            "Use the guest's name early and naturally. Avoid 'Dear valued guest.'",
+            "Use plain, sensory language. Avoid hotel jargon, ALL CAPS, and exclamation pile-ups.",
+            "One exclamation point per message, maximum. Usually zero."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Channel Notes"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Email: warm and complete; sign with a real person's name, never 'The Team.'",
+            "SMS: short, helpful, and signed. Never marketing-blast a guest mid-stay.",
+            "Review responses: thank, acknowledge specifically, and never get defensive in public.",
+            "In-room cards: handwritten when the moment deserves it — anniversaries, recoveries, returns."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "A Quick Before & After"
+        },
+        {
+          "type": "quote",
+          "text": "Before: 'Unfortunately your room won't be ready until 3pm.' After: 'Your villa will be ready by three — until then, the beach bar is yours, on us.'"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "p",
+          "text": "When you're unsure how something should sound, read it aloud. If it sounds like a brochure or a bot, rewrite it until it sounds like Priya welcoming a returning guest by name."
+        }
+      ]
+    },
+    {
+      "title": "Emergency & Safety Procedures",
+      "icon": "🚨",
+      "createdByKey": "owen-baptiste",
+      "spaceKey": "engineering",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Emergency & Safety Procedures"
+        },
+        {
+          "type": "p",
+          "text": "On a beachfront property, the difference between an incident and a catastrophe is preparation and calm. Every team member, regardless of department, is responsible for knowing these procedures. Read this on your first day and review it every quarter."
+        },
+        {
+          "type": "callout",
+          "text": "Warning: in any life-safety situation, call emergency services first. Notifying a manager is the second call, never the first. No one will ever be reprimanded for prioritizing a guest's safety."
+        },
+        {
+          "type": "h2",
+          "text": "Fire"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Activate the nearest alarm and call emergency services.",
+            "Evacuate guests toward the assembly point on the south lawn — never back toward the building.",
+            "Front office pulls the in-house guest list to account for every room.",
+            "Do not re-enter for belongings; do not use elevators."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Medical"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Call emergency services; send a runner to guide them in from the gate.",
+            "Nearest AED locations: lobby, pool plant, and spa reception.",
+            "Stay with the guest; assign someone to clear a path and manage onlookers.",
+            "Log everything afterward — times, actions, and who was notified."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Water & Coastal"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Beach flags fly daily; red means closed water, and we enforce it kindly but firmly.",
+            "Severe-weather and high-surf protocol moves loungers, closes the waterline, and secures the gala tent.",
+            "Hot-tub and pool incidents follow the same medical sequence above — chemistry is checked before reopening."
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "Power & Flood"
+        },
+        {
+          "type": "p",
+          "text": "Power loss triggers an automatic generator transfer; if it doesn't, the night manager calls Owen via the maintenance-hotline immediately. For flooding, kill the affected circuit first, then contain — water and electricity together is the one combination we never improvise around."
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "todo",
+          "items": [
+            "Know your nearest exit and the south-lawn assembly point",
+            "Know the three AED locations by heart",
+            "Quarterly safety review completed and signed off",
+            "Emergency contact tree current at every desk"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Off-Season Readiness 2025 — Closeout Report",
+      "icon": "📦",
+      "createdByKey": "owen-baptiste",
+      "spaceKey": "engineering",
+      "projectKey": "winter-readiness-2025",
+      "blocks": [
+        {
+          "type": "h1",
+          "text": "Off-Season Readiness 2025 — Closeout Report"
+        },
+        {
+          "type": "p",
+          "text": "This archives last year's low-season program: the deep-clean, the preventive-maintenance sweep, and the staffing wind-down. It's closed and filed here so this year's off-season team starts from what we learned, not from scratch."
+        },
+        {
+          "type": "h2",
+          "text": "What We Completed"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Full property deep-clean, including the back-of-house areas we can't reach mid-season.",
+            "Preventive-maintenance sweep across HVAC, pool plant, and all villa hot tubs.",
+            "Exterior corrosion treatment on every salt-exposed railing and fixture.",
+            "Generator overhaul and a full load-test under real conditions."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "Staffing Wind-Down"
+        },
+        {
+          "type": "p",
+          "text": "We flexed seasonal roles down without losing our core team or our standard. The lesson: communicate the wind-down calendar early and honestly. The staff who felt respected through the slow months came back sharp for peak season; the ones we surprised did not."
+        },
+        {
+          "type": "callout",
+          "text": "Biggest win: doing the noisy, disruptive maintenance in the dark months meant zero guest-facing disruption during peak. Protect this window — don't let an extended booking erode the off-season work calendar."
+        },
+        {
+          "type": "h2",
+          "text": "What To Do Differently"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Start long-lead parts ordering two weeks earlier — we lost time waiting on anodes and filters.",
+            "Photograph every 'before' so the certification and capital cases are easier to make.",
+            "Overlap the deep-clean and PM teams by a day to hand off open items in person."
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "p",
+          "text": "Status: archived. This year's off-season readiness should fork this document, not start fresh. The runbook works; the improvements above are the only deltas."
+        },
+        {
+          "type": "quote",
+          "text": "The off-season is when we win the high season. — Owen"
+        }
+      ]
+    }
+  ],
+  "threads": [
+    {
+      "channelKey": "general",
+      "messages": [
+        {
+          "authorKey": "priya-nair",
+          "text": "Morning all! Whoever left the bag of pastries in the break room — you are a hero and I love you ☕️🥐"
+        },
+        {
+          "authorKey": "tomas-vega",
+          "text": "That was Laurent. He over-foraged again and turned it into croissants."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "There is no such thing as over-foraging. There is only abundance 🌿"
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "The almond ones are gone already, just so everyone knows"
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "Night shift never gets the almond ones 😤 the eternal injustice"
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Diego I will hide two in the walk-in for you. Look behind the lemons."
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "This is why you're my favorite chef 🙏"
+        },
+        {
+          "authorKey": "yuki-tanaka",
+          "text": "Can we make pastry Fridays a thing? Asking for the whole spa team (me)."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Seconded. Morale and carbs are deeply connected."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "I'll allow it. Pastry Fridays officially endorsed by leadership 😄"
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "Best company in the world honestly 🥹"
+        }
+      ]
+    },
+    {
+      "channelKey": "announcements",
+      "messages": [
+        {
+          "authorKey": "marcus-haylward",
+          "text": "📢 VIP arrival heads-up: the Hartwell party checks in Thursday for the oceanfront villa block. Repeat guests, anniversary stay. Full white-glove treatment."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "Mrs. Hartwell is allergic to lilies — no lilies in any arrangement, villa or restaurant. Please flag to all teams."
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "On it. I remember them — he takes a cortado at 7am sharp, she does decaf oat. Already noted in the profile."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Housekeeping will do the anniversary turndown setup. Rose petals, champagne, no lilies anywhere. Confirmed."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "I'll prep a private tasting menu for the anniversary night. Sending options to Marcus by EOD."
+        },
+        {
+          "authorKey": "yuki-tanaka",
+          "text": "Spa here — I'll hold a couples hydrotherapy slot Friday afternoon in case they want it. Just say the word."
+        },
+        {
+          "authorKey": "isabel-cruz",
+          "text": "Love this. These are exactly the repeat guests our retention numbers live on. Thank you team 👏"
+        },
+        {
+          "authorKey": "owen-baptiste",
+          "text": "Engineering will double-check the villa hot tub and climate controls before arrival. No surprises."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "This is the arrival ritual at its best. Proud of this crew. Let's make it unforgettable ✨"
+        }
+      ]
+    },
+    {
+      "channelKey": "front-office",
+      "messages": [
+        {
+          "authorKey": "diego-ramos",
+          "text": "Night handoff 📝 Quiet evening. Villa 12 late arrival came in at 1am, all settled. One noise complaint from suite 304 about the wedding afterparty — resolved, moved them to a quieter wing."
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "Thanks Diego. Did 304 want anything as a recovery gesture?"
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "I comped breakfast and sent a fruit plate. They were happy by the time I left."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "Nicely handled. Let's also drop a handwritten note from me. Priya can you set that up?"
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "Already drafting it ✍️ Will have it on their door before checkout."
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "Heads up — we're at 96% occupancy tonight. Only 3 rooms left and two are oceanfront villas under reno."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "Tight. Coordinate with housekeeping on turn times so we don't bottleneck check-in at 3pm."
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "I'll prep the late-arrival villas tonight so the morning team isn't scrambling."
+        },
+        {
+          "authorKey": "priya-nair",
+          "text": "You're a lifesaver. Also the Hartwell cortado machine — can someone confirm the lobby espresso station is stocked? 7am sharp incoming 😅"
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "I'll check it personally tonight. That cortado will be flawless."
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "Logging off, see you all on the flip 🌙"
+        }
+      ]
+    },
+    {
+      "channelKey": "housekeeping",
+      "messages": [
+        {
+          "authorKey": "amelia-cole",
+          "text": "Morning team 🧺 Big turn day — 11 checkouts, 14 arrivals, and we need oceanfront villas 3, 5, and 7 deep-cleaned post-reno before 3pm."
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "On it. I'll put Mariela and the new trainee on the villas, they're the priority. The rest of us take the suites."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Perfect. Reno dust is brutal — make sure they wipe down the new climate control panels gently, no harsh spray."
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "Noted. Also we're low on the reef-safe amenity sets again. Down to maybe 20 kits."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Ugh, the vendor's behind again. I'll chase them. For now prioritize kits for the villas and VIP rooms."
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "Will do. Hartwell villa gets the full anniversary turndown right? Petals + champagne, no lilies?"
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Exactly. And double-check no lily in the standard arrangement — swap for orchids."
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "Orchids it is 🌸 I'll do that villa myself, want it perfect."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "That's why you're the lead. Trainee doing okay on turndowns?"
+        },
+        {
+          "authorKey": "rosa-mendes",
+          "text": "Getting there! Her hospital corners are improving. By end of week she'll be solid."
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "Love to hear it. Keep me posted on the amenity restock 🙏"
+        }
+      ]
+    },
+    {
+      "channelKey": "food-and-beverage",
+      "messages": [
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Service lineup for tonight 🍽️ 86 the branzino — supplier shorted us. Pushing the line-caught snapper as the special instead, headland herb crust."
+        },
+        {
+          "authorKey": "tomas-vega",
+          "text": "Snapper pairs beautifully with the Albariño we just got in. I'll feature it by the glass tonight."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Perfect. Also we have the Hartwell anniversary tasting — 5 courses, no lilies on the plate or table, she's allergic."
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "I'll handle their table personally. What time seating?"
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "8pm, the corner banquette with the sunset view. Tomas, can you do a pairing flight for them?"
+        },
+        {
+          "authorKey": "tomas-vega",
+          "text": "Already planning it. Closing with the small-batch mezcal and a dark chocolate course. They'll remember it 🍫"
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "Reservations update — we're fully booked 7-9pm, 84 covers. Beach bar also slammed with the wedding overflow."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Staff up the line then. Nadia can you pull one from banquet to help expo?"
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "Yep, banquet prep is ahead of schedule for tomorrow's gala. I'll send Marco over at 6."
+        },
+        {
+          "authorKey": "tomas-vega",
+          "text": "Reminder the new beach bar cocktail menu drops tonight too. The mezcal sunset is going to fly 🌅"
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Big night. Let's make it clean. Pre-shift at 5, everyone there 🙏"
+        }
+      ]
+    },
+    {
+      "channelKey": "wedding-ops",
+      "messages": [
+        {
+          "authorKey": "isabel-cruz",
+          "text": "💒 Saturday beach gala — final count is 180 confirmed, ceremony 4pm, reception 6pm on the south lawn. Let's run through readiness."
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "Banquet's locked. Tables, linens, and the dance floor go down Saturday morning. I need the tide chart confirmed for the ceremony arch placement."
+        },
+        {
+          "authorKey": "owen-baptiste",
+          "text": "Low tide is 3:40pm Saturday — wait, I'm not in this channel for tide charts but I'll grab it for you 😄 arch will be safe at the 4pm line."
+        },
+        {
+          "authorKey": "isabel-cruz",
+          "text": "Ha, thanks Owen. Marcus, guest rooms blocked for the wedding party?"
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "All 40 rooms confirmed, welcome bags being prepped by Priya's team. Late checkout granted for the couple's suite."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "Menu's finalized — passed canapés, three-course plated, and the late-night taco station the bride wanted. Two vegan, four GF, one shellfish allergy flagged."
+        },
+        {
+          "authorKey": "tomas-vega",
+          "text": "Bar's set. Signature cocktail is a hibiscus paloma, plus the champagne tower for the toast. I'll need two extra bartenders for 180."
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "I'll pull bartenders from the on-call list. Tomas send me names by Thursday."
+        },
+        {
+          "authorKey": "isabel-cruz",
+          "text": "Rain contingency? Forecast shows a 20% chance Saturday evening."
+        },
+        {
+          "authorKey": "nadia-feldman",
+          "text": "Tent's on standby, can be up in 90 min. I'll make the call by 2pm Saturday based on radar."
+        },
+        {
+          "authorKey": "chef-laurent-bisset",
+          "text": "If we tent, I move the taco station under the pergola so it stays dry. Already planned."
+        },
+        {
+          "authorKey": "isabel-cruz",
+          "text": "This is why we close seven-figure seasons. Incredible work all 🥂 Final walkthrough Friday 3pm, south lawn."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "I'll be there. Let's give this couple the wedding of their lives 💍"
+        }
+      ]
+    },
+    {
+      "channelKey": "maintenance-hotline",
+      "messages": [
+        {
+          "authorKey": "diego-ramos",
+          "text": "🔧 Urgent-ish: villa 14 guest reporting the hot tub won't heat. They're checking in at 2pm and specifically booked for it."
+        },
+        {
+          "authorKey": "kenji-watanabe",
+          "text": "On my way. Probably the heater element again, that unit's been temperamental. Give me 30 min to diagnose."
+        },
+        {
+          "authorKey": "owen-baptiste",
+          "text": "If it's the element we have a spare in the shop. Kenji confirm and I'll pull it."
+        },
+        {
+          "authorKey": "kenji-watanabe",
+          "text": "Confirmed — heater element's fried. Bringing the spare. Should be heated and ready by 1pm, well before the 2pm check-in."
+        },
+        {
+          "authorKey": "owen-baptiste",
+          "text": "Nice. That's the third element on that unit this season. Flagging it for full replacement in the reno scope."
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "You two are fast. Front desk owes you a coffee ☕"
+        },
+        {
+          "authorKey": "amelia-cole",
+          "text": "While you're in villa 14 — guest also mentioned a slow bathroom drain. Can you peek?"
+        },
+        {
+          "authorKey": "kenji-watanabe",
+          "text": "Already on it, snaked it. Hair clog, cleared. Drain runs clean now."
+        },
+        {
+          "authorKey": "marcus-haylward",
+          "text": "Outstanding. Guest will never know there was an issue. That's the standard 👏"
+        },
+        {
+          "authorKey": "kenji-watanabe",
+          "text": "Hot tub's heating now, 102°F target. I'll swing back at 1 to confirm temp before I close the ticket."
+        },
+        {
+          "authorKey": "owen-baptiste",
+          "text": "Great work Kenji. Logging the element pattern — three failures means we replace the whole heater next reno phase. Adding to the budget line."
+        },
+        {
+          "authorKey": "diego-ramos",
+          "text": "Ticket can close on my end. Thanks team, crisis averted 🙌"
+        }
+      ]
+    }
+  ],
+  "meetings": [
+    {
+      "title": "Front Office Daily Standup",
+      "hostKey": "marcus-haylward",
+      "scheduledStartInDays": 0,
+      "startHour": 8,
+      "durationMinutes": 15,
+      "attendeeKeys": [
+        "marcus-haylward",
+        "priya-nair",
+        "diego-ramos"
+      ],
+      "channelKey": "front-office",
+      "location": "Front Desk Back Office",
+      "description": "Daily arrivals, VIP watch, and overnight handoff review. Recurring desk huddle to align on the day's check-ins and concierge priorities."
+    },
+    {
+      "title": "Housekeeping Morning Lineup",
+      "hostKey": "amelia-cole",
+      "scheduledStartInDays": -1,
+      "startHour": 7,
+      "durationMinutes": 20,
+      "attendeeKeys": [
+        "amelia-cole",
+        "rosa-mendes"
+      ],
+      "channelKey": "housekeeping",
+      "location": "Housekeeping Floor Office",
+      "description": "Turn priorities, amenity restock, and villa renovation room blocks. Sets the cleaning sequence and inspection standards for the day."
+    },
+    {
+      "title": "Wedding Ops Weekly Sync",
+      "hostKey": "isabel-cruz",
+      "scheduledStartInDays": 2,
+      "startHour": 10,
+      "durationMinutes": 60,
+      "attendeeKeys": [
+        "isabel-cruz",
+        "nadia-feldman",
+        "chef-laurent-bisset",
+        "tomas-vega",
+        "marcus-haylward"
+      ],
+      "channelKey": "wedding-ops",
+      "location": "Coral Boardroom",
+      "description": "Peak wedding season readiness: beach gala buildouts, banquet staffing, menu and pairings, and front-office coordination for the upcoming gala weekends."
+    },
+    {
+      "title": "Oceanfront Villa Reno Project Review",
+      "hostKey": "owen-baptiste",
+      "scheduledStartInDays": -3,
+      "startHour": 14,
+      "durationMinutes": 45,
+      "attendeeKeys": [
+        "owen-baptiste",
+        "kenji-watanabe",
+        "amelia-cole",
+        "marcus-haylward"
+      ],
+      "location": "Engineering Shop",
+      "description": "Phase progress on the 18 oceanfront villas: smart climate controls, rainfall showers, and soft-goods install. Review occupancy impact and remaining punch list."
+    },
+    {
+      "title": "OTA Revenue & Distribution Standup",
+      "hostKey": "isabel-cruz",
+      "scheduledStartInDays": 5,
+      "startHour": 9,
+      "durationMinutes": 30,
+      "attendeeKeys": [
+        "isabel-cruz",
+        "marcus-haylward",
+        "priya-nair"
+      ],
+      "location": "Sales Office",
+      "description": "Rate parity, channel mix, and content across Booking.com, Expedia, and direct. Shoulder-season RevPAR check and pacing review."
+    },
+    {
+      "title": "F&B Vendor Call — Wine & Spirits Supplier",
+      "hostKey": "tomas-vega",
+      "scheduledStartInDays": 7,
+      "startHour": 11,
+      "durationMinutes": 45,
+      "attendeeKeys": [
+        "tomas-vega",
+        "chef-laurent-bisset"
+      ],
+      "channelKey": "food-and-beverage",
+      "location": "Cellar Tasting Room",
+      "description": "Quarterly cellar replenishment and summer pairing allocations with the small-batch distributor. Pricing, delivery windows, and new vintage samples."
+    },
+    {
+      "title": "Service Excellence Training Session",
+      "hostKey": "marcus-haylward",
+      "scheduledStartInDays": 9,
+      "startHour": 13,
+      "durationMinutes": 90,
+      "attendeeKeys": [
+        "marcus-haylward",
+        "priya-nair",
+        "diego-ramos",
+        "rosa-mendes",
+        "nadia-feldman"
+      ],
+      "location": "Training Room A",
+      "description": "Cross-department luxury service standards, guest recovery scenarios, and the new arrival ritual rollout for all front-of-house teams."
+    },
+    {
+      "title": "All-Hands: Summer Season Kickoff",
+      "hostKey": "marcus-haylward",
+      "scheduledStartInDays": 12,
+      "startHour": 16,
+      "durationMinutes": 60,
+      "attendeeKeys": [
+        "marcus-haylward",
+        "priya-nair",
+        "diego-ramos",
+        "amelia-cole",
+        "rosa-mendes",
+        "chef-laurent-bisset",
+        "tomas-vega",
+        "nadia-feldman",
+        "owen-baptiste",
+        "kenji-watanabe",
+        "isabel-cruz",
+        "yuki-tanaka"
+      ],
+      "channelKey": "announcements",
+      "location": "Pacific Ballroom",
+      "description": "Property-wide all-hands: summer season outlook, wedding pipeline, spa relaunch preview, and recognition. Leadership updates from every department."
+    },
+    {
+      "title": "Spa Relaunch Planning Sync",
+      "hostKey": "yuki-tanaka",
+      "scheduledStartInDays": 4,
+      "startHour": 15,
+      "durationMinutes": 45,
+      "attendeeKeys": [
+        "yuki-tanaka",
+        "chef-laurent-bisset",
+        "isabel-cruz"
+      ],
+      "location": "Spa Reception Lounge",
+      "description": "Seaside spa relaunch: hydrotherapy circuit timeline, signature treatment menu, and wellness retreat packages tied to F&B and events."
+    },
+    {
+      "title": "Maintenance Hotline Triage Review",
+      "hostKey": "owen-baptiste",
+      "scheduledStartInDays": -5,
+      "startHour": 8,
+      "durationMinutes": 30,
+      "attendeeKeys": [
+        "owen-baptiste",
+        "kenji-watanabe",
+        "amelia-cole",
+        "diego-ramos"
+      ],
+      "channelKey": "maintenance-hotline",
+      "location": "Engineering Shop",
+      "description": "Weekly work-order triage: open urgent tickets, pool plant and HVAC status, and preventive maintenance scheduling across villas."
+    }
+  ]
+}

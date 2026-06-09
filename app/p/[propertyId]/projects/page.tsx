@@ -1,16 +1,8 @@
-import { Suspense } from "react";
-import { ProjectsIndex } from "@/components/projects/projects-index";
-
-export default async function ProjectsPage({
-  params,
-}: {
-  params: Promise<{ propertyId: string }>;
-}) {
-  const { propertyId } = await params;
-  // ProjectsIndex reads `?team=` via useSearchParams — wrap in Suspense.
-  return (
-    <Suspense fallback={null}>
-      <ProjectsIndex propertyId={propertyId} />
-    </Suspense>
-  );
+/**
+ * Projects index landing. The index list is rendered by `<ProjectsSurface>` in
+ * the property layout (when there's no project id in the URL), so this page is
+ * `null` and exists only so the `/projects` URL resolves on a hard load.
+ */
+export default function ProjectsPage() {
+  return null;
 }

@@ -1,0 +1,49 @@
+{
+  "propertyId": "d58fc73b-9077-404d-9f2b-6eb56902d91a",
+  "userIds": [
+    "33831554-d1a7-4f62-85a5-85952cbc11e4",
+    "ac933719-21d7-43dd-944b-63116fb4d1ac",
+    "a2db6d8e-8ad9-42e7-a7a3-2b1f24d7870a",
+    "f6169d25-673a-4928-bac8-8a042645c536",
+    "a0da0a99-9301-4038-92dc-49f85815393c",
+    "93f5d605-6c14-4108-b37f-11ac8d6ceaa6",
+    "35ba4ff4-3082-41ca-ae4f-a9893c431431",
+    "cee2ebd6-595f-4625-abf9-1316efadbb0d",
+    "db5dd16d-fc88-49ec-9686-8bfdb5d4db89",
+    "4f5ae98e-6f3b-4966-bb07-0e32a91ac40d",
+    "7538e56f-cba4-40ca-8daa-f16df6cd0a50",
+    "58e2d848-3698-43d7-b804-748e6e637b1b",
+    "de34bb46-a290-4376-993d-99545628707a"
+  ],
+  "streamChannelIds": [
+    "prop-d58fc73b-general-bcdcd3",
+    "prop-d58fc73b-announcements-db5598",
+    "prop-d58fc73b-front-office-39e5f5",
+    "prop-d58fc73b-housekeeping-dd8592",
+    "prop-d58fc73b-food-and-beverage-f00247",
+    "prop-d58fc73b-wedding-ops-49ed14",
+    "prop-d58fc73b-maintenance-hotline-2f7b07"
+  ],
+  "roomIds": [
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:a415f0ae-c16d-47cf-b253-5bf8f6ff4ba2",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:5f62c1a1-a794-4bc5-932f-2977939b1f4e",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:1d8e451f-defe-47c7-b9ac-e29a2b11422e",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:85c2c1f2-1d34-457c-9ebd-f19ac70c6212",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:7724b7ea-d912-4786-9f1f-ba9004256603",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:b10e1e87-003c-4b11-8665-d927dc2eacf2",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:a836a203-f8e7-4b16-9643-b81e564d3f08",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:0b38d18c-d155-442e-99f5-be2a24a1979e",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:afaeec89-08f3-474d-893d-66fb832f9872",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:36f7b850-a2d0-437f-becf-c205882f491b",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:ed792e1f-6f15-42a9-bb23-39005e0ef602",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:c832a040-923b-467f-8111-b503b97c3cf4",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:fafcc049-641f-4110-9458-5e7b36501912",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:ae43e423-a841-416a-8c6c-eb1312bbe6e0",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:1d46ccde-85dc-404a-885b-65e7029fa44c",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:8efbc49d-cb27-40d6-b4cd-c7f3011a5576",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:4743879d-bb36-49e4-a58a-4f29fa8bd8e6",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:178422bd-3950-4fb8-b66e-436a6beee761",
+    "property:d58fc73b-9077-404d-9f2b-6eb56902d91a:doc:db2c240e-0b21-43d2-bd2e-b34bea489e5a"
+  ],
+  "createdAt": "2026-06-09T07:25:29.190Z"
+}

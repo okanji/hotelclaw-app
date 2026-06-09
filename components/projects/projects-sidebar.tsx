@@ -21,6 +21,8 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import type { EntityColor } from "@/lib/db/types";
+import { useOpenSpace } from "@/lib/spaces/use-open-space";
+import { useOpenProject } from "@/lib/projects/use-open-project";
 import { CreateEntityDialog } from "./create-entity-dialog";
 
 const DOT: Record<EntityColor, string> = {
@@ -40,6 +42,8 @@ const DOT: Record<EntityColor, string> = {
 export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
   const pathname = usePathname();
   const qc = useQueryClient();
+  const openSpace = useOpenSpace(propertyId);
+  const openProject = useOpenProject(propertyId);
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
   const [dialog, setDialog] = useState<{
@@ -98,7 +102,22 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
               {spaces.map((s) => (
                 <SidebarMenuItem key={s.id}>
                   <SidebarMenuButton
-                    render={<Link href={`/p/${propertyId}/spaces/${s.id}`} />}
+                    render={
+                      <Link
+                        href={`/p/${propertyId}/spaces/${s.id}`}
+                        onClick={(e) => {
+                          if (
+                            e.metaKey ||
+                            e.ctrlKey ||
+                            e.shiftKey ||
+                            e.button !== 0
+                          )
+                            return;
+                          e.preventDefault();
+                          openSpace(s.id);
+                        }}
+                      />
+                    }
                     isActive={pathname.includes(`/spaces/${s.id}`)}
                     tooltip={s.name}
                   >
@@ -134,7 +153,22 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
               {projects.map((p) => (
                 <SidebarMenuItem key={p.id}>
                   <SidebarMenuButton
-                    render={<Link href={`/p/${propertyId}/projects/${p.id}`} />}
+                    render={
+                      <Link
+                        href={`/p/${propertyId}/projects/${p.id}`}
+                        onClick={(e) => {
+                          if (
+                            e.metaKey ||
+                            e.ctrlKey ||
+                            e.shiftKey ||
+                            e.button !== 0
+                          )
+                            return;
+                          e.preventDefault();
+                          openProject(p.id);
+                        }}
+                      />
+                    }
                     isActive={pathname.includes(`/projects/${p.id}`)}
                     tooltip={p.name}
                   >
