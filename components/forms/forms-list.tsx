@@ -1,0 +1,452 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  ClipboardList,
+  Copy,
+  MessageSquareShare,
+  MoreHorizontal,
+  PenLine,
+  Pin,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { FormStatusBadge } from "./status-badge";
+import { GenerateFormDialog } from "./generate-form-dialog";
+import { ShareFormDialog } from "./share-form-dialog";
+import { PinFormDialog } from "./pin-form-dialog";
+import { createForm, deleteForm } from "./actions";
+import type { FormStatus } from "@/lib/db/types";
+
+export type FormListItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  icon: string | null;
+  schema: unknown;
+  status: FormStatus;
+  allow_multiple: boolean;
+  anonymous: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Forms index — cards for every form in the property, plus create/AI entry
+ *  points. Server actions handle writes; `router.refresh()` re-runs the
+ *  server fetch so counts and rows stay authoritative. */
+export function FormsList({
+  propertyId,
+  forms,
+  responseCounts,
+}: {
+  propertyId: string;
+  forms: FormListItem[];
+  responseCounts: Record<string, number>;
+}) {
+  const router = useRouter();
+  const [newOpen, setNewOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [deleting, setDeleting] = useState<FormListItem | null>(null);
+  const [sharing, setSharing] = useState<FormListItem | null>(null);
+  const [pinning, setPinning] = useState<FormListItem | null>(null);
+  const base = `/p/${propertyId}/forms`;
+
+  return (
+    <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-5">
+          <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            Workspace
+          </p>
+          <h1 className="text-[2.5rem] leading-none font-semibold tracking-tight text-foreground">
+            Forms
+          </h1>
+          <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
+            Build intake and feedback forms for the team — maintenance
+            requests, surveys, checklists. Publish one and share the fill
+            link, or let a workflow react to submissions.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+            <Sparkles data-slot="icon" />
+            Generate with AI
+          </Button>
+          <Button onClick={() => setNewOpen(true)}>
+            <Plus data-slot="icon" />
+            New form
+          </Button>
+        </div>
+      </header>
+
+      <hr className="my-10 border-border" />
+
+      {forms.length === 0 ? (
+        <EmptyState
+          onCreate={() => setNewOpen(true)}
+          onGenerate={() => setGenerateOpen(true)}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {forms.map((form) => (
+            <FormCard
+              key={form.id}
+              form={form}
+              href={`${base}/${form.id}`}
+              fillHref={`${base}/${form.id}/fill`}
+              responseCount={responseCounts[form.id] ?? 0}
+              propertyId={propertyId}
+              onDelete={() => setDeleting(form)}
+              onShare={() => setSharing(form)}
+              onPin={() => setPinning(form)}
+            />
+          ))}
+        </div>
+      )}
+
+      <NewFormDialog
+        propertyId={propertyId}
+        open={newOpen}
+        onOpenChange={setNewOpen}
+      />
+      <GenerateFormDialog
+        propertyId={propertyId}
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+      />
+      {sharing ? (
+        <ShareFormDialog
+          propertyId={propertyId}
+          formId={sharing.id}
+          formTitle={sharing.title}
+          open
+          onOpenChange={(o) => {
+            if (!o) setSharing(null);
+          }}
+        />
+      ) : null}
+      {pinning ? (
+        <PinFormDialog
+          propertyId={propertyId}
+          formId={pinning.id}
+          formTitle={pinning.title}
+          open
+          onOpenChange={(o) => {
+            if (!o) setPinning(null);
+          }}
+        />
+      ) : null}
+      <DeleteFormDialog
+        form={deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+        onDeleted={() => {
+          setDeleting(null);
+          router.refresh();
+        }}
+      />
+    </div>
+  );
+}
+
+function FormCard({
+  form,
+  href,
+  fillHref,
+  responseCount,
+  propertyId,
+  onDelete,
+  onShare,
+  onPin,
+}: {
+  form: FormListItem;
+  href: string;
+  fillHref: string;
+  responseCount: number;
+  propertyId: string;
+  onDelete: () => void;
+  onShare: () => void;
+  onPin: () => void;
+}) {
+  const router = useRouter();
+  const [duplicating, startDuplicate] = useTransition();
+
+  function duplicate() {
+    startDuplicate(async () => {
+      const result = await createForm({
+        propertyId,
+        title: `${form.title} copy`,
+        description: form.description,
+        schema: form.schema ?? undefined,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Form duplicated");
+      router.push(`/p/${propertyId}/forms/${result.formId}`);
+    });
+  }
+
+  return (
+    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
+      <Link href={href} className="absolute inset-0" aria-label={form.title} />
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-base">
+            {form.icon || <ClipboardList className="size-4 text-muted-foreground" />}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{form.title}</p>
+            {form.description ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {form.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="relative z-10 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                  aria-label="Form actions"
+                />
+              }
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push(href)}>
+                <PenLine data-slot="icon" />
+                Open
+              </DropdownMenuItem>
+              {form.status === "published" ? (
+                <DropdownMenuItem onClick={() => router.push(fillHref)}>
+                  <ClipboardList data-slot="icon" />
+                  Fill
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem onClick={duplicate} disabled={duplicating}>
+                <Copy data-slot="icon" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onShare}>
+                <MessageSquareShare data-slot="icon" />
+                Share to chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onPin}>
+                <Pin data-slot="icon" />
+                Pin to space
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <Trash2 data-slot="icon" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <FormStatusBadge status={form.status} />
+        <span>
+          {responseCount} {responseCount === 1 ? "response" : "responses"}
+        </span>
+        <span>
+          {new Date(form.created_at).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  onCreate,
+  onGenerate,
+}: {
+  onCreate: () => void;
+  onGenerate: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-16 text-center">
+      <span className="flex size-12 items-center justify-center rounded-full bg-muted">
+        <ClipboardList className="size-6 text-muted-foreground" />
+      </span>
+      <div>
+        <p className="text-sm font-medium">No forms yet</p>
+        <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
+          Create a form from scratch, or describe what you need and let AI
+          draft the fields for you.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onGenerate}>
+          <Sparkles data-slot="icon" />
+          Generate with AI
+        </Button>
+        <Button onClick={onCreate}>
+          <Plus data-slot="icon" />
+          New form
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function NewFormDialog({
+  propertyId,
+  open,
+  onOpenChange,
+}: {
+  propertyId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function create(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const result = await createForm({ propertyId, title });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setTitle("");
+      onOpenChange(false);
+      router.push(`/p/${propertyId}/forms/${result.formId}`);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New form</DialogTitle>
+          <DialogDescription>
+            Name it now, add fields in the builder next.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={create} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new-form-title">Title</Label>
+            <Input
+              id="new-form-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Maintenance request"
+              disabled={pending}
+              autoFocus
+              required
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending || !title.trim()}>
+              {pending ? "Creating…" : "Create form"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteFormDialog({
+  form,
+  onOpenChange,
+  onDeleted,
+}: {
+  form: FormListItem | null;
+  onOpenChange: (open: boolean) => void;
+  onDeleted: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function confirm() {
+    if (!form) return;
+    startTransition(async () => {
+      const result = await deleteForm(form.id);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Form deleted");
+      onDeleted();
+    });
+  }
+
+  return (
+    <Dialog open={form !== null} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete form?</DialogTitle>
+          <DialogDescription>
+            &ldquo;{form?.title}&rdquo; and all of its responses will be
+            permanently deleted.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={confirm}
+            disabled={pending}
+          >
+            {pending ? "Deleting…" : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

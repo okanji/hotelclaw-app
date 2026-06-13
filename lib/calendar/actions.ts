@@ -77,8 +77,22 @@ export async function saveMeeting(input: SaveMeetingInput) {
     recurrence: input.recurrence,
   };
 
+  // The organizer is fixed at creation (= meetings.host_id) and survives
+  // edits by other members. Resolve it BEFORE syncing attendees so an
+  // editor never inherits the role — previously `is_organizer` was derived
+  // from whoever saved, which let any edit quietly steal organizer-ship
+  // and could even drop the real host from their own guest list.
+  let organizerId = user.id;
+
   let meetingId = input.meetingId;
   if (meetingId) {
+    const { data: existing, error: existingError } = await supabase
+      .from("meetings")
+      .select("host_id")
+      .eq("id", meetingId)
+      .single();
+    if (existingError) return { error: existingError.message };
+    organizerId = existing.host_id ?? user.id;
     const { error } = await supabase
       .from("meetings")
       .update({
@@ -104,13 +118,17 @@ export async function saveMeeting(input: SaveMeetingInput) {
   }
 
   // Sync the attendees: drop any not in the new list, upsert the rest. The
-  // host is always implicitly an attendee with is_organizer=true so the
-  // calendar shows on their own grid even if they didn't add themselves.
-  const desiredIds = Array.from(new Set([user.id, ...input.attendeeIds]));
+  // organizer is always implicitly an attendee (so the meeting shows on
+  // their own grid even if they didn't add themselves) and can never be
+  // removed. An editor who isn't the organizer is NOT auto-added — editing
+  // a meeting is not the same as joining it. The upsert also re-derives
+  // is_organizer from the true organizer, which self-heals rows corrupted
+  // by the old editor-steals-organizer behaviour.
+  const desiredIds = Array.from(new Set([organizerId, ...input.attendeeIds]));
   const desiredRows = desiredIds.map((uid) => ({
     meeting_id: meetingId!,
     user_id: uid,
-    is_organizer: uid === user.id,
+    is_organizer: uid === organizerId,
   }));
   // Replace-all by deleting non-matching rows then upserting the desired
   // set. Two round-trips but the table is tiny per-meeting; saves dragging
@@ -189,5 +207,39 @@ export async function unscheduleTask(propertyId: string, taskId: string) {
     .eq("id", taskId);
   if (error) return { error: error.message };
   revalidatePath(`/p/${propertyId}/calendar`);
+  return { ok: true as const };
+}
+
+/**
+ * RSVP to a meeting — updates the caller's own attendee row. The update is
+ * keyed on (meeting_id, user_id = auth user) so an attendee can never set
+ * someone else's response; zero matched rows means the caller isn't on the
+ * guest list.
+ */
+export async function respondToMeeting(input: {
+  propertyId: string;
+  meetingId: string;
+  response: "accepted" | "declined" | "tentative";
+}) {
+  if (!["accepted", "declined", "tentative"].includes(input.response)) {
+    return { error: "invalid response" as const };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "unauthorized" as const };
+
+  const { data, error } = await supabase
+    .from("meeting_attendees")
+    .update({ response: input.response })
+    .eq("meeting_id", input.meetingId)
+    .eq("user_id", user.id)
+    .select("user_id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "you are not on this meeting's guest list" as const };
+  }
+  revalidatePath(`/p/${input.propertyId}/calendar`);
   return { ok: true as const };
 }

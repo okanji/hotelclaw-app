@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { ThreadsPageClient } from "./threads-view";
 
 const THREADS_ROUTE = /^\/p\/[^/]+\/threads\/?$/;
@@ -11,7 +11,7 @@ const THREADS_ROUTE = /^\/p\/[^/]+\/threads\/?$/;
  * The threads list itself owns its data fetching client-side.
  */
 export function ThreadsSurface() {
-  const pathname = usePathname();
+  const pathname = useSurfacePathname();
   if (!THREADS_ROUTE.test(pathname)) return null;
   return <ThreadsPageClient />;
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { ProjectDetail } from "./project-detail";
 import { ProjectsIndex } from "./projects-index";
 
@@ -16,26 +15,12 @@ const PROJECT_ROUTE = /^\/p\/[^/]+\/projects\/([^/]+)\/?$/;
  * and gates itself OFF every other section, so navigating away (e.g. opening a
  * document) tears the project view down instead of leaving it stacked.
  *
- * Real navigations update via `usePathname`; in-section `pushState` hops sync
- * through `popstate` / `hotelclaw:pathname`. `<ProjectDetail key={projectId}>`
- * forces a clean per-project remount on project↔project navigation.
+ * Reads the URL via `useSurfacePathname` (stays in lockstep with the other
+ * surfaces across `pushState` hops). `<ProjectDetail key={projectId}>` forces a
+ * clean per-project remount on project↔project navigation.
  */
 export function ProjectsSurface({ propertyId }: { propertyId: string }) {
-  const nextPathname = usePathname();
-  const [pathname, setPathname] = useState(nextPathname);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPathname(nextPathname);
-  }, [nextPathname]);
-  useEffect(() => {
-    const sync = () => setPathname(window.location.pathname);
-    window.addEventListener("popstate", sync);
-    window.addEventListener("hotelclaw:pathname", sync);
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("hotelclaw:pathname", sync);
-    };
-  }, []);
+  const pathname = useSurfacePathname();
 
   if (!IN_PROJECTS.test(pathname)) return null;
   const projectId = pathname.match(PROJECT_ROUTE)?.[1];

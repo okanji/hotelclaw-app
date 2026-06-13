@@ -11,6 +11,9 @@ type WorkflowListItem = {
   description: string | null;
   enabled: boolean;
   mode: "instant" | "durable";
+  /** The current version's trigger event type (e.g. "task.created"), or null
+   *  for workflows with no saved version yet. */
+  trigger_event_type: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
   created_at: string;
@@ -68,6 +71,7 @@ type WorkflowRun = {
   mode: string;
   trigger_kind: string | null;
   durable_run_id: string | null;
+  is_dry_run: boolean;
   started_at: string;
   finished_at: string | null;
   error: string | null;
@@ -95,6 +99,7 @@ type PropertyWorkflowRun = {
   status: string;
   mode: string;
   trigger_kind: string | null;
+  is_dry_run: boolean;
   started_at: string;
   finished_at: string | null;
   error: string | null;
@@ -121,6 +126,7 @@ type WorkflowRunDetail = {
     mode: string;
     trigger_kind: string | null;
     durable_run_id: string | null;
+    is_dry_run: boolean;
     started_at: string;
     finished_at: string | null;
     error: string | null;

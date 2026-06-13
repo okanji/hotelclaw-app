@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,9 @@ export function TypedStepForm({
     <div className="space-y-4">
       {fields.map((f) => (
         <FieldRenderer
-          key={f.key}
+          // formKey in the key remounts the renderer when the edited step
+          // changes, resetting per-field touched state (blur-gated errors).
+          key={`${formKey ?? ""}:${f.key}`}
           field={f}
           value={value[f.key]}
           refs={refs}
@@ -95,9 +97,14 @@ function FieldRenderer({
   formKey?: string;
 }) {
   const required = "required" in field && Boolean(field.required);
-  const invalid = required && isBlankValue(value);
+  // Blur-gated: a pristine form full of red "required" errors reads as broken
+  // before the user has typed anything. The card-level badge (computeInvalid
+  // in builder-shell) still flags incomplete steps on the canvas.
+  const [touched, setTouched] = useState(false);
+  const invalid = required && isBlankValue(value) && touched;
+  const errorId = invalid ? `wf-field-${field.key}-error` : undefined;
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onBlurCapture={() => setTouched(true)}>
       <Label className="flex items-center gap-1 text-[0.8125rem] font-medium text-foreground">
         {field.label}
         {required && (
@@ -117,9 +124,12 @@ function FieldRenderer({
         triggerEventType={triggerEventType}
         formKey={formKey}
         invalid={invalid}
+        describedBy={errorId}
       />
       {invalid ? (
-        <p className="text-[0.8125rem] font-medium text-destructive">{field.label} is required</p>
+        <p id={errorId} role="alert" className="text-[0.8125rem] font-medium text-destructive">
+          {field.label} is required
+        </p>
       ) : "help" in field && field.help ? (
         <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">{field.help}</p>
       ) : null}
@@ -144,6 +154,7 @@ function FieldInput({
   triggerEventType,
   formKey,
   invalid,
+  describedBy,
 }: {
   field: FieldDef;
   value: unknown;
@@ -155,6 +166,8 @@ function FieldInput({
   triggerEventType?: string;
   formKey?: string;
   invalid?: boolean;
+  /** id of the inline error message, for aria-describedby on the control. */
+  describedBy?: string;
 }) {
   const invalidInput = invalid && "border-destructive focus-visible:ring-destructive/30";
   switch (field.kind) {
@@ -162,6 +175,7 @@ function FieldInput({
       return (
         <WorkflowSelect
           ariaLabel={field.label}
+          aria-describedby={describedBy}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value || undefined)}
           className={cn("w-full", invalidInput)}
@@ -198,6 +212,7 @@ function FieldInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
           className={cn("h-9 text-[0.8125rem]", invalidInput)}
         />
       );

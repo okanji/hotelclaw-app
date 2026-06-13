@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { InboxView } from "./inbox";
 
 const INBOX_ROUTE = /^\/p\/[^/]+\/inbox\/?$/;
@@ -19,7 +19,7 @@ export function InboxSurface({
   propertyId: string;
   userId: string;
 }) {
-  const pathname = usePathname();
+  const pathname = useSurfacePathname();
   if (!INBOX_ROUTE.test(pathname)) return null;
   return <InboxView propertyId={propertyId} userId={userId} />;
 }

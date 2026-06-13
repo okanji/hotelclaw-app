@@ -11,7 +11,8 @@ import type { WorkflowSpec, StepNode } from "@/lib/workflows/spec";
 import { TRIGGER_EVENT_TYPES } from "@/lib/workflows/spec";
 import { TRIGGER_NODE_ID } from "@/lib/workflows/graph";
 import { STEP_FIELDS } from "@/lib/workflows/field-defs";
-import { availableRefs, type RefCandidate } from "@/lib/workflows/refs";
+import { availableRefs, outputFieldsOf, type RefCandidate } from "@/lib/workflows/refs";
+import { AiStepTester } from "@/components/workflows/builder/ai-step-tester";
 import { TypedStepForm } from "./typed-step-form";
 import { DataContextPanel } from "@/components/workflows/builder/config/data-context-panel";
 import { LabelTriggerFilter } from "@/components/workflows/builder/config/label-trigger-filter";
@@ -509,6 +510,7 @@ function StepEditor({
         : null;
 
   const hasFormFields = Boolean(STEP_FIELDS[step.type as keyof typeof STEP_FIELDS]);
+  const producedFields = outputFieldsOf(meta?.outputSchema);
 
   const activeBranchPath =
     isBranchIf && branchPathFocus?.branchStepId === stepId
@@ -553,22 +555,31 @@ function StepEditor({
                 <p className="text-[0.8125rem] leading-relaxed text-foreground/90">{readsAs}</p>
               ) : undefined,
             configure: isConditional ? undefined : (
-              <StepConfigSection
-                stepType={step.type}
-                stepId={stepId}
-                triggerEventType={spec.trigger.event_type}
-                value={cfgRecord}
-                onChange={commitConfig}
-                refs={refs}
-                stepOptions={stepOptions}
-                explainHint={meta?.explain(cfg)}
-                inputHint={inputHint}
-                embedded
-              />
+              <>
+                <StepConfigSection
+                  stepType={step.type}
+                  stepId={stepId}
+                  triggerEventType={spec.trigger.event_type}
+                  value={cfgRecord}
+                  onChange={commitConfig}
+                  refs={refs}
+                  stepOptions={stepOptions}
+                  explainHint={meta?.explain(cfg)}
+                  inputHint={inputHint}
+                  embedded
+                />
+                {step.type.startsWith("ai.") ? (
+                  <AiStepTester stepType={step.type} config={cfgRecord} spec={spec} />
+                ) : null}
+              </>
             ),
             dataContext:
               !isConditional && refs.length > 0 ? (
                 <DataContextPanel refs={refs} variant="step" />
+              ) : undefined,
+            produces:
+              !isConditional && producedFields.length > 0 ? (
+                <StepProducesPanel stepId={stepId} fields={producedFields} />
               ) : undefined,
             condition: isFilter ? (
               <ConditionBuilder
@@ -768,6 +779,43 @@ function StepErrorHandling({
 
 // ─── Step config section (typed form + advanced JSON fallback) ─────────────
 
+/**
+ * The step's output contract — which fields later steps can reference. Shown
+ * for every action/AI step so authors learn what a step yields without
+ * opening a downstream step's data picker first.
+ */
+function StepProducesPanel({
+  stepId,
+  fields,
+}: {
+  stepId: string;
+  fields: Array<{ key: string; type: string }>;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {fields.map((f) => (
+          <span
+            key={f.key}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+          >
+            {f.key}
+            <span className="font-sans text-[10px] text-muted-foreground">{f.type}</span>
+          </span>
+        ))}
+      </div>
+      <p className="text-[0.75rem] leading-relaxed text-muted-foreground">
+        Later steps can use {fields.length === 1 ? "this" : "these"} via{" "}
+        <span className="font-medium text-foreground/80">Insert data</span> — e.g.{" "}
+        <code className="rounded bg-muted/60 px-1 py-px font-mono text-[10px]">
+          {`{{steps.${stepId}.output.${fields[0]!.key}}}`}
+        </code>
+        .
+      </p>
+    </div>
+  );
+}
+
 function StepConfigSection({
   stepType,
   stepId,
@@ -820,9 +868,15 @@ function StepConfigSection({
     );
   }
 
-  const hasInputField = fields.some((f) => f.key === "input");
+  // Nag about a missing `input` only when the step actually REQUIRES one
+  // (summarize/classify/extract/draft). On ai.freeform input is optional data
+  // alongside the instructions — an amber "this step needs text" banner there
+  // would be wrong.
+  const inputRequired = fields.some(
+    (f) => f.key === "input" && "required" in f && f.required === true,
+  );
   const inputEmpty =
-    hasInputField &&
+    inputRequired &&
     (value.input === undefined || value.input === "" || value.input === null);
   const inputSuggestion = suggestedTriggerInput(triggerEventType);
 

@@ -23,9 +23,28 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "When a form is submitted",
     description:
-      "Runs when someone submits a form that posts to this workflow's URL — e.g. a guest request or maintenance form. Submitted fields are available to later steps.",
-    examplePrompts: ["when a guest submits the request form", "on maintenance form submission"],
-    outputSchema: z.record(z.string(), z.unknown()),
+      "Runs when someone submits one of this property's forms (from the Forms section, a chat embed, or onboarding). The payload carries form_id, form_title, answers keyed by field id, and a labeled `fields` list — pair with a filter on form_title to react to one specific form.",
+    examplePrompts: [
+      "when the maintenance request form is submitted, create a task",
+      "post new guest feedback responses to #management",
+    ],
+    outputSchema: z.object({
+      form_id: z.string(),
+      form_title: z.string(),
+      response_id: z.string(),
+      respondent_id: z.string().nullable(),
+      submission_source: z.string(),
+      answers: z.record(z.string(), z.unknown()),
+      fields: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          type: z.string(),
+          value: z.unknown(),
+          formatted: z.string(),
+        }),
+      ),
+    }),
     explain: () => "When a form is submitted",
   },
 ];

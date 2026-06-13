@@ -181,3 +181,115 @@ export async function createAndAddDocumentLabel(
   if ("error" in applied) return applied;
   return { ok: true, labelId: created.id };
 }
+
+/* ── Project labels ──────────────────────────────────────────────────────── */
+
+export async function addProjectLabel(
+  projectId: string,
+  labelId: string,
+): Promise<{ ok: true } | ActionError> {
+  const pid = Uuid.safeParse(projectId);
+  const lid = Uuid.safeParse(labelId);
+  if (!pid.success || !lid.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("project_labels").insert({
+    project_id: pid.data,
+    label_id: lid.data,
+    created_by: user?.id ?? null,
+  });
+  if (error) {
+    if (error.code === "23505") return { ok: true };
+    return { error: error.message };
+  }
+  return { ok: true };
+}
+
+export async function removeProjectLabel(
+  projectId: string,
+  labelId: string,
+): Promise<{ ok: true } | ActionError> {
+  const pid = Uuid.safeParse(projectId);
+  const lid = Uuid.safeParse(labelId);
+  if (!pid.success || !lid.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_labels")
+    .delete()
+    .eq("project_id", pid.data)
+    .eq("label_id", lid.data);
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+export async function createAndAddProjectLabel(
+  propertyId: string,
+  projectId: string,
+  name: string,
+): Promise<{ ok: true; labelId: string } | ActionError> {
+  const created = await createLabel(propertyId, name);
+  if ("error" in created) return created;
+  const applied = await addProjectLabel(projectId, created.id);
+  if ("error" in applied) return applied;
+  return { ok: true, labelId: created.id };
+}
+
+/* ── Space labels ────────────────────────────────────────────────────────── */
+
+export async function addSpaceLabel(
+  spaceId: string,
+  labelId: string,
+): Promise<{ ok: true } | ActionError> {
+  const sid = Uuid.safeParse(spaceId);
+  const lid = Uuid.safeParse(labelId);
+  if (!sid.success || !lid.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("space_labels").insert({
+    space_id: sid.data,
+    label_id: lid.data,
+    created_by: user?.id ?? null,
+  });
+  if (error) {
+    if (error.code === "23505") return { ok: true };
+    return { error: error.message };
+  }
+  return { ok: true };
+}
+
+export async function removeSpaceLabel(
+  spaceId: string,
+  labelId: string,
+): Promise<{ ok: true } | ActionError> {
+  const sid = Uuid.safeParse(spaceId);
+  const lid = Uuid.safeParse(labelId);
+  if (!sid.success || !lid.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("space_labels")
+    .delete()
+    .eq("space_id", sid.data)
+    .eq("label_id", lid.data);
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+export async function createAndAddSpaceLabel(
+  propertyId: string,
+  spaceId: string,
+  name: string,
+): Promise<{ ok: true; labelId: string } | ActionError> {
+  const created = await createLabel(propertyId, name);
+  if ("error" in created) return created;
+  const applied = await addSpaceLabel(spaceId, created.id);
+  if ("error" in applied) return applied;
+  return { ok: true, labelId: created.id };
+}

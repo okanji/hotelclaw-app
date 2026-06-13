@@ -3,7 +3,24 @@
 import { Fragment } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { EyeOff, GripVertical } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  GripVertical,
+  RotateCcw,
+  SlidersHorizontal,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +81,7 @@ export function EditorialSection({
           >
             <GripVertical className="size-4" />
           </button>
-          <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
               {kicker}
             </span>
@@ -88,6 +105,99 @@ export function EditorialSection({
       </div>
       {children}
     </section>
+  );
+}
+
+/* ── Arrangement controls (shared by Home + Insights) ─────────────────────── */
+
+/** Header dropdown for a rearrangeable page: per-section show/hide toggles
+ *  and a reset to the shipped default. */
+export function CustomizeMenu({
+  items,
+  visibleCount,
+  isHidden,
+  onToggle,
+  onReset,
+}: {
+  items: { id: string; title: string }[];
+  visibleCount: number;
+  isHidden: (id: string) => boolean;
+  onToggle: (id: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" size="sm" variant="ghost">
+            <SlidersHorizontal className="size-4" />
+            Customize
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" sideOffset={6} className="w-52">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
+            Sections
+          </DropdownMenuLabel>
+          {items.map((w) => (
+            <DropdownMenuCheckboxItem
+              key={w.id}
+              checked={!isHidden(w.id)}
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => onToggle(w.id)}
+              disabled={!isHidden(w.id) && visibleCount === 1}
+            >
+              {w.title}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onReset}>
+          <RotateCcw className="size-4" />
+          Reset layout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Placeholder tray for hidden sections — each a chip that brings the section
+ *  back. So hiding tucks a section away here rather than vanishing it. */
+export function HiddenTray({
+  items,
+  hidden,
+  onRestore,
+}: {
+  items: { id: string; title: string }[];
+  hidden: string[];
+  onRestore: (id: string) => void;
+}) {
+  if (hidden.length === 0) return null;
+  return (
+    <div className="mt-14 border-t border-border/60 pt-6">
+      <p className="mb-3 text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+        Hidden
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {hidden.map((id) => {
+          const def = items.find((w) => w.id === id);
+          if (!def) return null;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onRestore(id)}
+              title={`Show ${def.title}`}
+              className="flex items-center gap-2 rounded-full border border-dashed border-border/70 bg-muted/30 px-3 py-1.5 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted hover:text-foreground"
+            >
+              <Eye className="size-3.5" />
+              {def.title}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

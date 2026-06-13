@@ -178,6 +178,17 @@ function enumOptions(schema: z.ZodTypeAny | undefined): string[] | undefined {
   return undefined;
 }
 
+/**
+ * Top-level output fields of a step's outputSchema — drives the inspector's
+ * "What this step produces" section so authors learn the step's contract
+ * without having to open a later step's data picker.
+ */
+export function outputFieldsOf(
+  schema: z.ZodTypeAny | undefined,
+): Array<{ key: string; type: RefType; options?: string[] }> {
+  return objectFields(schema);
+}
+
 /** Top-level keys of a ZodObject, or [] for anything else. */
 function objectFields(
   schema: z.ZodTypeAny | undefined,
@@ -277,6 +288,73 @@ export function availableRefs(spec: WorkflowSpec, stepId?: string): RefCandidate
   }
 
   return out;
+}
+
+/** Type-appropriate placeholder for a trigger field with no curated sample. */
+function placeholderFor(type: RefType, label: string): unknown {
+  switch (type) {
+    case "number":
+      return 1;
+    case "boolean":
+      return true;
+    case "string[]":
+      return ["example"];
+    case "date":
+      return new Date().toISOString();
+    case "json":
+      return {};
+    default:
+      return `Sample ${label.toLowerCase()}`;
+  }
+}
+
+/** Set a dotted path (minus the leading "trigger.") into a nested object. */
+function setPath(target: Record<string, unknown>, dotted: string, value: unknown) {
+  const parts = dotted.split(".");
+  let cursor = target;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i]!;
+    const next = cursor[key];
+    if (typeof next !== "object" || next === null) {
+      const fresh: Record<string, unknown> = {};
+      cursor[key] = fresh;
+      cursor = fresh;
+    } else {
+      cursor = next as Record<string, unknown>;
+    }
+  }
+  cursor[parts[parts.length - 1]!] = value;
+}
+
+/**
+ * A plausible trigger payload for this spec's event type, built from the same
+ * curated field catalog the data-picker uses. Drives the builder's "Test"
+ * dialog so a workflow can be dry-run before it has ever fired for real —
+ * the user edits the sample values, we POST it as the trigger payload.
+ */
+export function sampleTriggerPayload(spec: WorkflowSpec): Record<string, unknown> {
+  const eventType = spec.trigger.event_type;
+  const family = eventType.split(".")[0] ?? "";
+  const payload: Record<string, unknown> = {};
+  const fields: Array<{
+    path: string;
+    label: string;
+    type: RefType;
+    sample?: string;
+    options?: string[];
+  }> = [...(TRIGGER_FIELDS[family] ?? []), ...(TRIGGER_EXTRAS[eventType] ?? [])];
+  for (const f of fields) {
+    const dotted = f.path.replace(/^trigger\./, "");
+    const value =
+      f.sample ?? (f.options && f.options.length > 0 ? f.options[0] : placeholderFor(f.type, f.label));
+    setPath(payload, dotted, f.type === "string[]" && typeof value === "string" ? [value] : value);
+  }
+  // Entity triggers carry the scoped type so trigger.entity_type filters match.
+  if (family === "entity" && spec.trigger.entity_type) {
+    payload.type = spec.trigger.entity_type;
+    payload.data = payload.data ?? {};
+  }
+  return payload;
 }
 
 /** Group RefCandidates by their `group` heading, preserving first-seen order. */

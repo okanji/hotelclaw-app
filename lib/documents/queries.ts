@@ -52,7 +52,7 @@ export async function getDocumentsTree(
   const { data, error } = await supabase
     .from("documents")
     .select(
-      "id, title, parent_id, position, updated_at, last_edited_by, kind",
+      "id, title, parent_id, position, updated_at, last_edited_by, kind, source, source_workflow_id, source_workflow_run_id",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

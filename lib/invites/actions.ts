@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
@@ -8,6 +7,7 @@ import {
   upsertStreamUser,
 } from "@/lib/stream/server";
 import { sendInviteEmail } from "@/lib/email/send-invite-email";
+import { getOrigin } from "@/lib/utils/origin";
 import { createNotification } from "@/lib/notifications/server";
 import type { Role } from "@/lib/db/types";
 
@@ -19,14 +19,6 @@ const CreateSchema = z.object({
   role: z.enum(Roles).default("staff"),
 });
 
-async function getOrigin(): Promise<string> {
-  const env = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (env) return env.replace(/\/$/, "");
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("host") ?? "localhost:3000";
-  return `${proto}://${host}`;
-}
 
 /**
  * Why we use the admin API (and not signInWithOtp):

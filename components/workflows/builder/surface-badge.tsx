@@ -4,7 +4,9 @@ import {
   FileText,
   Video,
   CalendarDays,
+  ClipboardList,
   Database,
+  Ticket,
   Zap,
   Sparkles,
   GitBranch,
@@ -51,6 +53,16 @@ const SURFACE_META: Record<
     tone: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300",
     icon: CalendarDays,
     label: "Calendar",
+  },
+  forms: {
+    tone: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300",
+    icon: ClipboardList,
+    label: "Forms",
+  },
+  bookings: {
+    tone: "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+    icon: Ticket,
+    label: "Bookings",
   },
   entities: {
     tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300",

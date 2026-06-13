@@ -28,7 +28,7 @@ export default async function WelcomePage({
     (user.email ? user.email.split("@")[0].replace(/[._-]+/g, " ") : "");
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-[#faf9f5] px-6 py-16 text-[#1f1e1b]">
       <WelcomeForm defaultName={defaultName} next={next} />
     </main>
   );

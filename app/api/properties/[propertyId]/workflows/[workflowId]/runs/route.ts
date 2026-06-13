@@ -17,7 +17,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("workflow_runs")
     .select(
-      "id, status, mode, durable_run_id, trigger_kind, started_at, finished_at, error",
+      "id, status, mode, durable_run_id, trigger_kind, is_dry_run, started_at, finished_at, error",
     )
     .eq("workflow_id", workflowId)
     .eq("property_id", propertyId)

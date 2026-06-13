@@ -33,6 +33,9 @@ export function useOpenChannel(propertyId: string) {
       const href = channelHref(propertyId, channelType, channelId, opts);
       if (IN_CHAT_SURFACE.test(window.location.pathname)) {
         window.history.pushState(null, "", href);
+        // `usePathname` only updates on real navigations — tell the surface to
+        // re-derive off the new URL so the channel switch paints instantly.
+        window.dispatchEvent(new Event("hotelclaw:pathname"));
       } else {
         router.push(href);
       }

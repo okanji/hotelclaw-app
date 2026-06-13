@@ -38,6 +38,10 @@ const EXAMPLE_CONFIGS: Partial<Record<StepType, Record<string, unknown>>> = {
     input: "{{trigger.new.description}}",
     length: "short",
   },
+  "ai.freeform": {
+    instructions: "Investigate the complaint and propose a concrete fix",
+    input: "{{trigger.new.description}}",
+  },
   "ai.classify_into": {
     input: "{{trigger.new.description}}",
     labels: ["urgent", "routine"],

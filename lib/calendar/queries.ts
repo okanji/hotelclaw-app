@@ -2,6 +2,7 @@ import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type {
   CalendarAttendee,
+  BookingEvent,
   CalendarEvent,
   CalendarRange,
   CalendarSource,
@@ -54,7 +55,7 @@ export async function getCalendarEvents(
     .select(
       `id, title, description, location, color, all_day,
        scheduled_start, scheduled_end, started_at, ended_at,
-       host_id, channel_id, stream_call_id, recurrence,
+       host_id, channel_id, stream_call_id, stream_call_type, recurrence,
        attendees:meeting_attendees(user_id, response, is_organizer)`,
     )
     .eq("property_id", propertyId)
@@ -94,15 +95,32 @@ export async function getCalendarEvents(
     .gt("end_at", from)
     .eq("calendar.connection.user_id", userId);
 
-  const [meetings, tasks, external] = await Promise.all([
+  // Bookings: guest reservations (tables, spa, tours) overlaid so ops see
+  // the day's commitments next to meetings. Cancelled/no-show rows stay off
+  // the grid. Joined service name labels the block ("Dinner table — Alex").
+  const bookingsP = supabase
+    .from("bookings")
+    .select(
+      `id, reference, guest_name, guest_phone, party_size, starts_at, ends_at,
+       status, source, service_id,
+       service:bookable_services!inner(name, emoji)`,
+    )
+    .eq("property_id", propertyId)
+    .in("status", ["pending", "confirmed", "seated", "completed"])
+    .lt("starts_at", to)
+    .gt("ends_at", from);
+
+  const [meetings, tasks, external, bookings] = await Promise.all([
     meetingsP,
     tasksP,
     externalP,
+    bookingsP,
   ]);
 
   if (meetings.error) throw new Error(meetings.error.message);
   if (tasks.error) throw new Error(tasks.error.message);
   if (external.error) throw new Error(external.error.message);
+  if (bookings.error) throw new Error(bookings.error.message);
 
   // Merge attendee profiles in-memory (see the meetings-query note above).
   const attendeeIds = new Set<string>();
@@ -167,6 +185,8 @@ export async function getCalendarEvents(
       host_id: m.host_id,
       channel_id: m.channel_id,
       stream_call_id: m.stream_call_id,
+      stream_call_type:
+        (m.stream_call_type as "default" | "calendar" | null) ?? "default",
       attendees,
       started_at: m.started_at,
       ended_at: m.ended_at,
@@ -247,7 +267,33 @@ export async function getCalendarEvents(
     };
   });
 
-  return [...meetingEvents, ...taskEvents, ...externalEvents];
+  const bookingEvents: BookingEvent[] = (bookings.data ?? []).map((b) => {
+    const service = (b.service ?? {}) as unknown as {
+      name: string;
+      emoji: string | null;
+    };
+    return {
+      source: "booking",
+      id: b.id,
+      title: `${service.emoji ? `${service.emoji} ` : ""}${service.name} — ${b.guest_name}`,
+      description: null,
+      location: null,
+      color: null,
+      all_day: false,
+      start: b.starts_at,
+      end: b.ends_at,
+      service_id: b.service_id,
+      service_name: service.name,
+      reference: b.reference,
+      guest_name: b.guest_name,
+      guest_phone: b.guest_phone,
+      party_size: b.party_size,
+      booking_status: b.status,
+      booking_source: b.source,
+    };
+  });
+
+  return [...meetingEvents, ...taskEvents, ...externalEvents, ...bookingEvents];
 }
 
 /** Connected providers for the current user — drives the "Connected as …" rows. */
@@ -315,6 +361,13 @@ export async function getCalendarSources(
       id: "internal:tasks",
       kind: "internal",
       name: "Scheduled tasks",
+      color: null,
+      selected: true,
+    },
+    {
+      id: "internal:bookings",
+      kind: "internal",
+      name: "Bookings",
       color: null,
       selected: true,
     },

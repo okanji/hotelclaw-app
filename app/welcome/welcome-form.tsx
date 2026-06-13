@@ -2,16 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { toast } from "sonner";
 import { completeOnboarding } from "./actions";
 
@@ -20,6 +10,11 @@ type Props = {
   next: string;
 };
 
+/**
+ * The first beat of the setup story — same warm-cream, big-serif visual
+ * language as the onboarding wizard. Action is untouched; only the UI
+ * changed.
+ */
 export function WelcomeForm({ defaultName, next }: Props) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
@@ -43,36 +38,43 @@ export function WelcomeForm({ defaultName, next }: Props) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Welcome to Hotelclaw</CardTitle>
-        <CardDescription>
-          What should we call you? You can change this later in your profile.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="full-name">Full name</Label>
-            <Input
-              id="full-name"
-              autoFocus
-              required
-              minLength={1}
-              maxLength={120}
-              autoComplete="name"
-              placeholder="Jamie Rivera"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="submit" disabled={busy || !fullName.trim()} className="w-full">
+    <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.22em] text-[#a39e93]">
+        Welcome to Hotelclaw
+      </p>
+      <h1 className="font-serif text-3xl leading-tight text-balance text-[#1f1e1b] sm:text-4xl">
+        What should we call you?
+      </h1>
+      <p className="mt-3 text-sm text-[#6f6a60]">
+        This is how your teammates will see you. You can change it later in
+        your profile.
+      </p>
+      <form onSubmit={onSubmit}>
+        <input
+          id="full-name"
+          autoFocus
+          required
+          minLength={1}
+          maxLength={120}
+          autoComplete="name"
+          placeholder="Jamie Rivera"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          disabled={busy}
+          className="mt-10 w-full border-0 border-b-2 border-[#dedbd2] bg-transparent pb-2 font-serif text-2xl text-[#1f1e1b] outline-none transition-colors placeholder:text-[#c5c0b4] focus:border-[#c96442] disabled:opacity-60 sm:text-3xl"
+        />
+        {error ? <p className="mt-4 text-sm text-[#b3422a]">{error}</p> : null}
+        <div className="mt-10 flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={busy || !fullName.trim()}
+            className="h-11 rounded-full bg-[#c96442] px-7 text-sm font-medium text-white transition-colors hover:bg-[#b05236] disabled:cursor-not-allowed disabled:opacity-40"
+          >
             {busy ? "Saving…" : "Continue"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          </button>
+          <span className="text-xs text-[#a39e93]">press Enter ↵</span>
+        </div>
+      </form>
+    </div>
   );
 }

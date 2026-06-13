@@ -1,4 +1,4 @@
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import type { RecordSource, TaskPriority, TaskStatus } from "@/lib/db/types";
 
 /** A task as returned by `GET /api/properties/[id]/tasks`. */
 export type Task = {
@@ -8,6 +8,8 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   assignee_id: string | null;
+  /** Returned by the tasks API; used by My Tasks' "waiting on others" lens. */
+  created_by?: string | null;
   due_at: string | null;
   parent_id?: string | null;
   labels?: string[];
@@ -20,6 +22,10 @@ export type Task = {
   position: number;
   updated_at: string;
   created_at?: string;
+  /** Creation provenance (migration 0050) — 'workflow' rows get a ⚡ badge. */
+  source?: RecordSource | null;
+  source_workflow_id?: string | null;
+  source_workflow_run_id?: string | null;
 };
 
 /** The board's columns, left to right, with their accent dot colour. */

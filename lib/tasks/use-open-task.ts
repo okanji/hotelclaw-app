@@ -31,6 +31,9 @@ export function useOpenTask(propertyId: string) {
       const href = taskHref(propertyId, taskId);
       if (IN_TASKS_SURFACE.test(window.location.pathname)) {
         window.history.pushState(null, "", href);
+        // `usePathname` does not update on `pushState` — the surface listens
+        // for this event to re-derive the active task id from the new URL.
+        window.dispatchEvent(new Event("hotelclaw:pathname"));
       } else {
         router.push(href);
       }

@@ -10,7 +10,7 @@
  * before reaching for fields specific to one kind.
  */
 
-export type CalendarEventSource = "meeting" | "task" | "external";
+export type CalendarEventSource = "meeting" | "task" | "external" | "booking";
 
 export type AttendeeResponse = "pending" | "accepted" | "declined" | "tentative";
 
@@ -41,6 +41,8 @@ export type MeetingEvent = BaseEvent & {
   host_id: string | null;
   channel_id: string | null;
   stream_call_id: string;
+  /** "default" = full A/V call attached; "calendar" = no video call. */
+  stream_call_type: "default" | "calendar";
   attendees: CalendarAttendee[];
   /** Set once the host actually started the call. */
   started_at: string | null;
@@ -77,7 +79,19 @@ export type ExternalEvent = BaseEvent & {
   organizer_email: string | null;
 };
 
-export type CalendarEvent = MeetingEvent | TaskEvent | ExternalEvent;
+export type BookingEvent = BaseEvent & {
+  source: "booking";
+  service_id: string;
+  service_name: string;
+  reference: string;
+  guest_name: string;
+  guest_phone: string | null;
+  party_size: number;
+  booking_status: import("@/lib/db/types").BookingStatus;
+  booking_source: import("@/lib/db/types").BookingSource;
+};
+
+export type CalendarEvent = MeetingEvent | TaskEvent | ExternalEvent | BookingEvent;
 
 /** The blob the section sidebar's "calendars" list renders. */
 export type CalendarSource = {

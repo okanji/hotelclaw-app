@@ -33,6 +33,11 @@ export const TRIGGER_EVENT_TYPES = [
   "manual.run",
   "webhook.received",
   "form.submitted",
+  "chatbot.order_created",
+  "chatbot.lead_captured",
+  "chatbot.escalated",
+  "booking.created",
+  "booking.cancelled",
 ] as const;
 
 export type TriggerEventType = (typeof TRIGGER_EVENT_TYPES)[number];
@@ -125,6 +130,29 @@ const UpdateTaskStep = z.object({
   }),
 });
 
+const CreateBookingStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.booking.create"),
+  config: z.object({
+    service_id: TplString,
+    /** ISO instant or "YYYY-MM-DDTHH:MM" wall time in the service tz. */
+    starts_at: TplString,
+    guest_name: TplString,
+    party_size: z.string().optional(),
+    guest_phone: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+const SetBookingStatusStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.booking.set_status"),
+  config: z.object({
+    booking_id: TplString,
+    status: z.enum(["confirmed", "cancelled", "completed", "no_show"]),
+  }),
+});
+
 const AssignTaskStep = z.object({
   ...StepCommon,
   type: z.literal("action.task.assign"),
@@ -163,6 +191,16 @@ const MentionUserStep = z.object({
     channel_id: TplString,
     user_id: TplString,
     text: TplString,
+  }),
+});
+
+const FormSendStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.form.send"),
+  config: z.object({
+    form_id: TplString, // uuid of the form (or a template ref that resolves to one)
+    channel_id: TplString,
+    message: TplString.optional(), // text above the form card
   }),
 });
 
@@ -388,12 +426,23 @@ const AiBranchDecisionStep = z.object({
 const AiFreeformStep = z.object({
   ...StepCommon,
   type: z.literal("ai.freeform"),
-  config: z.object({
-    persona: TplString,
-    input: TplString,
-    tools: z.array(z.string()).optional(),
-    max_steps: z.number().int().min(1).max(20).default(5),
-  }),
+  config: z
+    .object({
+      /** Optional character/voice; the runner falls back to a neutral
+       *  hotel-operations assistant. */
+      persona: TplString.optional(),
+      /** What to do — the actual task. Required for new specs; older specs
+       *  authored before the instructions/input split carry everything in
+       *  `input`, which the runner still honours. */
+      instructions: TplString.optional(),
+      /** The data to act on (template refs), separate from instructions. */
+      input: TplString.optional(),
+      tools: z.array(z.string()).optional(),
+      max_steps: z.number().int().min(1).max(20).default(5),
+    })
+    .refine((c) => Boolean(c.instructions || c.input), {
+      message: "Custom AI task needs instructions",
+    }),
 });
 
 // ─── Control flow ───────────────────────────────────────────────────────────
@@ -484,6 +533,9 @@ export const StepNode = z.discriminatedUnion("type", [
   PostChatMessageStep,
   PostThreadReplyStep,
   MentionUserStep,
+  FormSendStep,
+  CreateBookingStep,
+  SetBookingStatusStep,
   CreateDocStep,
   ArchiveDocStep,
   AddToBoardStep,

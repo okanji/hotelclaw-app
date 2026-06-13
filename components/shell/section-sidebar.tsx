@@ -19,6 +19,8 @@ import { CalendarSection } from "@/components/calendar/calendar-section";
 import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
 import { MeetingsSection } from "./sections/meetings-section";
 import { WorkflowsSection } from "./sections/workflows-section";
+import { ChatbotsSection } from "./sections/chatbots-section";
+import { BookingsSection } from "./sections/bookings-section";
 import type { Membership } from "@/lib/auth/session";
 
 type ResizeHandleProps = {
@@ -96,7 +98,10 @@ export function SectionSidebar({
             data once (on property entry), so switching the rail is an instant
             show/hide — no remount, no re-fetch, no skeleton. */}
         <SectionPane active={section === "home"}>
-          <HomeSection propertyId={currentPropertyId} />
+          <HomeSection
+            propertyId={currentPropertyId}
+            isManagement={isChannelAdmin}
+          />
         </SectionPane>
         <SectionPane active={section === "activity"}>
           <Suspense fallback={null}>
@@ -131,6 +136,16 @@ export function SectionSidebar({
         </SectionPane>
         <SectionPane active={section === "meetings"}>
           <MeetingsSection propertyId={currentPropertyId} />
+        </SectionPane>
+        <SectionPane active={section === "chatbots"}>
+          <Suspense fallback={null}>
+            <ChatbotsSection propertyId={currentPropertyId} />
+          </Suspense>
+        </SectionPane>
+        <SectionPane active={section === "bookings"}>
+          <Suspense fallback={null}>
+            <BookingsSection propertyId={currentPropertyId} />
+          </Suspense>
         </SectionPane>
       </SidebarContent>
       </div>

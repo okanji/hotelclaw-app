@@ -1,4 +1,9 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+// Liveblocks UI styles for the calendar's AiChat panel. The dark variant
+// keys off our `.dark` ancestor (same pattern as the documents layout) —
+// without it the chat body stays white in dark mode.
+import "@liveblocks/react-ui/styles.css";
+import "@liveblocks/react-ui/styles/dark/attributes.css";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getServerQueryClient } from "@/lib/query/server";

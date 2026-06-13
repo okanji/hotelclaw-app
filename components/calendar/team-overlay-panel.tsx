@@ -51,12 +51,19 @@ export function TeamOverlayPanel({
   if (members.length === 0) return null;
 
   return (
-    <aside className="hidden w-56 shrink-0 border-l border-border bg-muted/30 lg:flex lg:flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
-        <Users className="size-3.5" />
-        Team availability
+    <aside className="flex w-64 shrink-0 flex-col border-t border-border">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <Users className="size-3.5 shrink-0 text-muted-foreground" />
+          Team availability
+        </div>
+        {overlayUsers.size > 0 ? (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+            {overlayUsers.size} on
+          </span>
+        ) : null}
       </div>
-      <ul className="flex flex-col gap-0.5 p-1.5">
+      <ul role="list" className="flex max-h-56 flex-col gap-0.5 overflow-auto p-1.5">
         {members.map((m) => {
           const on = overlayUsers.has(m.id);
           const color = colorFor(m.id);

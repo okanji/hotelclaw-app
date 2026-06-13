@@ -53,10 +53,24 @@ export function MonthGrid({
   }, [cells, events]);
 
   return (
-    <div className="grid h-full min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-auto">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      {/* Weekday header — labels derive from the grid's first row so they
+          always match the configured week start. */}
+      <div className="grid grid-cols-7 border-b border-border">
+        {cells.slice(0, 7).map((d) => (
+          <div
+            key={d.toDateString()}
+            className="px-2 py-1.5 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+          >
+            {d.toLocaleDateString(undefined, { weekday: "short" })}
+          </div>
+        ))}
+      </div>
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-auto">
       {cells.map((cell) => {
         const inMonth = cell.getMonth() === focusDate.getMonth();
         const isToday = isSameDay(cell, today);
+        const isWeekend = cell.getDay() === 0 || cell.getDay() === 6;
         const list = eventsByDay.get(cell.toDateString()) ?? [];
         const visible = list.slice(0, MAX_EVENTS_PER_CELL);
         const overflow = list.length - visible.length;
@@ -68,11 +82,13 @@ export function MonthGrid({
             className={cn(
               "flex min-h-24 flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent/30",
               !inMonth && "bg-muted/30 text-muted-foreground",
+              inMonth && isWeekend && "bg-muted/15",
+              isToday && "bg-primary/4",
             )}
           >
             <span
               className={cn(
-                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-[11px]",
+                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-[11px] tabular-nums",
                 isToday && "bg-primary text-primary-foreground font-medium",
               )}
             >
@@ -94,6 +110,8 @@ export function MonthGrid({
                       "bg-blue-500/15 text-blue-900 dark:text-blue-100",
                     ev.source === "task" &&
                       "bg-amber-500/15 text-amber-900 dark:text-amber-100",
+                    ev.source === "booking" &&
+                      "bg-violet-500/15 text-violet-900 dark:text-violet-100",
                     ev.source === "external" &&
                       ev.provider === "google" &&
                       "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100",
@@ -114,6 +132,7 @@ export function MonthGrid({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

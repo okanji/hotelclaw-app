@@ -87,6 +87,9 @@ export const createDocRunner: RunnerImpl<
       body_text: config.body_markdown ?? "",
       created_by: ctx.workflowOwnerId,
       last_edited_by: ctx.workflowOwnerId,
+      source: "workflow",
+      source_workflow_id: ctx.workflowId,
+      source_workflow_run_id: ctx.runId,
     })
     .select("*")
     .single();

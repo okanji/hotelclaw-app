@@ -26,14 +26,38 @@ export async function GET(
   const { data, error } = await supabase
     .from("workflows")
     .select(
-      "id, name, description, enabled, mode, last_run_at, last_run_status, created_at, updated_at",
+      "id, name, description, enabled, mode, current_version_id, last_run_at, last_run_status, created_at, updated_at",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ workflows: data ?? [] });
+
+  // Surface each workflow's trigger event type (it lives in the version spec,
+  // not on the workflows row) so other surfaces can answer "which automations
+  // listen to tasks/docs/chat?" without loading full specs client-side.
+  const versionIds = (data ?? [])
+    .map((w) => w.current_version_id)
+    .filter((v): v is string => v !== null);
+  const triggerByVersion = new Map<string, string | null>();
+  if (versionIds.length > 0) {
+    const { data: versions } = await supabase
+      .from("workflow_versions")
+      .select("id, spec")
+      .in("id", versionIds);
+    for (const v of versions ?? []) {
+      const trigger = (v.spec as { trigger?: { event_type?: string } } | null)?.trigger;
+      triggerByVersion.set(v.id, trigger?.event_type ?? null);
+    }
+  }
+  const workflows = (data ?? []).map(({ current_version_id, ...rest }) => ({
+    ...rest,
+    trigger_event_type: current_version_id
+      ? (triggerByVersion.get(current_version_id) ?? null)
+      : null,
+  }));
+  return NextResponse.json({ workflows });
 }
 
 export async function POST(

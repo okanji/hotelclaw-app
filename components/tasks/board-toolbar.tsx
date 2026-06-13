@@ -32,6 +32,7 @@ import {
   type SortBy,
 } from "./kanban";
 import { PriorityBars } from "./task-icons";
+import { TriageDial } from "./triage-dial";
 import type { TaskPriority } from "@/lib/db/types";
 
 /* -------------------------------------------------------------------------- */
@@ -87,6 +88,7 @@ const EMPTY_FILTERS: BoardFilters = {
 export const DEFAULT_FILTERS = EMPTY_FILTERS;
 
 type Props = {
+  propertyId: string;
   filters: BoardFilters;
   onChange: (next: BoardFilters) => void;
   /** Total task count BEFORE filtering — used for the visible/total hint. */
@@ -106,6 +108,7 @@ type Props = {
 /* -------------------------------------------------------------------------- */
 
 export function BoardToolbar({
+  propertyId,
   filters,
   onChange,
   total,
@@ -236,6 +239,8 @@ export function BoardToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+
+        <TriageDial propertyId={propertyId} />
 
         {/* Search — compact input. `/` keyboard shortcut still focuses it. */}
         <div className="relative ml-1">

@@ -5,6 +5,7 @@ import { getStep } from "@/lib/workflows/catalog";
 import { getRunner } from "@/lib/workflows/runners";
 import { resolveValue, type ResolutionScope } from "@/lib/workflows/resolve";
 import { evaluatePredicate } from "@/lib/workflows/predicate";
+import { notifyWorkflowRunFailed } from "@/lib/workflows/notify-failure";
 import type { RunnerContext } from "@/lib/workflows/catalog/types";
 
 // In-process graph walker. Used when classifyMode(spec) === "instant" — i.e.
@@ -61,6 +62,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
       mode: "instant",
       triggered_by_user_id: args.triggeredByUserId ?? null,
       input: args.triggerPayload,
+      is_dry_run: args.dryRun ?? false,
     })
     .select("id")
     .single();
@@ -180,6 +182,18 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
     .from("workflows")
     .update({ last_run_at: new Date().toISOString(), last_run_status: runStatus })
     .eq("id", args.workflowId);
+
+  if (runStatus === "failed") {
+    await notifyWorkflowRunFailed({
+      propertyId: args.propertyId,
+      workflowId: args.workflowId,
+      workflowName: args.spec.name,
+      runId,
+      ownerId: args.workflowOwnerId || null,
+      error: runError ?? null,
+      isDryRun: args.dryRun ?? false,
+    });
+  }
 
   return { runId, status: runStatus, error: runError, scope };
 }

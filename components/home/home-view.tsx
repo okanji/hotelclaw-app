@@ -15,18 +15,8 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Eye, Plus, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
 import { GenerateDocumentDialog } from "@/components/documents/generate-document-dialog";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
@@ -37,7 +27,12 @@ import {
   WIDGETS_BY_ID,
 } from "./dashboard-registry";
 import { useDashboardLayout } from "./use-dashboard-layout";
-import { EditorialSection, Stats } from "./editorial-section";
+import {
+  CustomizeMenu,
+  EditorialSection,
+  HiddenTray,
+  Stats,
+} from "./editorial-section";
 import {
   DashboardFilterMenu,
   DashboardFilterProvider,
@@ -100,6 +95,7 @@ export function HomeView({
               onChange={setFilter}
             />
             <CustomizeMenu
+              items={DASHBOARD_WIDGETS}
               visibleCount={visible.length}
               isHidden={isHidden}
               onToggle={toggleHidden}
@@ -121,7 +117,7 @@ export function HomeView({
           </div>
         </div>
         <div className="flex flex-col gap-5">
-          <h1 className="text-[3.25rem] leading-none font-semibold tracking-tight text-foreground sm:text-[4rem]">
+          <h1 className="text-[2.25rem] leading-none font-semibold tracking-tight text-foreground sm:text-[2.75rem]">
             {greeting}
           </h1>
           <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
@@ -184,7 +180,11 @@ export function HomeView({
         </div>
       )}
 
-      <HiddenTray hidden={hidden} onRestore={toggleHidden} />
+      <HiddenTray
+        items={DASHBOARD_WIDGETS}
+        hidden={hidden}
+        onRestore={toggleHidden}
+      />
 
       <CreateDocumentDialog
         open={createOpen}
@@ -198,91 +198,6 @@ export function HomeView({
       />
     </div>
     </DashboardFilterProvider>
-  );
-}
-
-function CustomizeMenu({
-  visibleCount,
-  isHidden,
-  onToggle,
-  onReset,
-}: {
-  visibleCount: number;
-  isHidden: (id: string) => boolean;
-  onToggle: (id: string) => void;
-  onReset: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button type="button" size="sm" variant="ghost">
-            <SlidersHorizontal className="size-4" />
-            Customize
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end" sideOffset={6} className="w-52">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
-            Sections
-          </DropdownMenuLabel>
-          {DASHBOARD_WIDGETS.map((w) => (
-            <DropdownMenuCheckboxItem
-              key={w.id}
-              checked={!isHidden(w.id)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => onToggle(w.id)}
-              disabled={!isHidden(w.id) && visibleCount === 1}
-            >
-              {w.title}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onReset}>
-          <RotateCcw className="size-4" />
-          Reset layout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** Placeholder tray for hidden sections — each a chip that brings the section
- *  back. So hiding tucks a widget away here rather than vanishing it. */
-function HiddenTray({
-  hidden,
-  onRestore,
-}: {
-  hidden: string[];
-  onRestore: (id: string) => void;
-}) {
-  if (hidden.length === 0) return null;
-  return (
-    <div className="mt-14 border-t border-border/60 pt-6">
-      <p className="mb-3 text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
-        Hidden
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {hidden.map((id) => {
-          const def = WIDGETS_BY_ID.get(id);
-          if (!def) return null;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onRestore(id)}
-              title={`Show ${def.title}`}
-              className="flex items-center gap-2 rounded-full border border-dashed border-border/70 bg-muted/30 px-3 py-1.5 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted hover:text-foreground"
-            >
-              <Eye className="size-3.5" />
-              {def.title}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

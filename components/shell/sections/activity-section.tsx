@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCheck } from "lucide-react";
 import {
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-} from "@/components/ui/sidebar";
+  AtSign,
+  CheckCheck,
+  Hash,
+  Inbox,
+  ListChecks,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { SidebarGroup, SidebarGroupContent } from "@/components/ui/sidebar";
 import { NotificationItem } from "@/components/shell/notification-item";
 import { useNotifications } from "@/components/shell/use-notifications";
 import type { NotificationRow } from "@/lib/notifications/types";
@@ -32,6 +35,28 @@ function dateLabel(d: Date): string {
     month: "long",
     day: "numeric",
   });
+}
+
+/** Slack-Activity-style feed filters. Categories mirror the main-pane
+ *  timeline (`activity-hub`'s `matchesFilter`) so the two surfaces agree on
+ *  what "Tasks" or "Channels" means. Icons match Slack's tab bar, where every
+ *  tab except "All" carries a small leading glyph. */
+type FeedFilter = "all" | "mentions" | "tasks" | "channels";
+
+const FEED_TABS: { id: FeedFilter; label: string; icon: LucideIcon | null }[] = [
+  { id: "all", label: "All", icon: null },
+  { id: "mentions", label: "Mentions", icon: AtSign },
+  { id: "tasks", label: "Tasks", icon: ListChecks },
+  { id: "channels", label: "Channels", icon: Hash },
+];
+
+function matchesFeedFilter(n: NotificationRow, filter: FeedFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "mentions") return n.type === "mention";
+  if (filter === "tasks")
+    return n.type === "task_assigned" || n.type === "task_unassigned";
+  if (filter === "channels") return n.type === "channel_added";
+  return true;
 }
 
 /** Bucket notifications (already newest-first) into consecutive date groups. */
@@ -69,7 +94,18 @@ export function ActivitySection({
   const searchParams = useSearchParams();
   const qc = useQueryClient();
   const { notifications, unseenCount } = useNotifications(userId);
-  const groups = useMemo(() => groupByDate(notifications), [notifications]);
+  const [filter, setFilter] = useState<FeedFilter>("all");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+
+  const visible = useMemo(
+    () =>
+      notifications.filter(
+        (n) =>
+          matchesFeedFilter(n, filter) && (!unreadOnly || !n.seen_at),
+      ),
+    [notifications, filter, unreadOnly],
+  );
+  const groups = useMemo(() => groupByDate(visible), [visible]);
 
   const base = `/p/${propertyId}/activity`;
   const onActivity = pathname === base || pathname.startsWith(`${base}/`);
@@ -112,12 +148,80 @@ export function ActivitySection({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Activity</SidebarGroupLabel>
-      {unseenCount > 0 ? (
-        <SidebarGroupAction title="Mark all read" onClick={markAllRead}>
-          <CheckCheck />
-        </SidebarGroupAction>
-      ) : null}
+      {/* Header — Slack's prominent "Activity" title with the action on the
+          right (Slack puts a settings gear here; mark-all-read is our
+          equivalent always-available action). */}
+      <div className="flex items-center justify-between px-2 pt-1 pb-2">
+        <h2 className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
+          Activity
+        </h2>
+        {unseenCount > 0 ? (
+          <button
+            type="button"
+            title="Mark all read"
+            onClick={markAllRead}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <CheckCheck className="size-4" />
+          </button>
+        ) : null}
+      </div>
+
+      {/* Tab bar — Slack's underline tabs with leading glyphs. */}
+      <div
+        role="tablist"
+        aria-label="Activity filter"
+        className="flex items-center gap-4 overflow-x-auto border-b border-border px-2"
+      >
+        {FEED_TABS.map((tab) => {
+          const tabActive = tab.id === filter;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={tabActive}
+              onClick={() => setFilter(tab.id)}
+              className={cn(
+                "relative flex items-center gap-1.5 pb-2 text-[0.8125rem] font-medium whitespace-nowrap transition-colors",
+                tabActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {Icon ? <Icon className="size-3.5 shrink-0" /> : null}
+              {tab.label}
+              {tabActive ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground"
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Toolbar — Slack's filter row; the Unreads toggle is the functional
+          piece of it here. */}
+      <div className="flex items-center px-2 py-2">
+        <button
+          type="button"
+          aria-pressed={unreadOnly}
+          onClick={() => setUnreadOnly((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap transition-colors",
+            unreadOnly
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+          )}
+        >
+          <Inbox className="size-3.5 shrink-0" />
+          Unreads
+        </button>
+      </div>
+
       <SidebarGroupContent>
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-3 py-10 text-center">
@@ -127,15 +231,32 @@ export function ActivitySection({
               Mentions, task assignments, and invites show up here.
             </p>
           </div>
+        ) : visible.length === 0 ? (
+          <p className="px-3 py-8 text-center text-xs text-muted-foreground">
+            {unreadOnly
+              ? "Nothing unread here."
+              : "Nothing in this filter yet."}
+          </p>
         ) : (
           groups.map((group) => (
             <section key={group.key}>
-              <div className="flex items-center justify-center py-2">
-                <span className="rounded-full bg-sidebar-accent px-2.5 py-0.5 text-[11px] font-medium text-sidebar-foreground/70">
+              {/* Slack's date separator — a bordered pill centered over a
+                  hairline. */}
+              <div className="relative flex items-center justify-center py-3">
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-1/2 h-px bg-border"
+                />
+                <span className="relative inline-flex items-center rounded-full border border-border bg-sidebar px-2.5 py-0.5 text-[0.6875rem] font-medium text-muted-foreground">
                   {group.label}
                 </span>
               </div>
-              <ul role="list" className="flex flex-col gap-2">
+              {/* Slack groups the day's items into one bordered card with
+                  hairline dividers between rows. */}
+              <ul
+                role="list"
+                className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card"
+              >
                 {group.items.map((n) => (
                   <NotificationItem
                     key={n.id}

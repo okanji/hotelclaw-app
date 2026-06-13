@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
-import { OnboardingForm } from "./onboarding-form";
+import { OnboardingWizard } from "./onboarding-wizard";
 
 export default async function OnboardingPage() {
   const user = await requireUser();
@@ -12,9 +13,14 @@ export default async function OnboardingPage() {
   if (memberships.length > 0) {
     redirect(`/p/${memberships[0].property_id}/chat`);
   }
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <OnboardingForm />
-    </main>
-  );
+
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // Full-screen takeover — the wizard is its own visual world, no app shell.
+  return <OnboardingWizard fullName={profile?.full_name ?? null} />;
 }

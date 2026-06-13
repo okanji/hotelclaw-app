@@ -44,6 +44,16 @@ type MeetingState = {
    * Creates the meeting row + Stream call, but does NOT join yet.
    */
   start: (args: { channelId: string; title?: string }) => Promise<void>;
+  /**
+   * Open the preview screen for an already-scheduled meeting (a calendar
+   * row that owns a stream_call_id). Skips the /api/meetings/start POST —
+   * the row exists — and just gets-or-creates the known call.
+   */
+  startScheduled: (args: {
+    meetingId: string;
+    callId: string;
+    callType: string;
+  }) => Promise<void>;
   /** Join the prepared call (publishes mic/cam, starts transcription). */
   join: () => Promise<void>;
   /** Leave + mark ended server-side. Discards the preview if not yet joined. */
@@ -140,6 +150,50 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     [call, cleanup, videoClient],
   );
 
+  const startScheduled = useCallback<MeetingState["startScheduled"]>(
+    async ({ meetingId: targetMeetingId, callId, callType }) => {
+      if (inFlight.current) return;
+      if (!videoClient) {
+        toast.error("Video service not ready yet — try again in a moment.");
+        return;
+      }
+      if (call) {
+        try {
+          await call.leave();
+        } catch {
+          /* best-effort */
+        }
+        cleanup();
+      }
+
+      inFlight.current = true;
+      setStage("preparing");
+      try {
+        const newCall = videoClient.call(callType, callId);
+        await newCall.getOrCreate({
+          data: {
+            members: videoClient.streamClient.userID
+              ? [{ user_id: videoClient.streamClient.userID }]
+              : undefined,
+          },
+        });
+        setCall(newCall);
+        setMeetingId(targetMeetingId);
+        setChannelId(null);
+        setStage("previewing");
+      } catch (e) {
+        console.error("scheduled meeting join failed", e);
+        toast.error(
+          e instanceof Error ? e.message : "Couldn't open the call",
+        );
+        cleanup();
+      } finally {
+        inFlight.current = false;
+      }
+    },
+    [call, cleanup, videoClient],
+  );
+
   const join = useCallback(async () => {
     if (inFlight.current) return;
     if (!call) return;
@@ -200,10 +254,21 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
       channelId,
       videoReady: !!videoClient,
       start,
+      startScheduled,
       join,
       leave,
     }),
-    [stage, call, meetingId, channelId, videoClient, start, join, leave],
+    [
+      stage,
+      call,
+      meetingId,
+      channelId,
+      videoClient,
+      start,
+      startScheduled,
+      join,
+      leave,
+    ],
   );
 
   return (

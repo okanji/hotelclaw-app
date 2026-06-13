@@ -39,6 +39,54 @@ export type EntityColor =
   | "violet";
 export type ProjectStatus = "active" | "planned" | "completed" | "archived";
 export type WorkflowMode = "instant" | "durable";
+// Kept in sync with the CHECKs in migration 0057_forms.sql.
+export type FormStatus = "draft" | "published" | "closed";
+export type FormResponseSource = "direct" | "chat" | "workflow" | "onboarding" | "booking";
+
+// Kept in sync with the CHECKs in migration 0061_chatbots.sql.
+export type ChatbotStatus = "draft" | "published" | "paused";
+export type ChatbotTemplateKind =
+  | "front_desk"
+  | "room_service"
+  | "restaurant"
+  | "custom";
+export type ChatbotKnowledgeKind = "text" | "qa" | "document" | "url";
+export type ChatbotKnowledgeStatus = "pending" | "trained" | "failed";
+export type ChatbotConversationChannel = "web" | "test" | "whatsapp" | "sms";
+export type ChatbotActionMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type ChatbotConversationStatus = "bot" | "human" | "closed";
+export type ChatbotConversationOutcome =
+  | "open"
+  | "resolved"
+  | "order_placed"
+  | "booking_made"
+  | "escalated"
+  | "unresolved";
+
+// Kept in sync with the CHECKs in migration 0065_bookings.sql + 0066.
+export type BookableServiceKind =
+  | "table"
+  | "appointment"
+  | "tour"
+  | "event"
+  | "rental"
+  | "other";
+export type BookingMode = "capacity" | "tables" | "rental";
+export type ResourceShape = "rect" | "round";
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "seated"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+export type BookingSource = "chatbot" | "staff" | "web";
+export type ChatbotMessageRole = "guest" | "bot" | "staff" | "system";
+
+// Creation provenance (migration 0050) — what created the row. 'workflow'
+// rows also carry source_workflow_id / source_workflow_run_id so the UI can
+// badge automation output and link to the exact run.
+export type RecordSource = "user" | "workflow" | "ai";
 export type WorkflowRunStatus =
   | "queued"
   | "running"
@@ -196,6 +244,9 @@ export interface Database {
           icon: string | null;
           cover_url: string | null;
           archived_at: string | null;
+          source: RecordSource;
+          source_workflow_id: string | null;
+          source_workflow_run_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -220,6 +271,9 @@ export interface Database {
           icon?: string | null;
           cover_url?: string | null;
           archived_at?: string | null;
+          source?: RecordSource;
+          source_workflow_id?: string | null;
+          source_workflow_run_id?: string | null;
         };
         Update: Partial<{
           title: string;
@@ -309,6 +363,9 @@ export interface Database {
           space_id: string | null;
           project_id: string | null;
           overdue_notified_at: string | null;
+          source: RecordSource;
+          source_workflow_id: string | null;
+          source_workflow_run_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -331,6 +388,9 @@ export interface Database {
           space_id?: string | null;
           project_id?: string | null;
           overdue_notified_at?: string | null;
+          source?: RecordSource;
+          source_workflow_id?: string | null;
+          source_workflow_run_id?: string | null;
         };
         Update: Partial<{
           title: string;
@@ -389,11 +449,44 @@ export interface Database {
         Update: Partial<Record<string, never>>;
         Relationships: [];
       };
+      project_labels: {
+        Row: {
+          project_id: string;
+          label_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          label_id: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      space_labels: {
+        Row: {
+          space_id: string;
+          label_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          space_id: string;
+          label_id: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
       spaces: {
         Row: {
           id: string;
           property_id: string;
           name: string;
+          description: string | null;
           color: EntityColor;
           icon: string | null;
           position: number;
@@ -406,6 +499,7 @@ export interface Database {
           id?: string;
           property_id: string;
           name: string;
+          description?: string | null;
           color?: BoardColor;
           icon?: string | null;
           position?: number;
@@ -414,6 +508,7 @@ export interface Database {
         };
         Update: Partial<{
           name: string;
+          description: string | null;
           color: EntityColor;
           icon: string | null;
           position: number;
@@ -433,6 +528,28 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      space_pinned_resources: {
+        Row: {
+          id: string;
+          space_id: string;
+          document_id: string | null;
+          form_id: string | null;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          space_id: string;
+          document_id?: string | null;
+          form_id?: string | null;
+          position: number;
+          created_at?: string;
+        };
+        Update: Partial<{
+          position: number;
+        }>;
         Relationships: [];
       };
       projects: {
@@ -1033,6 +1150,454 @@ export interface Database {
       // — the strict shape lives in lib/workflows/spec.ts (Zod). The DB type just
       // carries it as a JSON blob.
 
+      insight_briefs: {
+        Row: {
+          property_id: string;
+          scope: string;
+          insights: Record<string, unknown>[];
+          summary: string | null;
+          fingerprint: string;
+          model: string;
+          generated_at: string;
+        };
+        Insert: {
+          property_id: string;
+          scope?: string;
+          insights: Record<string, unknown>[];
+          summary?: string | null;
+          fingerprint: string;
+          model: string;
+          generated_at?: string;
+        };
+        Update: Partial<{
+          scope: string;
+          insights: Record<string, unknown>[];
+          summary: string | null;
+          fingerprint: string;
+          model: string;
+          generated_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      task_suggestions: {
+        Row: {
+          id: string;
+          property_id: string;
+          task_id: string;
+          field: "space" | "assignee" | "priority";
+          suggested_value: string;
+          display_value: string;
+          reasoning: string;
+          confidence: "low" | "medium" | "high";
+          status: "pending" | "accepted" | "dismissed" | "auto_applied";
+          model: string | null;
+          created_at: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          task_id: string;
+          field: "space" | "assignee" | "priority";
+          suggested_value: string;
+          display_value: string;
+          reasoning: string;
+          confidence: "low" | "medium" | "high";
+          status?: "pending" | "accepted" | "dismissed" | "auto_applied";
+          model?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: Partial<{
+          status: "pending" | "accepted" | "dismissed" | "auto_applied";
+          resolved_at: string | null;
+          resolved_by: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      triage_settings: {
+        Row: {
+          property_id: string;
+          auto_apply: Record<string, boolean>;
+          updated_at: string;
+        };
+        Insert: {
+          property_id: string;
+          auto_apply?: Record<string, boolean>;
+          updated_at?: string;
+        };
+        Update: Partial<{
+          auto_apply: Record<string, boolean>;
+          updated_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      insight_prompts: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          prompt: string;
+          scope: string;
+          answer_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          prompt: string;
+          scope?: string;
+          answer_md?: string | null;
+          fingerprint?: string | null;
+          generated_at?: string | null;
+        };
+        Update: Partial<{
+          prompt: string;
+          scope: string;
+          answer_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      email_prefs: {
+        Row: {
+          user_id: string;
+          unsubscribe_token: string;
+          digests_enabled: boolean;
+          alerts_enabled: boolean;
+          unsubscribed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          unsubscribe_token?: string;
+          digests_enabled?: boolean;
+          alerts_enabled?: boolean;
+          unsubscribed_at?: string | null;
+        };
+        Update: Partial<{
+          digests_enabled: boolean;
+          alerts_enabled: boolean;
+          unsubscribed_at: string | null;
+          updated_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      insight_follows: {
+        Row: {
+          id: string;
+          user_id: string;
+          property_id: string;
+          scope: string;
+          cadence: "daily" | "weekly";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          property_id: string;
+          scope: string;
+          cadence: "daily" | "weekly";
+        };
+        Update: Partial<{
+          cadence: "daily" | "weekly";
+        }>;
+        Relationships: [];
+      };
+
+      insight_alert_rules: {
+        Row: {
+          id: string;
+          user_id: string;
+          property_id: string;
+          scope: string;
+          metric:
+            | "overdue_count"
+            | "blocked_count"
+            | "unassigned_urgent_count"
+            | "project_at_risk";
+          threshold: number | null;
+          enabled: boolean;
+          last_state: Record<string, unknown>;
+          last_triggered_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          property_id: string;
+          scope: string;
+          metric:
+            | "overdue_count"
+            | "blocked_count"
+            | "unassigned_urgent_count"
+            | "project_at_risk";
+          threshold?: number | null;
+          enabled?: boolean;
+          last_state?: Record<string, unknown>;
+          last_triggered_at?: string | null;
+        };
+        Update: Partial<{
+          scope: string;
+          metric:
+            | "overdue_count"
+            | "blocked_count"
+            | "unassigned_urgent_count"
+            | "project_at_risk";
+          threshold: number | null;
+          enabled: boolean;
+          last_state: Record<string, unknown>;
+          last_triggered_at: string | null;
+          updated_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      insight_email_log: {
+        Row: {
+          id: string;
+          user_id: string;
+          property_id: string;
+          kind: "digest_daily" | "digest_weekly" | "alert";
+          dedupe_key: string;
+          resend_id: string | null;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          property_id: string;
+          kind: "digest_daily" | "digest_weekly" | "alert";
+          dedupe_key: string;
+          resend_id?: string | null;
+        };
+        Update: Partial<{
+          resend_id: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      handovers: {
+        Row: {
+          id: string;
+          property_id: string;
+          author_id: string;
+          body_md: string;
+          window_start: string | null;
+          window_end: string | null;
+          channel_id: string | null;
+          chat_message_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          author_id: string;
+          body_md: string;
+          window_start?: string | null;
+          window_end?: string | null;
+          channel_id?: string | null;
+          chat_message_id?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          body_md: string;
+          chat_message_id: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      api_tokens: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          token_hash: string;
+          created_by: string;
+          created_at: string;
+          last_used_at: string | null;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          token_hash: string;
+          created_by: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          last_used_at: string | null;
+          revoked_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      catch_ups: {
+        Row: {
+          property_id: string;
+          user_id: string;
+          subject_kind: "project" | "space";
+          subject_id: string;
+          last_seen_at: string;
+          payload: Record<string, unknown>;
+          summary_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+        };
+        Insert: {
+          property_id: string;
+          user_id: string;
+          subject_kind: "project" | "space";
+          subject_id: string;
+          last_seen_at?: string;
+          payload?: Record<string, unknown>;
+          summary_md?: string | null;
+          fingerprint?: string | null;
+          generated_at?: string | null;
+        };
+        Update: Partial<{
+          last_seen_at: string;
+          payload: Record<string, unknown>;
+          summary_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      shift_briefs: {
+        Row: {
+          property_id: string;
+          user_id: string;
+          last_seen_at: string;
+          payload: Record<string, unknown>;
+          summary_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+        };
+        Insert: {
+          property_id: string;
+          user_id: string;
+          last_seen_at?: string;
+          payload?: Record<string, unknown>;
+          summary_md?: string | null;
+          fingerprint?: string | null;
+          generated_at?: string | null;
+        };
+        Update: Partial<{
+          last_seen_at: string;
+          payload: Record<string, unknown>;
+          summary_md: string | null;
+          fingerprint: string | null;
+          generated_at: string | null;
+        }>;
+        Relationships: [];
+      };
+
+      insight_alert_state: {
+        Row: {
+          property_id: string;
+          subject_kind: "project_pace" | "task_slip" | "meta";
+          subject_id: string;
+          state: string;
+          updated_at: string;
+        };
+        Insert: {
+          property_id: string;
+          subject_kind: "project_pace" | "task_slip" | "meta";
+          subject_id: string;
+          state: string;
+          updated_at?: string;
+        };
+        Update: Partial<{
+          state: string;
+          updated_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      insight_annotations: {
+        Row: {
+          property_id: string;
+          subject_kind: "project";
+          subject_id: string;
+          cache_key: string;
+          note: string;
+          model: string;
+          created_at: string;
+        };
+        Insert: {
+          property_id: string;
+          subject_kind: "project";
+          subject_id: string;
+          cache_key: string;
+          note: string;
+          model: string;
+        };
+        Update: Partial<{
+          cache_key: string;
+          note: string;
+          model: string;
+          created_at: string;
+        }>;
+        Relationships: [];
+      };
+
+      insight_reports: {
+        Row: {
+          id: string;
+          property_id: string;
+          period_start: string;
+          period_end: string;
+          audience: "management" | "staff";
+          summary_md: string;
+          metrics: Record<string, unknown>;
+          anomalies: Record<string, unknown>[];
+          model: string;
+          trace: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          period_start: string;
+          period_end: string;
+          audience: "management" | "staff";
+          summary_md: string;
+          metrics: Record<string, unknown>;
+          anomalies?: Record<string, unknown>[];
+          model: string;
+          trace?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          summary_md: string;
+          metrics: Record<string, unknown>;
+          anomalies: Record<string, unknown>[];
+          model: string;
+          trace: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+        }>;
+        Relationships: [];
+      };
+
       workflows: {
         Row: {
           id: string;
@@ -1161,6 +1726,7 @@ export interface Database {
           output: Record<string, unknown> | null;
           error: string | null;
           error_step_id: string | null;
+          is_dry_run: boolean;
           started_at: string;
           finished_at: string | null;
         };
@@ -1176,6 +1742,7 @@ export interface Database {
           durable_run_id?: string | null;
           triggered_by_user_id?: string | null;
           input?: Record<string, unknown>;
+          is_dry_run?: boolean;
         };
         Update: Partial<{
           status: WorkflowRunStatus;
@@ -1380,6 +1947,9 @@ export interface Database {
           entity_type_id: string;
           data: Record<string, unknown>;
           created_by: string | null;
+          source: RecordSource;
+          source_workflow_id: string | null;
+          source_workflow_run_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1389,9 +1959,559 @@ export interface Database {
           entity_type_id: string;
           data?: Record<string, unknown>;
           created_by?: string | null;
+          source?: RecordSource;
+          source_workflow_id?: string | null;
+          source_workflow_run_id?: string | null;
         };
         Update: Partial<{
           data: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
+      forms: {
+        Row: {
+          id: string;
+          property_id: string;
+          title: string;
+          description: string | null;
+          icon: string | null;
+          schema: Record<string, unknown>;
+          status: FormStatus;
+          allow_multiple: boolean;
+          anonymous: boolean;
+          space_id: string | null;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          title: string;
+          description?: string | null;
+          icon?: string | null;
+          schema?: Record<string, unknown>;
+          status?: FormStatus;
+          allow_multiple?: boolean;
+          anonymous?: boolean;
+          space_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          description: string | null;
+          icon: string | null;
+          schema: Record<string, unknown>;
+          status: FormStatus;
+          allow_multiple: boolean;
+          anonymous: boolean;
+          space_id: string | null;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      form_responses: {
+        Row: {
+          id: string;
+          form_id: string;
+          property_id: string;
+          respondent_id: string | null;
+          answers: Record<string, unknown>;
+          source: FormResponseSource;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          form_id: string;
+          property_id: string;
+          respondent_id?: string | null;
+          answers?: Record<string, unknown>;
+          source?: FormResponseSource;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      property_profiles: {
+        Row: {
+          property_id: string;
+          property_type: string | null;
+          team_size: string | null;
+          departments: unknown[];
+          priorities: unknown[];
+          role_title: string | null;
+          answers: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          property_id: string;
+          property_type?: string | null;
+          team_size?: string | null;
+          departments?: unknown[];
+          priorities?: unknown[];
+          role_title?: string | null;
+          answers?: Record<string, unknown>;
+        };
+        Update: Partial<{
+          property_type: string | null;
+          team_size: string | null;
+          departments: unknown[];
+          priorities: unknown[];
+          role_title: string | null;
+          answers: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
+      chatbots: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          public_slug: string;
+          template: ChatbotTemplateKind;
+          config: Record<string, unknown>;
+          status: ChatbotStatus;
+          daily_message_cap: number;
+          session_message_cap: number;
+          allowed_domains: string[];
+          twilio_number: string | null;
+          last_trained_at: string | null;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          public_slug?: string;
+          template?: ChatbotTemplateKind;
+          config?: Record<string, unknown>;
+          status?: ChatbotStatus;
+          daily_message_cap?: number;
+          session_message_cap?: number;
+          allowed_domains?: string[];
+          twilio_number?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          public_slug: string;
+          template: ChatbotTemplateKind;
+          config: Record<string, unknown>;
+          status: ChatbotStatus;
+          daily_message_cap: number;
+          session_message_cap: number;
+          allowed_domains: string[];
+          twilio_number: string | null;
+          last_trained_at: string | null;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      chatbot_knowledge_sources: {
+        Row: {
+          id: string;
+          chatbot_id: string;
+          property_id: string;
+          kind: ChatbotKnowledgeKind;
+          title: string;
+          content: string | null;
+          question: string | null;
+          document_id: string | null;
+          url: string | null;
+          status: ChatbotKnowledgeStatus;
+          error: string | null;
+          char_count: number;
+          last_trained_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          chatbot_id: string;
+          property_id: string;
+          kind: ChatbotKnowledgeKind;
+          title: string;
+          content?: string | null;
+          question?: string | null;
+          document_id?: string | null;
+          url?: string | null;
+          status?: ChatbotKnowledgeStatus;
+          error?: string | null;
+          char_count?: number;
+          last_trained_at?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          content: string | null;
+          question: string | null;
+          document_id: string | null;
+          url: string | null;
+          status: ChatbotKnowledgeStatus;
+          error: string | null;
+          char_count: number;
+          last_trained_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      chatbot_knowledge_chunks: {
+        Row: {
+          id: string;
+          source_id: string;
+          chatbot_id: string;
+          property_id: string;
+          content: string;
+          embedding: unknown | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_id: string;
+          chatbot_id: string;
+          property_id: string;
+          content: string;
+          embedding?: unknown | null;
+        };
+        Update: Partial<{
+          content: string;
+          embedding: unknown | null;
+        }>;
+        Relationships: [];
+      };
+      chatbot_conversations: {
+        Row: {
+          id: string;
+          chatbot_id: string;
+          property_id: string;
+          session_token: string;
+          channel: ChatbotConversationChannel;
+          guest_name: string | null;
+          guest_email: string | null;
+          guest_phone: string | null;
+          room_number: string | null;
+          status: ChatbotConversationStatus;
+          outcome: ChatbotConversationOutcome;
+          outcome_meta: Record<string, unknown>;
+          message_count: number;
+          last_message_at: string | null;
+          topic: string | null;
+          sentiment: "positive" | "neutral" | "negative" | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          chatbot_id: string;
+          property_id: string;
+          session_token: string;
+          channel?: ChatbotConversationChannel;
+          guest_name?: string | null;
+          guest_email?: string | null;
+          guest_phone?: string | null;
+          room_number?: string | null;
+          status?: ChatbotConversationStatus;
+          outcome?: ChatbotConversationOutcome;
+          outcome_meta?: Record<string, unknown>;
+          message_count?: number;
+          last_message_at?: string | null;
+        };
+        Update: Partial<{
+          guest_name: string | null;
+          guest_email: string | null;
+          guest_phone: string | null;
+          room_number: string | null;
+          status: ChatbotConversationStatus;
+          outcome: ChatbotConversationOutcome;
+          outcome_meta: Record<string, unknown>;
+          message_count: number;
+          last_message_at: string | null;
+          topic: string | null;
+          sentiment: "positive" | "neutral" | "negative" | null;
+        }>;
+        Relationships: [];
+      };
+      bookable_services: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          description: string | null;
+          emoji: string | null;
+          kind: BookableServiceKind;
+          booking_mode: BookingMode;
+          schedule: Record<string, unknown>;
+          timezone: string;
+          active: boolean;
+          public_bookable: boolean;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          description?: string | null;
+          emoji?: string | null;
+          kind?: BookableServiceKind;
+          booking_mode?: BookingMode;
+          schedule?: Record<string, unknown>;
+          timezone?: string;
+          active?: boolean;
+          public_bookable?: boolean;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          description: string | null;
+          emoji: string | null;
+          kind: BookableServiceKind;
+          booking_mode: BookingMode;
+          schedule: Record<string, unknown>;
+          timezone: string;
+          active: boolean;
+          public_bookable: boolean;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      service_resources: {
+        Row: {
+          id: string;
+          service_id: string;
+          property_id: string;
+          name: string;
+          seats: number;
+          min_party: number;
+          shape: ResourceShape;
+          x: number;
+          y: number;
+          w: number;
+          h: number;
+          zone: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          service_id: string;
+          property_id: string;
+          name: string;
+          seats?: number;
+          min_party?: number;
+          shape?: ResourceShape;
+          x?: number;
+          y?: number;
+          w?: number;
+          h?: number;
+          zone?: string | null;
+          active?: boolean;
+        };
+        Update: Partial<{
+          name: string;
+          seats: number;
+          min_party: number;
+          shape: ResourceShape;
+          x: number;
+          y: number;
+          w: number;
+          h: number;
+          zone: string | null;
+          active: boolean;
+        }>;
+        Relationships: [];
+      };
+      bookings: {
+        Row: {
+          id: string;
+          property_id: string;
+          service_id: string;
+          reference: string;
+          guest_name: string;
+          guest_phone: string | null;
+          guest_email: string | null;
+          party_size: number;
+          starts_at: string;
+          ends_at: string;
+          status: BookingStatus;
+          notes: string | null;
+          source: BookingSource;
+          chatbot_id: string | null;
+          conversation_id: string | null;
+          resource_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          service_id: string;
+          reference: string;
+          guest_name: string;
+          guest_phone?: string | null;
+          guest_email?: string | null;
+          party_size?: number;
+          starts_at: string;
+          ends_at: string;
+          status?: BookingStatus;
+          notes?: string | null;
+          source?: BookingSource;
+          chatbot_id?: string | null;
+          conversation_id?: string | null;
+          resource_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          guest_name: string;
+          guest_phone: string | null;
+          guest_email: string | null;
+          party_size: number;
+          starts_at: string;
+          ends_at: string;
+          status: BookingStatus;
+          notes: string | null;
+          resource_id: string | null;
+        }>;
+        Relationships: [];
+      };
+      chatbot_channel_deployments: {
+        Row: {
+          id: string;
+          chatbot_id: string;
+          property_id: string;
+          stream_channel_id: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          chatbot_id: string;
+          property_id: string;
+          stream_channel_id: string;
+          created_by?: string | null;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      chatbot_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          property_id: string;
+          role: ChatbotMessageRole;
+          content: string;
+          tool_calls: unknown[] | null;
+          attachments: unknown;
+          tokens: number | null;
+          feedback: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          property_id: string;
+          role: ChatbotMessageRole;
+          content: string;
+          tool_calls?: unknown[] | null;
+          attachments?: unknown;
+          tokens?: number | null;
+          feedback?: number | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          feedback: number | null;
+        }>;
+        Relationships: [];
+      };
+      chatbot_custom_actions: {
+        Row: {
+          id: string;
+          chatbot_id: string;
+          property_id: string;
+          name: string;
+          when_to_use: string | null;
+          method: ChatbotActionMethod;
+          url: string;
+          headers: { name: string; value_encrypted: string }[];
+          body_template: string | null;
+          param_schema: {
+            id: string;
+            name: string;
+            type: "string" | "number" | "boolean";
+            description: string;
+            required: boolean;
+          }[];
+          response_allowlist: string[];
+          enabled: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          chatbot_id: string;
+          property_id: string;
+          name: string;
+          when_to_use?: string | null;
+          method?: ChatbotActionMethod;
+          url: string;
+          headers?: { name: string; value_encrypted: string }[];
+          body_template?: string | null;
+          param_schema?: {
+            id: string;
+            name: string;
+            type: "string" | "number" | "boolean";
+            description: string;
+            required: boolean;
+          }[];
+          response_allowlist?: string[];
+          enabled?: boolean;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          when_to_use: string | null;
+          method: ChatbotActionMethod;
+          url: string;
+          headers: { name: string; value_encrypted: string }[];
+          body_template: string | null;
+          param_schema: {
+            id: string;
+            name: string;
+            type: "string" | "number" | "boolean";
+            description: string;
+            required: boolean;
+          }[];
+          response_allowlist: string[];
+          enabled: boolean;
+        }>;
+        Relationships: [];
+      };
+      chatbot_usage_daily: {
+        Row: {
+          chatbot_id: string;
+          property_id: string;
+          day: string;
+          messages: number;
+          tokens: number;
+        };
+        Insert: {
+          chatbot_id: string;
+          property_id: string;
+          day: string;
+          messages?: number;
+          tokens?: number;
+        };
+        Update: Partial<{
+          messages: number;
+          tokens: number;
         }>;
         Relationships: [];
       };
@@ -1461,6 +2581,44 @@ export interface Database {
       workflows_emit_cron_event: {
         Args: { p_workflow_id: string };
         Returns: undefined;
+      };
+      // Chatbots — migration 0061.
+      increment_chatbot_usage: {
+        Args: {
+          p_chatbot_id: string;
+          p_property_id: string;
+          p_day: string;
+          p_messages: number;
+          p_tokens: number;
+        };
+        Returns: number;
+      };
+      search_chatbot_chunks: {
+        Args: {
+          p_chatbot_id: string;
+          p_query: string;
+          p_limit?: number;
+        };
+        Returns: Array<{
+          content: string;
+          source_title: string;
+          rank: number;
+        }>;
+      };
+      // Vector + FTS RRF merge — migration 0062. p_embedding is the
+      // pgvector text form ("[0.1,0.2,…]").
+      search_chatbot_chunks_hybrid: {
+        Args: {
+          p_chatbot_id: string;
+          p_query: string;
+          p_embedding: string;
+          p_limit?: number;
+        };
+        Returns: Array<{
+          content: string;
+          source_title: string;
+          rank: number;
+        }>;
       };
     };
     Enums: Record<string, never>;

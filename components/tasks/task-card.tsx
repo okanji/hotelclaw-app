@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { taskShortId, type Task } from "./kanban";
+import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
 import { TaskScopeChips } from "./task-scope-chips";
@@ -200,8 +201,9 @@ function CardHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 leading-4">
-      <span className="text-[0.75rem] font-normal text-muted-foreground tabular-nums tracking-tight">
+      <span className="flex items-center gap-1.5 text-[0.75rem] font-normal text-muted-foreground tabular-nums tracking-tight">
         {taskShortId(task.id)}
+        <WorkflowProvenanceBadge source={task.source} appearance="glyph" />
       </span>
       <AssigneeSlot info={assignee} assigneeId={task.assignee_id} />
     </div>

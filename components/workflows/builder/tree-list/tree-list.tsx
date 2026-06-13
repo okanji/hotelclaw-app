@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { toast } from "sonner";
 import {
   CheckCircle2,
   Copy,
@@ -391,8 +392,12 @@ export function TreeList({
       const overId = String(e.over.id);
       const activeChain = chainMap.get(activeId);
       if (!activeChain) return;
-      // Only allow in-chain reordering for v1.
-      if (!activeChain.includes(overId)) return;
+      // Only allow in-chain reordering for v1 — but say so, rather than
+      // silently snapping the card back as if the drag never happened.
+      if (!activeChain.includes(overId)) {
+        toast.message("Steps can only be reordered within their own branch.");
+        return;
+      }
 
       const fromIdx = activeChain.indexOf(activeId);
       const toIdx = activeChain.indexOf(overId);
@@ -1260,6 +1265,8 @@ const SURFACE_ORDER: Surface[] = [
   "tasks",
   "chat",
   "docs",
+  "forms",
+  "bookings",
   "meetings",
   "calendar",
   "entities",
@@ -1273,6 +1280,8 @@ const SURFACE_DISPLAY: Record<Surface, string> = {
   tasks: "Tasks",
   chat: "Chat",
   docs: "Docs",
+  forms: "Forms",
+  bookings: "Bookings",
   meetings: "Meetings",
   calendar: "Calendar",
   entities: "Entities",

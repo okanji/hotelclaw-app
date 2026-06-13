@@ -6,6 +6,7 @@ import { type StepNode } from "@/lib/workflows/spec";
 import { resolveValue, type ResolutionScope } from "@/lib/workflows/resolve";
 import { evaluatePredicate } from "@/lib/workflows/predicate";
 import { getRunner } from "@/lib/workflows/runners";
+import { notifyWorkflowRunFailed } from "@/lib/workflows/notify-failure";
 import type { RunnerContext } from "@/lib/workflows/catalog/types";
 import type { InstantRunArgs } from "./instant-runtime";
 
@@ -54,6 +55,7 @@ async function createDurableRunRow(args: {
   triggeredByUserId: string | null;
   triggerPayload: Record<string, unknown>;
   durableRunId: string;
+  isDryRun: boolean;
 }): Promise<string> {
   "use step";
   const supabase = createServiceClient();
@@ -70,6 +72,7 @@ async function createDurableRunRow(args: {
       durable_run_id: args.durableRunId,
       triggered_by_user_id: args.triggeredByUserId,
       input: args.triggerPayload,
+      is_dry_run: args.isDryRun,
     })
     .select("id")
     .single();
@@ -204,6 +207,10 @@ async function finalizeRunRow(args: {
   error: string | null;
   errorStepId?: string | null;
   output: Record<string, unknown> | null;
+  propertyId: string;
+  workflowName: string;
+  workflowOwnerId: string | null;
+  isDryRun: boolean;
 }): Promise<void> {
   "use step";
   const supabase = createServiceClient();
@@ -221,6 +228,18 @@ async function finalizeRunRow(args: {
     .from("workflows")
     .update({ last_run_at: new Date().toISOString(), last_run_status: args.status })
     .eq("id", args.workflowId);
+
+  if (args.status === "failed") {
+    await notifyWorkflowRunFailed({
+      propertyId: args.propertyId,
+      workflowId: args.workflowId,
+      workflowName: args.workflowName,
+      runId: args.runId,
+      ownerId: args.workflowOwnerId,
+      error: args.error,
+      isDryRun: args.isDryRun,
+    });
+  }
 }
 
 // ─── The orchestrator ───────────────────────────────────────────────────────
@@ -248,6 +267,7 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
     triggeredByUserId: args.triggeredByUserId ?? null,
     triggerPayload: args.triggerPayload,
     durableRunId,
+    isDryRun: args.dryRun ?? false,
   });
 
   const scope: ResolutionScope = {
@@ -341,6 +361,10 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
     error: runError,
     errorStepId,
     output: (scope.steps ?? null) as Record<string, unknown> | null,
+    propertyId: args.propertyId,
+    workflowName: args.spec.name,
+    workflowOwnerId: args.workflowOwnerId || null,
+    isDryRun: args.dryRun ?? false,
   });
 
   return { runId, status: runStatus };
@@ -414,6 +438,17 @@ async function executeStepDurable(
   // Durable-only: delay → workflow SDK sleep
   if (step.type === "control.delay") {
     const duration = (step.config as { duration: string }).duration;
+    // Dry runs fast-forward delays — a test run should finish in seconds,
+    // not genuinely sleep for "2h".
+    if (args.dryRun) {
+      return {
+        ok: true,
+        next: (step as { next?: string }).next,
+        output: { slept_for: duration, simulated: true },
+        status: "succeeded",
+        input: { duration },
+      };
+    }
     await sleep(duration as `${number}${"s" | "m" | "h" | "d"}`);
     return {
       ok: true,
@@ -435,6 +470,21 @@ async function executeStepDurable(
       timeout?: string;
       correlate?: Record<string, string>;
     };
+    // Dry runs never suspend — pretend the event arrived immediately with an
+    // empty payload so downstream steps can still resolve their refs.
+    if (args.dryRun) {
+      return {
+        ok: true,
+        next: (step as { next?: string }).next,
+        output: { received: true, event: {}, event_type: cfg.event_type, simulated: true },
+        status: "succeeded",
+        input: {
+          event_type: cfg.event_type,
+          correlate: cfg.correlate ?? {},
+          timeout: cfg.timeout ?? null,
+        },
+      };
+    }
     const token = `wf:${args.workflowId}:${runId}:${step.id}`;
 
     // Resolve correlate values against the current scope so the wait knows
@@ -616,7 +666,7 @@ async function executeStepDurable(
     runId,
     stepId: step.id,
     scope: scope as Record<string, unknown>,
-    dryRun: false,
+    dryRun: args.dryRun ?? false,
   };
   const retry = (step as { retry?: { max: number; backoff: "exp" | "linear"; initial_ms: number } })
     .retry ?? { max: 0, backoff: "exp", initial_ms: 1000 };

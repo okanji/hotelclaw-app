@@ -63,6 +63,7 @@ import {
   type DocumentAiPanelHandle,
 } from "./document-ai-panel";
 import { DocumentLastEdited } from "./document-last-edited";
+import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import { DocumentLinkedTasks } from "./document-linked-tasks";
 import { DocumentLabels } from "./document-labels";
 import { DocumentShare } from "./document-share";
@@ -166,6 +167,9 @@ export function DocumentEditor({
           lastEditedBy={row.last_edited_by}
           updatedAt={row.updated_at}
           ancestors={ancestors}
+          source={row.source ?? null}
+          sourceWorkflowId={row.source_workflow_id ?? null}
+          sourceWorkflowRunId={row.source_workflow_run_id ?? null}
         />
       </ClientSideSuspense>
     </RoomProvider>
@@ -228,6 +232,9 @@ function EditorInner({
   lastEditedBy,
   updatedAt,
   ancestors,
+  source,
+  sourceWorkflowId,
+  sourceWorkflowRunId,
 }: {
   propertyId: string;
   documentId: string;
@@ -235,6 +242,9 @@ function EditorInner({
   lastEditedBy: string | null;
   updatedAt: string;
   ancestors: DocumentCrumb[];
+  source: string | null;
+  sourceWorkflowId: string | null;
+  sourceWorkflowRunId: string | null;
 }) {
   const isReady = useIsEditorReady();
   const [syncTimedOut, setSyncTimedOut] = useState(false);
@@ -476,6 +486,13 @@ function EditorInner({
           currentTitle={liveTitle}
         />
         <div className="flex shrink-0 items-center gap-2.5">
+          <WorkflowProvenanceBadge
+            propertyId={propertyId}
+            source={source}
+            workflowId={sourceWorkflowId}
+            workflowRunId={sourceWorkflowRunId}
+            className="hidden md:inline-flex"
+          />
           <DocumentLastEdited
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}

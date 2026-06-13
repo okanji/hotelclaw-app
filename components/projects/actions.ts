@@ -116,6 +116,7 @@ export async function renameSpace(
 
 const SpacePatch = z.object({
   name: Name.optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
   color: z
     .enum(["slate", "blue", "green", "amber", "rose", "violet"])
     .optional(),
@@ -415,10 +416,119 @@ export async function setDocumentSpace(
   const id = Uuid.safeParse(documentId);
   if (!id.success) return { error: "Invalid document" };
   const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("documents")
+    .select("space_id")
+    .eq("id", id.data)
+    .maybeSingle();
   const { error } = await supabase
     .from("documents")
     .update({ space_id: spaceId })
     .eq("id", id.data);
+  if (error) return { error: error.message };
+  if (row?.space_id && row.space_id !== spaceId) {
+    await supabase
+      .from("space_pinned_resources")
+      .delete()
+      .eq("space_id", row.space_id)
+      .eq("document_id", id.data);
+  }
+  if (spaceId === null) {
+    await supabase
+      .from("space_pinned_resources")
+      .delete()
+      .eq("document_id", id.data);
+  }
+  return { ok: true };
+}
+
+const MAX_SPACE_PINS = 8;
+
+async function nextSpacePinPosition(
+  supabase: Client,
+  spaceId: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("space_pinned_resources")
+    .select("position")
+    .eq("space_id", spaceId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.position ?? 0) + POSITION_GAP;
+}
+
+/** Pin a document on the space overview. Assigns to the space if needed. */
+export async function pinSpaceResource(
+  spaceId: string,
+  documentId: string,
+): Promise<{ ok: true } | ActionError> {
+  const sid = Uuid.safeParse(spaceId);
+  const did = Uuid.safeParse(documentId);
+  if (!sid.success || !did.success) return { error: "Invalid id" };
+
+  const supabase = await createClient();
+  const propertyId = await spacePropertyId(supabase, sid.data);
+  if (!propertyId) return { error: "Space not found" };
+
+  const { count } = await supabase
+    .from("space_pinned_resources")
+    .select("*", { count: "exact", head: true })
+    .eq("space_id", sid.data);
+  if ((count ?? 0) >= MAX_SPACE_PINS) {
+    return { error: `You can pin up to ${MAX_SPACE_PINS} resources` };
+  }
+
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("property_id, space_id")
+    .eq("id", did.data)
+    .maybeSingle();
+  if (!doc || doc.property_id !== propertyId) {
+    return { error: "Document not found" };
+  }
+
+  if (doc.space_id !== sid.data) {
+    const { error: assignErr } = await supabase
+      .from("documents")
+      .update({ space_id: sid.data })
+      .eq("id", did.data);
+    if (assignErr) return { error: assignErr.message };
+  }
+
+  const { data: existing } = await supabase
+    .from("space_pinned_resources")
+    .select("document_id")
+    .eq("space_id", sid.data)
+    .eq("document_id", did.data)
+    .maybeSingle();
+  if (existing) return { ok: true };
+
+  const pos = await nextSpacePinPosition(supabase, sid.data);
+  const { error } = await supabase.from("space_pinned_resources").insert({
+    space_id: sid.data,
+    document_id: did.data,
+    position: pos,
+  });
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+/** Remove a document from the space overview pins (keeps space membership). */
+export async function unpinSpaceResource(
+  spaceId: string,
+  documentId: string,
+): Promise<{ ok: true } | ActionError> {
+  const sid = Uuid.safeParse(spaceId);
+  const did = Uuid.safeParse(documentId);
+  if (!sid.success || !did.success) return { error: "Invalid id" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("space_pinned_resources")
+    .delete()
+    .eq("space_id", sid.data)
+    .eq("document_id", did.data);
   if (error) return { error: error.message };
   return { ok: true };
 }

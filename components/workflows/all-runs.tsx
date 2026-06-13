@@ -75,6 +75,11 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                       {r.workflow_name}
                     </span>
+                    {r.is_dry_run ? (
+                      <span className="inline-flex shrink-0 rounded-md border border-border/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        test
+                      </span>
+                    ) : null}
                     <span className="hidden w-28 truncate text-[11px] text-muted-foreground sm:block">
                       {r.trigger_kind ?? "manual"}
                     </span>

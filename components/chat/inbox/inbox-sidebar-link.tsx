@@ -36,6 +36,7 @@ export function InboxSidebarLink({
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     window.history.pushState(null, "", href);
+    window.dispatchEvent(new Event("hotelclaw:pathname"));
   }
 
   return (

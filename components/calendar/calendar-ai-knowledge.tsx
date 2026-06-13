@@ -60,6 +60,18 @@ export function CalendarAiKnowledge({
           priority: e.priority,
         };
       }
+      if (e.source === "booking") {
+        return {
+          id: e.id,
+          kind: "booking" as const,
+          title: e.title,
+          start: e.start,
+          end: e.end,
+          guest: e.guest_name,
+          party_size: e.party_size,
+          status: e.booking_status,
+        };
+      }
       return {
         id: e.id,
         kind: "external" as const,

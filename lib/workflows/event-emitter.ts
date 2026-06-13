@@ -20,6 +20,9 @@ export interface EmitWorkflowEventArgs {
     | "calendar.google"
     | "calendar.microsoft"
     | "cron"
+    | "form"
+    | "chatbot"
+    | "booking"
     | "manual";
   eventType: TriggerEventType;
   entityId?: string | null;

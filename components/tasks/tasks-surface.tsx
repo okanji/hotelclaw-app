@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { TaskRoom } from "./task-room";
 import { TasksBoardRoom } from "./board-room";
 
@@ -14,12 +14,12 @@ const TASK_ROUTE = /^\/p\/[^/]+\/tasks\/([^/]+)\/?$/;
  * below is critical: WITHOUT it the no-`taskId` branch would render the
  * board on every non-tasks URL.
  *
- * Reads the active task straight from the URL (via `usePathname` — what
- * `window.history.pushState` updates). Board ↔ detail and detail ↔ detail
- * both switch via `useOpenTask` with no route navigation, no
- * `TaskDetailSkeleton` flash. `key={taskId}` (or `"board"`) forces a clean
- * remount per item so Liveblocks's `RoomProvider` captures the new room on
- * first render.
+ * Reads the active task from the URL via `useSurfacePathname` (board ↔ detail
+ * via `useOpenTask` and rail hops OFF the section both `pushState` + dispatch
+ * `hotelclaw:pathname`; the hook stays in lockstep with the other surfaces so
+ * the board never lingers on top of the next section). `key={taskId}` (or
+ * `"board"`) forces a clean remount per item so Liveblocks's `RoomProvider`
+ * captures the new room on first render.
  */
 export function TasksSurface({
   propertyId,
@@ -28,9 +28,9 @@ export function TasksSurface({
   propertyId: string;
   currentUserId: string;
 }) {
-  const pathname = usePathname();
   // Only render under `/tasks/*` — the surface is now mounted property-wide,
   // so this is the section gate.
+  const pathname = useSurfacePathname();
   if (!IN_TASKS.test(pathname)) return null;
 
   const taskId = pathname.match(TASK_ROUTE)?.[1];

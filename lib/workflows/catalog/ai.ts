@@ -111,13 +111,18 @@ const actions: StepCatalogEntry[] = [
     category: "ai",
     label: "Custom AI task",
     description:
-      "A flexible AI step with its own instructions and access to tools. Reach for this when summarize, classify, or draft don't fit — e.g. multi-step reasoning that looks things up.",
+      "A flexible AI step with its own instructions — reach for this when summarize, classify, or draft don't fit. Its reply becomes this step's output for later steps to use.",
     examplePrompts: [
       "investigate the issue and propose a fix",
-      "look up similar past complaints and suggest an action",
+      "rewrite the complaint as a polite status update for the guest",
     ],
     outputSchema: z.object({ text: z.string() }),
-    explain: () => "Custom AI task",
+    explain: (config) => {
+      const c = config as { instructions?: string; input?: string };
+      const what = (c.instructions ?? c.input ?? "").trim();
+      if (!what) return "Custom AI task";
+      return `AI: ${what.length > 70 ? `${what.slice(0, 70)}…` : what}`;
+    },
   },
 ];
 

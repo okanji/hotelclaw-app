@@ -81,6 +81,11 @@ export function WorkflowRunsList({
                     <span className="flex-1 truncate text-[13px] text-foreground">
                       {r.trigger_kind ?? "manual"}
                     </span>
+                    {r.is_dry_run ? (
+                      <span className="inline-flex rounded-md border border-border/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        test
+                      </span>
+                    ) : null}
                     <span className="text-[11px] text-muted-foreground tabular-nums">
                       {formatDuration(r.started_at, r.finished_at)}
                     </span>

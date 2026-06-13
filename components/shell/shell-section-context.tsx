@@ -20,7 +20,9 @@ export type ShellSection =
   | "calendar"
   | "docs"
   | "meetings"
-  | "workflows";
+  | "workflows"
+  | "chatbots"
+  | "bookings";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
@@ -28,15 +30,25 @@ export type ShellSection =
  * the route split, so both pin their sections directly.
  */
 function sectionFromPath(pathname: string): ShellSection | null {
+  // Home owns its dashboard plus its sub-views — Insights/Reports now live at
+  // `/home/insights`, so the `/home` match keeps the Home rail lit for them.
   if (pathname.includes("/home")) return "home";
-  // Projects, teams, and the label manager live under the Home rail (their
-  // sidebar lists them), so those routes keep the Home section active rather
-  // than pinning their own.
+  // Projects and teams live under the Home rail (their sidebar lists them),
+  // so those routes keep the Home section active rather than pinning their
+  // own.
   if (pathname.includes("/projects")) return "home";
   if (pathname.includes("/spaces")) return "home";
-  if (pathname.includes("/labels")) return "home";
+  // Forms are authored artifacts — they live in the Documents section
+  // sidebar, so form routes light up the Docs rail.
+  if (pathname.includes("/forms")) return "docs";
+  if (pathname.includes("/bookings")) return "bookings";
   if (pathname.includes("/activity")) return "activity";
+  // Before the /chat check — "/chatbots" contains "/chat" as a substring.
+  if (pathname.includes("/chatbots")) return "chatbots";
   if (pathname.includes("/workflows")) return "workflows";
+  // Before the tasks check — "/my-tasks" contains "/tasks" but is a Home
+  // surface (the personal agenda), not the team board.
+  if (pathname.includes("/my-tasks")) return "home";
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/calendar")) return "calendar";
   if (pathname.includes("/documents")) return "docs";
@@ -83,6 +95,8 @@ const ALL_SECTIONS: ShellSection[] = [
   "docs",
   "meetings",
   "workflows",
+  "chatbots",
+  "bookings",
 ];
 
 /** Narrow an untrusted string (e.g. a cookie value) to a ShellSection. */

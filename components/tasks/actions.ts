@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   createNotification,
@@ -92,6 +93,26 @@ export async function createTask(
       byUserId: user.id,
       previousAssigneeId: null,
       nextAssigneeId: parsed.data.assigneeId,
+    });
+  }
+
+  // Bare tasks (missing team/assignee/priority) get triaged in the
+  // background — suggestions land as pending rows on the task detail; the
+  // bot no-ops when nothing is missing.
+  if (
+    !parsed.data.spaceId ||
+    !parsed.data.assigneeId ||
+    parsed.data.priority === "none"
+  ) {
+    const taskId = data.id;
+    const propertyId = parsed.data.propertyId;
+    after(async () => {
+      try {
+        const { triageTask } = await import("@/lib/ai/bots/triage-bot");
+        await triageTask({ propertyId, taskId });
+      } catch (err) {
+        console.error("[triage] background triage failed", taskId, err);
+      }
     });
   }
 

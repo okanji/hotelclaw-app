@@ -57,6 +57,7 @@ const LABEL_DOT: Record<EntityColor, string> = {
   violet: "bg-violet-500",
 };
 import { taskDetailMetaQueryOptions } from "@/lib/query/section-queries";
+import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { taskHref } from "@/lib/tasks/task-href";
 import type {
   TaskDetailOpeners,
@@ -320,6 +321,8 @@ export function TaskDetailSidebar({
           onClick={onAutomate}
         />
       </SidebarSection>
+
+      <TaskAutomationsSection propertyId={propertyId} />
 
       <SidebarSection title="More" defaultOpen={false}>
         <SidebarActionRow
@@ -966,5 +969,44 @@ export function SubIssuesPanel({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * "Automations" — workflows on this property whose trigger listens to task
+ * events. Answers "what will fire when I change this task?" right where the
+ * user is looking; each row deep-links to the workflow. Hidden entirely when
+ * no task-triggered workflows exist (the Automate row above covers creation).
+ */
+function TaskAutomationsSection({ propertyId }: { propertyId: string }) {
+  const { data: workflows = [] } = useQuery(workflowsListQueryOptions(propertyId));
+  const applicable = workflows.filter((w) =>
+    w.trigger_event_type?.startsWith("task."),
+  );
+  if (applicable.length === 0) return null;
+
+  return (
+    <SidebarSection title="Automations">
+      {applicable.slice(0, 6).map((w) => (
+        <Link
+          key={w.id}
+          href={`/p/${propertyId}/workflows/${w.id}`}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[0.8125rem] text-foreground/90 transition-colors hover:bg-foreground/[0.06]"
+        >
+          <span
+            className={cn(
+              "size-1.5 shrink-0 rounded-full",
+              w.enabled ? "bg-emerald-500" : "bg-muted-foreground/40",
+            )}
+            title={w.enabled ? "On" : "Off"}
+            aria-label={w.enabled ? "On" : "Off"}
+          />
+          <span className="min-w-0 truncate">{w.name}</span>
+          <span className="ml-auto shrink-0 text-[0.6875rem] text-muted-foreground">
+            {w.trigger_event_type?.replace("task.", "on ").replace(/_/g, " ")}
+          </span>
+        </Link>
+      ))}
+    </SidebarSection>
   );
 }

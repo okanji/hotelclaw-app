@@ -12,6 +12,8 @@ import {
   postThreadReplyRunner,
   mentionUserRunner,
 } from "./chat";
+import { formSendRunner } from "./forms";
+import { createBookingRunner, setBookingStatusRunner } from "./bookings";
 import { notifyUserRunner, notifyRoleRunner } from "./notify";
 import {
   createEntityRunner,
@@ -64,6 +66,13 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   "action.chat.post_message": postMessageRunner as Runner,
   "action.chat.post_thread_reply": postThreadReplyRunner as Runner,
   "action.chat.mention_user": mentionUserRunner as Runner,
+
+  // Forms
+  "action.form.send": formSendRunner as Runner,
+
+  // Bookings
+  "action.booking.create": createBookingRunner as Runner,
+  "action.booking.set_status": setBookingStatusRunner as Runner,
 
   // Docs
   "action.doc.create": createDocRunner as Runner,

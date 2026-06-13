@@ -29,6 +29,7 @@ import {
   removeDocumentLabel,
   setLabelColor,
 } from "@/components/labels/actions";
+import { ManageLabelsFooter } from "@/components/labels/labels-manager";
 
 const COLORS: EntityColor[] = ["slate", "blue", "green", "amber", "rose", "violet"];
 const DOT: Record<EntityColor, string> = {
@@ -240,6 +241,7 @@ export function DocumentLabels({
             ) : null}
           </ul>
         </div>
+        <ManageLabelsFooter propertyId={propertyId} />
       </PopoverContent>
     </Popover>
   );

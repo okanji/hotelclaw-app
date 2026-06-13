@@ -14,7 +14,12 @@ export type NotificationType =
   | "invite_received"
   | "mention"
   | "meeting_summary"
-  | "workflow";
+  | "workflow"
+  | "briefing"
+  | "project_at_risk"
+  | "task_slip"
+  | "insight_alert"
+  | "guest_escalation";
 
 export type NotificationPayload = Record<string, unknown>;
 

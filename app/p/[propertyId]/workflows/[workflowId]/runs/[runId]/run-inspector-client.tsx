@@ -18,6 +18,7 @@ type RunRow = {
   mode: string;
   trigger_kind: string | null;
   durable_run_id: string | null;
+  is_dry_run: boolean;
   started_at: string;
   finished_at: string | null;
   error: string | null;
@@ -189,6 +190,15 @@ export function RunInspectorClient({
           >
             {run.status}
           </span>
+          {run.is_dry_run ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+              title="Test run — no side effects, excluded from stats"
+            >
+              <FlaskConical className="size-3" aria-hidden />
+              test run
+            </span>
+          ) : null}
           <span className="text-[12px] text-muted-foreground">
             Triggered by {run.trigger_kind ?? "—"} ·{" "}
             {formatDuration(run.started_at, run.finished_at)} · {run.mode}
@@ -273,8 +283,19 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
           </div>
           <div className="truncate text-[12px] text-muted-foreground">
             {step.step_id}
+            {branchTaken(step) ? (
+              <span className="ml-2 text-foreground/70">→ took “{branchTaken(step)}” path</span>
+            ) : null}
           </div>
         </div>
+        {step.attempt > 1 ? (
+          <span
+            className="inline-flex rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+            title={`Succeeded or failed after ${step.attempt} attempts`}
+          >
+            ×{step.attempt}
+          </span>
+        ) : null}
         <span className="text-[11px] text-muted-foreground tabular-nums">
           {formatDuration(step.started_at, step.finished_at)}
         </span>
@@ -327,6 +348,20 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
       ) : null}
     </li>
   );
+}
+
+/**
+ * Branch/filter steps record which path they routed to in output.branch.
+ * Surfacing it inline answers "which way did this run go?" without opening
+ * the step's output JSON.
+ */
+function branchTaken(step: StepRow): string | null {
+  if (!step.step_type.startsWith("control.branch") && step.step_type !== "ai.branch_decision") {
+    return null;
+  }
+  const branch = (step.output as { branch?: unknown; decision?: unknown } | null)?.branch
+    ?? (step.output as { decision?: unknown } | null)?.decision;
+  return typeof branch === "string" && branch.length > 0 ? branch : null;
 }
 
 /**

@@ -286,26 +286,41 @@ export const aiBranchDecisionRunner: RunnerImpl<
 // ─── ai.freeform ─────────────────────────────────────────────────────────────
 
 type FreeformConfig = {
-  persona: string;
-  input: string;
+  persona?: string;
+  instructions?: string;
+  input?: string;
   tools?: string[];
   max_steps?: number;
 };
+
+const DEFAULT_FREEFORM_PERSONA =
+  "You are a helpful hotel operations assistant. Be concrete and concise; your reply is consumed by later workflow steps.";
 
 export const aiFreeformRunner: RunnerImpl<FreeformConfig, { text: string }> = async ({
   config,
   ctx,
 }) => {
   if (ctx.dryRun) return { text: "(dry-run freeform)" };
+
+  // Pre-split specs put everything in `input`; treat it as the instructions
+  // then. When both are present, `input` is the data the instructions act on.
+  const instructions = config.instructions?.trim() || config.input?.trim() || "";
+  if (!instructions) {
+    throw new Error("ai.freeform: nothing to do — fill in “What the AI should do”");
+  }
+  const data = config.instructions?.trim() ? config.input?.trim() : undefined;
+  const content = data ? `${instructions}\n\nInput:\n${data}` : instructions;
+
   // Tool subsetting is deferred — v1 freeform agents get the runtime's default
   // tool surface (gbrain + delegate via runBot). When we wire surface-specific
   // tools (e.g. task tools, doc tools) we'll filter by config.tools here.
   const result = await runBot({
-    persona: config.persona,
+    persona: config.persona?.trim() || DEFAULT_FREEFORM_PERSONA,
     activationReason: "mention",
     scopedTools: {},
-    messages: [{ role: "user", content: config.input }],
+    messages: [{ role: "user", content }],
     scope: botScopeFor(ctx),
+    maxToolSteps: config.max_steps ?? 5,
   });
   if (result.trace) ctx.recordTrace?.(result.trace);
   return { text: result.text };

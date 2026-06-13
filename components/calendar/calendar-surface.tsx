@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { RoomProvider } from "@liveblocks/react/suspense";
 import { ClientSideSuspense } from "@liveblocks/react";
 import { roomIdForCalendar } from "@/lib/liveblocks/rooms";
@@ -27,7 +27,7 @@ export function CalendarSurface({
   propertyId: string;
   currentUserId: string;
 }) {
-  const pathname = usePathname();
+  const pathname = useSurfacePathname();
   if (!IN_CALENDAR.test(pathname)) return null;
   return (
     <RoomProvider

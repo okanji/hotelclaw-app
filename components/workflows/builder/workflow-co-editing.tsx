@@ -81,7 +81,8 @@ export function WorkflowCoEditing({
     let topRest: Record<string, unknown>;
     try {
       topRest = JSON.parse(wf.rest) as Record<string, unknown>;
-    } catch {
+    } catch (err) {
+      console.warn("[workflow-co-editing] malformed workflow.rest in Storage:", err);
       return null;
     }
     // wf.steps deserializes to a record/map of stepId → { rest, config }.
@@ -93,7 +94,8 @@ export function WorkflowCoEditing({
       let stepRest: Record<string, unknown>;
       try {
         stepRest = JSON.parse(stepObj.rest) as Record<string, unknown>;
-      } catch {
+      } catch (err) {
+        console.warn(`[workflow-co-editing] skipping malformed step "${id}" in Storage:`, err);
         continue;
       }
       const cfgSrc = stepObj.config;

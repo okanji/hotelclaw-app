@@ -68,7 +68,8 @@ export type BotScope = {
     | "onboarding"
     | "comment-thread"
     | "workflow"
-    | "workflow-step";
+    | "workflow-step"
+    | "insights";
 };
 
 export type RunBotOptions = {
@@ -95,9 +96,22 @@ export type RunBotOptions = {
   responseGuidelines?: string;
   /** Max tool-call rounds before stopping. Default 5. */
   maxToolSteps?: number;
+  /**
+   * Max retries for the underlying model call (AI SDK exponential backoff).
+   * Default 3 (= 4 attempts) — covers transient network blips and 529s
+   * without making interactive surfaces wait forever on a dead network.
+   */
+  maxRetries?: number;
 };
 
 export type RunBotResult = {
+  /**
+   * False when generation failed and `text` is a canned apology rather than
+   * a real reply. Chat surfaces can post the apology as-is; callers that
+   * PERSIST or CACHE `text` (reports, annotations) must check this first —
+   * caching the apology poisons the cache until the next forced regen.
+   */
+  ok: boolean;
   /** The bot's reply text — what gets posted to the user-facing surface. */
   text: string;
   /** Compact observability trace (model, token counts, tool calls) for the
@@ -204,10 +218,13 @@ async function mergeTools(
  * Failure modes are surfaced via the reply text, not thrown — callers
  * generally render whatever comes back (e.g. "I need ANTHROPIC_API_KEY
  * configured…"), so the bot is always-responsive even when misconfigured.
+ * Callers that persist `text` must gate on `ok` — the fallback apology is
+ * for humans in a chat surface, never for a cache.
  */
 export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
+      ok: false,
       text: "I need `ANTHROPIC_API_KEY` configured to respond — ask an admin to set it up.",
     };
   }
@@ -236,9 +253,11 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
       // temperature 0 — tool-arg generation is much more reliable, and
       // classifier-style "should I respond" decisions become reproducible.
       temperature: 0,
+      maxRetries: opts.maxRetries ?? 3,
     });
     const text = (result.text ?? "").trim() || "(no reply)";
     return {
+      ok: true,
       text,
       modelMessages: result.response?.messages,
       trace: {
@@ -257,6 +276,7 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
   } catch (err) {
     console.error("[run-bot] generateText failed", err);
     return {
+      ok: false,
       text: "I hit an error generating that reply — try again in a moment.",
     };
   }

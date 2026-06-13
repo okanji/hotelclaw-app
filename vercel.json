@@ -8,6 +8,22 @@
     {
       "path": "/api/workflows/sweep-overdue",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/insights/weekly-report",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/insights/refresh-briefs",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/insights/send-digests",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/chatbots/auto-retrain",
+      "schedule": "30 4 * * *"
     }
   ]
 }

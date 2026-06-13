@@ -238,6 +238,18 @@ async function handleMention(args: {
     return NextResponse.json({ ok: true, deduped: true });
   }
 
+  // Team channels get a display name for the activity feed's #channel chip;
+  // DMs have no name. Best-effort — a miss just means no chip.
+  let channelName: string | null = null;
+  if (channelType === "team") {
+    const { data: channelRow } = await args.service
+      .from("chat_channels")
+      .select("name")
+      .eq("stream_channel_id", args.streamChannelId)
+      .maybeSingle();
+    channelName = channelRow?.name ?? null;
+  }
+
   const { error } = await args.service.from("notifications").insert({
     user_id: args.userId,
     property_id: args.propertyId,
@@ -245,6 +257,7 @@ async function handleMention(args: {
     payload: {
       channelId: args.streamChannelId,
       channelType,
+      ...(channelName ? { channelName } : {}),
       messageId: args.messageId,
       byUserId: byUserId ?? null,
       byUserName,

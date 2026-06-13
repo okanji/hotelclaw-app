@@ -6,6 +6,8 @@ import {
   CircleDot,
   FileText,
   FolderInput,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Sparkles,
@@ -23,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { StatusIcon } from "@/components/tasks/task-icons";
 import type { EntityColor, TaskStatus } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
+import { MAX_PINNED_RESOURCES } from "@/components/documents/doc-pin-card";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import type { ActivityEvent } from "@/lib/query/activity-queries";
@@ -47,57 +50,101 @@ const STATUS_COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "done", label: "Done" },
 ];
 
+const STATUS_BAR: Record<TaskStatus, string | null> = {
+  done: "bg-emerald-500/90",
+  in_progress: "bg-amber-500/90",
+  blocked: "bg-rose-500/80",
+  todo: null,
+};
+
+const STATUS_TALLY: Partial<Record<TaskStatus, string>> = {
+  in_progress: "text-amber-600 dark:text-amber-400",
+  done: "text-emerald-600 dark:text-emerald-400",
+  blocked: "text-rose-600 dark:text-rose-400",
+};
+
 /* ── Overview: progress over the scoped tasks ─────────────────────────────── */
 
+function taskStatusCounts(tasks: ScopedTask[]) {
+  const c: Record<TaskStatus, number> = {
+    todo: 0,
+    in_progress: 0,
+    blocked: 0,
+    done: 0,
+  };
+  for (const t of tasks) c[t.status] += 1;
+  return c;
+}
+
+/** Compact Linear-style progress: segmented bar, 13px copy, inline status tallies. */
 export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
-  const counts = useMemo(() => {
-    const c: Record<TaskStatus, number> = {
-      todo: 0,
-      in_progress: 0,
-      blocked: 0,
-      done: 0,
-    };
-    for (const t of tasks) c[t.status] += 1;
-    return c;
-  }, [tasks]);
+  const counts = useMemo(() => taskStatusCounts(tasks), [tasks]);
   const total = tasks.length;
   const pct = total ? Math.round((counts.done / total) * 100) : 0;
+  const segment = (n: number) => (total ? (n / total) * 100 : 0);
+
+  if (total === 0) {
+    return (
+      <p className="text-[0.8125rem] tracking-tight text-muted-foreground">
+        No issues yet — progress will appear here as work is added.
+      </p>
+    );
+  }
+
+  const barSegments: TaskStatus[] = ["done", "in_progress", "blocked"];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[1.75rem] leading-none font-semibold tracking-tight text-foreground tabular-nums">
-            {pct}%
-          </span>
-          <span className="text-[0.6875rem] font-medium tracking-wider text-muted-foreground uppercase">
-            Complete
-          </span>
-        </div>
-        <span className="text-[0.8125rem] tracking-tight text-muted-foreground tabular-nums">
-          {counts.done} / {total} done
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[0.8125rem] tracking-tight text-muted-foreground">
+          <span className="tabular-nums text-foreground">{counts.done}</span>
+          {" of "}
+          <span className="tabular-nums text-foreground">{total}</span>
+          {" completed"}
+          {counts.in_progress > 0 ? (
+            <>
+              {" · "}
+              <span className="tabular-nums text-amber-600 dark:text-amber-400">
+                {counts.in_progress}
+              </span>
+              {" in progress"}
+            </>
+          ) : null}
+        </p>
+        <span className="shrink-0 text-[0.8125rem] tabular-nums text-muted-foreground">
+          {pct}%
         </span>
       </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
-        {total > 0 ? (
-          <div
-            className="h-full bg-emerald-500 transition-[width]"
-            style={{ width: `${pct}%` }}
-          />
-        ) : null}
+      <div
+        className="flex h-1 overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`${counts.done} done, ${counts.in_progress} in progress, ${counts.blocked} blocked, ${counts.todo} to do`}
+      >
+        {barSegments.map((status) =>
+          counts[status] > 0 ? (
+            <div
+              key={status}
+              className={cn("h-full shrink-0", STATUS_BAR[status])}
+              style={{ width: `${segment(counts[status])}%` }}
+            />
+          ) : null,
+        )}
       </div>
-      <dl className="flex flex-wrap gap-x-5 gap-y-1">
-        {STATUS_COLUMNS.map((s) => (
-          <div key={s.id} className="flex items-center gap-1.5">
-            <StatusIcon status={s.id} className="size-3.5" />
-            <dt className="text-[0.75rem] tracking-tight text-muted-foreground">
-              {s.label}
-            </dt>
-            <dd className="text-[0.75rem] font-medium tabular-nums text-foreground">
-              {counts[s.id]}
-            </dd>
-          </div>
-        ))}
+      <dl className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+        {STATUS_COLUMNS.map((s) =>
+          counts[s.id] > 0 ? (
+            <div key={s.id} className="flex items-center gap-1">
+              <StatusIcon status={s.id} className="size-3 text-muted-foreground/70" />
+              <dt className="sr-only">{s.label}</dt>
+              <dd className="text-[0.75rem] tabular-nums text-muted-foreground">
+                <span className={STATUS_TALLY[s.id] ?? "text-foreground"}>
+                  {counts[s.id]}
+                </span>
+                <span className="ml-1">{s.label}</span>
+              </dd>
+            </div>
+          ) : null,
+        )}
       </dl>
     </div>
   );
@@ -128,51 +175,45 @@ export function ProjectProgressList({
 }) {
   if (projects.length === 0) {
     return (
-      <p className="py-4 text-[0.8125rem] text-muted-foreground">
-        No projects span this space yet — link one from a project&apos;s{" "}
-        <span className="font-medium">Spaces</span> picker.
+      <p className="py-2 text-[0.8125rem] text-muted-foreground">
+        No projects yet — link one from a project&apos;s{" "}
+        <span className="text-foreground">Spaces</span> picker.
       </p>
     );
   }
   return (
-    <ul
-      role="list"
-      className="flex flex-col divide-y divide-border/40 border-t border-border/40"
-    >
+    <ul role="list" className="flex flex-col">
       {projects.map((p) => {
         const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
         return (
-          <li key={p.id} className="group/row">
+          <li key={p.id} className="group/row border-t border-border/40 first:border-0">
             <Link
               href={`/p/${propertyId}/projects/${p.id}`}
-              className="flex items-center gap-3 rounded-md px-1 py-3 transition-colors hover:bg-muted"
+              className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
             >
               <span
                 className={cn(
-                  "size-2 shrink-0 rounded-full",
+                  "size-1.5 shrink-0 rounded-full",
                   PROJECT_DOT[p.color],
                 )}
                 aria-hidden="true"
               />
-              <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-[0.8125rem] tracking-tight text-foreground">
                 {p.name || "Untitled project"}
               </span>
-              <div className="flex w-32 shrink-0 items-center gap-2.5 sm:w-44">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                   {p.total > 0 ? (
                     <div
-                      className="h-full rounded-full bg-emerald-500 transition-[width]"
+                      className="h-full rounded-full bg-emerald-500/90 transition-[width]"
                       style={{ width: `${pct}%` }}
                     />
                   ) : null}
                 </div>
-                <span className="w-9 shrink-0 text-right text-[0.75rem] font-medium tabular-nums text-foreground">
+                <span className="w-7 shrink-0 text-right text-[0.75rem] tabular-nums text-muted-foreground">
                   {pct}%
                 </span>
               </div>
-              <span className="hidden w-12 shrink-0 text-right text-[0.75rem] tabular-nums text-muted-foreground sm:inline">
-                {p.done}/{p.total}
-              </span>
             </Link>
           </li>
         );
@@ -269,17 +310,18 @@ export function ActivityFeed({
     );
   }
   return (
-    <ul role="list" className="flex flex-col gap-3">
+    <ul role="list" className="flex flex-col gap-2">
       {events.map((e) => {
         const { Icon, text } = describeEvent(e);
         return (
-          <li key={e.id} className="flex items-start gap-2.5">
-            <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Icon className="size-3" strokeWidth={1.75} />
-            </span>
-            <p className="min-w-0 flex-1 text-[0.8125rem] leading-5 tracking-tight text-muted-foreground">
+          <li key={e.id} className="flex items-start gap-2">
+            <Icon
+              className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+              strokeWidth={1.5}
+            />
+            <p className="min-w-0 flex-1 text-[0.8125rem] leading-[1.35] tracking-tight text-muted-foreground">
               {text}
-              <span className="text-muted-foreground/70"> · {timeAgo(e.at)}</span>
+              <span className="text-muted-foreground/55"> · {timeAgo(e.at)}</span>
             </p>
           </li>
         );
@@ -376,19 +418,35 @@ export function DocsPanel({
   candidates,
   onAdd,
   onRemove,
+  pinnedIds,
+  onPin,
+  onUnpin,
+  pinLimit = MAX_PINNED_RESOURCES,
 }: {
   propertyId: string;
   docs: ScopedDoc[];
   candidates: Candidate[];
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
+  pinnedIds?: Set<string>;
+  onPin?: (id: string) => void;
+  onUnpin?: (id: string) => void;
+  pinLimit?: number;
 }) {
   const openDocument = useOpenDocument(propertyId);
+  const pinCount = pinnedIds?.size ?? 0;
+  const canPin = pinCount < pinLimit;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <span className="text-[0.8125rem] tracking-tight text-muted-foreground tabular-nums">
           {docs.length} {docs.length === 1 ? "document" : "documents"}
+          {pinnedIds && pinCount > 0 ? (
+            <span className="text-muted-foreground/70">
+              {" "}
+              · {pinCount} pinned
+            </span>
+          ) : null}
         </span>
         <AddPicker label="Add docs" candidates={candidates} onAdd={onAdd} />
       </div>
@@ -402,29 +460,58 @@ export function DocsPanel({
           role="list"
           className="flex flex-col divide-y divide-border/40 border-t border-border/40"
         >
-          {docs.map((d) => (
-            <li key={d.id} className="group/row relative">
-              <Link
-                href={documentHref(propertyId, d.id)}
-                onClick={(e) => {
-                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)
-                    return;
-                  e.preventDefault();
-                  openDocument(d.id);
-                }}
-                className="flex items-center gap-3 rounded-md px-1 py-2.5 pr-9 transition-colors hover:bg-muted"
-              >
-                <FileText
-                  strokeWidth={1.5}
-                  className="size-4 shrink-0 text-muted-foreground"
-                />
-                <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
-                  {d.title || "Untitled"}
-                </span>
-              </Link>
-              <Remove onClick={() => onRemove(d.id)} />
-            </li>
-          ))}
+          {docs.map((d) => {
+            const isPinned = pinnedIds?.has(d.id) ?? false;
+            return (
+              <li key={d.id} className="group/row relative">
+                <Link
+                  href={documentHref(propertyId, d.id)}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)
+                      return;
+                    e.preventDefault();
+                    openDocument(d.id);
+                  }}
+                  className="flex items-center gap-3 rounded-md px-1 py-2.5 pr-16 transition-colors hover:bg-muted"
+                >
+                  <FileText
+                    strokeWidth={1.5}
+                    className="size-4 shrink-0 text-muted-foreground"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] tracking-tight text-foreground">
+                    {d.title || "Untitled"}
+                  </span>
+                  {isPinned ? (
+                    <Pin
+                      className="size-3 shrink-0 text-muted-foreground/60"
+                      strokeWidth={1.5}
+                    />
+                  ) : null}
+                </Link>
+                <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 opacity-0 group-hover/row:opacity-100">
+                  {onPin && onUnpin ? (
+                    <button
+                      type="button"
+                      aria-label={isPinned ? "Unpin from overview" : "Pin to overview"}
+                      title={isPinned ? "Unpin from overview" : "Pin to overview"}
+                      disabled={!isPinned && !canPin}
+                      onClick={() =>
+                        isPinned ? onUnpin(d.id) : onPin(d.id)
+                      }
+                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-40"
+                    >
+                      {isPinned ? (
+                        <PinOff className="size-3.5" />
+                      ) : (
+                        <Pin className="size-3.5" />
+                      )}
+                    </button>
+                  ) : null}
+                  <Remove inline onClick={() => onRemove(d.id)} />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -433,14 +520,25 @@ export function DocsPanel({
 
 /* ── Shared bits ──────────────────────────────────────────────────────────── */
 
-export function Remove({ onClick }: { onClick: () => void }) {
+export function Remove({
+  onClick,
+  inline,
+}: {
+  onClick: () => void;
+  /** When true, parent handles visibility/position (e.g. action row). */
+  inline?: boolean;
+}) {
   return (
     <button
       type="button"
-      aria-label="Remove"
-      title="Remove"
+      aria-label="Remove from space"
+      title="Remove from space"
       onClick={onClick}
-      className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-background hover:text-destructive"
+      className={cn(
+        "flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive",
+        !inline &&
+          "absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 transition-opacity group-hover/row:opacity-100",
+      )}
     >
       <X className="size-3.5" />
     </button>

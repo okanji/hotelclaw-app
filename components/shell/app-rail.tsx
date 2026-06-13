@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  Bot,
   CalendarDays,
   FileText,
   Home,
   ListChecks,
   MessageCircle,
   MessagesSquare,
+  Moon,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
+  Ticket,
   Video,
   Workflow,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import { lastSectionPath } from "@/lib/shell/last-path";
 import {
@@ -24,29 +30,76 @@ import {
   documentsTreeQueryOptions,
   mentionsQueryOptions,
 } from "@/lib/query/section-queries";
+import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
+import { pendingBookingsCountQueryOptions } from "@/lib/query/booking-queries";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
 import { RailLogo } from "./rail-logo";
 
 /**
- * Icon-button styling ported 1:1 from the rail prototype. The rail is always
- * dark, so icons are white; the active item gets a slightly raised `#333` fill
- * with a top-left radial highlight + inset hairline ring, and a br gradient
- * sheen overlay (the child span). Inactive items lift on hover.
+ * Slack-style nav button: a stacked icon-tile + label. The whole button is the
+ * `group`; only the inner tile carries the active/hover surface (a soft
+ * translucent-white square, never a high-contrast fill), so the label stays
+ * legible and the lift reads on the aubergine gradient. The tile holds the
+ * corner badges. Label weight never changes between states — only its color.
  */
-const railLinkClass =
-  "group relative flex size-10 items-center justify-center rounded-lg text-white transition-colors " +
-  "outline-hidden focus-visible:ring-2 focus-visible:ring-white/30 " +
-  "data-current:bg-[#333333] data-current:inset-ring-1 data-current:inset-ring-white/3 " +
-  "data-current:bg-radial-[at_0%_0%] data-current:from-white/10 data-current:to-transparent " +
-  "hover:not-data-current:bg-white/10";
+const railItemClass =
+  "group/item flex w-full flex-col items-center gap-1.5 rounded-xl py-2 outline-hidden";
+// Light-first: neutral icons/wash on the white rail, with `dark:` restoring the
+// always-dark look (white icons, translucent-white wash).
+const railTileClass =
+  "relative flex size-9 items-center justify-center rounded-xl transition-colors " +
+  "text-zinc-500 group-hover/item:bg-black/5 group-hover/item:text-zinc-900 " +
+  "data-current:bg-black/[0.07] data-current:text-zinc-900 " +
+  "group-focus-visible/item:ring-2 group-focus-visible/item:ring-black/15 " +
+  "dark:text-white/85 dark:group-hover/item:bg-white/10 dark:group-hover/item:text-white " +
+  "dark:data-current:bg-white/15 dark:data-current:text-white " +
+  "dark:group-focus-visible/item:ring-white/40";
+const railLabelClass =
+  "block w-full truncate text-center text-xs font-semibold leading-none tracking-tight transition-colors";
+// Active vs inactive label color, both themes — applied via cn() in the markup.
+const railLabelActiveClass = "text-zinc-900 dark:text-white";
+const railLabelIdleClass =
+  "text-zinc-500 group-hover/item:text-zinc-900 dark:text-white/85 dark:group-hover/item:text-white";
+
+/** Translucent circular utility button used by the rail footer (theme + collapse). */
+const railFooterButtonClass =
+  "flex size-10 items-center justify-center rounded-full outline-hidden transition-colors " +
+  "bg-black/5 text-zinc-600 hover:bg-black/10 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-black/15 " +
+  "dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20 dark:hover:text-white dark:focus-visible:ring-white/40";
+
+/**
+ * Back-office surfaces that live under the rail's "More" overflow rather than as
+ * top-level icons — keeps the primary rail short (Slack-style). The `items`
+ * array order is preserved when splitting, so these stay grouped at the bottom
+ * of the More panel. Each gets a one-line description for the menu row.
+ */
+const MORE_SECTIONS = new Set<ShellSection>([
+  "workflows",
+  "chatbots",
+  "bookings",
+  "meetings",
+]);
+const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
+  workflows: "Automate tasks and triggers",
+  chatbots: "Build guest-facing assistants",
+  bookings: "Reservations and availability",
+  meetings: "Video calls and recordings",
+};
 
 type RailItem = {
   section: ShellSection;
@@ -101,6 +154,16 @@ const CHAT_ROOT = /^\/p\/[^/]+\/chat\/?$/;
  * the URL changes. Force a real navigation so `children` re-renders.
  */
 const MEETINGS_ROUTE = /^\/p\/[^/]+\/meetings(\/.*)?$/;
+/**
+ * Chatbots is server-rendered the same way meetings is — its pages return
+ * real JSX, so rail hops in or out need a real navigation, not pushState.
+ */
+const CHATBOTS_ROUTE = /^\/p\/[^/]+\/chatbots(\/.*)?$/;
+/** Bookings is server-rendered too — same real-navigation requirement. */
+const BOOKINGS_ROUTE = /^\/p\/[^/]+\/bookings(\/.*)?$/;
+/** Forms pages (list, builder, fill) are server-rendered routes reached
+ *  from the Documents sidebar — same real-navigation requirement. */
+const FORMS_ROUTE = /^\/p\/[^/]+\/forms(\/.*)?$/;
 
 /**
  * Slack-style icon rail — the first sidebar, pinned to the screen edge. Five
@@ -125,12 +188,61 @@ export function AppRail({
   user: RailUser;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
+  // `usePathname` only updates on real Next navigations — but most rail hops
+  // and every in-section detail open use `pushState`, which it doesn't track
+  // (see `documents-surface.tsx`). The rail makes routing decisions off the
+  // *current* location (`alreadyInSection`, the chatbots/meetings server-
+  // rendered exceptions), so it must mirror `window.location` the same way the
+  // surfaces do — otherwise a stale path makes `handleClick` skip navigation
+  // entirely or pick `pushState` when a real `router.push` was needed.
+  const nextPathname = usePathname();
+  const [pathname, setPathname] = useState(nextPathname);
+  useEffect(() => {
+    setPathname(nextPathname);
+  }, [nextPathname]);
+  useEffect(() => {
+    const sync = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hotelclaw:pathname", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hotelclaw:pathname", sync);
+    };
+  }, []);
   const queryClient = useQueryClient();
   const { client } = useChatContext();
   const { section, setSection, sidebarCollapsed, setSidebarCollapsed } =
     useShellSection();
   const { unseenCount } = useNotifications(userId);
+
+  // Surface a one-tap light/dark toggle in the rail footer (it also lives in
+  // the user menu as a Light/Dark/System submenu). `resolvedTheme` is undefined
+  // until mounted, so gate the icon to avoid an SSR/client mismatch.
+  const { resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  // next-themes only resolves the theme after mount; flip once to avoid an
+  // SSR/client icon mismatch. (Same setState-on-mount pattern as the pathname
+  // mirror above.)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setThemeMounted(true), []);
+  const isDark = !themeMounted || resolvedTheme === "dark";
+
+  // Amber dot on the Workflows icon while any enabled workflow's most recent
+  // run failed — ambient "an automation needs attention" without a count.
+  const { data: workflows } = useQuery(workflowsListQueryOptions(propertyId));
+  const failingWorkflows = useMemo(
+    () =>
+      (workflows ?? []).filter((w) => w.enabled && w.last_run_status === "failed")
+        .length,
+    [workflows],
+  );
+
+  // Amber count on the Bookings icon while chatbot bookings sit pending —
+  // the front desk's "needs a yes" number. Realtime invalidation lives in
+  // BookingsSection (same query key).
+  const { data: pendingBookings = 0 } = useQuery(
+    pendingBookingsCountQueryOptions(propertyId),
+  );
 
   const items = useMemo<RailItem[]>(
     () => [
@@ -193,6 +305,20 @@ export function AppRail({
         routeKey: "/workflows",
       },
       {
+        section: "chatbots",
+        label: "Chatbots",
+        icon: Bot,
+        href: `/p/${propertyId}/chatbots`,
+        routeKey: "/chatbots",
+      },
+      {
+        section: "bookings",
+        label: "Bookings",
+        icon: Ticket,
+        href: `/p/${propertyId}/bookings`,
+        routeKey: "/bookings",
+      },
+      {
         section: "meetings",
         label: "Meetings",
         icon: Video,
@@ -202,6 +328,18 @@ export function AppRail({
     ],
     [propertyId],
   );
+
+  const primaryItems = useMemo(
+    () => items.filter((i) => !MORE_SECTIONS.has(i.section)),
+    [items],
+  );
+  const moreItems = useMemo(
+    () => items.filter((i) => MORE_SECTIONS.has(i.section)),
+    [items],
+  );
+  // The overflow's own active/alert state, surfaced on the More button itself.
+  const moreActive = MORE_SECTIONS.has(section);
+  const moreAlert = failingWorkflows > 0 || pendingBookings > 0;
 
   // The rail uses <button> + router.push (not <Link>), so Next never
   // auto-prefetches these routes. Warm them on mount: a cold first click
@@ -300,9 +438,19 @@ export function AppRail({
       IN_PROPERTY.test(target) &&
       !CHAT_ROOT.test(target) &&
       !MEETINGS_ROUTE.test(target) &&
-      !MEETINGS_ROUTE.test(pathname)
+      !MEETINGS_ROUTE.test(pathname) &&
+      !CHATBOTS_ROUTE.test(target) &&
+      !CHATBOTS_ROUTE.test(pathname) &&
+      !BOOKINGS_ROUTE.test(target) &&
+      !BOOKINGS_ROUTE.test(pathname) &&
+      !FORMS_ROUTE.test(target) &&
+      !FORMS_ROUTE.test(pathname)
     ) {
       window.history.pushState(null, "", target);
+      // Notify surfaces (and this rail's own mirror) synchronously — `pushState`
+      // alone doesn't update `usePathname`, so without this the surface gating
+      // on the new URL wouldn't re-render until Next's deferred path update.
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
       return;
     }
     router.push(target);
@@ -311,61 +459,200 @@ export function AppRail({
   return (
     <TooltipProvider delay={0}>
       <aside
-        // Always-dark floating rail (ported from the prototype): a rounded
-        // `#090909` card with a soft drop shadow, separated from the secondary
-        // sidebar by the surrounding `bg-sidebar`. Icon-only — labels live in
-        // hover tooltips. `m-2` matches the inset card's gutter so the whole
-        // shell reads as evenly-spaced floating panels.
-        className="m-2 flex w-16 shrink-0 flex-col items-center rounded-xl bg-[#090909] p-3"
+        // Floating rail card with a soft drop shadow, separated from the
+        // secondary sidebar by the surrounding `bg-sidebar`. Theme-aware: a
+        // white card (hairline ring to separate it from the light grey shell)
+        // in light mode, the original near-black `#090909` card in dark. Slack-
+        // style icon + label stack — labels are always visible (no tooltip).
+        // `m-2` matches the inset card's gutter so the shell reads as evenly-
+        // spaced floating panels.
+        className="m-2 flex w-[78px] shrink-0 flex-col items-center rounded-2xl bg-white p-2.5 shadow-xl shadow-black/10 ring-1 ring-black/[0.06] dark:bg-[#090909] dark:shadow-black/20 dark:ring-0"
         aria-label="Sections"
       >
-        <figure className="mb-6 mt-1">
-          <RailLogo />
+        <figure className="mt-0.5 mb-4">
+          {/* Brand glyph in a rounded tile — aubergine tile + white glyph in
+              light mode, inverted (white tile + aubergine glyph) in dark. */}
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-[#4a154b] text-white shadow-sm dark:bg-white dark:text-[#4a154b]">
+            <RailLogo className="size-7" />
+          </span>
         </figure>
 
-        <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <ul className="flex flex-col gap-1.5">
-            {items.map((item) => {
+        <nav className="no-scrollbar min-h-0 w-full flex-1 overflow-y-auto">
+          <ul className="flex flex-col gap-1">
+            {primaryItems.map((item) => {
               const Icon = item.icon;
               const isActive = section === item.section;
               const showBadge =
                 item.section === "activity" && unseenCount > 0;
+              const showFailingDot =
+                item.section === "workflows" && failingWorkflows > 0;
+              const showPendingBookings =
+                item.section === "bookings" && pendingBookings > 0;
               return (
                 <li key={item.section}>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <button
-                          type="button"
-                          onClick={() => handleClick(item)}
-                          aria-label={item.label}
-                          aria-current={isActive ? "page" : undefined}
-                          {...(isActive ? { "data-current": "" } : {})}
-                          className={railLinkClass}
-                        >
-                          <Icon className="size-[18px]" />
-                          {showBadge ? (
-                            <span className="absolute -top-0.5 -right-0.5 z-10 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] leading-none font-semibold text-destructive-foreground tabular-nums">
-                              {unseenCount > 99 ? "99+" : unseenCount}
-                            </span>
-                          ) : null}
-                          {/* br gradient sheen — visible only on the active item */}
-                          <span
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 hidden rounded-[inherit] bg-linear-to-br from-white/15 to-transparent to-35% group-data-current:block"
-                          />
-                        </button>
-                      }
-                    />
-                    <TooltipContent side="right">{item.label}</TooltipContent>
-                  </Tooltip>
+                  <button
+                    type="button"
+                    onClick={() => handleClick(item)}
+                    aria-label={item.label}
+                    aria-current={isActive ? "page" : undefined}
+                    className={railItemClass}
+                  >
+                    <span
+                      {...(isActive ? { "data-current": "" } : {})}
+                      className={railTileClass}
+                    >
+                      <Icon className="size-[18px]" strokeWidth={1.75} />
+                      {showBadge ? (
+                        // Lavender count badge punched onto the icon's
+                        // top-right corner (unseen notifications). The ring in
+                        // the rail bg gives the cutout look.
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-[#cba4e6] px-1 text-[9px] leading-none font-bold text-[#1c0f1c] tabular-nums ring-2 ring-white dark:ring-[#090909] duration-200">
+                          {unseenCount > 9 ? "9+" : unseenCount}
+                        </span>
+                      ) : null}
+                      {showFailingDot ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-white dark:ring-[#090909]"
+                        />
+                      ) : null}
+                      {showPendingBookings ? (
+                        // Same cutout treatment as the activity count,
+                        // amber: bookings waiting on a staff yes.
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] leading-none font-bold text-[#1c0f1c] tabular-nums ring-2 ring-white dark:ring-[#090909] duration-200">
+                          {pendingBookings > 9 ? "9+" : pendingBookings}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span
+                      className={cn(
+                        railLabelClass,
+                        isActive ? railLabelActiveClass : railLabelIdleClass,
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </button>
                 </li>
               );
             })}
+
+            {moreItems.length > 0 ? (
+              <li>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label="More"
+                    aria-current={moreActive ? "page" : undefined}
+                    className={railItemClass}
+                  >
+                    <span
+                      {...(moreActive ? { "data-current": "" } : {})}
+                      className={cn(
+                        railTileClass,
+                        "group-data-[popup-open]/item:bg-black/[0.07] group-data-[popup-open]/item:text-zinc-900 dark:group-data-[popup-open]/item:bg-white/15 dark:group-data-[popup-open]/item:text-white",
+                      )}
+                    >
+                      <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
+                      {moreAlert && !moreActive ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-white dark:ring-[#090909]"
+                        />
+                      ) : null}
+                    </span>
+                    <span
+                      className={cn(
+                        railLabelClass,
+                        moreActive
+                          ? railLabelActiveClass
+                          : cn(
+                              railLabelIdleClass,
+                              "group-data-[popup-open]/item:text-zinc-900 dark:group-data-[popup-open]/item:text-white",
+                            ),
+                      )}
+                    >
+                      More
+                    </span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="right"
+                    align="end"
+                    sideOffset={8}
+                    className="w-72"
+                  >
+                    <p className="px-2 pt-1.5 pb-1 text-sm font-semibold text-foreground">
+                      More
+                    </p>
+                    {moreItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = section === item.section;
+                      const failing =
+                        item.section === "workflows" && failingWorkflows > 0;
+                      const pending =
+                        item.section === "bookings" && pendingBookings > 0;
+                      return (
+                        <DropdownMenuItem
+                          key={item.section}
+                          onClick={() => handleClick(item)}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(
+                            "gap-3 px-2 py-2",
+                            isActive && "bg-accent/60",
+                          )}
+                        >
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-foreground">
+                            <Icon className="size-5" strokeWidth={1.75} />
+                          </span>
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                              {item.label}
+                              {failing ? (
+                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-bold text-amber-600 tabular-nums dark:text-amber-400">
+                                  {failingWorkflows} failing
+                                </span>
+                              ) : null}
+                              {pending ? (
+                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-bold text-amber-600 tabular-nums dark:text-amber-400">
+                                  {pendingBookings} pending
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {MORE_DESCRIPTIONS[item.section]}
+                            </span>
+                          </span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </li>
+            ) : null}
           </ul>
         </nav>
 
-        <div className="mt-3 flex shrink-0 flex-col items-center gap-1">
+        <div className="mt-3 flex shrink-0 flex-col items-center gap-2 pb-0.5">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                  aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                  className={railFooterButtonClass}
+                >
+                  {isDark ? (
+                    <Sun className="size-5" strokeWidth={1.75} />
+                  ) : (
+                    <Moon className="size-5" strokeWidth={1.75} />
+                  )}
+                </button>
+              }
+            />
+            <TooltipContent side="right">
+              {isDark ? "Light mode" : "Dark mode"}
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -374,12 +661,12 @@ export function AppRail({
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                   aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
                   aria-pressed={sidebarCollapsed}
-                  className="flex size-10 items-center justify-center rounded-lg text-white/70 outline-hidden transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30"
+                  className={railFooterButtonClass}
                 >
                   {sidebarCollapsed ? (
-                    <PanelLeftOpen className="size-[18px]" />
+                    <PanelLeftOpen className="size-5" strokeWidth={1.75} />
                   ) : (
-                    <PanelLeftClose className="size-[18px]" />
+                    <PanelLeftClose className="size-5" strokeWidth={1.75} />
                   )}
                 </button>
               }

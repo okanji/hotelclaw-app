@@ -298,6 +298,10 @@ async function processMessageNew(
       type: "mention",
       payload: {
         channelId,
+        // This handler early-returns for non-team channels, so the type and
+        // name are always the team channel's.
+        channelType: "team",
+        channelName: channelRow.name,
         messageId: msg.id,
         byUserId: senderId ?? null,
         byUserName: msg.user?.name ?? null,

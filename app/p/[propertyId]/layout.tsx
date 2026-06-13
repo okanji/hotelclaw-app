@@ -20,6 +20,7 @@ import { InboxSurface } from "@/components/chat/inbox/inbox-surface";
 import { WorkflowsSurface } from "@/components/workflows/workflows-surface";
 import { SpacesSurface } from "@/components/spaces/spaces-surface";
 import { ProjectsSurface } from "@/components/projects/projects-surface";
+import { InsightsSurface } from "@/components/insights/insights-surface";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
@@ -192,10 +193,13 @@ export default async function PropertyLayout({
                           <WorkflowsSurface propertyId={propertyId} />
                           <SpacesSurface propertyId={propertyId} />
                           <ProjectsSurface propertyId={propertyId} />
+                          <InsightsSurface
+                            propertyId={propertyId}
+                            userId={user.id}
+                          />
                           <ActivitySurface
                             propertyId={propertyId}
                             userId={user.id}
-                            userName={profile.data?.full_name ?? null}
                           />
                           <ThreadsSurface />
                           <InboxSurface

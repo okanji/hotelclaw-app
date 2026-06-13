@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Plus, Settings2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,13 +39,27 @@ const DOT: Record<EntityColor, string> = {
   violet: "bg-violet-500",
 };
 
-/** Property-wide label manager: create, rename, recolor, delete. The same
- *  catalog backs task + document labels. */
-export function LabelsManager({ propertyId }: { propertyId: string }) {
+/**
+ * Property-wide label management — create, rename, recolor, delete. The
+ * same catalog backs tasks, documents, projects, and spaces, so this lives
+ * in a dialog reachable from every label picker (via `ManageLabelsFooter`)
+ * rather than on a standalone page: labels are workspace configuration you
+ * touch while labeling something, not a destination.
+ */
+export function ManageLabelsDialog({
+  propertyId,
+  open,
+  onOpenChange,
+}: {
+  propertyId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const qc = useQueryClient();
-  const { data: labels = [], isPending } = useQuery(
-    labelsQueryOptions(propertyId),
-  );
+  const { data: labels = [], isPending } = useQuery({
+    ...labelsQueryOptions(propertyId),
+    enabled: open,
+  });
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -61,71 +82,92 @@ export function LabelsManager({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-5">
-        <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Workspace
-        </p>
-        <h1 className="text-[2.5rem] leading-none font-semibold tracking-tight text-foreground">
-          Labels
-        </h1>
-        <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
-          One shared set of labels for tasks and documents. Rename or recolor a
-          label and it updates everywhere it&apos;s used.
-        </p>
-      </header>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Manage labels</DialogTitle>
+          <DialogDescription>
+            One shared set for tasks, documents, projects, and spaces —
+            rename or recolor a label and it updates everywhere.
+          </DialogDescription>
+        </DialogHeader>
 
-      <hr className="my-10 border-border" />
+        <div className="flex items-center gap-2">
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleCreate();
+              }
+            }}
+            placeholder="New label name…"
+            aria-label="New label name"
+            className="h-8"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleCreate()}
+            disabled={creating || !newName.trim()}
+          >
+            {creating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
+            Create
+          </Button>
+        </div>
 
-      <div className="mb-8 flex items-center gap-2">
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void handleCreate();
-            }
-          }}
-          placeholder="New label name…"
-          className="h-9 max-w-xs"
-        />
-        <Button
+        {isPending ? (
+          <p className="text-sm text-muted-foreground">Loading labels…</p>
+        ) : labels.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No labels yet. Create one above, or add a label to a task or
+            document.
+          </p>
+        ) : (
+          <ul
+            role="list"
+            className="-mx-1 max-h-80 overflow-y-auto border-t border-border/40"
+          >
+            {labels.map((l) => (
+              <LabelManagerRow key={l.id} label={l} onChanged={refresh} />
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * "Manage labels…" footer for label-picker popovers — the standard way into
+ * the manager dialog. Render after the picker's list; self-contained.
+ */
+export function ManageLabelsFooter({ propertyId }: { propertyId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="border-t border-border/60 p-1">
+        <button
           type="button"
-          size="sm"
-          onClick={() => void handleCreate()}
-          disabled={creating || !newName.trim()}
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          {creating ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Plus className="size-4" />
-          )}
-          Create
-        </Button>
+          <Settings2 className="size-3.5 shrink-0" />
+          Manage labels…
+        </button>
       </div>
-
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading labels…</p>
-      ) : labels.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No labels yet. Create one above, or add a label to a task or document.
-        </p>
-      ) : (
-        <ul
-          role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
-        >
-          {labels.map((l) => (
-            <LabelManagerRow
-              key={l.id}
-              label={l}
-              onChanged={refresh}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
+      <ManageLabelsDialog
+        propertyId={propertyId}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
   );
 }
 
@@ -166,7 +208,7 @@ function LabelManagerRow({
   }
 
   return (
-    <li className="group/label flex items-center gap-3 px-1 py-2.5">
+    <li className="group/label flex items-center gap-3 border-b border-border/40 px-1 py-2">
       <DropdownMenu>
         <DropdownMenuTrigger
           render={

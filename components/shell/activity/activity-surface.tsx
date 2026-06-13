@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { ActivityView } from "./activity-view";
 
 /** Matches `/p/<pid>/activity` (with or without trailing slash). */
@@ -15,19 +15,11 @@ const ACTIVITY_ROUTE = /^\/p\/[^/]+\/activity\/?$/;
 export function ActivitySurface({
   propertyId,
   userId,
-  userName,
 }: {
   propertyId: string;
   userId: string;
-  userName: string | null;
 }) {
-  const pathname = usePathname();
+  const pathname = useSurfacePathname();
   if (!ACTIVITY_ROUTE.test(pathname)) return null;
-  return (
-    <ActivityView
-      propertyId={propertyId}
-      userId={userId}
-      userName={userName}
-    />
-  );
+  return <ActivityView propertyId={propertyId} userId={userId} />;
 }

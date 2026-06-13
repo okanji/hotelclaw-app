@@ -23,6 +23,7 @@ import { type ModelMessage } from "ai";
 import { BOT_DISPLAY_NAME } from "@/lib/ai/bot-identity";
 import { buildPropertyTools } from "@/lib/ai/tools";
 import { runBot, type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-bot";
+import { resolveChannelDeployment } from "@/lib/chatbots/channel-deployment";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
 import {
@@ -148,6 +149,12 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
   }
 
   try {
+    // Custom-chatbot deployment for this channel? When present, the reply
+    // uses that bot's persona and gains its knowledge-base + custom-action
+    // tools on top of the standard property tools. Null (the overwhelmingly
+    // common case) leaves the default channel bot byte-for-byte unchanged.
+    const deployment = await resolveChannelDeployment(ctx.streamChannelId);
+
     // Native typing indicator (no placeholder message; renders inline).
     await channel
       .sendEvent({
@@ -189,9 +196,11 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
         // stopWhen: stepCountIs(5)). Surface-specific concerns (lock,
         // coalesce, typing indicators, Stream sendMessage) stay here.
         const result = await runBot({
-          persona: CHANNEL_BOT_PERSONA,
+          persona: deployment?.persona ?? CHANNEL_BOT_PERSONA,
           activationReason: ctx.activationReason ?? "mention",
-          scopedTools: buildPropertyTools(ctx.propertyId),
+          scopedTools: deployment
+            ? { ...buildPropertyTools(ctx.propertyId), ...deployment.tools }
+            : buildPropertyTools(ctx.propertyId),
           messages,
           scope: {
             propertyId: ctx.propertyId,

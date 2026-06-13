@@ -11,22 +11,20 @@ import { ActivityHub } from "./activity-hub";
  * Main-content pane of the Activity section.
  *
  * Two states share this pane:
- *   - Default (no `?n=<id>`): the personal activity hub — greeting,
- *     up-next, filterable timeline, your tasks, recent docs.
+ *   - Default (no `?n=<id>`): the focused activity feed (`ActivityHub`) — a
+ *     filterable, day-grouped timeline of everything that's happened.
  *   - Notification selected: the existing master-detail behaviour, which
  *     opens the notification's target (channel, task, or invite) inline.
  *
- * The notification feed itself lives in the secondary sidebar
- * (`ActivitySection`); selecting a row there sets `?n=<id>`.
+ * The notification list also lives in the secondary sidebar (`ActivitySection`);
+ * selecting a row there sets `?n=<id>`.
  */
 export function ActivityView({
   propertyId,
   userId,
-  userName,
 }: {
   propertyId: string;
   userId: string;
-  userName: string | null;
 }) {
   const selectedId = useSearchParams().get("n");
   const { notifications, unseenCount } = useNotifications(userId);
@@ -35,7 +33,7 @@ export function ActivityView({
     : null;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <PageHeader
         title="Activity"
         icon={<Bell />}
@@ -51,11 +49,7 @@ export function ActivityView({
         {selected ? (
           <ActivityDetail propertyId={propertyId} notification={selected} />
         ) : (
-          <ActivityHub
-            propertyId={propertyId}
-            userId={userId}
-            userName={userName}
-          />
+          <ActivityHub propertyId={propertyId} userId={userId} />
         )}
       </div>
     </div>

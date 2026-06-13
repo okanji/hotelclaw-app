@@ -85,6 +85,7 @@ export function ChannelField({
       onChange={(e) => onChange(e.target.value)}
       disabled={channelsLoading}
     >
+      {channelsLoading ? <option value="">Loading channels…</option> : null}
       {chatTrigger && (
         <option value={TRIGGER_CHANNEL_REF}>Same channel as trigger</option>
       )}

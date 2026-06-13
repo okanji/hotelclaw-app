@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense } from "react";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { WorkflowsList } from "./workflows-list";
 import { WorkflowsNew } from "./workflows-new";
 import { WorkflowDetail } from "./workflow-detail";
@@ -36,26 +36,11 @@ const ROUTES = {
  * files return null, this surface owns rendering, and in-section
  * navigation flows through `pushState` for zero round-trips.
  *
- * `usePathname` only updates on real Next navigations. Sub-route nav inside
- * the section uses `router.push` (it crosses Next route segments), but
- * external `window.history.pushState` is also possible — mirror it via
- * `popstate` + `hotelclaw:pathname`.
+ * The gate reads `useSurfacePathname`, which stays in lockstep with the other
+ * surfaces across both `router.push` sub-route nav and external `pushState`.
  */
 export function WorkflowsSurface({ propertyId }: { propertyId: string }) {
-  const nextPathname = usePathname();
-  const [pathname, setPathname] = useState(nextPathname);
-  useEffect(() => {
-    setPathname(nextPathname);
-  }, [nextPathname]);
-  useEffect(() => {
-    const sync = () => setPathname(window.location.pathname);
-    window.addEventListener("popstate", sync);
-    window.addEventListener("hotelclaw:pathname", sync);
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("hotelclaw:pathname", sync);
-    };
-  }, []);
+  const pathname = useSurfacePathname();
 
   if (!IN_WORKFLOWS.test(pathname)) return null;
 

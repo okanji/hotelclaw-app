@@ -14,9 +14,11 @@ import { toast } from "sonner";
 import {
   Archive,
   ChevronRight,
+  ClipboardList,
   CornerLeftUp,
   FileText,
   Home,
+  LayoutList,
   MoreHorizontal,
   Plus,
   Table2,
@@ -55,6 +57,7 @@ import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   documentsTreeQueryOptions,
+  formsListQueryOptions,
   type DocumentTreeRow,
 } from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
@@ -427,6 +430,11 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
             ) : null}
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Forms — authored artifacts, same library as documents. These are
+            server-rendered routes (not surface-rendered), so rows use real
+            <Link> navigation rather than the tree's pushState switching. */}
+        <FormsSidebarGroup propertyId={propertyId} pathname={pathname} />
       </TreeContext.Provider>
 
       <DragOverlay dropAnimation={null}>
@@ -509,6 +517,63 @@ function DocumentsHomeItem({
         <span className="truncate">Home</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
+  );
+}
+
+// ── Forms group ─────────────────────────────────────────────────────────────
+
+/**
+ * Forms live in the Documents section — they're authored artifacts with the
+ * same lifecycle as docs (build → share → collect). Unlike docs, form pages
+ * are normal server-rendered routes, so every row is a real `<Link>`; the
+ * rail's pushState gate excludes `/forms` for the same reason.
+ */
+function FormsSidebarGroup({
+  propertyId,
+  pathname,
+}: {
+  propertyId: string;
+  pathname: string;
+}) {
+  const { data: forms = [] } = useQuery(formsListQueryOptions(propertyId));
+  const base = `/p/${propertyId}/forms`;
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Forms</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {forms.map((f) => {
+            const href = `${base}/${f.id}`;
+            return (
+              <SidebarMenuItem key={f.id}>
+                <SidebarMenuButton
+                  render={<Link href={href} />}
+                  isActive={pathname.startsWith(href)}
+                  tooltip={f.title || "Untitled form"}
+                >
+                  <ClipboardList />
+                  <span className="truncate">
+                    {f.title || "Untitled form"}
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="sm"
+              render={<Link href={base} />}
+              isActive={pathname === base}
+              tooltip="All forms & responses"
+              className="text-sidebar-foreground/55 [&_svg]:!size-3.5 [&_svg]:!text-sidebar-foreground/55"
+            >
+              <LayoutList />
+              <span>All forms</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 

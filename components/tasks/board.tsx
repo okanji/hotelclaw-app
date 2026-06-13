@@ -216,6 +216,7 @@ export function TasksBoard({
         }
       />
       <BoardToolbar
+        propertyId={propertyId}
         filters={filters}
         onChange={setFilters}
         total={scopedTasks.length}

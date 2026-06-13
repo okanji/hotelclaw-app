@@ -19,10 +19,12 @@ import {
 } from "./task-detail-sidebar";
 import { TaskDetailInlineProperties } from "./task-detail-inline-properties";
 import { TaskAiPanel } from "./task-ai-panel";
+import { TaskTriageSuggestions } from "./task-triage-suggestions";
 import { useTaskDetailMutations } from "./task-detail-mutations";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { taskHref } from "@/lib/tasks/task-href";
+import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import type { TaskPriority, TaskStatus } from "@/lib/db/types";
 
 type Task = {
@@ -34,6 +36,10 @@ type Task = {
   assigneeId: string | null;
   dueAt: string | null;
   createdAt?: string;
+  /** Creation provenance (migration 0050). */
+  source?: string | null;
+  sourceWorkflowId?: string | null;
+  sourceWorkflowRunId?: string | null;
 };
 
 function formatRelative(iso: string) {
@@ -185,6 +191,9 @@ export function TaskDetail({
       toast.success("Task deleted");
       invalidate();
       window.history.pushState(null, "", `/p/${propertyId}/tasks`);
+      // `usePathname` does not update on `pushState` — tell the surface to
+      // re-derive off the new URL so it drops back to the board.
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
     });
   }
 
@@ -254,6 +263,10 @@ export function TaskDetail({
               onDueAtChange={saveDueAt}
             />
 
+            <div className="mt-3">
+              <TaskTriageSuggestions propertyId={propertyId} taskId={task.id} />
+            </div>
+
             <div className="mt-4 flex items-center gap-1">
               <IconGhostButton label="Add reaction">
                 <Smile className="size-4" />
@@ -288,8 +301,14 @@ export function TaskDetail({
                   <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[0.625rem] font-medium text-muted-foreground">
                     ·
                   </span>
-                  <p className="text-muted-foreground">
+                  <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground">
                     <span className="text-foreground/90">Task created</span>
+                    <WorkflowProvenanceBadge
+                      propertyId={propertyId}
+                      source={task.source}
+                      workflowId={task.sourceWorkflowId}
+                      workflowRunId={task.sourceWorkflowRunId}
+                    />
                     {" · "}
                     {formatRelative(task.createdAt)}
                   </p>

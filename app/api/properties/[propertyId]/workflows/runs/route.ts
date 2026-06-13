@@ -22,7 +22,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("workflow_runs")
     .select(
-      "id, workflow_id, status, mode, trigger_kind, started_at, finished_at, error, workflows(name)",
+      "id, workflow_id, status, mode, trigger_kind, is_dry_run, started_at, finished_at, error, workflows(name)",
     )
     .eq("property_id", propertyId)
     .order("started_at", { ascending: false })

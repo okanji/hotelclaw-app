@@ -1,15 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
+import { sweepInsightAlerts } from "@/lib/insights/alerts";
 
 // Vercel Cron route — runs every 10 minutes (see vercel.json).
 // Finds tasks past their due_at that haven't been notified yet, emits a
 // task.overdue workflow_event per task, and stamps overdue_notified_at so
 // each task triggers at most one overdue event per "miss" (the marker
 // resets when a task moves back from done → todo via tasks_reset_overdue_on_reopen).
+// A second phase runs the deterministic transition alerts (project pace
+// flips, likely-to-slip crossings) — throttled internally to one evaluation
+// per property per hour.
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const BATCH = 200;
 
@@ -29,13 +33,10 @@ export async function GET(_request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  if (!candidates || candidates.length === 0) {
-    return NextResponse.json({ swept: 0 });
-  }
 
   const now = new Date().toISOString();
   let emitted = 0;
-  for (const t of candidates) {
+  for (const t of candidates ?? []) {
     try {
       await emitWorkflowEvent({
         propertyId: t.property_id,
@@ -55,5 +56,12 @@ export async function GET(_request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ swept: emitted });
+  let alertSummary: { checked: number; alerts: number } | null = null;
+  try {
+    alertSummary = await sweepInsightAlerts();
+  } catch (err) {
+    console.error("[workflows:sweep-overdue] insight alerts failed", err);
+  }
+
+  return NextResponse.json({ swept: emitted, insightAlerts: alertSummary });
 }

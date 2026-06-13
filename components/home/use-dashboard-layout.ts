@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Per-user, per-property memory of the Home dashboard arrangement — widget
- * order and which widgets are hidden — kept in `localStorage`. The dashboard
- * ships a sensible default; this lets each person reorder sections and hide the
- * ones they don't need, persisted on their device. Hidden widgets aren't gone:
+ * Per-user, per-property memory of a dashboard-style arrangement — section
+ * order and which sections are hidden — kept in `localStorage`. Home and
+ * Insights share this hook, namespaced by the `name` param. Each page ships a
+ * sensible default; this lets each person reorder sections and hide the ones
+ * they don't need, persisted on their device. Hidden widgets aren't gone:
  * they drop into the "Hidden" tray at the bottom of the dashboard, one tap from
  * coming back.
  *
@@ -18,8 +19,6 @@ import { useCallback, useEffect, useState } from "react";
  * a widget in code surfaces it for everyone without wiping their arrangement.
  */
 
-const KEY_PREFIX = "hotelclaw:home-layout:";
-
 export type DashboardLayout = {
   /** Widget ids in render order (includes hidden). */
   order: string[];
@@ -27,18 +26,21 @@ export type DashboardLayout = {
   hidden: string[];
 };
 
-function storageKey(propertyId: string, userId: string): string {
-  return `${KEY_PREFIX}${propertyId}:${userId}`;
+function storageKey(name: string, propertyId: string, userId: string): string {
+  return `hotelclaw:${name}:${propertyId}:${userId}`;
 }
 
 function read(
+  name: string,
   propertyId: string,
   userId: string,
   allIds: string[],
 ): DashboardLayout {
   const fallback: DashboardLayout = { order: allIds, hidden: [] };
   try {
-    const raw = window.localStorage.getItem(storageKey(propertyId, userId));
+    const raw = window.localStorage.getItem(
+      storageKey(name, propertyId, userId),
+    );
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<DashboardLayout>;
     const known = new Set(allIds);
@@ -52,13 +54,14 @@ function read(
 }
 
 function write(
+  name: string,
   propertyId: string,
   userId: string,
   layout: DashboardLayout,
 ): void {
   try {
     window.localStorage.setItem(
-      storageKey(propertyId, userId),
+      storageKey(name, propertyId, userId),
       JSON.stringify(layout),
     );
   } catch {
@@ -88,6 +91,7 @@ export function useDashboardLayout(
   propertyId: string,
   userId: string,
   allIds: string[],
+  name = "home-layout",
 ): UseDashboardLayout {
   // SSR-safe: default on first render, re-read from storage post-hydration.
   const [layout, setLayout] = useState<DashboardLayout>({
@@ -98,18 +102,18 @@ export function useDashboardLayout(
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLayout(read(propertyId, userId, allIds));
+    setLayout(read(name, propertyId, userId, allIds));
     setReady(true);
     // allIds is stable per render from the registry; key on the scope only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId, userId]);
+  }, [name, propertyId, userId]);
 
   const commit = useCallback(
     (next: DashboardLayout) => {
       setLayout(next);
-      write(propertyId, userId, next);
+      write(name, propertyId, userId, next);
     },
-    [propertyId, userId],
+    [name, propertyId, userId],
   );
 
   const setOrder = useCallback(

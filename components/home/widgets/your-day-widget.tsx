@@ -13,6 +13,7 @@ const SOURCE_DOT: Record<CalendarEvent["source"], string> = {
   meeting: "bg-violet-500",
   task: "bg-blue-500",
   external: "bg-muted-foreground/50",
+  booking: "bg-emerald-500",
 };
 
 /** The current user's schedule: today first, then the next few days. Range is

@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   FileText,
   FolderKanban,
   Inbox,
-  ListChecks,
-  Tag,
   UserCheck,
 } from "lucide-react";
 import {
@@ -33,10 +32,51 @@ import { ProjectsSidebar } from "@/components/projects/projects-sidebar";
  *
  * Personal *activity* now lives as its own widget on the dashboard, not here.
  */
-export function HomeSection({ propertyId }: { propertyId: string }) {
+export function HomeSection({
+  propertyId,
+  isManagement,
+}: {
+  propertyId: string;
+  isManagement: boolean;
+}) {
   const pathname = usePathname();
+  const router = useRouter();
   const base = `/p/${propertyId}`;
   const openDocument = useOpenDocument(propertyId);
+
+  // Insights lives as a sub-view of Home (`/home/insights`). When we're already
+  // somewhere under Home, hop with pushState (zero roundtrip — the surface
+  // re-derives off the URL); fall back to a full navigation otherwise.
+  const insightsBase = `${base}/home/insights`;
+  function navigateInsights(href: string) {
+    if (/^\/p\/[^/]+\/home(?:\/|$)/.test(window.location.pathname)) {
+      window.history.pushState(null, "", href);
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
+    } else {
+      router.push(href);
+    }
+  }
+  const intelligenceLinks = [
+    {
+      label: isManagement ? "Insights" : "My week",
+      icon: Activity,
+      href: insightsBase,
+      active:
+        pathname === insightsBase ||
+        (pathname.startsWith(`${insightsBase}`) &&
+          !pathname.startsWith(`${insightsBase}/reports`)),
+    },
+    ...(isManagement
+      ? [
+          {
+            label: "Reports",
+            icon: FileText,
+            href: `${insightsBase}/reports`,
+            active: pathname.startsWith(`${insightsBase}/reports`),
+          },
+        ]
+      : []),
+  ];
 
   const { pinnedIds } = usePinnedDocs(propertyId);
   const { data: docs = [] } = useQuery(documentsQueryOptions(propertyId));
@@ -53,12 +93,10 @@ export function HomeSection({ propertyId }: { propertyId: string }) {
     {
       label: "My tasks",
       icon: UserCheck,
-      href: `${base}/tasks?view=mine`,
-      match: `${base}/tasks`,
+      href: `${base}/my-tasks`,
+      match: `${base}/my-tasks`,
     },
-    { label: "All tasks", icon: ListChecks, href: `${base}/tasks`, match: `${base}/tasks` },
     { label: "Inbox", icon: Inbox, href: `${base}/activity`, match: `${base}/activity` },
-    { label: "Labels", icon: Tag, href: `${base}/labels`, match: `${base}/labels` },
   ];
 
   return (
@@ -75,6 +113,26 @@ export function HomeSection({ propertyId }: { propertyId: string }) {
                       ? pathname === item.match
                       : pathname.startsWith(item.match)
                   }
+                  tooltip={item.label}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {intelligenceLinks.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <SidebarMenuButton
+                  render={<button type="button" />}
+                  onClick={() => navigateInsights(item.href)}
+                  isActive={item.active}
                   tooltip={item.label}
                 >
                   <item.icon />

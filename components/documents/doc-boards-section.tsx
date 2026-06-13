@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import { useSortable, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
@@ -43,14 +42,10 @@ import {
   type BoardColor,
   type DocumentBoardRow,
 } from "@/lib/query/section-queries";
-import { documentHref } from "@/lib/documents/document-href";
-import { DocumentViewerAvatarStack } from "@/components/documents/document-presence-stack";
+import { DocPinCard, DocumentPinPicker } from "@/components/documents/doc-pin-card";
 import {
-  useDocsHomePresence,
   useDocsHomePresenceMap,
 } from "@/components/documents/docs-home-presence";
-import { useOpenDocument } from "@/lib/documents/use-open-document";
-import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
 import {
   createBoard,
   deleteBoard,
@@ -118,7 +113,14 @@ type DocRow = {
  * "Create your first board" CTA inline instead of nothing — so the feature is
  * discoverable. Once any board exists the CTA goes away.
  */
-export function DocBoardsSection({ propertyId }: { propertyId: string }) {
+export function DocBoardsSection({
+  propertyId,
+  pinMode = "drag",
+}: {
+  propertyId: string;
+  /** Dashboard has no doc list to drag from — use search-and-click pinning. */
+  pinMode?: "drag" | "picker";
+}) {
   const queryClient = useQueryClient();
   const { data: boards = EMPTY_BOARDS } = useQuery(
     documentBoardsQueryOptions(propertyId),
@@ -189,7 +191,13 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
   // boards → show the discoverability CTA so the user knows boards exist.
   if (boards.length === 0) {
     if (!docs || docs.length === 0) return null;
-    return <EmptyBoardsCallout onCreate={handleCreate} pending={creatingBoard} />;
+    return (
+      <EmptyBoardsCallout
+        onCreate={handleCreate}
+        pending={creatingBoard}
+        pinMode={pinMode}
+      />
+    );
   }
 
   return (
@@ -219,7 +227,9 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
             key={board.id}
             board={board}
             docsById={docsById}
+            docs={docs ?? []}
             propertyId={propertyId}
+            pinMode={pinMode}
           />
         ))}
       </div>
@@ -234,11 +244,15 @@ export function DocBoardsSection({ propertyId }: { propertyId: string }) {
 function BoardStrip({
   board,
   docsById,
+  docs,
   propertyId,
+  pinMode,
 }: {
   board: DocumentBoardRow;
   docsById: Map<string, DocRow>;
+  docs: DocRow[];
   propertyId: string;
+  pinMode: "drag" | "picker";
 }) {
   // Items sorted by position — Supabase nested ordering is finicky, so we
   // sort client-side (lists are tiny).
@@ -256,7 +270,20 @@ function BoardStrip({
   const { setNodeRef, isOver } = useDroppable({
     id: `board:${board.id}`,
     data: { type: "board", boardId: board.id },
+    disabled: pinMode === "picker",
   });
+
+  const onBoard = useMemo(
+    () => new Set(items.map((i) => i.document_id)),
+    [items],
+  );
+  const pinCandidates = useMemo(
+    () =>
+      docs
+        .filter((d) => !onBoard.has(d.id))
+        .map((d) => ({ id: d.id, title: d.title })),
+    [docs, onBoard],
+  );
 
   // Owned locally so `DocCard`'s remove-from-board button has a single
   // call-site for optimistic update + server action + toast. Re-pinning on
@@ -275,41 +302,69 @@ function BoardStrip({
 
   const hasItems = items.length > 0;
 
+  const pinPicker = (
+    <DocumentPinPicker
+      groups={[{ label: "Documents", items: pinCandidates }]}
+      onPin={(id) => void pin(id, board.id)}
+      disabled={pinCandidates.length === 0}
+    />
+  );
+
+  const cards = items.map((item) => {
+    const doc = docsById.get(item.document_id);
+    if (!doc) return null;
+    return pinMode === "picker" ? (
+      <DocPinCard
+        key={doc.id}
+        doc={doc}
+        propertyId={propertyId}
+        accentDotClass={COLOR_DOT[board.color]}
+        onUnpin={handleUnpin}
+      />
+    ) : (
+      <DocCard
+        key={doc.id}
+        doc={doc}
+        propertyId={propertyId}
+        boardColor={board.color}
+        onUnpin={handleUnpin}
+      />
+    );
+  });
+
   return (
     <div className="group/board bg-zinc-200/70 px-7 pt-6 pb-5 dark:bg-white/[0.04]">
       <BoardHeader board={board} />
       <div
-        ref={setNodeRef}
+        ref={pinMode === "drag" ? setNodeRef : undefined}
         className={cn(
           "flex gap-3 overflow-x-auto py-2",
-          isOver && cn("rounded-lg ring-1 ring-inset", COLOR_DROP_TINT[board.color]),
+          pinMode === "drag" &&
+            isOver &&
+            cn("rounded-lg ring-1 ring-inset", COLOR_DROP_TINT[board.color]),
         )}
       >
-        <SortableContext items={itemIds} strategy={horizontalListSortingStrategy}>
-          {hasItems ? (
+        {pinMode === "picker" ? (
+          hasItems ? (
             <>
-              {items.map((item) => {
-                const doc = docsById.get(item.document_id);
-                if (!doc) return null;
-                return (
-                  <DocCard
-                    key={doc.id}
-                    doc={doc}
-                    propertyId={propertyId}
-                    boardColor={board.color}
-                    onUnpin={handleUnpin}
-                  />
-                );
-              })}
-              {/* Only show the trailing drop tile when the board already has
-                  cards — empty boards delegate the "drop target" hint to
-                  `BoardEmptyHint`, which spans the whole strip. */}
-              <DropSlot />
+              {cards}
+              {pinPicker}
             </>
           ) : (
-            <BoardEmptyHint />
-          )}
-        </SortableContext>
+            <BoardEmptyHint pinMode={pinMode} pinPicker={pinPicker} />
+          )
+        ) : (
+          <SortableContext items={itemIds} strategy={horizontalListSortingStrategy}>
+            {hasItems ? (
+              <>
+                {cards}
+                <DropSlot />
+              </>
+            ) : (
+              <BoardEmptyHint pinMode={pinMode} />
+            )}
+          </SortableContext>
+        )}
       </div>
     </div>
   );
@@ -454,9 +509,30 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
   );
 }
 
-function BoardEmptyHint() {
+function BoardEmptyHint({
+  pinMode,
+  pinPicker,
+}: {
+  pinMode: "drag" | "picker";
+  pinPicker?: React.ReactNode;
+}) {
+  if (pinMode === "picker" && pinPicker) {
+    return (
+      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-lg border border-dashed border-border/70 px-4 py-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">Pin documents</p>
+          <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
+            Search and pin pages your team needs quick access to — no dragging
+            required.
+          </p>
+        </div>
+        {pinPicker}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-48 min-w-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-4 text-center">
+    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-4 text-center">
       <span
         className="flex size-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground"
         aria-hidden="true"
@@ -483,125 +559,30 @@ function DocCard({
   doc: DocRow;
   propertyId: string;
   boardColor: BoardColor;
-  /** Called when the user clicks the hover-revealed remove button. */
   onUnpin: (documentId: string) => void;
 }) {
-  const openDocument = useOpenDocument(propertyId);
-  const prewarm = usePrewarmDocument(propertyId);
-
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: `card:${doc.id}`,
       data: { type: "card", documentId: doc.id },
     });
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    openDocument(doc.id);
-  }
-
-  // The remove button sits *over* the draggable wrapper. Two things must not
-  // happen on click: (a) the underlying <Link> shouldn't navigate, and
-  // (b) `useSortable`'s pointer listeners on the wrapper shouldn't start a
-  // drag. We stop propagation on both pointerdown and click for that.
-  function handleUnpinClick(e: React.MouseEvent<HTMLButtonElement>) {
-    e.preventDefault();
-    e.stopPropagation();
-    onUnpin(doc.id);
-  }
-
-  // Page-thumbnail layout: white page-shaped card with title at the top, a
-  // hairline divider, and the body snippet rendered as the page's content.
-  // The text is the server-side plaintext snapshot from `documents.body_text`,
-  // captured by the Liveblocks `ydocUpdated` webhook — see
-  // `app/api/liveblocks/webhook/route.ts`. Slice client-side to keep cards
-  // compact; the full body sits in the React Query cache regardless.
-  const snippet = doc.body_text?.trim().slice(0, 500) ?? "";
-  const viewers = useDocsHomePresence(doc.id);
-
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group/card relative shrink-0",
-        isDragging && "opacity-40",
-      )}
-      // Drag attributes go on the wrapper so the whole card is the grab
-      // surface; the inner Link still fires click for navigation.
-      {...attributes}
-      {...listeners}
-    >
-      <Link
-        href={documentHref(propertyId, doc.id)}
-        onClick={handleClick}
-        onMouseEnter={() => prewarm(doc.id)}
-        draggable={false}
-        className={cn(
-          "flex h-48 w-40 cursor-grab flex-col overflow-hidden rounded-lg border border-border/80 bg-card text-left transition-[box-shadow,border-color,background-color] duration-150",
-          "active:cursor-grabbing",
-          "group-hover/card:border-foreground/30 group-hover/card:bg-muted/40 group-hover/card:shadow-md group-hover/card:shadow-foreground/5",
-          "dark:shadow-none dark:inset-ring dark:inset-ring-white/5 dark:group-hover/card:inset-ring-white/10",
-        )}
-      >
-        <div className="flex-1 overflow-hidden p-3">
-          <h3 className="line-clamp-2 pr-6 text-sm font-medium text-foreground">
-            {doc.title || "Untitled"}
-          </h3>
-          <div className="my-2 h-px bg-border/50" />
-          {snippet ? (
-            <p className="line-clamp-5 whitespace-pre-line text-sm text-muted-foreground">
-              {snippet}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground/70">Empty document</p>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-2 border-t border-border/50 px-3 py-2">
-          <span className="flex items-center gap-1.5">
-            <span
-              className={cn(
-                "size-1.5 shrink-0 rounded-full",
-                COLOR_DOT[boardColor],
-              )}
-              aria-hidden="true"
-            />
-            <span className="text-sm text-muted-foreground tabular-nums">
-              {relativeTime(doc.updated_at)}
-            </span>
-          </span>
-          <DocumentViewerAvatarStack users={viewers} size={18} />
-        </div>
-      </Link>
-
-      {/* Remove-from-board affordance. Hover/focus-revealed so it doesn't
-          compete with the card content at rest. Positioned absolutely over
-          the top-right corner; the title above reserves `pr-6` so a long
-          title can't slide under it. Pointer-events explicitly enabled so
-          the button is clickable even though it floats over the Link.
-          `onPointerDown` stops the sortable's drag activation. */}
-      <button
-        type="button"
-        aria-label="Remove from board"
-        title="Remove from board"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={handleUnpinClick}
-        className={cn(
-          "absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md border border-border/60 bg-card/95 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity",
-          "group-hover/card:opacity-100 focus-visible:opacity-100",
-          "hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive",
-          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring/60",
-        )}
-      >
-        <X strokeWidth={2} className="size-3.5" />
-      </button>
-    </div>
+    <DocPinCard
+      doc={doc}
+      propertyId={propertyId}
+      accentDotClass={COLOR_DOT[boardColor]}
+      onUnpin={onUnpin}
+      draggable
+      isDragging={isDragging}
+      wrapperRef={setNodeRef}
+      wrapperStyle={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+    />
   );
 }
 
@@ -639,9 +620,11 @@ function DropSlot() {
 function EmptyBoardsCallout({
   onCreate,
   pending,
+  pinMode,
 }: {
   onCreate: () => void;
   pending: boolean;
+  pinMode: "drag" | "picker";
 }) {
   return (
     <section className="border-b border-border/50 pb-8">
@@ -651,8 +634,9 @@ function EmptyBoardsCallout({
             Pin your most-used documents
           </h2>
           <p className="mt-1 max-w-[48ch] text-sm text-pretty text-muted-foreground">
-            Create a board and drag documents from the library — everyone on
-            this property sees the same layout.
+            {pinMode === "picker"
+              ? "Create a board, then search and pin documents — everyone on this property sees the same layout."
+              : "Create a board and drag documents from the library — everyone on this property sees the same layout."}
           </p>
         </div>
         <Button
@@ -743,20 +727,3 @@ export function useBoardMutations(propertyId: string) {
   return { pin, unpin };
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Utility — relative time string (same shape as the rest of the home).     */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function relativeTime(iso: string): string {
-  const now = Date.now();
-  const then = new Date(iso).getTime();
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}

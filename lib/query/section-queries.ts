@@ -104,6 +104,11 @@ export type DocumentTreeRow = {
   // 'doc' = Tiptap rich-text; 'sheet' = collaborative spreadsheet. Drives
   // the editor fork in <DocumentsSurface> and the icon in the tree.
   kind: "doc" | "sheet";
+  /** Creation provenance (migration 0050) — 'workflow' docs get a ⚡ badge.
+   *  Optional so optimistic cache inserts don't have to supply them. */
+  source?: string | null;
+  source_workflow_id?: string | null;
+  source_workflow_run_id?: string | null;
 };
 
 /**
@@ -120,7 +125,7 @@ export function documentsTreeQueryOptions(propertyId: string) {
       const { data, error } = await supabase
         .from("documents")
         .select(
-          "id, title, parent_id, position, updated_at, last_edited_by, kind",
+          "id, title, parent_id, position, updated_at, last_edited_by, kind, source, source_workflow_id, source_workflow_run_id",
         )
         .eq("property_id", propertyId)
         .is("archived_at", null)
@@ -281,5 +286,27 @@ export function documentPresenceQueryOptions(
     },
     refetchInterval: 10_000,
     staleTime: 8_000,
+  });
+}
+
+export type FormSidebarItem = {
+  id: string;
+  title: string;
+  icon: string | null;
+  status: string;
+  updated_at: string;
+};
+
+/** Lightweight form index for the Documents-section sidebar. */
+export function formsListQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["forms", propertyId] as const,
+    queryFn: async (): Promise<FormSidebarItem[]> => {
+      const res = await fetch(`/api/properties/${propertyId}/forms`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load forms");
+      return res.json();
+    },
   });
 }

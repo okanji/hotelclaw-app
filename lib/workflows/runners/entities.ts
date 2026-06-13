@@ -49,6 +49,9 @@ export const createEntityRunner: RunnerImpl<
       entity_type_id: entityTypeId,
       data: config.data,
       created_by: ctx.workflowOwnerId,
+      source: "workflow",
+      source_workflow_id: ctx.workflowId,
+      source_workflow_run_id: ctx.runId,
     })
     .select("*")
     .single();

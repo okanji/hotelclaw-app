@@ -15,6 +15,8 @@ export type StepEditorFlowSlots = {
   canvasSummary?: ReactNode;
   configure?: ReactNode;
   dataContext?: ReactNode;
+  /** The step's output contract — what later steps can reference. */
+  produces?: ReactNode;
   condition?: ReactNode;
   conditionSummary?: ReactNode;
   /** Branch: step 1 — IF conditions. */
@@ -73,6 +75,15 @@ export function StepEditorFlowLayout({ slots }: { slots: StepEditorFlowSlots }) 
         marker: n,
         title: "Data you can use",
         children: slots.dataContext,
+      });
+    }
+    if (slots.produces) {
+      n += 1;
+      steps.push({
+        id: "produces",
+        marker: n,
+        title: "What this step produces",
+        children: slots.produces,
       });
     }
     if (slots.canvasSummary) {

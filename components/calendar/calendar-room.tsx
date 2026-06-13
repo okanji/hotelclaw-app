@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { ChevronLeft, ChevronRight, MessageSquareText, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -17,11 +19,14 @@ import {
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   addDays,
   addMinutes,
   endOfDay,
   endOfWeek,
+  MINUTES_PER_DAY,
+  snapToGrain,
   startOfDay,
   startOfWeek,
   weekDays,
@@ -37,7 +42,11 @@ import { WeekGrid } from "./week-grid";
 import { MonthGrid } from "./month-grid";
 import { EventDialog } from "./event-dialog";
 import { TeamOverlayPanel } from "./team-overlay-panel";
-import { TaskScheduleRail } from "./task-schedule-rail";
+import {
+  TaskChipGhost,
+  TaskScheduleRail,
+  type TaskDragData,
+} from "./task-schedule-rail";
 import { useCalendarRealtime } from "./use-calendar-realtime";
 import { CalendarPresenceBar } from "./presence-bar";
 import { PresenceCursors } from "./presence-cursors";
@@ -188,14 +197,34 @@ export function CalendarRoom({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
+  // Task being dragged from the rail — drives the DragOverlay ghost. The
+  // overlay portals to the body, so the ghost stays visible over the grid
+  // instead of being clipped by the rail's overflow.
+  const [dragTask, setDragTask] = useState<TaskDragData | null>(null);
+  // Whether the dragged chip is currently over a day column. The chip
+  // ghost hides there so it doesn't cover the in-column drop preview —
+  // the preview (snapped block + time label) takes over as the cursor's
+  // representation, Google Calendar style.
+  const [overGrid, setOverGrid] = useState(false);
+
+  function handleDragStart(event: DragStartEvent) {
+    if (event.active.data.current?.kind === "task") {
+      setDragTask(event.active.data.current as TaskDragData);
+      setOverGrid(false);
+    }
+  }
+
   // dnd-kit drop handler — a task chip from `TaskScheduleRail` drops onto
-  // one of the `calendar-day:<dateString>` droppables. We snap to the top
-  // of the day for the start, and give the task a 1-hour default block
-  // (good enough for v1; the user can refine in the event dialog).
+  // one of the `calendar-day:<dateString>` droppables. The start time
+  // comes from where the chip lands in the column (snapped to 15 min,
+  // falling back to 9am if rects are unavailable), with a 1-hour default
+  // block the user can refine in the event dialog.
   async function handleDragEnd(event: DragEndEvent) {
+    setDragTask(null);
+    setOverGrid(false);
     const taskId =
       event.active.data.current?.kind === "task"
-        ? (event.active.data.current as { taskId: string }).taskId
+        ? (event.active.data.current as TaskDragData).taskId
         : null;
     if (!taskId) return;
     const dropDate =
@@ -203,8 +232,23 @@ export function CalendarRoom({
         ? new Date((event.over.data.current as { date: string }).date)
         : null;
     if (!dropDate) return;
-    const start = new Date(dropDate);
-    start.setHours(9, 0, 0, 0);
+    // Resolve the drop time from where the ghost chip's top edge lands in
+    // the column. Both rects are viewport-space: `over.rect` stays live via
+    // dnd-kit's measuring, and `translated` is the DragOverlay's rendered
+    // position. (Don't use `event.delta` for this — it's scroll-adjusted,
+    // so any container scroll during the drag skews it.)
+    const overRect = event.over?.rect;
+    const chipRect = event.active.rect.current.translated;
+    let startMinutes = 9 * 60;
+    if (overRect && chipRect && overRect.height > 0) {
+      const raw =
+        ((chipRect.top - overRect.top) / overRect.height) * MINUTES_PER_DAY;
+      startMinutes = Math.max(
+        0,
+        Math.min(MINUTES_PER_DAY - 60, snapToGrain(raw, 15)),
+      );
+    }
+    const start = addMinutes(startOfDay(dropDate), startMinutes);
     const end = addMinutes(start, 60);
     const result = await scheduleTask({
       propertyId,
@@ -235,6 +279,9 @@ export function CalendarRoom({
       if (e.source === "task") {
         return !hiddenSources.has("internal:tasks");
       }
+      if (e.source === "booking") {
+        return !hiddenSources.has("internal:bookings");
+      }
       return !hiddenSources.has(e.calendar_id);
     });
   }, [eventsQuery.data, hiddenSources]);
@@ -258,9 +305,24 @@ export function CalendarRoom({
   const days = view === "week" ? weekDays(focusDate) : [startOfDay(focusDate)];
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-    <section className="flex h-full min-h-0 flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={(e) =>
+        setOverGrid(e.over?.data.current?.kind === "calendar-day")
+      }
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setDragTask(null);
+        setOverGrid(false);
+      }}
+    >
+    {/* `relative overflow-x-clip` anchors the slide-in AI panel to this
+        surface and clips it when translated off — without it, the panel's
+        absolute positioning resolved against a wider ancestor and its
+        closed state peeked back into the viewport as a stray strip. */}
+    <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-x-clip">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -287,7 +349,7 @@ export function CalendarRoom({
               <ChevronRight className="size-4" />
             </Button>
           </div>
-          <h1 className="text-base font-medium">
+          <h1 className="text-base font-semibold tracking-tight tabular-nums">
             {formatRange(view, focusDate)}
           </h1>
         </div>
@@ -343,7 +405,12 @@ export function CalendarRoom({
               regardless of how the rails on the right compress it. */}
           <PresenceCursors />
         </div>
-        <div className="flex shrink-0 flex-col">
+        {/* Right rail — unscheduled tasks fill the column, team availability
+            stays pinned at the bottom instead of being pushed off-screen by
+            a long task list. The wrapper owns the border/background (and
+            hides itself when both panels render null) so an empty panel
+            never leaves an unstyled gap in the column. */}
+        <div className="hidden min-h-0 shrink-0 flex-col border-l border-border bg-muted/20 lg:has-[aside]:flex">
           <TaskScheduleRail propertyId={propertyId} />
           <TeamOverlayPanel
             propertyId={propertyId}
@@ -389,6 +456,24 @@ export function CalendarRoom({
         onClose={() => setAiOpen(false)}
       />
     </section>
+    <DragOverlay dropAnimation={null}>
+      {dragTask ? (
+        // Fade out (never unmount) over the grid: the overlay's rect feeds
+        // dnd-kit's collision detection, so unmounting it mid-drag makes
+        // `over` flicker to null and the drop silently no-op.
+        <div
+          className={cn(
+            "transition-opacity duration-100",
+            overGrid && "opacity-0",
+          )}
+        >
+          <TaskChipGhost
+            title={dragTask.title}
+            priority={dragTask.priority}
+          />
+        </div>
+      ) : null}
+    </DragOverlay>
     </DndContext>
   );
 }

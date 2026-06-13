@@ -39,10 +39,66 @@ export type MentionPayload = {
    *  notifications written before this field existed won't carry it, and
    *  consumers fall back to treating those as team channels. */
   channelType?: "team" | "messaging";
+  /** Display name of the team channel, for the activity feed's `#channel`
+   *  chip. Optional: absent on DMs and on rows written before this field
+   *  existed — consumers render without the chip then. */
+  channelName?: string;
   messageId: string;
   byUserId: string;
   byUserName: string | null;
   preview: string;
+};
+
+export type BriefingPayload = {
+  periodStart: string;
+  periodEnd: string;
+  /** The report's Headline section, for the activity card sub. */
+  headline: string;
+};
+
+export type WorkflowPayload = {
+  /** What happened — only run_failed today; future kinds render generically. */
+  kind: "run_failed";
+  workflowId: string;
+  workflowName: string;
+  runId: string;
+  /** The run-level error message, if one was recorded. */
+  error: string | null;
+};
+
+export type ProjectAtRiskPayload = {
+  projectId: string;
+  name: string;
+  /** The deterministic pace reasons behind the flip. */
+  reasons: string[];
+};
+
+export type TaskSlipPayload = {
+  taskId: string;
+  title: string;
+  /** Runway left vs the typical (p75) completion time, both in days. */
+  dueInDays: number;
+  p75Days: number;
+};
+
+export type InsightAlertPayload = {
+  /** scopeKey wire format of the rule's lens. */
+  scope: string;
+  scopeLabel: string;
+  metric: string;
+  value: number;
+  threshold: number | null;
+};
+
+export type GuestEscalationPayload = {
+  chatbotId: string;
+  chatbotName: string;
+  conversationId: string;
+  guestName: string | null;
+  roomNumber: string | null;
+  /** The bot's 2-3 sentence summary for staff. */
+  summary: string;
+  reason: string;
 };
 
 export type MeetingSummaryPayload = {

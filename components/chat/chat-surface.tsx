@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { ChannelView } from "./channel-view";
 
 /** Captures the conversation id from `/p/<pid>/(chat|dms)/<id>`. */
@@ -15,10 +16,10 @@ const DMS_ROOT = /^\/p\/[^/]+\/dms\/?$/;
  * Mounted once in the property layout, it owns rendering for every chat/DM
  * URL — both conversation routes and the `/dms` "nothing selected" landing.
  * That lets rail clicks `pushState` even to `/dms` root (see app-rail) without
- * paying a cross-segment Next route navigation: the URL updates, `usePathname`
- * notifies in the same React tick, and the right branch below renders in
- * place. Channel-to-channel and section-to-section switches both stay zero
- * round-trip.
+ * paying a cross-segment Next route navigation: `useSurfacePathname` picks up
+ * the new URL in the same React tick as the other surfaces, and the right
+ * branch below renders in place. Channel-to-channel and section-to-section
+ * switches both stay zero round-trip.
  *
  * Off chat/DM routes the surface returns null and the section page (Tasks,
  * Docs, …) fills the pane instead.
@@ -32,7 +33,7 @@ export function ChatSurface({ propertyId }: { propertyId: string }) {
 }
 
 function ChatSurfaceInner({ propertyId }: { propertyId: string }) {
-  const pathname = usePathname();
+  const pathname = useSurfacePathname();
   const messageId = useSearchParams().get("messageId");
 
   const channelId = pathname.match(CHANNEL_ROUTE)?.[1];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, History, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Check, FlaskConical, History, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -16,6 +16,7 @@ import { PanZoomCanvas } from "./tree-list/pan-zoom-canvas";
 import { WorkflowBuilderDataProvider } from "./workflow-builder-data";
 import { ClientSideSuspense } from "@liveblocks/react";
 import { VersionHistoryDialog } from "./version-history-dialog";
+import { TestRunDialog } from "./test-run-dialog";
 import { WorkflowCoEditing } from "./workflow-co-editing";
 
 const AUTOSAVE_DELAY_MS = 1200;
@@ -70,6 +71,7 @@ export function BuilderShell({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [view, setView] = useState<"flow" | "map">("flow");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
   const saveSeq = useRef(0);
   const lastAutosaveAttempt = useRef<WorkflowSpec | null>(null);
   const debouncedSpec = useDebouncedValue(spec, AUTOSAVE_DELAY_MS);
@@ -335,7 +337,18 @@ export function BuilderShell({
         </p>
         <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
           {enableCoEditing ? (
-            <ClientSideSuspense fallback={null}>
+            // The fallback mirrors the co-editing toolbar's footprint (undo/redo
+            // pair) so the header doesn't pop when Liveblocks finishes connecting
+            // — a null fallback made the buttons appear to vanish.
+            <ClientSideSuspense
+              fallback={
+                <div
+                  className="h-7 w-[60px] animate-pulse rounded-md border border-border bg-muted/40"
+                  aria-label="Connecting live editing…"
+                  role="status"
+                />
+              }
+            >
               <WorkflowCoEditing
                 spec={spec}
                 selectedStepId={selectedStepId}
@@ -368,6 +381,15 @@ export function BuilderShell({
               <History className="size-3.5" />
             </IconButton>
           </div>
+          <button
+            type="button"
+            onClick={() => setTestOpen(true)}
+            title="Dry-run the saved workflow with sample trigger data — no side effects"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-[12px] hover:bg-muted"
+          >
+            <FlaskConical className="size-3.5" aria-hidden />
+            Test
+          </button>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-[11px]">
             <ViewTab
               icon={<List className="size-3" />}
@@ -515,6 +537,14 @@ export function BuilderShell({
         workflowId={workflowId}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+      />
+      <TestRunDialog
+        propertyId={propertyId}
+        workflowId={workflowId}
+        spec={spec}
+        dirty={dirty}
+        open={testOpen}
+        onClose={() => setTestOpen(false)}
       />
     </div>
     </WorkflowBuilderDataProvider>

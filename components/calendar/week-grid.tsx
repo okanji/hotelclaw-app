@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useDroppable } from "@dnd-kit/core";
+import { useDndMonitor, useDroppable } from "@dnd-kit/core";
 import {
   addMinutes,
   isSameDay,
@@ -129,7 +129,11 @@ export function WeekGrid({
         {days.map((d) => (
           <div
             key={d.toDateString()}
-            className="flex flex-1 flex-col gap-1 border-r border-border px-1.5 py-1.5"
+            className={cn(
+              "flex flex-1 flex-col gap-1 border-r border-border px-1.5 py-1.5",
+              isWeekend(d) && "bg-muted/30",
+              isSameDay(d, new Date()) && "bg-primary/4",
+            )}
           >
             <DayHeader date={d} />
             <div className="flex flex-col gap-1">
@@ -139,7 +143,7 @@ export function WeekGrid({
                   type="button"
                   onClick={() => onSelectEvent(ev)}
                   className={cn(
-                    "truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium",
+                    "truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-[11px] font-medium",
                     eventTint(ev),
                   )}
                 >
@@ -175,12 +179,17 @@ function DayHeader({ date }: { date: Date }) {
   const today = isSameDay(date, new Date());
   return (
     <div className="flex items-baseline justify-between">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <span
+        className={cn(
+          "text-[10px] font-medium uppercase tracking-wide",
+          today ? "text-primary" : "text-muted-foreground",
+        )}
+      >
         {date.toLocaleDateString(undefined, { weekday: "short" })}
       </span>
       <span
         className={cn(
-          "flex size-6 items-center justify-center rounded-full text-sm font-medium",
+          "flex size-6 items-center justify-center rounded-full text-sm font-medium tabular-nums",
           today
             ? "bg-primary text-primary-foreground"
             : "text-foreground",
@@ -196,12 +205,14 @@ function HourAxis() {
   return (
     <div className="w-14 shrink-0 border-r border-border">
       {Array.from({ length: 24 }, (_, h) => (
-        <div
-          key={h}
-          className="flex items-start justify-end pr-1.5 pt-0.5 text-[10px] text-muted-foreground"
-          style={{ height: HOUR_HEIGHT_PX }}
-        >
-          {h === 0 ? "" : formatHourLabel(h)}
+        <div key={h} className="relative" style={{ height: HOUR_HEIGHT_PX }}>
+          {/* Label sits centered on the hour rule, Google Calendar style,
+              rather than floating below it. */}
+          {h > 0 ? (
+            <div className="absolute inset-x-0 top-0 -translate-y-1/2 pr-2 text-right text-[10px] font-medium tabular-nums text-muted-foreground/80">
+              {formatHourLabel(h)}
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -239,9 +250,52 @@ function DayColumn({
   // dnd-kit drop target so a TaskCard dragged here can schedule on this day.
   // Drop payload uses the column's bounding rect to compute the dropped
   // y-position into minutes (done in onDragEnd at the parent).
+  const droppableId = `calendar-day:${day.toDateString()}`;
   const droppable = useDroppable({
-    id: `calendar-day:${day.toDateString()}`,
+    id: droppableId,
     data: { kind: "calendar-day", date: day.toISOString() },
+  });
+
+  // Live drop preview for a task chip dragged over this column — a ghost
+  // event block snapped to the 15-minute grid at the chip's top edge, so
+  // the user sees exactly where (and when) the task will land before
+  // releasing. Uses the same math as the room's onDragEnd so the preview
+  // and the actual drop always agree.
+  const [taskDrop, setTaskDrop] = useState<{
+    startMin: number;
+    title: string;
+  } | null>(null);
+  useDndMonitor({
+    onDragMove(e) {
+      const data = e.active.data.current as
+        | { kind?: string; title?: string }
+        | undefined;
+      if (data?.kind !== "task") return;
+      if (e.over?.id !== droppableId) {
+        setTaskDrop(null);
+        return;
+      }
+      const chipTop = e.active.rect.current.translated?.top;
+      const colRect = columnRef.current?.getBoundingClientRect();
+      if (chipTop == null || !colRect || colRect.height === 0) return;
+      const raw =
+        ((chipTop - colRect.top) / colRect.height) * MINUTES_PER_DAY;
+      const startMin = Math.max(
+        0,
+        Math.min(MINUTES_PER_DAY - 60, snapToGrain(raw, SNAP_MINUTES)),
+      );
+      setTaskDrop((prev) =>
+        prev?.startMin === startMin
+          ? prev
+          : { startMin, title: data.title ?? "" },
+      );
+    },
+    onDragEnd() {
+      setTaskDrop(null);
+    },
+    onDragCancel() {
+      setTaskDrop(null);
+    },
   });
 
   // layoutColumns reads `start` / `end` off each item — wrap each event so
@@ -301,20 +355,27 @@ function DayColumn({
       }}
       className={cn(
         "relative flex-1 border-r border-border",
-        droppable.isOver && "bg-primary/5",
+        isWeekend(day) && "bg-muted/30",
+        isSameDay(day, new Date()) && "bg-primary/4",
+        droppable.isOver && "bg-primary/10",
       )}
       style={{ height: HOUR_HEIGHT_PX * 24 }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {/* Hour rule lines */}
+      {/* Hour rule lines, with a fainter dashed rule on the half hour */}
       {Array.from({ length: 24 }, (_, h) => (
-        <div
-          key={h}
-          className="absolute inset-x-0 border-t border-border/60"
-          style={{ top: h * HOUR_HEIGHT_PX }}
-        />
+        <div key={h}>
+          <div
+            className="absolute inset-x-0 border-t border-border/60"
+            style={{ top: h * HOUR_HEIGHT_PX }}
+          />
+          <div
+            className="absolute inset-x-0 border-t border-dashed border-border/30"
+            style={{ top: h * HOUR_HEIGHT_PX + HOUR_HEIGHT_PX / 2 }}
+          />
+        </div>
       ))}
 
       {/* Now-line: only on today's column */}
@@ -347,7 +408,7 @@ function DayColumn({
         );
       })}
 
-      {/* Drag preview */}
+      {/* Drag-to-create slot preview */}
       {drag ? (
         <div
           className="pointer-events-none absolute inset-x-1 rounded-md border border-primary/60 bg-primary/15"
@@ -357,6 +418,24 @@ function DayColumn({
               ((drag.endMin - drag.startMin) / 60) * HOUR_HEIGHT_PX,
           }}
         />
+      ) : null}
+
+      {/* Task-drop preview — ghost of the 1-hour block the task will
+          occupy if released here, snapped to the 15-minute grid. */}
+      {taskDrop ? (
+        <div
+          className="pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 border-l-amber-500 bg-amber-500/15 py-1 pr-1.5 pl-2 text-left text-[11px] text-amber-900 shadow-sm ring-1 ring-inset ring-amber-500/30 dark:text-amber-100"
+          style={{
+            top: (taskDrop.startMin / 60) * HOUR_HEIGHT_PX,
+            height: HOUR_HEIGHT_PX,
+          }}
+        >
+          <div className="truncate font-medium">{taskDrop.title}</div>
+          <div className="truncate text-[10px] tabular-nums opacity-70">
+            {formatMinutesLabel(day, taskDrop.startMin)} –{" "}
+            {formatMinutesLabel(day, taskDrop.startMin + 60)}
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -398,7 +477,7 @@ function PositionedEvent({
       data-event-block
       onClick={onSelect}
       className={cn(
-        "absolute overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] shadow-sm ring-1 ring-inset transition-shadow hover:shadow",
+        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-[11px] shadow-xs ring-1 ring-inset transition-shadow hover:z-10 hover:shadow-md",
         eventTint(event),
       )}
       style={{
@@ -406,6 +485,14 @@ function PositionedEvent({
         height,
         left: `calc(${leftPct}% + 4px)`,
         width: `calc(${widthPct}% - 8px)`,
+        // An explicit event colour overrides the source tint, including
+        // the accent edge — the tint classes only carry the fallback.
+        ...(event.color
+          ? {
+              borderLeftColor: `#${event.color}`,
+              backgroundColor: `#${event.color}1A`,
+            }
+          : undefined),
       }}
     >
       <EventBlock event={event} />
@@ -493,12 +580,12 @@ function NowLine() {
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-x-0 z-10 h-px bg-rose-500"
+        className="pointer-events-none absolute inset-x-0 z-10 h-0.5 -translate-y-1/2 rounded-full bg-rose-500"
         style={{ top }}
       />
       <div
-        className="pointer-events-none absolute z-10 size-2 -translate-y-1/2 rounded-full bg-rose-500"
-        style={{ top, left: -4 }}
+        className="pointer-events-none absolute z-10 size-2.5 -translate-y-1/2 rounded-full bg-rose-500 ring-2 ring-background"
+        style={{ top, left: -5 }}
       />
     </>
   );
@@ -511,20 +598,39 @@ function overlaps(day: Date, start: Date, end: Date): boolean {
   return start < dayEnd && end > dayStart;
 }
 
+/** Localized "9:15 AM"-style label for minutes-from-midnight on `day`. */
+function formatMinutesLabel(day: Date, minutes: number): string {
+  return addMinutes(startOfDay(day), minutes).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Whether `d` falls on a Saturday or Sunday. */
+function isWeekend(d: Date): boolean {
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
 /**
- * Source-aware tint. Meetings → blue, tasks → amber (matches kanban-card),
- * external Google → green, external Microsoft → indigo. An explicit
- * `event.color` overrides via inline style in `EventBlock` itself.
+ * Source-aware tint — translucent fill plus a solid left accent edge so
+ * blocks read as colour-coded at a glance even when tiny. Meetings → blue,
+ * tasks → amber (matches kanban-card), external Google → green, external
+ * Microsoft → indigo. An explicit `event.color` overrides via inline style
+ * in `EventBlock` itself.
  */
 function eventTint(event: CalendarEvent): string {
   if (event.source === "meeting") {
-    return "bg-blue-500/10 text-blue-900 ring-blue-500/30 dark:text-blue-100";
+    return "border-l-blue-500 bg-blue-500/10 text-blue-900 ring-blue-500/20 dark:text-blue-100";
   }
   if (event.source === "task") {
-    return "bg-amber-500/10 text-amber-900 ring-amber-500/30 dark:text-amber-100";
+    return "border-l-amber-500 bg-amber-500/10 text-amber-900 ring-amber-500/20 dark:text-amber-100";
+  }
+  if (event.source === "booking") {
+    return "border-l-violet-500 bg-violet-500/10 text-violet-900 ring-violet-500/20 dark:text-violet-100";
   }
   if (event.provider === "google") {
-    return "bg-emerald-500/10 text-emerald-900 ring-emerald-500/30 dark:text-emerald-100";
+    return "border-l-emerald-500 bg-emerald-500/10 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100";
   }
-  return "bg-indigo-500/10 text-indigo-900 ring-indigo-500/30 dark:text-indigo-100";
+  return "border-l-indigo-500 bg-indigo-500/10 text-indigo-900 ring-indigo-500/20 dark:text-indigo-100";
 }

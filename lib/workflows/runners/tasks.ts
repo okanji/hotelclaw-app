@@ -45,6 +45,9 @@ export const createTaskRunner: RunnerImpl<
       parent_id: config.parent_id ?? null,
       created_by: ctx.workflowOwnerId,
       status: "todo",
+      source: "workflow",
+      source_workflow_id: ctx.workflowId,
+      source_workflow_run_id: ctx.runId,
     })
     .select("*")
     .single();

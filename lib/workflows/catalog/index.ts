@@ -9,6 +9,7 @@ import {
 import { TASKS_TRIGGERS, TASKS_ACTIONS } from "./tasks";
 import { CHAT_TRIGGERS, CHAT_ACTIONS } from "./chat";
 import { DOCS_TRIGGERS, DOCS_ACTIONS } from "./docs";
+import { FORMS_ACTIONS } from "./forms";
 import { MEETINGS_TRIGGERS, MEETINGS_ACTIONS } from "./meetings";
 import { CALENDAR_TRIGGERS } from "./calendar";
 import { ENTITIES_TRIGGERS, ENTITIES_ACTIONS } from "./entities";
@@ -16,6 +17,8 @@ import { AI_ACTIONS } from "./ai";
 import { CONTROL_ACTIONS } from "./control";
 import { SYSTEM_TRIGGERS, SYSTEM_ACTIONS } from "./system";
 import { EXTERNAL_TRIGGERS, EXTERNAL_ACTIONS } from "./external";
+import { CHATBOT_TRIGGERS } from "./chatbots";
+import { BOOKING_TRIGGERS, BOOKING_ACTIONS } from "./bookings";
 
 export const TRIGGERS: TriggerCatalogEntry[] = [
   ...TASKS_TRIGGERS,
@@ -26,12 +29,16 @@ export const TRIGGERS: TriggerCatalogEntry[] = [
   ...ENTITIES_TRIGGERS,
   ...SYSTEM_TRIGGERS,
   ...EXTERNAL_TRIGGERS,
+  ...CHATBOT_TRIGGERS,
+  ...BOOKING_TRIGGERS,
 ];
 
 export const STEPS: StepCatalogEntry[] = [
   ...TASKS_ACTIONS,
   ...CHAT_ACTIONS,
   ...DOCS_ACTIONS,
+  ...FORMS_ACTIONS,
+  ...BOOKING_ACTIONS,
   ...MEETINGS_ACTIONS,
   ...ENTITIES_ACTIONS,
   ...AI_ACTIONS,

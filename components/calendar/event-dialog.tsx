@@ -19,6 +19,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { saveMeeting, deleteMeeting } from "@/lib/calendar/actions";
+import {
+  BookingDetails,
+  ExternalDetails,
+  MeetingDetails,
+  TaskDetails,
+} from "./event-details";
 import type { CalendarEvent } from "@/lib/calendar/types";
 import type { MeetingRecurrence } from "@/lib/db/types";
 
@@ -97,6 +103,13 @@ export function EventDialog({
   const editing = initial.mode === "edit" ? initial.event : null;
   const isMeeting = editing?.source === "meeting" || initial.mode === "create";
 
+  // Clicking an existing event opens the read view first (Google Calendar
+  // style); the pencil icon flips to the edit form. Creating goes straight
+  // to the form.
+  const [view, setView] = useState<"details" | "edit">(
+    initial.mode === "edit" ? "details" : "edit",
+  );
+
   const start = editing
     ? new Date(editing.start)
     : (initial as { start: Date }).start;
@@ -125,6 +138,16 @@ export function EventDialog({
     return new Set<string>([currentUserId]);
   }, [editing, currentUserId]);
   const [attendees, setAttendees] = useState<Set<string>>(initialAttendees);
+
+  // The organizer is whoever created the meeting (host_id), NOT whoever is
+  // editing. host_id is the source of truth; the attendee flag is a
+  // fallback for legacy rows. Creating a meeting makes you the organizer.
+  const organizerId =
+    editing?.source === "meeting"
+      ? editing.host_id ??
+        editing.attendees.find((a) => a.is_organizer)?.user_id ??
+        currentUserId
+      : currentUserId;
 
   // Recurring meetings are expanded server-side and each occurrence has
   // id `<meetingId>@<startIso>`. Edits should hit the underlying row.
@@ -169,7 +192,10 @@ export function EventDialog({
         start: fromLocalInput(startInput).toISOString(),
         end: fromLocalInput(endInput).toISOString(),
         allDay,
-        attendeeIds: Array.from(attendees).filter((id) => id !== currentUserId),
+        // The organizer is implicit server-side; everyone else is sent
+        // verbatim — including the editor, so a non-organizer editing the
+        // meeting neither joins it by accident nor falls off the list.
+        attendeeIds: Array.from(attendees).filter((id) => id !== organizerId),
         withVideoCall,
         recurrence: presetToRecurrence(recurrence),
       });
@@ -207,33 +233,23 @@ export function EventDialog({
     });
   }
 
-  // External events are read-only — render a deep link in lieu of the form.
+  // Bookings are read-only here — manage them from the Bookings section.
+  if (editing?.source === "booking") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <BookingDetails event={editing} propertyId={propertyId} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // External events are read-only — rich details with a provider deep link.
   if (editing?.source === "external") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing.title}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            This event lives in {editing.provider === "google" ? "Google" : "Outlook"}{" "}
-            Calendar. Editing happens there.
-          </p>
-          <DialogFooter>
-            {editing.html_link ? (
-              <Button
-                render={
-                  <a
-                    href={editing.html_link}
-                    target="_blank"
-                    rel="noreferrer"
-                  />
-                }
-              >
-                Open in {editing.provider === "google" ? "Google" : "Outlook"}
-              </Button>
-            ) : null}
-          </DialogFooter>
+          <ExternalDetails event={editing} />
         </DialogContent>
       </Dialog>
     );
@@ -243,21 +259,32 @@ export function EventDialog({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing.title}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Scheduled task — open the task to edit details or change the
-            schedule.
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              render={<a href={`/p/${propertyId}/tasks/${editing.id}`} />}
-            >
-              Open task
-            </Button>
-          </DialogFooter>
+          <TaskDetails
+            event={editing}
+            propertyId={propertyId}
+            onMutated={onMutated}
+            onClose={() => onOpenChange(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Meeting read view — what a click opens. Pencil flips to the form.
+  if (editing?.source === "meeting" && view === "details") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <MeetingDetails
+            event={editing}
+            propertyId={propertyId}
+            currentUserId={currentUserId}
+            onEdit={() => setView("edit")}
+            onDelete={handleDelete}
+            onClose={() => onOpenChange(false)}
+            onMutated={onMutated}
+            deletePending={pending}
+          />
         </DialogContent>
       </Dialog>
     );
@@ -359,38 +386,51 @@ export function EventDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Attendees</Label>
+            <Label>Guests</Label>
             <ul className="max-h-40 space-y-1 overflow-auto rounded-md border border-border p-2">
-              {(membersQuery.data ?? []).map((m) => {
-                const on = attendees.has(m.id) || m.id === currentUserId;
-                const isMe = m.id === currentUserId;
-                return (
-                  <li key={m.id}>
-                    <button
-                      type="button"
-                      disabled={isMe}
-                      onClick={() => toggleAttendee(m.id)}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left text-sm transition-colors",
-                        on
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-accent/50",
-                        isMe && "opacity-70",
-                      )}
-                    >
-                      <Avatar className="size-6">
-                        <AvatarImage src={m.avatarUrl ?? undefined} />
-                        <AvatarFallback>
-                          {(m.name ?? "?").slice(0, 1).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate">
-                        {m.name ?? "Unnamed"} {isMe ? "(organizer)" : ""}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
+              {(membersQuery.data ?? [])
+                .slice()
+                .sort((a, b) =>
+                  // Organizer pinned first; the rest keep their order.
+                  a.id === organizerId ? -1 : b.id === organizerId ? 1 : 0,
+                )
+                .map((m) => {
+                  const isOrganizer = m.id === organizerId;
+                  const isMe = m.id === currentUserId;
+                  const on = attendees.has(m.id) || isOrganizer;
+                  return (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        disabled={isOrganizer}
+                        onClick={() => toggleAttendee(m.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left text-sm transition-colors",
+                          on
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-accent/50",
+                          isOrganizer && "cursor-default",
+                        )}
+                      >
+                        <Avatar className="size-6">
+                          <AvatarImage src={m.avatarUrl ?? undefined} />
+                          <AvatarFallback>
+                            {(m.name ?? "?").slice(0, 1).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0 flex-1 truncate">
+                          {m.name ?? "Unnamed"}
+                          {isMe ? " (you)" : ""}
+                        </span>
+                        {isOrganizer ? (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            Organizer
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
 

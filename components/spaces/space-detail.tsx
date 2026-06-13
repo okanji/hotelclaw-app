@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, Check, Layers, MoreHorizontal } from "lucide-react";
+import {
+  Archive,
+  Check,
+  ChevronRight,
+  Layers,
+  MoreHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -25,17 +31,24 @@ import {
 import { spaceMemberIdsQueryOptions } from "@/lib/query/project-queries";
 import {
   archiveSpace,
+  pinSpaceResource,
   setDocumentSpace,
   setTaskSpace,
+  unpinSpaceResource,
   updateSpace,
 } from "@/components/projects/actions";
+import { unpinFormFromSpace } from "@/components/forms/share-actions";
 import {
+  MetadataItem,
+  MetadataRow,
+  OverviewSection,
   PropertyRow,
   RailDate,
   RailGroup,
   RailProgress,
   railValueClass,
   WorkspaceShell,
+  ws,
   type WorkspaceTab,
 } from "@/components/projects/workspace-shell";
 import {
@@ -49,6 +62,10 @@ import {
 import { activityQuery } from "@/lib/query/activity-queries";
 import { SpaceMembersPanel } from "./space-members-panel";
 import { SpaceChannelsPanel } from "./space-channels-panel";
+import { SpacePinnedResources } from "./space-pinned-resources";
+import { WorkspaceDescription } from "@/components/projects/workspace-description";
+import { ScopeStatStrip } from "@/components/insights/scope-stat-strip";
+import { CatchUpBanner } from "@/components/insights/catch-up-banner";
 
 const COLORS: EntityColor[] = ["slate", "blue", "green", "amber", "rose", "violet"];
 const DOT: Record<EntityColor, string> = {
@@ -64,6 +81,7 @@ type SpaceDetailData = {
   space: {
     id: string;
     name: string;
+    description: string | null;
     color: EntityColor;
     icon: string | null;
     created_at: string | null;
@@ -77,6 +95,8 @@ type SpaceDetailData = {
   }[];
   tasks: ScopedTask[];
   docs: { id: string; title: string }[];
+  pinnedDocs: { id: string; title: string }[];
+  pinnedForms: { id: string; title: string; status: string }[];
 };
 
 function spaceDetailQuery(spaceId: string) {
@@ -84,10 +104,10 @@ function spaceDetailQuery(spaceId: string) {
     queryKey: ["space-detail", spaceId] as const,
     queryFn: async (): Promise<SpaceDetailData> => {
       const supabase = createBrowserClient();
-      const [space, links, tasks, docs] = await Promise.all([
+      const [space, links, tasks, docs, pins] = await Promise.all([
         supabase
           .from("spaces")
-          .select("id, name, color, icon, created_at")
+          .select("id, name, description, color, icon, created_at")
           .eq("id", spaceId)
           .maybeSingle(),
         supabase.from("project_spaces").select("project_id").eq("space_id", spaceId),
@@ -102,6 +122,11 @@ function spaceDetailQuery(spaceId: string) {
           .eq("space_id", spaceId)
           .is("archived_at", null)
           .order("updated_at", { ascending: false }),
+        supabase
+          .from("space_pinned_resources")
+          .select("document_id, form_id, position")
+          .eq("space_id", spaceId)
+          .order("position", { ascending: true }),
       ]);
       let projects: SpaceDetailData["projects"] = [];
       const ids = (links.data ?? []).map((l) => l.project_id);
@@ -134,11 +159,39 @@ function spaceDetailQuery(spaceId: string) {
           total: agg.get(p.id)?.total ?? 0,
         }));
       }
+      const spaceDocs = (docs.data ?? []) as SpaceDetailData["docs"];
+      const docById = new Map(spaceDocs.map((d) => [d.id, d]));
+      const pinRows = (pins.data ?? []) as {
+        document_id: string | null;
+        form_id: string | null;
+        position: number;
+      }[];
+      const pinnedDocs = pinRows
+        .map((p) => (p.document_id ? docById.get(p.document_id) : undefined))
+        .filter((d): d is { id: string; title: string } => d != null);
+
+      // Pinned forms live in their own table; fetch the few pinned ones by id.
+      let pinnedForms: SpaceDetailData["pinnedForms"] = [];
+      const formIds = pinRows.map((p) => p.form_id).filter((id): id is string => !!id);
+      if (formIds.length > 0) {
+        const { data: formRows } = await supabase
+          .from("forms")
+          .select("id, title, status")
+          .in("id", formIds);
+        const byId = new Map((formRows ?? []).map((f) => [f.id, f]));
+        pinnedForms = formIds.flatMap((id) => {
+          const f = byId.get(id);
+          return f ? [{ id: f.id, title: f.title, status: f.status as string }] : [];
+        });
+      }
+
       return {
         space: (space.data as SpaceDetailData["space"]) ?? null,
         projects,
         tasks: (tasks.data ?? []) as ScopedTask[],
-        docs: (docs.data ?? []) as SpaceDetailData["docs"],
+        docs: spaceDocs,
+        pinnedDocs,
+        pinnedForms,
       };
     },
   };
@@ -169,12 +222,18 @@ export function SpaceDetail({
   const space = data?.space;
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
   const docs = useMemo(() => data?.docs ?? [], [data?.docs]);
+  const pinnedDocs = useMemo(() => data?.pinnedDocs ?? [], [data?.pinnedDocs]);
+  const pinnedIds = useMemo(
+    () => new Set(pinnedDocs.map((d) => d.id)),
+    [pinnedDocs],
+  );
   const doneCount = useMemo(
     () => tasks.filter((t) => t.status === "done").length,
     [tasks],
   );
 
   const [name, setName] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (space) setName(space.name);
@@ -192,6 +251,17 @@ export function SpaceDetail({
       .filter((d) => !assigned.has(d.id))
       .map((d) => ({ id: d.id, title: d.title }));
   }, [allDocs, docs]);
+  const pinSpaceCandidates = useMemo(() => {
+    return docs
+      .filter((d) => !pinnedIds.has(d.id))
+      .map((d) => ({ id: d.id, title: d.title }));
+  }, [docs, pinnedIds]);
+  const pinWorkspaceCandidates = useMemo(() => {
+    const inSpace = new Set(docs.map((d) => d.id));
+    return allDocs
+      .filter((d) => !inSpace.has(d.id) && !pinnedIds.has(d.id))
+      .map((d) => ({ id: d.id, title: d.title }));
+  }, [allDocs, docs, pinnedIds]);
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["space-detail", spaceId] });
@@ -217,6 +287,12 @@ export function SpaceDetail({
       void qc.invalidateQueries({ queryKey: ["spaces", propertyId] });
     }
   }
+  async function commitDescription(description: string | null) {
+    const res = await updateSpace(spaceId, { description });
+    if ("error" in res) return { error: res.error };
+    refresh();
+    return {};
+  }
   const add = (fn: (id: string, sid: string | null) => Promise<unknown>) =>
     async (id: string) => {
       const res = (await fn(id, spaceId)) as { error?: string };
@@ -229,6 +305,21 @@ export function SpaceDetail({
       if (res?.error) toast.error(res.error);
       else refresh();
     };
+  async function handlePin(documentId: string) {
+    const res = await pinSpaceResource(spaceId, documentId);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function handleUnpin(documentId: string) {
+    const res = await unpinSpaceResource(spaceId, documentId);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function handleUnpinForm(formId: string) {
+    const res = await unpinFormFromSpace(spaceId, formId);
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
   async function handleArchive() {
     if (!window.confirm("Archive this space?")) return;
     const res = await archiveSpace(spaceId);
@@ -259,22 +350,52 @@ export function SpaceDetail({
       </div>
     );
 
-  const header = (
-    <div className="flex flex-col gap-5">
-      <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Space
-      </p>
-      <div className="flex items-center gap-3">
+  const breadcrumb = (
+    <nav
+      aria-label="Breadcrumb"
+      className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] tracking-tight"
+    >
+      <Link
+        href={`/p/${propertyId}/projects`}
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Spaces
+      </Link>
+      <ChevronRight
+        className="size-3.5 shrink-0 text-muted-foreground/60"
+        aria-hidden="true"
+      />
+      <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
         {space.icon ? (
-          <span className="shrink-0 text-2xl leading-none">{space.icon}</span>
+          <span className="shrink-0 text-sm leading-none">{space.icon}</span>
+        ) : (
+          <span
+            className={cn("size-2 shrink-0 rounded-full", DOT[space.color])}
+            aria-hidden="true"
+          />
+        )}
+        <span className="truncate">{space.name}</span>
+      </span>
+    </nav>
+  );
+
+  const header = (
+    <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {space.icon ? (
+          <span className="shrink-0 text-[1.375rem] leading-none">{space.icon}</span>
         ) : (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <button type="button" aria-label="Space color" className="shrink-0" />
+                <button
+                  type="button"
+                  aria-label="Space color"
+                  className="shrink-0 rounded p-0.5 transition-colors hover:bg-muted/50"
+                />
               }
             >
-              <span className={cn("block size-3 rounded", DOT[space.color])} />
+              <span className={cn("block size-3 rounded-sm", DOT[space.color])} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" sideOffset={6}>
               {COLORS.map((c) => (
@@ -283,7 +404,7 @@ export function SpaceDetail({
                   onClick={() => void recolor(c)}
                   className="gap-2 capitalize"
                 >
-                  <span className={cn("size-3 rounded", DOT[c])} />
+                  <span className={cn("size-3 rounded-sm", DOT[c])} />
                   <span className="flex-1">{c}</span>
                   {space.color === c ? <Check className="size-3.5" /> : null}
                 </DropdownMenuItem>
@@ -303,10 +424,78 @@ export function SpaceDetail({
             }
           }}
           aria-label="Space name"
-          className="min-w-0 flex-1 bg-transparent text-[2.25rem] leading-none font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/50"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/45",
+            ws.title,
+          )}
           placeholder="Untitled space"
         />
       </div>
+
+      <WorkspaceDescription
+        value={space.description}
+        onSave={commitDescription}
+      />
+
+      <Link
+        href={`/p/${propertyId}/tasks?space=${spaceId}`}
+        title={`${tasks.length} issues`}
+        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+      >
+        <Layers className="size-3.5" strokeWidth={1.5} />
+        <span className="tabular-nums">{tasks.length}</span>
+      </Link>
+
+      <MetadataRow>
+        <MetadataItem label="Members">
+          {roster.length > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex -space-x-1">
+                {roster.slice(0, 3).map((p) => (
+                  <Avatar
+                    key={p.id}
+                    className="size-5 ring-1 ring-background"
+                    title={p.name ?? undefined}
+                  >
+                    {p.avatarUrl ? (
+                      <AvatarImage src={p.avatarUrl} alt="" />
+                    ) : null}
+                    <AvatarFallback className="text-[0.5rem]">
+                      {(p.name ?? "?").slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              {roster.length > 3 ? (
+                <span className="text-muted-foreground tabular-nums">
+                  +{roster.length - 3}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">No members</span>
+          )}
+        </MetadataItem>
+        <MetadataItem label="Documents">
+          <span className="tabular-nums">{docs.length}</span>
+        </MetadataItem>
+        {space.created_at ? (
+          <MetadataItem label="Created">
+            <RailDate value={space.created_at} />
+          </MetadataItem>
+        ) : null}
+      </MetadataRow>
+
+      <ScopeStatStrip
+        propertyId={propertyId}
+        scope={{ kind: "space", id: spaceId }}
+      />
+
+      <CatchUpBanner
+        propertyId={propertyId}
+        subjectKind="space"
+        subjectId={spaceId}
+      />
     </div>
   );
 
@@ -315,34 +504,50 @@ export function SpaceDetail({
       id: "overview",
       label: "Overview",
       content: (
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-8">
           <ProgressOverview tasks={tasks} />
-          <section className="flex flex-col gap-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-[0.8125rem] font-medium tracking-tight text-foreground">
-                Projects
-              </h3>
-              <span className="text-[0.75rem] tabular-nums text-muted-foreground">
-                {data?.projects.length ?? 0}
-              </span>
-            </div>
+          <SpacePinnedResources
+            propertyId={propertyId}
+            spaceColor={space.color}
+            pinnedIds={pinnedDocs.map((d) => d.id)}
+            pinnedForms={data?.pinnedForms ?? []}
+            onUnpinForm={handleUnpinForm}
+            allDocs={allDocs}
+            spaceDocs={pinSpaceCandidates}
+            workspaceCandidates={pinWorkspaceCandidates}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
+            totalDocs={docs.length}
+            onViewAllDocs={
+              docs.length > 0 ? () => setActiveTab("docs") : undefined
+            }
+          />
+          <OverviewSection
+            title="Projects"
+            action={
+              (data?.projects.length ?? 0) > 0 ? (
+                <span className="text-[0.75rem] tabular-nums text-muted-foreground">
+                  {data?.projects.length}
+                </span>
+              ) : null
+            }
+          >
             <ProjectProgressList
               propertyId={propertyId}
               projects={data?.projects ?? []}
             />
-          </section>
-          <section className="flex flex-col gap-4">
-            <h3 className="text-[0.8125rem] font-medium tracking-tight text-foreground">
-              Activity
-            </h3>
-            <ActivityFeed events={activity} pending={activityPending} />
-          </section>
+          </OverviewSection>
         </div>
       ),
     },
     {
-      id: "tasks",
-      label: "Tasks",
+      id: "activity",
+      label: "Activity",
+      content: <ActivityFeed events={activity} pending={activityPending} />,
+    },
+    {
+      id: "issues",
+      label: "Issues",
       count: tasks.length,
       content: (
         <TasksPanel
@@ -365,6 +570,9 @@ export function SpaceDetail({
           candidates={docCandidates}
           onAdd={add(setDocumentSpace)}
           onRemove={remove(setDocumentSpace)}
+          pinnedIds={pinnedIds}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
         />
       ),
     },
@@ -385,18 +593,18 @@ export function SpaceDetail({
       <RailGroup label="Properties">
         <PropertyRow label="Members">
           {roster.length > 0 ? (
-            <div className="flex items-center gap-2 px-1.5 py-0.5">
-              <div className="flex -space-x-1.5">
+            <div className="flex items-center gap-1.5 px-1.5 py-0.5">
+              <div className="flex -space-x-1">
                 {roster.slice(0, 5).map((p) => (
                   <Avatar
                     key={p.id}
-                    className="size-6 ring-2 ring-background"
+                    className="size-5 ring-1 ring-background"
                     title={p.name ?? undefined}
                   >
                     {p.avatarUrl ? (
                       <AvatarImage src={p.avatarUrl} alt="" />
                     ) : null}
-                    <AvatarFallback className="text-[0.5625rem]">
+                    <AvatarFallback className="text-[0.5rem]">
                       {(p.name ?? "?").slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -409,8 +617,8 @@ export function SpaceDetail({
               ) : null}
             </div>
           ) : (
-            <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">
-              No members yet
+            <span className="px-1.5 py-0.5 text-[0.8125rem] text-muted-foreground">
+              No members
             </span>
           )}
         </PropertyRow>
@@ -424,12 +632,12 @@ export function SpaceDetail({
           </Link>
         </PropertyRow>
         <PropertyRow label="Documents">
-          <span className="px-1.5 py-1 text-[0.8125rem] tracking-tight text-foreground tabular-nums">
+          <span className="px-1.5 py-0.5 text-[0.8125rem] tracking-tight text-foreground tabular-nums">
             {docs.length}
           </span>
         </PropertyRow>
         <PropertyRow label="Created">
-          <span className="px-1.5 py-1">
+          <span className="px-1.5 py-0.5">
             <RailDate value={space.created_at} />
           </span>
         </PropertyRow>
@@ -446,7 +654,7 @@ export function SpaceDetail({
               <Link
                 key={p.id}
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.6875rem] tracking-tight text-foreground hover:border-foreground/25"
+                className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[0.75rem] tracking-tight text-foreground transition-colors hover:border-border hover:bg-muted/30"
               >
                 <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
                 {p.name}
@@ -455,6 +663,26 @@ export function SpaceDetail({
           </div>
         </RailGroup>
       ) : null}
+
+      <RailGroup
+        label="Activity"
+        action={
+          activity.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("activity")}
+              className="text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+            >
+              See all
+            </button>
+          ) : null
+        }
+      >
+        <ActivityFeed
+          events={activity.slice(0, 6)}
+          pending={activityPending}
+        />
+      </RailGroup>
     </div>
   );
 
@@ -478,9 +706,12 @@ export function SpaceDetail({
 
   return (
     <WorkspaceShell
+      breadcrumb={breadcrumb}
       header={header}
       headerActions={overflow}
       tabs={tabs}
+      activeTab={activeTab}
+      onActiveTabChange={setActiveTab}
       rightRail={rightRail}
     />
   );

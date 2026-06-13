@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, Check, Layers, MoreHorizontal } from "lucide-react";
+import {
+  Archive,
+  Check,
+  ChevronRight,
+  Layers,
+  MoreHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -37,14 +43,21 @@ import {
 } from "./actions";
 import { activityQuery } from "@/lib/query/activity-queries";
 import {
+  MetadataItem,
+  MetadataRow,
   PropertyRow,
   RailDate,
   RailGroup,
   RailProgress,
   railValueClass,
   WorkspaceShell,
+  ws,
   type WorkspaceTab,
 } from "./workspace-shell";
+import { EntityLabelsRow } from "@/components/labels/entity-labels-row";
+import { ScopeStatStrip } from "@/components/insights/scope-stat-strip";
+import { CatchUpBanner } from "@/components/insights/catch-up-banner";
+import { WorkspaceDescription } from "./workspace-description";
 import {
   ActivityFeed,
   DocsPanel,
@@ -213,6 +226,12 @@ export function ProjectDetail({
     if ("error" in res) toast.error(res.error);
     else refresh();
   }
+  async function commitDescription(description: string | null) {
+    const res = await updateProject(projectId, { description });
+    if ("error" in res) return { error: res.error };
+    refresh();
+    return {};
+  }
   async function toggleSpace(spaceId: string) {
     const current = data?.spaceIds ?? [];
     const next = current.includes(spaceId)
@@ -264,17 +283,48 @@ export function ProjectDetail({
       </div>
     );
 
+  const breadcrumb = (
+    <nav
+      aria-label="Breadcrumb"
+      className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] tracking-tight"
+    >
+      <Link
+        href={`/p/${propertyId}/projects`}
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Projects
+      </Link>
+      <ChevronRight
+        className="size-3.5 shrink-0 text-muted-foreground/60"
+        aria-hidden="true"
+      />
+      <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
+        {project.icon ? (
+          <span className="shrink-0 text-sm leading-none">{project.icon}</span>
+        ) : (
+          <span
+            className={cn("size-2 shrink-0 rounded-full", DOT[project.color])}
+            aria-hidden="true"
+          />
+        )}
+        <span className="truncate">{project.name}</span>
+      </span>
+    </nav>
+  );
+
   const header = (
-    <div className="flex flex-col gap-5">
-      <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Project
-      </p>
-      <div className="flex items-center gap-3">
-        <span className="shrink-0 text-2xl leading-none">
-          {project.icon || (
-            <span className={cn("block size-3 rounded", DOT[project.color])} />
-          )}
-        </span>
+    <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {project.icon ? (
+          <span className="shrink-0 text-[1.375rem] leading-none">
+            {project.icon}
+          </span>
+        ) : (
+          <span
+            className={cn("size-3 shrink-0 rounded-sm", DOT[project.color])}
+            aria-hidden="true"
+          />
+        )}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -287,8 +337,69 @@ export function ProjectDetail({
             }
           }}
           aria-label="Project name"
-          className="min-w-0 flex-1 bg-transparent text-[2.25rem] leading-none font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/50"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/45",
+            ws.title,
+          )}
           placeholder="Untitled project"
+        />
+      </div>
+
+      <WorkspaceDescription
+        value={project.description}
+        onSave={commitDescription}
+      />
+
+      <MetadataRow>
+        <MetadataItem label="Status">
+          <StatusMenu status={project.status} onSelect={setStatus} inline />
+        </MetadataItem>
+        <MetadataItem label="Health">
+          <HealthValue
+            status={project.status}
+            targetDate={project.target_date}
+            done={counts.done}
+            total={tasks.length}
+            inline
+          />
+        </MetadataItem>
+        <MetadataItem label="Issues">
+          <Link
+            href={`/p/${propertyId}/tasks?project=${projectId}`}
+            className="inline-flex items-center gap-1 text-foreground transition-colors hover:text-foreground/80"
+          >
+            <Layers className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <span className="tabular-nums">{tasks.length}</span>
+          </Link>
+        </MetadataItem>
+        {linkedSpaces.length > 0 ? (
+          <MetadataItem label="Spaces">
+            <span className="tabular-nums">{linkedSpaces.length}</span>
+          </MetadataItem>
+        ) : null}
+        {project.target_date ? (
+          <MetadataItem label="Target">
+            <RailDate value={project.target_date} />
+          </MetadataItem>
+        ) : null}
+      </MetadataRow>
+
+      <ScopeStatStrip
+        propertyId={propertyId}
+        scope={{ kind: "project", id: projectId }}
+      />
+
+      <CatchUpBanner
+        propertyId={propertyId}
+        subjectKind="project"
+        subjectId={projectId}
+      />
+
+      <div className="flex flex-col gap-1.5">
+        <EntityLabelsRow
+          propertyId={propertyId}
+          entityKind="project"
+          entityId={projectId}
         />
       </div>
     </div>
@@ -299,13 +410,8 @@ export function ProjectDetail({
       id: "overview",
       label: "Overview",
       content: (
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-8">
           <ProgressOverview tasks={tasks} />
-          {project.description ? (
-            <p className="max-w-[60ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
-              {project.description}
-            </p>
-          ) : null}
         </div>
       ),
     },
@@ -426,6 +532,7 @@ export function ProjectDetail({
 
   return (
     <WorkspaceShell
+      breadcrumb={breadcrumb}
       header={header}
       headerActions={overflow}
       tabs={tabs}
@@ -471,11 +578,13 @@ function HealthValue({
   targetDate,
   done,
   total,
+  inline,
 }: {
   status: ProjectStatus;
   targetDate: string | null;
   done: number;
   total: number;
+  inline?: boolean;
 }) {
   const health = projectHealth({
     status,
@@ -485,7 +594,12 @@ function HealthValue({
   });
   const meta = HEALTH_META[health];
   return (
-    <span className="flex items-center gap-1.5 px-1.5 py-1 text-[0.8125rem] tracking-tight text-foreground">
+    <span
+      className={cn(
+        "flex items-center gap-1.5 tracking-tight text-foreground",
+        inline ? "text-[0.8125rem]" : "px-1.5 py-1 text-[0.8125rem]",
+      )}
+    >
       <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
       {meta.label}
     </span>
@@ -548,14 +662,21 @@ function Contributors({
 function StatusMenu({
   status,
   onSelect,
+  inline,
 }: {
   status: ProjectStatus;
   onSelect: (s: ProjectStatus) => void;
+  inline?: boolean;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<button type="button" className={railValueClass} />}
+        render={
+          <button
+            type="button"
+            className={inline ? "inline-flex items-center gap-1.5" : railValueClass}
+          />
+        }
       >
         <span className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[status])} />
         {STATUS_LABEL[status]}
