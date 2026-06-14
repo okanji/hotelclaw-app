@@ -83,7 +83,7 @@ export function InsightsAskPanel({
           className="pointer-events-auto flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 text-[0.8125rem] font-medium text-foreground shadow-lg backdrop-blur transition-colors hover:bg-muted"
         >
           <Sparkles className="size-4" />
-          Ask the numbers
+          Ask AI
         </button>
       </div>
     );
@@ -95,7 +95,7 @@ export function InsightsAskPanel({
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="flex items-center gap-2 text-[0.8125rem] font-medium text-foreground">
             <Sparkles className="size-4" />
-            Ask the numbers
+            Ask AI
           </span>
           <button
             type="button"
