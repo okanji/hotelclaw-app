@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Building2, Check, ChevronDown, Plus, UserPlus } from "lucide-react";
+import { RailLogo } from "./rail-logo";
 import { InviteDialog } from "./invite-dialog";
 import {
   PendingInvitesSection,
@@ -79,6 +80,11 @@ export function PropertySwitcher({
           <DropdownMenuTrigger
             render={<SidebarMenuButton size="lg" className="h-9 w-fit max-w-full" />}
           >
+            {/* Temple Point brand mark — a small tinted tile next to the org
+                name (aubergine tile / white glyph in light, inverted in dark). */}
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-[#4a154b] text-white dark:bg-white dark:text-[#4a154b]">
+              <RailLogo className="size-3" />
+            </span>
             <span className="min-w-0 truncate text-sm font-bold text-sidebar-accent-foreground">
               {current?.property.name ?? "Property"}
             </span>
