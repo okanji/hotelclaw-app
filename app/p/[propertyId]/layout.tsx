@@ -11,6 +11,7 @@ import { LeftShell } from "@/components/shell/left-shell";
 import { ShellSectionProvider } from "@/components/shell/shell-section-context";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { HomeSurface } from "@/components/home/home-surface";
+import { MyTasksSurface } from "@/components/tasks/my-tasks-surface";
 import { ChatSurface } from "@/components/chat/chat-surface";
 import { TasksSurface } from "@/components/tasks/tasks-surface";
 import { DocumentsSurface } from "@/components/documents/documents-surface";
@@ -162,6 +163,11 @@ export default async function PropertyLayout({
                           <HomeSurface
                             propertyId={propertyId}
                             propertyName={property.name}
+                            userId={user.id}
+                            userName={profile.data?.full_name ?? null}
+                          />
+                          <MyTasksSurface
+                            propertyId={propertyId}
                             userId={user.id}
                             userName={profile.data?.full_name ?? null}
                           />

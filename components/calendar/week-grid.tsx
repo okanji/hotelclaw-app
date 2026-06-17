@@ -749,72 +749,79 @@ function ClusterCard({
 }) {
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
 
-  if (selected) {
-    return (
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setSelected(null)}
-          className="flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronLeft className="size-3.5" />
-          All {events.length} events
-        </button>
-        <div className="px-1.5 pb-1">
-          <EventDetailBody
-            event={selected}
-            propertyId={propertyId}
-            currentUserId={currentUserId}
-            onEdit={() => {
-              onClose();
-              onEditEvent(selected);
-            }}
-            onClose={onClose}
-            onMutated={onMutated}
-          />
-        </div>
-      </div>
-    );
-  }
-
   const sorted = [...events].sort(
     (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
   );
+
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
-        <span className="text-sm font-medium">{events.length} events</span>
-        <span className="text-[10px] tabular-nums text-muted-foreground">
-          {formatTimeRange(start, end)}
-        </span>
+    <>
+      {/* The list stays mounted (just hidden) while a detail is open, so the
+          clicked row isn't detached mid-click — detaching it makes base-ui's
+          outside-press detector read the click as "outside" and dismiss the
+          popover (the click then appears to fall through to the grid). */}
+      <div className={cn("flex flex-col gap-1", selected && "hidden")}>
+        <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
+          <span className="text-sm font-medium">{events.length} events</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {formatTimeRange(start, end)}
+          </span>
+        </div>
+        <div className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+          {sorted.map((ev) => (
+            <button
+              key={`${ev.source}:${ev.id}`}
+              type="button"
+              onClick={() => setSelected(ev)}
+              className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-accent"
+            >
+              <span
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  !ev.color && eventDotClass(ev),
+                )}
+                style={
+                  ev.color ? { backgroundColor: `#${ev.color}` } : undefined
+                }
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">
+                  {ev.title}
+                </span>
+                <span className="block text-[10px] tabular-nums text-muted-foreground">
+                  {formatTimeRange(new Date(ev.start), new Date(ev.end))}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
-        {sorted.map((ev) => (
+
+      {selected ? (
+        <div className="space-y-2">
           <button
-            key={`${ev.source}:${ev.id}`}
             type="button"
-            onClick={() => setSelected(ev)}
-            className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-accent"
+            onClick={() => setSelected(null)}
+            className="flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <span
-              className={cn(
-                "size-2 shrink-0 rounded-full",
-                !ev.color && eventDotClass(ev),
-              )}
-              style={ev.color ? { backgroundColor: `#${ev.color}` } : undefined}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium">
-                {ev.title}
-              </span>
-              <span className="block text-[10px] tabular-nums text-muted-foreground">
-                {formatTimeRange(new Date(ev.start), new Date(ev.end))}
-              </span>
-            </span>
+            <ChevronLeft className="size-3.5" />
+            All {events.length} events
           </button>
-        ))}
-      </div>
-    </div>
+          <div className="px-1.5 pb-1">
+            <EventDetailBody
+              event={selected}
+              propertyId={propertyId}
+              currentUserId={currentUserId}
+              onEdit={() => {
+                onClose();
+                onEditEvent(selected);
+              }}
+              onClose={onClose}
+              onMutated={onMutated}
+            />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

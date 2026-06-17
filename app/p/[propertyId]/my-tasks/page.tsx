@@ -1,36 +1,7 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { MyTasks } from "@/components/tasks/my-tasks";
-
-/**
- * My Tasks — the personal agenda surface (Home rail). Distinct from the
- * /tasks board: grouped by due-horizon with quick actions, not by status.
- * Membership is gated by the property layout; this page only needs the
- * current user's id + first name for the greeting.
- */
-export default async function MyTasksPage({
-  params,
-}: {
-  params: Promise<{ propertyId: string }>;
-}) {
-  const { propertyId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return (
-    <MyTasks
-      propertyId={propertyId}
-      userId={user.id}
-      firstName={profile?.full_name ?? null}
-    />
-  );
+// My Tasks is rendered by `<MyTasksSurface>` in the property layout (it matches
+// on the `/my-tasks` URL), so this route's page renders nothing — the same
+// null-page pattern every other section uses. Keeping the route file makes
+// `/p/<id>/my-tasks` a real, navigable URL.
+export default function MyTasksPage() {
+  return null;
 }
