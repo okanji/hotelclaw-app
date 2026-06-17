@@ -470,9 +470,10 @@ export function AppRail({
         aria-label="Sections"
       >
         <figure className="mt-0.5 mb-4">
-          {/* Brand glyph in a rounded tile — aubergine tile + white glyph in
-              light mode, inverted (white tile + aubergine glyph) in dark. */}
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-[#4a154b] text-white shadow-sm dark:bg-white dark:text-[#4a154b]">
+          {/* Brand glyph — aubergine tile + white glyph in light mode; in dark
+              mode the tile drops away entirely, leaving a white glyph on the
+              bare rail. */}
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-[#4a154b] text-white shadow-sm dark:bg-transparent dark:text-white dark:shadow-none">
             <RailLogo className="size-7" />
           </span>
         </figure>

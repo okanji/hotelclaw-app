@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Typography plugin — supplies the `.prose` styles the document editor relies
+ * on for heading sizes/weights and paragraph/list spacing. Without it the
+ * editor's `prose prose-sm …` classes (see document-editor.tsx) are no-ops and
+ * Tailwind preflight flattens every heading to body text with zero margins. */
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
