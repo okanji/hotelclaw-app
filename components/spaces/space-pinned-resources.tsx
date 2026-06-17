@@ -119,7 +119,7 @@ export function SpacePinnedResources({
         className={cn(
           "rounded-md",
           pinnedCards.length === 0
-            ? "border border-dashed border-border/50 px-3 py-2.5"
+            ? "border border-dashed border-border px-3 py-2.5"
             : "bg-muted/25 px-2 py-2 dark:bg-white/4",
         )}
       >

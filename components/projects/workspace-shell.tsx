@@ -6,13 +6,18 @@ import { cn } from "@/lib/utils";
 
 const RAIL_STORAGE_KEY = "workspace:rail-collapsed";
 
-/** Linear-scale type for workspace chrome (14px body, 32px title). */
+/**
+ * Type scale for a workspace. Reading content sits at 15px with relaxed
+ * leading for comfortable scanning; the right rail stays a deliberate 14px
+ * secondary tier so metadata reads as chrome, not body.
+ */
 export const ws = {
-  text: "text-sm tracking-tight",
+  text: "text-[0.9375rem] leading-relaxed tracking-tight",
   title:
-    "text-[2rem] font-semibold tracking-tight text-foreground leading-none",
+    "text-[2.125rem] font-semibold tracking-tight text-foreground leading-none",
   section: "text-sm font-medium tracking-tight text-muted-foreground",
-  muted: "text-sm tracking-tight text-muted-foreground",
+  body: "text-[0.9375rem] tracking-tight text-foreground",
+  muted: "text-[0.9375rem] leading-relaxed tracking-tight text-muted-foreground",
   railLabel: "text-sm tracking-tight text-muted-foreground",
   railValue: "text-sm tracking-tight text-foreground",
 } as const;
@@ -76,7 +81,7 @@ export function WorkspaceShell({
   return (
     <div className="flex h-full min-h-0 justify-center">
       <div className="flex w-full min-w-0 max-w-7xl">
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pt-8 pb-16 sm:px-10 sm:pt-10">
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pt-8 pb-20 sm:px-12 sm:pt-12">
           {breadcrumb ? (
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">{breadcrumb}</div>
@@ -124,7 +129,7 @@ export function WorkspaceShell({
             ))}
           </nav>
 
-          <div className="mb-8 flex items-start justify-between gap-3">
+          <div className="mb-10 flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">{header}</div>
             {!breadcrumb && (headerActions || rightRail) ? (
               <WorkspaceHeaderActions
@@ -140,7 +145,7 @@ export function WorkspaceShell({
         </div>
 
         {rightRail && !railCollapsed ? (
-          <aside className="hidden w-70 shrink-0 flex-col overflow-y-auto border-l border-border/40 px-5 py-10 md:flex">
+          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/40 px-6 py-12 md:flex">
             {rightRail}
           </aside>
         ) : null}
@@ -353,7 +358,7 @@ export function OverviewSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className={ws.section}>{title}</h3>
         {action}
@@ -381,7 +386,7 @@ export function MetadataItem({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1.5 text-sm tracking-tight">
+    <div className="flex min-w-0 items-center gap-1.5 text-[0.9375rem] tracking-tight">
       <span className="shrink-0 text-muted-foreground">{label}</span>
       <div className="min-w-0 text-foreground">{children}</div>
     </div>

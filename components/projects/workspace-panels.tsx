@@ -85,7 +85,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
 
   if (total === 0) {
     return (
-      <p className="text-sm tracking-tight text-muted-foreground">
+      <p className="text-[0.9375rem] leading-relaxed tracking-tight text-muted-foreground">
         No issues yet — progress will appear here as work is added.
       </p>
     );
@@ -96,7 +96,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm tracking-tight text-muted-foreground">
+        <p className="text-[0.9375rem] tracking-tight text-muted-foreground">
           <span className="tabular-nums text-foreground">{counts.done}</span>
           {" of "}
           <span className="tabular-nums text-foreground">{total}</span>
@@ -175,7 +175,7 @@ export function ProjectProgressList({
 }) {
   if (projects.length === 0) {
     return (
-      <p className="py-2 text-sm text-muted-foreground">
+      <p className="py-2 text-[0.9375rem] leading-relaxed text-muted-foreground">
         No projects yet — link one from a project&apos;s{" "}
         <span className="text-foreground">Spaces</span> picker.
       </p>
@@ -189,7 +189,7 @@ export function ProjectProgressList({
           <li key={p.id} className="group/row border-t border-border/40 first:border-0">
             <Link
               href={`/p/${propertyId}/projects/${p.id}`}
-              className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
+              className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
             >
               <span
                 className={cn(
@@ -198,7 +198,7 @@ export function ProjectProgressList({
                 )}
                 aria-hidden="true"
               />
-              <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
                 {p.name || "Untitled project"}
               </span>
               <div className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
@@ -310,16 +310,16 @@ export function ActivityFeed({
     );
   }
   return (
-    <ul role="list" className="flex flex-col gap-3.5">
+    <ul role="list" className="flex flex-col gap-4">
       {events.map((e) => {
         const { Icon, text } = describeEvent(e);
         return (
           <li key={e.id} className="flex items-start gap-2.5">
             <Icon
-              className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+              className="mt-[0.3125rem] size-3.5 shrink-0 text-muted-foreground/60"
               strokeWidth={1.5}
             />
-            <p className="min-w-0 flex-1 text-sm leading-6 tracking-tight text-muted-foreground">
+            <p className="min-w-0 flex-1 text-[0.9375rem] leading-relaxed tracking-tight text-muted-foreground">
               {text}
               <span className="text-muted-foreground/55"> · {timeAgo(e.at)}</span>
             </p>
@@ -365,7 +365,7 @@ export function TasksPanel({
         <AddPicker label="Add tasks" candidates={candidates} onAdd={onAdd} />
       </div>
       {tasks.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">
+        <p className="py-4 text-[0.9375rem] leading-relaxed text-muted-foreground">
           No tasks yet — use <span className="font-medium">Add tasks</span> to
           pull work in.
         </p>
@@ -391,9 +391,9 @@ export function TasksPanel({
                     <li key={t.id} className="group/row relative">
                       <Link
                         href={`/p/${propertyId}/tasks/${t.id}`}
-                        className="flex items-center gap-2.5 rounded-md px-1 py-2.5 pr-8 transition-colors hover:bg-muted"
+                        className="flex items-center gap-3 rounded-md px-1 py-3 pr-8 transition-colors hover:bg-muted"
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                        <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
                           {t.title || "Untitled task"}
                         </span>
                       </Link>
@@ -451,7 +451,7 @@ export function DocsPanel({
         <AddPicker label="Add docs" candidates={candidates} onAdd={onAdd} />
       </div>
       {docs.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">
+        <p className="py-4 text-[0.9375rem] leading-relaxed text-muted-foreground">
           No documents yet — use <span className="font-medium">Add docs</span> to
           link pages here.
         </p>
@@ -472,13 +472,13 @@ export function DocsPanel({
                     e.preventDefault();
                     openDocument(d.id);
                   }}
-                  className="flex items-center gap-3 rounded-md px-1 py-2.5 pr-16 transition-colors hover:bg-muted"
+                  className="flex items-center gap-3 rounded-md px-1 py-3 pr-16 transition-colors hover:bg-muted"
                 >
                   <FileText
                     strokeWidth={1.5}
                     className="size-4 shrink-0 text-muted-foreground"
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
                     {d.title || "Untitled"}
                   </span>
                   {isPinned ? (

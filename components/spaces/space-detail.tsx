@@ -504,7 +504,7 @@ export function SpaceDetail({
       id: "overview",
       label: "Overview",
       content: (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
           <ProgressOverview tasks={tasks} />
           <SpacePinnedResources
             propertyId={propertyId}

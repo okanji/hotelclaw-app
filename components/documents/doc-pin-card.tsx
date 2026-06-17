@@ -201,7 +201,7 @@ export function AddPinTile({
           : "h-48 w-40 gap-2 rounded-lg px-4",
         disabled
           ? "cursor-not-allowed border-border/30 text-muted-foreground/40"
-          : "border-border/60 text-muted-foreground hover:border-foreground/25 hover:bg-muted/20 hover:text-foreground",
+          : "border-border text-muted-foreground hover:border-foreground/25 hover:bg-muted/20 hover:text-foreground",
       )}
     >
       <span

@@ -347,10 +347,12 @@ export function ProjectDetail({
         />
       </div>
 
-      <WorkspaceDescription
-        value={project.description}
-        onSave={commitDescription}
-      />
+      <div className="pb-3">
+        <WorkspaceDescription
+          value={project.description}
+          onSave={commitDescription}
+        />
+      </div>
 
       <MetadataRow>
         <MetadataItem label="Status">
@@ -412,7 +414,7 @@ export function ProjectDetail({
       id: "overview",
       label: "Overview",
       content: (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
           <ProgressOverview tasks={tasks} />
           {linkedSpaces.length > 0 ? (
             <OverviewSection
@@ -431,7 +433,7 @@ export function ProjectDetail({
                   >
                     <Link
                       href={`/p/${propertyId}/spaces/${s.id}`}
-                      className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
+                      className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
                     >
                       <span
                         className={cn(
@@ -440,7 +442,7 @@ export function ProjectDetail({
                         )}
                         aria-hidden="true"
                       />
-                      <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
                         {s.name || "Untitled space"}
                       </span>
                     </Link>
@@ -466,10 +468,10 @@ export function ProjectDetail({
                   >
                     <Link
                       href={`/p/${propertyId}/documents/${d.id}`}
-                      className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
+                      className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
                     >
                       <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
                         {d.title || "Untitled"}
                       </span>
                     </Link>
@@ -709,14 +711,14 @@ function Contributors({
       className="flex flex-col divide-y divide-border/40 border-t border-border/40"
     >
       {people.map((p) => (
-        <li key={p.id} className="flex items-center gap-3 px-1 py-2.5">
+        <li key={p.id} className="flex items-center gap-3 px-1 py-3">
           <Avatar className="size-7">
             {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
             <AvatarFallback className="text-[0.625rem]">
               {(p.name ?? "?").slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1 truncate text-[0.875rem] tracking-tight text-foreground">
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] tracking-tight text-foreground">
             {p.name ?? "Unnamed"}
           </span>
         </li>
