@@ -319,9 +319,11 @@ export function BookingsView({
               variant="ghost"
               size="sm"
               onClick={() => {
-                void navigator.clipboard
-                  .writeText(`${window.location.origin}/book/${propertySlug}`)
-                  .then(() => toast.success("Public booking link copied"));
+                window.open(
+                  `${window.location.origin}/book/${propertySlug}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                );
               }}
             >
               <ExternalLink data-slot="icon" />

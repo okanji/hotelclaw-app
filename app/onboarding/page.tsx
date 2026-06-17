@@ -11,7 +11,7 @@ export default async function OnboardingPage() {
   }
   const memberships = await getUserMemberships();
   if (memberships.length > 0) {
-    redirect(`/p/${memberships[0].property_id}/chat`);
+    redirect(`/p/${memberships[0].property_id}/home`);
   }
 
   const supabase = await createClient();

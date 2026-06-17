@@ -159,3 +159,108 @@ export function layoutColumns<T extends { start: Date; end: Date }>(
 
   return result;
 }
+
+/**
+ * One laid-out slot in a day column:
+ *   - `event`   — a single event shingled into its `column` of a `columns`-wide
+ *                 overlap group (the renderer cascades them like Google Calendar).
+ *   - `cluster` — a "+N events" stand-in for a pile-up too dense to shingle
+ *                 readably; the renderer draws one tile spanning [start, end]
+ *                 and a click opens the full list.
+ */
+export type DayLayoutItem<T> =
+  | { kind: "event"; event: T; column: number; columns: number }
+  | { kind: "cluster"; events: T[]; start: Date; end: Date; count: number };
+
+/**
+ * Lay out a day's timed events the way Google Calendar does — with a density
+ * fork.
+ *
+ *   1. Greedy column packing + overlap clustering (as `layoutColumns`).
+ *   2. Per cluster, branch on peak concurrency (the cluster's column count):
+ *        ≤ `maxShingle`  → emit each event with its `{column, columns}` so the
+ *                          renderer can *shingle* them: overlapping blocks
+ *                          cascade with an offset and the clicked one comes to
+ *                          the front. No wasted gaps, every block readable.
+ *        >  `maxShingle` → too many to overlap legibly, so collapse the whole
+ *                          cluster into one `cluster` tile spanning its time
+ *                          range. The pile becomes a single "+N events" chip
+ *                          whose click reveals the list — far better than a row
+ *                          of unreadable slivers.
+ *
+ * A high-concurrency cluster is, in practice, a tight simultaneous pile (that
+ * is what manufactures the columns), so collapsing the whole cluster reads
+ * correctly.
+ */
+export function layoutDayColumns<T extends { start: Date; end: Date }>(
+  events: T[],
+  maxShingle: number,
+): Array<DayLayoutItem<T>> {
+  const sorted = [...events].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
+
+  // Pass 1: greedy column assignment (lowest free column whose last event has
+  // already ended), identical to `layoutColumns`.
+  const placements: Array<{ event: T; column: number }> = [];
+  const columnEnds: Date[] = [];
+  for (const ev of sorted) {
+    let placed = -1;
+    for (let i = 0; i < columnEnds.length; i++) {
+      if (columnEnds[i] <= ev.start) {
+        placed = i;
+        columnEnds[i] = ev.end;
+        break;
+      }
+    }
+    if (placed === -1) {
+      placed = columnEnds.length;
+      columnEnds.push(ev.end);
+    }
+    placements.push({ event: ev, column: placed });
+  }
+
+  // Pass 2: group into overlap clusters, then fork on density per cluster.
+  const result: Array<DayLayoutItem<T>> = [];
+  let cluster: Array<{ event: T; column: number }> = [];
+  let clusterStart = new Date(0);
+  let clusterEnd = new Date(0);
+
+  function flush() {
+    if (cluster.length === 0) return;
+    const columns =
+      cluster.reduce((m, p) => Math.max(m, p.column + 1), 0) || 1;
+
+    if (columns <= maxShingle) {
+      for (const p of cluster) {
+        result.push({
+          kind: "event",
+          event: p.event,
+          column: p.column,
+          columns,
+        });
+      }
+    } else {
+      result.push({
+        kind: "cluster",
+        events: cluster.map((p) => p.event),
+        start: clusterStart,
+        end: clusterEnd,
+        count: cluster.length,
+      });
+    }
+    cluster = [];
+  }
+
+  for (const p of placements) {
+    if (p.event.start >= clusterEnd && cluster.length > 0) {
+      flush();
+    }
+    if (cluster.length === 0) clusterStart = p.event.start;
+    cluster.push(p);
+    if (p.event.end > clusterEnd) clusterEnd = p.event.end;
+  }
+  flush();
+
+  return result;
+}

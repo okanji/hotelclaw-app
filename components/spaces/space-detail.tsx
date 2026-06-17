@@ -353,7 +353,7 @@ export function SpaceDetail({
   const breadcrumb = (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] tracking-tight"
+      className="flex min-w-0 items-center gap-1.5 text-sm tracking-tight"
     >
       <Link
         href={`/p/${propertyId}/projects`}
@@ -380,10 +380,10 @@ export function SpaceDetail({
   );
 
   const header = (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
         {space.icon ? (
-          <span className="shrink-0 text-[1.375rem] leading-none">{space.icon}</span>
+          <span className="shrink-0 text-2xl leading-none">{space.icon}</span>
         ) : (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -440,7 +440,7 @@ export function SpaceDetail({
       <Link
         href={`/p/${propertyId}/tasks?space=${spaceId}`}
         title={`${tasks.length} issues`}
-        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm tracking-tight text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
       >
         <Layers className="size-3.5" strokeWidth={1.5} />
         <span className="tabular-nums">{tasks.length}</span>
@@ -526,7 +526,7 @@ export function SpaceDetail({
             title="Projects"
             action={
               (data?.projects.length ?? 0) > 0 ? (
-                <span className="text-[0.75rem] tabular-nums text-muted-foreground">
+                <span className="text-[0.8125rem] tabular-nums text-muted-foreground">
                   {data?.projects.length}
                 </span>
               ) : null
@@ -611,13 +611,13 @@ export function SpaceDetail({
                 ))}
               </div>
               {roster.length > 5 ? (
-                <span className="text-[0.75rem] text-muted-foreground tabular-nums">
+                <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
                   +{roster.length - 5}
                 </span>
               ) : null}
             </div>
           ) : (
-            <span className="px-1.5 py-0.5 text-[0.8125rem] text-muted-foreground">
+            <span className="px-1.5 py-0.5 text-sm text-muted-foreground">
               No members
             </span>
           )}
@@ -632,7 +632,7 @@ export function SpaceDetail({
           </Link>
         </PropertyRow>
         <PropertyRow label="Documents">
-          <span className="px-1.5 py-0.5 text-[0.8125rem] tracking-tight text-foreground tabular-nums">
+          <span className="px-1.5 py-0.5 text-sm tracking-tight text-foreground tabular-nums">
             {docs.length}
           </span>
         </PropertyRow>
@@ -654,7 +654,7 @@ export function SpaceDetail({
               <Link
                 key={p.id}
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[0.75rem] tracking-tight text-foreground transition-colors hover:border-border hover:bg-muted/30"
+                className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[0.8125rem] tracking-tight text-foreground transition-colors hover:border-border hover:bg-muted/30"
               >
                 <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
                 {p.name}
@@ -671,7 +671,7 @@ export function SpaceDetail({
             <button
               type="button"
               onClick={() => setActiveTab("activity")}
-              className="text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm tracking-tight text-muted-foreground transition-colors hover:text-foreground"
             >
               See all
             </button>

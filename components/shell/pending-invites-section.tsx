@@ -17,18 +17,6 @@ type PendingInvite = {
   expiresAt: string;
 };
 
-export function usePendingInvitesCount(): number {
-  const { data } = useQuery<PendingInvite[]>({
-    queryKey: ["pending-invites"],
-    queryFn: async () => {
-      const r = await fetch("/api/me/pending-invites", { cache: "no-store" });
-      if (!r.ok) return [];
-      return r.json();
-    },
-  });
-  return data?.length ?? 0;
-}
-
 /**
  * Renders the "Pending invites" section inside the property switcher
  * dropdown. Each row links straight to /invites/{token} where the user

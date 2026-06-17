@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from "react";
 
-type InfoPanelTab = "members" | "pinned" | "files" | "ai" | "about";
+type InfoPanelTab = "members" | "pinned" | "files" | "about";
 
 type InfoPanelContextValue = {
   open: boolean;

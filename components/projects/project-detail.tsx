@@ -9,6 +9,7 @@ import {
   Archive,
   Check,
   ChevronRight,
+  FileText,
   Layers,
   MoreHorizontal,
 } from "lucide-react";
@@ -45,6 +46,7 @@ import { activityQuery } from "@/lib/query/activity-queries";
 import {
   MetadataItem,
   MetadataRow,
+  OverviewSection,
   PropertyRow,
   RailDate,
   RailGroup,
@@ -286,7 +288,7 @@ export function ProjectDetail({
   const breadcrumb = (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] tracking-tight"
+      className="flex min-w-0 items-center gap-1.5 text-sm tracking-tight"
     >
       <Link
         href={`/p/${propertyId}/projects`}
@@ -313,10 +315,10 @@ export function ProjectDetail({
   );
 
   const header = (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
         {project.icon ? (
-          <span className="shrink-0 text-[1.375rem] leading-none">
+          <span className="shrink-0 text-2xl leading-none">
             {project.icon}
           </span>
         ) : (
@@ -412,6 +414,70 @@ export function ProjectDetail({
       content: (
         <div className="flex flex-col gap-8">
           <ProgressOverview tasks={tasks} />
+          {linkedSpaces.length > 0 ? (
+            <OverviewSection
+              title="Spaces"
+              action={
+                <span className="text-[0.8125rem] tabular-nums text-muted-foreground">
+                  {linkedSpaces.length}
+                </span>
+              }
+            >
+              <ul role="list" className="flex flex-col">
+                {linkedSpaces.map((s) => (
+                  <li
+                    key={s.id}
+                    className="border-t border-border/40 first:border-0"
+                  >
+                    <Link
+                      href={`/p/${propertyId}/spaces/${s.id}`}
+                      className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
+                    >
+                      <span
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          DOT[s.color],
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                        {s.name || "Untitled space"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </OverviewSection>
+          ) : null}
+          {docs.length > 0 ? (
+            <OverviewSection
+              title="Documents"
+              action={
+                <span className="text-[0.8125rem] tabular-nums text-muted-foreground">
+                  {docs.length}
+                </span>
+              }
+            >
+              <ul role="list" className="flex flex-col">
+                {docs.slice(0, 5).map((d) => (
+                  <li
+                    key={d.id}
+                    className="border-t border-border/40 first:border-0"
+                  >
+                    <Link
+                      href={`/p/${propertyId}/documents/${d.id}`}
+                      className="flex items-center gap-2.5 rounded px-0.5 py-2.5 transition-colors hover:bg-muted/50"
+                    >
+                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                        {d.title || "Untitled"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </OverviewSection>
+          ) : null}
         </div>
       ),
     },
@@ -471,7 +537,7 @@ export function ProjectDetail({
               <AvatarRow people={contributors} />
             </div>
           ) : (
-            <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">
+            <span className="px-1.5 py-1 text-sm text-muted-foreground">
               None
             </span>
           )}
@@ -565,7 +631,7 @@ function AvatarRow({
         ))}
       </div>
       {extra > 0 ? (
-        <span className="ml-2 text-[0.75rem] text-muted-foreground tabular-nums">
+        <span className="ml-2 text-[0.8125rem] text-muted-foreground tabular-nums">
           +{extra}
         </span>
       ) : null}
@@ -597,7 +663,7 @@ function HealthValue({
     <span
       className={cn(
         "flex items-center gap-1.5 tracking-tight text-foreground",
-        inline ? "text-[0.8125rem]" : "px-1.5 py-1 text-[0.8125rem]",
+        inline ? "text-sm" : "px-1.5 py-1 text-sm",
       )}
     >
       <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
@@ -615,7 +681,7 @@ function DatesValue({
 }) {
   if (!start && !target)
     return (
-      <span className="px-1.5 py-1 text-[0.8125rem] text-muted-foreground">—</span>
+      <span className="px-1.5 py-1 text-sm text-muted-foreground">—</span>
     );
   return (
     <span className="flex items-center gap-1 px-1.5 py-1">
@@ -633,7 +699,7 @@ function Contributors({
 }) {
   if (people.length === 0)
     return (
-      <p className="py-4 text-[0.8125rem] text-muted-foreground">
+      <p className="py-4 text-sm text-muted-foreground">
         No one is assigned to this project&apos;s tasks yet.
       </p>
     );
@@ -710,7 +776,7 @@ function SpacesPicker({
         {linkedSpaces.map((s) => (
           <span
             key={s.id}
-            className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-[0.75rem] tracking-tight text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-[0.8125rem] tracking-tight text-foreground"
           >
             <span className={cn("size-1.5 rounded-full", DOT[s.color])} />
             {s.name}
@@ -721,7 +787,7 @@ function SpacesPicker({
             render={
               <button
                 type="button"
-                className="rounded-full border border-dashed border-border/70 px-2.5 py-1 text-[0.75rem] tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+                className="rounded-full border border-dashed border-border/70 px-2.5 py-1 text-[0.8125rem] tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
               />
             }
           >

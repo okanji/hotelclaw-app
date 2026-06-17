@@ -1,20 +1,17 @@
 "use client";
 
-import { useCallback } from "react";
 import { useShellSection } from "./shell-section-context";
-import { useResizableAside } from "./use-resizable-aside";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
 import { LastPathRecorder } from "./last-path-recorder";
 import type { Membership } from "@/lib/auth/session";
 
 /**
- * Resize bounds for the secondary sidebar. Activity is wider by default — its
- * notification cards need more room than a list of channel names — and keeps
- * its own persisted width separate from the chat/tasks/docs sidebar.
+ * Fixed width for the secondary sidebar — uniform across sections (Activity is
+ * now filter nav, not a notification feed, so it no longer needs extra room).
+ * The sidebar is collapsed/opened via the rail button, not drag-resizable.
  */
-const STANDARD_WIDTH = { min: 160, max: 480, fallback: 224 };
-const ACTIVITY_WIDTH = { min: 280, max: 560, fallback: 380 };
+const STANDARD_WIDTH = 224;
 
 type User = {
   id: string;
@@ -32,29 +29,12 @@ export function LeftShell({
   currentPropertyId,
   memberships,
   user,
-  defaultWidth,
-  activityDefaultWidth,
 }: {
   currentPropertyId: string;
   memberships: Membership[];
   user: User;
-  defaultWidth?: number;
-  activityDefaultWidth?: number;
 }) {
-  const { section, sidebarHidden, sidebarCollapsed, setSidebarCollapsed } =
-    useShellSection();
-  const collapse = useCallback(
-    () => setSidebarCollapsed(true),
-    [setSidebarCollapsed],
-  );
-  const standard = useResizableAside(defaultWidth, STANDARD_WIDTH, {
-    onCollapse: collapse,
-  });
-  const activity = useResizableAside(activityDefaultWidth, ACTIVITY_WIDTH, {
-    cookieName: "activity_sidebar_width",
-    onCollapse: collapse,
-  });
-  const resize = section === "activity" ? activity : standard;
+  const { sidebarHidden, sidebarCollapsed } = useShellSection();
 
   return (
     <div className="flex shrink-0 flex-col bg-sidebar">
@@ -72,11 +52,7 @@ export function LeftShell({
             currentPropertyId={currentPropertyId}
             memberships={memberships}
             user={user}
-            width={resize.width}
-            dragging={resize.dragging}
-            tooSmall={resize.tooSmall}
-            collapsing={resize.collapsing}
-            handleProps={resize.handleProps}
+            width={STANDARD_WIDTH}
           />
         )}
       </div>

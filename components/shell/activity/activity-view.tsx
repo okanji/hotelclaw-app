@@ -1,23 +1,17 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Bell } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { useNotifications } from "@/components/shell/use-notifications";
-import { ActivityDetail } from "./activity-detail";
-import { ActivityHub } from "./activity-hub";
+import { ActivityFeed } from "./activity-hub";
+import { viewDef, viewFromParam } from "./views";
 
 /**
- * Main-content pane of the Activity section.
- *
- * Two states share this pane:
- *   - Default (no `?n=<id>`): the focused activity feed (`ActivityHub`) — a
- *     filterable, day-grouped timeline of everything that's happened.
- *   - Notification selected: the existing master-detail behaviour, which
- *     opens the notification's target (channel, task, or invite) inline.
- *
- * The notification list also lives in the secondary sidebar (`ActivitySection`);
- * selecting a row there sets `?n=<id>`.
+ * Activity main pane — the inbox feed. The active view comes from `?view=`
+ * (set by the sidebar's filter nav); the header reflects it, the body lists
+ * its rows. There's no separate detail pane: clicking a row navigates to the
+ * thing it points at, so the sidebar (which slice) and this pane (the rows)
+ * each have exactly one job and never duplicate each other.
  */
 export function ActivityView({
   propertyId,
@@ -26,17 +20,16 @@ export function ActivityView({
   propertyId: string;
   userId: string;
 }) {
-  const selectedId = useSearchParams().get("n");
-  const { notifications, unseenCount } = useNotifications(userId);
-  const selected = selectedId
-    ? (notifications.find((n) => n.id === selectedId) ?? null)
-    : null;
+  const view = viewFromParam(useSearchParams().get("view"));
+  const def = viewDef(view);
+  const Icon = def.icon;
+  const { unseenCount } = useNotifications(userId);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <PageHeader
-        title="Activity"
-        icon={<Bell />}
+        title={view === "inbox" ? "Activity" : def.label}
+        icon={<Icon />}
         actions={
           unseenCount > 0 ? (
             <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
@@ -46,11 +39,7 @@ export function ActivityView({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {selected ? (
-          <ActivityDetail propertyId={propertyId} notification={selected} />
-        ) : (
-          <ActivityHub propertyId={propertyId} userId={userId} />
-        )}
+        <ActivityFeed propertyId={propertyId} userId={userId} view={view} />
       </div>
     </div>
   );

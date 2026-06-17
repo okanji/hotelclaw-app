@@ -18,7 +18,7 @@ export function AcceptButton({ token }: { token: string }) {
         return;
       }
       toast.success(`Welcome to ${result.propertyName}`);
-      router.push(`/p/${result.propertyId}/chat`);
+      router.push(`/p/${result.propertyId}/home`);
     });
   }
 

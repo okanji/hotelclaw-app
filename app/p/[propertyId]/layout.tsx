@@ -74,20 +74,7 @@ export default async function PropertyLayout({
   const initialTimeFormat: TimeFormat =
     profile.data?.time_format === "12h" ? "12h" : "24h";
 
-  // Persisted secondary-sidebar widths — read server-side from cookies so the
-  // first paint matches the resized width with no hydration flash. Activity
-  // keeps its own (wider) width separate from the chat/tasks/docs sidebar.
   const cookieStore = await cookies();
-  const cookieWidth = Number(cookieStore.get("section_sidebar_width")?.value);
-  const sectionSidebarWidth = Number.isFinite(cookieWidth)
-    ? cookieWidth
-    : undefined;
-  const activityCookieWidth = Number(
-    cookieStore.get("activity_sidebar_width")?.value,
-  );
-  const activitySidebarWidth = Number.isFinite(activityCookieWidth)
-    ? activityCookieWidth
-    : undefined;
 
   // Stream the user's notifications to the client so the Activity feed (rail
   // badge + section) and the Activity page render populated on first paint —
@@ -144,8 +131,6 @@ export default async function PropertyLayout({
                     <LeftShell
                       currentPropertyId={propertyId}
                       memberships={memberships}
-                      defaultWidth={sectionSidebarWidth}
-                      activityDefaultWidth={activitySidebarWidth}
                       user={{
                         id: user.id,
                         email: user.email ?? "",

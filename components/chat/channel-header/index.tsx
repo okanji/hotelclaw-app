@@ -21,6 +21,7 @@ import { useInfoPanel } from "../info-panel/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HuddleButton } from "@/components/chat/huddle/huddle-button";
 import { MeetingButton } from "@/components/chat/meeting/meeting-button";
+import { AiButton } from "./ai-button";
 
 /**
  * Custom replacement for Stream's default <ChannelHeader>.
@@ -90,6 +91,13 @@ export function ChannelHeader() {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {/* AI sits on its own, left of the channel utilities, set off by a
+            divider — it's a different class of control (the assistant) from
+            members/call/search. */}
+        {channel.id ? <AiButton /> : null}
+        {channel.id ? (
+          <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        ) : null}
         {!isDm ? (
           <Button
             variant="outline"

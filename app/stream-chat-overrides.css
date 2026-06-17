@@ -765,6 +765,42 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Typing indicator (incl. the AI bot's "…thinking" state). Stream renders it
+   as a centered, composer-width box with `align-items: flex-end`, and its
+   avatar keeps the default 2px outline ring — which read as a misaligned,
+   black-outlined avatar floating away from the message column. Re-seat it onto
+   the same gutter as a message row (36px avatar + 10px gap + 16px inline pad),
+   drop the ring, and strip the dot bubble's chrome so it's just the dots
+   starting exactly where message text does. */
+.str-chat__typing-indicator {
+  max-width: none;
+  margin: 0;
+  justify-content: flex-start;
+  align-items: center;
+  gap: var(--slack-avatar-column-gap, 10px);
+  padding-block: 2px;
+  padding-inline: var(--str-chat__spacing-md, 16px);
+}
+
+.str-chat__typing-indicator .str-chat__avatar {
+  flex: 0 0 var(--slack-avatar-size, 36px);
+  width: var(--slack-avatar-size, 36px) !important;
+  height: var(--slack-avatar-size, 36px) !important;
+}
+
+.str-chat__typing-indicator .str-chat__avatar::after {
+  opacity: 0 !important;
+}
+
+.str-chat__typing-indicator__bubble {
+  min-height: 0;
+  max-height: none;
+  padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Thread reply loader: Stream renders the wrapper `<div class="str-chat__list__loading">`
    between the parent message and replies *unconditionally*, but only mounts
    the rotating `.str-chat__loading-indicator` SVG inside it while

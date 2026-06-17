@@ -85,7 +85,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
 
   if (total === 0) {
     return (
-      <p className="text-[0.8125rem] tracking-tight text-muted-foreground">
+      <p className="text-sm tracking-tight text-muted-foreground">
         No issues yet — progress will appear here as work is added.
       </p>
     );
@@ -96,7 +96,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[0.8125rem] tracking-tight text-muted-foreground">
+        <p className="text-sm tracking-tight text-muted-foreground">
           <span className="tabular-nums text-foreground">{counts.done}</span>
           {" of "}
           <span className="tabular-nums text-foreground">{total}</span>
@@ -111,7 +111,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
             </>
           ) : null}
         </p>
-        <span className="shrink-0 text-[0.8125rem] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
           {pct}%
         </span>
       </div>
@@ -136,7 +136,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
             <div key={s.id} className="flex items-center gap-1">
               <StatusIcon status={s.id} className="size-3 text-muted-foreground/70" />
               <dt className="sr-only">{s.label}</dt>
-              <dd className="text-[0.75rem] tabular-nums text-muted-foreground">
+              <dd className="text-[0.8125rem] tabular-nums text-muted-foreground">
                 <span className={STATUS_TALLY[s.id] ?? "text-foreground"}>
                   {counts[s.id]}
                 </span>
@@ -175,7 +175,7 @@ export function ProjectProgressList({
 }) {
   if (projects.length === 0) {
     return (
-      <p className="py-2 text-[0.8125rem] text-muted-foreground">
+      <p className="py-2 text-sm text-muted-foreground">
         No projects yet — link one from a project&apos;s{" "}
         <span className="text-foreground">Spaces</span> picker.
       </p>
@@ -198,7 +198,7 @@ export function ProjectProgressList({
                 )}
                 aria-hidden="true"
               />
-              <span className="min-w-0 flex-1 truncate text-[0.8125rem] tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
                 {p.name || "Untitled project"}
               </span>
               <div className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
@@ -210,7 +210,7 @@ export function ProjectProgressList({
                     />
                   ) : null}
                 </div>
-                <span className="w-7 shrink-0 text-right text-[0.75rem] tabular-nums text-muted-foreground">
+                <span className="w-7 shrink-0 text-right text-[0.8125rem] tabular-nums text-muted-foreground">
                   {pct}%
                 </span>
               </div>
@@ -299,27 +299,27 @@ export function ActivityFeed({
 }) {
   if (pending && events.length === 0) {
     return (
-      <p className="py-1 text-[0.8125rem] text-muted-foreground">Loading…</p>
+      <p className="py-1 text-sm text-muted-foreground">Loading…</p>
     );
   }
   if (events.length === 0) {
     return (
-      <p className="py-1 text-[0.8125rem] text-muted-foreground">
+      <p className="py-1 text-sm text-muted-foreground">
         No activity yet — it&apos;ll show here as tasks move.
       </p>
     );
   }
   return (
-    <ul role="list" className="flex flex-col gap-2">
+    <ul role="list" className="flex flex-col gap-3.5">
       {events.map((e) => {
         const { Icon, text } = describeEvent(e);
         return (
-          <li key={e.id} className="flex items-start gap-2">
+          <li key={e.id} className="flex items-start gap-2.5">
             <Icon
               className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60"
               strokeWidth={1.5}
             />
-            <p className="min-w-0 flex-1 text-[0.8125rem] leading-[1.35] tracking-tight text-muted-foreground">
+            <p className="min-w-0 flex-1 text-sm leading-6 tracking-tight text-muted-foreground">
               {text}
               <span className="text-muted-foreground/55"> · {timeAgo(e.at)}</span>
             </p>
@@ -359,13 +359,13 @@ export function TasksPanel({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[0.8125rem] tracking-tight text-muted-foreground tabular-nums">
+        <span className="text-sm tracking-tight text-muted-foreground tabular-nums">
           {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
         </span>
         <AddPicker label="Add tasks" candidates={candidates} onAdd={onAdd} />
       </div>
       {tasks.length === 0 ? (
-        <p className="py-4 text-[0.8125rem] text-muted-foreground">
+        <p className="py-4 text-sm text-muted-foreground">
           No tasks yet — use <span className="font-medium">Add tasks</span> to
           pull work in.
         </p>
@@ -376,10 +376,10 @@ export function TasksPanel({
               <section key={col.id}>
                 <div className="mb-2 flex items-center gap-2">
                   <StatusIcon status={col.id} className="size-3.5" />
-                  <h3 className="text-[0.75rem] font-medium tracking-tight text-foreground">
+                  <h3 className="text-[0.8125rem] font-medium tracking-tight text-foreground">
                     {col.label}
                   </h3>
-                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {byStatus[col.id].length}
                   </span>
                 </div>
@@ -391,9 +391,9 @@ export function TasksPanel({
                     <li key={t.id} className="group/row relative">
                       <Link
                         href={`/p/${propertyId}/tasks/${t.id}`}
-                        className="flex items-center gap-2.5 rounded-md px-1 py-2 pr-8 transition-colors hover:bg-muted"
+                        className="flex items-center gap-2.5 rounded-md px-1 py-2.5 pr-8 transition-colors hover:bg-muted"
                       >
-                        <span className="min-w-0 flex-1 truncate text-[0.8125rem] tracking-tight text-foreground">
+                        <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
                           {t.title || "Untitled task"}
                         </span>
                       </Link>
@@ -439,7 +439,7 @@ export function DocsPanel({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[0.8125rem] tracking-tight text-muted-foreground tabular-nums">
+        <span className="text-sm tracking-tight text-muted-foreground tabular-nums">
           {docs.length} {docs.length === 1 ? "document" : "documents"}
           {pinnedIds && pinCount > 0 ? (
             <span className="text-muted-foreground/70">
@@ -451,7 +451,7 @@ export function DocsPanel({
         <AddPicker label="Add docs" candidates={candidates} onAdd={onAdd} />
       </div>
       {docs.length === 0 ? (
-        <p className="py-4 text-[0.8125rem] text-muted-foreground">
+        <p className="py-4 text-sm text-muted-foreground">
           No documents yet — use <span className="font-medium">Add docs</span> to
           link pages here.
         </p>
@@ -478,7 +478,7 @@ export function DocsPanel({
                     strokeWidth={1.5}
                     className="size-4 shrink-0 text-muted-foreground"
                   />
-                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] tracking-tight text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
                     {d.title || "Untitled"}
                   </span>
                   {isPinned ? (

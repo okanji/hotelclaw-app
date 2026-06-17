@@ -2,27 +2,49 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDndMonitor, useDroppable } from "@dnd-kit/core";
+import { ChevronLeft, Layers } from "lucide-react";
 import {
   addMinutes,
   isSameDay,
-  layoutColumns,
+  layoutDayColumns,
   MINUTES_PER_DAY,
   minutesFromMidnight,
   snapToGrain,
   startOfDay,
 } from "@/lib/calendar/time";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { EventBlock } from "./event-block";
+import { EventDetailBody } from "./event-detail-body";
 import type { CalendarEvent, FreeBusySlot } from "@/lib/calendar/types";
 
 const HOUR_HEIGHT_PX = 48;
 const SNAP_MINUTES = 15;
+/**
+ * Peak concurrency a slot can reach before we stop shingling and collapse the
+ * pile into a single "+N events" tile. A day is one wide column so it can
+ * cascade more blocks legibly; a week packs seven columns into the same width,
+ * so it tips into the collapsed tile sooner.
+ */
+const MAX_SHINGLE_DAY = 3;
+const MAX_SHINGLE_WEEK = 2;
+/**
+ * How far a shingled block widens past its own lane to overlap its neighbour,
+ * as a multiple of the lane step. >1 produces the Google-style cascade where
+ * each block peeks out from under the next; the clicked one lifts to the front.
+ */
+const SHINGLE_SPREAD = 1.7;
 
 type Props = {
   /** 1 element = day view; 7 = week view. */
   days: Date[];
   events: CalendarEvent[];
   propertyId: string;
+  currentUserId: string;
   overlayUsers: Set<string>;
   /**
    * Free/busy slots for the toggled overlay users. We don't pull these
@@ -34,7 +56,10 @@ type Props = {
    *  member palette so two grids in the same render don't disagree. */
   userColors: Map<string, string>;
   onCreateSlot: (start: Date, end: Date) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  /** Open the modal editor on the form for an event (the popover's pencil). */
+  onEditEvent: (event: CalendarEvent) => void;
+  /** Broadcast a refresh to peers after an inline mutation (delete/RSVP). */
+  onMutated?: () => void;
 };
 
 /**
@@ -54,11 +79,14 @@ type Props = {
 export function WeekGrid({
   days,
   events,
+  propertyId,
+  currentUserId,
   overlayUsers,
   freeBusy,
   userColors,
   onCreateSlot,
-  onSelectEvent,
+  onEditEvent,
+  onMutated,
 }: Props) {
   // Stable lane order keyed on `overlayUsers` membership — the renderer
   // draws each user's free/busy in their own lane down the right edge of
@@ -88,6 +116,7 @@ export function WeekGrid({
     return map;
   }, [freeBusy]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const maxShingle = days.length <= 1 ? MAX_SHINGLE_DAY : MAX_SHINGLE_WEEK;
 
   // Scroll the grid to 7am on first paint so the "useful" part of the day
   // is in view without manual scrolling.
@@ -138,17 +167,20 @@ export function WeekGrid({
             <DayHeader date={d} />
             <div className="flex flex-col gap-1">
               {(allDayByDay[d.toDateString()] ?? []).map((ev) => (
-                <button
+                <EventPopover
                   key={`${ev.source}:${ev.id}`}
-                  type="button"
-                  onClick={() => onSelectEvent(ev)}
-                  className={cn(
+                  event={ev}
+                  propertyId={propertyId}
+                  currentUserId={currentUserId}
+                  onEditEvent={onEditEvent}
+                  onMutated={onMutated}
+                  triggerClassName={cn(
                     "truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-[11px] font-medium",
                     eventTint(ev),
                   )}
                 >
                   {ev.title}
-                </button>
+                </EventPopover>
               ))}
             </div>
           </div>
@@ -165,9 +197,13 @@ export function WeekGrid({
             events={timedByDay[day.toDateString()] ?? []}
             freeBusySlots={slotsByDay.get(day.toDateString()) ?? []}
             lanes={lanes}
+            maxShingle={maxShingle}
             userColors={userColors}
+            propertyId={propertyId}
+            currentUserId={currentUserId}
             onCreateSlot={onCreateSlot}
-            onSelectEvent={onSelectEvent}
+            onEditEvent={onEditEvent}
+            onMutated={onMutated}
           />
         ))}
       </div>
@@ -230,17 +266,25 @@ function DayColumn({
   events,
   freeBusySlots,
   lanes,
+  maxShingle,
   userColors,
+  propertyId,
+  currentUserId,
   onCreateSlot,
-  onSelectEvent,
+  onEditEvent,
+  onMutated,
 }: {
   day: Date;
   events: CalendarEvent[];
   freeBusySlots: FreeBusySlot[];
   lanes: string[];
+  maxShingle: number;
   userColors: Map<string, string>;
+  propertyId: string;
+  currentUserId: string;
   onCreateSlot: (start: Date, end: Date) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onEditEvent: (event: CalendarEvent) => void;
+  onMutated?: () => void;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ startMin: number; endMin: number } | null>(
@@ -298,18 +342,17 @@ function DayColumn({
     },
   });
 
-  // layoutColumns reads `start` / `end` off each item — wrap each event so
-  // the algorithm sees `Date` objects, then unwrap on the way out so the
-  // renderer keeps the full `CalendarEvent` for click handling.
-  type Positioned = { event: CalendarEvent; start: Date; end: Date };
-  const placements = useMemo(() => {
-    const wrapped: Positioned[] = events.map((e) => ({
+  // layoutDayColumns reads `start` / `end` off each item — wrap each event so
+  // it sees `Date` objects, then unwrap on the way out so the renderer keeps
+  // the full `CalendarEvent` for click handling.
+  const items = useMemo(() => {
+    const wrapped = events.map((e) => ({
       event: e,
       start: new Date(e.start),
       end: new Date(e.end),
     }));
-    return layoutColumns(wrapped);
-  }, [events]);
+    return layoutDayColumns(wrapped, maxShingle);
+  }, [events, maxShingle]);
 
   // Convert a clientY to a snapped minutes-from-midnight value for this column.
   function clientYToMinutes(y: number): number {
@@ -393,17 +436,38 @@ function DayColumn({
         />
       ) : null}
 
-      {/* Event blocks */}
-      {placements.map(({ event: wrapped, column, columns }) => {
-        const ev = wrapped.event;
+      {/* Timed events — shingled when a few overlap, collapsed into one
+          "+N events" tile when a slot is too dense to read. */}
+      {items.map((item) => {
+        if (item.kind === "cluster") {
+          const evs = item.events.map((w) => w.event);
+          return (
+            <ClusterTile
+              key={`cluster:${evs[0].source}:${evs[0].id}`}
+              day={day}
+              start={item.start}
+              end={item.end}
+              count={item.count}
+              events={evs}
+              propertyId={propertyId}
+              currentUserId={currentUserId}
+              onEditEvent={onEditEvent}
+              onMutated={onMutated}
+            />
+          );
+        }
+        const ev = item.event.event;
         return (
           <PositionedEvent
             key={`${ev.source}:${ev.id}`}
             day={day}
             event={ev}
-            column={column}
-            columns={columns}
-            onSelect={() => onSelectEvent(ev)}
+            column={item.column}
+            columns={item.columns}
+            propertyId={propertyId}
+            currentUserId={currentUserId}
+            onEditEvent={onEditEvent}
+            onMutated={onMutated}
           />
         );
       })}
@@ -441,50 +505,117 @@ function DayColumn({
   );
 }
 
+/**
+ * Wraps an event's grid block in a non-modal popover (base-ui Popover renders
+ * no backdrop, so the rest of the calendar stays live and unblurred — the
+ * Google-Calendar behaviour). The trigger IS the block; clicking it opens the
+ * details beside it and lifts the block to the front. The pencil inside hands
+ * off to the modal editor. Used for both timed blocks (caller passes absolute
+ * `triggerStyle`) and the flow-laid all-day chips.
+ */
+function EventPopover({
+  event,
+  propertyId,
+  currentUserId,
+  onEditEvent,
+  onMutated,
+  triggerClassName,
+  triggerStyle,
+  children,
+}: {
+  event: CalendarEvent;
+  propertyId: string;
+  currentUserId: string;
+  onEditEvent: (event: CalendarEvent) => void;
+  onMutated?: () => void;
+  triggerClassName?: string;
+  triggerStyle?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        data-event-block
+        className={cn(triggerClassName, open && "ring-2 ring-foreground/40")}
+        // Open lifts the block clear of its shingled neighbours.
+        style={open ? { ...triggerStyle, zIndex: 40 } : triggerStyle}
+      >
+        {children}
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={6}
+        className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-3.5"
+      >
+        <EventDetailBody
+          event={event}
+          propertyId={propertyId}
+          currentUserId={currentUserId}
+          onEdit={() => {
+            setOpen(false);
+            onEditEvent(event);
+          }}
+          onClose={() => setOpen(false)}
+          onMutated={onMutated}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * A single timed block, shingled into its overlap group. Earlier events sit
+ * lower in the z-stack; each block widens past its lane (`SHINGLE_SPREAD`) to
+ * peek out from under the next, and the clicked one lifts to the front — no
+ * wasted gaps, every block reachable.
+ */
 function PositionedEvent({
   day,
   event,
   column,
   columns,
-  onSelect,
+  propertyId,
+  currentUserId,
+  onEditEvent,
+  onMutated,
 }: {
   day: Date;
   event: CalendarEvent;
   column: number;
   columns: number;
-  onSelect: () => void;
+  propertyId: string;
+  currentUserId: string;
+  onEditEvent: (event: CalendarEvent) => void;
+  onMutated?: () => void;
 }) {
-  // Clamp the event's time range to *this* day so a multi-day event
-  // renders flush to the top/bottom of each spanned column.
-  const start = new Date(event.start);
-  const end = new Date(event.end);
-  const dayStart = startOfDay(day);
-  const dayEnd = addMinutes(dayStart, MINUTES_PER_DAY);
-  const visibleStart = start < dayStart ? dayStart : start;
-  const visibleEnd = end > dayEnd ? dayEnd : end;
-  const top =
-    (minutesFromMidnight(visibleStart) / 60) * HOUR_HEIGHT_PX;
-  const height = Math.max(
-    16,
-    ((visibleEnd.getTime() - visibleStart.getTime()) / 60_000 / 60) *
-      HOUR_HEIGHT_PX,
+  const { top, height } = clampTopHeight(
+    new Date(event.start),
+    new Date(event.end),
+    day,
   );
-  const widthPct = 100 / columns;
-  const leftPct = column * widthPct;
+  const step = 100 / columns;
+  const leftPct = column * step;
+  // Widen past the lane to overlap the neighbour, but never past the column edge.
+  const widthPct = Math.min(step * SHINGLE_SPREAD, 100 - leftPct);
   return (
-    <button
-      type="button"
-      data-event-block
-      onClick={onSelect}
-      className={cn(
-        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-[11px] shadow-xs ring-1 ring-inset transition-shadow hover:z-10 hover:shadow-md",
+    <EventPopover
+      event={event}
+      propertyId={propertyId}
+      currentUserId={currentUserId}
+      onEditEvent={onEditEvent}
+      onMutated={onMutated}
+      triggerClassName={cn(
+        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-[11px] shadow-xs ring-1 ring-inset transition-shadow hover:shadow-md",
         eventTint(event),
       )}
-      style={{
+      triggerStyle={{
         top,
         height,
-        left: `calc(${leftPct}% + 4px)`,
-        width: `calc(${widthPct}% - 8px)`,
+        left: `calc(${leftPct}% + 1px)`,
+        width: `calc(${widthPct}% - 2px)`,
+        zIndex: column + 1,
         // An explicit event colour overrides the source tint, including
         // the accent edge — the tint classes only carry the fallback.
         ...(event.color
@@ -496,7 +627,194 @@ function PositionedEvent({
       }}
     >
       <EventBlock event={event} />
-    </button>
+    </EventPopover>
+  );
+}
+
+/**
+ * The collapsed stand-in for a slot too dense to shingle. Instead of a row of
+ * unreadable slivers, the pile renders as ONE tile spanning its time range,
+ * labelled with the event count; clicking opens a non-modal popover that lists
+ * every event and drills into any one's details in place (no blur, no modal).
+ */
+function ClusterTile({
+  day,
+  start,
+  end,
+  count,
+  events,
+  propertyId,
+  currentUserId,
+  onEditEvent,
+  onMutated,
+}: {
+  day: Date;
+  start: Date;
+  end: Date;
+  count: number;
+  events: CalendarEvent[];
+  propertyId: string;
+  currentUserId: string;
+  onEditEvent: (event: CalendarEvent) => void;
+  onMutated?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { top, height } = clampTopHeight(start, end, day);
+  const compact = height < 44;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        data-event-block
+        className={cn(
+          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border/70 bg-card text-center text-foreground shadow-sm ring-1 ring-inset ring-border transition-colors hover:border-foreground/30 hover:bg-accent",
+          open && "ring-2 ring-foreground/40",
+        )}
+        style={{
+          top,
+          height,
+          left: "1px",
+          width: "calc(100% - 2px)",
+          zIndex: open ? 40 : 6,
+        }}
+      >
+        <span className="flex items-center gap-1 text-[11px] font-semibold leading-none">
+          <Layers className="size-3 opacity-70" />
+          {count}
+        </span>
+        {!compact ? (
+          <span className="text-[9px] font-medium uppercase tracking-wide leading-none text-muted-foreground">
+            events
+          </span>
+        ) : null}
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={6}
+        className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-2"
+      >
+        <ClusterCard
+          events={events}
+          start={start}
+          end={end}
+          propertyId={propertyId}
+          currentUserId={currentUserId}
+          onEditEvent={onEditEvent}
+          onMutated={onMutated}
+          onClose={() => setOpen(false)}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Top/height in px for a [start,end) range, clamped to `day`'s bounds. */
+function clampTopHeight(start: Date, end: Date, day: Date) {
+  const dayStart = startOfDay(day);
+  const dayEnd = addMinutes(dayStart, MINUTES_PER_DAY);
+  const visibleStart = start < dayStart ? dayStart : start;
+  const visibleEnd = end > dayEnd ? dayEnd : end;
+  const top = (minutesFromMidnight(visibleStart) / 60) * HOUR_HEIGHT_PX;
+  const height = Math.max(
+    16,
+    ((visibleEnd.getTime() - visibleStart.getTime()) / 60_000 / 60) *
+      HOUR_HEIGHT_PX,
+  );
+  return { top, height };
+}
+
+/**
+ * The two-pane body inside a {@link ClusterTile} popover: a scrollable list of
+ * the slot's events, and — once one is picked — that event's full details with
+ * a back link. Everything stays in the same non-modal popover.
+ */
+function ClusterCard({
+  events,
+  start,
+  end,
+  propertyId,
+  currentUserId,
+  onEditEvent,
+  onMutated,
+  onClose,
+}: {
+  events: CalendarEvent[];
+  start: Date;
+  end: Date;
+  propertyId: string;
+  currentUserId: string;
+  onEditEvent: (event: CalendarEvent) => void;
+  onMutated?: () => void;
+  onClose: () => void;
+}) {
+  const [selected, setSelected] = useState<CalendarEvent | null>(null);
+
+  if (selected) {
+    return (
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setSelected(null)}
+          className="flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="size-3.5" />
+          All {events.length} events
+        </button>
+        <div className="px-1.5 pb-1">
+          <EventDetailBody
+            event={selected}
+            propertyId={propertyId}
+            currentUserId={currentUserId}
+            onEdit={() => {
+              onClose();
+              onEditEvent(selected);
+            }}
+            onClose={onClose}
+            onMutated={onMutated}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+  );
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
+        <span className="text-sm font-medium">{events.length} events</span>
+        <span className="text-[10px] tabular-nums text-muted-foreground">
+          {formatTimeRange(start, end)}
+        </span>
+      </div>
+      <div className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+        {sorted.map((ev) => (
+          <button
+            key={`${ev.source}:${ev.id}`}
+            type="button"
+            onClick={() => setSelected(ev)}
+            className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-accent"
+          >
+            <span
+              className={cn(
+                "size-2 shrink-0 rounded-full",
+                !ev.color && eventDotClass(ev),
+              )}
+              style={ev.color ? { backgroundColor: `#${ev.color}` } : undefined}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium">
+                {ev.title}
+              </span>
+              <span className="block text-[10px] tabular-nums text-muted-foreground">
+                {formatTimeRange(new Date(ev.start), new Date(ev.end))}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -598,6 +916,15 @@ function overlaps(day: Date, start: Date, end: Date): boolean {
   return start < dayEnd && end > dayStart;
 }
 
+/** Localized "6:00 – 7:30 PM"-style range, shared by the overflow popover. */
+function formatTimeRange(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+  };
+  return `${start.toLocaleTimeString(undefined, opts)} – ${end.toLocaleTimeString(undefined, opts)}`;
+}
+
 /** Localized "9:15 AM"-style label for minutes-from-midnight on `day`. */
 function formatMinutesLabel(day: Date, minutes: number): string {
   return addMinutes(startOfDay(day), minutes).toLocaleTimeString(undefined, {
@@ -633,4 +960,13 @@ function eventTint(event: CalendarEvent): string {
     return "border-l-emerald-500 bg-emerald-500/10 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100";
   }
   return "border-l-indigo-500 bg-indigo-500/10 text-indigo-900 ring-indigo-500/20 dark:text-indigo-100";
+}
+
+/** Solid swatch matching `eventTint`'s accent — used for the overflow dots. */
+function eventDotClass(event: CalendarEvent): string {
+  if (event.source === "meeting") return "bg-blue-500";
+  if (event.source === "task") return "bg-amber-500";
+  if (event.source === "booking") return "bg-violet-500";
+  if (event.provider === "google") return "bg-emerald-500";
+  return "bg-indigo-500";
 }

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   } else {
     response.headers.set(
       "Location",
-      new URL(`/p/${memberships[0].property_id}/chat`, origin).toString(),
+      new URL(`/p/${memberships[0].property_id}/home`, origin).toString(),
     );
   }
   return response;

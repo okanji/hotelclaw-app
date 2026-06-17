@@ -107,10 +107,10 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
       <header className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1.5">
-            <p className="text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
               {spaceName ? `Space · ${spaceName}` : "Workspace"}
             </p>
-            <h1 className="text-[2.5rem] leading-none font-semibold tracking-tight text-foreground">
+            <h1 className="text-[2.75rem] leading-none font-semibold tracking-tight text-foreground">
               Projects
             </h1>
           </div>
@@ -140,7 +140,7 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
                 type="button"
                 onClick={() => changeView(t.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[0.8125rem] font-medium tracking-tight transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium tracking-tight transition-colors",
                   view === t.id
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -151,7 +151,7 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
               </button>
             ))}
           </div>
-          <span className="text-[0.8125rem] tabular-nums text-muted-foreground">
+          <span className="text-sm tabular-nums text-muted-foreground">
             {shown.length} {shown.length === 1 ? "project" : "projects"}
           </span>
         </div>

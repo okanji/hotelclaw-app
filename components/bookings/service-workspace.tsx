@@ -99,13 +99,7 @@ export function ServiceWorkspace({
                 const url = isEvent
                   ? `${window.location.origin}/book/${propertySlug}/event/${service.id}`
                   : `${window.location.origin}/book/${propertySlug}`;
-                void navigator.clipboard
-                  .writeText(url)
-                  .then(() =>
-                    toast.success(
-                      isEvent ? "Ticket page link copied" : "Booking link copied",
-                    ),
-                  );
+                window.open(url, "_blank", "noopener,noreferrer");
               }}
             >
               <ExternalLink data-slot="icon" />

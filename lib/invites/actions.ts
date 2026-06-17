@@ -178,6 +178,31 @@ export async function createInvite(
 
   const magicUrl = linkData.properties.action_link;
 
+  // Block re-inviting someone who already belongs to this property. We can
+  // only resolve email → membership for existing accounts (memberships key on
+  // user_id, and profiles don't store email), which is exactly this branch —
+  // a brand-new account can't be a member yet. If they're already in, drop the
+  // pending-invite row we created above (it'd be a no-op) and report it back.
+  if (linkData.user?.id) {
+    const { data: alreadyMember } = await service
+      .from("memberships")
+      .select("user_id")
+      .eq("property_id", parsed.data.propertyId)
+      .eq("user_id", linkData.user.id)
+      .maybeSingle();
+    if (alreadyMember) {
+      if (!isResend) {
+        await service
+          .from("invites")
+          .delete()
+          .eq("property_id", parsed.data.propertyId)
+          .eq("email", email)
+          .is("accepted_at", null);
+      }
+      return { error: `${email} is already a member of this property.` };
+    }
+  }
+
   // Existing user — also drop an in-app notification so they see it as soon
   // as they next visit the app, even if the email lands in spam.
   if (linkData.user?.id) {

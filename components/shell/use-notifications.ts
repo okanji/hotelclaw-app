@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo } from "react";
+import { useCallback, useEffect, useId, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { NotificationRow } from "@/lib/notifications/types";
@@ -59,4 +59,59 @@ export function useNotifications(userId: string) {
   );
 
   return { notifications, unseenCount, isLoading: query.isLoading };
+}
+
+/**
+ * Read-state actions over the shared `["notifications", userId]` cache,
+ * optimistically updated then persisted via `/mark-read`. Shared by the
+ * Activity sidebar nav (mark-all-read) and the main-pane feed (mark-on-open) so
+ * both stay in sync against one cache entry.
+ */
+export function useNotificationActions(userId: string) {
+  const qc = useQueryClient();
+
+  const markSeen = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      const now = new Date().toISOString();
+      qc.setQueryData<NotificationRow[]>(["notifications", userId], (prev) =>
+        (prev ?? []).map((n) =>
+          idSet.has(n.id) && !n.seen_at ? { ...n, seen_at: now } : n,
+        ),
+      );
+    },
+    [qc, userId],
+  );
+
+  /** Optimistically mark one row seen and persist it — no navigation. */
+  const markRead = useCallback(
+    (n: NotificationRow) => {
+      if (n.seen_at) return;
+      markSeen([n.id]);
+      void fetch("/api/me/notifications/mark-read", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [n.id] }),
+      }).catch(() => {});
+    },
+    [markSeen],
+  );
+
+  const markAllRead = useCallback(() => {
+    const current =
+      qc.getQueryData<NotificationRow[]>(["notifications", userId]) ?? [];
+    const unseen = current.filter((n) => !n.seen_at);
+    if (unseen.length === 0) return;
+    markSeen(unseen.map((n) => n.id));
+    void fetch("/api/me/notifications/mark-read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    }).catch(() => {
+      qc.invalidateQueries({ queryKey: ["notifications", userId] });
+    });
+  }, [qc, userId, markSeen]);
+
+  return { markSeen, markRead, markAllRead };
 }

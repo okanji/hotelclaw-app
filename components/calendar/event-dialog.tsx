@@ -65,7 +65,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   initial:
     | { mode: "create"; start: Date; end: Date }
-    | { mode: "edit"; event: CalendarEvent };
+    | { mode: "edit"; event: CalendarEvent; view?: "details" | "edit" };
   /**
    * Called after a successful save/delete. The calendar room hooks this up
    * to broadcast `calendar-invalidate` over Liveblocks so peers refresh
@@ -103,11 +103,12 @@ export function EventDialog({
   const editing = initial.mode === "edit" ? initial.event : null;
   const isMeeting = editing?.source === "meeting" || initial.mode === "create";
 
-  // Clicking an existing event opens the read view first (Google Calendar
-  // style); the pencil icon flips to the edit form. Creating goes straight
-  // to the form.
+  // The grid now opens event details in a non-modal popover, so a click that
+  // reaches this modal is an explicit edit (`view: "edit"`). The "details"
+  // view is still honoured for callers that ask for it (e.g. the month grid).
+  // Creating goes straight to the form.
   const [view, setView] = useState<"details" | "edit">(
-    initial.mode === "edit" ? "details" : "edit",
+    initial.mode === "edit" ? initial.view ?? "details" : "edit",
   );
 
   const start = editing

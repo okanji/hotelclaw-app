@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { createContext, useContext, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlignLeft,
@@ -137,6 +137,14 @@ function DetailRow({
   );
 }
 
+/**
+ * The element used for the details title. Defaults to `DialogTitle` (the
+ * details panel's original home was a modal). Rendered inside a non-modal
+ * popover — where there is no Dialog to register a title id — the popover
+ * overrides this with a plain `h2` via the provider so base-ui doesn't throw.
+ */
+export const DetailsTitleContext = createContext<React.ElementType>(DialogTitle);
+
 function DetailsHeader({
   event,
   subtitle,
@@ -146,6 +154,7 @@ function DetailsHeader({
   subtitle?: string | null;
   actions?: React.ReactNode;
 }) {
+  const TitleEl = useContext(DetailsTitleContext);
   return (
     <div className="flex items-start justify-between gap-2 pr-7">
       <div className="flex min-w-0 items-start gap-3">
@@ -155,9 +164,9 @@ function DetailsHeader({
           style={{ backgroundColor: chipColor(event) }}
         />
         <div className="min-w-0">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-balance">
+          <TitleEl className="text-lg font-semibold tracking-tight text-balance">
             {event.title}
-          </DialogTitle>
+          </TitleEl>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {formatWhen(event)}
           </p>

@@ -291,7 +291,7 @@ export function CalendarRoom({
   const [dialog, setDialog] = useState<
     | null
     | { mode: "create"; start: Date; end: Date }
-    | { mode: "edit"; event: CalendarEvent }
+    | { mode: "edit"; event: CalendarEvent; view?: "details" | "edit" }
   >(null);
 
   function shiftFocus(direction: -1 | 1) {
@@ -391,13 +391,17 @@ export function CalendarRoom({
               days={days}
               events={events}
               propertyId={propertyId}
+              currentUserId={currentUserId}
               overlayUsers={overlayUsers}
               freeBusy={freeBusyQuery.data ?? []}
               userColors={userColors}
               onCreateSlot={(start, end) =>
                 setDialog({ mode: "create", start, end })
               }
-              onSelectEvent={(event) => setDialog({ mode: "edit", event })}
+              onEditEvent={(event) =>
+                setDialog({ mode: "edit", event, view: "edit" })
+              }
+              onMutated={() => broadcast({ type: "calendar-invalidate" })}
             />
           )}
           {/* Peer cursors overlaying the grid. Positioned absolute inside

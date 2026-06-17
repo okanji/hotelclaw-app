@@ -17,15 +17,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Building2, Check, ChevronDown, Plus, UserPlus } from "lucide-react";
+import { Building2, Check, ChevronDown, Plus, Users, UserPlus } from "lucide-react";
 import { RailLogo } from "./rail-logo";
 import { InviteDialog } from "./invite-dialog";
-import {
-  PendingInvitesSection,
-  usePendingInvitesCount,
-} from "./pending-invites-section";
+import { MembersDialog } from "./members-dialog";
+import { PendingInvitesSection } from "./pending-invites-section";
 import { createClient } from "@/lib/supabase/client";
-import { lastSectionPath } from "@/lib/shell/last-path";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -40,9 +37,9 @@ export function PropertySwitcher({
   const router = useRouter();
   const qc = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const current = memberships.find((m) => m.property_id === currentPropertyId);
   const canInvite = current?.role === "owner" || current?.role === "manager";
-  const pendingCount = usePendingInvitesCount();
 
   // Realtime: push new/changed invites for this email so the badge + dropdown
   // update without polling. Emails are stored lowercased on insert
@@ -89,14 +86,6 @@ export function PropertySwitcher({
               {current?.property.name ?? "Property"}
             </span>
             <ChevronDown className="size-3.5! shrink-0 text-muted-foreground" />
-            {pendingCount > 0 ? (
-              <span
-                className="ml-auto flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground"
-                title={`${pendingCount} pending invite${pendingCount === 1 ? "" : "s"}`}
-              >
-                {pendingCount > 9 ? "9+" : pendingCount}
-              </span>
-            ) : null}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"
@@ -110,16 +99,9 @@ export function PropertySwitcher({
               {memberships.map((m) => (
                 <DropdownMenuItem
                   key={m.property_id}
-                  // Jump straight to the last channel viewed in that property
-                  // (localStorage) so switching skips the `/chat` index's
-                  // DB-query-then-`redirect()`. Falls back to `/chat` on a
-                  // property never visited before.
-                  onClick={() =>
-                    router.push(
-                      lastSectionPath(m.property_id, "chat") ??
-                        `/p/${m.property_id}/chat`,
-                    )
-                  }
+                  // Switching property lands on its Home — the app's universal
+                  // default surface.
+                  onClick={() => router.push(`/p/${m.property_id}/home`)}
                   className="gap-2"
                 >
                   <Building2 className="size-4 text-muted-foreground" />
@@ -135,6 +117,13 @@ export function PropertySwitcher({
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setMembersOpen(true)}
+                className="gap-2"
+              >
+                <Users className="size-4" />
+                People
+              </DropdownMenuItem>
               {canInvite ? (
                 <DropdownMenuItem
                   onClick={() => setInviteOpen(true)}
@@ -159,6 +148,11 @@ export function PropertySwitcher({
         propertyId={currentPropertyId}
         open={inviteOpen}
         onOpenChange={setInviteOpen}
+      />
+      <MembersDialog
+        propertyId={currentPropertyId}
+        open={membersOpen}
+        onOpenChange={setMembersOpen}
       />
     </SidebarMenu>
   );

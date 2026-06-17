@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
 import {
   SidebarContent,
   SidebarHeader,
@@ -23,12 +22,6 @@ import { ChatbotsSection } from "./sections/chatbots-section";
 import { BookingsSection } from "./sections/bookings-section";
 import type { Membership } from "@/lib/auth/session";
 
-type ResizeHandleProps = {
-  onPointerDown: (e: React.PointerEvent) => void;
-  onPointerMove: (e: React.PointerEvent) => void;
-  onPointerUp: (e: React.PointerEvent) => void;
-};
-
 type Props = {
   currentPropertyId: string;
   memberships: Membership[];
@@ -40,27 +33,17 @@ type Props = {
   };
   /** Width (px) — owned by `LeftShell`. */
   width: number;
-  dragging: boolean;
-  /** Dragged below `min` — content fades to signal "release to collapse". */
-  tooSmall: boolean;
-  /** Spring-collapse in flight — content blurs as the width springs to zero. */
-  collapsing: boolean;
-  handleProps: ResizeHandleProps;
 };
 
 /**
  * The second sidebar — content swaps with the active rail section. Property
- * switcher header + section content + drag-to-resize handle.
+ * switcher header + section content. Collapsed/opened via the rail button.
  */
 export function SectionSidebar({
   currentPropertyId,
   memberships,
   user,
   width,
-  dragging,
-  tooSmall,
-  collapsing,
-  handleProps,
 }: Props) {
   const { section } = useShellSection();
 
@@ -74,15 +57,12 @@ export function SectionSidebar({
       className="relative flex h-full shrink-0 flex-col overflow-hidden bg-sidebar"
       style={{ width }}
     >
-      {/* Content fades in the too-small zone and blurs as the spring-collapse
-          runs (ported from the prototype's aside-content treatment). The resize
-          handle below stays outside this wrapper so it remains draggable. */}
-      <div
-        data-too-small={tooSmall ? "" : undefined}
-        data-collapsing={collapsing ? "" : undefined}
-        className="flex min-h-0 w-full flex-1 flex-col transition-[filter,opacity] duration-500 ease-out data-collapsing:blur-[5px] data-too-small:pointer-events-none data-too-small:opacity-30"
-      >
-      <SidebarHeader>
+      <div className="flex min-h-0 w-full flex-1 flex-col">
+      {/* pt-3 (not the default p-2): the sidebar sits flush at the shell top
+          while the rail and main pane are inset by m-2, so the extra 4px drops
+          the property switcher's center onto the page-header title line for a
+          continuous top bar across the seam. */}
+      <SidebarHeader className="pt-3">
         <PropertySwitcher
           currentPropertyId={currentPropertyId}
           memberships={memberships}
@@ -148,26 +128,6 @@ export function SectionSidebar({
           </Suspense>
         </SectionPane>
       </SidebarContent>
-      </div>
-
-      {/* Drag-to-resize handle on the trailing edge. The prototype's pill
-          indicator sits centered on the seam and brightens on hover/drag;
-          drag it narrow to fade the content, release there to spring it shut. */}
-      <div
-        {...handleProps}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        className="group/resize absolute inset-y-0 right-0 z-20 flex w-2.5 cursor-col-resize touch-none items-center justify-center"
-      >
-        <span
-          className={cn(
-            "h-6 w-1 rounded-full transition-colors",
-            dragging
-              ? "bg-contrast-high/25"
-              : "bg-contrast-high/10 group-hover/resize:bg-contrast-high/20",
-          )}
-        />
       </div>
     </aside>
   );

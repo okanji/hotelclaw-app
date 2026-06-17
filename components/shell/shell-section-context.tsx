@@ -129,7 +129,7 @@ export function ShellSectionProvider({
 }) {
   const pathname = usePathname();
   const [section, setSection] = useState<ShellSection>(
-    () => sectionFromPath(pathname) ?? asSection(initialSection) ?? "chat",
+    () => sectionFromPath(pathname) ?? asSection(initialSection) ?? "home",
   );
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(initialCollapsed);
