@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   BookOpen,
+  ChevronDown,
   FileText,
   Globe,
   HelpCircle,
@@ -26,8 +27,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ChatbotKnowledgeKind, ChatbotKnowledgeStatus } from "@/lib/db/types";
-import { addKnowledgeSource, deleteKnowledgeSource } from "./actions";
+import {
+  addKnowledgeSource,
+  deleteKnowledgeSource,
+  updateKnowledgeSource,
+} from "./actions";
 
 export type KnowledgeSourceRow = {
   id: string;
@@ -53,6 +64,19 @@ const KIND_ICONS = {
   url: Globe,
 } as const;
 
+/** Source-type entry points, surfaced directly in the "Add source" menu so
+ *  the document path isn't buried inside a <select>. */
+const SOURCE_KINDS: {
+  kind: ChatbotKnowledgeKind;
+  label: string;
+  hint: string;
+}[] = [
+  { kind: "text", label: "Text", hint: "Paste a menu, policy, or FAQ" },
+  { kind: "qa", label: "Q&A pair", hint: "An exact answer to one question" },
+  { kind: "document", label: "Workspace document", hint: "Link a doc from this property" },
+  { kind: "url", label: "Web page", hint: "Fetch a public URL" },
+];
+
 const selectClass =
   "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
@@ -75,7 +99,7 @@ export function KnowledgePanel({
   lastTrainedAt: string | null;
 }) {
   const router = useRouter();
-  const [addOpen, setAddOpen] = useState(false);
+  const [addKind, setAddKind] = useState<ChatbotKnowledgeKind | null>(null);
   const [training, startTraining] = useTransition();
 
   const pendingCount = sources.filter((s) => s.status === "pending").length;
@@ -122,10 +146,35 @@ export function KnowledgePanel({
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            <Plus data-slot="icon" />
-            Add source
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <Plus data-slot="icon" />
+              Add source
+              <ChevronDown data-slot="icon" className="text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {SOURCE_KINDS.map(({ kind, label, hint }) => {
+                const Icon = KIND_ICONS[kind];
+                const noDocs = kind === "document" && documents.length === 0;
+                return (
+                  <DropdownMenuItem
+                    key={kind}
+                    disabled={noDocs}
+                    onClick={() => setAddKind(kind)}
+                    className="items-start gap-2.5 py-2"
+                  >
+                    <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-sm">{label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {noDocs ? "No documents in this workspace yet" : hint}
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             onClick={train}
@@ -174,8 +223,8 @@ export function KnowledgePanel({
         propertyId={propertyId}
         chatbotId={chatbotId}
         documents={documents}
-        open={addOpen}
-        onOpenChange={setAddOpen}
+        initialKind={addKind}
+        onClose={() => setAddKind(null)}
       />
     </div>
   );
@@ -184,9 +233,11 @@ export function KnowledgePanel({
 function SourceRow({ source }: { source: KnowledgeSourceRow }) {
   const router = useRouter();
   const [deleting, startDelete] = useTransition();
+  const [open, setOpen] = useState(false);
   const Icon = KIND_ICONS[source.kind];
 
-  function remove() {
+  function remove(e: React.MouseEvent) {
+    e.stopPropagation();
     startDelete(async () => {
       const result = await deleteKnowledgeSource(source.id);
       if ("error" in result) {
@@ -200,7 +251,11 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="min-w-0 flex-1 rounded text-left transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <p className="truncate text-sm">{source.title}</p>
         <p className="truncate text-xs text-muted-foreground">
           {source.kind === "qa"
@@ -210,7 +265,7 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
               : `${Math.max(1, Math.round(source.char_count / 1000))}k characters`}
           {source.error ? ` — ${source.error}` : ""}
         </p>
-      </div>
+      </button>
       {source.status === "trained" ? (
         <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
           Trained
@@ -231,7 +286,176 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
       >
         <Trash2 className="size-3.5" />
       </Button>
+      <SourceDetailDialog source={source} open={open} onOpenChange={setOpen} />
     </li>
+  );
+}
+
+/**
+ * Preview + edit a single source. text/qa are editable (saving resets the
+ * source to `pending` so the row's badge nudges a retrain); document/url are
+ * read-only snapshots — their content is re-fetched at train time, so we show
+ * the last trained snapshot and point the user at the underlying doc/URL.
+ */
+function SourceDetailDialog({
+  source,
+  open,
+  onOpenChange,
+}: {
+  source: KnowledgeSourceRow;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const editable = source.kind === "text" || source.kind === "qa";
+  const [title, setTitle] = useState(source.title);
+  const [content, setContent] = useState(source.content ?? "");
+  const [question, setQuestion] = useState(source.question ?? "");
+  const [pending, startTransition] = useTransition();
+
+  // Reset the form to the latest source whenever the dialog (re)opens.
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setTitle(source.title);
+      setContent(source.content ?? "");
+      setQuestion(source.question ?? "");
+    }
+    onOpenChange(next);
+  }
+
+  function save(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const result = await updateKnowledgeSource({
+        sourceId: source.id,
+        title,
+        content,
+        question: source.kind === "qa" ? question : undefined,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      onOpenChange(false);
+      toast.success("Source updated — retrain to apply the changes");
+      router.refresh();
+    });
+  }
+
+  const dirty =
+    title !== source.title ||
+    content !== (source.content ?? "") ||
+    (source.kind === "qa" && question !== (source.question ?? ""));
+  const valid =
+    title.trim().length > 0 &&
+    content.trim().length > 0 &&
+    (source.kind !== "qa" || question.trim().length > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{editable ? "Edit source" : "Source preview"}</DialogTitle>
+          <DialogDescription>
+            {editable
+              ? "Saving sets this source back to “Not trained” — retrain to apply it."
+              : source.kind === "document"
+                ? "Linked document — edit the doc itself, then retrain to refresh this snapshot."
+                : "Fetched web page — the content is re-fetched on each retrain."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {editable ? (
+          <form onSubmit={save} className="space-y-4">
+            {source.kind === "qa" ? (
+              <div className="space-y-2">
+                <Label htmlFor="edit-question">Question</Label>
+                <Input
+                  id="edit-question"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Title</Label>
+                <Input
+                  id="edit-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="edit-content">
+                {source.kind === "qa" ? "Exact answer" : "Content"}
+              </Label>
+              <Textarea
+                id="edit-content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={source.kind === "qa" ? 4 : 10}
+              />
+              <p className="text-xs text-muted-foreground">
+                {content.trim().length} characters
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending || !valid || !dirty}>
+                {pending ? "Saving…" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <p className="text-sm">{source.title}</p>
+            </div>
+            {source.url ? (
+              <div className="space-y-1">
+                <Label>Source URL</Label>
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-sm text-primary underline-offset-2 hover:underline"
+                >
+                  {source.url}
+                </a>
+              </div>
+            ) : null}
+            <div className="space-y-1">
+              <Label>
+                {source.last_trained_at ? "Last trained snapshot" : "Snapshot"}
+              </Label>
+              {source.content ? (
+                <div className="max-h-72 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-muted/40 p-3 text-sm">
+                  {source.content}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No snapshot yet — retrain to fetch the content.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -239,23 +463,44 @@ function AddSourceDialog({
   propertyId,
   chatbotId,
   documents,
-  open,
-  onOpenChange,
+  initialKind,
+  onClose,
 }: {
   propertyId: string;
   chatbotId: string;
   documents: DocumentOption[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  initialKind: ChatbotKnowledgeKind | null;
+  onClose: () => void;
 }) {
   const router = useRouter();
-  const [kind, setKind] = useState<ChatbotKnowledgeKind>("text");
+  // The dialog opens seeded to the menu entry the user chose (`initialKind`);
+  // the in-dialog Type select can override it without losing that seed.
+  const [kindOverride, setKindOverride] = useState<ChatbotKnowledgeKind | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [question, setQuestion] = useState("");
   const [documentId, setDocumentId] = useState("");
   const [url, setUrl] = useState("");
   const [pending, startTransition] = useTransition();
+
+  const open = initialKind !== null;
+  const kind = kindOverride ?? initialKind ?? "text";
+
+  function resetFields() {
+    setKindOverride(null);
+    setTitle("");
+    setContent("");
+    setQuestion("");
+    setDocumentId("");
+    setUrl("");
+  }
+
+  function onOpenChange(next: boolean) {
+    if (!next) {
+      resetFields();
+      onClose();
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -283,11 +528,6 @@ function AddSourceDialog({
         toast.error(result.error);
         return;
       }
-      setTitle("");
-      setContent("");
-      setQuestion("");
-      setDocumentId("");
-      setUrl("");
       onOpenChange(false);
       toast.success("Source added — train to make it searchable");
       router.refresh();
@@ -318,7 +558,7 @@ function AddSourceDialog({
             <select
               id="source-kind"
               value={kind}
-              onChange={(e) => setKind(e.target.value as ChatbotKnowledgeKind)}
+              onChange={(e) => setKindOverride(e.target.value as ChatbotKnowledgeKind)}
               className={selectClass}
             >
               <option value="text">Text — paste a menu, policy, FAQ</option>

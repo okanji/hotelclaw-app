@@ -175,7 +175,7 @@ function InsightCardRow({
       <Icon className={cn("mt-0.5 size-4 shrink-0", tone)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 text-[0.875rem] font-semibold tracking-tight text-pretty text-foreground">
+          <h3 className="min-w-0 text-[0.9375rem] font-semibold tracking-tight text-pretty text-foreground">
             {card.headline}
           </h3>
           {card.spark !== "none" ? (
@@ -200,15 +200,15 @@ function InsightCardRow({
             </div>
           ) : null}
         </div>
-        <p className="text-[0.8125rem] leading-relaxed text-pretty text-muted-foreground">
+        <p className="text-[0.875rem] leading-relaxed text-pretty text-muted-foreground">
           {card.detail}
         </p>
         {card.evidence ? (
           <figure className="mt-0.5 border-l-2 border-border pl-2.5">
-            <blockquote className="text-[0.75rem] leading-relaxed text-pretty text-muted-foreground italic">
+            <blockquote className="text-[0.8125rem] leading-relaxed text-pretty text-muted-foreground italic">
               “{card.evidence.quote}”
             </blockquote>
-            <figcaption className="mt-0.5 text-[0.6875rem] text-muted-foreground/70">
+            <figcaption className="mt-0.5 text-[0.75rem] text-muted-foreground/70">
               {card.evidence.source}
             </figcaption>
           </figure>
@@ -216,7 +216,7 @@ function InsightCardRow({
         {card.action ? (
           <Link
             href={actionHref(propertyId, card.action)}
-            className="group mt-0.5 inline-flex w-fit items-center gap-1 text-[0.75rem] font-medium text-foreground underline-offset-2 hover:underline"
+            className="group mt-0.5 inline-flex w-fit items-center gap-1 text-[0.8125rem] font-medium text-foreground underline-offset-2 hover:underline"
           >
             {card.action.label}
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
@@ -224,7 +224,7 @@ function InsightCardRow({
         ) : null}
         {card.basis && card.basis.length > 0 ? (
           <details className="group/basis mt-0.5">
-            <summary className="w-fit cursor-pointer list-none text-[0.6875rem] text-muted-foreground/70 hover:text-muted-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="w-fit cursor-pointer list-none text-[0.75rem] text-muted-foreground/70 hover:text-muted-foreground [&::-webkit-details-marker]:hidden">
               From {card.basis.length} deterministic signal
               {card.basis.length === 1 ? "" : "s"}
             </summary>
@@ -232,7 +232,7 @@ function InsightCardRow({
               {card.basis.map((b, i) => (
                 <li
                   key={i}
-                  className="text-[0.6875rem] leading-relaxed text-muted-foreground/80"
+                  className="text-[0.75rem] leading-relaxed text-muted-foreground/80"
                 >
                   · {b}
                 </li>

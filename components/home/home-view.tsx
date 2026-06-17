@@ -15,11 +15,26 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
 import { GenerateDocumentDialog } from "@/components/documents/generate-document-dialog";
-import { tasksQueryOptions } from "@/lib/query/section-queries";
+import {
+  tasksQueryOptions,
+  propertyMembersQueryOptions,
+} from "@/lib/query/section-queries";
+import { pendingBookingsCountQueryOptions } from "@/lib/query/booking-queries";
+import { insightsMetricsQueryOptions } from "@/lib/query/insights-queries";
 import { useNotifications } from "@/components/shell/use-notifications";
 import {
   DASHBOARD_WIDGETS,
@@ -32,19 +47,34 @@ import {
   EditorialSection,
   HiddenTray,
   Stats,
+  type StatItem,
 } from "./editorial-section";
 import {
   DashboardFilterMenu,
   DashboardFilterProvider,
   type DashboardFilter,
 } from "./dashboard-filter";
+import {
+  asHomeRole,
+  heroFor,
+  roleWeightedOrder,
+  type HomeLens,
+  type HomeRole,
+} from "./role-order";
+import { ShiftBriefWidget } from "./widgets/shift-brief-widget";
+import { AttentionWidget } from "./widgets/attention-widget";
+import { IntelligenceBriefWidget } from "./widgets/intelligence-brief-widget";
 
 /**
- * Property "Home" — a personalized dashboard in the editorial language of the
- * Docs "Directory": a generous header with a personal at-a-glance summary, then
- * stacked sections (kicker + heading + hairline content, not cards). Each
- * section is drag-reorderable and can be hidden; the arrangement saves per
- * user. The personal activity feed lives in the second sidebar (HomeSection).
+ * Property "Home" — a role-adaptive dashboard ("Compass"). One widget registry,
+ * re-weighted by the viewer's property role: the masthead's at-a-glance number,
+ * the single promoted "Today" hero, and the masonry's first-render order all
+ * key off whether you're an owner, a manager, or staff — owners land on the
+ * analyst's brief, managers on what needs a decision, staff on their shift.
+ * The role seed only changes what you START with; the per-user drag/hide
+ * arrangement (saved on-device) is untouched, and an unknown role degrades to
+ * the persona-blind registry default. The personal activity feed lives in the
+ * second sidebar (HomeSection).
  */
 export function HomeView({
   propertyId,
@@ -62,10 +92,37 @@ export function HomeView({
   const [filter, setFilter] = useState<DashboardFilter>({ kind: "all" });
   const greeting = useGreeting(userName);
 
+  // Role drives the lens. `viewAs` lets an owner/manager preview another
+  // persona's Home; it never changes data scope (the APIs stay role-shaped) —
+  // only the ordering + hero + masthead copy.
+  const { data: members } = useQuery(propertyMembersQueryOptions(propertyId));
+  const realRole = useMemo<HomeRole | null>(
+    () => asHomeRole(members?.find((m) => m.id === userId)?.role),
+    [members, userId],
+  );
+  const [viewAs, setViewAs] = useState<HomeRole | null>(null);
+  const role: HomeLens = viewAs ?? realRole;
+
   const { order, visible, hidden, isHidden, setOrder, toggleHidden, reset } =
-    useDashboardLayout(propertyId, userId, DASHBOARD_WIDGET_IDS);
+    useDashboardLayout(
+      propertyId,
+      userId,
+      DASHBOARD_WIDGET_IDS,
+      "home-layout",
+      roleWeightedOrder(role),
+    );
 
   const summary = usePersonalSummary(propertyId, userId);
+  const statItems = useStatItems(role, summary, propertyId);
+
+  // The one signal lifted out of the masonry into the "Today" hero for this
+  // lens. `intelligence` is hero-only (not a registry tile); the others are
+  // real widgets filtered out of the grid below so they aren't shown twice.
+  const heroId = heroFor(role);
+  const showHero =
+    heroId !== null && (heroId === "intelligence" || !isHidden(heroId));
+  const hero = heroId ? HERO_META[heroId] : null;
+  const gridIds = visible.filter((id) => id !== heroId);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -89,6 +146,13 @@ export function HomeView({
             {propertyName}
           </p>
           <div className="flex items-center gap-1.5">
+            {realRole ? (
+              <ViewAsMenu
+                realRole={realRole}
+                viewAs={viewAs}
+                onChange={setViewAs}
+              />
+            ) : null}
             <DashboardFilterMenu
               propertyId={propertyId}
               value={filter}
@@ -121,27 +185,36 @@ export function HomeView({
             {greeting}
           </h1>
           <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed tracking-tight text-pretty text-muted-foreground">
-            A snapshot of your day and what the team is moving — rearrange it to
-            your liking, or hide what you don&apos;t need.
+            {sublineFor(role)}
           </p>
           <div className="pt-3">
-            <Stats
-              items={[
-                { label: "open tasks", value: summary.open },
-                { label: "due ≤ 7d", value: summary.dueSoon },
-                { label: "unread", value: summary.unread },
-              ]}
-            />
+            <Stats items={statItems} />
           </div>
         </div>
       </header>
 
       <hr className="my-12 border-border" />
 
-      {visible.length === 0 ? (
+      {showHero && hero ? (
+        <section className="mb-16 min-w-0">
+          <div className="mb-6 flex flex-col gap-1.5 border-b border-border pb-3">
+            <span className="text-[0.625rem] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+              {hero.kicker}
+            </span>
+            <h2 className="text-[1.375rem] font-semibold tracking-tight text-foreground">
+              {hero.title}
+            </h2>
+          </div>
+          <HeroBody heroId={heroId!} propertyId={propertyId} />
+        </section>
+      ) : null}
+
+      {gridIds.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            Every section is hidden — bring one back from the tray below.
+            {showHero
+              ? "Everything else is hidden — bring a section back from the tray below."
+              : "Every section is hidden — bring one back from the tray below."}
           </p>
           <Button type="button" size="sm" variant="outline" onClick={reset}>
             <RotateCcw className="size-4" />
@@ -155,9 +228,9 @@ export function HomeView({
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext items={visible} strategy={rectSortingStrategy}>
+            <SortableContext items={gridIds} strategy={rectSortingStrategy}>
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-10 gap-y-16 @4xl:grid-cols-2">
-                {visible.map((id) => {
+                {gridIds.map((id) => {
                   const def = WIDGETS_BY_ID.get(id);
                   if (!def) return null;
                   const { Component } = def;
@@ -200,6 +273,141 @@ export function HomeView({
     </DashboardFilterProvider>
   );
 }
+
+/* ── Role-tuned masthead copy + number ─────────────────────────────────────── */
+
+const ROLE_LABEL: Record<HomeRole, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  staff: "Staff",
+};
+
+function sublineFor(role: HomeLens): string {
+  switch (role) {
+    case "owner":
+      return "Here's where the property stands today — the analyst's read up top, the rest of the picture below.";
+    case "manager":
+      return "Here's what needs you to decide today, then the team's momentum and your own work.";
+    case "staff":
+      return "Here's your shift at a glance — what changed, and what's yours to move.";
+    default:
+      return "A snapshot of your day and what the team is moving — rearrange it to your liking, or hide what you don't need.";
+  }
+}
+
+/** Role-tuned at-a-glance number. Owners lead with the front-desk + risk
+ *  figures; everyone else keeps the personal task/unread read. All values come
+ *  from queries the widgets below already fetch — no new endpoint. */
+function useStatItems(
+  role: HomeLens,
+  summary: { open: number; dueSoon: number; unread: number },
+  propertyId: string,
+): StatItem[] {
+  const { data: pendingBookings = 0 } = useQuery(
+    pendingBookingsCountQueryOptions(propertyId),
+  );
+  const { data: metrics } = useQuery(insightsMetricsQueryOptions(propertyId));
+  const attention = metrics?.attention.length ?? 0;
+
+  if (role === "owner") {
+    return [
+      { label: "pending bookings", value: pendingBookings, tone: "rose" },
+      { label: "need attention", value: attention, tone: "rose" },
+      { label: "unread", value: summary.unread },
+    ];
+  }
+  return [
+    { label: "open tasks", value: summary.open },
+    { label: "due ≤ 7d", value: summary.dueSoon },
+    { label: "unread", value: summary.unread },
+  ];
+}
+
+/* ── "Today" hero band ─────────────────────────────────────────────────────── */
+
+const HERO_META: Record<string, { kicker: string; title: string }> = {
+  intelligence: { kicker: "Today · Where things stand", title: "The brief" },
+  attention: { kicker: "Today · Needs you", title: "Attention" },
+  "shift-brief": { kicker: "Today · Your shift", title: "Shift brief" },
+};
+
+function HeroBody({
+  heroId,
+  propertyId,
+}: {
+  heroId: string;
+  propertyId: string;
+}) {
+  switch (heroId) {
+    case "intelligence":
+      return <IntelligenceBriefWidget propertyId={propertyId} />;
+    case "attention":
+      return <AttentionWidget propertyId={propertyId} />;
+    case "shift-brief":
+      return <ShiftBriefWidget propertyId={propertyId} />;
+    default:
+      return null;
+  }
+}
+
+/* ── "Viewing as" lens preview ─────────────────────────────────────────────── */
+
+/** Lets an owner/manager preview another persona's Home. A preview, NOT a
+ *  permission switch — the data stays scoped to the real role; only the
+ *  ordering, hero, and masthead copy change. */
+function ViewAsMenu({
+  realRole,
+  viewAs,
+  onChange,
+}: {
+  realRole: HomeRole;
+  viewAs: HomeRole | null;
+  onChange: (role: HomeRole | null) => void;
+}) {
+  const active = viewAs ?? realRole;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" size="sm" variant="ghost">
+            <Eye className="size-4" />
+            <span className="hidden sm:inline">Viewing as </span>
+            {ROLE_LABEL[active]}
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" sideOffset={6} className="w-52">
+        <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
+          Preview a role&apos;s Home
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={active}
+          onValueChange={(v) =>
+            onChange(v === realRole ? null : (v as HomeRole))
+          }
+        >
+          {(["owner", "manager", "staff"] as const).map((r) => (
+            <DropdownMenuRadioItem key={r} value={r}>
+              {ROLE_LABEL[r]}
+              {r === realRole ? " (you)" : null}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        {viewAs ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onChange(null)}>
+              <RotateCcw className="size-4" />
+              Back to my role
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* ── Personal summary + greeting ───────────────────────────────────────────── */
 
 /** Personal at-a-glance counts for the header: my open tasks, due-soon, and
  *  unread activity. Cheap client aggregation over already-cached queries. */

@@ -35,8 +35,9 @@ function read(
   propertyId: string,
   userId: string,
   allIds: string[],
+  defaultOrder: string[],
 ): DashboardLayout {
-  const fallback: DashboardLayout = { order: allIds, hidden: [] };
+  const fallback: DashboardLayout = { order: defaultOrder, hidden: [] };
   try {
     const raw = window.localStorage.getItem(
       storageKey(name, propertyId, userId),
@@ -92,21 +93,33 @@ export function useDashboardLayout(
   userId: string,
   allIds: string[],
   name = "home-layout",
+  /**
+   * First-render / Reset order when the user has no saved layout. Defaults to
+   * the registry order. `allIds` stays the reconciliation known-set, so a
+   * shipped-but-missing widget is still appended regardless of this seed. A
+   * person who has ever dragged or hidden keeps their saved layout — changing
+   * the seed (e.g. previewing another role) only re-orders when nothing is
+   * stored yet.
+   */
+  defaultOrder: string[] = allIds,
 ): UseDashboardLayout {
+  const seedKey = defaultOrder.join(",");
+
   // SSR-safe: default on first render, re-read from storage post-hydration.
   const [layout, setLayout] = useState<DashboardLayout>({
-    order: allIds,
+    order: defaultOrder,
     hidden: [],
   });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLayout(read(name, propertyId, userId, allIds));
+    setLayout(read(name, propertyId, userId, allIds, defaultOrder));
     setReady(true);
-    // allIds is stable per render from the registry; key on the scope only.
+    // allIds is stable per render from the registry; re-seed when scope or the
+    // lens default changes (stored layouts always win the re-read).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, propertyId, userId]);
+  }, [name, propertyId, userId, seedKey]);
 
   const commit = useCallback(
     (next: DashboardLayout) => {
@@ -133,8 +146,9 @@ export function useDashboardLayout(
   );
 
   const reset = useCallback(
-    () => commit({ order: allIds, hidden: [] }),
-    [commit, allIds],
+    () => commit({ order: defaultOrder, hidden: [] }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commit, seedKey],
   );
 
   const visible = layout.order.filter((id) => !layout.hidden.includes(id));

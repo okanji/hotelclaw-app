@@ -8,7 +8,6 @@ import {
   Activity,
   FileText,
   FolderKanban,
-  Inbox,
   UserCheck,
 } from "lucide-react";
 import {
@@ -96,7 +95,6 @@ export function HomeSection({
       href: `${base}/my-tasks`,
       match: `${base}/my-tasks`,
     },
-    { label: "Inbox", icon: Inbox, href: `${base}/activity`, match: `${base}/activity` },
   ];
 
   return (

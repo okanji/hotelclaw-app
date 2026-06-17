@@ -242,6 +242,67 @@ export async function addKnowledgeSource(input: {
   return { sourceId: data.id };
 }
 
+/**
+ * Edit an existing text/qa source's title + content (and question for qa).
+ * Editing resets status to `pending` so the "you changed it but didn't
+ * retrain" state stays honest — the chunks are stale until Train runs again.
+ * Snapshot kinds (document/url) aren't editable here; they re-fetch at train.
+ */
+export async function updateKnowledgeSource(input: {
+  sourceId: string;
+  title: string;
+  content?: string;
+  question?: string;
+}): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(input.sourceId);
+  if (!id.success) return { error: "Invalid source" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: existing, error: loadError } = await supabase
+    .from("chatbot_knowledge_sources")
+    .select("kind")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (loadError) return { error: loadError.message };
+  if (!existing) return { error: "Source not found" };
+  if (existing.kind !== "text" && existing.kind !== "qa") {
+    return { error: "Only text and Q&A sources can be edited" };
+  }
+
+  const title = input.title.trim();
+  const content = (input.content ?? "").trim();
+  const question = (input.question ?? "").trim();
+  if (!title) return { error: "Title is required" };
+  if (!content) return { error: "Content is required" };
+  if (existing.kind === "qa" && !question) {
+    return { error: "Question is required" };
+  }
+
+  const { data, error } = await supabase
+    .from("chatbot_knowledge_sources")
+    .update({
+      title,
+      content,
+      question: existing.kind === "qa" ? question : null,
+      char_count: content.length,
+      status: "pending",
+      error: null,
+    })
+    .eq("id", id.data)
+    .select("property_id, chatbot_id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "Source not found" };
+
+  revalidatePath(`/p/${data.property_id}/chatbots/${data.chatbot_id}`);
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------------------
 // Staff-channel deployments
 // ---------------------------------------------------------------------------

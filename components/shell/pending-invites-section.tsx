@@ -36,19 +36,23 @@ export function PendingInvitesSection() {
 
   return (
     <>
-      <DropdownMenuLabel className="flex items-center gap-2">
-        <Mail className="size-3.5" />
+      <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase">
+        <Mail className="size-3" />
         Pending invites
       </DropdownMenuLabel>
       {data.map((invite) => (
         <DropdownMenuItem
           key={invite.token}
-          className="gap-2"
+          className="gap-2.5 px-2 py-2"
           render={<Link href={`/invites/${invite.token}`} />}
         >
-          <Mail className="size-4 text-muted-foreground" />
-          <div className="flex-1">
-            <div className="text-sm font-medium">{invite.propertyName}</div>
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Mail className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-foreground">
+              {invite.propertyName}
+            </div>
             <div className="text-xs text-muted-foreground capitalize">
               Invited as {invite.role}
             </div>

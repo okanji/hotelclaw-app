@@ -7,18 +7,31 @@ import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Ban,
+  Bot,
+  CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   Circle,
   CircleSlash,
+  ClipboardList,
   Clock,
+  Database,
+  FileText,
+  ListChecks,
   Loader2,
+  MessageSquare,
+  Mic,
   MoreHorizontal,
+  Play,
   Search,
   Sparkles,
+  Webhook,
   Workflow,
   XCircle,
   Zap,
 } from "lucide-react";
+import { getTrigger } from "@/lib/workflows/catalog";
+import type { TriggerEventType } from "@/lib/workflows/spec";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
@@ -39,6 +52,9 @@ type WorkflowRow = {
   description: string | null;
   enabled: boolean;
   mode: "instant" | "durable";
+  /** Current version's trigger event type (e.g. "task.overdue"), or null for a
+   *  workflow with no saved version yet. Drives the trigger badge. */
+  trigger_event_type: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
   created_at: string;
@@ -195,7 +211,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
           <div className="flex items-center gap-1.5">
             <Link
               href={`/p/${propertyId}/workflows/new`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/80"
             >
               <Sparkles className="size-3.5" />
               New workflow
@@ -368,7 +384,7 @@ function Row({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-[13px] font-medium text-foreground">{w.name}</span>
-            <ModeBadge mode={w.mode} />
+            <TriggerBadge type={w.trigger_event_type} />
           </div>
           {w.description ? (
             <p className="truncate text-[11px] leading-relaxed text-muted-foreground">
@@ -421,24 +437,47 @@ function Row({
   );
 }
 
-function ModeBadge({ mode }: { mode: "instant" | "durable" }) {
-  const durable = mode === "durable";
+// The badge answers the one question the list can't otherwise: "what makes
+// this run?" We deliberately surface the TRIGGER (the cause) rather than the
+// engine's instant/durable execution mode — that distinction is internal and
+// reads as "fires only once", which is misleading for a recurring workflow.
+// Icon is keyed on the trigger family; the label comes straight from the
+// trigger catalog so it stays in sync with the builder's vocabulary.
+const TRIGGER_ICONS: { prefix: string; icon: typeof Clock }[] = [
+  { prefix: "task.", icon: ListChecks },
+  { prefix: "chat.", icon: MessageSquare },
+  { prefix: "doc.", icon: FileText },
+  { prefix: "meeting.", icon: Mic },
+  { prefix: "calendar.", icon: CalendarClock },
+  { prefix: "entity.", icon: Database },
+  { prefix: "schedule.", icon: Clock },
+  { prefix: "manual.", icon: Play },
+  { prefix: "webhook.", icon: Webhook },
+  { prefix: "form.", icon: ClipboardList },
+  { prefix: "chatbot.", icon: Bot },
+  { prefix: "booking.", icon: CalendarCheck },
+];
+
+function TriggerBadge({ type }: { type: string | null }) {
+  if (!type) {
+    return (
+      <span
+        className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground/70"
+        title="This workflow has no trigger set up yet"
+      >
+        Draft
+      </span>
+    );
+  }
+  const label = getTrigger(type as TriggerEventType)?.label ?? type;
+  const Icon = TRIGGER_ICONS.find((t) => type.startsWith(t.prefix))?.icon ?? Zap;
   return (
     <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
-        durable
-          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
-          : "bg-muted text-muted-foreground",
-      )}
-      title={
-        durable
-          ? "Waits for events — this workflow can pause, wait for things to happen, and resume later"
-          : "Runs once — this workflow runs start to finish each time it's triggered"
-      }
+      className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+      title={`Runs ${label.charAt(0).toLowerCase()}${label.slice(1)}`}
     >
-      {durable ? <Clock className="size-2.5" /> : <Zap className="size-2.5" />}
-      {durable ? "Waits for events" : "Runs once"}
+      <Icon className="size-2.5" />
+      {label}
     </span>
   );
 }
@@ -514,7 +553,7 @@ function EmptyState({ propertyId }: { propertyId: string }) {
       <div className="mt-6 flex items-center justify-center gap-2">
         <Link
           href={`/p/${propertyId}/workflows/new`}
-          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-[13px] font-medium text-background hover:opacity-90"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary/80"
         >
           <Sparkles className="size-4" />
           Build with AI

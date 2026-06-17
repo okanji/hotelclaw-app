@@ -237,6 +237,52 @@ export async function createInvite(
   };
 }
 
+/**
+ * Withdraw a still-pending invite. Owner/manager only. Deletes the row so the
+ * token stops resolving and the recipient's in-app pending entry disappears.
+ * No-op-safe: already-accepted invites are left untouched.
+ */
+export async function revokeInvite(input: {
+  propertyId: string;
+  token: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const parsed = z
+    .object({ propertyId: z.string().uuid(), token: z.string().min(1) })
+    .safeParse(input);
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("property_id", parsed.data.propertyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "manager")
+  ) {
+    return { error: "You don't have permission to manage invites here." };
+  }
+
+  const service = createServiceClient();
+  const { error } = await service
+    .from("invites")
+    .delete()
+    .eq("property_id", parsed.data.propertyId)
+    .eq("token", parsed.data.token)
+    .is("accepted_at", null);
+
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
 export async function acceptInvite(
   token: string,
 ): Promise<

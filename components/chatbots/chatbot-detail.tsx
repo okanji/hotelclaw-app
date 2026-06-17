@@ -98,10 +98,12 @@ export function ChatbotDetail({
   }
 
   // Capabilities count for the Skills tab badge: enabled built-in actions +
-  // every custom HTTP action (each is a tool the bot can call). Reads live
-  // config so toggles reflect immediately.
+  // enabled custom HTTP actions (each is a tool the bot can call). Both sides
+  // filter on `enabled` so a disabled custom action doesn't inflate the badge.
+  // Reads live config so toggles reflect immediately.
   const skillCount =
-    config.actions.filter((a) => a.enabled).length + customActions.length;
+    config.actions.filter((a) => a.enabled).length +
+    customActions.filter((a) => a.enabled).length;
 
   function save() {
     startSave(async () => {
@@ -271,6 +273,10 @@ export function ChatbotDetail({
               channels={channels}
               spaces={spaces}
               services={services}
+              knowledge={{
+                total: sources.length,
+                trained: sources.filter((s) => s.status === "trained").length,
+              }}
               onChange={(actions) => updateConfig({ actions })}
             />
             <CustomActionsPanel

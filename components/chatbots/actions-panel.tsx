@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,17 +72,21 @@ const selectClass =
  * which channel gets pinged…). One action of each type max — mirrors the
  * tool registry, which maps each type to a single named tool.
  */
+export type KnowledgeSummary = { total: number; trained: number };
+
 export function ActionsPanel({
   config,
   channels,
   spaces,
   services = [],
+  knowledge,
   onChange,
 }: {
   config: ChatbotConfig;
   channels: ChannelOption[];
   spaces: SpaceOption[];
   services?: BookableServiceOption[];
+  knowledge?: KnowledgeSummary;
   onChange: (actions: ChatbotAction[]) => void;
 }) {
   function actionOf(type: ChatbotActionType): ChatbotAction {
@@ -115,6 +119,7 @@ export function ActionsPanel({
           channels={channels}
           spaces={spaces}
           services={services}
+          knowledge={knowledge}
           onChange={setAction}
         />
       ))}
@@ -127,15 +132,28 @@ function ActionCard({
   channels,
   spaces,
   services,
+  knowledge,
   onChange,
 }: {
   action: ChatbotAction;
   channels: ChannelOption[];
   spaces: SpaceOption[];
   services: BookableServiceOption[];
+  knowledge?: KnowledgeSummary;
   onChange: (next: ChatbotAction) => void;
 }) {
   const meta = ACTION_TYPE_META[action.type];
+
+  // Searching knowledge is only useful once something is trained — a bot with
+  // this on and an empty/untrained base will call the tool and get nothing.
+  const knowledgeWarning =
+    action.type === "answer_from_knowledge" && action.enabled && knowledge
+      ? knowledge.total === 0
+        ? "No knowledge sources yet — add some in the Knowledge tab, or the bot will have nothing to search."
+        : knowledge.trained === 0
+          ? "Sources added but not trained yet — hit Retrain in the Knowledge tab so the bot can find them."
+          : null
+      : null;
 
   return (
     <div
@@ -171,6 +189,12 @@ function ActionCard({
 
       {action.enabled ? (
         <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+          {knowledgeWarning ? (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-px size-3.5 shrink-0" />
+              <span>{knowledgeWarning}</span>
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label className="text-xs">When should the bot use this?</Label>
             <Textarea

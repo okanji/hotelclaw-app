@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
-import { RailLogo } from "./rail-logo";
+import { BrandMark } from "./rail-logo";
 
 /**
  * Slack-style nav button: a stacked icon-tile + label. The whole button is the
@@ -470,11 +470,10 @@ export function AppRail({
         aria-label="Sections"
       >
         <figure className="mt-0.5 mb-4">
-          {/* Brand glyph — aubergine tile + white glyph in light mode; in dark
-              mode the tile drops away entirely, leaving a white glyph on the
-              bare rail. */}
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-[#4a154b] text-white shadow-sm dark:bg-transparent dark:text-white dark:shadow-none">
-            <RailLogo className="size-7" />
+          {/* Brand mark — the app icon exactly as the favicon: gradient tile
+              with the white claw-rake, self-contained (no color wrapper). */}
+          <span className="flex size-12 items-center justify-center">
+            <BrandMark className="size-9" />
           </span>
         </figure>
 
