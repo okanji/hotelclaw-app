@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hotelclaw — logo directions v2</title>
+<style>
+  :root { --aub:#4a154b; --mag:#c0317e; --paper:#faf7f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif; background:var(--paper); color:#1a141b; -webkit-font-smoothing:antialiased; }
+  header { padding:40px 48px 26px; border-bottom:1px solid #e7dfe3; }
+  header h1 { margin:0 0 8px; font-size:22px; letter-spacing:-0.02em; }
+  header p { margin:0 0 4px; color:#6b5f66; font-size:13.5px; max-width:720px; line-height:1.55; }
+  .insp { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .insp span { font-size:11px; background:#f1e9ee; color:#7a4a78; border:1px solid #e7d6e2; padding:3px 9px; border-radius:999px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:24px; padding:32px 48px 64px; }
+  .card { border:1px solid #e7dfe3; border-radius:18px; overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(20,10,20,.04),0 10px 28px rgba(20,10,20,.06); }
+  .swatches { display:grid; grid-template-columns:1fr 1fr; }
+  .sw { display:flex; align-items:center; justify-content:center; gap:20px; padding:32px 18px; min-height:140px; position:relative; }
+  .sw.light{ background:var(--paper);} .sw.dark{ background:#090909;}
+  .sw.tile{ background:#efe6ec; grid-column:1/-1; gap:30px; }
+  .tag{ position:absolute; top:9px; left:11px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#a99aa3; }
+  .sw.dark .tag{ color:#565060; }
+  .mark-lg{ width:56px; height:56px; display:block; } .mark-sm{ width:24px; height:24px; display:block; }
+  .tilewrap{ width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:linear-gradient(140deg,var(--aub),var(--mag)); box-shadow:0 3px 10px rgba(120,30,90,.32); }
+  .tilewrap .mark-lg{ width:32px; height:32px; }
+  .lockup{ display:flex; align-items:center; gap:13px; }
+  .wordmark{ font-size:27px; font-weight:760; letter-spacing:-0.035em; color:var(--aub); }
+  .wordmark .c{ opacity:.5; font-weight:600; }
+  .meta{ padding:15px 18px 17px; }
+  .num{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:7px; background:var(--aub); color:#fff; font-size:12px; font-weight:700; margin-right:8px; }
+  .meta h2{ display:flex; align-items:center; margin:0 0 5px; font-size:15px; letter-spacing:-0.01em; }
+  .meta .ins{ font-size:11px; color:#a06aa0; font-weight:600; margin:0 0 6px; }
+  .meta p{ margin:0; font-size:12.5px; color:#6b5f66; line-height:1.5; }
+  footer{ padding:0 48px 60px; color:#6b5f66; font-size:13px; line-height:1.6; max-width:780px; }
+  code{ background:#f1e9ee; padding:1px 6px; border-radius:6px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hotelclaw — logo directions v2 · bolder + dual-reading</h1>
+  <p>Each mark below is built to read two ways — an <strong>H</strong> at a glance, a <strong>claw</strong> on the second look — the way FedEx hides an arrow. “Claw” is the ownable element no hotel-tech competitor has. Shown large + favicon-size, on light, on the dark rail (<code>#090909</code>), and in an aubergine→magenta tile + wordmark. The gradient is an optional “ownable colour” move (à la Mews 2025).</p>
+  <div class="insp">
+    <span>Mews ’25 — structures coming together</span>
+    <span>FedEx — negative-space dual read</span>
+    <span>Airbnb Bélo — one continuous line</span>
+    <span>Vercel — geometric reduction</span>
+    <span>Linear — precision on dark</span>
+  </div>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Pick a number (or remix: “7’s claw-H with the gradient, but sharper tips”). I’ll finalise it as the real <code>RailLogo</code> SVG, generate the favicon/app-icon set, and verify it on the rail + property-switcher. Want a colour call too? — solid aubergine (safe), or the aubergine→magenta gradient (more ownable, more 2025).
+</footer>
+
+<script>
+// Marks drawn on a 0 0 100 100 grid. f(id, fill) where `fill` is a paint
+// string; gradient defs are injected with a per-instance id to avoid clashes.
+const G = (id) => `<defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="#4a154b"/><stop offset="1" stop-color="#c0317e"/></linearGradient></defs>`;
+
+const marks = {
+  // 7 — Claw-H: two bars (H) bridged by three raking talon slashes (claw).
+  clawH: (id, fill) => `${fill==='grad'?G(id):''}
+    <g fill="${fill==='grad'?`url(#g${id})`:fill}">
+      <rect x="18" y="16" width="15" height="68" rx="5"/>
+      <rect x="67" y="16" width="15" height="68" rx="5"/>
+    </g>
+    <g stroke="${fill==='grad'?`url(#g${id})`:fill}" stroke-width="8" stroke-linecap="round" fill="none">
+      <line x1="33" y1="60" x2="67" y2="44"/>
+      <line x1="33" y1="50" x2="63" y2="36"/>
+      <line x1="37" y1="70" x2="67" y2="56"/>
+    </g>`,
+
+  // 8 — Talon-h: one continuous monoline forming a lowercase h whose leg
+  //     hooks into a sharp talon. Airbnb-Bélo continuous-line lineage.
+  talonH: (id, fill) => `${fill==='grad'?G(id):''}
+    <g fill="none" stroke="${fill==='grad'?`url(#g${id})`:fill}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M30 16 L30 84"/>
+      <path d="M30 54 C30 42 50 40 60 50 C66 56 64 66 60 74 L72 80"/>
+    </g>`,
+
+  // 9 — Keyhole-talon: hotel keyhole whose stem splits into a 3-point claw.
+  keyTalon: (id, fill) => `${fill==='grad'?G(id):''}
+    <g fill="${fill==='grad'?`url(#g${id})`:fill}">
+      <circle cx="50" cy="36" r="13"/>
+      <path d="M44 46 L56 46 L60 64 L50 60 L40 64 Z"/>
+      <path d="M33 62 L41 68 L37 82 Z"/>
+      <path d="M67 62 L59 68 L63 82 Z"/>
+      <path d="M46 64 L54 64 L52 86 L50 80 L48 86 Z"/>
+    </g>`,
+
+  // 10 — Converging shards: three blades sweeping into a center (Mews
+  //      "structures coming together") that together rake like a claw.
+  shards: (id, fill) => `${fill==='grad'?G(id):''}
+    <g fill="${fill==='grad'?`url(#g${id})`:fill}">
+      <path d="M50 50 L20 22 C30 14 44 14 54 22 Z"/>
+      <path d="M50 50 L84 30 C90 42 88 56 80 64 Z" opacity="${fill==='grad'?1:.75}"/>
+      <path d="M50 50 L34 86 C22 80 16 68 18 56 Z" opacity="${fill==='grad'?1:.55}"/>
+    </g>`,
+
+  // 11 — Claw rake / chat lines: three bold staggered strokes that read as
+  //      a claw scratch AND stacked chat-message lines. Vercel-style reduction.
+  rake: (id, fill) => `${fill==='grad'?G(id):''}
+    <g fill="${fill==='grad'?`url(#g${id})`:fill}">
+      <rect x="22" y="26" width="56" height="11" rx="5.5" transform="rotate(-9 50 31)"/>
+      <rect x="22" y="45" width="44" height="11" rx="5.5" transform="rotate(-9 44 50)"/>
+      <rect x="22" y="64" width="32" height="11" rx="5.5" transform="rotate(-9 38 69)"/>
+    </g>`,
+
+  // 12 — Crest tile: gradient tile with an elegant negative-space talon
+  //      curve carved out. Premium hospitality crest, modernised.
+  crest: (id, fill) => {
+    if (fill==='grad') return `${G(id)}
+      <rect x="16" y="16" width="68" height="68" rx="19" fill="url(#g${id})"/>
+      <path fill="#faf7f8" d="M58 28 C40 30 30 44 32 62 C33 70 38 74 44 74 C40 66 42 54 52 48 C44 56 46 68 54 70 C66 66 70 50 58 28 Z"/>`;
+    // mono contexts: stroke the talon directly, no tile
+    return `<g fill="none" stroke="${fill}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M64 24 C42 28 28 46 32 66 C34 76 44 80 50 72 C42 64 46 50 60 46"/></g>`;
+  },
+};
+
+const defs = [
+  { key:"clawH",   n:7,  title:"Claw-H (negative space)", ins:"FedEx dual-read × claw", desc:"Two bars read as H; the three raking slashes that bridge them are the claw. The whole point of the brand in one mark." },
+  { key:"talonH",  n:8,  title:"Talon-h monoline",        ins:"Airbnb Bélo continuous line", desc:"A single unbroken stroke draws a lowercase h whose leg hooks into a talon. Friendly, fluid, very ownable." },
+  { key:"keyTalon",n:9,  title:"Keyhole-talon",           ins:"Hospitality cue × claw", desc:"A hotel keyhole whose stem splits into a three-point talon. The most literal “hotel + claw” fusion." },
+  { key:"shards",  n:10, title:"Converging shards",       ins:"Mews ’25 — coming together", desc:"Three blades sweep into a shared center — “structures forming something larger” — and together rake like a claw." },
+  { key:"rake",    n:11, title:"Claw rake / chat lines",  ins:"Vercel geometric reduction", desc:"Three staggered strokes: a claw scratch from afar, stacked chat-message lines up close. Dead simple, scales to 16px." },
+  { key:"crest",   n:12, title:"Crest tile",              ins:"Luxury monogram, modernised", desc:"Gradient tile with a talon curve carved from negative space. The premium, app-icon-first option." },
+];
+
+const svg = (cls, inner) => `<svg class="${cls}" viewBox="0 0 100 100" fill="none">${inner}</svg>`;
+let uid = 0;
+const grid = document.getElementById("grid");
+grid.innerHTML = defs.map(d => `
+  <div class="card">
+    <div class="swatches">
+      <div class="sw light"><span class="tag">light</span>
+        ${svg("mark-lg", marks[d.key](++uid,"#4a154b"))}
+        ${svg("mark-sm", marks[d.key](++uid,"#4a154b"))}
+      </div>
+      <div class="sw dark"><span class="tag">rail #090909</span>
+        ${svg("mark-lg", marks[d.key](++uid,"#ffffff"))}
+        ${svg("mark-sm", marks[d.key](++uid,"#ffffff"))}
+      </div>
+      <div class="sw tile"><span class="tag">gradient tile + lockup</span>
+        <div class="tilewrap">${svg("mark-lg", marks[d.key](++uid,"#ffffff"))}</div>
+        <div class="lockup">
+          ${svg("mark-lg", marks[d.key](++uid,"grad"))}
+          <span class="wordmark">hotel<span class="c">claw</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <h2><span class="num">${d.n}</span>${d.title}</h2>
+      <div class="ins">↳ ${d.ins}</div>
+      <p>${d.desc}</p>
+    </div>
+  </div>
+`).join("");
+</script>
+</body>
+</html>

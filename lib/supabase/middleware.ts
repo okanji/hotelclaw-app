@@ -75,6 +75,16 @@ export async function updateSession(request: NextRequest) {
     // The embed widget script loads on third-party hotel websites (the
     // root matcher only exempts image extensions, not .js).
     pathname === "/chatbot-widget.js" ||
+    // App metadata routes (favicon / apple-touch-icon / PWA manifest). These
+    // are generated routes without image extensions, so the matcher doesn't
+    // exempt them the way it does /icon.svg — they must load on the public
+    // login page and for PWA install, both unauthenticated.
+    pathname.startsWith("/icon") ||
+    pathname.startsWith("/apple-icon") ||
+    pathname === "/manifest.webmanifest" ||
+    // Static logo-exploration boards (public/logo-explore/*.html) — served
+    // without auth so the brand-mark reference stays reachable.
+    pathname.startsWith("/logo-explore/") ||
     pathname === "/";
 
   if (!user && !isPublic) {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Lato } from "next/font/google";
 import "./globals.css";
 import "stream-chat-react/dist/css/index.css";
@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   title: "Hotelclaw",
   description:
     "AI-first productivity and communications platform for hotels and restaurants.",
+};
+
+// Brand-aubergine browser theme color (mobile address bar / PWA chrome).
+export const viewport: Viewport = {
+  themeColor: "#4a154b",
 };
 
 export default function RootLayout({

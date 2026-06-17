@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hotelclaw — logo directions</title>
+<style>
+  :root {
+    --aubergine: #4a154b;
+    --aubergine-bright: #7a2a7c;
+    --ink: #0a0a0a;
+    --paper: #faf7f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--paper);
+    color: #1a141b;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 40px 48px 28px;
+    border-bottom: 1px solid #e7dfe3;
+  }
+  header h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: #6b5f66; font-size: 14px; max-width: 640px; line-height: 1.5; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    padding: 32px 48px 64px;
+  }
+  .card {
+    border: 1px solid #e7dfe3;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(20,10,20,.04), 0 8px 24px rgba(20,10,20,.05);
+  }
+  .card .meta { padding: 14px 18px 16px; }
+  .card .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 7px;
+    background: var(--aubergine); color: #fff; font-size: 12px; font-weight: 700;
+    margin-right: 8px;
+  }
+  .card h2 { display: flex; align-items: center; margin: 0 0 4px; font-size: 15px; letter-spacing: -0.01em; }
+  .card p { margin: 0; font-size: 12.5px; color: #6b5f66; line-height: 1.45; }
+  /* the three render swatches per card */
+  .swatches { display: grid; grid-template-columns: 1fr 1fr; }
+  .sw { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 30px 18px; min-height: 132px; }
+  .sw.light { background: var(--paper); }
+  .sw.dark  { background: #090909; }
+  .sw.tile-light { background: #f1e9ee; grid-column: 1 / -1; gap: 28px; }
+  .lockup { display: flex; align-items: center; gap: 12px; }
+  .wordmark { font-size: 26px; font-weight: 750; letter-spacing: -0.03em; }
+  .wordmark .claw { opacity: .55; font-weight: 600; }
+  .dark .wordmark { color: #fff; }
+  .light .wordmark, .tile-light .wordmark { color: var(--aubergine); }
+  /* mark sizing */
+  .mark-lg { width: 52px; height: 52px; display:block; }
+  .mark-sm { width: 22px; height: 22px; display:block; }
+  /* tile container (light-mode app rail look) */
+  .tilewrap {
+    width: 56px; height: 56px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--aubergine);
+    box-shadow: 0 2px 6px rgba(74,21,75,.3);
+  }
+  .tilewrap .mark-lg { width: 30px; height: 30px; }
+  .label { position:absolute; }
+  .sw { position: relative; }
+  .tag { position:absolute; top:8px; left:10px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#9b8d94; }
+  .sw.dark .tag { color:#5a5560; }
+  footer { padding: 0 48px 60px; color:#6b5f66; font-size:13px; line-height:1.6; max-width: 760px; }
+  code { background:#f1e9ee; padding:1px 6px; border-radius:6px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hotelclaw — logo directions</h1>
+  <p>Six explorations for the brand mark. Each is shown large + at favicon scale, on light and on the dark app-rail (<code>#090909</code>), inside the aubergine tile, and as a wordmark lockup. All built on the aubergine <code>#4a154b</code> palette and the geometric tile language of the current mark.</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Tell me which number you like (or mix — e.g. “1's mark with 3's wordmark”) and I'll finalize it as a clean <code>RailLogo</code> SVG component, add a favicon, and wire any sizes the rail/property-switcher need. These are vector — they stay crisp at any size.
+</footer>
+
+<script>
+// ---- Logo marks (inner SVG content, drawn on a 0 0 100 100 grid) ----
+// `c` is the color to use for the mark in a given context.
+const marks = {
+  // 1 — Refined pinwheel: the current four-element glyph, rebuilt cleanly
+  //     with rounded joints and even gaps. Brand continuity.
+  pinwheel: (c) => `
+    <g fill="${c}">
+      <rect x="58" y="58" width="30" height="30" rx="7"/>
+      <path d="M58 12 L34 36 H58 V60 L88 36 V12 Z" stroke="${c}" stroke-width="0" stroke-linejoin="round"/>
+      <path d="M42 88 L66 64 H42 V40 L12 64 V88 Z"/>
+      <rect x="12" y="12" width="30" height="30" rx="7"/>
+    </g>`,
+
+  // 2 — Monogram H with a rotated pinwheel tile as the crossbar.
+  monogram: (c) => `
+    <g fill="${c}">
+      <rect x="20" y="16" width="16" height="68" rx="6"/>
+      <rect x="64" y="16" width="16" height="68" rx="6"/>
+      <path d="M50 36 L65 50 L50 64 L35 50 Z" />
+    </g>`,
+
+  // 3 — Chat tile: speech bubble (nods to the Slack-style chat core),
+  //     its face split into a gapped 2x2 pinwheel of tiles.
+  chat: (c) => `
+    <g fill="${c}">
+      <path d="M50 12
+               C28 12 14 25 14 43
+               C14 55 21 64 33 69
+               L30 86 L47 73
+               C48.5 73.3 49.7 73.4 50 73.4
+               C72 73.4 86 60 86 43
+               C86 25 72 12 50 12 Z"/>
+    </g>
+    <g fill="#fff">
+      <rect x="30" y="30" width="16" height="16" rx="4"/>
+      <rect x="54" y="30" width="16" height="16" rx="4"/>
+      <rect x="30" y="50" width="16" height="16" rx="4" opacity=".55"/>
+      <rect x="54" y="50" width="16" height="16" rx="4"/>
+    </g>`,
+
+  // 4 — Keyhole tile: rounded brand tile with a keyhole knockout. Hotel.
+  keyhole: (c) => `
+    <rect x="16" y="16" width="68" height="68" rx="18" fill="${c}"/>
+    <path fill="#fff" d="M50 30 a12 12 0 0 1 7 21.6 L61 70 H39 L43 51.6 A12 12 0 0 1 50 30 Z"/>`,
+
+  // 5 — Claw: three forward blades — motion + the "claw" in the name.
+  claw: (c) => `
+    <g fill="${c}">
+      <path d="M22 26 L40 26 L60 50 L40 74 L22 74 L42 50 Z"/>
+      <path d="M48 26 L60 26 L80 50 L60 74 L48 74 L68 50 Z" opacity=".62"/>
+    </g>`,
+
+  // 6 — Cove: four curved blades rotating around an open center — calm,
+  //     premium, “Solana Cove” coastal feel while staying geometric.
+  cove: (c) => `
+    <g fill="${c}">
+      <path d="M50 12 A38 38 0 0 1 88 50 L70 50 A20 20 0 0 0 50 30 Z"/>
+      <path d="M88 50 A38 38 0 0 1 50 88 L50 70 A20 20 0 0 0 70 50 Z" opacity=".78"/>
+      <path d="M50 88 A38 38 0 0 1 12 50 L30 50 A20 20 0 0 0 50 70 Z" opacity=".6"/>
+      <path d="M12 50 A38 38 0 0 1 50 12 L50 30 A20 20 0 0 0 30 50 Z" opacity=".42"/>
+    </g>`,
+};
+
+const defs = [
+  { key:"pinwheel", title:"Pinwheel (refined current)", desc:"The existing four-tile glyph, rebuilt with rounded corners and even gaps. Maximum brand continuity." },
+  { key:"monogram", title:"H-monogram", desc:"Two bars + a rotated pinwheel tile as the crossbar. Reads clearly as “H” at favicon size." },
+  { key:"chat",     title:"Chat tile", desc:"A speech bubble whose face is a gapped pinwheel. Leans into the Slack-style chat core of the app." },
+  { key:"keyhole",  title:"Keyhole tile", desc:"Brand tile with a keyhole knockout — the most literal “hotel” cue while staying minimal." },
+  { key:"claw",     title:"Claw blades", desc:"Forward-leaning blades — motion + the “claw” in the name. Sharper, more energetic." },
+  { key:"cove",     title:"Cove aperture", desc:"Four curved blades around an open center. Calmer, premium, coastal — fits hospitality." },
+];
+
+const svg = (cls, inner) => `<svg class="${cls}" viewBox="0 0 100 100" fill="none">${inner}</svg>`;
+
+const grid = document.getElementById("grid");
+grid.innerHTML = defs.map((d, i) => `
+  <div class="card">
+    <div class="swatches">
+      <div class="sw light">
+        <span class="tag">light</span>
+        ${svg("mark-lg", marks[d.key]("#4a154b"))}
+        ${svg("mark-sm", marks[d.key]("#4a154b"))}
+      </div>
+      <div class="sw dark">
+        <span class="tag">rail #090909</span>
+        ${svg("mark-lg", marks[d.key]("#ffffff"))}
+        ${svg("mark-sm", marks[d.key]("#ffffff"))}
+      </div>
+      <div class="sw tile-light">
+        <span class="tag">tile + lockup</span>
+        <div class="tilewrap">${svg("mark-lg", marks[d.key]("#ffffff"))}</div>
+        <div class="lockup">
+          ${svg("mark-lg", marks[d.key]("#4a154b"))}
+          <span class="wordmark">hotel<span class="claw">claw</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <h2><span class="num">${i+1}</span>${d.title}</h2>
+      <p>${d.desc}</p>
+    </div>
+  </div>
+`).join("");
+</script>
+</body>
+</html>
