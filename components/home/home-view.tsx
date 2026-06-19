@@ -15,18 +15,17 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
 import { GenerateDocumentDialog } from "@/components/documents/generate-document-dialog";
 import {
@@ -352,9 +351,10 @@ function HeroBody({
 
 /* ── "Viewing as" lens preview ─────────────────────────────────────────────── */
 
-/** Lets an owner/manager preview another persona's Home. A preview, NOT a
- *  permission switch — the data stays scoped to the real role; only the
- *  ordering, hero, and masthead copy change. */
+/** Lets an owner/manager preview how Home looks for each role — which signal
+ *  leads the "Today" hero and how the sections are ordered. A preview only, NOT
+ *  a permission switch: data stays scoped to the real role; just the ordering,
+ *  hero, and masthead copy change. */
 function ViewAsMenu({
   realRole,
   viewAs,
@@ -376,23 +376,24 @@ function ViewAsMenu({
           </Button>
         }
       />
-      <DropdownMenuContent align="end" sideOffset={6} className="w-52">
+      <DropdownMenuContent align="end" sideOffset={6} className="w-56">
         <DropdownMenuLabel className="text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
           Preview a role&apos;s Home
         </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={active}
-          onValueChange={(v) =>
-            onChange(v === realRole ? null : (v as HomeRole))
-          }
-        >
-          {(["owner", "manager", "staff"] as const).map((r) => (
-            <DropdownMenuRadioItem key={r} value={r}>
-              {ROLE_LABEL[r]}
-              {r === realRole ? " (you)" : null}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        {(["owner", "manager", "staff"] as const).map((r) => (
+          <DropdownMenuItem
+            key={r}
+            onClick={() => onChange(r === realRole ? null : r)}
+          >
+            <Check
+              className={cn("size-4", active === r ? "opacity-100" : "opacity-0")}
+            />
+            {ROLE_LABEL[r]}
+            {r === realRole ? (
+              <span className="text-muted-foreground"> (you)</span>
+            ) : null}
+          </DropdownMenuItem>
+        ))}
         {viewAs ? (
           <>
             <DropdownMenuSeparator />
