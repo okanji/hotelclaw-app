@@ -11,16 +11,13 @@ import {
   ListChecks,
   MessageCircle,
   MessagesSquare,
-  Moon,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Sun,
   Ticket,
   Video,
   Workflow,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChatContext } from "stream-chat-react";
 import { lastSectionPath } from "@/lib/shell/last-path";
@@ -76,9 +73,9 @@ const railLabelActiveClass = "text-zinc-900 dark:text-white";
 const railLabelIdleClass =
   "text-zinc-500 group-hover/item:text-zinc-900 dark:text-white/85 dark:group-hover/item:text-white";
 
-/** Translucent circular utility button used by the rail footer (theme + collapse). */
+/** Translucent circular utility button used by the rail footer (collapse). */
 const railFooterButtonClass =
-  "flex size-10 items-center justify-center rounded-full outline-hidden transition-colors " +
+  "flex size-7 items-center justify-center rounded-full outline-hidden transition-colors " +
   "bg-black/5 text-zinc-600 hover:bg-black/10 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-black/15 " +
   "dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20 dark:hover:text-white dark:focus-visible:ring-white/40";
 
@@ -89,12 +86,14 @@ const railFooterButtonClass =
  * of the More panel. Each gets a one-line description for the menu row.
  */
 const MORE_SECTIONS = new Set<ShellSection>([
+  "dms",
   "workflows",
   "chatbots",
   "bookings",
   "meetings",
 ]);
 const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
+  dms: "Direct messages",
   workflows: "Automate tasks and triggers",
   chatbots: "Build guest-facing assistants",
   bookings: "Reservations and availability",
@@ -214,18 +213,6 @@ export function AppRail({
   const { section, setSection, sidebarCollapsed, setSidebarCollapsed } =
     useShellSection();
   const { unseenCount } = useNotifications(userId);
-
-  // Surface a one-tap light/dark toggle in the rail footer (it also lives in
-  // the user menu as a Light/Dark/System submenu). `resolvedTheme` is undefined
-  // until mounted, so gate the icon to avoid an SSR/client mismatch.
-  const { resolvedTheme, setTheme } = useTheme();
-  const [themeMounted, setThemeMounted] = useState(false);
-  // next-themes only resolves the theme after mount; flip once to avoid an
-  // SSR/client icon mismatch. (Same setState-on-mount pattern as the pathname
-  // mirror above.)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setThemeMounted(true), []);
-  const isDark = !themeMounted || resolvedTheme === "dark";
 
   // Amber dot on the Workflows icon while any enabled workflow's most recent
   // run failed — ambient "an automation needs attention" without a count.
@@ -477,7 +464,7 @@ export function AppRail({
           </span>
         </figure>
 
-        <nav className="no-scrollbar min-h-0 w-full flex-1 overflow-y-auto">
+        <nav className="no-scrollbar flex min-h-0 w-full flex-1 flex-col justify-center overflow-y-auto">
           <ul className="flex flex-col gap-1">
             {primaryItems.map((item) => {
               const Icon = item.icon;
@@ -637,36 +624,15 @@ export function AppRail({
               render={
                 <button
                   type="button"
-                  onClick={() => setTheme(isDark ? "light" : "dark")}
-                  aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                  className={railFooterButtonClass}
-                >
-                  {isDark ? (
-                    <Sun className="size-5" strokeWidth={1.75} />
-                  ) : (
-                    <Moon className="size-5" strokeWidth={1.75} />
-                  )}
-                </button>
-              }
-            />
-            <TooltipContent side="right">
-              {isDark ? "Light mode" : "Dark mode"}
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                   aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
                   aria-pressed={sidebarCollapsed}
                   className={railFooterButtonClass}
                 >
                   {sidebarCollapsed ? (
-                    <PanelLeftOpen className="size-5" strokeWidth={1.75} />
+                    <PanelLeftOpen className="size-4" strokeWidth={1.75} />
                   ) : (
-                    <PanelLeftClose className="size-5" strokeWidth={1.75} />
+                    <PanelLeftClose className="size-4" strokeWidth={1.75} />
                   )}
                 </button>
               }
