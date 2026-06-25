@@ -1,0 +1,5 @@
+[mcp_servers.uidotsh]
+url = "https://ui.sh/mcp?agent=claude"
+
+[mcp_servers.uidotsh.http_headers]
+Authorization = "Bearer FGenFiC6yIim5uZbr5Kee5OTu73SabcH"

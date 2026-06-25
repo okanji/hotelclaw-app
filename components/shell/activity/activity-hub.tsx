@@ -51,14 +51,17 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-7 sm:px-10 sm:py-9">
-      <div className="flex flex-col gap-8">
+    <div className="mx-auto w-full max-w-3xl px-6 py-6 sm:px-10 sm:py-8">
+      <div className="flex flex-col gap-7">
         {groups.map((group) => (
-          <section key={group.key} className="flex flex-col gap-2">
-            <h2 className="px-1 text-[0.6875rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+          <section key={group.key} className="flex flex-col gap-1.5">
+            <h2 className="px-3 text-[0.6875rem] font-semibold tracking-[0.18em] text-muted-foreground/90 uppercase">
               {group.label}
             </h2>
-            <ul role="list" className="flex flex-col">
+            <ul
+              role="list"
+              className="flex flex-col divide-y divide-border/40"
+            >
               {group.items.map((n) => (
                 <FeedRow
                   key={n.id}
@@ -95,30 +98,38 @@ function FeedRow({
       <button
         type="button"
         onClick={onSelect}
-        className="group/row flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+        className="group/row flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
       >
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg text-[0.6875rem] font-semibold select-none",
+            "flex size-8 shrink-0 items-center justify-center rounded-lg text-[0.6875rem] font-semibold select-none",
             v.actor
               ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground [&_svg]:size-4",
+              : "bg-muted text-foreground/70 [&_svg]:size-4",
           )}
           aria-hidden="true"
         >
           {v.actor ? initials(v.actor) : v.icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-3">
             <p
               className={cn(
-                "min-w-0 flex-1 text-[0.875rem] leading-5 tracking-tight",
-                unseen ? "text-foreground" : "text-muted-foreground",
+                "min-w-0 flex-1 text-[0.875rem] leading-5 tracking-tight [&_strong]:text-foreground",
+                unseen ? "text-foreground" : "text-foreground/70",
               )}
             >
               {v.lead}
             </p>
             <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-[0.6875rem] tabular-nums text-muted-foreground">
+              {hasTarget ? (
+                <span
+                  aria-hidden="true"
+                  className="font-medium text-foreground/60 opacity-0 transition-opacity group-hover/row:opacity-100"
+                >
+                  Open →
+                </span>
+              ) : null}
               {unseen ? (
                 <span
                   aria-hidden="true"
@@ -133,19 +144,11 @@ function FeedRow({
               {v.sub}
             </p>
           ) : null}
-          <div className="mt-1.5 flex items-center gap-2">
-            {v.channel ? (
-              <span className="inline-flex items-center rounded-sm border border-border bg-muted/50 px-1.5 py-px text-[0.6875rem] font-medium text-muted-foreground">
-                {v.channel}
-              </span>
-            ) : null}
-            {hasTarget ? (
-              <span className="inline-flex items-center gap-0.5 text-[0.6875rem] font-medium text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100">
-                Open
-                <span aria-hidden="true">→</span>
-              </span>
-            ) : null}
-          </div>
+          {v.channel ? (
+            <span className="mt-1.5 inline-flex items-center rounded-sm border border-border bg-muted/50 px-1.5 py-px text-[0.6875rem] font-medium text-foreground/70">
+              {v.channel}
+            </span>
+          ) : null}
         </div>
       </button>
     </li>
