@@ -97,7 +97,7 @@ export function TemplatesClient({
             {t.surfaces.map((s) => (
               <span
                 key={s}
-                className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
               >
                 {s}
               </span>
@@ -177,7 +177,7 @@ function TemplatePreview({
           {template.surfaces.map((s) => (
             <span
               key={s}
-              className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+              className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
             >
               {s}
             </span>

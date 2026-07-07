@@ -52,6 +52,7 @@ export function WelcomeForm({ defaultName, next }: Props) {
       <form onSubmit={onSubmit}>
         <input
           id="full-name"
+          name="fullName"
           autoFocus
           required
           minLength={1}

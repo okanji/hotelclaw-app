@@ -60,6 +60,7 @@ export function UpdatePasswordForm() {
             <Label htmlFor="password">New password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               required
               autoFocus
@@ -74,6 +75,7 @@ export function UpdatePasswordForm() {
             <Label htmlFor="confirm">Confirm new password</Label>
             <Input
               id="confirm"
+              name="confirmPassword"
               type="password"
               required
               minLength={8}

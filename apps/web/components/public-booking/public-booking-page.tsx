@@ -586,7 +586,7 @@ function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="h-12 rounded-full text-base font-semibold text-white transition-opacity disabled:opacity-40"
+      className="h-12 rounded-full text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
       style={{ backgroundColor: ACCENT }}
     >
       {children}

@@ -321,7 +321,7 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
             <Section title="What went wrong" tone="destructive">
               <p className="font-sans">{humanizeStepError(step.error)}</p>
               <details className="mt-2">
-                <summary className="cursor-pointer font-sans text-[10px] uppercase tracking-wide opacity-70 select-none">
+                <summary className="cursor-pointer font-sans text-xs uppercase tracking-wide opacity-70 select-none">
                   Technical details
                 </summary>
                 <pre className="mt-1 overflow-x-auto whitespace-pre-wrap">
@@ -410,7 +410,7 @@ function Section({
     <div className="mb-3 last:mb-0">
       <div
         className={cn(
-          "mb-1 text-[10px] font-medium uppercase tracking-wide",
+          "mb-1 text-xs font-medium uppercase tracking-wide",
           tone === "destructive" ? "text-destructive" : "text-muted-foreground",
         )}
       >

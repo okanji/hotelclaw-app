@@ -388,6 +388,7 @@ function InsightsSubscriptionsDialog({
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={newScope}
+                aria-label="Alert scope"
                 onChange={(e) => setNewScope(e.target.value)}
                 className={selectClass}
               >
@@ -405,6 +406,7 @@ function InsightsSubscriptionsDialog({
               </select>
               <select
                 value={newMetric}
+                aria-label="Alert metric"
                 onChange={(e) =>
                   setNewMetric(e.target.value as InsightAlertRuleRow["metric"])
                 }

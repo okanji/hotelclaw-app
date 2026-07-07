@@ -412,7 +412,7 @@ function SidebarActionRow({
         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
         "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none",
         destructive
-          ? "text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
+          ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
           : muted
             ? "text-muted-foreground hover:text-foreground"
             : "text-foreground",

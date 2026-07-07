@@ -82,7 +82,7 @@ export function EditorialSection({
             <GripVertical className="size-4" />
           </button>
           <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
               {kicker}
             </span>
             <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
@@ -176,7 +176,7 @@ export function HiddenTray({
   if (hidden.length === 0) return null;
   return (
     <div className="mt-14 border-t border-border/60 pt-6">
-      <p className="mb-3 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+      <p className="mb-3 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
         Hidden
       </p>
       <div className="flex flex-wrap gap-2">

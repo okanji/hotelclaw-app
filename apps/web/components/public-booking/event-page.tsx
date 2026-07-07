@@ -216,7 +216,7 @@ export function EventPage({
                     style={{ borderColor: HAIRLINE }}
                   >
                     <span
-                      className="text-[10px] font-semibold tracking-wide text-white uppercase"
+                      className="text-xs font-semibold tracking-wide text-white uppercase"
                       style={{ backgroundColor: accent }}
                     >
                       {dateLabel(date, { month: "short" })}
@@ -411,7 +411,7 @@ export function EventPage({
                   <button
                     type="submit"
                     disabled={busy || !slot || !name.trim() || !email.trim()}
-                    className="flex h-12 items-center justify-center gap-2 rounded-full text-base font-semibold text-white transition-opacity disabled:opacity-40"
+                    className="flex h-12 items-center justify-center gap-2 rounded-full text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
                     style={{ backgroundColor: accent }}
                   >
                     {busy ? (
@@ -519,7 +519,7 @@ function Chip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="h-10 min-w-10 rounded-full border bg-white px-3.5 text-sm tabular-nums transition-colors"
+      className="h-11 min-w-11 rounded-full border bg-white px-3.5 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
       style={
         active
           ? { borderColor: accent, backgroundColor: `${accent}14`, color: accent }

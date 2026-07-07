@@ -313,6 +313,8 @@ function CustomActionDialog({
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                name="actionUrl"
+                aria-label="Request URL"
                 placeholder="https://api.example.com/availability?date={{date}}"
                 className="font-mono text-xs"
               />
@@ -333,6 +335,8 @@ function CustomActionDialog({
                       next[i] = { ...h, name: e.target.value };
                       setHeaders(next);
                     }}
+                    name="headerName"
+                    aria-label="Header name"
                     placeholder="Authorization"
                     className="h-8 w-44 font-mono text-xs"
                   />
@@ -344,6 +348,8 @@ function CustomActionDialog({
                       setHeaders(next);
                     }}
                     type="password"
+                    name="headerValue"
+                    aria-label="Header value"
                     placeholder={h.saved ? "•••••• (saved — type to replace)" : "Bearer sk-…"}
                     className="h-8 flex-1 font-mono text-xs"
                   />

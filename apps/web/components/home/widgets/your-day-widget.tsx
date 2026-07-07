@@ -78,7 +78,7 @@ function Group({
 }) {
   return (
     <div>
-      <p className="mb-2 text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+      <p className="mb-2 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
         {label}
       </p>
       {events.length === 0 && emptyText ? (

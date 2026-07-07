@@ -251,7 +251,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
 
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+    <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
       {children}
     </p>
   );
@@ -292,16 +292,16 @@ function UnownedActionRow({
         type="button"
         disabled={state !== "idle"}
         onClick={() => void makeTask()}
-        className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+        className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
       >
         {state === "done" ? (
           <>
-            <Check className="size-3" />
+            <Check className="size-3.5" />
             Created
           </>
         ) : (
           <>
-            <Plus className="size-3" />
+            <Plus className="size-3.5" />
             Create task
           </>
         )}

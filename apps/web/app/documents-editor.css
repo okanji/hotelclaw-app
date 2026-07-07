@@ -42,7 +42,7 @@
  * paragraph. This matches the Notion-style "first line is the title" model. */
 .tiptap > :first-child {
   font-size: 1.875rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.015em;
   margin-top: 0;

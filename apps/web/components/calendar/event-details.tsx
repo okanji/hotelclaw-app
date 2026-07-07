@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useTransition } from "react";
+import { eventSwatch } from "@/lib/calendar/event-visuals";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlignLeft,
@@ -104,16 +105,7 @@ function recurrenceLabel(
   return "Repeats";
 }
 
-/** The colour chip next to the title — explicit colour beats source tint. */
-function chipColor(event: CalendarEvent): string | undefined {
-  if (event.color) return `#${event.color}`;
-  if (event.source === "meeting") return "var(--color-blue-500)";
-  if (event.source === "task") return "var(--color-amber-500)";
-  if (event.source === "external" && event.provider === "google") {
-    return "var(--color-emerald-500)";
-  }
-  return "var(--color-indigo-500)";
-}
+
 
 // ---------------------------------------------------------------------------
 // Shared scaffolding
@@ -161,7 +153,7 @@ function DetailsHeader({
         <span
           aria-hidden
           className="mt-1.5 size-3.5 shrink-0 rounded-[4px]"
-          style={{ backgroundColor: chipColor(event) }}
+          style={{ backgroundColor: eventSwatch(event) }}
         />
         <div className="min-w-0">
           <TitleEl className="text-lg font-semibold tracking-tight text-balance">

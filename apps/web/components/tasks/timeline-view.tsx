@@ -244,7 +244,7 @@ export function TimelineView({
                 )}
                 {offRows.length > 0 ? (
                   <div className="border-b border-border/40 px-3 py-1.5">
-                    <p className="text-[10px] tracking-wide text-muted-foreground/70 uppercase">
+                    <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
                       No date — {offRows.length}
                     </p>
                   </div>

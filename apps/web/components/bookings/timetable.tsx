@@ -184,7 +184,7 @@ export function Timetable({
             <span
               key={t.label + t.left}
               style={{ left: `${t.left}%` }}
-              className="absolute top-1.5 -translate-x-1/2 text-[10px] text-muted-foreground tabular-nums"
+              className="absolute top-1.5 -translate-x-1/2 text-xs text-muted-foreground tabular-nums"
             >
               {t.label}
             </span>
@@ -202,7 +202,7 @@ export function Timetable({
                   {row.label}
                 </p>
                 {row.sub ? (
-                  <p className="text-[10px] text-muted-foreground">{row.sub}</p>
+                  <p className="text-xs text-muted-foreground">{row.sub}</p>
                 ) : null}
               </div>
               <div className="relative min-h-10 flex-1">
@@ -236,7 +236,7 @@ export function Timetable({
                             style={{ left: `${left}%`, width: `${width}%` }}
                             title={`${b.guest_name} ×${b.party_size} · ${b.reference} · ${b.status}`}
                             className={cn(
-                              "absolute top-1.5 bottom-1.5 z-[5] overflow-hidden rounded-md border px-1.5 text-left text-[10px] leading-tight transition-transform hover:scale-y-105",
+                              "absolute top-1.5 bottom-1.5 z-[5] overflow-hidden rounded-md border px-1.5 text-left text-xs leading-tight transition-transform hover:scale-y-105",
                               STATUS_BLOCK[b.status],
                             )}
                           />
@@ -297,7 +297,7 @@ export function Timetable({
             )}
           >
             <div className="w-24 shrink-0 border-r border-border/40 px-2 py-1.5">
-              <p className="text-[10px] font-medium text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Covers / {maxCovers}
               </p>
             </div>
@@ -321,7 +321,7 @@ export function Timetable({
                     key={t.left}
                     style={{ left: `${t.left}%` }}
                     className={cn(
-                      "absolute top-1.5 -translate-x-1/2 rounded px-1 text-[10px] font-medium tabular-nums",
+                      "absolute top-1.5 -translate-x-1/2 rounded px-1 text-xs font-medium tabular-nums",
                       ratio >= 1
                         ? "bg-red-500/15 text-red-600 dark:text-red-400"
                         : ratio >= 0.8

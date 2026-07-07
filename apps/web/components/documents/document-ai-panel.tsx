@@ -450,6 +450,8 @@ export const DocumentAiPanel = forwardRef<
         >
           <Sparkles className="ml-1 mb-1.5 size-4 shrink-0 text-muted-foreground" />
           <textarea
+            name="prompt"
+            aria-label="Ask AI about this document"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

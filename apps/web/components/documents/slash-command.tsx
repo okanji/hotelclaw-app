@@ -636,7 +636,7 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
       <div className="max-h-80 w-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
         {groups.map(({ section, items: groupItems }) => (
           <div key={section}>
-            <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="px-2 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {SECTION_LABEL[section]}
             </div>
             {groupItems.map(({ item, index }) => {

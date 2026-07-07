@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EntityColor } from "@/lib/db/types";
 import {
@@ -25,7 +26,6 @@ import { createWorkspace } from "./actions";
 // ─── Palette (forced locally — the wizard is its own world) ─────────────────
 
 const ACCENT = "#c96442";
-const ACCENT_DARK = "#b05236";
 const INK = "#1f1e1b";
 const INK_SOFT = "#6f6a60";
 
@@ -171,16 +171,11 @@ function PrimaryButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-11 rounded-full px-7 text-sm font-medium text-white transition-colors duration-150",
-        "disabled:cursor-not-allowed disabled:opacity-40",
+        "h-11 rounded-full px-7 text-sm font-medium text-white",
+        "bg-[#c96442] hover:bg-[#b05236]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c96442]",
+        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#c96442]",
       )}
-      style={{ backgroundColor: ACCENT }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.backgroundColor = ACCENT_DARK;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = ACCENT;
-      }}
     >
       {children}
     </button>
@@ -399,7 +394,7 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
                   >
                     <span className="mr-1.5">{d.icon}</span>
                     {d.name}
-                    <span className="ml-2 opacity-50">×</span>
+                    <X className="ml-2 inline size-3.5 opacity-50" aria-hidden />
                   </Chip>
                 ))}
               </div>
@@ -628,7 +623,7 @@ function InviteStep({
         className="mt-3 text-sm transition-colors hover:text-[#1f1e1b] disabled:opacity-40"
         style={{ color: "#8d877b" }}
       >
-        + Add another
+        Add another
       </button>
       {hasPartial ? (
         <p className="mt-3 text-sm text-[#b3422a]">

@@ -222,13 +222,13 @@ export function TestConsole({
             placeholder="Message as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm max-sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <button
             type="button"
             onClick={() => void send(input)}
             disabled={busy || !input.trim()}
-            className="rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-50"
+            className="h-8 rounded-md bg-foreground px-3 text-sm font-medium text-background hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
             Send
           </button>

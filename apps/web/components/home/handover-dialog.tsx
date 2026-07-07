@@ -143,11 +143,13 @@ export function HandoverDialog({
         ) : (
           <div className="flex flex-col gap-3">
             <textarea
+              name="handoverDraft"
+              aria-label="Handover draft"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={14}
               disabled={phase === "publishing"}
-              className="w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm max-sm:text-base leading-relaxed outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Post to

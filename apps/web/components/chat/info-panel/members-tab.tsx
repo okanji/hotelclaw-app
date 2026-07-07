@@ -166,7 +166,7 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
                   ) : null}
                 </div>
                 {m.role && m.role !== "member" ? (
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
                     {m.role}
                   </span>
                 ) : null}
@@ -289,6 +289,8 @@ function AddMemberDialog({
         <div className="space-y-3">
           <Input
             autoFocus
+            name="memberSearch"
+            aria-label="Search members"
             placeholder="Search by name…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

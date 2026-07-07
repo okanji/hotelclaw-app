@@ -47,8 +47,8 @@ const CARD_SHELL: Record<
     shell: "h-[7.5rem] w-[6.75rem] rounded-md",
     pad: "p-2",
     title: "pr-5 text-xs leading-snug",
-    body: "text-[0.625rem] line-clamp-2",
-    footer: "px-2 py-1 text-[0.625rem]",
+    body: "text-xs line-clamp-2",
+    footer: "px-2 py-1 text-xs",
     snippetLines: 120,
   },
 };
@@ -219,7 +219,7 @@ export function AddPinTile({
       <span
         className={cn(
           "font-medium",
-          size === "compact" ? "text-[0.625rem] leading-tight" : "text-xs",
+          size === "compact" ? "text-xs leading-tight" : "text-xs",
         )}
       >
         {label}

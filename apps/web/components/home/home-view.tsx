@@ -197,7 +197,7 @@ export function HomeView({
       {showHero && hero ? (
         <section className="mb-16 min-w-0">
           <div className="mb-6 flex flex-col gap-1.5 border-b border-border pb-3">
-            <span className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
               {hero.kicker}
             </span>
             <h2 className="text-xl font-semibold tracking-tight text-foreground">

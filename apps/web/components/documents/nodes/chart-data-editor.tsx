@@ -78,6 +78,7 @@ export function ChartDataEditor({
                 <div className="flex items-center gap-1">
                   <input
                     value={h}
+                    aria-label={`Column ${i + 1} name`}
                     onChange={(e) => setHeader(i, e.target.value)}
                     className="w-full min-w-[6ch] bg-transparent text-xs font-medium focus:outline-none"
                   />
@@ -116,6 +117,7 @@ export function ChartDataEditor({
                 >
                   <input
                     value={cell}
+                    aria-label={`Row ${ri + 1}, ${data.headers[ci] || `column ${ci + 1}`}`}
                     onChange={(e) => setCell(ri, ci, e.target.value)}
                     className="w-full bg-transparent text-xs focus:outline-none"
                   />

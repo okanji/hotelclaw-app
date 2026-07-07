@@ -71,7 +71,7 @@ export function SheetContextMenu({
       {sections.map((section, si) => (
         <div key={si} className={si > 0 ? "border-t border-border/40" : ""}>
           {section.label ? (
-            <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <div className="px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground">
               {section.label}
             </div>
           ) : null}

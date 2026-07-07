@@ -73,6 +73,7 @@ export function ForgotPasswordForm() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               required
               autoFocus

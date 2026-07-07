@@ -13,6 +13,7 @@ import {
   startOfDay,
 } from "@/lib/calendar/time";
 import { cn } from "@/lib/utils";
+import { eventTint, eventDotClass, EVENT_VISUALS } from "@/lib/calendar/event-visuals";
 import {
   Popover,
   PopoverContent,
@@ -217,7 +218,7 @@ function DayHeader({ date }: { date: Date }) {
     <div className="flex items-baseline justify-between">
       <span
         className={cn(
-          "text-[10px] font-medium uppercase tracking-wide",
+          "text-xs font-medium uppercase tracking-wide",
           today ? "text-primary" : "text-muted-foreground",
         )}
       >
@@ -488,7 +489,7 @@ function DayColumn({
           occupy if released here, snapped to the 15-minute grid. */}
       {taskDrop ? (
         <div
-          className="pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 border-l-amber-500 bg-amber-500/15 py-1 pr-1.5 pl-2 text-left text-xs text-amber-900 shadow-sm ring-1 ring-inset ring-amber-500/30 dark:text-amber-100"
+          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs shadow-sm ring-1 ring-inset", EVENT_VISUALS.task.block)}
           style={{
             top: (taskDrop.startMin / 60) * HOUR_HEIGHT_PX,
             height: HOUR_HEIGHT_PX,
@@ -607,7 +608,7 @@ function PositionedEvent({
       onEditEvent={onEditEvent}
       onMutated={onMutated}
       triggerClassName={cn(
-        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs shadow-xs ring-1 ring-inset transition-shadow hover:shadow-md",
+        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs shadow-xs ring-1 ring-inset transition-shadow hover:shadow-md dark:shadow-none dark:hover:shadow-none",
         eventTint(event),
       )}
       triggerStyle={{
@@ -946,34 +947,3 @@ function isWeekend(d: Date): boolean {
   return day === 0 || day === 6;
 }
 
-/**
- * Source-aware tint — translucent fill plus a solid left accent edge so
- * blocks read as colour-coded at a glance even when tiny. Meetings → blue,
- * tasks → amber (matches kanban-card), external Google → green, external
- * Microsoft → indigo. An explicit `event.color` overrides via inline style
- * in `EventBlock` itself.
- */
-function eventTint(event: CalendarEvent): string {
-  if (event.source === "meeting") {
-    return "border-l-blue-500 bg-blue-500/10 text-blue-900 ring-blue-500/20 dark:text-blue-100";
-  }
-  if (event.source === "task") {
-    return "border-l-amber-500 bg-amber-500/10 text-amber-900 ring-amber-500/20 dark:text-amber-100";
-  }
-  if (event.source === "booking") {
-    return "border-l-violet-500 bg-violet-500/10 text-violet-900 ring-violet-500/20 dark:text-violet-100";
-  }
-  if (event.provider === "google") {
-    return "border-l-emerald-500 bg-emerald-500/10 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100";
-  }
-  return "border-l-indigo-500 bg-indigo-500/10 text-indigo-900 ring-indigo-500/20 dark:text-indigo-100";
-}
-
-/** Solid swatch matching `eventTint`'s accent — used for the overflow dots. */
-function eventDotClass(event: CalendarEvent): string {
-  if (event.source === "meeting") return "bg-blue-500";
-  if (event.source === "task") return "bg-amber-500";
-  if (event.source === "booking") return "bg-violet-500";
-  if (event.provider === "google") return "bg-emerald-500";
-  return "bg-indigo-500";
-}

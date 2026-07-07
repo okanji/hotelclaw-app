@@ -194,6 +194,7 @@ export function LoginForm({ next }: { next: string | null }) {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               required
               autoComplete="email"
@@ -242,6 +243,7 @@ export function LoginForm({ next }: { next: string | null }) {
             </div>
             <Input
               id="password"
+              name="password"
               type="password"
               required
               minLength={mode === "signup" ? 8 : 1}

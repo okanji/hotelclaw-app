@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 /**
  * Global 404 — shown for URLs that match no route, and for `notFound()`
@@ -14,12 +15,7 @@ export default function NotFound() {
           This page doesn&apos;t exist, or you no longer have access to it.
         </p>
       </div>
-      <Link
-        href="/"
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-      >
-        Back to your workspace
-      </Link>
+      <Button render={<Link href="/" />}>Back to your workspace</Button>
     </div>
   );
 }

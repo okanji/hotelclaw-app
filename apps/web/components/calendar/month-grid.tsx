@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { eventChipClass } from "@/lib/calendar/event-visuals";
 import {
   isSameDay,
   monthGrid,
@@ -60,7 +61,7 @@ export function MonthGrid({
         {cells.slice(0, 7).map((d) => (
           <div
             key={d.toDateString()}
-            className="px-2 py-1.5 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+            className="px-2 py-1.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground"
           >
             {d.toLocaleDateString(undefined, { weekday: "short" })}
           </div>
@@ -75,53 +76,52 @@ export function MonthGrid({
         const visible = list.slice(0, MAX_EVENTS_PER_CELL);
         const overflow = list.length - visible.length;
         return (
-          <button
+          // The cell surface is a pointer shortcut; the date number is the
+          // real (keyboard-reachable) control. Event chips are buttons too —
+          // interactive elements must not nest inside one another.
+          <div
             key={cell.toISOString()}
-            type="button"
             onClick={() => onSelectDay(cell)}
             className={cn(
-              "flex min-h-24 flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent/30",
+              "flex min-h-24 cursor-pointer flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent/30",
               !inMonth && "bg-muted/30 text-muted-foreground",
               inMonth && isWeekend && "bg-muted/15",
               isToday && "bg-primary/4",
             )}
           >
-            <span
+            <button
+              type="button"
+              aria-label={`Open ${cell.toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+              })}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectDay(cell);
+              }}
               className={cn(
-                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
+                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                 isToday && "bg-primary text-primary-foreground font-medium",
               )}
             >
               {cell.getDate()}
-            </span>
+            </button>
             <div className="flex flex-col gap-0.5">
               {visible.map((ev) => (
-                <span
+                <button
                   key={`${ev.source}:${ev.id}`}
-                  role="button"
-                  tabIndex={0}
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectEvent(ev);
                   }}
                   className={cn(
-                    "truncate rounded-sm px-1 py-0.5 text-xs leading-tight",
-                    ev.source === "meeting" &&
-                      "bg-blue-500/15 text-blue-900 dark:text-blue-100",
-                    ev.source === "task" &&
-                      "bg-amber-500/15 text-amber-900 dark:text-amber-100",
-                    ev.source === "booking" &&
-                      "bg-violet-500/15 text-violet-900 dark:text-violet-100",
-                    ev.source === "external" &&
-                      ev.provider === "google" &&
-                      "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100",
-                    ev.source === "external" &&
-                      ev.provider === "microsoft" &&
-                      "bg-indigo-500/15 text-indigo-900 dark:text-indigo-100",
+                    "truncate rounded-sm px-1 py-0.5 text-left text-xs leading-tight focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    eventChipClass(ev),
                   )}
                 >
                   {ev.title}
-                </span>
+                </button>
               ))}
               {overflow > 0 ? (
                 <span className="text-[10px] text-muted-foreground">
@@ -129,7 +129,7 @@ export function MonthGrid({
                 </span>
               ) : null}
             </div>
-          </button>
+          </div>
         );
       })}
       </div>

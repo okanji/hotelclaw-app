@@ -290,7 +290,7 @@ export function ProjectsTimelineView({
       {/* Unscheduled projects — no dates, plotted nowhere on the axis. */}
       {unscheduled.length > 0 ? (
         <div className="shrink-0 border-t border-border bg-muted/20 px-4 py-3">
-          <p className="mb-2 text-[10px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+          <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground/70 uppercase">
             Unscheduled — {unscheduled.length}{" "}
             {unscheduled.length === 1 ? "project" : "projects"}
           </p>

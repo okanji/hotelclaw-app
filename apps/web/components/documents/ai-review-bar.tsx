@@ -79,7 +79,7 @@ export function AiReviewBar({
               editor.chain().focus().acceptAiEdit().run();
               snapshotVersion();
             }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-500"
+            className="inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1.5 text-sm font-medium text-white hover:bg-success/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-success dark:text-emerald-950"
           >
             <Check className="size-3.5" />
             Accept

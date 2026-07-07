@@ -379,6 +379,8 @@ function TwilioSection({
         value={number}
         onChange={(e) => setNumber(e.target.value)}
         onBlur={saveNumber}
+        name="twilioNumber"
+        aria-label="Twilio number"
         placeholder="whatsapp:+14155550100"
         className="w-72 font-mono text-xs"
       />

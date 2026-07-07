@@ -225,6 +225,8 @@ function ApiAccessDialog({
             >
               <input
                 value={name}
+                name="tokenName"
+                aria-label="Token name"
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Token name (e.g. Claude Desktop)"
                 className="h-8 flex-1 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"

@@ -361,7 +361,7 @@ function GroupedList({
       {groups.map((g) => (
         <section key={g.bucket}>
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h3 className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
               {BUCKET_LABELS[g.bucket]}
             </h3>
             <span className="text-xs tracking-tight text-muted-foreground/70 tabular-nums">
@@ -485,7 +485,7 @@ function EditorialHeading({
   return (
     <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
       <div className="flex flex-col gap-1">
-        <span className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
           {kicker}
         </span>
         <h2 className="text-xl font-semibold tracking-tight text-foreground">

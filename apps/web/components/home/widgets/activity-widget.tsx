@@ -65,10 +65,8 @@ export function ActivityWidget({
             >
               <span
                 className={cn(
-                  "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-                  unseen
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
+                  "mt-0.5 flex shrink-0 items-center",
+                  unseen ? "text-primary" : "text-muted-foreground",
                 )}
                 aria-hidden="true"
               >

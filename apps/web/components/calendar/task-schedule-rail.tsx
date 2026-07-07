@@ -128,7 +128,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
               <div className="flex items-baseline justify-between px-1 pb-1">
                 <span
                   className={cn(
-                    "text-[10px] font-medium uppercase tracking-wide",
+                    "text-xs font-medium uppercase tracking-wide",
                     key === "urgent"
                       ? "text-red-600 dark:text-red-400"
                       : "text-muted-foreground",

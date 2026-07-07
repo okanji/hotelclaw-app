@@ -80,7 +80,7 @@ export function InsightsAskPanel({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg backdrop-blur transition-colors hover:bg-muted"
+          className="pointer-events-auto flex items-center gap-2 rounded-full bg-background/95 px-4 py-2 text-sm font-medium text-foreground ring-1 ring-foreground/10 shadow-lg backdrop-blur hover:bg-muted dark:shadow-none"
         >
           <Sparkles className="size-4" />
           Ask AI
@@ -91,7 +91,7 @@ export function InsightsAskPanel({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
-      <div className="pointer-events-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur">
+      <div className="pointer-events-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background/95 ring-1 ring-foreground/10 shadow-xl backdrop-blur dark:shadow-none">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Sparkles className="size-4" />
@@ -181,6 +181,8 @@ export function InsightsAskPanel({
           className="flex items-end gap-2 border-t border-border px-3 py-2.5"
         >
           <textarea
+            name="question"
+            aria-label="Ask about the numbers"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -198,7 +200,7 @@ export function InsightsAskPanel({
             type="submit"
             aria-label="Send"
             disabled={busy || input.trim().length === 0}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md bg-foreground text-background transition-opacity disabled:opacity-40"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md bg-foreground text-background hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
           >
             <Send className="size-4" />
           </button>
