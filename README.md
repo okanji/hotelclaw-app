@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# hotelclaw
 
-## Getting Started
+A [Turborepo](https://turbo.build/repo) monorepo (pnpm workspaces) containing the
+hotelclaw web and mobile apps.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+.
+├── apps/
+│   ├── web/      # Next.js web app (the main product)
+│   └── mobile/   # Expo / React Native app (Stream Chat — chat & tasks on mobile)
+└── packages/     # shared code (added as it's extracted)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Getting started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install            # install the whole workspace (pnpm, node-linker=hoisted)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Web (`apps/web`)
 
-## Learn More
+```bash
+pnpm dev                # Next.js dev server on http://localhost:3000
+# or: pnpm --filter web dev   (equivalently: cd apps/web && pnpm dev)
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Mobile (`apps/mobile`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev:mobile         # Expo dev server (use a dev client / native build, not Expo Go)
+# or: pnpm --filter mobile dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The Stream Chat Expo SDK ships native code, so the mobile app runs on a **dev
+client** (`npx expo run:ios` / `npx expo run:android`), not Expo Go.
 
-## Deploy on Vercel
+## Workspace commands (from the repo root, via turbo)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Command            | What it does                                  |
+| ------------------ | --------------------------------------------- |
+| `pnpm build`       | build every app                               |
+| `pnpm lint`        | lint every app                                |
+| `pnpm typecheck`   | typecheck every app                           |
+| `pnpm test`        | run tests across the workspace                |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Filter to one app with `--filter=web` or `--filter=mobile`.
+
+Package manager: **pnpm** with `node-linker=hoisted` (required for Expo/Metro to
+resolve native modules in a monorepo).
