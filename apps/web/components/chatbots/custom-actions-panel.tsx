@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { saveCustomAction, deleteCustomAction } from "./actions";
+import { NativeSelect } from "@/components/ui/native-select";
 
 /** Client-safe row — header secrets never leave the server. */
 export type CustomActionListItem = {
@@ -43,9 +44,6 @@ type ParamField = {
 };
 
 type HeaderDraft = { name: string; value: string; saved: boolean };
-
-const selectClass =
-  "h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 function newParamId() {
   return `p_${crypto.randomUUID().slice(0, 8)}`;
@@ -300,16 +298,16 @@ function CustomActionDialog({
               2 · Request
             </p>
             <div className="flex gap-2">
-              <select
+              <NativeSelect
                 value={method}
                 onChange={(e) => setMethod(e.target.value as typeof method)}
-                className={cn(selectClass, "w-28 shrink-0")}
+                wrapperClassName="w-28 shrink-0"
                 aria-label="HTTP method"
               >
                 {(["GET", "POST", "PUT", "DELETE"] as const).map((m) => (
                   <option key={m}>{m}</option>
                 ))}
-              </select>
+              </NativeSelect>
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -410,20 +408,20 @@ function CustomActionDialog({
                   placeholder="date"
                   className="h-8 font-mono text-xs"
                 />
-                <select
+                <NativeSelect
                   value={p.type}
                   onChange={(e) => {
                     const next = [...params];
                     next[i] = { ...p, type: e.target.value as ParamField["type"] };
                     setParams(next);
                   }}
-                  className={cn(selectClass, "h-8 text-xs")}
+                  wrapperClassName="h-8 text-xs"
                   aria-label="Parameter type"
                 >
                   <option value="string">text</option>
                   <option value="number">number</option>
                   <option value="boolean">yes/no</option>
-                </select>
+                </NativeSelect>
                 <Input
                   value={p.description}
                   onChange={(e) => {

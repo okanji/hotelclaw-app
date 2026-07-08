@@ -186,6 +186,9 @@ export async function createWorkspace(input: {
             color: s.color,
             position: i * 1024,
             created_by: user.id,
+            // Owner leads every team on day one so the org chart is populated
+            // immediately; reassign real leads later in the org editor.
+            lead_user_id: user.id,
           })),
         )
         .select("id, name");
@@ -201,6 +204,17 @@ export async function createWorkspace(input: {
         .from("space_members")
         .insert(rows.map((r) => ({ space_id: r.id, user_id: user.id })));
       if (memErr) throw memErr;
+
+      // Owner's home team = the first team (their tasks default here until they
+      // set it in the org editor). memberships has no RLS update policy, so
+      // this goes through the service client.
+      if (rows[0]) {
+        await service
+          .from("memberships")
+          .update({ primary_space_id: rows[0].id })
+          .eq("property_id", propertyId)
+          .eq("user_id", user.id);
+      }
     }
   } catch (e) {
     warn("spaces", e);

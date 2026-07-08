@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   DndContext,
@@ -25,12 +24,14 @@ import {
 import { useDashboardLayout } from "@/components/home/use-dashboard-layout";
 import { insightsMetricsQueryOptions } from "@/lib/query/insights-queries";
 import { useInsightsRealtime } from "@/lib/insights/use-insights-realtime";
-import { PROPERTY_SCOPE, type InsightScope } from "@/lib/insights/scope";
 import {
   INSIGHT_SECTIONS,
   INSIGHT_SECTIONS_BY_ID,
   INSIGHT_SECTION_IDS,
+  INSIGHT_TABS,
+  type InsightTab,
 } from "./insights-registry";
+import { useInsightsTab } from "./insights-tab-context";
 import { ReportsView } from "./reports-view";
 import { MyWeekView } from "./my-week-view";
 import { ScopeSwitcher } from "./scope-switcher";
@@ -41,17 +42,19 @@ import { ApiAccessButton } from "./api-access-dialog";
 export type InsightsSubView = "main" | "reports";
 
 /**
- * The Insights section — one consolidated page with a scope switcher. The
- * automatic intelligence brief leads; the deterministic sections it cites
- * (flow, attention, open work, portfolio, workload) follow in the editorial
- * grid, with a teaser into the separate Reports page at the end. Every
- * section is drag-reorderable and hideable, exactly like the Home dashboard
- * (`INSIGHT_SECTIONS` + `useDashboardLayout`, persisted per user). The whole
- * page — brief included — re-lenses to a project / team (space) / person via
- * the switcher; Operations and the report teaser are property-level and
- * render only on the property scope. Staff get a personal "My week" instead —
- * the metrics endpoint returns the role-appropriate payload and ignores
- * scope params for staff sessions.
+ * The Insights section — its own rail section, navigated by the views listed in
+ * its secondary sidebar (Overview · Work · Operations · Reports, in
+ * `InsightsSection`). The active view is shared state (`useInsightsTab`) so the
+ * sidebar and this surface stay in lockstep. The automatic intelligence brief
+ * leads Overview; the deterministic sections it cites are split across the
+ * dashboard views, each drag-reorderable and hideable within its view
+ * (`INSIGHT_SECTIONS` + `useDashboardLayout`, persisted per user). Reports keeps
+ * its own URL (`/home/insights/reports`) so the notifications and intelligence
+ * cards can deep-link straight to it. The whole surface — brief included —
+ * re-lenses to a project / team / person via the switcher; Operations and
+ * Reports are property-level and only offered on the property scope. Staff get a
+ * personal "My week" instead — the metrics endpoint returns the role-appropriate
+ * payload and ignores scope params for staff sessions.
  */
 export function InsightsView({
   propertyId,
@@ -63,7 +66,10 @@ export function InsightsView({
   view: InsightsSubView;
 }) {
   useInsightsRealtime(propertyId);
-  const [scope, setScope] = useState<InsightScope>(PROPERTY_SCOPE);
+  // View state (active dashboard tab + lens) is shared with the secondary
+  // sidebar that lists the views — see `InsightsTabProvider`. Reports is
+  // URL-driven (`view`), so it isn't in the shared state; the pathname wins.
+  const { dashTab, scope, setScope } = useInsightsTab();
   const { data, isPending } = useQuery(
     insightsMetricsQueryOptions(propertyId, scope),
   );
@@ -85,29 +91,44 @@ export function InsightsView({
 
   const isStaff = data?.role === "staff";
   const isProperty = scope.kind === "property";
-
-  // Lens/role gating: filtered-out sections keep their saved position, they
-  // just don't render (or appear in the customize menu) for this lens.
   const role = data && data.role !== "staff" ? data.role : null;
+
+  // Reports (URL) always wins; otherwise the shared dashboard tab, falling back
+  // to Overview if the current lens doesn't offer it (e.g. Operations while
+  // lensed to a project).
+  const dashAvailable =
+    INSIGHT_TABS.find((t) => t.id === dashTab && (!t.propertyOnly || isProperty)) ??
+    null;
+  const activeTab: InsightTab =
+    view === "reports" && isProperty
+      ? "reports"
+      : dashAvailable
+        ? dashTab
+        : "overview";
+  const activeMeta = INSIGHT_TABS.find((t) => t.id === activeTab)!;
+
+  // Lens/role gating scoped to the active dashboard tab: filtered-out sections
+  // keep their saved position, they just don't render (or appear in the
+  // customize menu) for this tab/lens.
   const availableDefs = INSIGHT_SECTIONS.filter(
     (d) =>
-      (!d.propertyOnly || isProperty) && (!d.ownerOnly || role === "owner"),
+      d.tab === activeTab &&
+      (!d.propertyOnly || isProperty) &&
+      (!d.ownerOnly || role === "owner"),
   );
   const available = new Set(availableDefs.map((d) => d.id));
   const shown = visible.filter((id) => available.has(id));
-  const showReports = view === "reports" && !isStaff;
-  const heading = isStaff ? "My week" : showReports ? "Reports" : "Insights";
+  const isReports = activeTab === "reports";
+  const heading = isStaff ? "My week" : "Insights";
   const blurb = isStaff
     ? "Your momentum, your stuck items, and the team's weekly update."
-    : showReports
-      ? "The AI analyst's weekly briefings — written from the same numbers Insights charts."
-      : "The analyst's read first, then every number behind it.";
+    : activeMeta.blurb;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-6xl px-8 pt-12 pb-24 sm:px-14 sm:pt-14">
-          <header className="mb-12 flex items-end justify-between gap-4">
+          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
             <div className="flex min-w-0 flex-col gap-1.5">
               <p className="mb-2 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
                 Intelligence
@@ -119,19 +140,21 @@ export function InsightsView({
                 {blurb}
               </p>
             </div>
-            {!isStaff && !showReports ? (
+            {!isStaff ? (
               <div className="flex shrink-0 items-center gap-1.5">
                 {role === "owner" ? (
                   <ApiAccessButton propertyId={propertyId} />
                 ) : null}
                 <InsightsFollowButton propertyId={propertyId} scope={scope} />
-                <CustomizeMenu
-                  items={availableDefs}
-                  visibleCount={shown.length}
-                  isHidden={isHidden}
-                  onToggle={toggleHidden}
-                  onReset={reset}
-                />
+                {!isReports ? (
+                  <CustomizeMenu
+                    items={availableDefs}
+                    visibleCount={shown.length}
+                    isHidden={isHidden}
+                    onToggle={toggleHidden}
+                    onReset={reset}
+                  />
+                ) : null}
                 <ScopeSwitcher
                   propertyId={propertyId}
                   scope={scope}
@@ -141,7 +164,7 @@ export function InsightsView({
             ) : null}
           </header>
 
-          <div className="@container">
+          <div className="mt-10 @container">
             {isPending || !data ? (
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
                 <InsightsSkeleton />
@@ -150,10 +173,15 @@ export function InsightsView({
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
                 <MyWeekView propertyId={propertyId} data={data} />
               </div>
-            ) : showReports ? (
+            ) : isReports ? (
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
                 <ReportsView propertyId={propertyId} />
               </div>
+            ) : shown.length === 0 ? (
+              <TabEmpty
+                onReset={reset}
+                hasHidden={hidden.some((id) => available.has(id))}
+              />
             ) : (
               <>
                 <DndContext
@@ -198,8 +226,37 @@ export function InsightsView({
           </div>
         </div>
       </div>
-      {data && data.role !== "staff" && !showReports ? (
+      {data && data.role !== "staff" && !isReports ? (
         <InsightsAskPanel propertyId={propertyId} scope={scope} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Shown when every section in a dashboard tab has been hidden — offers the
+ *  one-tap restore, so a customized-away tab never dead-ends. */
+function TabEmpty({
+  onReset,
+  hasHidden,
+}: {
+  onReset: () => void;
+  hasHidden: boolean;
+}) {
+  return (
+    <div className="col-span-full flex flex-col items-start gap-3 rounded-xl border border-dashed border-border/70 px-6 py-10">
+      <p className="text-sm text-muted-foreground">
+        {hasHidden
+          ? "Every section in this view is hidden."
+          : "Nothing to show in this view yet."}
+      </p>
+      {hasHidden ? (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-sm font-medium text-foreground underline underline-offset-2 hover:no-underline"
+        >
+          Restore hidden sections
+        </button>
       ) : null}
     </div>
   );

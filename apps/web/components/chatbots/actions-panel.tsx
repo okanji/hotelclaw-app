@@ -14,6 +14,7 @@ import {
   type ChatbotConfig,
 } from "@/lib/chatbots/schema";
 import type { ChannelOption, SpaceOption } from "./chatbot-detail";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const ACTION_ORDER: ChatbotActionType[] = [
   "answer_from_knowledge",
@@ -61,9 +62,6 @@ function defaultAction(type: ChatbotActionType): ChatbotAction {
       };
   }
 }
-
-const selectClass =
-  "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 /**
  * Actions = what the bot can DO. One card per action type: a toggle, a
@@ -291,7 +289,7 @@ function ActionConfigFields({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Confirmation</Label>
-            <select
+            <NativeSelect
               value={cfg.autoConfirm ? "auto" : "pending"}
               onChange={(e) =>
                 onChange({
@@ -299,15 +297,14 @@ function ActionConfigFields({
                   config: { ...cfg, autoConfirm: e.target.value === "auto" },
                 })
               }
-              className={selectClass}
             >
               <option value="auto">Confirm instantly</option>
               <option value="pending">Hold as pending for staff review</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ping channel</Label>
-            <select
+            <NativeSelect
               value={cfg.notifyChannelId ?? ""}
               onChange={(e) =>
                 onChange({
@@ -315,7 +312,6 @@ function ActionConfigFields({
                   config: { ...cfg, notifyChannelId: e.target.value || undefined },
                 })
               }
-              className={selectClass}
             >
               <option value="">Don&apos;t post to a channel</option>
               {channels.map((c) => (
@@ -323,7 +319,7 @@ function ActionConfigFields({
                   #{c.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         </div>
       </div>
@@ -374,7 +370,7 @@ function ActionConfigFields({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Ticket type</Label>
-            <select
+            <NativeSelect
               value={cfg.kind}
               onChange={(e) =>
                 onChange({
@@ -382,16 +378,15 @@ function ActionConfigFields({
                   config: { ...cfg, kind: e.target.value as typeof cfg.kind },
                 })
               }
-              className={selectClass}
             >
               <option value="order">Order (room service, F&B)</option>
               <option value="request">Request (housekeeping, front desk)</option>
               <option value="maintenance">Maintenance issue</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Priority</Label>
-            <select
+            <NativeSelect
               value={cfg.priority}
               onChange={(e) =>
                 onChange({
@@ -399,17 +394,16 @@ function ActionConfigFields({
                   config: { ...cfg, priority: e.target.value as typeof cfg.priority },
                 })
               }
-              className={selectClass}
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Tickets land in</Label>
-            <select
+            <NativeSelect
               value={cfg.spaceId ?? ""}
               onChange={(e) =>
                 onChange({
@@ -417,7 +411,6 @@ function ActionConfigFields({
                   config: { ...cfg, spaceId: e.target.value || undefined },
                 })
               }
-              className={selectClass}
             >
               <option value="">No team (property inbox)</option>
               {spaces.map((s) => (
@@ -425,11 +418,11 @@ function ActionConfigFields({
                   {s.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ping channel</Label>
-            <select
+            <NativeSelect
               value={cfg.notifyChannelId ?? ""}
               onChange={(e) =>
                 onChange({
@@ -437,7 +430,6 @@ function ActionConfigFields({
                   config: { ...cfg, notifyChannelId: e.target.value || undefined },
                 })
               }
-              className={selectClass}
             >
               <option value="">Don&apos;t post to a channel</option>
               {channels.map((c) => (
@@ -445,7 +437,7 @@ function ActionConfigFields({
                   #{c.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         </div>
 
@@ -530,7 +522,7 @@ function ActionConfigFields({
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label className="text-xs">Escalations post to</Label>
-        <select
+        <NativeSelect
           value={cfg.channelId ?? ""}
           onChange={(e) =>
             onChange({
@@ -538,7 +530,6 @@ function ActionConfigFields({
               config: { ...cfg, channelId: e.target.value || undefined },
             })
           }
-          className={selectClass}
         >
           <option value="">Notifications only (no channel)</option>
           {channels.map((c) => (
@@ -546,7 +537,7 @@ function ActionConfigFields({
               #{c.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <div className="space-y-1.5">
         <Label className="text-xs">Notify</Label>

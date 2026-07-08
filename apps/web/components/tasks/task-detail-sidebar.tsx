@@ -15,6 +15,7 @@ import {
   Flag,
   History,
   Link2,
+  OctagonAlert,
   Paperclip,
   Plus,
   SquarePlus,
@@ -59,15 +60,15 @@ import type {
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
 import type { TaskPriority, TaskStatus } from "@/lib/db/types";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
+import {
+  AssigneeMenuContent,
+  DueDatePopoverContent,
+  PriorityMenuContent,
+  StatusMenuContent,
+  initials,
+} from "./task-property-menus";
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 function formatDueLabel(iso: string | null) {
   if (!iso) return "Due date";
@@ -83,22 +84,6 @@ function formatDueLabel(iso: string | null) {
   if (diffDays === 1) return "Due tomorrow";
   if (diffDays === -1) return "Due yesterday";
   return `Due ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-}
-
-function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function dateInputToIso(value: string) {
-  if (!value) return null;
-  const d = new Date(`${value}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function formatRelative(iso: string) {
@@ -134,6 +119,7 @@ export function TaskDetailSidebar({
   onCopyTitle,
   onCopyLink,
   onDelete,
+  onEscalate,
   onAddSubIssue,
   onAutomate,
 }: {
@@ -155,6 +141,7 @@ export function TaskDetailSidebar({
   onCopyTitle: () => void;
   onCopyLink: () => void;
   onDelete: () => void;
+  onEscalate: () => void;
   onAddSubIssue: () => void;
   onAutomate: () => void;
 }) {
@@ -308,6 +295,11 @@ export function TaskDetailSidebar({
           }
           label={meta?.muted ? "Unsubscribed" : "Unsubscribe"}
           onClick={removers.toggleMute}
+        />
+        <SidebarActionRow
+          icon={<OctagonAlert className="size-3.5" />}
+          label="Escalate…"
+          onClick={onEscalate}
         />
         <SidebarActionRow
           icon={<Workflow className="size-3.5" />}
@@ -618,18 +610,7 @@ function StatusPicker({
           </button>
         }
       />
-      <DropdownMenuContent align="end" className="w-48">
-        {COLUMNS.map((c) => (
-          <DropdownMenuItem
-            key={c.id}
-            onClick={() => onSelect(c.id)}
-            className="gap-2"
-          >
-            <StatusIcon status={c.id} className="size-3.5" />
-            {c.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
+      <StatusMenuContent align="end" onSelect={onSelect} />
     </DropdownMenu>
   );
 }
@@ -667,22 +648,7 @@ function PriorityPicker({
           </button>
         }
       />
-      <DropdownMenuContent align="end" className="w-56 p-1">
-        {PRIORITY_MENU_ORDER.map((p) => (
-          <DropdownMenuItem
-            key={p}
-            onClick={() => onSelect(p)}
-            className="cursor-pointer gap-2 py-1.5"
-          >
-            <span className="flex w-4 items-center justify-center">
-              <PriorityBars priority={p} />
-            </span>
-            <span className="flex-1 text-sm">
-              {PRIORITY_META[p].label}
-            </span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
+      <PriorityMenuContent align="end" onSelect={onSelect} />
     </DropdownMenu>
   );
 }
@@ -727,28 +693,7 @@ function AssigneePicker({
           </button>
         }
       />
-      <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
-        <DropdownMenuItem onClick={() => onSelect(null)}>
-          Unassigned
-        </DropdownMenuItem>
-        {members.map((m) => (
-          <DropdownMenuItem
-            key={m.id}
-            onClick={() => onSelect(m.id)}
-            className="gap-2"
-          >
-            <Avatar size="sm" className="size-5">
-              {m.avatarUrl ? (
-                <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} />
-              ) : null}
-              <AvatarFallback className="bg-muted text-[0.5625rem]">
-                {initials(m.name ?? "?")}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{m.name ?? "Member"}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
+      <AssigneeMenuContent align="end" members={members} onSelect={onSelect} />
     </DropdownMenu>
   );
 }
@@ -776,29 +721,7 @@ function DueDatePicker({
           </button>
         }
       />
-      <PopoverContent align="end" className="w-56 p-3">
-        <label className="text-xs font-medium text-muted-foreground">
-          Due date
-        </label>
-        <input
-          type="date"
-          value={toDateInputValue(dueAt)}
-          onChange={(e) => onChange(dateInputToIso(e.target.value))}
-          className={cn(
-            "mt-2 h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm",
-            "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-          )}
-        />
-        {dueAt ? (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="mt-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Clear due date
-          </button>
-        ) : null}
-      </PopoverContent>
+      <DueDatePopoverContent align="end" dueAt={dueAt} onChange={onChange} />
     </Popover>
   );
 }

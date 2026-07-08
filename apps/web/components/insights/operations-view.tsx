@@ -20,6 +20,7 @@ import {
   relativeShort,
 } from "@/components/home/editorial-section";
 import { insightsOperationsQueryOptions } from "@/lib/query/insights-queries";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AXIS_TICK,
   COLOR,
@@ -37,7 +38,13 @@ import {
  * same react-query payload (deduped), so the split costs no extra requests.
  */
 function OpsLoading() {
-  return <p className="py-4 text-sm text-muted-foreground">Loading…</p>;
+  return (
+    <div className="flex flex-col gap-2 py-4" aria-busy="true">
+      <Skeleton className="h-4 w-3/5" />
+      <Skeleton className="h-4 w-2/5" />
+      <Skeleton className="h-4 w-1/2" />
+    </div>
+  );
 }
 
 export function MeetingsBody({ propertyId }: { propertyId: string }) {

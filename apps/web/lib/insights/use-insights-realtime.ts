@@ -21,7 +21,7 @@ export function useInsightsRealtime(propertyId: string): void {
       qc.invalidateQueries({ queryKey: ["insights", propertyId] });
     };
     const channel = supabase
-      .channel(`insights:${propertyId}`)
+      .channel(`insights:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

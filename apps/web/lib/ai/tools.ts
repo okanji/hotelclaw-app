@@ -18,6 +18,8 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
+import { loadOrgChart } from "@/lib/org/queries";
+import { renderOrgChart } from "@/lib/org/render";
 
 const STATUS_LABELS: Record<string, string> = {
   todo: "To do",
@@ -199,6 +201,26 @@ export function buildPropertyTools(propertyId: string) {
             location: m.location,
           })),
         };
+      },
+    }),
+
+    get_org_chart: tool({
+      description:
+        "Get the company org chart for this property: the team hierarchy (which teams exist and who leads them, nested by parent), the reporting lines (who reports to whom), and every person's title, role, and home team. Use this whenever a request depends on who's responsible for something, which team owns a kind of work, or who to route/escalate to — e.g. 'assign this to maintenance', 'who runs housekeeping', 'escalate to Priya's manager', or deciding which team a new task belongs to. Returns a compact text chart; read it, then act on real names/teams instead of guessing.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const org = await loadOrgChart(supabase, propertyId);
+          if (org.teams.length === 0 && org.people.length === 0) {
+            return { chart: "No org chart has been set up for this property yet." };
+          }
+          return { chart: renderOrgChart(org) };
+        } catch (e) {
+          return {
+            error:
+              e instanceof Error ? e.message : "Failed to load the org chart",
+          };
+        }
       },
     }),
   };

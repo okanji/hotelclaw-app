@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   addUserToPublicChannels,
@@ -287,7 +288,7 @@ export async function acceptInvite(
   token: string,
 ): Promise<
   | { propertyId: string; propertyName: string }
-  | { error: string; needsAuth?: true }
+  | { error: string; needsAuth?: true; wrongAccount?: true }
 > {
   const supabase = await createClient();
   const {
@@ -309,6 +310,19 @@ export async function acceptInvite(
   if (invite.accepted_at) return { error: "This invite has already been used." };
   if (new Date(invite.expires_at).getTime() < Date.now()) {
     return { error: "This invite has expired." };
+  }
+
+  // The invite is bound to the invited address — the token alone isn't enough.
+  // Enforced here (not just in the page UI) because the link is a bearer URL
+  // anyone could paste into a different signed-in browser. This once let a
+  // look-alike account accept a real person's owner invite.
+  if (user.email?.toLowerCase() !== invite.email.toLowerCase()) {
+    return {
+      error: user.email
+        ? `This invite was sent to ${invite.email}, but you're signed in as ${user.email}. Sign in with ${invite.email} to accept it.`
+        : `This invite was sent to ${invite.email}. Sign in with that email to accept it.`,
+      wrongAccount: true,
+    };
   }
 
   const { data: existing } = await service
@@ -368,4 +382,19 @@ export async function acceptInvite(
     propertyId: invite.property_id,
     propertyName: property?.name ?? "Property",
   };
+}
+
+/**
+ * "Wrong account" escape hatch on the invite page: sign the current session
+ * out and bounce to login with the invite as the post-auth destination, so
+ * the recipient can come back with the address the invite was sent to.
+ */
+export async function switchAccountForInvite(token: string): Promise<never> {
+  const parsed = z.string().min(1).max(255).safeParse(token);
+  const next = parsed.success
+    ? `/login?next=${encodeURIComponent(`/invites/${parsed.data}`)}`
+    : "/login";
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect(next);
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChartNoAxesColumn, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatbotAnalytics } from "@/lib/chatbots/analytics";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * Analytics tab — deterministic counts with Haiku-labeled topics/sentiment
@@ -58,16 +59,10 @@ export function AnalyticsTab({
 
   if (totals.conversations === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
-        <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-          <ChartNoAxesColumn className="size-5 text-muted-foreground" />
-        </span>
-        <p className="text-sm font-medium">No conversations yet</p>
-        <p className="max-w-[40ch] text-sm text-muted-foreground">
-          Once guests start chatting, topics, sentiment, and volume show up
-          here.
-        </p>
-      </div>
+      <EmptyState icon={ChartNoAxesColumn} title="No conversations yet">
+        Once guests start chatting, topics, sentiment, and volume show up
+        here.
+      </EmptyState>
     );
   }
 

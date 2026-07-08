@@ -74,7 +74,7 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
 
       {spaces.length > 0 ? (
         <SidebarGroup>
-          <SidebarGroupLabel>Spaces</SidebarGroupLabel>
+          <SidebarGroupLabel>Teams</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {spaces.map((s) => (

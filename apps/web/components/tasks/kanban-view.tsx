@@ -82,12 +82,15 @@ type Props = {
   assignees: Record<string, AssigneeInfo>;
   hideDone: boolean;
   onOpenFullCreate: (status: TaskStatus) => void;
+  /** Active team scope (`?space=`), threaded to inline quick-add. */
+  scopeSpaceId?: string | null;
 };
 
 export function KanbanView({
   propertyId,
   tasks,
   assignees,
+  scopeSpaceId,
   hideDone,
   onOpenFullCreate,
 }: Props) {
@@ -416,6 +419,7 @@ export function KanbanView({
               remoteDragMap={remoteDragMap}
               onChanged={notifyChanged}
               onOpenFullCreate={onOpenFullCreate}
+              scopeSpaceId={scopeSpaceId}
             />
           );
         })}

@@ -73,7 +73,7 @@ export function DashboardFilterMenu({
     value.kind === "all"
       ? "All work"
       : value.kind === "space"
-        ? (spaces.find((t) => t.id === value.id)?.name ?? "Space")
+        ? (spaces.find((t) => t.id === value.id)?.name ?? "Team")
         : (projects.find((p) => p.id === value.id)?.name ?? "Project");
 
   return (
@@ -116,7 +116,7 @@ export function DashboardFilterMenu({
           <DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-              Spaces
+              Teams
             </DropdownMenuLabel>
             {spaces.map((t) => (
               <DropdownMenuItem

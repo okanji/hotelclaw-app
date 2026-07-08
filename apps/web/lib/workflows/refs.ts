@@ -137,8 +137,8 @@ const TRIGGER_EXTRAS: Record<
   ],
   "task.label_added": [{ path: "trigger.added_labels", label: "Labels added", type: "string[]" }],
   "task.added_to_space": [
-    { path: "trigger.from", label: "Previous space", type: "string" },
-    { path: "trigger.to", label: "New space", type: "string" },
+    { path: "trigger.from", label: "Previous team", type: "string" },
+    { path: "trigger.to", label: "New team", type: "string" },
   ],
   "task.added_to_project": [
     { path: "trigger.from", label: "Previous project", type: "string" },

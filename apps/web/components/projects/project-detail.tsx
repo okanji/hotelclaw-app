@@ -371,7 +371,7 @@ export function ProjectDetail({
           </Link>
         </MetadataItem>
         {linkedSpaces.length > 0 ? (
-          <MetadataItem label="Spaces">
+          <MetadataItem label="Teams">
             <span className="tabular-nums">{linkedSpaces.length}</span>
           </MetadataItem>
         ) : null}
@@ -437,7 +437,7 @@ export function ProjectDetail({
                         aria-hidden="true"
                       />
                       <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
-                        {s.name || "Untitled space"}
+                        {s.name || "Untitled team"}
                       </span>
                     </Link>
                   </li>
@@ -787,7 +787,7 @@ function SpacesPicker({
               />
             }
           >
-            {linkedSpaces.length === 0 ? "Add spaces" : "Edit spaces"}
+            {linkedSpaces.length === 0 ? "Add teams" : "Edit teams"}
           </PopoverTrigger>
           <PopoverContent align="start" sideOffset={6} className="w-56 p-1.5">
             {allSpaces.length === 0 ? (

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Bot, Undo2, Wrench } from "lucide-react";
+import { ArrowLeft, Bot, Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import { OutcomeBadge } from "./conversations-list";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
 import { sendStaffReply, setConversationState } from "./actions";
+import { ChatBubble, ToolCallList } from "./chat/primitives";
 
 export type TranscriptMessage = {
   id: string;
@@ -73,7 +74,7 @@ export function ConversationTranscript({
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`chatbot-convo:${conversation.id}`)
+      .channel(`chatbot-convo:${conversation.id}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -202,18 +203,7 @@ export function ConversationTranscript({
           ) : (
             <div key={m.id} className="space-y-1">
               {m.tool_calls && m.tool_calls.length > 0 ? (
-                <div className="flex flex-wrap justify-start gap-1">
-                  {m.tool_calls.map((tc, j) => (
-                    <span
-                      key={j}
-                      title={JSON.stringify(tc.input, null, 2)}
-                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                    >
-                      <Wrench className="size-2.5" />
-                      {tc.name}
-                    </span>
-                  ))}
-                </div>
+                <ToolCallList calls={m.tool_calls} className="justify-start" />
               ) : null}
               <div
                 className={cn(
@@ -240,23 +230,23 @@ export function ConversationTranscript({
                     })}
                     {m.feedback === 1 ? " · 👍" : m.feedback === -1 ? " · 👎" : ""}
                   </p>
-                  <div
-                    className={cn(
-                      "rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                      m.role === "bot" ? "" : "whitespace-pre-wrap",
+                  <ChatBubble
+                    side={m.role === "guest" ? "start" : "end"}
+                    tone={
                       m.role === "guest"
-                        ? "rounded-bl-md border border-border/60 bg-background"
+                        ? "outline"
                         : m.role === "staff"
-                          ? "rounded-br-md bg-sky-500/10 text-foreground"
-                          : "rounded-br-md bg-foreground/[0.05]",
-                    )}
+                          ? "staff"
+                          : "soft"
+                    }
+                    preWrap={m.role !== "bot"}
                   >
                     {m.role === "bot" && m.content ? (
                       <ChatMarkdown>{m.content}</ChatMarkdown>
                     ) : (
                       m.content
                     )}
-                  </div>
+                  </ChatBubble>
                   {m.role === "bot" ? (
                     <ChatCards attachments={m.attachments} />
                   ) : null}

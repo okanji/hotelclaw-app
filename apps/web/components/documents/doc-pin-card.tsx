@@ -270,11 +270,11 @@ export function DocumentPinPicker({
     const result: PinPickerGroup[] = [];
     const inSpace = (spaceDocs ?? []).filter(match).slice(0, 12);
     const workspace = (workspaceCandidates ?? []).filter(match).slice(0, 12);
-    if (inSpace.length > 0) result.push({ label: "In this space", items: inSpace });
+    if (inSpace.length > 0) result.push({ label: "In this team", items: inSpace });
     if (workspace.length > 0) {
       result.push({
         label: "From workspace",
-        hint: "Adds to this space",
+        hint: "Adds to this team",
         items: workspace,
       });
     }

@@ -101,7 +101,7 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
           Archive
         </h1>
         <p className="max-w-[56ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
-          Archived projects and spaces. Restore one to bring it back, or delete
+          Archived projects and teams. Restore one to bring it back, or delete
           it permanently. Tasks and documents are kept — they&apos;re only
           unlinked from a deleted project or space.
         </p>
@@ -114,7 +114,7 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
       ) : isEmpty ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            Nothing archived. Archived projects and spaces show up here.
+            Nothing archived. Archived projects and teams show up here.
           </p>
         </div>
       ) : (
@@ -129,7 +129,7 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
             onDelete={onDelete}
           />
           <Section
-            title="Spaces"
+            title="Teams"
             Icon={Layers}
             items={spaces}
             kind="space"

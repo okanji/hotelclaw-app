@@ -33,6 +33,7 @@ import {
 import { parseChatbotConfig, type ChatbotTemplate } from "@/lib/chatbots/schema";
 import { NewChatbotDialog } from "./new-chatbot-dialog";
 import { deleteChatbot } from "./actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type ChatbotListItem = {
   id: string;
@@ -144,7 +145,7 @@ export function ChatbotsList({
       <hr className="my-10 border-border" />
 
       {visible.length === 0 ? (
-        <EmptyState onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
+        <ChatbotsEmpty onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {visible.map((bot) => (
@@ -282,7 +283,7 @@ function ChatbotCard({
   );
 }
 
-function EmptyState({
+function ChatbotsEmpty({
   onCreate,
   filtered,
 }: {
@@ -290,25 +291,20 @@ function EmptyState({
   filtered: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-16 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-        <Bot className="size-6 text-muted-foreground" />
-      </span>
-      <div>
-        <p className="text-sm font-medium">
-          {filtered ? "Nothing here" : "No chatbots yet"}
-        </p>
-        <p className="mt-1 max-w-[40ch] text-sm text-pretty text-muted-foreground">
-          {filtered
-            ? "No chatbots match this view."
-            : "Start from a template — front desk, room service, restaurant — or describe your own and let AI draft it."}
-        </p>
-      </div>
-      <Button onClick={onCreate}>
-        <Plus data-slot="icon" />
-        New chatbot
-      </Button>
-    </div>
+    <EmptyState
+      icon={Bot}
+      title={filtered ? "Nothing here" : "No chatbots yet"}
+      action={
+        <Button onClick={onCreate}>
+          <Plus data-slot="icon" />
+          New chatbot
+        </Button>
+      }
+    >
+      {filtered
+        ? "No chatbots match this view."
+        : "Start from a template — front desk, room service, restaurant — or describe your own and let AI draft it."}
+    </EmptyState>
   );
 }
 

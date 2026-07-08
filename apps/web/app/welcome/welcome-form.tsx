@@ -26,14 +26,22 @@ export function WelcomeForm({ defaultName, next }: Props) {
     if (!fullName.trim()) return;
     setError(null);
     startTransition(async () => {
-      const result = await completeOnboarding({ fullName });
-      if ("error" in result) {
-        setError(result.error);
-        return;
+      try {
+        const result = await completeOnboarding({ fullName });
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        toast.success(`Welcome, ${fullName.trim()}`);
+        router.replace(next);
+        router.refresh();
+      } catch {
+        // A thrown server action (network drop, server error) used to die
+        // silently here, leaving the button stuck on "Saving…".
+        setError(
+          "Couldn't save that — check your connection and try again.",
+        );
       }
-      toast.success(`Welcome, ${fullName.trim()}`);
-      router.replace(next);
-      router.refresh();
     });
   }
 

@@ -61,7 +61,7 @@ export type BoardGroupBy = "status" | "space" | "project";
 
 const GROUP_LABELS: Record<BoardGroupBy, string> = {
   status: "Status",
-  space: "Space",
+  space: "Team",
   project: "Project",
 };
 

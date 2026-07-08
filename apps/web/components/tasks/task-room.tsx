@@ -43,6 +43,7 @@ export function TaskRoom({
     assigneeId: row.assignee_id,
     dueAt: row.due_at,
     createdAt: row.created_at,
+    createdBy: row.created_by,
     source: row.source,
     sourceWorkflowId: row.source_workflow_id,
     sourceWorkflowRunId: row.source_workflow_run_id,

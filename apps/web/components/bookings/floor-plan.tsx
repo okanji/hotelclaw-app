@@ -22,6 +22,7 @@ import type { ResourceShape } from "@/lib/db/types";
 import type { BookingListItem, ServiceListItem } from "./bookings-view";
 import { BookingStatusBadge } from "./bookings-view";
 import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   assignBookingResource,
   saveServiceResources,
@@ -313,10 +314,10 @@ export function FloorPlanView({
         </div>
         <div className="flex items-center gap-2">
           {mode === "live" && timeOptions.length > 0 ? (
-            <select
+            <NativeSelect
               value={atTime ?? "now"}
               onChange={(e) => setAtTime(e.target.value === "now" ? null : e.target.value)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+              wrapperClassName="w-auto"
               aria-label="View floor at time"
             >
               <option value="now">Now</option>
@@ -325,7 +326,7 @@ export function FloorPlanView({
                   {label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           ) : null}
           {mode === "edit" ? (
             <>

@@ -8,6 +8,7 @@ import { getNotifications } from "@/lib/notifications/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
 import { LeftShell } from "@/components/shell/left-shell";
+import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import { ShellSectionProvider } from "@/components/shell/shell-section-context";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
 import { HomeSurface } from "@/components/home/home-surface";
@@ -22,6 +23,8 @@ import { WorkflowsSurface } from "@/components/workflows/workflows-surface";
 import { SpacesSurface } from "@/components/spaces/spaces-surface";
 import { ProjectsSurface } from "@/components/projects/projects-surface";
 import { InsightsSurface } from "@/components/insights/insights-surface";
+import { OrgSurface } from "@/components/org/org-surface";
+import { InsightsTabProvider } from "@/components/insights/insights-tab-context";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { StreamProvider } from "@/lib/stream/client-provider";
 import { StreamVideoProvider } from "@/lib/stream/video-provider";
@@ -66,6 +69,10 @@ export default async function PropertyLayout({
   if (!property) notFound();
 
   const memberships = await getUserMemberships();
+  const currentRole = memberships.find(
+    (m) => m.property_id === propertyId,
+  )?.role;
+  const isManagement = currentRole === "owner" || currentRole === "manager";
   const profile = await supabase
     .from("profiles")
     .select("id, full_name, avatar_url, time_format")
@@ -126,10 +133,26 @@ export default async function PropertyLayout({
                     cookieStore.get("sidebar_collapsed")?.value === "1"
                   }
                 >
+                 <InsightsTabProvider>
                   {/* Slack-style shell: icon rail + contextual secondary
-                      sidebar (both bg-sidebar, no divider) + inset content. */}
-                  <div className="flex h-svh w-full overflow-hidden bg-sidebar">
+                      sidebar (both bg-sidebar, no divider) + inset content.
+                      Below md: the rail/sidebar move into a drawer behind the
+                      MobileTopBar hamburger and the inset goes full-bleed. */}
+                  <div className="flex h-svh w-full flex-col overflow-hidden bg-sidebar">
+                    <MobileTopBar
+                      currentPropertyId={propertyId}
+                      memberships={memberships}
+                      propertyName={property.name}
+                      user={{
+                        id: user.id,
+                        email: user.email ?? "",
+                        name: profile.data?.full_name ?? null,
+                        avatarUrl: profile.data?.avatar_url ?? null,
+                      }}
+                    />
+                    <div className="flex min-h-0 flex-1">
                     <LeftShell
+                      className="max-md:hidden"
                       currentPropertyId={propertyId}
                       memberships={memberships}
                       user={{
@@ -141,7 +164,7 @@ export default async function PropertyLayout({
                     />
                     <main
                       data-slot="sidebar-inset"
-                      className="relative m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border"
+                      className="relative m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border max-md:m-0 max-md:rounded-none max-md:ring-0"
                     >
                       {/* flex-row so an open profile panel claims width and the
                           chat/tasks/threads page compresses to fit (Slack-style
@@ -188,6 +211,11 @@ export default async function PropertyLayout({
                             propertyId={propertyId}
                             userId={user.id}
                           />
+                          <OrgSurface
+                            propertyId={propertyId}
+                            propertyName={property.name}
+                            isManagement={isManagement}
+                          />
                           <ActivitySurface
                             propertyId={propertyId}
                             userId={user.id}
@@ -201,6 +229,7 @@ export default async function PropertyLayout({
                         <UserProfilePanel propertyId={propertyId} />
                       </div>
                     </main>
+                    </div>
                   </div>
                   <CommandPalette propertyId={propertyId} />
                   <ChatEventNotifier propertyId={propertyId} />
@@ -208,6 +237,7 @@ export default async function PropertyLayout({
                   <HuddleWidget />
                   <ActiveMeeting />
                   <BrowserNotifications />
+                 </InsightsTabProvider>
                 </ShellSectionProvider>
               </SidebarProvider>
             </CommandPaletteProvider>

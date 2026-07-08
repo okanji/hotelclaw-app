@@ -138,6 +138,10 @@ export const ChatbotConfigZod = z.object({
     handoffMessage: DEFAULT_HANDOFF_MESSAGE,
   }),
   actions: z.array(ChatbotActionZod).default([]),
+  /** Default team (space id) that tickets from this bot land on when the
+   *  create_ticket action doesn't set its own. Bare tickets (no team) still
+   *  get org-chart-routed by triage; this is the deterministic fallback. */
+  defaultTeamId: z.string().optional(),
 });
 
 export type ChatbotConfig = z.infer<typeof ChatbotConfigZod>;

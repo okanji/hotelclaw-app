@@ -49,7 +49,7 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     const supabase = createBrowserClient();
     const channel = supabase
-      .channel(`projects-sidebar:${propertyId}`)
+      .channel(`projects-sidebar:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -79,9 +79,9 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Spaces</SidebarGroupLabel>
+        <SidebarGroupLabel>Teams</SidebarGroupLabel>
         <SidebarGroupAction
-          title="New space"
+          title="New team"
           onClick={() => setDialog({ open: true, kind: "space" })}
         >
           <Plus />

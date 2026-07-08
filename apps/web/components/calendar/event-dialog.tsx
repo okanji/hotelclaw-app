@@ -27,6 +27,7 @@ import {
 } from "./event-details";
 import type { CalendarEvent } from "@/lib/calendar/types";
 import type { MeetingRecurrence } from "@/lib/db/types";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type RecurrencePreset = "none" | "daily" | "weekdays" | "weekly" | "monthly";
 
@@ -345,20 +346,19 @@ export function EventDialog({
 
           <div className="space-y-2">
             <Label htmlFor="event-repeats">Repeats</Label>
-            <select
+            <NativeSelect
               id="event-repeats"
               value={recurrence}
               onChange={(e) =>
                 setRecurrence(e.target.value as RecurrencePreset)
               }
-              className="block w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <option value="none">Doesn&apos;t repeat</option>
               <option value="daily">Daily</option>
               <option value="weekdays">Every weekday (Mon–Fri)</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
-            </select>
+            </NativeSelect>
             {isOccurrence ? (
               <p className="text-xs text-muted-foreground">
                 Editing applies to the whole series.

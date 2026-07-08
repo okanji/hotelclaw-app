@@ -76,7 +76,11 @@ export function matchesView(n: NotificationRow, view: ActivityViewId): boolean {
     case "mentions":
       return n.type === "mention";
     case "tasks":
-      return n.type === "task_assigned" || n.type === "task_unassigned";
+      return (
+        n.type === "task_assigned" ||
+        n.type === "task_unassigned" ||
+        n.type === "task_escalated"
+      );
     case "channels":
       return n.type === "channel_added";
     case "alerts":

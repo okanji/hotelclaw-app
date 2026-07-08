@@ -142,7 +142,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     const supabase = createBrowserClient();
     const channel = supabase
-      .channel(`documents:${propertyId}`)
+      .channel(`documents:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

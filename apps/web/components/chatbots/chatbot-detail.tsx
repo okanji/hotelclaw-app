@@ -41,6 +41,7 @@ import { ConversationsTab, type ConversationListRow } from "./conversations-list
 import { AnalyticsTab } from "./analytics-tab";
 import { DeployPanel } from "./deploy-panel";
 import { updateChatbot } from "./actions";
+import { NativeSelect } from "@/components/ui/native-select";
 
 export type ChannelOption = { id: string; name: string; stream_channel_id: string };
 export type SpaceOption = { id: string; name: string };
@@ -319,6 +320,7 @@ export function ChatbotDetail({
             <SettingsSection
               bot={bot}
               config={config}
+              spaces={spaces}
               onChange={updateConfig}
             />
           </TabsContent>
@@ -508,16 +510,15 @@ function BuildSection({
 
 /* ----------------------------- Settings tab ----------------------------- */
 
-const selectClass =
-  "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
-
 function SettingsSection({
   bot,
   config,
+  spaces,
   onChange,
 }: {
   bot: ChatbotRow;
   config: ChatbotConfig;
+  spaces: SpaceOption[];
   onChange: (patch: Partial<ChatbotConfig>) => void;
 }) {
   const router = useRouter();
@@ -546,18 +547,41 @@ function SettingsSection({
     <div className="space-y-6">
       <section className="space-y-2">
         <Label htmlFor="bot-model">Model</Label>
-        <select
+        <NativeSelect
           id="bot-model"
           value={config.modelTier}
           onChange={(e) =>
             onChange({ modelTier: e.target.value as ChatbotConfig["modelTier"] })
           }
-          className={selectClass}
         >
           <option value="standard">Standard — fast and economical (FAQ bots)</option>
           <option value="advanced">Advanced — strongest (order-taking, multi-step)</option>
-        </select>
+        </NativeSelect>
       </section>
+
+      {spaces.length > 0 ? (
+        <section className="space-y-2">
+          <Label htmlFor="bot-default-team">Default team for tickets</Label>
+          <NativeSelect
+            id="bot-default-team"
+            value={config.defaultTeamId ?? ""}
+            onChange={(e) =>
+              onChange({ defaultTeamId: e.target.value || undefined })
+            }
+          >
+            <option value="">Unassigned — let AI route by topic</option>
+            {spaces.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            Where tickets the bot raises land. Leave unassigned and triage
+            routes each to the right team using the org chart.
+          </p>
+        </section>
+      ) : null}
 
       <section className="space-y-3 rounded-lg border border-border p-4">
         <p className="text-sm font-medium">Answer strictness</p>

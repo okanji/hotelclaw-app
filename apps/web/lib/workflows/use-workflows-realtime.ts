@@ -24,7 +24,7 @@ export function useWorkflowsRealtime(propertyId: string): void {
       qc.invalidateQueries({ queryKey: ["workflow-runs", propertyId] });
     };
     const channel = supabase
-      .channel(`workflows:${propertyId}`)
+      .channel(`workflows:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

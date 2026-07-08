@@ -315,7 +315,7 @@ export function SpaceDetail({
     else refresh();
   }
   async function handleArchive() {
-    if (!window.confirm("Archive this space?")) return;
+    if (!window.confirm("Archive this team?")) return;
     const res = await archiveSpace(spaceId);
     if ("error" in res) {
       toast.error(res.error);
@@ -328,7 +328,7 @@ export function SpaceDetail({
   if (isPending)
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading space…
+        Loading team…
       </div>
     );
   if (!space)
@@ -422,7 +422,7 @@ export function SpaceDetail({
             "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/45",
             ws.title,
           )}
-          placeholder="Untitled space"
+          placeholder="Untitled team"
         />
       </div>
 
@@ -692,7 +692,7 @@ export function SpaceDetail({
       <DropdownMenuContent align="end" sideOffset={6}>
         <DropdownMenuItem onClick={handleArchive}>
           <Archive className="size-3.5" />
-          <span className="flex-1">Archive space</span>
+          <span className="flex-1">Archive team</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

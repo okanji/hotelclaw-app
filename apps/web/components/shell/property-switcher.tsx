@@ -53,8 +53,12 @@ export function PropertySwitcher({
     if (!email) return;
     const lowered = email.toLowerCase();
     const supabase = createClient();
+    // Channel topic must be unique per mount — the switcher renders twice on
+    // mobile (hidden desktop shell + drawer), and Supabase throws if a second
+    // instance adds callbacks to an already-subscribed shared topic. The
+    // postgres_changes FILTER (not the topic name) scopes the data.
     const channel = supabase
-      .channel(`invites:${lowered}`)
+      .channel(`invites:${lowered}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

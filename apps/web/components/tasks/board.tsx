@@ -7,7 +7,6 @@ import { useBroadcastEvent } from "@liveblocks/react";
 import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
-import { CreateTaskDialog } from "./create-task-dialog";
 import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
 import {
@@ -82,8 +81,6 @@ export function TasksBoard({
   const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS);
   const [view, setView] = useState<ViewMode>("board");
   const [groupBy, setGroupBy] = useState<BoardGroupBy>("status");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createStatus, setCreateStatus] = useState<TaskStatus>("todo");
 
   // Resolve assignee names/avatars once for the whole board — shared cache.
   const assigneeIds = useMemo(
@@ -170,10 +167,26 @@ export function TasksBoard({
     router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
   }
 
-  const openCreate = useCallback((status: TaskStatus) => {
-    setCreateStatus(status);
-    setCreateOpen(true);
-  }, []);
+  // Open the full-page create experience, carrying the column the affordance
+  // was triggered from plus any active board scope so the new task inherits it.
+  const openCreate = useCallback(
+    (status: TaskStatus) => {
+      const params = new URLSearchParams();
+      if (status) params.set("status", status);
+      if (spaceFilter) params.set("space", spaceFilter);
+      if (projectFilter) params.set("project", projectFilter);
+      const qs = params.toString();
+      window.history.pushState(
+        null,
+        "",
+        `/p/${propertyId}/tasks/new${qs ? `?${qs}` : ""}`,
+      );
+      // `usePathname` doesn't update on pushState — nudge the surface to
+      // re-derive off the new URL (same channel as task open/close).
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
+    },
+    [propertyId, spaceFilter, projectFilter],
+  );
 
   // Both "Active" and "Backlog" presets hide the Done column in views that
   // can collapse it. "All" leaves every column visible.
@@ -237,6 +250,7 @@ export function TasksBoard({
             assignees={assignees}
             hideDone={hideDone}
             onOpenFullCreate={openCreate}
+            scopeSpaceId={spaceFilter}
           />
         ) : (
           <KanbanGroupedView
@@ -270,17 +284,6 @@ export function TasksBoard({
           hideDone={hideDone}
         />
       )}
-
-      <CreateTaskDialog
-        propertyId={propertyId}
-        status={createStatus}
-        onStatusChange={setCreateStatus}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={notifyChanged}
-        defaultSpaceId={spaceFilter}
-        defaultProjectId={projectFilter}
-      />
     </div>
   );
 }

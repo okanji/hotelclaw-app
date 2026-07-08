@@ -19,7 +19,8 @@ export type NotificationType =
   | "project_at_risk"
   | "task_slip"
   | "insight_alert"
-  | "guest_escalation";
+  | "guest_escalation"
+  | "task_escalated";
 
 export type NotificationPayload = Record<string, unknown>;
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
+import { safeNextPath } from "@/lib/auth/safe-next";
 import { WelcomeForm } from "./welcome-form";
 
 export default async function WelcomePage({
@@ -10,7 +11,7 @@ export default async function WelcomePage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const next = safeNext(sp.next);
+  const next = safeNextPath(sp.next) ?? "/";
 
   const supabase = await createClient();
   const { data: profile } = await supabase
@@ -21,24 +22,23 @@ export default async function WelcomePage({
 
   if (profile?.onboarded_at) redirect(next);
 
-  // Suggest a sensible default — the local-part of their email — so they
-  // can hit Enter without typing if they want.
+  // Suggest a sensible default — the local-part of their email, title-cased
+  // ("jan.l" → "Jan L") — so they can hit Enter without typing if they want.
   const defaultName =
     profile?.full_name ??
-    (user.email ? user.email.split("@")[0].replace(/[._-]+/g, " ") : "");
+    (user.email
+      ? user.email
+          .split("@")[0]
+          .replace(/[._-]+/g, " ")
+          .trim()
+          .split(/\s+/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")
+      : "");
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-[#faf9f5] px-6 py-16 text-[#1f1e1b]">
       <WelcomeForm defaultName={defaultName} next={next} />
     </main>
   );
-}
-
-/**
- * Only allow same-origin paths in the next param. Otherwise default to /.
- */
-function safeNext(next: string | undefined): string {
-  if (!next || !next.startsWith("/")) return "/";
-  if (next.startsWith("//")) return "/";
-  return next;
 }

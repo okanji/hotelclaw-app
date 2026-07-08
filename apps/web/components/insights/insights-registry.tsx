@@ -3,12 +3,7 @@
 import type { ComponentType } from "react";
 import type { InsightsMetrics } from "@/lib/insights/metrics";
 import type { InsightScope } from "@/lib/insights/scope";
-import {
-  AllReportsLink,
-  IntelligenceBody,
-  IntelligenceUpdated,
-  WeeklyReportBody,
-} from "./intelligence-strip";
+import { IntelligenceBody, IntelligenceUpdated } from "./intelligence-strip";
 import { AttentionList, FlowBody, OpenWorkBody } from "./pulse-view";
 import { PortfolioBody } from "./portfolio-view";
 import { WorkloadBody } from "./workload-view";
@@ -27,8 +22,47 @@ export type InsightSectionProps = {
   scope: InsightScope;
 };
 
+/** Which dashboard tab a section belongs to. Reports is a leaf view, not a
+ *  grid of sortable sections, so no section maps to it. */
+export type InsightTab = "overview" | "work" | "operations" | "reports";
+
+export const INSIGHT_TABS: {
+  id: InsightTab;
+  label: string;
+  /** Blurb shown under the masthead when this tab is active. */
+  blurb: string;
+  /** Only offered on the property lens (not project / team / person). */
+  propertyOnly?: boolean;
+}[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    blurb: "The analyst's read, what needs a decision, and this week's momentum.",
+  },
+  {
+    id: "work",
+    label: "Work",
+    blurb: "Every initiative, all open work, and how load sits across the team.",
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    blurb: "The machinery — meetings, automation, knowledge, and team.",
+    propertyOnly: true,
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    blurb:
+      "The AI analyst's weekly briefings — written from the same numbers Insights charts.",
+    propertyOnly: true,
+  },
+];
+
 export type InsightSectionDef = {
   id: string;
+  /** Which dashboard tab hosts this section. */
+  tab: Exclude<InsightTab, "reports">;
   /** Uppercase eyebrow above the title, editorial style. */
   kicker: string;
   /** Section heading. */
@@ -58,8 +92,10 @@ function AttentionBody({ propertyId, metrics }: InsightSectionProps) {
  * an arrangement.
  */
 export const INSIGHT_SECTIONS: InsightSectionDef[] = [
+  // ── Overview — the read, the decisions, the momentum ──────────────────────
   {
     id: "intelligence",
+    tab: "overview",
     kicker: "Analyst's read",
     title: "Intelligence",
     wide: true,
@@ -67,7 +103,15 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
     HeaderRight: IntelligenceUpdated,
   },
   {
+    id: "attention",
+    tab: "overview",
+    kicker: "Needs a decision",
+    title: "Attention",
+    Component: AttentionBody,
+  },
+  {
     id: "flow",
+    tab: "overview",
     kicker: "Momentum",
     title: "Flow",
     wide: true,
@@ -75,39 +119,40 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
   },
   {
     id: "pinned-prompts",
+    tab: "overview",
     kicker: "Standing questions",
     title: "Pinned questions",
     wide: true,
     Component: PinnedPromptsBody,
   },
-  {
-    id: "attention",
-    kicker: "Needs a decision",
-    title: "Attention",
-    Component: AttentionBody,
-  },
-  {
-    id: "open-work",
-    kicker: "In flight",
-    title: "Open work",
-    Component: OpenWorkBody,
-  },
+  // ── Work — initiatives, open work, capacity ───────────────────────────────
   {
     id: "portfolio",
+    tab: "work",
     kicker: "Initiatives",
     title: "Portfolio",
     wide: true,
     Component: PortfolioBody,
   },
   {
+    id: "open-work",
+    tab: "work",
+    kicker: "In flight",
+    title: "Open work",
+    Component: OpenWorkBody,
+  },
+  {
     id: "workload",
+    tab: "work",
     kicker: "Capacity",
     title: "Load by person",
     wide: true,
     Component: WorkloadBody,
   },
+  // ── Operations — the property's machinery (property lens only) ────────────
   {
     id: "meetings",
+    tab: "operations",
     kicker: "Last 7 days",
     title: "Meetings & decisions",
     propertyOnly: true,
@@ -115,6 +160,7 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
   },
   {
     id: "stale-sops",
+    tab: "operations",
     kicker: "Knowledge",
     title: "Stale SOPs",
     propertyOnly: true,
@@ -122,6 +168,7 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
   },
   {
     id: "workflow-runs",
+    tab: "operations",
     kicker: "Automation",
     title: "Workflow runs",
     wide: true,
@@ -130,6 +177,7 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
   },
   {
     id: "ops-activity",
+    tab: "operations",
     kicker: "Heartbeat",
     title: "Activity",
     propertyOnly: true,
@@ -137,20 +185,12 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
   },
   {
     id: "team",
+    tab: "operations",
     kicker: "Owner",
     title: "Team",
     propertyOnly: true,
     ownerOnly: true,
     Component: TeamBody,
-  },
-  {
-    id: "weekly-report",
-    kicker: "AI briefing",
-    title: "Weekly report",
-    wide: true,
-    propertyOnly: true,
-    Component: WeeklyReportBody,
-    HeaderRight: AllReportsLink,
   },
 ];
 

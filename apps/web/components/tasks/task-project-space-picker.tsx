@@ -130,7 +130,7 @@ export function TaskProjectSpacePicker({
           <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
             <Users className={space ? textDot(space.color) : "size-3.5"} />
           </span>
-          <span className="truncate">{space ? space.name : "Space"}</span>
+          <span className="truncate">{space ? space.name : "Team"}</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
           <DropdownMenuItem onClick={() => void pickSpace(null)}>

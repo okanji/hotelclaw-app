@@ -12,18 +12,22 @@ type Props = {
   status: TaskStatus;
   onCreated: () => void;
   onClose: () => void;
+  /** When the board is scoped to a team (`?space=`), quick-adds land there;
+      otherwise omit so the server defaults to the creator's home team. */
+  scopeSpaceId?: string | null;
 };
 
 /**
- * Inline quick-add — replaces the modal for the common "type a title, hit
- * Enter" case. The full `CreateTaskDialog` is still available from the page
- * header for tasks that need a description, priority, or assignee up-front.
+ * Inline quick-add — the fast path for the common "type a title, hit Enter"
+ * case. The full-page create experience (`TaskCreatePage`, opened from the
+ * header "New task" button / column "+") is there for tasks that need a
+ * description, priority, assignee, or team up-front.
  *
  * Enter submits, Shift+Enter inserts a newline, Esc cancels. Blurring with
  * an empty title cancels; blurring with content submits (mirrors Linear /
  * Notion behavior so casual creators don't lose what they typed).
  */
-export function InlineAddCard({ propertyId, status, onCreated, onClose }: Props) {
+export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpaceId }: Props) {
   const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
   // After a successful create we briefly skip the textarea's onBlur side-
@@ -46,6 +50,9 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose }: Props)
         // New quick-add tasks start unprioritised — same as Linear and the
         // full create dialog default.
         priority: "none",
+        // Scoped board → that team; unscoped → omit (server defaults to the
+        // creator's home team).
+        ...(scopeSpaceId ? { spaceId: scopeSpaceId } : {}),
       });
       if ("error" in result) {
         toast.error(result.error);

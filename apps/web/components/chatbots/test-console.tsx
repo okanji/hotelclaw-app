@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Columns2, FlaskConical, Loader2, RotateCcw, Wrench } from "lucide-react";
+import { Columns2, FlaskConical, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
 import { PlaygroundDialog } from "./playground-dialog";
+import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
 
 /**
  * Test console — a fake guest conversation through the REAL runtime in
@@ -169,25 +170,14 @@ export function TestConsole({
         {turns.map((t, i) =>
           t.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-background">
+              <ChatBubble side="end" tone="solid" className="max-w-[85%]">
                 {t.content}
-              </div>
+              </ChatBubble>
             </div>
           ) : (
             <div key={i} className="space-y-1">
               {t.toolCalls && t.toolCalls.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {t.toolCalls.map((tc, j) => (
-                    <span
-                      key={j}
-                      title={JSON.stringify(tc.input, null, 2)}
-                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                    >
-                      <Wrench className="size-2.5" />
-                      {tc.name}
-                    </span>
-                  ))}
-                </div>
+                <ToolCallList calls={t.toolCalls} />
               ) : null}
               <BotBubble emoji={avatarEmoji}>{t.content}</BotBubble>
               <div className="pl-7">
@@ -200,12 +190,7 @@ export function TestConsole({
           ),
         )}
 
-        {busy ? (
-          <div className="flex items-center gap-2 px-1 py-1 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            Thinking…
-          </div>
-        ) : null}
+        {busy ? <ThinkingRow /> : null}
       </div>
 
       <div className="border-t border-border/60 p-2">
@@ -254,18 +239,17 @@ function BotBubble({
       <span className="mb-0.5 text-base" aria-hidden="true">
         {emoji}
       </span>
-      <div
-        className={cn(
-          "max-w-[85%] rounded-2xl rounded-bl-md border border-border/60 bg-background px-3 py-2",
-          "text-sm leading-relaxed text-foreground",
-        )}
+      <ChatBubble
+        side="start"
+        preWrap={false}
+        className="max-w-[85%] text-foreground"
       >
         {typeof children === "string" && children ? (
           <ChatMarkdown>{children}</ChatMarkdown>
         ) : (
           children
         )}
-      </div>
+      </ChatBubble>
     </div>
   );
 }

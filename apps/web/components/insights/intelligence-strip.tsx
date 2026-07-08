@@ -17,10 +17,7 @@ import { cn } from "@/lib/utils";
 import { relativeShort, WidgetEmpty } from "@/components/home/editorial-section";
 import type { InsightsMetrics } from "@/lib/insights/metrics";
 import type { InsightCard } from "@/lib/ai/bots/insights-bot";
-import {
-  insightsBriefQueryOptions,
-  insightReportsQueryOptions,
-} from "@/lib/query/insights-queries";
+import { insightsBriefQueryOptions } from "@/lib/query/insights-queries";
 import {
   PROPERTY_SCOPE,
   scopeKey,
@@ -245,76 +242,3 @@ function InsightCardRow({
   );
 }
 
-/** Header-right link into the Reports page for the weekly-report section. */
-export function AllReportsLink({ propertyId }: { propertyId: string }) {
-  return (
-    <Link
-      href={`/p/${propertyId}/home/insights/reports`}
-      className="group inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-    >
-      All reports
-      <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-    </Link>
-  );
-}
-
-/** Compact teaser for the latest weekly report — the Insights page's
- *  reference into the Reports page. Section content only. */
-export function WeeklyReportBody({ propertyId }: { propertyId: string }) {
-  const { data: reports = [] } = useQuery(
-    insightReportsQueryOptions(propertyId),
-  );
-  const latest = reports.find((r) => r.audience === "management");
-  const headline = latest ? extractHeadline(latest.summary_md) : null;
-  const periodStart = latest?.period_start ?? null;
-  const periodEnd = latest?.period_end ?? null;
-
-  return (
-    <>
-      {headline ? (
-        <div className="flex flex-col gap-1.5">
-          {periodStart && periodEnd ? (
-            <p className="text-xs text-muted-foreground tabular-nums">
-              Week of {shortDate(periodStart)} – {shortDate(periodEnd)}
-            </p>
-          ) : null}
-          <p className="max-w-[65ch] text-sm leading-relaxed text-pretty text-foreground">
-            {headline}
-          </p>
-          <Link
-            href={`/p/${propertyId}/home/insights/reports`}
-            className="group inline-flex w-fit items-center gap-1 text-xs font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            Read the full report
-            <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-      ) : (
-        <WidgetEmpty>
-          No report yet this week —{" "}
-          <Link
-            href={`/p/${propertyId}/home/insights/reports`}
-            className="underline hover:text-foreground"
-          >
-            generate one in Reports
-          </Link>
-          , or wait for Monday&apos;s automatic edition.
-        </WidgetEmpty>
-      )}
-    </>
-  );
-}
-
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/** First ~220 chars of the report's Headline section. */
-function extractHeadline(md: string): string {
-  const match = md.match(/##\s*Headline[^\n]*\n+([\s\S]*?)(?=\n##|$)/i);
-  const text = (match?.[1] ?? md).replace(/[#*_>`]/g, "").trim();
-  return text.length > 220 ? `${text.slice(0, 217)}…` : text;
-}

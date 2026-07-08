@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AcceptButton } from "./accept-button";
+import { AcceptButton, SwitchAccountButton } from "./accept-button";
 
 export default async function InvitePage({
   params,
@@ -89,12 +89,13 @@ export default async function InvitePage({
             <span className="font-medium text-foreground">{user.email}</span>
           </p>
           {emailMismatch ? (
-            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               This invite was sent to{" "}
-              <span className="font-medium">{invite.email}</span>. Accepting will
-              add <span className="font-medium">{user.email}</span> to the
-              property instead. If that's wrong, sign out and click the email
-              link again.
+              <span className="font-medium">{invite.email}</span> and can only
+              be accepted from that account. Sign in with{" "}
+              <span className="font-medium">{invite.email}</span> to join — or
+              ask the inviter to send a new invite to{" "}
+              <span className="font-medium">{user.email}</span>.
             </p>
           ) : null}
         </CardContent>
@@ -102,7 +103,11 @@ export default async function InvitePage({
           <Button variant="ghost" nativeButton={false} render={<Link href="/" />}>
             Cancel
           </Button>
-          <AcceptButton token={token} />
+          {emailMismatch ? (
+            <SwitchAccountButton token={token} invitedEmail={invite.email} />
+          ) : (
+            <AcceptButton token={token} />
+          )}
         </CardFooter>
       </Card>
     </main>

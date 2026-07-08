@@ -48,7 +48,7 @@ export function BookingsSection({ propertyId }: { propertyId: string }) {
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`bookings-count:${propertyId}`)
+      .channel(`bookings-count:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

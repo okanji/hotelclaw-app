@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/types";
+import { safeNextPath } from "@/lib/auth/safe-next";
 
 /**
  * Email-OTP confirmation endpoint, per Supabase's PKCE flow.
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
   const origin = url.origin;
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
-  const next = url.searchParams.get("next");
+  // Sanitized: only same-origin paths — a raw `next` here was an open
+  // redirect on the very URL all auth emails link to.
+  const next = safeNextPath(url.searchParams.get("next"));
 
   if (!tokenHash || !type) {
     return NextResponse.redirect(

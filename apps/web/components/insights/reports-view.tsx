@@ -11,6 +11,7 @@ import type { InsightReportRow } from "@/lib/ai/bots/insights-bot";
 import { cn } from "@/lib/utils";
 import { InsightSection } from "./insights-view";
 import { ReportMarkdown } from "./report-markdown";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Reports — the AI weekly report archive. "Generate" produces (or returns the
@@ -94,7 +95,10 @@ export function ReportsView({ propertyId }: { propertyId: string }) {
       }
     >
       {isPending ? (
-        <WidgetEmpty>Loading reports…</WidgetEmpty>
+        <div className="flex flex-col gap-2 py-4" aria-busy="true">
+          <Skeleton className="h-4 w-3/5" />
+          <Skeleton className="h-4 w-2/5" />
+        </div>
       ) : reports.length === 0 ? (
         <WidgetEmpty>
           No reports yet. Generate the first one — the analyst reads the same

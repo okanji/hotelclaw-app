@@ -19,6 +19,15 @@ export type TaskAssignedPayload = {
   byUserName: string | null;
 };
 
+export type TaskEscalatedPayload = {
+  taskId: string;
+  taskTitle: string;
+  byUserId: string;
+  byUserName: string | null;
+  /** How this person is on the hook — their direct report, or their team. */
+  reason: "manager" | "team_lead";
+};
+
 export type ChannelAddedPayload = {
   channelId: string;
   channelName: string;

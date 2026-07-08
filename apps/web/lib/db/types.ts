@@ -160,15 +160,25 @@ export interface Database {
           user_id: string;
           role: Role;
           created_at: string;
+          // Org chart (migration 0071): person hierarchy.
+          title: string | null;
+          manager_id: string | null;
+          primary_space_id: string | null;
         };
         Insert: {
           property_id: string;
           user_id: string;
           role: Role;
           created_at?: string;
+          title?: string | null;
+          manager_id?: string | null;
+          primary_space_id?: string | null;
         };
         Update: Partial<{
           role: Role;
+          title: string | null;
+          manager_id: string | null;
+          primary_space_id: string | null;
         }>;
         Relationships: [];
       };
@@ -494,6 +504,9 @@ export interface Database {
           archived_at: string | null;
           created_at: string;
           updated_at: string;
+          // Org chart (migration 0071): team hierarchy.
+          parent_space_id: string | null;
+          lead_user_id: string | null;
         };
         Insert: {
           id?: string;
@@ -505,6 +518,8 @@ export interface Database {
           position?: number;
           created_by?: string | null;
           archived_at?: string | null;
+          parent_space_id?: string | null;
+          lead_user_id?: string | null;
         };
         Update: Partial<{
           name: string;
@@ -513,6 +528,8 @@ export interface Database {
           icon: string | null;
           position: number;
           archived_at: string | null;
+          parent_space_id: string | null;
+          lead_user_id: string | null;
         }>;
         Relationships: [];
       };

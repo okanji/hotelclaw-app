@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { channelsQueryOptions } from "@/lib/query/section-queries";
+import { NativeSelect } from "@/components/ui/native-select";
 
 /**
  * "Draft my handover" — the AI gathers the shift window's activity
@@ -153,11 +154,10 @@ export function HandoverDialog({
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Post to
-              <select
+              <NativeSelect
                 value={channelId}
                 onChange={(e) => setChannelId(e.target.value)}
                 disabled={phase === "publishing"}
-                className="h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">No channel — just save</option>
                 {channels.map((c) => (
@@ -165,7 +165,7 @@ export function HandoverDialog({
                     #{c.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
           </div>
         )}

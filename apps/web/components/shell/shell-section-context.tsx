@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 /** The rail sections. */
 export type ShellSection =
   | "home"
+  | "insights"
   | "activity"
   | "chat"
   | "dms"
@@ -30,8 +31,11 @@ export type ShellSection =
  * the route split, so both pin their sections directly.
  */
 function sectionFromPath(pathname: string): ShellSection | null {
-  // Home owns its dashboard plus its sub-views — Insights/Reports now live at
-  // `/home/insights`, so the `/home` match keeps the Home rail lit for them.
+  // Insights is its own rail section, but still served from `/home/insights`
+  // (so every existing deep link keeps working). Match it BEFORE `/home`,
+  // which it contains as a substring.
+  if (pathname.includes("/home/insights")) return "insights";
+  // Home owns its dashboard plus its other sub-views.
   if (pathname.includes("/home")) return "home";
   // Projects and teams live under the Home rail (their sidebar lists them),
   // so those routes keep the Home section active rather than pinning their
@@ -87,6 +91,7 @@ const ShellSectionContext = createContext<ShellSectionContextValue | null>(null)
 
 const ALL_SECTIONS: ShellSection[] = [
   "home",
+  "insights",
   "activity",
   "chat",
   "dms",

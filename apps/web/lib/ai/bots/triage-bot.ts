@@ -16,6 +16,8 @@ import { generateText, Output } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
+import { loadOrgChart } from "@/lib/org/queries";
+import { renderOrgChart } from "@/lib/org/render";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
 
@@ -80,7 +82,7 @@ export async function triageTask(opts: {
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
   // ── Candidates + deterministic evidence ──────────────────────────────────
-  const [spacesRes, membersRes, tasksRes] = await Promise.all([
+  const [spacesRes, membersRes, tasksRes, org] = await Promise.all([
     supabase
       .from("spaces")
       .select("id, name")
@@ -97,6 +99,9 @@ export async function triageTask(opts: {
       .neq("id", opts.taskId)
       .order("created_at", { ascending: false })
       .limit(300),
+    // The org chart is the routing signal: team descriptions/leads/rosters
+    // tell the model which team OWNS this kind of work, and who does it.
+    loadOrgChart(supabase, opts.propertyId),
   ]);
   const spaces = spacesRes.data ?? [];
   const memberIds = (membersRes.data ?? []).map((m) => m.user_id);
@@ -152,11 +157,15 @@ export async function triageTask(opts: {
       maxRetries: 2,
       system: [
         "You triage new tasks in a hotel/restaurant team workspace: suggest which team (space) should own a task, who should do it, and how urgent it is.",
+        "",
+        "Company org chart — use it to route the task to the OWNING team. Match the task to the team whose remit/description, lead, or roster fits it best; cite the team name or its lead in your reasoning. Prefer the assignee from that team's members.",
+        renderOrgChart(org),
+        "",
         "Rules:",
         "- Suggest ONLY for the fields listed as missing. At most one suggestion per field.",
         "- `value` must be EXACTLY an id/value from the candidates. Anything else is discarded.",
-        "- Ground reasoning in the evidence given (similar tasks, name/keyword matches, member roles). If the evidence is weak, mark confidence low or omit the field entirely.",
-        "- Assignee suggestions should prefer people who handled similar work; never suggest someone with no signal.",
+        "- Ground reasoning in the evidence given (org chart, similar tasks, name/keyword matches, member roles). If the evidence is weak, mark confidence low or omit the field entirely.",
+        "- Assignee suggestions should prefer people who handled similar work or belong to the owning team; never suggest someone with no signal.",
       ].join("\n"),
       prompt: JSON.stringify(
         {

@@ -57,6 +57,21 @@ export async function createTask(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
+  // Team defaults to the creator's home team (org chart: memberships
+  // .primary_space_id). `spaceId` absent (undefined) → default; explicit
+  // null → deliberately no team (the dialog's "No team" choice); a uuid →
+  // that team. This is why the field is `.nullable().optional()`.
+  let spaceId = parsed.data.spaceId;
+  if (spaceId === undefined) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("primary_space_id")
+      .eq("property_id", parsed.data.propertyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    spaceId = membership?.primary_space_id ?? null;
+  }
+
   // New cards land at the top of their column.
   const position = await topPositionFor(
     supabase,
@@ -76,7 +91,7 @@ export async function createTask(
       created_by: user.id,
       position,
       parent_id: parsed.data.parentId ?? null,
-      space_id: parsed.data.spaceId ?? null,
+      space_id: spaceId,
       project_id: parsed.data.projectId ?? null,
     })
     .select("id")
@@ -242,6 +257,85 @@ export async function deleteTask(
   if (error) return { error: error.message };
   revalidatePath(`/p/${row.property_id}/tasks`);
   return { ok: true };
+}
+
+/**
+ * Escalate a task up the reporting chain. Resolves the target from the org
+ * chart: the assignee's manager (`memberships.manager_id`), or — if the task
+ * is unassigned — the owning team's lead (`spaces.lead_user_id`). Notifies
+ * that person. This is the "who do I bump this to?" answer turned into one
+ * click, powered by the hierarchy rather than a guess.
+ */
+export async function escalateTask(
+  taskId: string,
+): Promise<{ ok: true; targetName: string } | { error: string }> {
+  const id = z.string().uuid().safeParse(taskId);
+  if (!id.success) return { error: "Invalid task" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const service = createServiceClient();
+  const { data: task } = await service
+    .from("tasks")
+    .select("assignee_id, space_id, title, property_id")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!task) return { error: "Task not found" };
+
+  const { loadOrgChart } = await import("@/lib/org/queries");
+  const org = await loadOrgChart(service, task.property_id);
+
+  // Assignee's manager first; fall back to the owning team's lead.
+  let targetId: string | null = null;
+  let reason: "manager" | "team_lead" = "manager";
+  if (task.assignee_id) {
+    targetId =
+      org.people.find((p) => p.id === task.assignee_id)?.managerId ?? null;
+    reason = "manager";
+  }
+  if (!targetId && task.space_id) {
+    targetId =
+      org.teams.find((t) => t.id === task.space_id)?.leadUserId ?? null;
+    reason = "team_lead";
+  }
+
+  if (!targetId) {
+    return {
+      error:
+        "No one to escalate to — set a manager (for the assignee) or a team lead in the org chart.",
+    };
+  }
+  if (targetId === user.id) {
+    return { error: "That escalates to you — you're already on it." };
+  }
+
+  const targetName =
+    org.people.find((p) => p.id === targetId)?.name ?? "your manager";
+  const { data: actor } = await service
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await createNotification({
+    userId: targetId,
+    propertyId: task.property_id,
+    type: "task_escalated",
+    payload: {
+      taskId: id.data,
+      taskTitle: task.title,
+      byUserId: user.id,
+      byUserName: actor?.full_name ?? null,
+      reason,
+    },
+  });
+
+  revalidatePath(`/p/${task.property_id}/tasks/${id.data}`);
+  return { ok: true, targetName };
 }
 
 /* -------------------------------------------------------------------------- */

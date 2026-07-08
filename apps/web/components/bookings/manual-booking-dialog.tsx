@@ -20,9 +20,7 @@ import type { Slot } from "@/lib/bookings/availability";
 import { parseServiceSchedule } from "@/lib/bookings/schema";
 import type { ServiceListItem } from "./bookings-view";
 import { createManualBooking } from "./actions";
-
-const selectClass =
-  "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+import { NativeSelect } from "@/components/ui/native-select";
 
 /**
  * Staff walk-in/phone booking — pick service + date, the live slot grid
@@ -125,11 +123,10 @@ export function ManualBookingDialog({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="mb-service">Service</Label>
-              <select
+              <NativeSelect
                 id="mb-service"
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
-                className={selectClass}
               >
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -137,7 +134,7 @@ export function ManualBookingDialog({
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mb-party">Party size</Label>

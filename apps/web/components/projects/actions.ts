@@ -86,7 +86,7 @@ export async function createSpace(
     })
     .select("id")
     .single();
-  if (error || !data) return { error: error?.message ?? "Could not create space" };
+  if (error || !data) return { error: error?.message ?? "Could not create team" };
 
   revalidatePath(`/p/${pid.data}/projects`);
   return { id: data.id };
@@ -98,12 +98,12 @@ export async function renameSpace(
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(spaceId);
   const parsedName = Name.safeParse(name);
-  if (!id.success) return { error: "Invalid space" };
+  if (!id.success) return { error: "Invalid team" };
   if (!parsedName.success) return { error: "Name is required" };
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { error } = await supabase
     .from("spaces")
@@ -127,13 +127,13 @@ export async function updateSpace(
   patch: z.input<typeof SpacePatch>,
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(spaceId);
-  if (!id.success) return { error: "Invalid space" };
+  if (!id.success) return { error: "Invalid team" };
   const parsed = SpacePatch.safeParse(patch);
   if (!parsed.success) return { error: "Invalid input" };
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { error } = await supabase
     .from("spaces")
@@ -148,11 +148,11 @@ export async function archiveSpace(
   spaceId: string,
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(spaceId);
-  if (!id.success) return { error: "Invalid space" };
+  if (!id.success) return { error: "Invalid team" };
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { error } = await supabase
     .from("spaces")
@@ -169,11 +169,11 @@ export async function restoreSpace(
   spaceId: string,
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(spaceId);
-  if (!id.success) return { error: "Invalid space" };
+  if (!id.success) return { error: "Invalid team" };
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { error } = await supabase
     .from("spaces")
@@ -194,11 +194,11 @@ export async function deleteSpace(
   spaceId: string,
 ): Promise<{ ok: true } | ActionError> {
   const id = Uuid.safeParse(spaceId);
-  if (!id.success) return { error: "Invalid space" };
+  if (!id.success) return { error: "Invalid team" };
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, id.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { error } = await supabase.from("spaces").delete().eq("id", id.data);
   if (error) return { error: error.message };
@@ -344,7 +344,7 @@ export async function setProjectSpaces(
   const id = Uuid.safeParse(projectId);
   if (!id.success) return { error: "Invalid project" };
   const ids = z.array(Uuid).safeParse(spaceIds);
-  if (!ids.success) return { error: "Invalid spaces" };
+  if (!ids.success) return { error: "Invalid teams" };
 
   const supabase = await createClient();
   const propertyId = await projectPropertyId(supabase, id.data);
@@ -469,7 +469,7 @@ export async function pinSpaceResource(
 
   const supabase = await createClient();
   const propertyId = await spacePropertyId(supabase, sid.data);
-  if (!propertyId) return { error: "Space not found" };
+  if (!propertyId) return { error: "Team not found" };
 
   const { count } = await supabase
     .from("space_pinned_resources")

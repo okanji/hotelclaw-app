@@ -29,6 +29,7 @@ import {
 } from "@/lib/query/project-queries";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { scopeKey, type InsightScope } from "@/lib/insights/scope";
+import { NativeSelect } from "@/components/ui/native-select";
 
 /**
  * Follow + alerts entry point in the Insights header. The popover sets the
@@ -279,9 +280,6 @@ function InsightsSubscriptionsDialog({
     }
   }
 
-  const selectClass =
-    "h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
@@ -386,11 +384,10 @@ function InsightsSubscriptionsDialog({
               </ul>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
-              <select
+              <NativeSelect
                 value={newScope}
                 aria-label="Alert scope"
                 onChange={(e) => setNewScope(e.target.value)}
-                className={selectClass}
               >
                 <option value="property">Whole property</option>
                 {spaces.map((s) => (
@@ -403,21 +400,20 @@ function InsightsSubscriptionsDialog({
                     {p.name}
                   </option>
                 ))}
-              </select>
-              <select
+              </NativeSelect>
+              <NativeSelect
                 value={newMetric}
                 aria-label="Alert metric"
                 onChange={(e) =>
                   setNewMetric(e.target.value as InsightAlertRuleRow["metric"])
                 }
-                className={selectClass}
               >
                 {Object.entries(METRIC_LABEL).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               {newMetric !== "project_at_risk" ? (
                 <label className="flex items-center gap-1 text-sm text-muted-foreground">
                   &gt;

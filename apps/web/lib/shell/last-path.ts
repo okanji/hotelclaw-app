@@ -25,6 +25,9 @@ const KEY_PREFIX = "hotelclaw:last-path:";
  */
 const SECTION_PREFIX: Record<string, string> = {
   home: "/home",
+  // More specific than `home` — must be checked as its own section (the rail
+  // reads it to jump back to the last Insights tab, e.g. Reports).
+  insights: "/home/insights",
   activity: "/activity",
   chat: "/chat/",
   dms: "/dms/",

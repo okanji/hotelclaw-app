@@ -115,7 +115,7 @@ export async function pinFormToSpace(
     supabase.from("spaces").select("id, property_id").eq("id", sid.data).maybeSingle(),
     supabase.from("forms").select("id, property_id").eq("id", fid.data).maybeSingle(),
   ]);
-  if (!space) return { error: "Space not found" };
+  if (!space) return { error: "Team not found" };
   if (!form || form.property_id !== space.property_id) return { error: "Form not found" };
 
   const { count } = await supabase

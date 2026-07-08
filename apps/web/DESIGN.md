@@ -96,26 +96,42 @@ pills `rounded-full`.
   ink focus rings (`focus-visible:ring-[#1f1e1b]/25`), labels wrap their
   controls.
 
+## Shipped 2026-07-08 (second pass)
+
+- **Mobile shell** — below `md:` the rail + sidebar collapse into a left
+  drawer (`components/shell/mobile-top-bar.tsx` renders a slim top bar +
+  hamburger; the drawer reuses `LeftShell` with `forceExpanded`; it closes on
+  any navigation) and the inset goes full-bleed. Desktop is untouched.
+  Gotcha this surfaced: client Supabase `postgres_changes` channel TOPICS
+  must be unique per mount (`` `x:${id}:${Math.random()…}` ``) — the switcher
+  and sidebar sections mount twice on mobile and Supabase throws if a second
+  instance touches an already-subscribed shared topic. The filter, not the
+  topic, scopes the data. All client channels now do this.
+- **`ui/native-select`** — the one styled `<select>` (Input metrics + custom
+  chevron, 16px mobile). All 26 app-chrome selects use it; `selectClass`
+  copies are gone. Width goes on `wrapperClassName`.
+- **`ui/empty-state`** — the house empty state (dashed well + muted icon +
+  title + body + action). Chatbots/bookings converted; convert others as
+  touched. Insights loading text became skeletons.
+- **`components/chatbots/chat/primitives.tsx`** — `ChatBubble`/`ToolCallChip`/
+  `ToolCallList`/`ThinkingRow` shared by test console, transcript, playground.
+- **`components/tasks/task-property-menus.tsx`** — shared status/priority/
+  assignee/due-date menu contents + date helpers; inline chips and the detail
+  sidebar both consume them (triggers stay per-surface).
+
 ## Known debt (next passes, in priority order)
 
-1. **No mobile shell.** The rail + 224px sidebar never collapse; there is no
-   drawer/hamburger. This is the biggest UX gap — needs a `Sheet`-based nav
-   under `md:` and a mobile pass over Timetable/Floor plan (Agenda already
-   covers small screens).
-2. **Native `<select>`s** (bookings/chatbots/insights dialogs, `selectClass`
-   copies) — build one `ui/native-select` with the custom-chevron pattern and
-   sweep call sites.
-3. **Shared `EmptyState` + `SectionLoading`** — empty/loading treatments are
-   still per-surface (rich-centered vs dashed one-liner vs plain "Loading…").
-4. **Chatbots chat primitives** — `ChatBubble`/`ToolCallChip`/`ChatComposer`
-   are hand-rolled 3× (test console, transcript, playground).
-5. **Duplicated task-detail pickers** — status/priority/assignee/due-date
-   pickers exist twice (inline properties + sidebar).
-6. **`transition-colors` policy** — used on roughly half the color-only
+1. **Section-level mobile polish** — the shell now works on phones, but dense
+   views need passes: board toolbar tab row should scroll (it can crowd at
+   390px), Timetable/Floor plan stay desktop tools (Agenda covers mobile),
+   and the chat/info panels haven't been mobile-audited.
+2. **`transition-colors` policy** — used on roughly half the color-only
    hovers; either adopt everywhere deliberately or strip (guideline says
    strip). Decide once, apply mechanically.
-7. Avatar fallback sizes/rings vary per surface — fold into `ui/avatar` sizes.
-8. Cream-world palette constants (`INK`/`ACCENT`…) are still per-file JS
+3. Avatar fallback sizes/rings vary per surface — fold into `ui/avatar` sizes.
+4. Cream-world palette constants (`INK`/`ACCENT`…) are still per-file JS
    consts; promote to `--guest-*` CSS vars when touching those files next.
-9. Pre-existing lint debt: `react/no-unescaped-entities` + setState-in-effect
+5. Remaining empty states (docs boards, chat info-panel tabs) → `EmptyState`;
+   remaining bespoke toggles (forms `Toggle`) → a shared `Switch`.
+6. Pre-existing lint debt: `react/no-unescaped-entities` + setState-in-effect
    errors across ~20 files (predates the design pass).

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   FileText,
   Home,
+  LineChart,
   ListChecks,
   MessageCircle,
   MessagesSquare,
@@ -181,10 +182,12 @@ export function AppRail({
   propertyId,
   userId,
   user,
+  isManagement,
 }: {
   propertyId: string;
   userId: string;
   user: RailUser;
+  isManagement: boolean;
 }) {
   const router = useRouter();
   // `usePathname` only updates on real Next navigations — but most rail hops
@@ -197,6 +200,7 @@ export function AppRail({
   const nextPathname = usePathname();
   const [pathname, setPathname] = useState(nextPathname);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPathname(nextPathname);
   }, [nextPathname]);
   useEffect(() => {
@@ -239,6 +243,16 @@ export function AppRail({
         icon: Home,
         href: `/p/${propertyId}/home`,
         routeKey: "/home",
+      },
+      {
+        section: "insights",
+        // Management reads the property; staff get their personal "My week".
+        label: isManagement ? "Insights" : "My week",
+        icon: LineChart,
+        // Still served from `/home/insights`; its own persistent surface in
+        // the property layout renders it, so a rail hop pushState-swaps in.
+        href: `/p/${propertyId}/home/insights`,
+        routeKey: "/home/insights",
       },
       {
         section: "activity",
@@ -313,7 +327,7 @@ export function AppRail({
         routeKey: "/meetings",
       },
     ],
-    [propertyId],
+    [propertyId, isManagement],
   );
 
   const primaryItems = useMemo(
@@ -402,7 +416,12 @@ export function AppRail({
     const isChatPair = item.section === "chat" || item.section === "dms";
     const alreadyInSection = isChatPair
       ? section === item.section
-      : !!item.routeKey && pathname.includes(item.routeKey);
+      : !!item.routeKey &&
+        pathname.includes(item.routeKey) &&
+        // `/home` is a substring of `/home/insights`; Insights is its own rail
+        // section now, so Home must not read as "already active" from within
+        // Insights (its own routeKey is the more specific `/home/insights`).
+        !(item.section === "home" && pathname.includes("/home/insights"));
     if (alreadyInSection) return;
     const target = resolveTarget(propertyId, item);
     if (!target) return;

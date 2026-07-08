@@ -52,7 +52,7 @@ export function DocsHomePresenceProvider({
       });
     };
     const channel = supabase
-      .channel(`docs-home-activity:${propertyId}`)
+      .channel(`docs-home-activity:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

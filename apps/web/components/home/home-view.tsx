@@ -140,11 +140,11 @@ export function HomeView({
     <DashboardFilterProvider value={filter}>
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-col gap-10">
-        <div className="flex items-end justify-between gap-6">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <p className="truncate text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
             {propertyName}
           </p>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             {realRole ? (
               <ViewAsMenu
                 realRole={realRole}

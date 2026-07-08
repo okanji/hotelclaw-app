@@ -17,7 +17,7 @@ import { pinFormToSpace } from "@/components/forms/share-actions";
 type SpaceRow = { id: string; name: string; icon: string | null };
 
 /**
- * "Pin to space" — pin a form on a space's overview next to its pinned
+ * "Pin to team" — pin a form on a space's overview next to its pinned
  * documents (shared 8-pin budget). Opened from the forms list / builder menus.
  */
 export function PinFormDialog({
@@ -70,16 +70,16 @@ export function PinFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Pin to space</DialogTitle>
+          <DialogTitle>Pin to team</DialogTitle>
           <DialogDescription>
-            “{formTitle}” will appear in the space’s pinned resources.
+            “{formTitle}” will appear on the team’s overview.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-md border p-1">
           {spaces === null ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">Loading spaces…</p>
+            <p className="px-2 py-3 text-sm text-muted-foreground">Loading teams…</p>
           ) : spaces.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">No spaces yet.</p>
+            <p className="px-2 py-3 text-sm text-muted-foreground">No teams yet.</p>
           ) : (
             spaces.map((s) => (
               <Button

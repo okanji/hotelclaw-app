@@ -9,7 +9,7 @@ import "@liveblocks/react-ui/styles.css";
 import { ListChecks, Paperclip, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { deleteTask, updateTask } from "./actions";
+import { deleteTask, escalateTask, updateTask } from "./actions";
 import { PageHeader } from "@/components/shell/page-header";
 import { PresenceBar } from "./presence-bar";
 import { taskShortId } from "./kanban";
@@ -36,6 +36,8 @@ type Task = {
   assigneeId: string | null;
   dueAt: string | null;
   createdAt?: string;
+  /** Who opened the task (migration 0001 `created_by`). */
+  createdBy?: string | null;
   /** Creation provenance (migration 0050). */
   source?: string | null;
   sourceWorkflowId?: string | null;
@@ -79,8 +81,9 @@ export function TaskDetail({
   const savedTitle = useRef(task.title);
   const savedDescription = useRef(task.description ?? "");
 
-  const assignees = useAssigneesMap([assigneeId]);
+  const assignees = useAssigneesMap([assigneeId, task.createdBy]);
   const assignee = assigneeId ? assignees[assigneeId] : undefined;
+  const creator = task.createdBy ? assignees[task.createdBy] : undefined;
 
   const { data: members = [] } = useQuery(
     propertyMembersQueryOptions(propertyId),
@@ -178,6 +181,18 @@ export function TaskDetail({
       ),
     )}`;
     router.push(url);
+  }
+
+  function escalate() {
+    startTransition(async () => {
+      const result = await escalateTask(task.id);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Escalated to ${result.targetName}`);
+      invalidate();
+    });
   }
 
   function removeTask() {
@@ -303,6 +318,14 @@ export function TaskDetail({
                   </span>
                   <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground">
                     <span className="text-foreground/90">Task created</span>
+                    {creator ? (
+                      <span>
+                        by{" "}
+                        <span className="text-foreground/90">
+                          {creator.name}
+                        </span>
+                      </span>
+                    ) : null}
                     <WorkflowProvenanceBadge
                       propertyId={propertyId}
                       source={task.source}
@@ -350,6 +373,7 @@ export function TaskDetail({
           onCopyTitle={copyTitle}
           onCopyLink={copyTaskLink}
           onDelete={removeTask}
+          onEscalate={escalate}
           onAddSubIssue={() => setAddingSubIssue(true)}
           onAutomate={automateFromTask}
         />

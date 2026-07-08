@@ -520,6 +520,7 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
             <BuildStep
               answers={answers}
               onDone={(propertyId) => router.push(`/p/${propertyId}/home`)}
+              onBack={back}
             />
           )}
         </div>
@@ -692,9 +693,11 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
 function BuildStep({
   answers,
   onDone,
+  onBack,
 }: {
   answers: Answers;
   onDone: (propertyId: string) => void;
+  onBack: () => void;
 }) {
   const [phase, setPhase] = useState<BuildPhase>("planning");
   const [lines, setLines] = useState<string[]>([]);
@@ -805,10 +808,11 @@ function BuildStep({
         <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
         <Question>That didn&rsquo;t work — let&rsquo;s try again.</Question>
         <p className="mt-4 text-sm text-[#b3422a]">{error}</p>
-        <div className="mt-8">
+        <div className="mt-8 flex items-center gap-3">
           <PrimaryButton type="button" onClick={() => setAttempt((a) => a + 1)}>
             Retry setup
           </PrimaryButton>
+          <GhostButton onClick={onBack}>Back to edit answers</GhostButton>
         </div>
       </div>
     );

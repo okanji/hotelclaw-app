@@ -10,6 +10,7 @@ import { PropertySwitcher } from "./property-switcher";
 import { SearchButton } from "./search-button";
 import { useShellSection } from "./shell-section-context";
 import { HomeSection } from "./sections/home-section";
+import { InsightsSection } from "./sections/insights-section";
 import { ActivitySection } from "./sections/activity-section";
 import { ChatSection } from "./sections/chat-section";
 import { DmsSection } from "./sections/dms-section";
@@ -78,7 +79,10 @@ export function SectionSidebar({
             data once (on property entry), so switching the rail is an instant
             show/hide — no remount, no re-fetch, no skeleton. */}
         <SectionPane active={section === "home"}>
-          <HomeSection
+          <HomeSection propertyId={currentPropertyId} />
+        </SectionPane>
+        <SectionPane active={section === "insights"}>
+          <InsightsSection
             propertyId={currentPropertyId}
             isManagement={isChannelAdmin}
           />

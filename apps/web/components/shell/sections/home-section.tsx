@@ -2,14 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  FileText,
-  FolderKanban,
-  UserCheck,
-} from "lucide-react";
+import { FileText, FolderKanban, Network, UserCheck } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -31,51 +26,10 @@ import { ProjectsSidebar } from "@/components/projects/projects-sidebar";
  *
  * Personal *activity* now lives as its own widget on the dashboard, not here.
  */
-export function HomeSection({
-  propertyId,
-  isManagement,
-}: {
-  propertyId: string;
-  isManagement: boolean;
-}) {
+export function HomeSection({ propertyId }: { propertyId: string }) {
   const pathname = usePathname();
-  const router = useRouter();
   const base = `/p/${propertyId}`;
   const openDocument = useOpenDocument(propertyId);
-
-  // Insights lives as a sub-view of Home (`/home/insights`). When we're already
-  // somewhere under Home, hop with pushState (zero roundtrip — the surface
-  // re-derives off the URL); fall back to a full navigation otherwise.
-  const insightsBase = `${base}/home/insights`;
-  function navigateInsights(href: string) {
-    if (/^\/p\/[^/]+\/home(?:\/|$)/.test(window.location.pathname)) {
-      window.history.pushState(null, "", href);
-      window.dispatchEvent(new Event("hotelclaw:pathname"));
-    } else {
-      router.push(href);
-    }
-  }
-  const intelligenceLinks = [
-    {
-      label: isManagement ? "Insights" : "My week",
-      icon: Activity,
-      href: insightsBase,
-      active:
-        pathname === insightsBase ||
-        (pathname.startsWith(`${insightsBase}`) &&
-          !pathname.startsWith(`${insightsBase}/reports`)),
-    },
-    ...(isManagement
-      ? [
-          {
-            label: "Reports",
-            icon: FileText,
-            href: `${insightsBase}/reports`,
-            active: pathname.startsWith(`${insightsBase}/reports`),
-          },
-        ]
-      : []),
-  ];
 
   const { pinnedIds } = usePinnedDocs(propertyId);
   const { data: docs = [] } = useQuery(documentsQueryOptions(propertyId));
@@ -95,6 +49,12 @@ export function HomeSection({
       href: `${base}/my-tasks`,
       match: `${base}/my-tasks`,
     },
+    {
+      label: "Org chart",
+      icon: Network,
+      href: `${base}/home/org`,
+      match: `${base}/home/org`,
+    },
   ];
 
   return (
@@ -111,26 +71,6 @@ export function HomeSection({
                       ? pathname === item.match
                       : pathname.startsWith(item.match)
                   }
-                  tooltip={item.label}
-                >
-                  <item.icon />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {intelligenceLinks.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  render={<button type="button" />}
-                  onClick={() => navigateInsights(item.href)}
-                  isActive={item.active}
                   tooltip={item.label}
                 >
                   <item.icon />

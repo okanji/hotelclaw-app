@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { upsertStreamUser } from "@/lib/stream/server";
@@ -21,27 +22,52 @@ export async function completeOnboarding(
   if (!user) return { error: "Not signed in" };
 
   const fullName = parsed.data.fullName.trim();
+  const onboardedAt = new Date().toISOString();
 
-  const { error } = await supabase
+  // `.select()` so a 0-row match is detectable — a bare update "succeeds"
+  // against a missing row, which left users bouncing back to /welcome
+  // forever with no visible error.
+  const { data: updated, error } = await supabase
     .from("profiles")
-    .update({ full_name: fullName, onboarded_at: new Date().toISOString() })
-    .eq("id", user.id);
+    .update({ full_name: fullName, onboarded_at: onboardedAt })
+    .eq("id", user.id)
+    .select("id");
 
   if (error) return { error: error.message };
 
+  if (!updated || updated.length === 0) {
+    // Profile row missing (signup trigger hiccup) — recreate it via the
+    // service client rather than stranding the user.
+    const service = createServiceClient();
+    const { error: insertErr } = await service.from("profiles").insert({
+      id: user.id,
+      full_name: fullName,
+      onboarded_at: onboardedAt,
+    });
+    if (insertErr) return { error: insertErr.message };
+  }
+
   // Keep Stream's user record in sync so the new name appears in chat.
-  // Service-role for the avatar lookup since profiles RLS only lets users
-  // read their own row + property-mates'.
-  const service = createServiceClient();
-  const { data: profile } = await service
-    .from("profiles")
-    .select("avatar_url")
-    .eq("id", user.id)
-    .maybeSingle();
-  await upsertStreamUser({
-    id: user.id,
-    name: fullName,
-    image: profile?.avatar_url ?? null,
+  // Strictly best-effort and AFTER the response: a slow or misconfigured
+  // Stream API must never hang the "Saving…" button or fail onboarding —
+  // it did exactly that when this was awaited inline. Chat surfaces
+  // re-upsert on token requests, so a miss here self-heals.
+  after(async () => {
+    try {
+      const service = createServiceClient();
+      const { data: profile } = await service
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+      await upsertStreamUser({
+        id: user.id,
+        name: fullName,
+        image: profile?.avatar_url ?? null,
+      });
+    } catch (e) {
+      console.error("[welcome] Stream user sync failed", e);
+    }
   });
 
   return { ok: true };

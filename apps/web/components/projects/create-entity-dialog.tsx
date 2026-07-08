@@ -25,9 +25,9 @@ const SWATCH = LABEL_DOT;
 
 const COPY = {
   space: {
-    title: "New space",
+    title: "New team",
     description:
-      "A space is a department or area — F&B, Maintenance, Events. Tasks, docs, members, and channels live in a space.",
+      "A team is a department or crew — F&B, Maintenance, Events. Tasks, docs, members, and channels live in a team.",
     placeholder: "e.g. Food & Beverage",
     defaultColor: "slate" as EntityColor,
     icon: Users,
@@ -35,7 +35,7 @@ const COPY = {
   project: {
     title: "New project",
     description:
-      "A project is a cross-space initiative — a Wedding or a Festival — that pulls work from several spaces.",
+      "A project is a cross-team initiative — a Wedding or a Festival — that pulls work from several teams.",
     placeholder: "e.g. Summer Wedding",
     defaultColor: "blue" as EntityColor,
     icon: FolderKanban,

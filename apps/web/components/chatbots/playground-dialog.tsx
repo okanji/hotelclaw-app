@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
+import { NativeSelect } from "@/components/ui/native-select";
+import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
 
 /**
  * Playground compare — the Chatbase synced-panes pattern. Two panes run the
@@ -35,9 +37,6 @@ type PaneState = {
   onlyFromSources: boolean;
   turns: Turn[];
 };
-
-const selectClass =
-  "h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 export function PlaygroundDialog({
   propertyId,
@@ -207,17 +206,16 @@ function Pane({
         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
           {pane.label}
         </span>
-        <select
+        <NativeSelect
           value={pane.modelTier}
           onChange={(e) =>
             onPatch({ modelTier: e.target.value as PaneState["modelTier"] })
           }
-          className={selectClass}
           aria-label={`Pane ${pane.label} model`}
         >
           <option value="standard">Standard (Haiku)</option>
           <option value="advanced">Advanced (Sonnet)</option>
-        </select>
+        </NativeSelect>
         <button
           type="button"
           aria-pressed={pane.onlyFromSources}
@@ -253,41 +251,25 @@ function Pane({
         {pane.turns.map((t, i) =>
           t.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <div className="max-w-[90%] rounded-xl rounded-br-sm bg-foreground px-2.5 py-1.5 text-xs whitespace-pre-wrap text-background">
+              <ChatBubble side="end" tone="solid" compact className="max-w-[90%]">
                 {t.content}
-              </div>
+              </ChatBubble>
             </div>
           ) : (
             <div key={i} className="space-y-1">
               {t.toolCalls && t.toolCalls.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {t.toolCalls.map((tc, j) => (
-                    <span
-                      key={j}
-                      title={JSON.stringify(tc.input, null, 2)}
-                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-                    >
-                      <Wrench className="size-2.5" />
-                      {tc.name}
-                    </span>
-                  ))}
-                </div>
+                <ToolCallList calls={t.toolCalls} />
               ) : null}
-              <div className="max-w-[90%] rounded-xl rounded-bl-sm border border-border/60 bg-background px-2.5 py-1.5 text-xs whitespace-pre-wrap">
+              <ChatBubble side="start" compact className="max-w-[90%]">
                 {t.content}
-              </div>
+              </ChatBubble>
               {t.ms ? (
                 <p className="text-[10px] text-muted-foreground">{t.ms}ms</p>
               ) : null}
             </div>
           ),
         )}
-        {busy ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            Thinking…
-          </div>
-        ) : null}
+        {busy ? <ThinkingRow compact /> : null}
       </div>
     </div>
   );

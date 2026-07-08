@@ -52,6 +52,8 @@ type Props = {
   onChanged: () => void;
   /** Opens the full modal for this column — for "more options" path. */
   onOpenFullCreate: (status: TaskStatus) => void;
+  /** Active team scope (`?space=`), threaded to inline quick-add. */
+  scopeSpaceId?: string | null;
 };
 
 export function KanbanColumn({
@@ -67,6 +69,7 @@ export function KanbanColumn({
   remoteDragMap,
   onChanged,
   onOpenFullCreate,
+  scopeSpaceId,
 }: Props) {
   const router = useRouter();
   const { setNodeRef } = useDroppable({ id: column.id });
@@ -203,6 +206,7 @@ export function KanbanColumn({
             status={column.id}
             onCreated={onChanged}
             onClose={() => setAdding(false)}
+            scopeSpaceId={scopeSpaceId}
           />
         ) : null}
 

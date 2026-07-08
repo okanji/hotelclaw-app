@@ -29,9 +29,7 @@ import {
 import type { BookableServiceKind } from "@/lib/db/types";
 import type { ServiceListItem } from "./bookings-view";
 import { createService, updateService } from "./actions";
-
-const selectClass =
-  "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const WEEKDAY_LABELS: Record<Weekday, string> = {
   mon: "Mon",
@@ -176,27 +174,25 @@ export function ServiceDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="svc-kind">Type</Label>
-            <select
+            <NativeSelect
               id="svc-kind"
               value={kind}
               onChange={(e) => pickKind(e.target.value as BookableServiceKind)}
-              className={selectClass}
             >
               {Object.entries(SERVICE_KIND_META).map(([value, meta]) => (
                 <option key={value} value={value}>
                   {meta.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="svc-mode">Booking mode</Label>
-            <select
+            <NativeSelect
               id="svc-mode"
               value={bookingMode}
               onChange={(e) => setBookingMode(e.target.value as typeof bookingMode)}
-              className={selectClass}
             >
               <option value="tables">
                 Tables &amp; floor plan — discrete tables, best-fit seating
@@ -207,7 +203,7 @@ export function ServiceDialog({
               <option value="rental">
                 Rental units — named cars/boats, guest-chosen duration
               </option>
-            </select>
+            </NativeSelect>
             {bookingMode === "tables" ? (
               <p className="text-xs text-muted-foreground">
                 Availability comes from the floor plan (a free table that fits
@@ -479,13 +475,12 @@ export function ServiceDialog({
           {forms.length > 0 || schedule.formId ? (
             <div className="space-y-1.5">
               <Label htmlFor="svc-form">Booking questions (optional)</Label>
-              <select
+              <NativeSelect
                 id="svc-form"
                 value={schedule.formId ?? ""}
                 onChange={(e) =>
                   patchSchedule({ formId: e.target.value || undefined })
                 }
-                className={selectClass}
               >
                 <option value="">None</option>
                 {forms.map((f) => (
@@ -498,7 +493,7 @@ export function ServiceDialog({
                     (current form — unpublished or deleted)
                   </option>
                 ) : null}
-              </select>
+              </NativeSelect>
               <p className="text-xs text-muted-foreground">
                 A published form guests answer while booking — dietary needs,
                 waivers, onboarding. Answers land in the form&apos;s responses
@@ -542,11 +537,10 @@ export function ServiceDialog({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="svc-tz">Timezone</Label>
-              <select
+              <NativeSelect
                 id="svc-tz"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className={selectClass}
               >
                 {[...new Set([timezone, guessTimezone(), "UTC", ...(typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [])])].map(
                   (tz) => (
@@ -555,20 +549,19 @@ export function ServiceDialog({
                     </option>
                   ),
                 )}
-              </select>
+              </NativeSelect>
             </div>
             {service ? (
               <div className="space-y-1.5">
                 <Label htmlFor="svc-active">Status</Label>
-                <select
+                <NativeSelect
                   id="svc-active"
                   value={active ? "active" : "paused"}
                   onChange={(e) => setActive(e.target.value === "active")}
-                  className={selectClass}
                 >
                   <option value="active">Active — bookable</option>
                   <option value="paused">Paused — hidden from bots</option>
-                </select>
+                </NativeSelect>
               </div>
             ) : null}
           </div>

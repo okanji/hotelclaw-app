@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/db/types";
+import { safeNextPath } from "@/lib/auth/safe-next";
 
 /**
  * OAuth + magic-link `code` callback (PKCE).
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const origin = url.origin;
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next");
+  // Sanitized: same-origin paths only (open-redirect guard).
+  const next = safeNextPath(url.searchParams.get("next"));
 
   // Pre-allocate. We'll mutate Location once we know where to go.
   const response = NextResponse.redirect(new URL("/", origin));

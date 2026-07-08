@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
@@ -68,18 +69,10 @@ export function ConversationsTab({
 }) {
   if (conversations.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
-        <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-          <MessagesSquare className="size-5 text-muted-foreground" />
-        </span>
-        <div>
-          <p className="text-sm font-medium">No guest conversations yet</p>
-          <p className="mt-1 max-w-[42ch] text-sm text-muted-foreground">
-            Publish the bot and share its link or QR code — conversations show
-            up here as guests chat.
-          </p>
-        </div>
-      </div>
+      <EmptyState icon={MessagesSquare} title="No guest conversations yet">
+        Publish the bot and share its link or QR code — conversations show up
+        here as guests chat.
+      </EmptyState>
     );
   }
 

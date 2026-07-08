@@ -102,11 +102,11 @@ const triggers: TriggerCatalogEntry[] = [
     id: "task.added_to_space",
     surface: "tasks",
     category: "trigger",
-    label: "When a task is added to a space",
+    label: "When a task is added to a team",
     description:
-      "Fires when a task's space (department) is set or changed — e.g. moved into F&B or Maintenance. You get the previous and new space plus the full task.",
+      "Fires when a task's team (department) is set or changed — e.g. moved into F&B or Maintenance. You get the previous and new team plus the full task.",
     examplePrompts: [
-      "when a task is added to the Maintenance space",
+      "when a task is added to the Maintenance team",
       "whenever a task moves into a different department",
     ],
     outputSchema: z.object({
@@ -115,7 +115,7 @@ const triggers: TriggerCatalogEntry[] = [
       new: z.record(z.string(), z.unknown()),
     }),
     explain: (filter) =>
-      explainTaskTrigger("task.added_to_space", "When a task is added to a space", filter),
+      explainTaskTrigger("task.added_to_space", "When a task is added to a team", filter),
   },
   {
     id: "task.added_to_project",

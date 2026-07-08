@@ -34,6 +34,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatbotKnowledgeKind, ChatbotKnowledgeStatus } from "@/lib/db/types";
+import { NativeSelect } from "@/components/ui/native-select";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   addKnowledgeSource,
   deleteKnowledgeSource,
@@ -65,7 +67,7 @@ const KIND_ICONS = {
 } as const;
 
 /** Source-type entry points, surfaced directly in the "Add source" menu so
- *  the document path isn't buried inside a <select>. */
+ *  the document path isn't buried inside a <NativeSelect>. */
 const SOURCE_KINDS: {
   kind: ChatbotKnowledgeKind;
   label: string;
@@ -76,9 +78,6 @@ const SOURCE_KINDS: {
   { kind: "document", label: "Workspace document", hint: "Link a doc from this property" },
   { kind: "url", label: "Web page", hint: "Fetch a public URL" },
 ];
-
-const selectClass =
-  "h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 /**
  * Knowledge tab — what the bot knows. Sources are added untrained
@@ -187,18 +186,10 @@ export function KnowledgePanel({
       </div>
 
       {sources.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
-          <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-            <BookOpen className="size-5 text-muted-foreground" />
-          </span>
-          <div>
-            <p className="text-sm font-medium">Nothing trained yet</p>
-            <p className="mt-1 max-w-[42ch] text-sm text-muted-foreground">
-              Paste your menu, link a policy doc, or add Q&amp;A pairs — then
-              hit Train and test a question in the console.
-            </p>
-          </div>
-        </div>
+        <EmptyState icon={BookOpen} title="Nothing trained yet">
+          Paste your menu, link a policy doc, or add Q&amp;A pairs — then hit
+          Train and test a question in the console.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {sources.map((source) => (
@@ -555,17 +546,16 @@ function AddSourceDialog({
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="source-kind">Type</Label>
-            <select
+            <NativeSelect
               id="source-kind"
               value={kind}
               onChange={(e) => setKindOverride(e.target.value as ChatbotKnowledgeKind)}
-              className={selectClass}
             >
               <option value="text">Text — paste a menu, policy, FAQ</option>
               <option value="qa">Q&amp;A pair — exact answer to one question</option>
               <option value="document">Document — link a doc from this workspace</option>
               <option value="url">Web page — fetch a public URL</option>
-            </select>
+            </NativeSelect>
           </div>
 
           {kind !== "qa" ? (
@@ -622,11 +612,10 @@ function AddSourceDialog({
           {kind === "document" ? (
             <div className="space-y-2">
               <Label htmlFor="source-document">Document</Label>
-              <select
+              <NativeSelect
                 id="source-document"
                 value={documentId}
                 onChange={(e) => setDocumentId(e.target.value)}
-                className={selectClass}
               >
                 <option value="">Pick a document…</option>
                 {documents.map((d) => (
@@ -634,7 +623,7 @@ function AddSourceDialog({
                     {d.title}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <p className="text-xs text-muted-foreground">
                 A snapshot is taken at train time — retrain after editing the doc.
               </p>

@@ -39,6 +39,8 @@ import { FloorPlanView, type ResourceItem } from "./floor-plan";
 import { Timetable } from "./timetable";
 import { setBookingStatus, deleteService } from "./actions";
 import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
+import { NativeSelect } from "@/components/ui/native-select";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type ServiceListItem = {
   id: string;
@@ -156,7 +158,7 @@ export function BookingsView({
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`bookings:${propertyId}`)
+      .channel(`bookings:${propertyId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
@@ -340,23 +342,20 @@ export function BookingsView({
       <section className={cn("space-y-3", view !== "services" && "hidden")}>
         <p className="text-sm font-medium">Services</p>
         {services.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-14 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-              <CalendarCheck className="size-6 text-muted-foreground" />
-            </span>
-            <div>
-              <p className="text-sm font-medium">No bookable services yet</p>
-              <p className="mt-1 max-w-[44ch] text-sm text-pretty text-muted-foreground">
-                Create your first — a dinner table, a massage, a sunset tour —
-                then enable &ldquo;Take bookings&rdquo; on a chatbot so guests
-                can book it themselves.
-              </p>
-            </div>
-            <Button onClick={() => setEditingService("new")}>
-              <Plus data-slot="icon" />
-              New service
-            </Button>
-          </div>
+          <EmptyState
+            icon={CalendarCheck}
+            title="No bookable services yet"
+            action={
+              <Button onClick={() => setEditingService("new")}>
+                <Plus data-slot="icon" />
+                New service
+              </Button>
+            }
+          >
+            Create your first — a dinner table, a massage, a sunset tour —
+            then enable &ldquo;Take bookings&rdquo; on a chatbot so guests can
+            book it themselves.
+          </EmptyState>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => (
@@ -486,10 +485,10 @@ export function BookingsView({
           </div>
           <div className="flex items-center gap-2">
             {(view === "floor" || view === "timetable") && services.length > 1 ? (
-              <select
+              <NativeSelect
                 value={focusService?.id ?? ""}
                 onChange={(e) => setServiceId(e.target.value)}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                wrapperClassName="w-auto"
                 aria-label="Service"
               >
                 {(view === "floor" ? floorServices : services).map((s) => (
@@ -498,7 +497,7 @@ export function BookingsView({
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             ) : null}
             {pendingCount > 0 ? (
               <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -582,24 +581,20 @@ export function BookingsView({
               day={day}
             />
           ) : (
-            <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-14 text-center">
-              <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-                <LayoutGrid className="size-6 text-muted-foreground" />
-              </span>
-              <div>
-                <p className="text-sm font-medium">No floor plan yet</p>
-                <p className="mt-1 max-w-[46ch] text-sm text-pretty text-muted-foreground">
-                  A floor plan belongs to a service whose booking mode is
-                  &ldquo;Tables &amp; floor plan&rdquo; — create one (or edit
-                  an existing service), then come back here to lay out the
-                  room.
-                </p>
-              </div>
-              <Button onClick={() => setEditingService("new")}>
-                <Plus data-slot="icon" />
-                New table service
-              </Button>
-            </div>
+            <EmptyState
+              icon={LayoutGrid}
+              title="No floor plan yet"
+              action={
+                <Button onClick={() => setEditingService("new")}>
+                  <Plus data-slot="icon" />
+                  New table service
+                </Button>
+              }
+            >
+              A floor plan belongs to a service whose booking mode is
+              &ldquo;Tables &amp; floor plan&rdquo; — create one (or edit an
+              existing service), then come back here to lay out the room.
+            </EmptyState>
           )
         ) : null}
 

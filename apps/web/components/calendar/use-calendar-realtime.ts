@@ -19,7 +19,7 @@ export function useCalendarRealtime(propertyId: string, userId: string): void {
     if (!propertyId || !userId) return;
     const supabase = createClient();
     const channel = supabase
-      .channel(`calendar:${propertyId}:${userId}`)
+      .channel(`calendar:${propertyId}:${userId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

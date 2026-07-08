@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { acceptInvite } from "@/lib/invites/actions";
+import { acceptInvite, switchAccountForInvite } from "@/lib/invites/actions";
 
 export function AcceptButton({ token }: { token: string }) {
   const router = useRouter();
@@ -25,6 +25,27 @@ export function AcceptButton({ token }: { token: string }) {
   return (
     <Button onClick={accept} disabled={pending}>
       {pending ? "Joining…" : "Accept invite"}
+    </Button>
+  );
+}
+
+/** Shown instead of Accept when the signed-in email ≠ the invited email:
+ *  signs this session out and returns to the invite after re-login. */
+export function SwitchAccountButton({
+  token,
+  invitedEmail,
+}: {
+  token: string;
+  invitedEmail: string;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <Button
+      onClick={() => startTransition(() => switchAccountForInvite(token))}
+      disabled={pending}
+    >
+      {pending ? "Signing out…" : `Sign in as ${invitedEmail}`}
     </Button>
   );
 }

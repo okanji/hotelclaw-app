@@ -280,7 +280,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "template",
       key: "space_id",
-      label: "Space (optional)",
+      label: "Team (optional)",
       placeholder: "Space id, or {{trigger.new.space_id}}",
       help: TEMPLATE_HELP,
     },
@@ -548,7 +548,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     {
       kind: "template",
       key: "space_id",
-      label: "Move to space",
+      label: "Move to team",
       placeholder: "Space id, or {{trigger.new.space_id}}",
       help: TEMPLATE_HELP,
     },

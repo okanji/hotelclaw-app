@@ -206,6 +206,7 @@ function buildSaveGuestDetailsTool(
 function buildCreateTicketTool(
   scope: GuestBotScope,
   action: Extract<ChatbotAction, { type: "create_ticket" }>,
+  config: ChatbotConfig,
 ) {
   const cfg = action.config;
   const fieldList = cfg.fields
@@ -260,7 +261,9 @@ function buildCreateTicketTool(
           property_id: scope.propertyId,
           title,
           description,
-          space_id: cfg.spaceId ?? null,
+          // Per-action team wins; else the bot's default team; else no team
+          // (triage will org-chart-route it).
+          space_id: cfg.spaceId ?? config.defaultTeamId ?? null,
           project_id: cfg.projectId ?? null,
           assignee_id: cfg.assigneeId ?? null,
           priority: cfg.priority,
@@ -884,7 +887,7 @@ export function buildGuestBotTools(
         tools.save_guest_details = buildSaveGuestDetailsTool(scope, action);
         break;
       case "create_ticket":
-        tools.create_ticket = buildCreateTicketTool(scope, action);
+        tools.create_ticket = buildCreateTicketTool(scope, action, config);
         break;
       case "escalate_to_human":
         tools.handoff_to_human = buildHandoffTool(scope, action, config);

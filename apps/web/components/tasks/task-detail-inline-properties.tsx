@@ -38,17 +38,17 @@ import type { EntityColor, TaskPriority, TaskStatus } from "@/lib/db/types";
 import { useQuery } from "@tanstack/react-query";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
+import {
+  AssigneeMenuContent,
+  DueDatePopoverContent,
+  PriorityMenuContent,
+  StatusMenuContent,
+  initials,
+} from "./task-property-menus";
 
 
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 function formatTargetDate(iso: string | null) {
   if (!iso) return "Target date";
@@ -64,22 +64,6 @@ function formatTargetDate(iso: string | null) {
   if (diffDays === 1) return "Tomorrow";
   if (diffDays === -1) return "Yesterday";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function dateInputToIso(value: string) {
-  if (!value) return null;
-  const d = new Date(`${value}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 // Shared chip styles — small bordered pills with consistent typography.
@@ -154,18 +138,7 @@ export function TaskDetailInlineProperties({
               </button>
             }
           />
-          <DropdownMenuContent align="start" className="w-44">
-            {COLUMNS.map((c) => (
-              <DropdownMenuItem
-                key={c.id}
-                onClick={() => onStatusChange(c.id)}
-                className="gap-2"
-              >
-                <StatusIcon status={c.id} className="size-3.5" />
-                {c.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
+          <StatusMenuContent align="start" onSelect={onStatusChange} />
         </DropdownMenu>
 
         <DropdownMenu>
@@ -189,22 +162,7 @@ export function TaskDetailInlineProperties({
               </button>
             }
           />
-          <DropdownMenuContent align="start" className="w-48 p-1">
-            {PRIORITY_MENU_ORDER.map((p) => (
-              <DropdownMenuItem
-                key={p}
-                onClick={() => onPriorityChange(p)}
-                className="cursor-pointer gap-2 py-1.5"
-              >
-                <span className="flex w-4 items-center justify-center">
-                  <PriorityBars priority={p} />
-                </span>
-                <span className="flex-1 text-sm">
-                  {PRIORITY_META[p].label}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
+          <PriorityMenuContent align="start" onSelect={onPriorityChange} />
         </DropdownMenu>
 
         <DropdownMenu>
@@ -235,31 +193,11 @@ export function TaskDetailInlineProperties({
               </button>
             }
           />
-          <DropdownMenuContent
+          <AssigneeMenuContent
             align="start"
-            className="max-h-64 w-56 overflow-y-auto"
-          >
-            <DropdownMenuItem onClick={() => onAssigneeChange(null)}>
-              Unassigned
-            </DropdownMenuItem>
-            {members.map((m) => (
-              <DropdownMenuItem
-                key={m.id}
-                onClick={() => onAssigneeChange(m.id)}
-                className="gap-2"
-              >
-                <Avatar size="sm" className="size-5">
-                  {m.avatarUrl ? (
-                    <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} />
-                  ) : null}
-                  <AvatarFallback className="bg-muted text-[0.5625rem]">
-                    {initials(m.name ?? "?")}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate">{m.name ?? "Member"}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
+            members={members}
+            onSelect={onAssigneeChange}
+          />
         </DropdownMenu>
 
         <Popover>
@@ -277,29 +215,13 @@ export function TaskDetailInlineProperties({
               </button>
             }
           />
-          <PopoverContent align="start" className="w-56 p-3">
-            <label className="text-xs font-medium text-muted-foreground">
-              Target date
-            </label>
-            <input
-              type="date"
-              value={toDateInputValue(dueAt)}
-              onChange={(e) => onDueAtChange(dateInputToIso(e.target.value))}
-              className={cn(
-                "mt-2 h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm",
-                "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-              )}
-            />
-            {dueAt ? (
-              <button
-                type="button"
-                onClick={() => onDueAtChange(null)}
-                className="mt-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Clear date
-              </button>
-            ) : null}
-          </PopoverContent>
+          <DueDatePopoverContent
+            align="start"
+            label="Target date"
+            clearLabel="Clear date"
+            dueAt={dueAt}
+            onChange={onDueAtChange}
+          />
         </Popover>
 
         <DropdownMenu>

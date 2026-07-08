@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useShellSection } from "./shell-section-context";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
@@ -29,15 +30,27 @@ export function LeftShell({
   currentPropertyId,
   memberships,
   user,
+  className,
+  forceExpanded = false,
 }: {
   currentPropertyId: string;
   memberships: Membership[];
   user: User;
+  className?: string;
+  /** Inside the mobile drawer the sidebar always shows, ignoring the
+      desktop collapse/hide state. */
+  forceExpanded?: boolean;
 }) {
   const { sidebarHidden, sidebarCollapsed } = useShellSection();
+  const showSidebar = forceExpanded || (!sidebarHidden && !sidebarCollapsed);
+
+  const currentRole = memberships.find(
+    (m) => m.property_id === currentPropertyId,
+  )?.role;
+  const isManagement = currentRole === "owner" || currentRole === "manager";
 
   return (
-    <div className="flex shrink-0 flex-col bg-sidebar">
+    <div className={cn("flex shrink-0 flex-col bg-sidebar", className)}>
       {/* Records each section's last route to localStorage so the rail and
           property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />
@@ -46,8 +59,9 @@ export function LeftShell({
           propertyId={currentPropertyId}
           userId={user.id}
           user={user}
+          isManagement={isManagement}
         />
-        {!sidebarHidden && !sidebarCollapsed && (
+        {showSidebar && (
           <SectionSidebar
             currentPropertyId={currentPropertyId}
             memberships={memberships}

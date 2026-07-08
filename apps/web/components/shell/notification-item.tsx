@@ -23,6 +23,7 @@ import type {
   NotificationRow,
   ProjectAtRiskPayload,
   TaskAssignedPayload,
+  TaskEscalatedPayload,
   TaskSlipPayload,
   WorkflowPayload,
 } from "@/lib/notifications/types";
@@ -192,6 +193,26 @@ export function notificationView(
         sub: p.taskTitle ?? null,
         href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
         kicker: "Task assigned",
+        preview: p.taskTitle ?? "a task",
+        actor: byName,
+        channel: null,
+      };
+    }
+    case "task_escalated": {
+      const p = n.payload as Partial<TaskEscalatedPayload>;
+      const byName = p.byUserName ?? "Someone";
+      return {
+        icon: <OctagonAlert className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">{byName}</strong> escalated a
+            task to you
+            {p.reason === "team_lead" ? " as team lead" : ""}
+          </>
+        ),
+        sub: p.taskTitle ?? null,
+        href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
+        kicker: "Escalated",
         preview: p.taskTitle ?? "a task",
         actor: byName,
         channel: null,
