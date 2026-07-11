@@ -173,7 +173,7 @@ export function PropertySwitcher({
                 </>
               ) : null}
               <DropdownMenuItem
-                onClick={() => router.push("/onboarding")}
+                onClick={() => router.push("/onboarding?add=1")}
                 className="gap-2.5 px-2 py-1.5"
               >
                 <Plus className="size-4 text-muted-foreground" />

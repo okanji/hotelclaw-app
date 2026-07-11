@@ -45,11 +45,23 @@ export const AnswersSchema = z.object({
     .max(12),
   roleTitle: z.string().max(80).default(""),
   priorities: z.array(z.string().max(60)).max(12),
+  /** What the property runs on-site ("rooms", "restaurant", "spa", "tours",
+   *  "rentals"…) — drives bookings/chatbot/form generation. */
+  operations: z.array(z.string().max(40)).max(12).default([]),
+  /** How guests reach the property ("walk_in", "phone", "whatsapp", "email",
+   *  "ota", "website") — drives chatbot channels + intake forms. */
+  guestContact: z.array(z.string().max(40)).max(10).default([]),
+  /** Optional free-text: "how does your property run day-to-day" — fed to the
+   *  AI planner to customize the build. */
+  notes: z.string().max(1000).default(""),
   invites: z
     .array(
       z.object({
         email: z.string().email().max(254),
         role: z.enum(["manager", "staff"]),
+        /** Inviter-provided pre-fill — carried onto the invite row. */
+        name: z.string().max(120).optional(),
+        title: z.string().max(80).optional(),
       }),
     )
     .max(20)
@@ -74,6 +86,15 @@ export const PlanFormFieldSchema = z.object({
   options: z.array(z.string().min(1).max(80)).max(12).optional(),
   /** For rating — scale size, 3–10. */
   maxRating: z.number().int().min(3).max(10).optional(),
+});
+
+/** A single form the plan will publish. */
+export const PlanFormSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(500),
+  /** A single emoji for the form icon. */
+  icon: z.string().max(8).optional(),
+  fields: z.array(PlanFormFieldSchema).min(1).max(12),
 });
 
 export const PlanSchema = z.object({
@@ -104,19 +125,29 @@ export const PlanSchema = z.object({
       }),
     )
     .max(8),
-  starterForm: z
-    .object({
-      title: z.string().min(1).max(120),
-      description: z.string().max(500),
-      fields: z.array(PlanFormFieldSchema).min(1).max(12),
-    })
-    .nullable(),
+  /** Published, ready-to-share forms derived from the property's priorities /
+   *  operations (maintenance request, guest feedback, incident report…). */
+  forms: z.array(PlanFormSchema).max(4).default([]),
+  /** Starter SOP / playbook documents (titled stubs the team fills in) drawn
+   *  from their departments + priorities. */
+  docs: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(120),
+        icon: z.string().max(8).optional(),
+      }),
+    )
+    .max(6)
+    .default([]),
+  /** The owner's job title, seeded onto their membership (org chart). */
+  orgTitle: z.string().max(80).nullable().default(null),
   /** 2–3 warm sentences posted to #general as the owner. */
   welcomeMessage: z.string().min(1).max(1000),
 });
 
 export type OnboardingPlan = z.infer<typeof PlanSchema>;
 export type PlanFormField = z.infer<typeof PlanFormFieldSchema>;
+export type PlanForm = z.infer<typeof PlanFormSchema>;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -214,19 +245,43 @@ export function sanitizePlan(plan: OnboardingPlan): OnboardingPlan {
       return true;
     });
 
-  const starterForm = plan.starterForm
-    ? {
-        title: plan.starterForm.title.trim().slice(0, 120),
-        description: plan.starterForm.description.trim().slice(0, 500),
-        fields: plan.starterForm.fields.slice(0, 12),
-      }
-    : null;
+  const seenFormTitles = new Set<string>();
+  const forms = plan.forms
+    .slice(0, 4)
+    .map((f) => ({
+      title: f.title.trim().slice(0, 120),
+      description: f.description.trim().slice(0, 500),
+      ...(f.icon ? { icon: clampIcon(f.icon, "📋") } : {}),
+      fields: f.fields.slice(0, 12),
+    }))
+    .filter((f) => {
+      const key = f.title.toLowerCase();
+      if (!f.title || !f.fields.length || seenFormTitles.has(key)) return false;
+      seenFormTitles.add(key);
+      return true;
+    });
+
+  const seenDocTitles = new Set<string>();
+  const docs = plan.docs
+    .slice(0, 6)
+    .map((d) => ({
+      title: d.title.trim().slice(0, 120),
+      ...(d.icon ? { icon: clampIcon(d.icon, "📄") } : {}),
+    }))
+    .filter((d) => {
+      const key = d.title.toLowerCase();
+      if (!d.title || seenDocTitles.has(key)) return false;
+      seenDocTitles.add(key);
+      return true;
+    });
 
   return {
     spaces,
     extraChannels,
     labels,
-    starterForm,
+    forms,
+    docs,
+    orgTitle: plan.orgTitle ? plan.orgTitle.trim().slice(0, 80) || null : null,
     welcomeMessage: plan.welcomeMessage.trim().slice(0, 1000),
   };
 }
@@ -260,10 +315,11 @@ const HOTEL_TYPES = new Set([
 ]);
 const RESTAURANT_TYPES = new Set(["restaurant", "cafe-bar"]);
 
-const MAINTENANCE_FORM: NonNullable<OnboardingPlan["starterForm"]> = {
+const MAINTENANCE_FORM: PlanForm = {
   title: "Maintenance request",
   description:
     "Spotted something broken? Log it here so the maintenance team can pick it up.",
+  icon: "🔧",
   fields: [
     { type: "short_text", label: "Location", required: true },
     { type: "long_text", label: "What needs fixing?", required: true },
@@ -277,9 +333,10 @@ const MAINTENANCE_FORM: NonNullable<OnboardingPlan["starterForm"]> = {
   ],
 };
 
-const GUEST_FEEDBACK_FORM: NonNullable<OnboardingPlan["starterForm"]> = {
+const GUEST_FEEDBACK_FORM: PlanForm = {
   title: "Guest feedback",
   description: "Capture guest comments so nothing gets lost between shifts.",
+  icon: "💬",
   fields: [
     { type: "rating", label: "Overall experience", required: true, maxRating: 5 },
     { type: "long_text", label: "What did the guest say?", required: true },
@@ -289,6 +346,25 @@ const GUEST_FEEDBACK_FORM: NonNullable<OnboardingPlan["starterForm"]> = {
       options: ["Compliment", "Complaint", "Suggestion"],
     },
     { type: "yes_no", label: "Does this need a follow-up?" },
+  ],
+};
+
+const INCIDENT_FORM: PlanForm = {
+  title: "Incident report",
+  description:
+    "Log accidents, security issues, or anything that needs a record and follow-up.",
+  icon: "🚨",
+  fields: [
+    { type: "short_text", label: "Where did it happen?", required: true },
+    { type: "long_text", label: "What happened?", required: true },
+    {
+      type: "select",
+      label: "Severity",
+      required: true,
+      options: ["Minor", "Moderate", "Serious"],
+    },
+    { type: "short_text", label: "Who was involved?" },
+    { type: "yes_no", label: "Were the authorities contacted?" },
   ],
 };
 
@@ -347,15 +423,46 @@ export function deterministicPlan(answers: OnboardingAnswers): OnboardingPlan {
     labels.push({ name: "Checklist", color: "green" });
   }
 
-  const starterForm = priorities.has("Maintenance requests")
-    ? MAINTENANCE_FORM
-    : priorities.has("Guest feedback") || isHotel || isRestaurant
-      ? GUEST_FEEDBACK_FORM
-      : MAINTENANCE_FORM;
+  // Build a small set of forms from what they told us. Maintenance + guest
+  // feedback are the workhorses; incident reports show up for hotels/resorts.
+  const forms: PlanForm[] = [];
+  if (priorities.has("Maintenance requests")) forms.push(MAINTENANCE_FORM);
+  if (priorities.has("Guest feedback") || isHotel || isRestaurant) {
+    forms.push(GUEST_FEEDBACK_FORM);
+  }
+  if (isHotel && forms.length < 4) forms.push(INCIDENT_FORM);
+  // Never leave a new workspace with zero forms — seed the maintenance one.
+  if (forms.length === 0) forms.push(MAINTENANCE_FORM);
+
+  // Starter SOP / playbook docs — titled stubs the team fills in, drawn from
+  // their priorities and property type.
+  const docs: OnboardingPlan["docs"] = [];
+  if (priorities.has("Shift handovers")) {
+    docs.push({ title: "Shift handover playbook", icon: "🔁" });
+  }
+  if (priorities.has("Daily checklists")) {
+    docs.push({ title: "Opening checklist", icon: "🌅" });
+    docs.push({ title: "Closing checklist", icon: "🌙" });
+  }
+  if (priorities.has("Guest feedback") || isHotel || isRestaurant) {
+    docs.push({ title: "Guest complaint handling SOP", icon: "🤝" });
+  }
+  if (isHotel && docs.length < 6) {
+    docs.push({ title: "Emergency & incident procedures", icon: "🚨" });
+  }
+  if (docs.length === 0) {
+    docs.push({ title: "Standard operating procedures", icon: "📄" });
+  }
+
+  const orgTitle = answers.roleTitle.trim() || null;
 
   const welcomeMessage = [
     `Welcome to ${answers.propertyName}'s workspace! 👋`,
-    `Each team has its own space and channel, and there's a starter "${starterForm.title}" form ready to use.`,
+    `Each team has its own space and channel, and there ${
+      forms.length === 1 ? "'s a" : " are"
+    } ${forms.length} ready-to-use form${forms.length === 1 ? "" : "s"} (${forms
+      .map((f) => `"${f.title}"`)
+      .join(", ")}).`,
     `Invite the rest of the team whenever you're ready — everything here is yours to reshape.`,
   ].join(" ");
 
@@ -363,7 +470,105 @@ export function deterministicPlan(answers: OnboardingAnswers): OnboardingPlan {
     spaces,
     extraChannels: extraChannels.slice(0, 4),
     labels: labels.slice(0, 8),
-    starterForm,
+    forms: forms.slice(0, 4),
+    docs: docs.slice(0, 6),
+    orgTitle,
     welcomeMessage,
   });
+}
+
+// ─── Bookable services (deterministic, from the "what do you operate" answer) ─
+//
+// Kept out of the AI plan on purpose: booking schedules are structured config
+// the availability engine parses, so we generate them deterministically rather
+// than trust a model to emit valid weekly-hours JSON. All capacity-mode (no
+// floor-plan resources needed); staff refine hours/timezone and go public later.
+
+export type StarterBookingService = {
+  name: string;
+  kind: "table" | "appointment" | "tour" | "event" | "rental" | "other";
+  bookingMode: "capacity" | "tables" | "rental";
+  emoji: string;
+  description: string;
+  schedule: Record<string, unknown>;
+};
+
+const everyDay = (ranges: { start: string; end: string }[]) =>
+  Object.fromEntries(
+    ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => [d, ranges]),
+  );
+
+/** Starter bookable services keyed off `answers.operations`. Restaurant, spa,
+ *  and tours map cleanly to capacity-mode services; rooms/bar/events/rentals
+ *  need resource/date setup, so they're left for the staff to add. */
+export function starterBookingServices(
+  operations: string[],
+): StarterBookingService[] {
+  const ops = new Set(operations);
+  const out: StarterBookingService[] = [];
+
+  if (ops.has("restaurant")) {
+    out.push({
+      name: "Restaurant",
+      kind: "table",
+      bookingMode: "capacity",
+      emoji: "🍽️",
+      description: "Table reservations for lunch and dinner service.",
+      schedule: {
+        version: 1,
+        slotIntervalMinutes: 30,
+        durationMinutes: 90,
+        capacityPerSlot: 40,
+        countPartySize: true,
+        maxPartySize: 8,
+        minNoticeMinutes: 30,
+        horizonDays: 60,
+        weekly: everyDay([
+          { start: "12:00", end: "14:30" },
+          { start: "18:00", end: "21:30" },
+        ]),
+      },
+    });
+  }
+  if (ops.has("spa")) {
+    out.push({
+      name: "Spa appointment",
+      kind: "appointment",
+      bookingMode: "capacity",
+      emoji: "💆",
+      description: "Book a treatment with one of our therapists.",
+      schedule: {
+        version: 1,
+        slotIntervalMinutes: 30,
+        durationMinutes: 60,
+        capacityPerSlot: 3,
+        countPartySize: false,
+        maxPartySize: 2,
+        minNoticeMinutes: 120,
+        horizonDays: 60,
+        weekly: everyDay([{ start: "09:00", end: "18:00" }]),
+      },
+    });
+  }
+  if (ops.has("tours")) {
+    out.push({
+      name: "Tour / activity",
+      kind: "tour",
+      bookingMode: "capacity",
+      emoji: "🗺️",
+      description: "Reserve seats on a guided tour or activity.",
+      schedule: {
+        version: 1,
+        slotIntervalMinutes: 60,
+        durationMinutes: 120,
+        capacityPerSlot: 12,
+        countPartySize: true,
+        maxPartySize: 8,
+        minNoticeMinutes: 180,
+        horizonDays: 60,
+        weekly: everyDay([{ start: "10:00", end: "16:00" }]),
+      },
+    });
+  }
+  return out;
 }

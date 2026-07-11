@@ -18,6 +18,13 @@ const CreateSchema = z.object({
   propertyId: z.string().uuid(),
   email: z.string().email().max(254),
   role: z.enum(Roles).default("staff"),
+  // Optional pre-fill: the inviter (or onboarding wizard) can position the
+  // person up front. Applied to their profile/membership on accept; the
+  // invited-user onboarding form pre-fills from these and stays editable.
+  fullName: z.string().trim().max(120).optional(),
+  title: z.string().trim().max(80).optional(),
+  primarySpaceId: z.string().uuid().optional(),
+  managerId: z.string().uuid().optional(),
 });
 
 
@@ -89,6 +96,15 @@ export async function createInvite(
     .is("accepted_at", null)
     .maybeSingle();
 
+  // Pre-fill columns, normalized: empty strings → null so they don't overwrite
+  // real values on accept.
+  const prefill = {
+    full_name: parsed.data.fullName?.trim() || null,
+    title: parsed.data.title?.trim() || null,
+    primary_space_id: parsed.data.primarySpaceId ?? null,
+    manager_id: parsed.data.managerId ?? null,
+  };
+
   let token: string;
   let isResend = false;
   if (existingInvite) {
@@ -96,7 +112,11 @@ export async function createInvite(
     isResend = true;
     const { error: updateErr } = await service
       .from("invites")
-      .update({ expires_at: expiresAt, role: parsed.data.role })
+      .update({
+        expires_at: expiresAt,
+        role: parsed.data.role,
+        ...prefill,
+      })
       .eq("token", token);
     if (updateErr) return { error: updateErr.message };
   } else {
@@ -108,6 +128,7 @@ export async function createInvite(
       token,
       expires_at: expiresAt,
       created_by: user.id,
+      ...prefill,
     });
     if (insertError) return { error: insertError.message };
   }
@@ -286,6 +307,10 @@ export async function revokeInvite(input: {
 
 export async function acceptInvite(
   token: string,
+  // Edits the invited user made in the acceptance onboarding form. When
+  // omitted (e.g. a plain "Accept" click), the invite's pre-fill values apply
+  // as-is. `manager_id` is inviter-only, never user-editable.
+  overrides?: { fullName?: string; title?: string; primarySpaceId?: string },
 ): Promise<
   | { propertyId: string; propertyName: string }
   | { error: string; needsAuth?: true; wrongAccount?: true }
@@ -301,7 +326,9 @@ export async function acceptInvite(
 
   const { data: invite, error: fetchErr } = await service
     .from("invites")
-    .select("property_id, role, expires_at, accepted_at, email")
+    .select(
+      "property_id, role, expires_at, accepted_at, email, full_name, title, primary_space_id, manager_id",
+    )
     .eq("token", token)
     .maybeSingle();
 
@@ -333,21 +360,56 @@ export async function acceptInvite(
     .maybeSingle();
 
   if (!existing) {
+    // Resolve position/team/reports-to: the user's edits win, else the
+    // inviter's pre-fill, else null.
+    const resolvedTitle =
+      (overrides?.title ?? invite.title ?? "").trim().slice(0, 80) || null;
+    const resolvedSpaceId =
+      overrides?.primarySpaceId ?? invite.primary_space_id ?? null;
+    const resolvedManagerId = invite.manager_id ?? null;
+
     const { error: memErr } = await service.from("memberships").insert({
       property_id: invite.property_id,
       user_id: user.id,
       role: invite.role as Role,
+      title: resolvedTitle,
+      primary_space_id: resolvedSpaceId,
+      manager_id: resolvedManagerId,
     });
     if (memErr) return { error: memErr.message };
 
+    // Add them to their home team's member list (best-effort; a duplicate is
+    // harmless if they were somehow pre-added).
+    if (resolvedSpaceId) {
+      await service
+        .from("space_members")
+        .insert({ space_id: resolvedSpaceId, user_id: user.id });
+    }
+
     const { data: profile } = await service
       .from("profiles")
-      .select("full_name, avatar_url")
+      .select("full_name, avatar_url, onboarded_at")
       .eq("id", user.id)
       .maybeSingle();
+
+    // Seed their display name from the acceptance form / invite pre-fill, but
+    // only when they don't already have one (never clobber a real name).
+    const resolvedName = (overrides?.fullName ?? invite.full_name ?? "").trim();
+    let effectiveName = profile?.full_name ?? null;
+    if (!effectiveName && resolvedName) {
+      await service
+        .from("profiles")
+        .update({
+          full_name: resolvedName,
+          onboarded_at: profile?.onboarded_at ?? new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      effectiveName = resolvedName;
+    }
+
     await upsertStreamUser({
       id: user.id,
-      name: profile?.full_name ?? user.email ?? user.id,
+      name: effectiveName ?? user.email ?? user.id,
       image: profile?.avatar_url ?? null,
     });
 

@@ -816,6 +816,10 @@ export interface Database {
           accepted_at: string | null;
           created_by: string | null;
           created_at: string;
+          full_name: string | null;
+          title: string | null;
+          primary_space_id: string | null;
+          manager_id: string | null;
         };
         Insert: {
           id?: string;
@@ -825,11 +829,19 @@ export interface Database {
           token: string;
           expires_at: string;
           created_by?: string | null;
+          full_name?: string | null;
+          title?: string | null;
+          primary_space_id?: string | null;
+          manager_id?: string | null;
         };
         Update: Partial<{
           accepted_at: string | null;
           expires_at: string;
           role: Role;
+          full_name: string | null;
+          title: string | null;
+          primary_space_id: string | null;
+          manager_id: string | null;
         }>;
         Relationships: [];
       };

@@ -14,6 +14,7 @@ import {
   deterministicPlan,
   sanitizePlan,
   planFormToFormSchema,
+  starterBookingServices,
   type OnboardingAnswers,
   type OnboardingAnswersInput,
   type OnboardingPlan,
@@ -164,6 +165,9 @@ export async function createWorkspace(input: {
         departments: answers.departments,
         roleTitle: answers.roleTitle,
         priorities: answers.priorities,
+        operations: answers.operations,
+        guestContact: answers.guestContact,
+        notes: answers.notes,
         inviteCount: answers.invites.length,
       },
     });
@@ -218,6 +222,20 @@ export async function createWorkspace(input: {
     }
   } catch (e) {
     warn("spaces", e);
+  }
+
+  // ── Owner's job title on their membership (org chart) ────────────────────
+  if (plan.orgTitle) {
+    try {
+      const { error } = await service
+        .from("memberships")
+        .update({ title: plan.orgTitle })
+        .eq("property_id", propertyId)
+        .eq("user_id", user.id);
+      if (error) throw error;
+    } catch (e) {
+      warn("owner title", e);
+    }
   }
 
   // ── Channels: #general first, then department + extra channels ──────────
@@ -297,24 +315,70 @@ export async function createWorkspace(input: {
     warn("labels", e);
   }
 
-  // ── Starter form (published, ready to share) ─────────────────────────────
-  if (plan.starterForm) {
+  // ── Forms (published, ready to share) ────────────────────────────────────
+  if (plan.forms.length > 0) {
     try {
-      const { error } = await supabase.from("forms").insert({
-        property_id: propertyId,
-        title: plan.starterForm.title,
-        description: plan.starterForm.description || null,
-        icon: "📋",
-        schema: planFormToFormSchema(plan.starterForm.fields) as unknown as Record<
-          string,
-          unknown
-        >,
-        status: "published",
-        created_by: user.id,
-      });
+      const { error } = await supabase.from("forms").insert(
+        plan.forms.map((f) => ({
+          property_id: propertyId,
+          title: f.title,
+          description: f.description || null,
+          icon: f.icon ?? "📋",
+          schema: planFormToFormSchema(f.fields) as unknown as Record<
+            string,
+            unknown
+          >,
+          status: "published" as const,
+          created_by: user.id,
+        })),
+      );
       if (error) throw error;
     } catch (e) {
-      warn("starter form", e);
+      warn("forms", e);
+    }
+  }
+
+  // ── Starter SOP docs (titled stubs, ready to fill in) ────────────────────
+  if (plan.docs.length > 0) {
+    try {
+      const { error } = await supabase.from("documents").insert(
+        plan.docs.map((d, i) => ({
+          property_id: propertyId,
+          title: d.title,
+          kind: "doc" as const,
+          icon: d.icon ?? "📄",
+          position: i * 1024,
+          created_by: user.id,
+        })),
+      );
+      if (error) throw error;
+    } catch (e) {
+      warn("docs", e);
+    }
+  }
+
+  // ── Bookable services (capacity-mode, from what they operate) ────────────
+  const bookingServices = starterBookingServices(answers.operations);
+  if (bookingServices.length > 0) {
+    try {
+      const { error } = await supabase.from("bookable_services").insert(
+        bookingServices.map((svc) => ({
+          property_id: propertyId,
+          name: svc.name,
+          kind: svc.kind,
+          booking_mode: svc.bookingMode,
+          emoji: svc.emoji,
+          description: svc.description,
+          schedule: svc.schedule,
+          active: true,
+          // Staff refine hours/timezone and flip this on when ready to go live.
+          public_bookable: false,
+          created_by: user.id,
+        })),
+      );
+      if (error) throw error;
+    } catch (e) {
+      warn("bookable services", e);
     }
   }
 
@@ -325,6 +389,8 @@ export async function createWorkspace(input: {
         propertyId,
         email: invite.email,
         role: invite.role,
+        fullName: invite.name,
+        title: invite.title,
       });
       if ("error" in result) {
         warn(`invite ${invite.email}`, result.error);

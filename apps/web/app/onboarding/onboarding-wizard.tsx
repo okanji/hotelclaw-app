@@ -9,6 +9,7 @@ import {
   PlanSchema,
   colorAt,
   defaultDeptIcon,
+  starterBookingServices,
   type OnboardingAnswersInput,
   type OnboardingPlan,
 } from "@/lib/onboarding/plan";
@@ -92,6 +93,29 @@ const PRIORITY_OPTIONS = [
   "Reporting & insights",
 ];
 
+// What the property runs on-site — drives bookings services, chatbot, and
+// operation-specific forms in the build plan.
+const OPERATIONS_OPTIONS: { id: string; label: string }[] = [
+  { id: "rooms", label: "Rooms / stays" },
+  { id: "restaurant", label: "Restaurant" },
+  { id: "bar", label: "Bar" },
+  { id: "spa", label: "Spa / wellness" },
+  { id: "events", label: "Events / venue" },
+  { id: "tours", label: "Tours / activities" },
+  { id: "rentals", label: "Rentals" },
+  { id: "retail", label: "Retail / shop" },
+];
+
+// How guests reach the property — drives chatbot channels + intake forms.
+const GUEST_CONTACT_OPTIONS: { id: string; label: string }[] = [
+  { id: "walk_in", label: "Walk-in" },
+  { id: "phone", label: "Phone" },
+  { id: "whatsapp", label: "WhatsApp" },
+  { id: "email", label: "Email" },
+  { id: "ota", label: "OTAs (Booking.com, Airbnb…)" },
+  { id: "website", label: "Website" },
+];
+
 type Dept = { name: string; icon: string; color: EntityColor };
 type InviteRow = { email: string; role: "manager" | "staff" };
 
@@ -102,10 +126,12 @@ type Answers = {
   departments: Dept[];
   roleTitle: string;
   priorities: string[];
+  operations: string[];
+  guestContact: string[];
   invites: InviteRow[];
 };
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 8;
 
 // ─── Shared bits ────────────────────────────────────────────────────────────
 
@@ -205,7 +231,15 @@ const bigInputClass =
 
 // ─── Wizard ─────────────────────────────────────────────────────────────────
 
-export function OnboardingWizard({ fullName }: { fullName: string | null }) {
+export function OnboardingWizard({
+  fullName,
+  addingProperty = false,
+  returnTo = null,
+}: {
+  fullName: string | null;
+  addingProperty?: boolean;
+  returnTo?: string | null;
+}) {
   const router = useRouter();
   const firstName = (fullName ?? "").trim().split(/\s+/)[0] || null;
 
@@ -217,6 +251,8 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
     departments: [],
     roleTitle: "",
     priorities: [],
+    operations: [],
+    guestContact: [],
     invites: [],
   });
   // The property type whose department preset is currently applied — so
@@ -282,6 +318,18 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
           }}
         />
       </div>
+
+      {/* Escape hatch — only when adding an ADDITIONAL property (first-run has
+          nowhere to return to, so the user must complete it). */}
+      {addingProperty && returnTo && (
+        <button
+          type="button"
+          onClick={() => router.push(returnTo)}
+          className="fixed right-5 top-5 z-10 rounded-full px-3 py-1.5 text-sm text-[#8d877b] transition-colors hover:text-[#1f1e1b]"
+        >
+          Cancel
+        </button>
+      )}
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div
@@ -503,6 +551,81 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
           )}
 
           {step === 4 && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+            >
+              <Eyebrow>Step 5 of {TOTAL_STEPS}</Eyebrow>
+              <Question>What do you run at {propertyName}?</Question>
+              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+                Pick everything that applies — we&rsquo;ll set up booking,
+                ordering, and the right forms for each.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {OPERATIONS_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.id}
+                    selected={answers.operations.includes(o.id)}
+                    onClick={() =>
+                      set(
+                        "operations",
+                        answers.operations.includes(o.id)
+                          ? answers.operations.filter((x) => x !== o.id)
+                          : [...answers.operations, o.id],
+                      )
+                    }
+                  >
+                    {o.label}
+                  </Chip>
+                ))}
+              </div>
+              <div className="mt-10 flex items-center gap-3">
+                <PrimaryButton>Continue</PrimaryButton>
+                <GhostButton onClick={back}>Back</GhostButton>
+              </div>
+            </form>
+          )}
+
+          {step === 5 && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+            >
+              <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
+              <Question>How do guests reach you?</Question>
+              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+                This shapes your guest chatbot and the intake forms we create.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {GUEST_CONTACT_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.id}
+                    selected={answers.guestContact.includes(o.id)}
+                    onClick={() =>
+                      set(
+                        "guestContact",
+                        answers.guestContact.includes(o.id)
+                          ? answers.guestContact.filter((x) => x !== o.id)
+                          : [...answers.guestContact, o.id],
+                      )
+                    }
+                  >
+                    {o.label}
+                  </Chip>
+                ))}
+              </div>
+              <div className="mt-10 flex items-center gap-3">
+                <PrimaryButton>Continue</PrimaryButton>
+                <GhostButton onClick={back}>Back</GhostButton>
+              </div>
+            </form>
+          )}
+
+          {step === 6 && (
             <InviteStep
               propertyName={propertyName}
               invites={answers.invites}
@@ -516,7 +639,7 @@ export function OnboardingWizard({ fullName }: { fullName: string | null }) {
             />
           )}
 
-          {step === 5 && (
+          {step === 7 && (
             <BuildStep
               answers={answers}
               onDone={(propertyId) => router.push(`/p/${propertyId}/home`)}
@@ -572,7 +695,7 @@ function InviteStep({
         onContinue();
       }}
     >
-      <Eyebrow>Step 5 of {TOTAL_STEPS}</Eyebrow>
+      <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
       <Question>Bring the {propertyName} team along?</Question>
       <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
         You can always invite people later from Settings.
@@ -646,7 +769,7 @@ function InviteStep({
 
 // ─── Step 6: build ──────────────────────────────────────────────────────────
 
-type BuildPhase = "planning" | "building" | "done" | "error";
+type BuildPhase = "planning" | "review" | "building" | "done" | "error";
 
 function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] {
   if (!plan) {
@@ -679,8 +802,29 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
         .join(", ")}${plan.labels.length > 3 ? "…" : ""}`,
     );
   }
-  if (plan.starterForm) {
-    lines.push(`A "${plan.starterForm.title}" form, ready to share`);
+  if (plan.forms.length > 0) {
+    lines.push(
+      plan.forms.length === 1
+        ? `A "${plan.forms[0].title}" form, ready to share`
+        : `${plan.forms.length} ready-to-share forms — ${plan.forms
+            .map((f) => f.title)
+            .join(", ")}`,
+    );
+  }
+  if (plan.docs.length > 0) {
+    lines.push(
+      `${plan.docs.length} starter SOP doc${plan.docs.length === 1 ? "" : "s"} — ${plan.docs
+        .map((d) => d.title)
+        .join(", ")}`,
+    );
+  }
+  const bookingSvcs = starterBookingServices(answers.operations);
+  if (bookingSvcs.length > 0) {
+    lines.push(
+      `${bookingSvcs.length} bookable service${bookingSvcs.length === 1 ? "" : "s"} — ${bookingSvcs
+        .map((s) => s.name)
+        .join(", ")}`,
+    );
   }
   if (answers.invites.length > 0) {
     lines.push(
@@ -700,11 +844,56 @@ function BuildStep({
   onBack: () => void;
 }) {
   const [phase, setPhase] = useState<BuildPhase>("planning");
+  const [plan, setPlan] = useState<OnboardingPlan | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [shownCount, setShownCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const ranRef = useRef<number>(-1);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const payload: OnboardingAnswersInput = {
+    propertyName: answers.propertyName.trim(),
+    propertyType: answers.propertyType,
+    teamSize: answers.teamSize,
+    departments: answers.departments,
+    roleTitle: answers.roleTitle.trim(),
+    priorities: answers.priorities,
+    operations: answers.operations,
+    guestContact: answers.guestContact,
+    invites: answers.invites,
+  };
+
+  // Confirm handler — only runs once the user approves the review.
+  async function runBuild() {
+    setPhase("building");
+    setShownCount(0);
+    try {
+      const result = await createWorkspace({ answers: payload, plan });
+      if (!mountedRef.current) return;
+      if ("error" in result) {
+        setError(result.error);
+        setPhase("error");
+        return;
+      }
+      setShownCount(Number.MAX_SAFE_INTEGER);
+      setPhase("done");
+      setTimeout(() => {
+        if (mountedRef.current) onDone(result.propertyId);
+      }, 1600);
+    } catch {
+      if (mountedRef.current) {
+        setError("Something went wrong while setting up.");
+        setPhase("error");
+      }
+    }
+  }
 
   // Reveal checklist lines one by one while the workspace builds.
   useEffect(() => {
@@ -715,29 +904,24 @@ function BuildStep({
 
   useEffect(() => {
     // Guard StrictMode double-mount + power the Retry button via `attempt`.
+    // NOTE: don't use a per-effect `cancelled` flag here — StrictMode's first
+    // cleanup would flip it before the (single, ranRef-guarded) fetch resolves,
+    // stranding the UI on "planning" forever. `mountedRef` reflects the *real*
+    // mount state across the StrictMode remount, so it only bails on a true
+    // unmount.
     if (ranRef.current === attempt) return;
     ranRef.current = attempt;
 
-    let cancelled = false;
-
-    (async () => {
+    void (async () => {
       setPhase("planning");
       setError(null);
       setShownCount(0);
 
-      const payload: OnboardingAnswersInput = {
-        propertyName: answers.propertyName.trim(),
-        propertyType: answers.propertyType,
-        teamSize: answers.teamSize,
-        departments: answers.departments,
-        roleTitle: answers.roleTitle.trim(),
-        priorities: answers.priorities,
-        invites: answers.invites,
-      };
-
-      // 1. Ask the AI for the plan. On any failure the server action
-      //    recomputes the deterministic fallback from `plan: null`.
-      let plan: OnboardingPlan | null = null;
+      // Ask the AI for the plan, then STOP at the review screen — the seeding
+      // itself only runs once the user confirms (see runBuild). On any failure
+      // the server recomputes the deterministic fallback from `plan: null` at
+      // build time.
+      let nextPlan: OnboardingPlan | null = null;
       try {
         const res = await fetch("/api/onboarding/plan", {
           method: "POST",
@@ -747,42 +931,17 @@ function BuildStep({
         if (res.ok) {
           const json = await res.json();
           const parsed = PlanSchema.safeParse(json?.plan);
-          if (parsed.success) plan = parsed.data;
+          if (parsed.success) nextPlan = parsed.data;
         }
       } catch {
-        // fall through — server-side fallback covers this
+        // fall through — deterministic fallback covers this at build time
       }
-      if (cancelled) return;
+      if (!mountedRef.current) return;
 
-      setLines(planChecklist(plan, answers));
-      setPhase("building");
-
-      // 2. Seed the workspace.
-      try {
-        const result = await createWorkspace({ answers: payload, plan });
-        if (cancelled) return;
-        if ("error" in result) {
-          setError(result.error);
-          setPhase("error");
-          return;
-        }
-        // Let the checklist finish its reveal, then the payoff beat.
-        setShownCount(Number.MAX_SAFE_INTEGER);
-        setPhase("done");
-        setTimeout(() => {
-          if (!cancelled) onDone(result.propertyId);
-        }, 1600);
-      } catch {
-        if (!cancelled) {
-          setError("Something went wrong while setting up.");
-          setPhase("error");
-        }
-      }
+      setPlan(nextPlan);
+      setLines(planChecklist(nextPlan, answers));
+      setPhase("review");
     })();
-
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
@@ -805,7 +964,7 @@ function BuildStep({
   if (phase === "error") {
     return (
       <div className="animate-in fade-in duration-300">
-        <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
+        <Eyebrow>Step 8 of {TOTAL_STEPS}</Eyebrow>
         <Question>That didn&rsquo;t work — let&rsquo;s try again.</Question>
         <p className="mt-4 text-sm text-[#b3422a]">{error}</p>
         <div className="mt-8 flex items-center gap-3">
@@ -818,9 +977,38 @@ function BuildStep({
     );
   }
 
+  // Review gate — the user approves the generated plan before anything is
+  // created. Nothing has been seeded yet at this point.
+  if (phase === "review") {
+    return (
+      <div className="animate-in fade-in duration-300">
+        <Eyebrow>Step 8 of {TOTAL_STEPS} · Review</Eyebrow>
+        <Question>Here&rsquo;s what we&rsquo;ll set up for {propertyName}</Question>
+        <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+          Nothing&rsquo;s been created yet — have a look, then build it. You can
+          reshape any of this later.
+        </p>
+        <ul className="mt-8 space-y-2.5">
+          {lines.map((line) => (
+            <li key={line} className="flex items-center gap-3 text-sm">
+              <Check />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-10 flex items-center gap-3">
+          <PrimaryButton type="button" onClick={runBuild}>
+            Build my workspace
+          </PrimaryButton>
+          <GhostButton onClick={onBack}>Back</GhostButton>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
+      <Eyebrow>Step 8 of {TOTAL_STEPS}</Eyebrow>
       <Question>Setting up {propertyName}…</Question>
       <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
         {phase === "planning"
