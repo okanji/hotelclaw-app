@@ -826,6 +826,9 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
         .join(", ")}`,
     );
   }
+  lines.push(
+    "A draft guest chatbot, tailored to how you run things (review under Chatbots)",
+  );
   if (answers.invites.length > 0) {
     lines.push(
       `Inviting ${answers.invites.length} teammate${answers.invites.length === 1 ? "" : "s"}…`,

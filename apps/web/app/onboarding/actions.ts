@@ -8,6 +8,7 @@ import {
   upsertStreamUser,
 } from "@/lib/stream/server";
 import { createInvite } from "@/lib/invites/actions";
+import { startGuestChatbotBuild } from "@/lib/onboarding/chatbot-workflow";
 import {
   AnswersSchema,
   PlanSchema,
@@ -380,6 +381,34 @@ export async function createWorkspace(input: {
     } catch (e) {
       warn("bookable services", e);
     }
+  }
+
+  // ── Guest chatbot (durable workflow — AI draft with template fallback) ──
+  // Fire-and-forget: the workflow runs beyond this request; the draft bot
+  // appears under Chatbots shortly after the user lands in the workspace.
+  try {
+    const opsList = answers.operations.length
+      ? answers.operations.join(", ")
+      : "general hospitality";
+    const contactList = answers.guestContact.length
+      ? answers.guestContact.join(", ")
+      : "in person";
+    await startGuestChatbotBuild({
+      propertyId,
+      ownerId: user.id,
+      propertyName: answers.propertyName,
+      description: [
+        `A guest-facing chatbot for ${answers.propertyName}, a ${answers.propertyType.replace(/-/g, " ")} (${answers.teamSize} staff).`,
+        `On-site operations: ${opsList}.`,
+        `Guests typically reach the property via: ${contactList}.`,
+        `The bot should answer common guest questions, take simple requests, and hand off to staff when needed.`,
+        answers.notes ? `How the property runs day-to-day: ${answers.notes}` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    });
+  } catch (e) {
+    warn("guest chatbot", e);
   }
 
   // ── Invites (best-effort, per row) ───────────────────────────────────────
