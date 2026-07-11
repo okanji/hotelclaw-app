@@ -10,6 +10,10 @@ import {
 import { createInvite } from "@/lib/invites/actions";
 import { startGuestChatbotBuild } from "@/lib/onboarding/chatbot-workflow";
 import {
+  seedStarterAutomation,
+  seedDefaultAlertRules,
+} from "@/lib/onboarding/automations";
+import {
   AnswersSchema,
   PlanSchema,
   deterministicPlan,
@@ -317,23 +321,29 @@ export async function createWorkspace(input: {
   }
 
   // ── Forms (published, ready to share) ────────────────────────────────────
+  // Ids captured so the starter automation can bind to the maintenance form.
+  let insertedForms: { id: string; title: string }[] = [];
   if (plan.forms.length > 0) {
     try {
-      const { error } = await supabase.from("forms").insert(
-        plan.forms.map((f) => ({
-          property_id: propertyId,
-          title: f.title,
-          description: f.description || null,
-          icon: f.icon ?? "📋",
-          schema: planFormToFormSchema(f.fields) as unknown as Record<
-            string,
-            unknown
-          >,
-          status: "published" as const,
-          created_by: user.id,
-        })),
-      );
+      const { data: formRows, error } = await supabase
+        .from("forms")
+        .insert(
+          plan.forms.map((f) => ({
+            property_id: propertyId,
+            title: f.title,
+            description: f.description || null,
+            icon: f.icon ?? "📋",
+            schema: planFormToFormSchema(f.fields) as unknown as Record<
+              string,
+              unknown
+            >,
+            status: "published" as const,
+            created_by: user.id,
+          })),
+        )
+        .select("id, title");
       if (error) throw error;
+      insertedForms = formRows ?? [];
     } catch (e) {
       warn("forms", e);
     }
@@ -409,6 +419,35 @@ export async function createWorkspace(input: {
     });
   } catch (e) {
     warn("guest chatbot", e);
+  }
+
+  // ── Starter automation: maintenance form → task ──────────────────────────
+  const maintenanceForm = insertedForms.find((f) => /maintenance/i.test(f.title));
+  if (maintenanceForm) {
+    try {
+      // Route the task to the maintenance/engineering team when one exists.
+      const maintenanceSpace = plan.spaces.find((s) =>
+        /mainten|engineer/i.test(s.name),
+      );
+      await seedStarterAutomation({
+        propertyId,
+        userId: user.id,
+        formId: maintenanceForm.id,
+        formTitle: maintenanceForm.title,
+        spaceId: maintenanceSpace
+          ? (spaceIdBySlug.get(maintenanceSpace.channelSlug) ?? null)
+          : null,
+      });
+    } catch (e) {
+      warn("starter automation", e);
+    }
+  }
+
+  // ── Default insight alert rules for the owner ────────────────────────────
+  try {
+    await seedDefaultAlertRules({ propertyId, userId: user.id });
+  } catch (e) {
+    warn("alert rules", e);
   }
 
   // ── Invites (best-effort, per row) ───────────────────────────────────────

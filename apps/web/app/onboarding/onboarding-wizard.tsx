@@ -829,6 +829,14 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
   lines.push(
     "A draft guest chatbot, tailored to how you run things (review under Chatbots)",
   );
+  if (plan.forms.some((f) => /maintenance/i.test(f.title))) {
+    lines.push(
+      "A live automation — maintenance form submissions become tasks automatically",
+    );
+  }
+  lines.push(
+    "Default alerts — overdue pile-ups, blocked work, unassigned urgent tasks, at-risk projects",
+  );
   if (answers.invites.length > 0) {
     lines.push(
       `Inviting ${answers.invites.length} teammate${answers.invites.length === 1 ? "" : "s"}…`,
