@@ -52,6 +52,12 @@ Everything routes through tokens in `app/globals.css`:
   — the Slack-heritage marks (property tile, rail badge, chat active-tab
   underline).
 - `icon-accent` — the Apple-Mail blue for nav/doc glyphs.
+- **Guest palette: `guest-*` tokens** (added 2026-07-12) — the entire cream
+  world routes through `bg-guest-bg / bg-guest-card / text-guest-ink /
+  -ink-soft / -ink-mid / -ink-faint / border-guest-line / -line-strong /
+  bg-guest-line-soft / bg-guest-accent / hover:bg-guest-accent-hover /
+  text-guest-accent-ink / text-guest-danger`. Never theme-switched, never
+  re-typed as hex. `font-serif` is a real token (the guest display voice).
 
 Domain color maps (single sources of truth — extend these, never fork):
 
@@ -119,6 +125,33 @@ pills `rounded-full`.
   assignee/due-date menu contents + date helpers; inline chips and the detail
   sidebar both consume them (triggers stay per-surface).
 
+## Shipped 2026-07-12 (third pass — reusable primitives)
+
+- **Guest tokens + kit** — the cream-world palette left per-file JS consts and
+  became `--guest-*` CSS vars (globals.css) + `components/guest/ui.tsx`:
+  `GuestShell / GuestQuestion / GuestHint / GuestPrimaryButton /
+  GuestGhostButton / GuestBigInput / GuestInput / GuestError`. The onboarding
+  wizard and `/welcome` are the reference implementations (zero hex values
+  left in either).
+- **`ui/eyebrow`** — the ramp's eyebrow tier as a component, `tone="app"`
+  (muted-foreground) or `tone="guest"` (warm gray). Stop re-typing
+  `tracking-[0.18em]`.
+- **`ui/chip`** — selectable pill with real `aria-pressed`, `tone="app|guest"`.
+  The wizard's chip, generalized.
+- **`ui/section-header`** — title/description/actions row on the ramp's
+  `section` (text-xl) and `panel` (text-base) tiers; use it instead of the
+  ~70th inline `flex items-center justify-between` header.
+- **`ui/stat`** — `StatGroup` + `Stat`: divider-separated metric strips
+  (opacity hairlines, `tabular-nums` values, truncated labels, no icons —
+  stats are never cards). For agenda pulse strips, insights, workload.
+- **`ui/status-badge`** — tone-driven lifecycle pill
+  (`neutral|success|warning|info|danger|violet`) with a leading dot. Domains
+  keep a status→tone map (the `BOOKING_STATUS_UI` pattern) and render this;
+  nobody picks badge shades inline.
+
+Adoption rule: new surfaces use these; existing surfaces convert when
+touched.
+
 ## Known debt (next passes, in priority order)
 
 1. **Section-level mobile polish** — the shell now works on phones, but dense
@@ -129,9 +162,14 @@ pills `rounded-full`.
    hovers; either adopt everywhere deliberately or strip (guideline says
    strip). Decide once, apply mechanically.
 3. Avatar fallback sizes/rings vary per surface — fold into `ui/avatar` sizes.
-4. Cream-world palette constants (`INK`/`ACCENT`…) are still per-file JS
-   consts; promote to `--guest-*` CSS vars when touching those files next.
+4. ~~Cream-world palette constants → `--guest-*` vars~~ **done 2026-07-12**
+   for tokens + wizard + welcome; the remaining cream surfaces (public
+   booking wizard, guest chat, event pages, `chat-cards.tsx`, booking
+   emails, onboarding/welcome loading+error files) still hardcode hexes —
+   migrate to the guest kit when touched.
 5. Remaining empty states (docs boards, chat info-panel tabs) → `EmptyState`;
    remaining bespoke toggles (forms `Toggle`) → a shared `Switch`.
+   Section headers / stat strips / status pills: convert to `ui/section-header`,
+   `ui/stat`, `ui/status-badge` as surfaces are touched.
 6. Pre-existing lint debt: `react/no-unescaped-entities` + setState-in-effect
    errors across ~20 files (predates the design pass).

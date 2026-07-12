@@ -4,6 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Chip as ChipBase } from "@/components/ui/chip";
+import { Eyebrow as EyebrowBase } from "@/components/ui/eyebrow";
+import {
+  GuestBigInput,
+  GuestError,
+  GuestGhostButton as GhostButton,
+  GuestHint,
+  GuestInput,
+  GuestPrimaryButton as PrimaryButton,
+  GuestQuestion as Question,
+} from "@/components/guest/ui";
 import type { EntityColor } from "@/lib/db/types";
 import {
   PlanSchema,
@@ -18,17 +29,31 @@ import { createWorkspace } from "./actions";
 /**
  * The setup wizard — a full-screen, one-question-per-screen takeover in
  * its own warm-cream visual world (deliberately not the app shell's
- * palette). Six beats: name → type/size → departments → role/priorities →
- * invites → build. The build screen fetches the AI plan, animates it
- * assembling, runs `createWorkspace`, and lands the user in their new
- * workspace with everything already set up.
+ * palette). Seven beats: name → type/size → departments → role →
+ * operations → invites → build. The build screen fetches the AI plan,
+ * animates it assembling, runs `createWorkspace`, and lands the user in
+ * their new workspace with everything already set up.
+ *
+ * Priorities and guest-contact channels are NOT asked — every property is
+ * built with all of them on (the questions tested poorly; owners just want
+ * the full setup). The answer fields still flow to the plan generator and
+ * property_profiles with everything selected.
  */
 
-// ─── Palette (forced locally — the wizard is its own world) ─────────────────
+// Palette + primitives come from the guest design system: `guest-*` tokens in
+// globals.css and the kit in components/guest/ui.tsx. The wizard pins the
+// guest tone on the shared Chip/Eyebrow once here so call sites stay terse.
 
-const ACCENT = "#c96442";
-const INK = "#1f1e1b";
-const INK_SOFT = "#6f6a60";
+function Chip(props: React.ComponentProps<typeof ChipBase>) {
+  return <ChipBase tone="guest" {...props} />;
+}
+
+function Eyebrow({
+  className,
+  ...props
+}: React.ComponentProps<typeof EyebrowBase>) {
+  return <EyebrowBase tone="guest" className={cn("mb-3", className)} {...props} />;
+}
 
 // ─── Step data ──────────────────────────────────────────────────────────────
 
@@ -131,103 +156,7 @@ type Answers = {
   invites: InviteRow[];
 };
 
-const TOTAL_STEPS = 8;
-
-// ─── Shared bits ────────────────────────────────────────────────────────────
-
-function Chip({
-  selected,
-  onClick,
-  children,
-  className,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cn(
-        "rounded-full border px-4 py-2 text-sm transition-colors duration-150",
-        selected
-          ? "border-[#c96442] bg-[#c96442]/10 text-[#9d4a2f]"
-          : "border-[#dedbd2] bg-white/60 text-[#494539] hover:border-[#bcb6a8]",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-[#a39e93]">
-      {children}
-    </p>
-  );
-}
-
-function Question({ children }: { children: React.ReactNode }) {
-  return (
-    <h1 className="font-serif text-3xl leading-tight text-balance sm:text-4xl">
-      {children}
-    </h1>
-  );
-}
-
-function PrimaryButton({
-  children,
-  disabled,
-  type = "submit",
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  type?: "submit" | "button";
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "h-11 rounded-full px-7 text-sm font-medium text-white",
-        "bg-[#c96442] hover:bg-[#b05236]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c96442]",
-        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#c96442]",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function GhostButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="h-11 rounded-full px-4 text-sm text-[#8d877b] transition-colors hover:text-[#1f1e1b]"
-    >
-      {children}
-    </button>
-  );
-}
-
-const bigInputClass =
-  "w-full border-0 border-b-2 border-[#dedbd2] bg-transparent pb-2 font-serif text-2xl outline-none transition-colors placeholder:text-[#c5c0b4] focus:border-[#c96442] sm:text-3xl";
+const TOTAL_STEPS = 7;
 
 // ─── Wizard ─────────────────────────────────────────────────────────────────
 
@@ -244,15 +173,18 @@ export function OnboardingWizard({
   const firstName = (fullName ?? "").trim().split(/\s+/)[0] || null;
 
   const [step, setStep] = useState(0);
+  // Priorities + guest channels aren't asked anymore — every property gets
+  // the full build (all priorities, all contact channels). The fields stay
+  // in Answers so the plan generator and property_profiles keep their shape.
   const [answers, setAnswers] = useState<Answers>({
     propertyName: "",
     propertyType: "",
     teamSize: "",
     departments: [],
     roleTitle: "",
-    priorities: [],
+    priorities: [...PRIORITY_OPTIONS],
     operations: [],
-    guestContact: [],
+    guestContact: GUEST_CONTACT_OPTIONS.map((o) => o.id),
     invites: [],
   });
   // The property type whose department preset is currently applied — so
@@ -304,18 +236,16 @@ export function OnboardingWizard({
   const propertyName = answers.propertyName.trim() || "your property";
 
   return (
-    <div
-      className="flex min-h-svh flex-col"
-      style={{ backgroundColor: "#faf9f5", color: INK }}
-    >
+    <div className="flex min-h-svh flex-col bg-guest-bg text-guest-ink">
       {/* Progress bar */}
-      <div className="fixed inset-x-0 top-0 z-10 h-1 bg-[#eceae2]">
+      <div className="fixed inset-x-0 top-0 z-10 h-1 bg-guest-line-soft">
         <div
-          className="h-full transition-[width] duration-500 ease-out"
-          style={{
-            width: `${((step + 1) / TOTAL_STEPS) * 100}%`,
-            backgroundColor: ACCENT,
-          }}
+          className="h-full w-(--progress) bg-guest-accent transition-[width] duration-500 ease-out"
+          style={
+            {
+              "--progress": `${((step + 1) / TOTAL_STEPS) * 100}%`,
+            } as React.CSSProperties
+          }
         />
       </div>
 
@@ -325,7 +255,7 @@ export function OnboardingWizard({
         <button
           type="button"
           onClick={() => router.push(returnTo)}
-          className="fixed right-5 top-5 z-10 rounded-full px-3 py-1.5 text-sm text-[#8d877b] transition-colors hover:text-[#1f1e1b]"
+          className="fixed right-5 top-5 z-10 rounded-full px-3 py-1.5 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink"
         >
           Cancel
         </button>
@@ -347,21 +277,21 @@ export function OnboardingWizard({
                 {firstName ? `Hi ${firstName} · ` : ""}Step 1 of {TOTAL_STEPS}
               </Eyebrow>
               <Question>What&rsquo;s your property called?</Question>
-              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+              <GuestHint>
                 This becomes your team&rsquo;s workspace. You can rename it any
                 time.
-              </p>
-              <input
+              </GuestHint>
+              <GuestBigInput
                 autoFocus
                 value={answers.propertyName}
                 onChange={(e) => set("propertyName", e.target.value)}
                 placeholder="The Grand Hotel"
                 maxLength={120}
-                className={cn(bigInputClass, "mt-10")}
+                className="mt-10"
               />
               <div className="mt-10 flex items-center gap-3">
                 <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
-                <span className="text-xs" style={{ color: "#a39e93" }}>
+                <span className="text-xs text-guest-ink-faint">
                   press Enter ↵
                 </span>
               </div>
@@ -390,12 +320,9 @@ export function OnboardingWizard({
                   </Chip>
                 ))}
               </div>
-              <p
-                className="mt-10 text-xs font-medium uppercase tracking-[0.18em]"
-                style={{ color: "#a39e93" }}
-              >
+              <Eyebrow className="mt-10 mb-0">
                 And how big is the team?
-              </p>
+              </Eyebrow>
               <div className="mt-3 flex flex-wrap gap-2">
                 {TEAM_SIZES.map((s) => (
                   <Chip
@@ -423,11 +350,11 @@ export function OnboardingWizard({
             >
               <Eyebrow>Step 3 of {TOTAL_STEPS}</Eyebrow>
               <Question>Which teams run {propertyName}?</Question>
-              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+              <GuestHint>
                 Each one gets its own space and channel. We&rsquo;ve
                 pre-selected the usual suspects — tap to remove, or add your
                 own.
-              </p>
+              </GuestHint>
               <div className="mt-8 flex flex-wrap gap-2">
                 {answers.departments.map((d) => (
                   <Chip
@@ -447,7 +374,7 @@ export function OnboardingWizard({
                 ))}
               </div>
               <div className="mt-5 flex items-center gap-2">
-                <input
+                <GuestInput
                   value={deptDraft}
                   onChange={(e) => setDeptDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -477,9 +404,9 @@ export function OnboardingWizard({
                   }}
                   placeholder="Add your own…"
                   maxLength={60}
-                  className="h-10 flex-1 rounded-full border border-[#dedbd2] bg-white/60 px-4 text-sm outline-none transition-colors placeholder:text-[#c5c0b4] focus:border-[#c96442]"
+                  className="h-10 flex-1"
                 />
-                <span className="text-xs" style={{ color: "#a39e93" }}>
+                <span className="text-xs text-guest-ink-faint">
                   Enter to add
                 </span>
               </div>
@@ -499,13 +426,13 @@ export function OnboardingWizard({
             >
               <Eyebrow>Step 4 of {TOTAL_STEPS}</Eyebrow>
               <Question>And what&rsquo;s your role?</Question>
-              <input
+              <GuestBigInput
                 autoFocus
                 value={answers.roleTitle}
                 onChange={(e) => set("roleTitle", e.target.value)}
                 placeholder="General Manager"
                 maxLength={80}
-                className={cn(bigInputClass, "mt-8")}
+                className="mt-8"
               />
               <div className="mt-4 flex flex-wrap gap-2">
                 {ROLE_SUGGESTIONS.map((r) => (
@@ -516,30 +443,6 @@ export function OnboardingWizard({
                     className="px-3 py-1.5 text-xs"
                   >
                     {r}
-                  </Chip>
-                ))}
-              </div>
-              <p
-                className="mt-10 text-xs font-medium uppercase tracking-[0.18em]"
-                style={{ color: "#a39e93" }}
-              >
-                What should {propertyName} get out of Hotelclaw?
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {PRIORITY_OPTIONS.map((p) => (
-                  <Chip
-                    key={p}
-                    selected={answers.priorities.includes(p)}
-                    onClick={() =>
-                      set(
-                        "priorities",
-                        answers.priorities.includes(p)
-                          ? answers.priorities.filter((x) => x !== p)
-                          : [...answers.priorities, p],
-                      )
-                    }
-                  >
-                    {p}
                   </Chip>
                 ))}
               </div>
@@ -559,10 +462,10 @@ export function OnboardingWizard({
             >
               <Eyebrow>Step 5 of {TOTAL_STEPS}</Eyebrow>
               <Question>What do you run at {propertyName}?</Question>
-              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+              <GuestHint>
                 Pick everything that applies — we&rsquo;ll set up booking,
                 ordering, and the right forms for each.
-              </p>
+              </GuestHint>
               <div className="mt-8 flex flex-wrap gap-2">
                 {OPERATIONS_OPTIONS.map((o) => (
                   <Chip
@@ -589,43 +492,6 @@ export function OnboardingWizard({
           )}
 
           {step === 5 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                next();
-              }}
-            >
-              <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
-              <Question>How do guests reach you?</Question>
-              <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
-                This shapes your guest chatbot and the intake forms we create.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {GUEST_CONTACT_OPTIONS.map((o) => (
-                  <Chip
-                    key={o.id}
-                    selected={answers.guestContact.includes(o.id)}
-                    onClick={() =>
-                      set(
-                        "guestContact",
-                        answers.guestContact.includes(o.id)
-                          ? answers.guestContact.filter((x) => x !== o.id)
-                          : [...answers.guestContact, o.id],
-                      )
-                    }
-                  >
-                    {o.label}
-                  </Chip>
-                ))}
-              </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton>Continue</PrimaryButton>
-                <GhostButton onClick={back}>Back</GhostButton>
-              </div>
-            </form>
-          )}
-
-          {step === 6 && (
             <InviteStep
               propertyName={propertyName}
               invites={answers.invites}
@@ -639,7 +505,7 @@ export function OnboardingWizard({
             />
           )}
 
-          {step === 7 && (
+          {step === 6 && (
             <BuildStep
               answers={answers}
               onDone={(propertyId) => router.push(`/p/${propertyId}/home`)}
@@ -695,22 +561,20 @@ function InviteStep({
         onContinue();
       }}
     >
-      <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
+      <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
       <Question>Bring the {propertyName} team along?</Question>
-      <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
-        You can always invite people later from Settings.
-      </p>
+      <GuestHint>You can always invite people later from Settings.</GuestHint>
       <div className="mt-8 space-y-3">
         {rows.map((row, i) => (
           <div key={i} className="flex items-center gap-2">
-            <input
+            <GuestInput
               type="email"
               value={row.email}
               onChange={(e) => update(i, { email: e.target.value })}
               placeholder="teammate@example.com"
-              className="h-11 flex-1 rounded-full border border-[#dedbd2] bg-white/60 px-4 text-sm outline-none transition-colors placeholder:text-[#c5c0b4] focus:border-[#c96442]"
+              className="flex-1"
             />
-            <div className="flex rounded-full border border-[#dedbd2] bg-white/60 p-0.5">
+            <div className="flex rounded-full border border-guest-line bg-guest-card p-0.5">
               {(["manager", "staff"] as const).map((role) => (
                 <button
                   key={role}
@@ -719,8 +583,8 @@ function InviteStep({
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs capitalize transition-colors",
                     row.role === role
-                      ? "bg-[#c96442]/10 text-[#9d4a2f]"
-                      : "text-[#8d877b] hover:text-[#1f1e1b]",
+                      ? "bg-guest-accent/10 text-guest-accent-ink"
+                      : "text-guest-ink-faint hover:text-guest-ink",
                   )}
                 >
                   {role}
@@ -732,7 +596,7 @@ function InviteStep({
                 type="button"
                 aria-label="Remove"
                 onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-                className="text-sm text-[#a39e93] hover:text-[#1f1e1b]"
+                className="text-sm text-guest-ink-faint hover:text-guest-ink"
               >
                 ×
               </button>
@@ -744,15 +608,14 @@ function InviteStep({
         type="button"
         onClick={() => onChange([...rows, { email: "", role: "staff" }])}
         disabled={rows.length >= 20}
-        className="mt-3 text-sm transition-colors hover:text-[#1f1e1b] disabled:opacity-40"
-        style={{ color: "#8d877b" }}
+        className="mt-3 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink disabled:opacity-40"
       >
         Add another
       </button>
       {hasPartial ? (
-        <p className="mt-3 text-sm text-[#b3422a]">
+        <GuestError className="mt-3">
           One of those emails doesn&rsquo;t look right.
-        </p>
+        </GuestError>
       ) : null}
       <div className="mt-10 flex items-center gap-3">
         <PrimaryButton disabled={hasPartial}>
@@ -962,12 +825,12 @@ function BuildStep({
     return (
       <div className="animate-in fade-in zoom-in-95 text-center duration-500">
         <Eyebrow>All set</Eyebrow>
-        <h1 className="font-serif text-4xl leading-tight text-balance sm:text-5xl">
+        <Question className="text-4xl sm:text-5xl">
           Welcome to {propertyName}
-        </h1>
-        <p className="mt-4 text-sm" style={{ color: INK_SOFT }}>
+        </Question>
+        <GuestHint className="mt-4">
           Taking you to your new workspace…
-        </p>
+        </GuestHint>
       </div>
     );
   }
@@ -975,9 +838,9 @@ function BuildStep({
   if (phase === "error") {
     return (
       <div className="animate-in fade-in duration-300">
-        <Eyebrow>Step 8 of {TOTAL_STEPS}</Eyebrow>
+        <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
         <Question>That didn&rsquo;t work — let&rsquo;s try again.</Question>
-        <p className="mt-4 text-sm text-[#b3422a]">{error}</p>
+        <GuestError>{error}</GuestError>
         <div className="mt-8 flex items-center gap-3">
           <PrimaryButton type="button" onClick={() => setAttempt((a) => a + 1)}>
             Retry setup
@@ -993,13 +856,13 @@ function BuildStep({
   if (phase === "review") {
     return (
       <div className="animate-in fade-in duration-300">
-        <Eyebrow>Step 8 of {TOTAL_STEPS} · Review</Eyebrow>
+        <Eyebrow>Step 7 of {TOTAL_STEPS} · Review</Eyebrow>
         <Question>Here&rsquo;s what we&rsquo;ll set up for {propertyName}</Question>
-        <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+        <GuestHint>
           Nothing&rsquo;s been created yet — have a look, then build it. You can
           reshape any of this later.
-        </p>
-        <ul className="mt-8 space-y-2.5">
+        </GuestHint>
+        <ul role="list" className="mt-8 space-y-2.5">
           {lines.map((line) => (
             <li key={line} className="flex items-center gap-3 text-sm">
               <Check />
@@ -1019,16 +882,16 @@ function BuildStep({
 
   return (
     <div>
-      <Eyebrow>Step 8 of {TOTAL_STEPS}</Eyebrow>
+      <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
       <Question>Setting up {propertyName}…</Question>
-      <p className="mt-3 text-sm" style={{ color: INK_SOFT }}>
+      <GuestHint>
         {phase === "planning"
           ? "Designing your workspace around how you run things…"
           : "Almost there — building it now."}
-      </p>
-      <ul className="mt-10 space-y-3">
+      </GuestHint>
+      <ul role="list" className="mt-10 space-y-3">
         {phase === "planning" ? (
-          <li className="flex items-center gap-3 text-sm" style={{ color: INK_SOFT }}>
+          <li className="flex items-center gap-3 text-sm text-guest-ink-soft">
             <Spinner />
             Thinking through {answers.departments.length} departments and{" "}
             {answers.priorities.length || "your"} priorities…
@@ -1055,19 +918,13 @@ function BuildStep({
 
 function Spinner() {
   return (
-    <span
-      className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-[#dedbd2]"
-      style={{ borderTopColor: ACCENT }}
-    />
+    <span className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-guest-line border-t-guest-accent" />
   );
 }
 
 function Check() {
   return (
-    <span
-      className="flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] text-white"
-      style={{ backgroundColor: ACCENT }}
-    >
+    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-guest-accent text-[10px] text-white">
       ✓
     </span>
   );

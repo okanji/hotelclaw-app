@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
 import { safeNextPath } from "@/lib/auth/safe-next";
+import { GuestShell } from "@/components/guest/ui";
 import { WelcomeForm } from "./welcome-form";
 
 export default async function WelcomePage({
@@ -37,8 +38,8 @@ export default async function WelcomePage({
       : "");
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-[#faf9f5] px-6 py-16 text-[#1f1e1b]">
+    <GuestShell>
       <WelcomeForm defaultName={defaultName} next={next} />
-    </main>
+    </GuestShell>
   );
 }

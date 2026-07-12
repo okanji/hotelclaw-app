@@ -3,6 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import {
+  GuestBigInput,
+  GuestError,
+  GuestHint,
+  GuestPrimaryButton,
+  GuestQuestion,
+} from "@/components/guest/ui";
 import { completeOnboarding } from "./actions";
 
 type Props = {
@@ -47,18 +55,16 @@ export function WelcomeForm({ defaultName, next }: Props) {
 
   return (
     <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-[#a39e93]">
+      <Eyebrow tone="guest" className="mb-3">
         Welcome to Hotelclaw
-      </p>
-      <h1 className="font-serif text-3xl leading-tight text-balance text-[#1f1e1b] sm:text-4xl">
-        What should we call you?
-      </h1>
-      <p className="mt-3 text-sm text-[#6f6a60]">
+      </Eyebrow>
+      <GuestQuestion>What should we call you?</GuestQuestion>
+      <GuestHint>
         This is how your teammates will see you. You can change it later in
         your profile.
-      </p>
+      </GuestHint>
       <form onSubmit={onSubmit}>
-        <input
+        <GuestBigInput
           id="full-name"
           name="fullName"
           autoFocus
@@ -70,18 +76,14 @@ export function WelcomeForm({ defaultName, next }: Props) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           disabled={busy}
-          className="mt-10 w-full border-0 border-b-2 border-[#dedbd2] bg-transparent pb-2 font-serif text-2xl text-[#1f1e1b] outline-none transition-colors placeholder:text-[#c5c0b4] focus:border-[#c96442] disabled:opacity-60 sm:text-3xl"
+          className="mt-10"
         />
-        {error ? <p className="mt-4 text-sm text-[#b3422a]">{error}</p> : null}
+        {error ? <GuestError>{error}</GuestError> : null}
         <div className="mt-10 flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={busy || !fullName.trim()}
-            className="h-11 rounded-full bg-[#c96442] px-7 text-sm font-medium text-white transition-colors hover:bg-[#b05236] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <GuestPrimaryButton disabled={busy || !fullName.trim()}>
             {busy ? "Saving…" : "Continue"}
-          </button>
-          <span className="text-xs text-[#a39e93]">press Enter ↵</span>
+          </GuestPrimaryButton>
+          <span className="text-xs text-guest-ink-faint">press Enter ↵</span>
         </div>
       </form>
     </div>

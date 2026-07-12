@@ -3,6 +3,16 @@ app at `apps/mobile`). Every path below — `lib/…`, `scripts/…`, `.env.loca
 `node_modules/next/dist/docs/` — is relative to `apps/web`. Run dev/scripts from
 `apps/web` (or `pnpm --filter web <script>` from the repo root). -->
 
+# Design system — read DESIGN.md before building UI
+
+`DESIGN.md` is the design contract: two visual worlds (staff app vs the
+warm-cream guest world), the token layer (`app/globals.css` — semantic status
+ramp, `guest-*` palette, radius/font tokens), the type ramp, and the house
+primitives (`ui/eyebrow`, `ui/chip`, `ui/section-header`, `ui/stat`,
+`ui/status-badge`, `ui/empty-state`, `components/guest/ui.tsx`). Never
+hardcode hex colors — a token exists. New surfaces use the primitives;
+existing ones convert when touched.
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

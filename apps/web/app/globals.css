@@ -61,6 +61,28 @@
   /* Brand lavender/aubergine accents (rail badge, property tile, chat underline). */
   --color-brand: var(--brand);
   --color-brand-accent: var(--brand-accent);
+  /* Guest palette — the warm-cream world every guest-facing surface lives in
+     (onboarding wizard, welcome, public booking, guest chatbot, event pages,
+     booking emails). NOT theme-switched: guest surfaces are always cream.
+     Use `bg-guest-bg text-guest-ink` etc. — never re-type the hex values. */
+  --color-guest-bg: var(--guest-bg);
+  --color-guest-card: var(--guest-card);
+  --color-guest-ink: var(--guest-ink);
+  --color-guest-ink-soft: var(--guest-ink-soft);
+  --color-guest-ink-mid: var(--guest-ink-mid);
+  --color-guest-ink-faint: var(--guest-ink-faint);
+  --color-guest-line: var(--guest-line);
+  --color-guest-line-strong: var(--guest-line-strong);
+  --color-guest-line-soft: var(--guest-line-soft);
+  --color-guest-placeholder: var(--guest-placeholder);
+  --color-guest-accent: var(--guest-accent);
+  --color-guest-accent-hover: var(--guest-accent-hover);
+  --color-guest-accent-ink: var(--guest-accent-ink);
+  --color-guest-danger: var(--guest-danger);
+  /* Serif is the guest world's display voice (wizard questions, event titles).
+     Pinned to Tailwind's default stack so `font-serif` is deliberate, not a
+     fallback accident. */
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -134,6 +156,22 @@
      badge, chat active-tab underline). */
   --brand: #4a154b;
   --brand-accent: #cba4e6;
+  /* Guest palette raw values (see @theme mapping above). Same in dark mode —
+     guest surfaces are their own warm-cream world and never theme-switch. */
+  --guest-bg: #faf9f5;
+  --guest-card: rgb(255 255 255 / 60%);
+  --guest-ink: #1f1e1b;
+  --guest-ink-soft: #6f6a60;
+  --guest-ink-mid: #494539;
+  --guest-ink-faint: #a39e93;
+  --guest-line: #dedbd2;
+  --guest-line-strong: #bcb6a8;
+  --guest-line-soft: #eceae2;
+  --guest-placeholder: #c5c0b4;
+  --guest-accent: #c96442;
+  --guest-accent-hover: #b05236;
+  --guest-accent-ink: #9d4a2f;
+  --guest-danger: #b3422a;
 }
 
 .dark {
