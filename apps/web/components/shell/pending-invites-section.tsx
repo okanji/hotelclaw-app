@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -36,11 +37,12 @@ export function PendingInvitesSection() {
 
   return (
     <>
-      <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        <Mail className="size-3" />
-        Pending invites
-      </DropdownMenuLabel>
-      {data.map((invite) => (
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Mail className="size-3" />
+          Pending invites
+        </DropdownMenuLabel>
+        {data.map((invite) => (
         <DropdownMenuItem
           key={invite.token}
           className="gap-2.5 px-2 py-2"
@@ -58,7 +60,8 @@ export function PendingInvitesSection() {
             </div>
           </div>
         </DropdownMenuItem>
-      ))}
+        ))}
+      </DropdownMenuGroup>
       <DropdownMenuSeparator />
     </>
   );

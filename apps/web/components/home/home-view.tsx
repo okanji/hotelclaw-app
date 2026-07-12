@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -377,23 +378,28 @@ function ViewAsMenu({
         }
       />
       <DropdownMenuContent align="end" sideOffset={6} className="w-56">
-        <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-          Preview a role&apos;s Home
-        </DropdownMenuLabel>
-        {(["owner", "manager", "staff"] as const).map((r) => (
-          <DropdownMenuItem
-            key={r}
-            onClick={() => onChange(r === realRole ? null : r)}
-          >
-            <Check
-              className={cn("size-4", active === r ? "opacity-100" : "opacity-0")}
-            />
-            {ROLE_LABEL[r]}
-            {r === realRole ? (
-              <span className="text-muted-foreground"> (you)</span>
-            ) : null}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
+            Preview a role&apos;s Home
+          </DropdownMenuLabel>
+          {(["owner", "manager", "staff"] as const).map((r) => (
+            <DropdownMenuItem
+              key={r}
+              onClick={() => onChange(r === realRole ? null : r)}
+            >
+              <Check
+                className={cn(
+                  "size-4",
+                  active === r ? "opacity-100" : "opacity-0",
+                )}
+              />
+              {ROLE_LABEL[r]}
+              {r === realRole ? (
+                <span className="text-muted-foreground"> (you)</span>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
         {viewAs ? (
           <>
             <DropdownMenuSeparator />
