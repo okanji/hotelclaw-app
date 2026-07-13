@@ -472,7 +472,7 @@ export function AppRail({
         // style icon + label stack — labels are always visible (no tooltip).
         // `m-2` matches the inset card's gutter so the shell reads as evenly-
         // spaced floating panels.
-        className="m-2 flex w-[64px] shrink-0 flex-col items-center rounded-2xl bg-white p-2 shadow-xl shadow-black/10 ring-1 ring-black/[0.06] dark:bg-[#090909] dark:shadow-black/20 dark:ring-0"
+        className="m-2 flex w-[64px] shrink-0 flex-col items-center rounded-2xl bg-white p-2 shadow-sm shadow-black/5 ring-1 ring-black/[0.06] dark:bg-[#090909] dark:shadow-black/10 dark:ring-0"
         aria-label="Sections"
       >
         <figure className="mt-0.5 mb-4">
