@@ -389,10 +389,10 @@ export function PublicBookingPage({
                 ) : null}
               </div>
 
-              <Field label="Your name">
+              <Field label="Your name" required>
                 <TextInput value={name} onChange={setName} required name="guestName" placeholder="Alex Chen" />
               </Field>
-              <Field label="Email — your confirmation and booking link go here">
+              <Field label="Email — your confirmation and booking link go here" required>
                 <TextInput
                   value={email}
                   onChange={setEmail}
@@ -503,12 +503,28 @@ export function PublicBookingPage({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   // Wrapping the control inside the <label> gives programmatic association
   // without threading ids through every call site.
   return (
     <label className="flex flex-col gap-2">
-      <span className="font-serif text-lg">{label}</span>
+      <span className="font-serif text-lg">
+        {label}
+        {required ? (
+          <span aria-hidden style={{ color: ACCENT }}>
+            {" "}
+            *
+          </span>
+        ) : null}
+      </span>
       {children}
     </label>
   );

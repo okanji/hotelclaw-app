@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
 import {
   PRIORITY_IDS,
@@ -147,32 +148,17 @@ export function BoardToolbar({
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-3">
       {/* Left — status preset pills (All / Active / Backlog). */}
-      <div
-        role="tablist"
-        aria-label="Status filter"
-        className="flex items-center gap-0.5"
-      >
-        {STATUS_TABS.map(({ id, label }) => {
-          const active = filters.statusPreset === id;
-          return (
-            <button
-              key={id}
-              role="tab"
-              type="button"
-              aria-selected={active}
-              onClick={() => onChange({ ...filters, statusPreset: id })}
-              className={cn(
-                "inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium transition-colors",
-                active
-                  ? "bg-foreground/[0.08] text-foreground"
-                  : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <TabNav variant="pill" aria-label="Status filter">
+        {STATUS_TABS.map(({ id, label }) => (
+          <TabNavItem
+            key={id}
+            active={filters.statusPreset === id}
+            onClick={() => onChange({ ...filters, statusPreset: id })}
+          >
+            {label}
+          </TabNavItem>
+        ))}
+      </TabNav>
 
       <div className="ml-auto flex items-center gap-1">
         {/* Visible / total hint — only when filters are actively narrowing. */}
@@ -184,34 +170,14 @@ export function BoardToolbar({
 
         {/* View mode — explicit labeled buttons for clarity while keeping
             the same minimal toolbar density. */}
-        <div
-          role="tablist"
-          aria-label="View mode"
-          className="flex items-center gap-0.5"
-        >
-          {VIEW_TABS.map(({ id, label, Icon }) => {
-            const active = view === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => onChangeView(id)}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors",
-                  "hover:bg-foreground/[0.06] hover:text-foreground",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active &&
-                    "bg-foreground/[0.08] text-foreground hover:bg-foreground/[0.08]",
-                )}
-              >
-                <Icon className="size-3.5" />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <TabNav variant="pill" aria-label="View mode">
+          {VIEW_TABS.map(({ id, label, Icon }) => (
+            <TabNavItem key={id} active={view === id} onClick={() => onChangeView(id)}>
+              <Icon />
+              <span>{label}</span>
+            </TabNavItem>
+          ))}
+        </TabNav>
 
         {/* Group-by — only meaningful for the board view. */}
         {view === "board" ? (

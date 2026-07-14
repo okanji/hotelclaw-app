@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -1094,10 +1095,10 @@ function SidePanel({
             Tasks that need scheduling, assigning, or follow-up.
           </SheetDescription>
         </SheetHeader>
-      <div
-        role="tablist"
+      <TabNav
+        variant="pill"
         aria-label="Inbox sections"
-        className="flex shrink-0 items-center gap-0.5 border-b border-border/70 px-2 py-1.5"
+        className="shrink-0 border-b border-border/70 px-2 py-1.5"
       >
         <PanelTabButton
           active={tab === "unscheduled"}
@@ -1120,7 +1121,7 @@ function SidePanel({
           label="Overdue"
           count={overdue.length}
         />
-      </div>
+      </TabNav>
 
       <div className="flex-1 overflow-y-auto p-2">
         {list.length === 0 ? (
@@ -1227,17 +1228,10 @@ function PanelTabButton({
   count: number;
 }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
+    <TabNavItem
+      active={active}
       onClick={onClick}
-      className={cn(
-        "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 text-xs font-medium tracking-tight transition-colors",
-        active
-          ? "bg-card text-foreground shadow-xs ring-1 ring-border/70"
-          : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
-      )}
+      className="h-7 flex-1 justify-center rounded-md tracking-tight"
     >
       {icon}
       <span>{label}</span>
@@ -1251,7 +1245,7 @@ function PanelTabButton({
       >
         {count}
       </span>
-    </button>
+    </TabNavItem>
   );
 }
 

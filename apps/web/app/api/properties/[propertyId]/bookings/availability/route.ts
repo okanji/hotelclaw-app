@@ -50,8 +50,10 @@ export async function GET(
     date,
     partySize,
     durationMinutes,
-    // Relax the notice rule for staff: evaluate from the start of the day.
-    now: new Date(`${date}T00:00:00Z`),
+    // Staff see every slot for the day — notice rule relaxed (walk-ins/phone
+    // bookings happen past cutoff). This matches createBookingChecked's
+    // bypassRules so the picker and the create never disagree.
+    ignoreNotice: true,
   });
   return NextResponse.json({ slots, timezone: service.timezone });
 }

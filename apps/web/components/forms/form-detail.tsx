@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -696,10 +697,10 @@ function FieldEditor({
       <div className="flex items-center justify-between pt-1">
         {field.type !== "section" ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Toggle
+            <Switch
               checked={field.required ?? false}
-              onChange={() => onPatch({ required: !field.required })}
-              name={`${field.label} required`}
+              onCheckedChange={() => onPatch({ required: !field.required })}
+              aria-label={`${field.label} required`}
             />
             Required
           </label>
@@ -1278,10 +1279,10 @@ function SettingsTab({
               Each member can submit more than once (e.g. a request form).
             </span>
           </span>
-          <Toggle
+          <Switch
             checked={allowMultiple}
-            onChange={() => toggleField("allow_multiple", !allowMultiple)}
-            name="allow multiple responses"
+            onCheckedChange={() => toggleField("allow_multiple", !allowMultiple)}
+            aria-label="Allow multiple responses"
           />
         </label>
         <label className="flex items-center justify-between gap-4">
@@ -1291,10 +1292,10 @@ function SettingsTab({
               Never store who submitted — for honest staff feedback.
             </span>
           </span>
-          <Toggle
+          <Switch
             checked={anonymous}
-            onChange={() => toggleField("anonymous", !anonymous)}
-            name="anonymous responses"
+            onCheckedChange={() => toggleField("anonymous", !anonymous)}
+            aria-label="Anonymous responses"
           />
         </label>
       </section>
@@ -1392,38 +1393,3 @@ function formatDate(iso: string): string {
   });
 }
 
-// Dependency-free toggle (the project uses Base UI, not Radix, and ships no
-// switch primitive) — same pattern as workflows-list.
-function Toggle({
-  checked,
-  onChange,
-  name,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  name: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={`${checked ? "Disable" : "Enable"} ${name}`}
-      onClick={(e) => {
-        e.preventDefault();
-        onChange();
-      }}
-      className={cn(
-        "relative inline-flex h-[18px] w-[30px] shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-        checked ? "bg-emerald-500" : "bg-muted-foreground/25",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform",
-          checked ? "translate-x-[13px]" : "translate-x-[2px]",
-        )}
-      />
-    </button>
-  );
-}

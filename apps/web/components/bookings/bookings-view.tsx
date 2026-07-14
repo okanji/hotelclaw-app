@@ -15,6 +15,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { ServiceWorkspace } from "./service-workspace";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/stat-card";
+import { CoverCard, type COVER_TINTS } from "@/components/ui/cover-card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -391,11 +393,10 @@ export function BookingsView({
         )}
       </section>
 
-      {/* Booking-engine pulse — divider-separated stat row (lightest
-          separation that works; the big number / small label contrast does
-          the heavy lifting). */}
+      {/* Booking-engine pulse — page-headline stat cards (ui/stat-card, the
+          Claude-dashboard tier). */}
       {view === "agenda" ? (
-        <div className="mb-8 grid grid-cols-2 sm:grid-cols-4">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(() => {
             const today = todayKey();
             const active = (b: BookingListItem) =>
@@ -418,32 +419,19 @@ export function BookingsView({
               { label: "Pending approval", value: pendingCount, warn: pendingCount > 0 },
               { label: "Next 7 days", value: week.length },
             ];
-            return stats.map((s, i) => (
-              <div
+            return stats.map((s) => (
+              <StatCard
                 key={s.label}
-                className={cn(
-                  "border-foreground/10",
-                  // Divider + padding choreography per breakpoint: 2-col on
-                  // mobile (odd items start rows), 4-col from sm.
-                  i % 2 === 1 && "border-l pl-6",
-                  i % 2 === 0 && "pr-6",
-                  i >= 2 && "mt-4 sm:mt-0",
-                  i > 0 && "sm:border-l sm:pl-6",
-                  i < 3 && "sm:pr-6",
-                  i === 0 && "sm:pl-0",
-                  i === 3 && "sm:pr-0",
-                )}
-              >
-                <p
-                  className={cn(
-                    "text-2xl font-semibold tracking-tight tabular-nums",
-                    s.warn && "text-amber-600 dark:text-amber-400",
-                  )}
-                >
-                  {s.value}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">{s.label}</p>
-              </div>
+                label={s.label}
+                value={s.value}
+                pill={
+                  s.warn ? (
+                    <span className="rounded-md bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning">
+                      Needs a yes
+                    </span>
+                  ) : undefined
+                }
+              />
             ));
           })()}
         </div>
@@ -625,6 +613,18 @@ export function BookingsView({
   );
 }
 
+/** Cover tint per service kind (decorative, matches the kind's vibe). */
+const SERVICE_KIND_TINTS: Partial<
+  Record<string, keyof typeof COVER_TINTS>
+> = {
+  table: "coral",
+  appointment: "sage",
+  tour: "blue",
+  event: "violet",
+  rental: "amber",
+  other: "cream",
+};
+
 function ServiceCard({
   service,
   eventStats,
@@ -641,21 +641,15 @@ function ServiceCard({
     ? Math.min(100, Math.round((eventStats.sold / Math.max(1, eventStats.capacity)) * 100))
     : 0;
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="group flex flex-col gap-2 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+    <CoverCard
+      render={<button type="button" onClick={onEdit} />}
+      tint={SERVICE_KIND_TINTS[service.kind] ?? "cream"}
+      glyph={service.emoji || meta.emoji}
+      title={service.name}
+      titleMeta={!service.active ? <Badge variant="secondary">Paused</Badge> : null}
+      tags={[meta.label]}
+      className="h-full"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-base">
-          {service.emoji || meta.emoji}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{service.name}</p>
-          <p className="truncate text-xs text-muted-foreground">{meta.label}</p>
-        </div>
-        {!service.active ? <Badge variant="secondary">Paused</Badge> : null}
-      </div>
       {eventStats ? (
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
@@ -694,7 +688,7 @@ function ServiceCard({
           · every {schedule.slotIntervalMinutes} min
         </p>
       )}
-    </button>
+    </CoverCard>
   );
 }
 

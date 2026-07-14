@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionHeader } from "@/components/ui/section-header";
 import {
   CustomizeMenu,
   EditorialSection,
@@ -128,41 +129,37 @@ export function InsightsView({
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-6xl px-8 pt-12 pb-24 sm:px-14 sm:pt-14">
-          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <p className="mb-2 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Intelligence
-              </p>
-              <h1 className="text-4xl font-semibold tracking-tight text-balance text-foreground">
-                {heading}
-              </h1>
-              <p className="mt-1 max-w-[55ch] text-sm text-pretty text-muted-foreground">
-                {blurb}
-              </p>
-            </div>
-            {!isStaff ? (
-              <div className="flex shrink-0 items-center gap-1.5">
-                {role === "owner" ? (
-                  <ApiAccessButton propertyId={propertyId} />
-                ) : null}
-                <InsightsFollowButton propertyId={propertyId} scope={scope} />
-                {!isReports ? (
-                  <CustomizeMenu
-                    items={availableDefs}
-                    visibleCount={shown.length}
-                    isHidden={isHidden}
-                    onToggle={toggleHidden}
-                    onReset={reset}
+          <SectionHeader
+            size="page"
+            className="flex-wrap gap-y-3"
+            eyebrow="Intelligence"
+            title={heading}
+            description={blurb}
+            actions={
+              !isStaff ? (
+                <>
+                  {role === "owner" ? (
+                    <ApiAccessButton propertyId={propertyId} />
+                  ) : null}
+                  <InsightsFollowButton propertyId={propertyId} scope={scope} />
+                  {!isReports ? (
+                    <CustomizeMenu
+                      items={availableDefs}
+                      visibleCount={shown.length}
+                      isHidden={isHidden}
+                      onToggle={toggleHidden}
+                      onReset={reset}
+                    />
+                  ) : null}
+                  <ScopeSwitcher
+                    propertyId={propertyId}
+                    scope={scope}
+                    onChange={setScope}
                   />
-                ) : null}
-                <ScopeSwitcher
-                  propertyId={propertyId}
-                  scope={scope}
-                  onChange={setScope}
-                />
-              </div>
-            ) : null}
-          </header>
+                </>
+              ) : undefined
+            }
+          />
 
           <div className="mt-10 @container">
             {isPending || !data ? (

@@ -62,7 +62,7 @@ const railItemClass =
 // always-dark look (white icons, translucent-white wash).
 const railTileClass =
   "relative flex size-9 items-center justify-center rounded-xl transition-colors " +
-  "text-zinc-500 group-hover/item:bg-black/5 group-hover/item:text-zinc-900 " +
+  "text-zinc-700 group-hover/item:bg-black/5 group-hover/item:text-zinc-900 " +
   "data-current:bg-black/[0.07] data-current:text-zinc-900 " +
   "group-focus-visible/item:ring-2 group-focus-visible/item:ring-black/15 " +
   "dark:text-white/85 dark:group-hover/item:bg-white/10 dark:group-hover/item:text-white " +
@@ -73,7 +73,7 @@ const railLabelClass =
 // Active vs inactive label color, both themes — applied via cn() in the markup.
 const railLabelActiveClass = "text-zinc-900 dark:text-white";
 const railLabelIdleClass =
-  "text-zinc-500 group-hover/item:text-zinc-900 dark:text-white/85 dark:group-hover/item:text-white";
+  "text-zinc-600 group-hover/item:text-zinc-900 dark:text-white/85 dark:group-hover/item:text-white";
 
 /** Translucent circular utility button used by the rail footer (collapse). */
 const railFooterButtonClass =
@@ -472,7 +472,10 @@ export function AppRail({
         // secondary sidebar, separated from it only by the inset hairline on
         // the sidebar's left edge (see SectionSidebar). Slack-style icon +
         // label stack — labels are always visible (no tooltip).
-        className="flex w-[72px] shrink-0 flex-col items-center bg-sidebar px-2 py-2"
+        // pt-4 keeps the org tile on the same line it sat on when the rail was
+        // an m-2-inset card (8px margin + 8px padding), so it still aligns
+        // with the property switcher across the seam.
+        className="flex w-[72px] shrink-0 flex-col items-center bg-sidebar px-2 pt-4 pb-3"
         aria-label="Sections"
       >
         <div className="mt-0.5 mb-4 flex justify-center">
@@ -514,20 +517,20 @@ export function AppRail({
                         // Lavender count badge punched onto the icon's
                         // top-right corner (unseen notifications). The ring in
                         // the rail bg gives the cutout look.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-[#cba4e6] px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-white dark:ring-[#090909] duration-200">
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-[#cba4e6] px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-sidebar duration-200">
                           {unseenCount > 9 ? "9+" : unseenCount}
                         </span>
                       ) : null}
                       {showFailingDot ? (
                         <span
                           aria-hidden="true"
-                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-white dark:ring-[#090909]"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-sidebar"
                         />
                       ) : null}
                       {showPendingBookings ? (
                         // Same cutout treatment as the activity count,
                         // amber: bookings waiting on a staff yes.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-white dark:ring-[#090909] duration-200">
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-sidebar duration-200">
                           {pendingBookings > 9 ? "9+" : pendingBookings}
                         </span>
                       ) : null}
@@ -564,7 +567,7 @@ export function AppRail({
                       {moreAlert && !moreActive ? (
                         <span
                           aria-hidden="true"
-                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-white dark:ring-[#090909]"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-sidebar"
                         />
                       ) : null}
                     </span>

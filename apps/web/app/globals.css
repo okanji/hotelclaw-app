@@ -103,47 +103,46 @@
  */
 :root {
   /*
-   * Light-mode parallel to the dark palette. The lightest/highlight plane is
-   * the inset card (pure white). The sidebar uses a subtle gradient from a
-   * near-white top-left down to a slightly cooler off-white (#f0f0f1) by ~65%,
-   * which is also the solid color for the outer wrapper + sidebar fallback.
-   * The range is narrow because light-mode gradients have to live near the
-   * top of the lightness scale; pushing further would look smudgy.
+   * Light-mode parallel to the dark palette. Warm-neutral family (oklch hue
+   * ~106 — the Anthropic/Notion ivory world, same family as the guest
+   * `--guest-*` palette): warm ivory `#faf9f5` outer shell + sidebar, pure
+   * white inset card as the highlight plane, warm ink text. Hairlines are
+   * warm-tinted translucent blacks so they sit naturally on the ivory.
    */
-  --background: #f0f0f1;
-  --foreground: oklch(0.145 0 0);
+  --background: #faf9f5;
+  --foreground: oklch(0.24 0.004 106);
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.24 0.004 106);
   --popover: #ffffff;
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.486 0 0);
-  --accent: oklch(0 0 0 / 5%);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.24 0.004 106);
+  --primary: oklch(0.27 0.006 106);
+  --primary-foreground: oklch(0.985 0.003 106);
+  --secondary: oklch(0.966 0.005 106);
+  --secondary-foreground: oklch(0.27 0.006 106);
+  --muted: oklch(0.966 0.005 106);
+  --muted-foreground: oklch(0.5 0.012 106);
+  --accent: oklch(0.3 0.03 106 / 6%);
+  --accent-foreground: oklch(0.27 0.006 106);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0 0 0 / 8%);
-  --input: oklch(0 0 0 / 10%);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.3 0.03 106 / 10%);
+  --input: oklch(0.3 0.03 106 / 12%);
+  --ring: oklch(0.71 0.012 106);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   /* Width of the Slack-style icon rail (first sidebar). */
   --rail-width: 4.5rem;
-  --sidebar: #f0f0f1;
-  --sidebar-foreground: oklch(0.205 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0 0 0 / 6%);
-  --sidebar-accent-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0 0 0 / 8%);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #faf9f5;
+  --sidebar-foreground: oklch(0.27 0.006 106);
+  --sidebar-primary: oklch(0.27 0.006 106);
+  --sidebar-primary-foreground: oklch(0.985 0.003 106);
+  --sidebar-accent: oklch(0.3 0.03 106 / 7%);
+  --sidebar-accent-foreground: oklch(0.24 0.004 106);
+  --sidebar-border: oklch(0.3 0.03 106 / 10%);
+  --sidebar-ring: oklch(0.71 0.012 106);
   /* Apple-Mail-style blue used as the universal "doc / nav item" icon accent
      across the sidebar AND the docs home page. Slightly darker on light mode
      for contrast against the off-white surface, lighter on dark. */
@@ -176,43 +175,42 @@
 
 .dark {
   /*
-   * Linear-tuned palette. The darkest plane (#121213) is the outer surface +
-   * sidebar end-color. The sidebar layers a radial gradient (top-left bright,
-   * fades to #121213 by ~65%) on top of that base; see the rule below scoped
-   * to `[data-sidebar="sidebar"]`. The inset card sits ~3% lighter than the
-   * darkest plane so the seam reads with the existing 1px ring.
+   * Warm charcoal palette (Claude-dashboard dark family). The darkest plane
+   * (#161512) is the outer surface + sidebar; the inset card sits slightly
+   * lighter so the seam reads with the existing 1px ring. Same warm hue
+   * (~106) as light mode so theme switches don't shift temperature.
    */
-  --background: #121213;
-  --foreground: oklch(0.96 0 0);
-  --card: #131414;
-  --card-foreground: oklch(0.96 0 0);
-  --popover: #1a1b1c;
-  --popover-foreground: oklch(0.96 0 0);
-  --primary: oklch(0.96 0 0);
-  --primary-foreground: #121213;
-  --secondary: oklch(0.235 0 0);
-  --secondary-foreground: oklch(0.96 0 0);
-  --muted: oklch(0.21 0 0);
-  --muted-foreground: oklch(0.62 0 0);
+  --background: #161512;
+  --foreground: oklch(0.96 0.005 106);
+  --card: #181713;
+  --card-foreground: oklch(0.96 0.005 106);
+  --popover: #1e1d19;
+  --popover-foreground: oklch(0.96 0.005 106);
+  --primary: oklch(0.96 0.005 106);
+  --primary-foreground: #161512;
+  --secondary: oklch(0.24 0.006 106);
+  --secondary-foreground: oklch(0.96 0.005 106);
+  --muted: oklch(0.215 0.006 106);
+  --muted-foreground: oklch(0.62 0.01 106);
   --accent: oklch(1 0 0 / 6%);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 5%);
   --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.556 0.008 106);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: #121213;
-  --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar: #161512;
+  --sidebar-foreground: oklch(0.93 0.005 106);
+  --sidebar-primary: oklch(0.96 0.005 106);
+  --sidebar-primary-foreground: #161512;
   --sidebar-accent: oklch(1 0 0 / 8%);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 5%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.556 0.008 106);
   --icon-accent: oklch(0.73 0.138 245);
   /* Brighter status rungs for dark surfaces (emerald-400 / amber-400 / blue-400). */
   --success: oklch(0.765 0.177 163.223);
@@ -231,7 +229,7 @@
    `stream-chat-overrides.css` rather than here. The inset's own
    background color stays in sync so the brief pre-mount state matches. */
 .dark [data-slot="sidebar-inset"] {
-  background-color: #191B1E;
+  background-color: #1b1a16;
 }
 
 @layer base {

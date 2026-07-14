@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CalendarRange, Columns3, Plus, Table2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { SectionHeader } from "@/components/ui/section-header";
 import {
   projectsTrackingQueryOptions,
   spacesQueryOptions,
@@ -104,17 +105,12 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <header className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              {spaceName ? `Space · ${spaceName}` : "Workspace"}
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-              Projects
-            </h1>
-          </div>
-          <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
+        <SectionHeader
+          size="page"
+          eyebrow={spaceName ? `Space · ${spaceName}` : "Workspace"}
+          title="Projects"
+          actions={<>
             <Button
               type="button"
               size="icon-sm"
@@ -129,33 +125,27 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
               <Plus className="size-4" />
               New project
             </Button>
-          </div>
-        </div>
+          </>}
+        />
 
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-0.5 rounded-lg border border-border/70 p-0.5">
+          <TabNav variant="pill" aria-label="Project views">
             {VIEW_TABS.map((t) => (
-              <button
+              <TabNavItem
                 key={t.id}
-                type="button"
+                active={view === t.id}
                 onClick={() => changeView(t.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium tracking-tight transition-colors",
-                  view === t.id
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
               >
-                <t.Icon className="size-3.5" />
+                <t.Icon />
                 {t.label}
-              </button>
+              </TabNavItem>
             ))}
-          </div>
+          </TabNav>
           <span className="text-sm tabular-nums text-muted-foreground">
             {shown.length} {shown.length === 1 ? "project" : "projects"}
           </span>
         </div>
-      </header>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {isPending ? (

@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, LibraryBig, Sparkles } from "lucide-react";
+import { Eye, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  CoverCard,
+  coverTintAt,
+  type COVER_TINTS,
+} from "@/components/ui/cover-card";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +17,24 @@ import {
 } from "@/components/ui/dialog";
 import { WorkflowSpec, classifyMode } from "@/lib/workflows/spec";
 import { WorkflowSpecPreview } from "@/components/workflows/spec-preview";
+import { surfaceMeta } from "@/components/workflows/builder/surface-badge";
+import type { Surface } from "@/lib/workflows/catalog/types";
+
+/** Cover tint by the template's primary surface (fallback: rotate). */
+const SURFACE_TINTS: Partial<Record<string, keyof typeof COVER_TINTS>> = {
+  tasks: "sage",
+  docs: "amber",
+  chat: "blue",
+  meetings: "violet",
+  calendar: "violet",
+  forms: "sage",
+  bookings: "violet",
+  entities: "blue",
+  ai: "cream",
+  control: "amber",
+  external: "coral",
+  system: "cream",
+};
 
 type Template = {
   id: string;
@@ -87,48 +110,36 @@ export function TemplatesClient({
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {templates.map((t) => (
-        <li
-          key={t.id}
-          className="flex flex-col rounded-lg border border-border/60 bg-muted/10 p-4"
-        >
-          <div className="mb-2 flex flex-wrap items-center gap-1">
-            {t.surfaces.map((s) => (
-              <span
-                key={s}
-                className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-          <p className="text-sm font-semibold text-foreground">{t.name}</p>
-          <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-            {t.description}
-          </p>
-          <div className="mt-auto flex items-center justify-end gap-2 pt-3">
-            <button
-              type="button"
-              onClick={() => setPreviewing(t)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted"
-            >
-              <Eye className="size-3.5" aria-hidden />
-              Preview
-            </button>
-            <button
-              type="button"
-              onClick={() => fork(t)}
-              disabled={!!forking}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50",
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {templates.map((t, i) => {
+        const primary = t.surfaces[0];
+        const meta = primary ? surfaceMeta(primary as Surface) : undefined;
+        const Glyph = meta?.icon ?? Workflow;
+        return (
+          <li key={t.id} className="min-w-0">
+            <CoverCard
+              className="h-full"
+              tint={SURFACE_TINTS[primary] ?? coverTintAt(i)}
+              glyph={<Glyph />}
+              title={t.name}
+              description={t.description}
+              tags={t.surfaces.map(
+                (s) => surfaceMeta(s as Surface)?.label ?? s,
               )}
             >
-              {forking === t.slug ? "Creating…" : "Use template"}
-            </button>
-          </div>
-        </li>
-      ))}
+              <div className="mt-auto flex items-center justify-end gap-2 pt-1">
+                <Button variant="outline" size="xs" onClick={() => setPreviewing(t)}>
+                  <Eye data-icon="inline-start" aria-hidden />
+                  Preview
+                </Button>
+                <Button size="xs" disabled={!!forking} onClick={() => fork(t)}>
+                  {forking === t.slug ? "Creating…" : "Use template"}
+                </Button>
+              </div>
+            </CoverCard>
+          </li>
+        );
+      })}
 
       <Dialog
         open={previewing !== null}

@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -76,31 +77,25 @@ export function FormsList({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-5">
-          <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            Workspace
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            Forms
-          </h1>
-          <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
-            Build intake and feedback forms for the team — maintenance
-            requests, surveys, checklists. Publish one and share the fill
-            link, or let a workflow react to submissions.
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Button variant="outline" onClick={() => setGenerateOpen(true)}>
-            <Sparkles data-slot="icon" />
-            Generate with AI
-          </Button>
-          <Button onClick={() => setNewOpen(true)}>
-            <Plus data-slot="icon" />
-            New form
-          </Button>
-        </div>
-      </header>
+      <SectionHeader
+        size="page"
+        className="flex-wrap gap-y-3"
+        eyebrow="Workspace"
+        title="Forms"
+        description="Build intake and feedback forms for the team — maintenance requests, surveys, checklists. Publish one and share the fill link, or let a workflow react to submissions."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+              <Sparkles data-slot="icon" />
+              Generate with AI
+            </Button>
+            <Button onClick={() => setNewOpen(true)}>
+              <Plus data-slot="icon" />
+              New form
+            </Button>
+          </>
+        }
+      />
 
       <hr className="my-10 border-border" />
 

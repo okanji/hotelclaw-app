@@ -55,7 +55,9 @@ export function SectionSidebar({
 
   return (
     <aside
-      className="relative flex h-full shrink-0 flex-col overflow-hidden bg-sidebar"
+      // Full-height left hairline — the rail↔sidebar partition: both panels
+      // share `bg-sidebar`, so this line is the only thing separating them.
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-sidebar"
       style={{ width }}
     >
       <div className="flex min-h-0 w-full flex-1 flex-col">

@@ -171,7 +171,7 @@ function EditorialLayout({
           </div>
         </div>
         <div className="flex flex-col gap-5">
-          <h1 className="text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
+          <h1 className="font-serif text-5xl font-medium tracking-tight text-foreground sm:text-6xl">
             Directory
           </h1>
           <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">

@@ -2,9 +2,9 @@
 
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StatCard, StatCardPill } from "@/components/ui/stat-card";
 import {
   DividerList,
-  Stats,
   WidgetEmpty,
 } from "@/components/home/editorial-section";
 import type { InsightsMetrics, WorkloadRow } from "@/lib/insights/metrics";
@@ -26,21 +26,27 @@ export function WorkloadBody({ metrics }: { metrics: InsightsMetrics }) {
 
   return (
     <div className="flex flex-col gap-5">
-        <Stats
-          items={[
-            { label: "people with open work", value: rows.length },
-            {
-              label: "blocked anywhere",
-              value: rows.reduce((a, r) => a + r.blocked, 0),
-              tone: "rose",
-            },
-            {
-              label: "urgent unassigned",
-              value: unassignedUrgent,
-              tone: "rose",
-            },
-          ]}
-        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatCard label="People with open work" value={rows.length} />
+          <StatCard
+            label="Blocked anywhere"
+            value={rows.reduce((a, r) => a + r.blocked, 0)}
+            pill={
+              rows.reduce((a, r) => a + r.blocked, 0) > 0 ? (
+                <StatCardPill tone="warning">Unblock</StatCardPill>
+              ) : undefined
+            }
+          />
+          <StatCard
+            label="Urgent unassigned"
+            value={unassignedUrgent}
+            pill={
+              unassignedUrgent > 0 ? (
+                <StatCardPill tone="warning">Assign</StatCardPill>
+              ) : undefined
+            }
+          />
+        </div>
         {rows.length === 0 ? (
           <WidgetEmpty>No assigned open work yet.</WidgetEmpty>
         ) : (

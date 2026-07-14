@@ -200,7 +200,15 @@ export function InsightsAskPanel({
             type="submit"
             aria-label="Send"
             disabled={busy || input.trim().length === 0}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md bg-foreground text-background hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              // Quiet ghost until there's something to send; then it fills in
+              // (warm ink) as the clear "go" affordance — no flat solid block
+              // sitting there when the field is empty.
+              input.trim().length > 0
+                ? "bg-foreground text-background hover:bg-foreground/90"
+                : "bg-transparent text-muted-foreground/60",
+            )}
           >
             <Send className="size-4" />
           </button>

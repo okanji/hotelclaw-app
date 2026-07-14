@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -119,28 +120,19 @@ export function ChatbotsList({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-5">
-          <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            Workspace
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            Chatbots
-          </h1>
-          <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
-            Build AI chatbots your guests talk to — a front desk that answers
-            questions, room service that takes orders, a restaurant that books
-            tables. They act on real requests: tickets for your team, channel
-            pings, human handoff.
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
+      <SectionHeader
+        size="page"
+        className="flex-wrap gap-y-3"
+        eyebrow="Workspace"
+        title="Chatbots"
+        description="Build AI chatbots your guests talk to — a front desk that answers questions, room service that takes orders, a restaurant that books tables. They act on real requests: tickets for your team, channel pings, human handoff."
+        actions={
           <Button onClick={() => setNewOpen(true)}>
             <Plus data-slot="icon" />
             New chatbot
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       <hr className="my-10 border-border" />
 

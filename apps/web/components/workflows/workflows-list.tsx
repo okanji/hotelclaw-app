@@ -36,6 +36,7 @@ import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -411,7 +412,13 @@ function Row({
           </span>
         </div>
 
-        <Toggle checked={w.enabled} busy={busy} onChange={onToggle} name={w.name} />
+        <Switch
+          checked={w.enabled}
+          disabled={busy}
+          aria-label={`${w.enabled ? "Disable" : "Enable"} ${w.name}`}
+          onCheckedChange={onToggle}
+          onClick={(e) => e.stopPropagation()}
+        />
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -479,47 +486,6 @@ function TriggerBadge({ type }: { type: string | null }) {
       <Icon className="size-2.5" />
       {label}
     </span>
-  );
-}
-
-// Dependency-free toggle (the project uses Base UI, not Radix, and ships no
-// switch primitive). role="switch" + aria-checked keep it accessible.
-function Toggle({
-  checked,
-  busy,
-  onChange,
-  name,
-}: {
-  checked: boolean;
-  busy: boolean;
-  onChange: () => void;
-  name: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={`${checked ? "Disable" : "Enable"} ${name}`}
-      disabled={busy}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onChange();
-      }}
-      className={cn(
-        "relative inline-flex h-[18px] w-[30px] shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-        checked ? "bg-emerald-500" : "bg-muted-foreground/25",
-        busy && "opacity-60",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform",
-          checked ? "translate-x-[13px]" : "translate-x-[2px]",
-        )}
-      />
-    </button>
   );
 }
 

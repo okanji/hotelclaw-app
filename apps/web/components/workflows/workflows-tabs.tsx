@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Database, History, LayoutTemplate, Workflow } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 
 /**
  * Route-based sub-navigation for the workflows section. Unlike TasksBoard's
@@ -51,36 +51,18 @@ export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
   ];
 
   return (
-    <nav
-      role="tablist"
-      aria-label="Workflows sections"
-      className="flex h-9 shrink-0 items-center gap-1 border-b border-border/60 px-3"
-    >
-      {tabs.map((t) => {
-        const isActive = active === t.key;
-        return (
-          <Link
-            key={t.key}
-            href={t.href}
-            role="tab"
-            aria-selected={isActive}
-            title={t.hint}
-            className={cn(
-              "relative inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <t.Icon className="size-3.5" />
-            {t.label}
-            {isActive ? (
-              <span
-                aria-hidden
-                className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-foreground"
-              />
-            ) : null}
-          </Link>
-        );
-      })}
-    </nav>
+    <TabNav aria-label="Workflows sections" className="px-3">
+      {tabs.map((t) => (
+        <TabNavItem
+          key={t.key}
+          active={active === t.key}
+          title={t.hint}
+          render={<Link href={t.href} />}
+        >
+          <t.Icon />
+          {t.label}
+        </TabNavItem>
+      ))}
+    </TabNav>
   );
 }

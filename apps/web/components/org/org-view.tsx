@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -68,19 +69,19 @@ export function OrgView({
   // blocks stay in a readable 6xl column via WRAP.
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto pt-12 pb-16 sm:pt-16">
-      <header className={cn(WRAP, "flex flex-col gap-5")}>
-        <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Company
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-balance text-foreground">
-          Org chart
-        </h1>
-        <p className="max-w-[56ch] text-base leading-relaxed text-pretty text-muted-foreground">
-          How the property is organized — teams and who runs them, reporting
-          lines, and each person&apos;s role. Everyone works from the same
-          picture, and so do the AI assistants.
-        </p>
-      </header>
+      <SectionHeader
+        size="page"
+        className={WRAP}
+        eyebrow="Company"
+        title="Org chart"
+        description={
+          <>
+            How the property is organized — teams and who runs them, reporting
+            lines, and each person&apos;s role. Everyone works from the same
+            picture, and so do the AI assistants.
+          </>
+        }
+      />
 
       {isPending || !data ? (
         <div className={cn(WRAP, "mt-12 flex flex-col gap-3")}>
@@ -146,7 +147,8 @@ function OrgBody({
       <section className="mt-14 min-w-0">
         <div className={structureView === "diagram" ? FULL : WRAP}>
           <SectionHeader
-            kicker="Structure"
+            className="mb-5 border-b border-border pb-3"
+            eyebrow="Structure"
             title="Teams"
             actions={
               <div className="flex gap-1">
@@ -192,7 +194,7 @@ function OrgBody({
       </section>
 
       <section className={cn(WRAP, "mt-16 min-w-0")}>
-        <SectionHeader kicker="Directory" title="People" />
+        <SectionHeader className="mb-5 border-b border-border pb-3" eyebrow="Directory" title="People" />
         <PeopleDirectory
           propertyId={propertyId}
           org={org}
@@ -210,30 +212,6 @@ function Stat({ value, label }: { value: number; label: string }) {
         {value}
       </span>
       <span className="text-sm text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-function SectionHeader({
-  kicker,
-  title,
-  actions,
-}: {
-  kicker: string;
-  title: string;
-  actions?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-5 flex items-end justify-between gap-4 border-b border-border pb-3">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          {kicker}
-        </span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
-      </div>
-      {actions}
     </div>
   );
 }

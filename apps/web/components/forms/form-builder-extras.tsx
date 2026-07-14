@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -278,25 +279,13 @@ function SmallSelect({
   ariaLabel: string;
 }) {
   return (
-    <div className="inline-grid w-full grid-cols-[1fr_--spacing(8)]">
-      <select
-        value={value}
-        aria-label={ariaLabel}
-        name={ariaLabel}
-        onChange={(e) => onChange(e.target.value)}
-        className="col-span-full row-start-1 h-8 w-full cursor-pointer appearance-none rounded-md border border-input bg-transparent px-2.5 pr-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
-      >
-        {children}
-      </select>
-      <svg
-        viewBox="0 0 8 5"
-        width="8"
-        height="5"
-        fill="none"
-        className="pointer-events-none col-start-2 row-start-1 place-self-center"
-      >
-        <path d="M.5.5 4 4 7.5.5" stroke="currentcolor" />
-      </svg>
-    </div>
+    <NativeSelect
+      value={value}
+      aria-label={ariaLabel}
+      name={ariaLabel}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {children}
+    </NativeSelect>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
@@ -43,17 +44,17 @@ export function ScheduleTriggerConfig({
         <>
           {/* Frequency */}
           <Field label="How often">
-            <select
+            <NativeSelect
               value={parsed.freq}
               onChange={(e) => setParsed(defaultsForFreq(e.target.value as Freq, parsed))}
-              className={SELECT_CLASS}
+              className="h-9"
             >
               <option value="hourly">Every hour</option>
               <option value="daily">Every day</option>
               <option value="weekly">Every week</option>
               <option value="monthly">Every month</option>
               <option value="custom">Custom…</option>
-            </select>
+            </NativeSelect>
           </Field>
 
           {/* Weekly: which days */}
@@ -90,17 +91,17 @@ export function ScheduleTriggerConfig({
           {/* Monthly: which day of month */}
           {parsed.freq === "monthly" ? (
             <Field label="On day of the month">
-              <select
+              <NativeSelect
                 value={parsed.dom}
                 onChange={(e) => setParsed({ dom: Number(e.target.value) })}
-                className={SELECT_CLASS}
+                className="h-9"
               >
                 {Array.from({ length: 28 }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
                     {ordinal(n)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           ) : null}
 
@@ -124,17 +125,17 @@ export function ScheduleTriggerConfig({
           {/* Hourly: at which minute */}
           {parsed.freq === "hourly" ? (
             <Field label="At minute">
-              <select
+              <NativeSelect
                 value={parsed.minute}
                 onChange={(e) => setParsed({ minute: Number(e.target.value) })}
-                className={SELECT_CLASS}
+                className="h-9"
               >
                 {[0, 5, 10, 15, 20, 30, 45].map((n) => (
                   <option key={n} value={n}>
                     {n === 0 ? "on the hour" : `${n} minutes past`}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           ) : null}
 
@@ -157,17 +158,17 @@ export function ScheduleTriggerConfig({
 
           {/* Timezone */}
           <Field label="Timezone">
-            <select
+            <NativeSelect
               value={timezone}
               onChange={(e) => patch({ timezone: e.target.value })}
-              className={SELECT_CLASS}
+              className="h-9"
             >
               {timezoneOptions(timezone).map((tz) => (
                 <option key={tz} value={tz}>
                   {tz.replace(/_/g, " ")}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
 
           {/* Plain-English preview */}
@@ -197,9 +198,6 @@ export function ScheduleTriggerConfig({
 }
 
 // ─── Small layout helpers ─────────────────────────────────────────────────────
-
-const SELECT_CLASS =
-  "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

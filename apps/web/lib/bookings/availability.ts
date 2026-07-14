@@ -166,6 +166,9 @@ export function computeDaySlots(args: {
   /** Override booking length (rental mode: the guest's chosen duration). */
   durationMinutes?: number;
   now?: Date;
+  /** Skip the min-notice gate entirely (staff walk-ins / post-cutoff
+   *  bookings). Hours, capacity, past-date and horizon still apply. */
+  ignoreNotice?: boolean;
 }): Slot[] {
   const { schedule, timezone, date } = args;
   const now = args.now ?? new Date();
@@ -192,7 +195,9 @@ export function computeDaySlots(args: {
   const active = args.bookings.filter(
     (b) => b.status === "pending" || b.status === "confirmed" || b.status === "seated",
   );
-  const earliestStart = now.getTime() + schedule.minNoticeMinutes * 60_000;
+  const earliestStart = args.ignoreNotice
+    ? -Infinity
+    : now.getTime() + schedule.minNoticeMinutes * 60_000;
 
   const slots: Slot[] = [];
   for (const range of ranges) {
@@ -304,6 +309,8 @@ export async function getServiceAvailability(args: {
   partySize: number;
   durationMinutes?: number;
   now?: Date;
+  /** Staff surfaces relax the notice rule (walk-ins/phone bookings). */
+  ignoreNotice?: boolean;
 }): Promise<Slot[]> {
   const schedule = parseServiceSchedule(args.service.schedule);
   const duration = resolveDuration(args.service, schedule, args.durationMinutes);
@@ -318,6 +325,7 @@ export async function getServiceAvailability(args: {
     resources,
     durationMinutes: duration,
     now: args.now,
+    ignoreNotice: args.ignoreNotice,
   });
 }
 
@@ -395,9 +403,12 @@ export async function createBookingChecked(args: {
     partySize: args.partySize,
     resources,
     durationMinutes: duration,
-    // Staff bypass relaxes the notice rule by evaluating "now" at the slot
-    // itself; schedule hours + capacity still apply.
-    now: args.bypassRules ? new Date(requested.getTime() - 1) : args.now,
+    now: args.now,
+    // Staff bypass drops the min-notice gate (walk-ins/post-cutoff); hours +
+    // capacity + horizon still apply. (Fudging `now` here does NOT work — the
+    // gate is now+minNotice, so any minNotice>0 would exclude the very slot
+    // being booked.)
+    ignoreNotice: args.bypassRules,
   });
   const slot = slots.find(
     (s) => new Date(s.startsAt).getTime() === requested.getTime(),
@@ -478,6 +489,7 @@ export async function createBookingChecked(args: {
           date,
           partySize: args.partySize,
           now: args.now,
+          ignoreNotice: args.bypassRules,
         })
       ).slice(0, 5),
     };

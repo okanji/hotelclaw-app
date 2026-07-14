@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { allPropertyRunsQueryOptions } from "@/lib/query/workflow-queries";
-import { Stats, WidgetEmpty } from "../editorial-section";
+import { WidgetEmpty } from "../editorial-section";
+import { Stat, StatGroup } from "@/components/ui/stat";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -56,15 +57,13 @@ export function WorkflowHealthWidget({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Stats
-        items={[
-          {
-            label: "success · 7d",
-            value: stats.rate === null ? "—" : `${stats.rate}%`,
-          },
-          { label: "runs", value: stats.total },
-        ]}
-      />
+      <StatGroup cols={2}>
+        <Stat
+          label="success · 7d"
+          value={stats.rate === null ? "—" : `${stats.rate}%`}
+        />
+        <Stat label="runs" value={stats.total} />
+      </StatGroup>
 
       <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
         {stats.success > 0 ? (

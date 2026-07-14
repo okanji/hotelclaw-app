@@ -406,6 +406,14 @@ export function SlackComposer({
             align="start"
             sideOffset={8}
             className="w-72 p-1"
+            // Typeahead, not a dialog: the caret must stay in the editor so
+            // the user can keep typing to filter. `initialFocus={false}`
+            // stops Base UI moving focus into the popup when it opens;
+            // `finalFocus={false}` stops it yanking focus to the trigger on
+            // close (keyboard-committed mentions leave focus in the editor,
+            // and click-committed ones re-focus it in replaceRangeWithMention).
+            initialFocus={false}
+            finalFocus={false}
           >
             <MentionList
               items={mentionMatches}

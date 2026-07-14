@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { SectionHeader } from "@/components/ui/section-header";
 import { OutcomeBadge } from "@/components/chatbots/conversations-list";
 import type {
   ChatbotConversationOutcome,
@@ -39,18 +40,17 @@ export default async function AllConversationsPage({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-5">
-        <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          Chatbots
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-          Conversations
-        </h1>
-        <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
-          Every guest conversation across your chatbots. Escalations are
-          marked &ldquo;With staff&rdquo; — open one to reply.
-        </p>
-      </header>
+      <SectionHeader
+        size="page"
+        eyebrow="Chatbots"
+        title="Conversations"
+        description={
+          <>
+            Every guest conversation across your chatbots. Escalations are
+            marked &ldquo;With staff&rdquo; — open one to reply.
+          </>
+        }
+      />
 
       <hr className="my-10 border-border" />
 

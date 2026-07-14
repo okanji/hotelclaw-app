@@ -10,7 +10,8 @@ import {
   XAxis,
 } from "recharts";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
-import { Stats, WidgetEmpty } from "../editorial-section";
+import { WidgetEmpty } from "../editorial-section";
+import { Stat, StatGroup } from "@/components/ui/stat";
 import { applyTaskFilter, useDashboardFilter } from "../dashboard-filter";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -62,12 +63,10 @@ export function PropertyPulseWidget({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Stats
-        items={[
-          { label: "completed this week", value: thisWeek },
-          { label: "still open", value: openTotal },
-        ]}
-      />
+      <StatGroup cols={2}>
+        <Stat label="completed this week" value={thisWeek} />
+        <Stat label="still open" value={openTotal} />
+      </StatGroup>
       <div className="h-32 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart

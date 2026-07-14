@@ -5,7 +5,7 @@
    `.str-chat__virtual-list` (all `background: var(--str-chat__background-core-app)`).
    Loaded after Stream's CSS so source-order beats the `.str-chat` default. */
 .str-chat.str-chat__theme-dark {
-  --str-chat__background-core-app: #191B1E;
+  --str-chat__background-core-app: #1b1a16;
 }
 
 /* Slack reaction row — mirrors Slack desktop pills; tuned to Stream theme classes
@@ -18,7 +18,7 @@
   --slack-reaction-pill-own-bg-hover: rgba(29, 155, 209, 0.42);
   --slack-add-reaction-icon: #ababad;
 
-  /* Full-row hover fill — a ~2.6% white lift over the #191B1E chat canvas,
+  /* Full-row hover fill — a ~2.6% white lift over the #1b1a16 chat canvas,
      matching Slack desktop's dark row hover. */
   --slack-row-hover-bg: #1F2124;
 
@@ -57,7 +57,7 @@
 
   /* Date pill fill — explicit Linear-style solid chip color (overrides the
      elevation-0 plane match so the pill reads as a distinct surface). */
-  --slack-date-pill-bg: #191b1e;
+  --slack-date-pill-bg: #1b1a16;
 
   /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
   --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);

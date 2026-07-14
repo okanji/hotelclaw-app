@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Separator } from "@/components/ui/separator";
 import {
   Eye,
   EyeOff,
@@ -21,7 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 /**
@@ -209,8 +209,11 @@ export type StatItem = {
   tone?: "rose" | "emerald";
 };
 
-/** Inline stat row — value + label, hairline separators between. Mirrors the
- *  Docs home header `dl`; the editorial alternative to boxed metric cards. */
+/** Inline stat one-liner for WIDGET INTERNALS — value + label pairs with
+ *  hairline separators. Three stat tiers now exist; pick by altitude:
+ *  `ui/stat-card` = page-headline row (Claude-dashboard cards),
+ *  `ui/stat` (StatGroup) = section-level stacked columns,
+ *  this = the compact in-widget one-liner. */
 export function Stats({ items }: { items: StatItem[] }) {
   return (
     <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-sm tracking-tight text-muted-foreground">
@@ -223,9 +226,7 @@ export function Stats({ items }: { items: StatItem[] }) {
             <dd
               className={cn(
                 "text-base font-semibold tracking-tight tabular-nums text-foreground",
-                s.tone === "rose" &&
-                  Number(s.value) > 0 &&
-                  "text-rose-500",
+                s.tone === "rose" && Number(s.value) > 0 && "text-destructive",
               )}
             >
               {s.value}

@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/ui/section-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,12 +43,12 @@ import {
   WIDGETS_BY_ID,
 } from "./dashboard-registry";
 import { useDashboardLayout } from "./use-dashboard-layout";
+import Link from "next/link";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   CustomizeMenu,
   EditorialSection,
   HiddenTray,
-  Stats,
-  type StatItem,
 } from "./editorial-section";
 import {
   DashboardFilterMenu,
@@ -140,60 +141,63 @@ export function HomeView({
   return (
     <DashboardFilterProvider value={filter}>
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-10">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <p className="truncate text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            {propertyName}
-          </p>
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            {realRole ? (
-              <ViewAsMenu
-                realRole={realRole}
-                viewAs={viewAs}
-                onChange={setViewAs}
+      <header className="mb-14 flex flex-col gap-8">
+        <SectionHeader
+          size="page"
+          className="flex-wrap gap-y-4"
+          eyebrow={propertyName}
+          title={greeting}
+          description={sublineFor(role)}
+          actions={
+            <>
+              {realRole ? (
+                <ViewAsMenu
+                  realRole={realRole}
+                  viewAs={viewAs}
+                  onChange={setViewAs}
+                />
+              ) : null}
+              <DashboardFilterMenu
+                propertyId={propertyId}
+                value={filter}
+                onChange={setFilter}
               />
-            ) : null}
-            <DashboardFilterMenu
-              propertyId={propertyId}
-              value={filter}
-              onChange={setFilter}
+              <CustomizeMenu
+                items={DASHBOARD_WIDGETS}
+                visibleCount={visible.length}
+                isHidden={isHidden}
+                onToggle={toggleHidden}
+                onReset={reset}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setGenerateOpen(true)}
+              >
+                <Sparkles className="size-4" />
+                Generate
+              </Button>
+              <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="size-4" />
+                New doc
+              </Button>
+            </>
+          }
+        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {statItems.map((item) => (
+            <StatCard
+              key={item.label}
+              label={item.label}
+              value={item.value}
+              sub={item.sub}
+              pill={item.pill}
+              render={<Link href={item.href} />}
             />
-            <CustomizeMenu
-              items={DASHBOARD_WIDGETS}
-              visibleCount={visible.length}
-              isHidden={isHidden}
-              onToggle={toggleHidden}
-              onReset={reset}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setGenerateOpen(true)}
-            >
-              <Sparkles className="size-4" />
-              Generate
-            </Button>
-            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              New doc
-            </Button>
-          </div>
-        </div>
-        <div className="flex flex-col gap-5">
-          <h1 className="text-4xl font-semibold tracking-tight text-balance text-foreground">
-            {greeting}
-          </h1>
-          <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
-            {sublineFor(role)}
-          </p>
-          <div className="pt-3">
-            <Stats items={statItems} />
-          </div>
+          ))}
         </div>
       </header>
-
-      <hr className="my-12 border-border" />
 
       {showHero && hero ? (
         <section className="mb-16 min-w-0">
@@ -295,31 +299,83 @@ function sublineFor(role: HomeLens): string {
   }
 }
 
-/** Role-tuned at-a-glance number. Owners lead with the front-desk + risk
- *  figures; everyone else keeps the personal task/unread read. All values come
- *  from queries the widgets below already fetch — no new endpoint. */
+type HomeStat = {
+  label: string;
+  value: number;
+  sub: string;
+  href: string;
+  pill?: React.ReactNode;
+};
+
+/** Small amber corner chip for stats that are waiting on a human. */
+function AttentionPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning">
+      {children}
+    </span>
+  );
+}
+
+/** Role-tuned headline stats (Claude-dashboard stat-card row). Owners lead
+ *  with the front-desk + risk figures; everyone else keeps the personal
+ *  task/unread read. All values come from queries the widgets below already
+ *  fetch — no new endpoint; each card deep-links to its surface. */
 function useStatItems(
   role: HomeLens,
   summary: { open: number; dueSoon: number; unread: number },
   propertyId: string,
-): StatItem[] {
+): HomeStat[] {
   const { data: pendingBookings = 0 } = useQuery(
     pendingBookingsCountQueryOptions(propertyId),
   );
   const { data: metrics } = useQuery(insightsMetricsQueryOptions(propertyId));
   const attention = metrics?.attention.length ?? 0;
+  const base = `/p/${propertyId}`;
+
+  const unreadStat: HomeStat = {
+    label: "Unread activity",
+    value: summary.unread,
+    sub: "since you last looked",
+    href: `${base}/activity`,
+  };
 
   if (role === "owner") {
     return [
-      { label: "pending bookings", value: pendingBookings, tone: "rose" },
-      { label: "need attention", value: attention, tone: "rose" },
-      { label: "unread", value: summary.unread },
+      {
+        label: "Pending bookings",
+        value: pendingBookings,
+        sub: "waiting on a staff yes",
+        href: `${base}/bookings?view=pending`,
+        pill:
+          pendingBookings > 0 ? (
+            <AttentionPill>Needs a yes</AttentionPill>
+          ) : undefined,
+      },
+      {
+        label: "Need attention",
+        value: attention,
+        sub: "flagged by pace + slip signals",
+        href: `${base}/home/insights`,
+        pill:
+          attention > 0 ? <AttentionPill>Review</AttentionPill> : undefined,
+      },
+      unreadStat,
     ];
   }
   return [
-    { label: "open tasks", value: summary.open },
-    { label: "due ≤ 7d", value: summary.dueSoon },
-    { label: "unread", value: summary.unread },
+    {
+      label: "Open tasks",
+      value: summary.open,
+      sub: "assigned to you",
+      href: `${base}/tasks`,
+    },
+    {
+      label: "Due within 7 days",
+      value: summary.dueSoon,
+      sub: "of your open tasks",
+      href: `${base}/tasks`,
+    },
+    unreadStat,
   ];
 }
 

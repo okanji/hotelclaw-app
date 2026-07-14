@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   ACTION_TYPE_META,
@@ -165,24 +166,11 @@ function ActionCard({
           <p className="text-sm font-medium">{meta.label}</p>
           <p className="text-xs text-muted-foreground">{meta.description}</p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={action.enabled}
+        <Switch
+          checked={action.enabled}
           aria-label={`${meta.label} enabled`}
-          onClick={() => onChange({ ...action, enabled: !action.enabled })}
-          className={cn(
-            "relative h-5 w-9 shrink-0 rounded-full transition-colors",
-            action.enabled ? "bg-foreground" : "bg-muted-foreground/30",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 size-4 rounded-full bg-background transition-[left]",
-              action.enabled ? "left-[18px]" : "left-0.5",
-            )}
-          />
-        </button>
+          onCheckedChange={(checked) => onChange({ ...action, enabled: checked })}
+        />
       </div>
 
       {action.enabled ? (

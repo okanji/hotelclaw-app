@@ -235,6 +235,12 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
       range.insertNode(trailing);
       range.insertNode(chip);
 
+      // Return focus to the editor before placing the caret — when the
+      // mention was picked by mouse, focus is on the popover item, and the
+      // popover is configured not to restore focus on close (finalFocus=
+      // false) so it doesn't fight us. Without this the caret would be set
+      // on an unfocused editor and the user couldn't keep typing.
+      el.focus();
       const caret = document.createRange();
       caret.setStartAfter(trailing);
       caret.collapse(true);

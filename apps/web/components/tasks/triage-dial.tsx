@@ -5,6 +5,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -242,62 +243,18 @@ function FieldRow({
         <p className="text-xs leading-snug">{status}</p>
       </div>
 
-      <Toggle
+      <Switch
         checked={on}
         disabled={!canEdit}
-        name={`${FIELD_LABEL[field]} auto-apply`}
-        onChange={() => onToggle(!on)}
+        aria-label={`${FIELD_LABEL[field]} auto-apply`}
+        title={
+          !canEdit
+            ? "Only owners can change autonomy"
+            : "Auto-apply high-confidence suggestions"
+        }
+        onCheckedChange={() => onToggle(!on)}
+        className="mt-0.5"
       />
     </div>
-  );
-}
-
-/**
- * Dependency-free switch — the project uses Base UI and ships no switch
- * primitive (same pattern as forms/form-detail.tsx and workflows-list.tsx).
- */
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  name,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  name: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={`${checked ? "Disable" : "Enable"} ${name}`}
-      disabled={disabled}
-      title={
-        disabled
-          ? "Only owners can change autonomy"
-          : "Auto-apply high-confidence suggestions"
-      }
-      onClick={(e) => {
-        e.preventDefault();
-        onChange();
-      }}
-      className={cn(
-        "relative mt-0.5 inline-flex h-[18px] w-[30px] shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
-        checked ? "bg-emerald-500" : "bg-muted-foreground/25",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform",
-          checked ? "translate-x-[13px]" : "translate-x-[2px]",
-        )}
-      />
-      <span
-        aria-hidden="true"
-        className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
-      />
-    </button>
   );
 }

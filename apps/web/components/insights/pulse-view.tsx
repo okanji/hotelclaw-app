@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { StatCard, StatCardPill } from "@/components/ui/stat-card";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -18,7 +19,6 @@ import {
   UserX,
 } from "lucide-react";
 import {
-  Stats,
   DividerList,
   ROW_CLASS,
   WidgetEmpty,
@@ -81,30 +81,31 @@ export function FlowBody({
   return (
     <div className="flex flex-col gap-5">
       <MetricsExplainer propertyId={propertyId} scope={scope} />
-          <Stats
-            items={[
-              { label: "created this week", value: thisWeek?.created ?? 0 },
-              { label: "completed this week", value: thisWeek?.done ?? 0 },
-              { label: "open", value: metrics.snapshot.openTotal },
-              {
-                label: "overdue",
-                value: metrics.snapshot.overdueTotal,
-                tone: "rose",
-              },
-              ...(metrics.cycleTime.medianDays !== null
-                ? [
-                    {
-                      label: `day median cycle${
-                        cycleDelta !== null
-                          ? ` (${cycleDelta > 0 ? "+" : ""}${cycleDelta} vs prior)`
-                          : ""
-                      }`,
-                      value: metrics.cycleTime.medianDays,
-                    },
-                  ]
-                : []),
-            ]}
-          />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
+            <StatCard label="Created this week" value={thisWeek?.created ?? 0} />
+            <StatCard label="Completed this week" value={thisWeek?.done ?? 0} />
+            <StatCard label="Open" value={metrics.snapshot.openTotal} />
+            <StatCard
+              label="Overdue"
+              value={metrics.snapshot.overdueTotal}
+              pill={
+                metrics.snapshot.overdueTotal > 0 ? (
+                  <StatCardPill tone="warning">Review</StatCardPill>
+                ) : undefined
+              }
+            />
+            {metrics.cycleTime.medianDays !== null ? (
+              <StatCard
+                label="Median cycle time"
+                value={`${metrics.cycleTime.medianDays}d`}
+                sub={
+                  cycleDelta !== null
+                    ? `${cycleDelta > 0 ? "+" : ""}${cycleDelta}d vs prior week`
+                    : undefined
+                }
+              />
+            ) : null}
+          </div>
           {hasFlowData ? (
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">

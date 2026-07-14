@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Database, Plus, Trash2, X } from "lucide-react";
@@ -226,20 +227,22 @@ function CreateTypeDialog({
                     placeholder="number"
                     className="flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs"
                   />
-                  <select
+                  <NativeSelect
+                    aria-label="Field type"
                     value={f.type}
                     onChange={(e) =>
                       updateField(i, {
                         type: e.target.value as FieldDraft["type"],
                       })
                     }
-                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    wrapperClassName="w-auto"
+                    className="h-7 text-xs md:text-xs"
                   >
                     <option value="string">string</option>
                     <option value="number">number</option>
                     <option value="boolean">boolean</option>
                     <option value="string[]">string[]</option>
-                  </select>
+                  </NativeSelect>
                   <label className="flex items-center gap-1 text-xs text-muted-foreground">
                     <input
                       type="checkbox"

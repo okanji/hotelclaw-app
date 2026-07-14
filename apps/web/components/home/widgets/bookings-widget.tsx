@@ -7,7 +7,8 @@ import {
   pendingBookingsCountQueryOptions,
   todaysBookingsQueryOptions,
 } from "@/lib/query/booking-queries";
-import { Stats, WidgetEmpty } from "../editorial-section";
+import { WidgetEmpty } from "../editorial-section";
+import { Stat, StatGroup } from "@/components/ui/stat";
 
 /**
  * The next 24 hours of guest bookings — who's arriving, for what, and the
@@ -38,14 +39,12 @@ export function BookingsWidget({ propertyId }: { propertyId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Stats
-        items={[
-          { label: "next 24h", value: bookings.length },
-          ...(pendingCount > 0
-            ? [{ label: "pending", value: pendingCount, tone: "rose" as const }]
-            : []),
-        ]}
-      />
+      <StatGroup cols={2}>
+        <Stat label="next 24h" value={bookings.length} />
+        {pendingCount > 0 ? (
+          <Stat label="pending" value={pendingCount} />
+        ) : null}
+      </StatGroup>
 
       <ul className="flex flex-col gap-1">
         {bookings.map((b) => {
