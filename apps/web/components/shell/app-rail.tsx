@@ -468,14 +468,11 @@ export function AppRail({
   return (
     <TooltipProvider delay={0}>
       <aside
-        // Floating rail card with a soft drop shadow, separated from the
-        // secondary sidebar by the surrounding `bg-sidebar`. Theme-aware: a
-        // white card (hairline ring to separate it from the light grey shell)
-        // in light mode, the original near-black `#090909` card in dark. Slack-
-        // style icon + label stack — labels are always visible (no tooltip).
-        // `m-2` matches the inset card's gutter so the shell reads as evenly-
-        // spaced floating panels.
-        className="m-2 flex w-[64px] shrink-0 flex-col items-center rounded-2xl bg-white p-2 shadow-sm shadow-black/5 ring-1 ring-black/[0.06] dark:bg-[#090909] dark:shadow-black/10 dark:ring-0"
+        // Flat rail on the shared `bg-sidebar` surface — same color as the
+        // secondary sidebar, separated from it only by the inset hairline on
+        // the sidebar's left edge (see SectionSidebar). Slack-style icon +
+        // label stack — labels are always visible (no tooltip).
+        className="flex w-[72px] shrink-0 flex-col items-center bg-sidebar px-2 py-2"
         aria-label="Sections"
       >
         <div className="mt-0.5 mb-4 flex justify-center">
