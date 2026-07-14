@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function DocumentListSkeleton() {
   return (
     <div
-      className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 py-10"
+      className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16"
       aria-busy="true"
     >
       <header className="mb-8 flex items-center justify-between">

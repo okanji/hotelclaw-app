@@ -281,7 +281,7 @@ export function BookingsView({
 
   if (workspaceService) {
     return (
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
         <ServiceWorkspace
           propertyId={propertyId}
           propertySlug={propertySlug}
@@ -297,7 +297,7 @@ export function BookingsView({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
       {/* Compact working-tool header — this page is the property's booking
           engine, not an editorial index; height goes to the views. */}
       <header className="flex flex-wrap items-center justify-between gap-3">

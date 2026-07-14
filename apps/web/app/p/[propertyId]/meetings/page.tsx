@@ -54,7 +54,7 @@ export default async function MeetingsPage({
             </p>
           </div>
         ) : (
-          <ul className="mx-auto max-w-3xl space-y-2">
+          <ul className="mx-auto max-w-6xl space-y-2">
             {meetings.map((m) => (
               <li key={m.id}>
                 <Link

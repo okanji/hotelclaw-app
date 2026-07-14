@@ -167,7 +167,7 @@ export function ChatbotDetail({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={`/p/${propertyId}/chatbots`}

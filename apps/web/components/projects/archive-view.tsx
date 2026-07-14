@@ -88,7 +88,7 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-col gap-3">
         <Link
           href={`/p/${propertyId}/projects`}
