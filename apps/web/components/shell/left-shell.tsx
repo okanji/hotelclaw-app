@@ -59,6 +59,7 @@ export function LeftShell({
           propertyId={currentPropertyId}
           userId={user.id}
           user={user}
+          memberships={memberships}
           isManagement={isManagement}
         />
         {showSidebar && (

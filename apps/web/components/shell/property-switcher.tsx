@@ -18,13 +18,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Check, ChevronsUpDown, MailCheck, Plus, Users, UserPlus } from "lucide-react";
-import { RailLogo } from "./rail-logo";
 import { InviteDialog } from "./invite-dialog";
 import { MembersDialog } from "./members-dialog";
 import { InvitesDialog } from "./invites-dialog";
 import { PendingInvitesSection } from "./pending-invites-section";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { propertyInitial, propertyTileTint } from "@/lib/shell/property-avatar";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -84,11 +84,8 @@ export function PropertySwitcher({
           <DropdownMenuTrigger
             render={<SidebarMenuButton size="lg" className="h-9 w-fit max-w-full" />}
           >
-            {/* Brand mark — a small tinted tile next to the org name (aubergine
-                tile / white glyph in light, inverted in dark). */}
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-[#4a154b] text-white dark:bg-white dark:text-[#4a154b]">
-              <RailLogo className="size-3" />
-            </span>
+            {/* Org name + chevron only — the property's logo lives in the rail
+                now (RailOrgSwitcher). */}
             <span className="min-w-0 truncate text-sm font-semibold text-sidebar-accent-foreground">
               {current?.property.name ?? "Property"}
             </span>
@@ -108,7 +105,7 @@ export function PropertySwitcher({
               </DropdownMenuLabel>
               {memberships.map((m) => {
                 const isActive = m.property_id === currentPropertyId;
-                const tint = tileTint(m.property_id);
+                const tint = propertyTileTint(m.property_id);
                 return (
                   <DropdownMenuItem
                     key={m.property_id}
@@ -126,7 +123,7 @@ export function PropertySwitcher({
                         tint,
                       )}
                     >
-                      {initial(m.property.name)}
+                      {propertyInitial(m.property.name)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-foreground">
@@ -201,25 +198,4 @@ export function PropertySwitcher({
       />
     </SidebarMenu>
   );
-}
-
-function initial(name: string): string {
-  return name.trim().slice(0, 1).toUpperCase() || "?";
-}
-
-// Deterministic per-property tile tint so each property reads as distinct in
-// the list (the trigger keeps the single aubergine brand mark).
-const TILE_TINTS = [
-  "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400",
-];
-
-function tileTint(key: string): string {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return TILE_TINTS[h % TILE_TINTS.length];
 }

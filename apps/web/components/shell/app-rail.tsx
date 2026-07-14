@@ -46,7 +46,8 @@ import { cn } from "@/lib/utils";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
-import { BrandMark } from "./rail-logo";
+import { RailOrgSwitcher } from "./rail-org-switcher";
+import type { Membership } from "@/lib/auth/session";
 
 /**
  * Slack-style nav button: a stacked icon-tile + label. The whole button is the
@@ -182,11 +183,13 @@ export function AppRail({
   propertyId,
   userId,
   user,
+  memberships,
   isManagement,
 }: {
   propertyId: string;
   userId: string;
   user: RailUser;
+  memberships: Membership[];
   isManagement: boolean;
 }) {
   const router = useRouter();
@@ -475,15 +478,17 @@ export function AppRail({
         className="m-2 flex w-[64px] shrink-0 flex-col items-center rounded-2xl bg-white p-2 shadow-sm shadow-black/5 ring-1 ring-black/[0.06] dark:bg-[#090909] dark:shadow-black/10 dark:ring-0"
         aria-label="Sections"
       >
-        <figure className="mt-0.5 mb-4">
-          {/* Brand mark — the app icon exactly as the favicon: gradient tile
-              with the white claw-rake, self-contained (no color wrapper). */}
-          <span className="flex size-12 items-center justify-center">
-            <BrandMark className="size-9" />
-          </span>
-        </figure>
+        <div className="mt-0.5 mb-4 flex justify-center">
+          {/* Org mark — the current property's colored-initial tile, doubling
+              as a workspace switcher (switch org / add org). */}
+          <RailOrgSwitcher
+            currentPropertyId={propertyId}
+            memberships={memberships}
+          />
+        </div>
 
-        <nav className="no-scrollbar flex min-h-0 w-full flex-1 flex-col justify-center overflow-y-auto">
+        {/* Icons flow top-to-bottom, not vertically centered. */}
+        <nav className="no-scrollbar flex min-h-0 w-full flex-1 flex-col justify-start overflow-y-auto">
           <ul className="flex flex-col gap-1">
             {primaryItems.map((item) => {
               const Icon = item.icon;
