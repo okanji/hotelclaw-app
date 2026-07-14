@@ -133,9 +133,19 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.5rem;
-  /* Width of the Slack-style icon rail (first sidebar). */
-  --rail-width: 4.5rem;
-  --sidebar: #faf9f5;
+  /* Width of the ClickUp-style icon rail (first sidebar). */
+  --rail-width: 3.75rem;
+  /* The floating icon rail's surface — a true neutral black (ClickUp-style),
+     deliberately outside the warm-ivory family so the rail reads as chrome,
+     not content. Same in both themes; AppRail pins its local --sidebar to
+     this so every sidebar-token consumer inside it (badge ring cutouts,
+     washes) matches. */
+  --rail: oklch(0.15 0 0);
+  /* ClickUp-style: the secondary sidebar is a neutral light gray pane joined
+     to the white content card, floating on a WHITE shell canvas (the outer
+     container uses bg-card) — deliberately neutral, not warm-ivory, to match
+     the chrome-vs-content split of the reference. */
+  --sidebar: #f8f8f8;
   --sidebar-foreground: oklch(0.27 0.006 106);
   --sidebar-primary: oklch(0.27 0.006 106);
   --sidebar-primary-foreground: oklch(0.985 0.003 106);

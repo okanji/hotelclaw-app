@@ -134,11 +134,15 @@ export default async function PropertyLayout({
                   }
                 >
                  <InsightsTabProvider>
-                  {/* Slack-style shell: icon rail + contextual secondary
-                      sidebar (both bg-sidebar, no divider) + inset content.
+                  {/* ClickUp-style shell: floating dark icon rail (m-2 card,
+                      see AppRail) beside ONE joined card = secondary sidebar
+                      + content pane, connected flush with a shared hairline
+                      seam (the main pane's border-l). When the sidebar is
+                      collapsed the main pane rounds its left corners back via
+                      the LeftShell peer's data-sidebar-open attribute.
                       Below md: the rail/sidebar move into a drawer behind the
-                      MobileTopBar hamburger and the inset goes full-bleed. */}
-                  <div className="flex h-svh w-full flex-col overflow-hidden bg-sidebar">
+                      MobileTopBar hamburger and the content goes full-bleed. */}
+                  <div className="flex h-svh w-full flex-col overflow-hidden bg-card">
                     <MobileTopBar
                       currentPropertyId={propertyId}
                       memberships={memberships}
@@ -152,7 +156,7 @@ export default async function PropertyLayout({
                     />
                     <div className="flex min-h-0 flex-1">
                     <LeftShell
-                      className="max-md:hidden"
+                      className="peer max-md:hidden"
                       currentPropertyId={propertyId}
                       memberships={memberships}
                       user={{
@@ -164,7 +168,7 @@ export default async function PropertyLayout({
                     />
                     <main
                       data-slot="sidebar-inset"
-                      className="relative m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border max-md:m-0 max-md:rounded-none max-md:ring-0"
+                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
                     >
                       {/* flex-row so an open profile panel claims width and the
                           chat/tasks/threads page compresses to fit (Slack-style

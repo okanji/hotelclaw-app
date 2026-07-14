@@ -468,14 +468,21 @@ export function AppRail({
   return (
     <TooltipProvider delay={0}>
       <aside
-        // Flat rail on the shared `bg-sidebar` surface — same color as the
-        // secondary sidebar, separated from it only by the inset hairline on
-        // the sidebar's left edge (see SectionSidebar). Slack-style icon +
-        // label stack — labels are always visible (no tooltip).
-        // pt-4 keeps the org tile on the same line it sat on when the rail was
-        // an m-2-inset card (8px margin + 8px padding), so it still aligns
-        // with the property switcher across the seam.
-        className="flex w-[72px] shrink-0 flex-col items-center bg-sidebar px-2 pt-4 pb-3"
+        // ClickUp-style floating rail: a thin near-black rounded card with
+        // margin on all sides, detached from the sidebar+content card to its
+        // right. The scoped `dark` class flips the token set for this
+        // subtree only, so the rail gets the dark-mode icon treatment
+        // (translucent-white washes) even in light mode; the inline style
+        // then pins the subtree's --sidebar to the neutral-black --rail
+        // token (inline so it beats the unlayered `.dark` token block), so
+        // the surface AND every sidebar-token consumer inside (badge ring
+        // cutouts) read ClickUp-black rather than the warm dark sidebar.
+        // Slack-style icon + label stack — labels are always visible.
+        // m-2 + pt-2 keeps the org tile on the same absolute line it sat on
+        // when the rail was flush with pt-4, so it still aligns with the
+        // property switcher across the gap.
+        className="dark m-2 flex w-(--rail-width) shrink-0 flex-col items-center rounded-xl bg-sidebar px-1 pt-2 pb-3"
+        style={{ "--sidebar": "var(--rail)" } as React.CSSProperties}
         aria-label="Sections"
       >
         <div className="mt-0.5 mb-4 flex justify-center">

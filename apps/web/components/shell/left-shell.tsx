@@ -50,7 +50,16 @@ export function LeftShell({
   const isManagement = currentRole === "owner" || currentRole === "manager";
 
   return (
-    <div className={cn("flex shrink-0 flex-col bg-sidebar", className)}>
+    // `data-sidebar-open` lets the main pane (a following sibling styled with
+    // `peer-data-[sidebar-open]:…`) square off its left corners only while the
+    // sidebar is attached to it.
+    // Transparent root: the white shell canvas shows through around the
+    // floating rail's margins (the mobile drawer's SheetContent paints its
+    // own bg-sidebar).
+    <div
+      data-sidebar-open={showSidebar ? "" : undefined}
+      className={cn("flex shrink-0 flex-col", className)}
+    >
       {/* Records each section's last route to localStorage so the rail and
           property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />

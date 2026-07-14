@@ -55,9 +55,11 @@ export function SectionSidebar({
 
   return (
     <aside
-      // Full-height left hairline — the rail↔sidebar partition: both panels
-      // share `bg-sidebar`, so this line is the only thing separating them.
-      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-sidebar"
+      // Left half of the ClickUp-style joined card: the sidebar connects
+      // flush to the content pane (which draws the shared seam via its own
+      // border-l) and carries the card's rounded left edge. Below md (the
+      // mobile drawer) it stays a flush full-height panel.
+      className="relative flex shrink-0 flex-col overflow-hidden border-border bg-sidebar max-md:h-full max-md:border-l md:my-2 md:rounded-l-xl md:border md:border-r-0"
       style={{ width }}
     >
       <div className="flex min-h-0 w-full flex-1 flex-col">
