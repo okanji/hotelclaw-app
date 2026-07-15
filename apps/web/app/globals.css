@@ -134,7 +134,7 @@
   --chart-5: oklch(0.269 0 0);
   --radius: 0.5rem;
   /* Width of the ClickUp-style icon rail (first sidebar). */
-  --rail-width: 3.75rem;
+  --rail-width: 3.25rem;
   /* The floating icon rail's surface — a true neutral black (ClickUp-style),
      deliberately outside the warm-ivory family so the rail reads as chrome,
      not content. Same in both themes; AppRail pins its local --sidebar to

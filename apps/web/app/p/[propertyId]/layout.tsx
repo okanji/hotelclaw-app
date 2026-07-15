@@ -168,7 +168,12 @@ export default async function PropertyLayout({
                     />
                     <main
                       data-slot="sidebar-inset"
-                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
+                      // transform-gpu pins this rounded `overflow-hidden` pane to
+                      // its own GPU layer. Without it, Chrome intermittently fails
+                      // to repaint composited descendants (the board's scroll
+                      // containers) inside the border-radius clip on hover — the
+                      // whole pane flashes white until a scroll forces a repaint.
+                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card transform-gpu peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
                     >
                       {/* flex-row so an open profile panel claims width and the
                           chat/tasks/threads page compresses to fit (Slack-style

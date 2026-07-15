@@ -69,7 +69,7 @@ const railTileClass =
   "dark:data-current:bg-white/15 dark:data-current:text-white " +
   "dark:group-focus-visible/item:ring-white/40";
 const railLabelClass =
-  "block w-full truncate text-center text-xs font-semibold leading-none tracking-tight transition-colors";
+  "block w-full truncate text-center text-[10px] font-semibold leading-none tracking-tight transition-colors";
 // Active vs inactive label color, both themes — applied via cn() in the markup.
 const railLabelActiveClass = "text-zinc-900 dark:text-white";
 const railLabelIdleClass =
