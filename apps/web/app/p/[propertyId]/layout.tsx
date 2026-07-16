@@ -181,7 +181,7 @@ export default async function PropertyLayout({
                       // over the same bug; it broke position:fixed descendants
                       // and stopped working on Chrome 149 — don't bring it
                       // back.)
-                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-xl border border-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
+                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-xl border border-shell-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
                     >
                       {/* Rectangular clip for the pane's content (see comment
                           above — the radius must not participate in clipping).

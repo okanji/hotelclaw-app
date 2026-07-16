@@ -35,6 +35,10 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  /* Outline of the joined shell card (sidebar + content pane). Deliberately
+     darker than the app-wide --border so the floating card reads as a defined
+     surface, without over-darkening every input/divider that uses --border. */
+  --color-shell-border: var(--shell-border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -125,6 +129,9 @@
   --accent-foreground: oklch(0.27 0.006 106);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.3 0.03 106 / 10%);
+  /* Same warm-ink hue as --border, just a heavier alpha — an on-palette
+     darker grey for the shell card outline, not a cold solid stroke. */
+  --shell-border: oklch(0.3 0.03 106 / 18%);
   --input: oklch(0.3 0.03 106 / 12%);
   --ring: oklch(0.71 0.012 106);
   --chart-1: oklch(0.87 0 0);
@@ -206,6 +213,9 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 5%);
+  /* Dark mode: the "darker outline" reads as a slightly stronger light edge
+     (you can't go darker than the near-black shell), keeping the card defined. */
+  --shell-border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.556 0.008 106);
   --chart-1: oklch(0.87 0 0);

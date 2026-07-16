@@ -59,7 +59,7 @@ export function SectionSidebar({
       // flush to the content pane (which draws the shared seam via its own
       // border-l) and carries the card's rounded left edge. Below md (the
       // mobile drawer) it stays a flush full-height panel.
-      className="relative flex shrink-0 flex-col overflow-hidden border-border bg-sidebar max-md:h-full max-md:border-l md:my-2 md:rounded-l-xl md:border md:border-r-0"
+      className="relative flex shrink-0 flex-col overflow-hidden border-shell-border bg-sidebar max-md:h-full max-md:border-l md:my-2 md:rounded-l-xl md:border md:border-r-0"
       style={{ width }}
     >
       <div className="flex min-h-0 w-full flex-1 flex-col">
