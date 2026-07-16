@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { FileText } from "lucide-react";
 import {
   documentBoardsQueryOptions,
@@ -132,9 +132,9 @@ function BoardsDnd({
       onDragCancel={handleDragCancel}
     >
       {children}
-      <DragOverlay dropAnimation={null}>
+      <PortalDragOverlay dropAnimation={null}>
         {activeGhost ? <DragGhost title={activeGhost.title} /> : null}
-      </DragOverlay>
+      </PortalDragOverlay>
     </DndContext>
   );
 }

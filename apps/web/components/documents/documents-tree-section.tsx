@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   pointerWithin,
   useDraggable,
@@ -35,6 +34,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import {
   SidebarGroup,
   SidebarGroupAction,
@@ -437,7 +437,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
         <FormsSidebarGroup propertyId={propertyId} pathname={pathname} />
       </TreeContext.Provider>
 
-      <DragOverlay dropAnimation={null}>
+      <PortalDragOverlay dropAnimation={null}>
         {draggedDoc ? (
           <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-sm shadow-lg">
             <FileText className="size-4 shrink-0 opacity-70" />
@@ -446,7 +446,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
             </span>
           </div>
         ) : null}
-      </DragOverlay>
+      </PortalDragOverlay>
 
       <ArchivedDocumentsDialog
         propertyId={propertyId}

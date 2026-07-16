@@ -1,15 +1,26 @@
 "use client";
 
-import { ClientSideSuspense, useOthers } from "@liveblocks/react/suspense";
+import {
+  ClientSideSuspense,
+  shallow,
+  useOthersMapped,
+} from "@liveblocks/react/suspense";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function PresenceBarInner() {
-  const others = useOthers();
+  // Mapped + shallow so this only re-renders on join/leave (info is static
+  // per connection) — NOT on every presence change in the room (drag flags
+  // etc.), which raw useOthers() would. See liveblocks-best-practices
+  // "performant others and presence".
+  const others = useOthersMapped(
+    (o) => ({ name: o.info?.name, avatar: o.info?.avatar }),
+    shallow,
+  );
   if (others.length === 0) return null;
   return (
     <div className="flex -space-x-2">
-      {others.slice(0, 5).map((o) => {
-        const name = o.info?.name ?? "?";
+      {others.slice(0, 5).map(([connectionId, info]) => {
+        const name = info.name ?? "?";
         const initials = name
           .split(/\s+/)
           .map((p) => p[0])
@@ -19,11 +30,11 @@ function PresenceBarInner() {
           .toUpperCase();
         return (
           <Avatar
-            key={o.connectionId}
+            key={connectionId}
             className="size-7 border-2 border-background"
             title={name}
           >
-            <AvatarImage src={o.info?.avatar} alt={name} />
+            <AvatarImage src={info.avatar} alt={name} />
             <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
           </Avatar>
         );

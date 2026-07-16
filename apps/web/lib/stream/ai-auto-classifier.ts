@@ -3,9 +3,11 @@ import "server-only";
  * Auto-mode classifier for the in-channel AI bot.
  *
  * Runs on every non-bot, non-mention message when the channel's `ai_mode`
- * is `"auto"`. Decides whether the bot should chime in — defaulting to no
- * unless the message clearly fits one of the rules in the sensitivity
- * prompt below.
+ * is `"auto"`. Decides whether the bot should chime in. Two rules apply at
+ * every sensitivity (the auto-mode product contract): the bot always
+ * responds when the user is continuing a conversation with it, and when the
+ * message asks for something within its tool capabilities. Everything else
+ * defaults to no, tuned by the sensitivity prompt below.
  *
  * Uses Claude Haiku (cheap + fast) with a structured JSON output. The
  * `reason` field comes back so we can log why a decision was made; it's
@@ -42,47 +44,74 @@ const DecisionSchema = z.object({
 
 export type ChimeDecision = z.infer<typeof DecisionSchema>;
 
+const HEADER = `You decide whether ${BOT_DISPLAY_NAME} — an AI teammate in a hotel-operations chat — should speak in response to the latest message. In the conversation below, ${BOT_DISPLAY_NAME}'s own past messages are the assistant turns.`;
+
+const CAPABILITIES = [
+  `What ${BOT_DISPLAY_NAME} can actually DO (via tools): list and filter open tasks / workload / what's blocked; search property documents, SOPs, and policies; list upcoming meetings; look up the org chart (who owns what, reporting lines, team leads); answer property-data questions from those sources; and delegate longer-running work (monitoring, scheduled reports, automations).`,
+].join("\n");
+
+// Sensitivity tunes the DISCRETIONARY rules below, but these two are the
+// product contract for auto mode and apply at every sensitivity: the bot is
+// always listening, and it must never ghost someone who is (a) talking to it
+// or (b) asking for something it can directly do.
+const UNIVERSAL_RULES = [
+  "ALWAYS return should_respond=true when either of these applies — they override every skip rule below:",
+  `  A. The latest message continues a conversation with ${BOT_DISPLAY_NAME}: it replies to, reacts to, asks a follow-up about, or answers something in ${BOT_DISPLAY_NAME}'s most recent message (e.g. 'yes do that', 'what about the second one?', 'go ahead'), or it addresses the bot by name or generically ('AI', 'bot', '${BOT_DISPLAY_NAME}', 'hey ai …').`,
+  "  B. The message asks for — or states a need that maps onto — something in the capability list above, even if nobody addressed the bot directly (e.g. 'what's still open?', 'someone should find the fire-safety SOP', 'who owns housekeeping?').",
+].join("\n");
+
 const COMMON_TAIL = [
   "",
-  "Default to should_respond=false. The cost of staying silent is low; the cost of chiming in unnecessarily is high (annoying, breaks the team's flow).",
-  "Hotelclaw can call tools to look up tasks, documents, and upcoming meetings — but only consider chiming in for those if the message references that data, don't pull it on every message.",
+  "When neither A nor B applies, default to should_respond=false. The cost of staying silent is low; the cost of chiming in unnecessarily is high (annoying, breaks the team's flow).",
   "",
   'Respond with JSON only, matching the schema {"should_respond": boolean, "reason": string}.',
 ].join("\n");
 
 const CONSERVATIVE_PROMPT = [
-  `You decide whether ${BOT_DISPLAY_NAME} — an AI teammate in a hotel-operations chat — should speak in response to the latest message.`,
-  "Only return should_respond=true if ONE of these clearly applies:",
+  HEADER,
+  "",
+  CAPABILITIES,
+  "",
+  UNIVERSAL_RULES,
+  "",
+  "Beyond A and B, also return should_respond=true if ONE of these clearly applies:",
   "  1. The message is a direct question that doesn't appear to be addressed to a specific human teammate.",
   "  2. The message contains a factual claim Hotelclaw has specific reason to believe is wrong.",
-  "  3. Someone states intent to do something Hotelclaw could set up or fetch directly (e.g. 'I need to find the doc on …', 'someone should schedule a meeting with …').",
   "",
   "Skip everything else: greetings, emoji, '+1' / 'ok' / 'thanks', coordination between specific named people, jokes, personal topics, opinions, anything where the team is already converging.",
   COMMON_TAIL,
 ].join("\n");
 
 const BALANCED_PROMPT = [
-  `You decide whether ${BOT_DISPLAY_NAME} — an AI teammate in a hotel-operations chat — should speak in response to the latest message.`,
-  "Only return should_respond=true if ONE of these clearly applies:",
+  HEADER,
+  "",
+  CAPABILITIES,
+  "",
+  UNIVERSAL_RULES,
+  "",
+  "Beyond A and B, also return should_respond=true if ONE of these clearly applies:",
   "  1. The message is a question that doesn't appear to be directed at a specific human teammate.",
   "  2. The message contains a factual claim Hotelclaw has specific reason to believe is wrong.",
   "  3. The conversation references tasks, documents, meetings, or property data that Hotelclaw could look up and add value by surfacing.",
   "  4. The discussion is ambiguous in a way a brief clarifying question would unblock.",
-  "  5. Someone states intent to do something Hotelclaw could set up or fetch directly.",
   "",
   "Skip: greetings, emoji, '+1' / 'ok' / 'thanks', coordination between specific named people ('@bob can you…'), jokes, personal/sensitive topics, anything where the room is already converging on an answer.",
   COMMON_TAIL,
 ].join("\n");
 
 const EAGER_PROMPT = [
-  `You decide whether ${BOT_DISPLAY_NAME} — an AI teammate in a hotel-operations chat — should speak in response to the latest message.`,
-  "Return should_respond=true when ANY of these apply:",
+  HEADER,
+  "",
+  CAPABILITIES,
+  "",
+  UNIVERSAL_RULES,
+  "",
+  "Beyond A and B, also return should_respond=true when ANY of these apply:",
   "  1. The message is a question that doesn't appear to be directed at a specific human teammate.",
   "  2. The message contains a factual claim Hotelclaw has reason to believe is wrong.",
   "  3. The conversation references tasks, documents, meetings, or property data Hotelclaw could surface.",
   "  4. The discussion is ambiguous and a brief clarifying question would unblock it.",
-  "  5. Someone states intent to do something Hotelclaw could set up or fetch directly.",
-  "  6. You have relevant context, a quick summary, or a useful suggestion that would genuinely help.",
+  "  5. You have relevant context, a quick summary, or a useful suggestion that would genuinely help.",
   "",
   "Still skip pure greetings, emoji, '+1', and direct 1:1 coordination ('@bob can you…').",
   "Keep replies brief — even when chiming in, Hotelclaw should be terse.",

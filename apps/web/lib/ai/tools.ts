@@ -34,7 +34,7 @@ export function buildPropertyTools(propertyId: string) {
   return {
     list_open_tasks: tool({
       description:
-        "List open tasks (not done) in this property. Use when the user asks about workload, what's pending, who's working on what, or anything blocked. Returns `count` (total open matching the filter) and `tasks` (the first N). If `count` exceeds `tasks.length`, mention to the user that more exist and they can ask for specifics. If `tasks` is empty, say so plainly — don't fabricate.",
+        "List open tasks (not done) in this property. Use when the user asks about workload, what's pending, who's working on what, or anything blocked. Returns `count` (total open matching the filter) and `tasks` (the first N). Each task carries an `id` — use it for render_ui link refs (kind 'task'), never in prose. If `count` exceeds `tasks.length`, mention to the user that more exist and they can ask for specifics. If `tasks` is empty, say so plainly — don't fabricate.",
       inputSchema: z.object({
         status: z
           .enum(["todo", "in_progress", "blocked"])
@@ -96,6 +96,8 @@ export function buildPropertyTools(propertyId: string) {
         }
 
         let rows = (tasks ?? []).map((t) => ({
+          // id is for deep links (render_ui link refs), not for prose.
+          id: t.id,
           title: t.title,
           status: STATUS_LABELS[t.status] ?? t.status,
           priority: t.priority,
@@ -150,6 +152,7 @@ export function buildPropertyTools(propertyId: string) {
               preview: string;
               updated_at: string;
             }) => ({
+              id: r.id,
               title: r.title,
               preview: r.preview,
               updated_at: r.updated_at,
@@ -195,6 +198,7 @@ export function buildPropertyTools(propertyId: string) {
         return {
           count: (data ?? []).length,
           meetings: (data ?? []).map((m) => ({
+            id: m.id,
             title: m.title,
             start: m.scheduled_start,
             end: m.scheduled_end,

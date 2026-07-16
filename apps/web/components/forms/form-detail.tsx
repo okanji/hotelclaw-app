@@ -19,7 +19,6 @@ import {
 import {
   closestCenter,
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -28,6 +27,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import {
   arrayMove,
   SortableContext,
@@ -451,13 +451,13 @@ function SplitPanesBuilder({
                   ))}
                 </div>
               </SortableContext>
-              <DragOverlay>
+              <PortalDragOverlay>
                 {activeField ? (
                   <div className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium shadow-md">
                     {activeField.label}
                   </div>
                 ) : null}
-              </DragOverlay>
+              </PortalDragOverlay>
             </DndContext>
           )}
         </div>

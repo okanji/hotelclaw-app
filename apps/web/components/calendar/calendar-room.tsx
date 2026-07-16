@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { ChevronLeft, ChevronRight, MessageSquareText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -460,7 +460,7 @@ export function CalendarRoom({
         onClose={() => setAiOpen(false)}
       />
     </section>
-    <DragOverlay dropAnimation={null}>
+    <PortalDragOverlay dropAnimation={null}>
       {dragTask ? (
         // Fade out (never unmount) over the grid: the overlay's rect feeds
         // dnd-kit's collision detection, so unmounting it mid-drag makes
@@ -477,7 +477,7 @@ export function CalendarRoom({
           />
         </div>
       ) : null}
-    </DragOverlay>
+    </PortalDragOverlay>
     </DndContext>
   );
 }

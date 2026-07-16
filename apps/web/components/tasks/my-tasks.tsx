@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import {
   DndContext,
-  DragOverlay,
   MouseSensor,
   TouchSensor,
   useDraggable,
@@ -29,6 +28,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -376,13 +376,13 @@ export function MyTasks({
             ) : null}
           </div>
 
-          <DragOverlay>
+          <PortalDragOverlay>
             {draggingTask ? (
               <div className="w-fit max-w-xs truncate rounded-md bg-background px-3 py-1.5 text-sm font-medium shadow-md ring-1 ring-black/5">
                 {draggingTask.title}
               </div>
             ) : null}
-          </DragOverlay>
+          </PortalDragOverlay>
         </DndContext>
       )}
     </div>

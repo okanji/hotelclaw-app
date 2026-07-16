@@ -5,7 +5,6 @@ import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import {
   DndContext,
-  DragOverlay,
   MouseSensor,
   TouchSensor,
   pointerWithin,
@@ -16,6 +15,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { ProjectTracking } from "@/lib/query/project-queries";
@@ -307,7 +307,7 @@ export function ProjectsBoardView({
           />
         ))}
       </div>
-      <DragOverlay
+      <PortalDragOverlay
         dropAnimation={{ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" }}
       >
         {activeProject ? (
@@ -315,7 +315,7 @@ export function ProjectsBoardView({
             <CardBody project={activeProject} members={members} dragging />
           </div>
         ) : null}
-      </DragOverlay>
+      </PortalDragOverlay>
     </DndContext>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useLayoutEffect,
   useRef,
@@ -239,7 +240,13 @@ type Props = {
   onChanged: () => void;
 };
 
-export function SortableTaskCard({
+/**
+ * Memoized: on a full board a single board-level re-render (presence
+ * change, refetch, column collapse) otherwise re-renders every card —
+ * including each card's per-card query hooks. Props are stable between
+ * board renders except when a card's own data changes.
+ */
+export const SortableTaskCard = memo(function SortableTaskCard({
   propertyId,
   task,
   assignee,
@@ -318,4 +325,4 @@ export function SortableTaskCard({
       <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );
-}
+});

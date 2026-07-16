@@ -3,7 +3,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -12,6 +11,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import {
   SortableContext,
   arrayMove,
@@ -479,19 +479,19 @@ export function TreeList({
       {/* Floating clone that tracks the cursor during a drag. The source row
        * stays put as a dimmed placeholder (see StepRow), so this is the only
        * thing that moves — a far clearer signal than nudging the in-place card. */}
-      <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0.7,0.5,1.1)" }}>
+      <PortalDragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0.7,0.5,1.1)" }}>
         {draggingStep ? (
           <StepDragCard
             step={draggingStep}
             ordinal={ordinalMap.get(draggingStep.id) ?? "•"}
           />
         ) : null}
-      </DragOverlay>
+      </PortalDragOverlay>
     </DndContext>
   );
 }
 
-// Presentational clone shown inside <DragOverlay> while a step is being
+// Presentational clone shown inside <PortalDragOverlay> while a step is being
 // dragged. Mirrors the StepRow card's look (badge · category · name · summary)
 // with a "lifted" treatment, minus the sortable wiring and hover actions.
 function StepDragCard({ step, ordinal }: { step: StepNode; ordinal: string }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -30,6 +30,16 @@ import type { Task } from "./kanban";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import type { TaskStatus } from "@/lib/db/types";
 
+/**
+ * Cards rendered per column before the scroll sentinel loads the next page.
+ * Full boards paint thousands of px of card content per column into Chrome's
+ * composited scroller textures, which both costs raster time and trips a
+ * macOS GPU-rasterization bug (tiles dropped → cards/header white until a
+ * scroll re-rasters). Capping the rendered window keeps the textures small;
+ * scrolling near the bottom reveals more (per-column infinite scroll).
+ */
+const COLUMN_PAGE = 25;
+
 type Props = {
   column: {
     id: TaskStatus;
@@ -42,6 +52,8 @@ type Props = {
   assignees: Record<string, AssigneeInfo>;
   propertyId: string;
   dragActive: boolean;
+  /** Id of the card this user is dragging, if any. */
+  activeDragId: string | null;
   /** The card being dragged currently belongs to this column. */
   isDropTarget: boolean;
   /** Whether this column should render its body (false when collapsed). */
@@ -63,6 +75,7 @@ export function KanbanColumn({
   assignees,
   propertyId,
   dragActive,
+  activeDragId,
   isDropTarget,
   collapsed,
   onToggleCollapse,
@@ -75,6 +88,52 @@ export function KanbanColumn({
   const { setNodeRef } = useDroppable({ id: column.id });
   const [adding, setAdding] = useState(false);
   const empty = taskIds.length === 0;
+
+  // Windowed rendering — see COLUMN_PAGE. The scroll container doubles as
+  // the IntersectionObserver root, so we keep our own ref alongside
+  // dnd-kit's droppable ref.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const setScrollRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node);
+      scrollRef.current = node;
+    },
+    [setNodeRef],
+  );
+  const sentinelRef = useRef<HTMLButtonElement | null>(null);
+  const [visibleCount, setVisibleCount] = useState(COLUMN_PAGE);
+  const hasMore = taskIds.length > visibleCount;
+
+  useEffect(() => {
+    if (collapsed || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((c) => c + COLUMN_PAGE);
+        }
+      },
+      { root: scrollRef.current, rootMargin: "300px" },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [collapsed, hasMore]);
+
+  const visibleIds = useMemo(() => {
+    const ids = taskIds.slice(0, visibleCount);
+    // Keep the in-column preview of this user's dragged card mounted even
+    // when drag-over inserts it beyond the rendered window — otherwise the
+    // dimmed placeholder vanishes mid-drag.
+    if (
+      activeDragId &&
+      taskIds.includes(activeDragId) &&
+      !ids.includes(activeDragId)
+    ) {
+      ids.push(activeDragId);
+    }
+    return ids;
+  }, [taskIds, visibleCount, activeDragId]);
 
   function automateColumn() {
     const prefill = {
@@ -197,7 +256,7 @@ export function KanbanColumn({
       </header>
 
       <div
-        ref={setNodeRef}
+        ref={setScrollRefs}
         className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2"
       >
         {adding ? (
@@ -210,8 +269,11 @@ export function KanbanColumn({
           />
         ) : null}
 
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {taskIds.map((id) => {
+        <SortableContext
+          items={visibleIds}
+          strategy={verticalListSortingStrategy}
+        >
+          {visibleIds.map((id) => {
             const task = tasksById[id];
             if (!task) return null;
             const info = task.assignee_id
@@ -230,6 +292,19 @@ export function KanbanColumn({
             );
           })}
         </SortableContext>
+
+        {hasMore ? (
+          // Scroll sentinel — auto-loads the next page as it nears the
+          // viewport; clickable as a fallback.
+          <button
+            type="button"
+            ref={sentinelRef}
+            onClick={() => setVisibleCount((c) => c + COLUMN_PAGE)}
+            className="shrink-0 rounded-md py-2 text-center text-xs text-muted-foreground/70 hover:text-foreground"
+          >
+            {taskIds.length - visibleIds.length} more…
+          </button>
+        ) : null}
 
         {empty && !adding && isDropTarget ? (
           <div className="mt-2 flex items-center justify-center rounded-md border border-dashed border-primary/40 px-3 py-5 text-center">

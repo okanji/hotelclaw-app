@@ -238,7 +238,14 @@ export async function moveTask(
 
   if (error || !row) return { error: error?.message ?? "Move failed" };
 
-  revalidatePath(`/p/${row.property_id}/tasks`);
+  // Deliberately NO revalidatePath here. The board is fully client-rendered
+  // (the tasks route's page.tsx renders null; data comes from React Query via
+  // /api/.../tasks), and the kanban move path already updates the cache
+  // optimistically + `invalidateQueries(["tasks"])` on settle, plus a
+  // Liveblocks broadcast for teammates. revalidatePath would re-render the
+  // ENTIRE property layout server tree (all 14 mounted surfaces + its data
+  // fetches) on every drag — the dev "Rendering…" flash — for zero benefit,
+  // since nothing server-rendered consumes this write.
   return { ok: true };
 }
 

@@ -1,6 +1,10 @@
 "use client";
 
-import { useOthers, useSelf } from "@liveblocks/react/suspense";
+import {
+  shallow,
+  useOthersMapped,
+  useSelf,
+} from "@liveblocks/react/suspense";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -16,55 +20,85 @@ import { cn } from "@/lib/utils";
  *
  * Lives in the header next to the date label. Renders nothing when no
  * one else is connected (no point in a stack of one).
+ *
+ * Selector + shallow everywhere: the calendar room streams `cursor`
+ * presence at pointer-move frequency (both own and others'), and the
+ * unselected useSelf()/useOthers() forms re-render on every one of those
+ * updates — a 60fps header repaint while anyone moves their mouse. The
+ * selectors subscribe only to the fields this bar actually shows.
  */
+
+type PresencePerson = {
+  name?: string;
+  avatar?: string;
+  editingEventId: string | null;
+  focusedDay: string | null;
+};
+
 export function CalendarPresenceBar() {
-  const self = useSelf();
-  const others = useOthers();
+  const self = useSelf(
+    (me): PresencePerson => ({
+      name: me.info?.name,
+      avatar: me.info?.avatar,
+      editingEventId: me.presence.editingEventId ?? null,
+      focusedDay: me.presence.focusedDay ?? null,
+    }),
+    shallow,
+  );
+  const others = useOthersMapped(
+    (o): PresencePerson => ({
+      name: o.info?.name,
+      avatar: o.info?.avatar,
+      editingEventId: o.presence.editingEventId ?? null,
+      focusedDay: o.presence.focusedDay ?? null,
+    }),
+    shallow,
+  );
   if (!self || others.length === 0) return null;
+
+  const people: (readonly [string | number, PresencePerson])[] = [
+    ["self", self] as const,
+    ...others,
+  ];
+
   return (
     <div className="flex items-center -space-x-1.5">
-      {[self, ...others].slice(0, 5).map((p) => {
-        const editingId = p.presence?.editingEventId;
-        const focused = p.presence?.focusedDay;
-        return (
-          <Tooltip key={p.connectionId}>
-            <TooltipTrigger>
-              <Avatar
-                className={cn(
-                  "size-6 ring-2 ring-card",
-                  editingId && "ring-amber-400",
-                )}
-              >
-                <AvatarImage src={p.info?.avatar} />
-                <AvatarFallback>
-                  {(p.info?.name ?? "?").slice(0, 1).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="text-xs">
-                <div className="font-medium">{p.info?.name ?? "Unnamed"}</div>
-                {editingId ? (
-                  <div className="text-muted-foreground">
-                    Editing an event
-                  </div>
-                ) : focused ? (
-                  <div className="text-muted-foreground">
-                    Looking at{" "}
-                    {new Date(focused).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
-      {others.length + 1 > 5 ? (
+      {people.slice(0, 5).map(([key, p]) => (
+        <Tooltip key={key}>
+          <TooltipTrigger>
+            <Avatar
+              className={cn(
+                "size-6 ring-2 ring-card",
+                p.editingEventId && "ring-amber-400",
+              )}
+            >
+              <AvatarImage src={p.avatar} />
+              <AvatarFallback>
+                {(p.name ?? "?").slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">
+              <div className="font-medium">{p.name ?? "Unnamed"}</div>
+              {p.editingEventId ? (
+                <div className="text-muted-foreground">Editing an event</div>
+              ) : p.focusedDay ? (
+                <div className="text-muted-foreground">
+                  Looking at{" "}
+                  {new Date(p.focusedDay).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      ))}
+      {people.length > 5 ? (
         <span className="ml-2 text-xs text-muted-foreground">
-          +{others.length + 1 - 5}
+          +{people.length - 5}
         </span>
       ) : null}
     </div>

@@ -130,7 +130,7 @@ export type RunBotResult = {
   modelMessages?: ModelMessage[];
 };
 
-const DEFAULT_RESPONSE_GUIDELINES = [
+export const DEFAULT_RESPONSE_GUIDELINES = [
   "Be concise: 1-3 sentences by default. Expand only when the user explicitly asks for detail.",
   "When the question is about specific property data (tasks, docs, meetings, anything tied to this hotel), use the available tools rather than guessing. If a tool returns 0 results, say so plainly — never fabricate.",
   "When the question is broader (operations, planning, judgment calls), share your best take like a knowledgeable colleague.",

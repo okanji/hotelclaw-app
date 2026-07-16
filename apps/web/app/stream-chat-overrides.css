@@ -626,6 +626,42 @@
 }
 
 /*
+ * Markdown tables — Stream's renderer parses GFM tables into real <table>
+ * markup (see rehype-sanitize-table-br.ts) but ships zero styling, so cells
+ * collapsed into one unreadable run of text. The bot now prefers the
+ * `render_ui` attachment for tabular answers; this is the readable fallback
+ * for tables users paste or the model still writes.
+ */
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text table {
+  margin-block: 0.5rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.8125rem;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text th,
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text td {
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text tr + tr td {
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+/*
  * @mentions — Slack-like pills: regular weight, tinted fill only (no border).
  * Stream uses `.str-chat__message-mention` + `data-user-id` for resolved user
  * mentions in the rendered message. The composer renders its own atomic chips
@@ -776,7 +812,11 @@
   max-width: none;
   margin: 0;
   justify-content: flex-start;
-  align-items: center;
+  /* Top-align like a real message row (the message grid is `align-items:
+     start`, avatar top-aligned with the first line of content). Centering
+     put the dots at the avatar's vertical middle, which read as offset
+     against every message above where content sits at the top. */
+  align-items: flex-start;
   gap: var(--slack-avatar-column-gap, 10px);
   padding-block: 2px;
   padding-inline: var(--str-chat__spacing-md, 16px);
@@ -793,8 +833,17 @@
 }
 
 .str-chat__typing-indicator__bubble {
-  min-height: 0;
-  max-height: none;
+  /* Size the dot box to one line of message body text and center the dots in
+     it. With the container top-aligned, this seats the dots on the same first
+     line where a message's text sits next to its avatar — instead of at the
+     avatar's vertical center (Stream's default 36px bubble) or floating low
+     (the prior `min-height: 0` collapse, which left Stream's `padding-block`
+     and dropped the dots below the centerline). */
+  display: flex;
+  align-items: center;
+  min-height: var(--slack-msg-body-line-height, 24px);
+  max-height: var(--slack-msg-body-line-height, 24px);
+  padding-block: 0;
   padding-inline: 0;
   border-color: transparent;
   background: transparent;

@@ -22,7 +22,12 @@ import "server-only";
 import { type ModelMessage } from "ai";
 import { BOT_DISPLAY_NAME } from "@/lib/ai/bot-identity";
 import { buildPropertyTools } from "@/lib/ai/tools";
-import { runBot, type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-bot";
+import { buildRenderUiTool, type RenderUiSink } from "@/lib/ai/tools/render-ui";
+import {
+  DEFAULT_RESPONSE_GUIDELINES,
+  runBot,
+  type ActivationReason as RuntimeActivationReason,
+} from "@/lib/ai/run-bot";
 import { resolveChannelDeployment } from "@/lib/chatbots/channel-deployment";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
@@ -52,6 +57,18 @@ export type ActivationReason = RuntimeActivationReason;
  * stay consistent. See AGENTS.md "Two-tier AI architecture".
  */
 const CHANNEL_BOT_PERSONA = `You are ${BOT_DISPLAY_NAME}, an in-channel teammate inside a Slack-style chat for a hotel operations app.`;
+
+/**
+ * Channel-specific addition to the shared guidelines: structured answers
+ * go through the `render_ui` tool (rich attachment), never markdown
+ * tables — Stream's message renderer has no table styling and the model
+ * kept emitting them for task lists.
+ */
+const CHANNEL_RESPONSE_GUIDELINES = [
+  DEFAULT_RESPONSE_GUIDELINES,
+  "When your answer is a set of records — task lists, schedules, workloads, comparisons, metrics — call the render_ui tool to display it as rich UI and keep your text to a one-line lead-in. Never write markdown tables in a chat reply.",
+  "In render_ui, attach a link ref ({kind, id} from the tool results) to every row or card that corresponds to a real task, project, document, meeting, form, or team — users should be able to click straight through.",
+].join(" ");
 
 /**
  * Resolve the property id for a Stream channel via the `chat_channels` mirror.
@@ -167,6 +184,11 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     let finalText = "";
     let finalModelMessages: ModelMessage[] | undefined;
 
+    // Collects the spec from any render_ui call during generation. Reset at
+    // the top of every coalesce attempt so a discarded generation's UI can't
+    // leak onto the reply that actually posts.
+    const uiSink: RenderUiSink = { spec: null };
+
     // ─── Coalesce loop ────────────────────────────────────────────────────
     // Generate, then re-query the channel/thread. If new non-bot messages
     // arrived during generation, the reply we just made doesn't address
@@ -175,6 +197,7 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     // bursts of 2-3 messages within ~5s typically settle in 2.
     for (let attempt = 1; attempt <= MAX_COALESCE_ATTEMPTS; attempt++) {
       const queryStartedAt = Date.now();
+      uiSink.spec = null;
       try {
         const history = parentId
           ? await loadThreadHistory(channel, parentId, botUserId)
@@ -198,23 +221,30 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
         const result = await runBot({
           persona: deployment?.persona ?? CHANNEL_BOT_PERSONA,
           activationReason: ctx.activationReason ?? "mention",
-          scopedTools: deployment
-            ? { ...buildPropertyTools(ctx.propertyId), ...deployment.tools }
-            : buildPropertyTools(ctx.propertyId),
+          scopedTools: {
+            ...buildPropertyTools(ctx.propertyId),
+            ...(deployment ? deployment.tools : {}),
+            ...buildRenderUiTool(ctx.propertyId, uiSink),
+          },
           messages,
           scope: {
             propertyId: ctx.propertyId,
             userId: ctx.triggerMessage.userId,
             surface: "channel",
           },
+          responseGuidelines: CHANNEL_RESPONSE_GUIDELINES,
           modelId: process.env.STREAM_BOT_MODEL, // legacy override
         });
         finalText = result.text;
         finalModelMessages = result.modelMessages;
+        // Failed generations post an apology — never pair it with UI the
+        // model built before the failure.
+        if (!result.ok) uiSink.spec = null;
       } catch (err) {
         console.error("[ai-reply] runBot failed", err);
         finalText =
           "I hit an error generating that reply — try again in a moment.";
+        uiSink.spec = null;
         break;
       }
 
@@ -262,6 +292,9 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
         text: finalText,
         user_id: botUserId,
         ai_generated: true,
+        ...(uiSink.spec
+          ? { attachments: [{ type: "ai_ui", spec: uiSink.spec }] }
+          : {}),
         ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
       } as unknown as Parameters<typeof channel.sendMessage>[0]);
     } catch (err) {

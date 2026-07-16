@@ -12,7 +12,6 @@ import {
 import {
   closestCenter,
   DndContext,
-  DragOverlay,
   getFirstCollision,
   KeyboardSensor,
   MeasuringStrategy,
@@ -28,6 +27,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { toast } from "sonner";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCardOverlay } from "./task-card";
@@ -392,7 +392,15 @@ export function KanbanView({
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetection}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      // Measure droppables only WHILE dragging (dnd-kit's default). The old
+      // `MeasuringStrategy.Always` never disables measuring, so it called
+      // getBoundingClientRect on every droppable — the 4 columns AND all ~80+
+      // cards (each useSortable is a droppable) — on *every* board re-render,
+      // including each keystroke in the filter box (measured: ~68 forced
+      // reflows per keystroke). `WhileDragging` still re-measures during an
+      // active drag as columns reflow (the measuring effect re-runs when the
+      // sortable set changes), so drop accuracy is unaffected.
+      measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging } }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -413,6 +421,7 @@ export function KanbanView({
               assignees={assignees}
               propertyId={propertyId}
               dragActive={activeId !== null}
+              activeDragId={activeId}
               isDropTarget={activeColumn === column.id}
               collapsed={isCollapsed}
               onToggleCollapse={toggleCollapsed}
@@ -424,7 +433,7 @@ export function KanbanView({
           );
         })}
       </div>
-      <DragOverlay
+      <PortalDragOverlay
         dropAnimation={{
           duration: 200,
           easing: "cubic-bezier(0.2, 0, 0, 1)",
@@ -433,7 +442,7 @@ export function KanbanView({
         {activeTask ? (
           <TaskCardOverlay task={activeTask} assignee={activeAssignee} />
         ) : null}
-      </DragOverlay>
+      </PortalDragOverlay>
     </DndContext>
   );
 }

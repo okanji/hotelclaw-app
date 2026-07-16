@@ -1,15 +1,19 @@
 "use client";
 
 import { Attachment as DefaultAttachment, type AttachmentProps } from "stream-chat-react";
+import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
 import { SlackMessageImage } from "@/components/chat/slack-message-image";
 import { FormAttachmentCard } from "@/components/forms/form-attachment-card";
 import type { FormAttachmentPayload } from "@/components/forms/share-actions";
+import { isAiUiAttachment } from "@/lib/ai/chat-ui/catalog";
 
 /**
  * Stream {@link DefaultAttachment} with Slack-style image presentation;
  * custom `Image` from props is respected when provided. Attachments of our
- * custom type "form" (shared forms / workflow `action.form.send`) render as
- * fill-in-place cards; everything else falls through to Stream's renderer.
+ * custom types render first — "form" (shared forms / workflow
+ * `action.form.send`) as fill-in-place cards, "ai_ui" (the channel bot's
+ * `render_ui` tool) as rich table/card/stat blocks; everything else falls
+ * through to Stream's renderer.
  */
 export function SlackAttachment(props: AttachmentProps) {
   const { Image: ImageFromProps, attachments, ...rest } = props;
@@ -21,12 +25,18 @@ export function SlackAttachment(props: AttachmentProps) {
     typeof (a as { form_id?: unknown }).form_id === "string";
 
   const formAttachments = (attachments ?? []).filter(isForm);
-  const others = (attachments ?? []).filter((a) => !isForm(a));
+  const aiUiAttachments = (attachments ?? []).filter(isAiUiAttachment);
+  const others = (attachments ?? []).filter(
+    (a) => !isForm(a) && !isAiUiAttachment(a),
+  );
 
   return (
     <>
       {formAttachments.map((a) => (
         <FormAttachmentCard key={a.form_id} attachment={a} />
+      ))}
+      {aiUiAttachments.map((a, i) => (
+        <AiUiAttachment key={i} attachment={a} />
       ))}
       {others.length > 0 ? (
         <DefaultAttachment

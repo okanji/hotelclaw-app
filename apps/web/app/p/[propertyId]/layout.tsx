@@ -168,17 +168,27 @@ export default async function PropertyLayout({
                     />
                     <main
                       data-slot="sidebar-inset"
-                      // transform-gpu pins this rounded `overflow-hidden` pane to
-                      // its own GPU layer. Without it, Chrome intermittently fails
-                      // to repaint composited descendants (the board's scroll
-                      // containers) inside the border-radius clip on hover — the
-                      // whole pane flashes white until a scroll forces a repaint.
-                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card transform-gpu peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
+                      // The rounded corners here are VISUAL ONLY — this element
+                      // must never clip (no overflow-hidden): a border-radius
+                      // clip over composited scroll containers (kanban columns,
+                      // chat lists) trips a Chrome/macOS GPU rasterization bug
+                      // where the pane's tiles go white until a scroll forces a
+                      // re-raster. Clipping happens on the inner wrapper below
+                      // as a plain rectangle instead. The pane's background is
+                      // bg-card on a bg-card shell, so content painting square
+                      // into the few corner px is invisible. (History: a
+                      // transform-gpu layer-promotion hack lived here to paper
+                      // over the same bug; it broke position:fixed descendants
+                      // and stopped working on Chrome 149 — don't bring it
+                      // back.)
+                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-xl border border-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
                     >
-                      {/* flex-row so an open profile panel claims width and the
+                      {/* Rectangular clip for the pane's content (see comment
+                          above — the radius must not participate in clipping).
+                          flex-row so an open profile panel claims width and the
                           chat/tasks/threads page compresses to fit (Slack-style
                           push, not overlay). */}
-                      <div className="flex h-full min-h-0 flex-1">
+                      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                           {/* Persistent section surfaces. Each renders only
                               when its URL prefix matches and returns null

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
-  DragOverlay,
   MouseSensor,
   TouchSensor,
   useDraggable,
@@ -14,6 +13,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -149,7 +149,7 @@ export function KanbanGroupedView({
           />
         ))}
       </div>
-      <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.2,0,0,1)" }}>
+      <PortalDragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.2,0,0,1)" }}>
         {activeTask ? (
           <TaskCardOverlay
             task={activeTask}
@@ -158,7 +158,7 @@ export function KanbanGroupedView({
             }
           />
         ) : null}
-      </DragOverlay>
+      </PortalDragOverlay>
     </DndContext>
   );
 }
