@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Members of a property, with profile info merged in.
@@ -50,12 +50,29 @@ export async function GET(
     (profiles ?? []).map((p) => [p.id, p] as const),
   );
 
+  // Login emails live on auth.users, reachable only via the service client —
+  // and only AFTER RLS above has confirmed this user can read the property's
+  // roster. Best-effort per member; leave null if the admin API is unavailable.
+  const emailById = new Map<string, string>();
+  try {
+    const service = createServiceClient();
+    await Promise.all(
+      userIds.map(async (id) => {
+        const { data } = await service.auth.admin.getUserById(id);
+        if (data.user?.email) emailById.set(id, data.user.email);
+      }),
+    );
+  } catch {
+    // Emails are a nicety, not load-bearing — swallow and return names only.
+  }
+
   const result = members.map((m) => {
     const p = byId.get(m.user_id);
     return {
       id: m.user_id,
       role: m.role,
       name: p?.full_name ?? null,
+      email: emailById.get(m.user_id) ?? null,
       avatarUrl: p?.avatar_url ?? null,
     };
   });

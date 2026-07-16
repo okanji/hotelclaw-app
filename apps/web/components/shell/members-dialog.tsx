@@ -11,8 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search } from "lucide-react";
-import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Users } from "lucide-react";
+import {
+  propertyMembersQueryOptions,
+  type PropertyMember,
+} from "@/lib/query/section-queries";
 
 type Props = {
   propertyId: string;
@@ -20,7 +25,19 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-/** Everyone who belongs to the current property, with avatar + role. */
+type RoleTone = React.ComponentProps<typeof StatusBadge>["tone"];
+
+/** Role → display label + badge tone. Owner is distinguished (violet), manager
+ *  reads as an elevated state (info), everyone else stays quiet (neutral). */
+const ROLE_META: Record<string, { label: string; tone: RoleTone }> = {
+  owner: { label: "Owner", tone: "violet" },
+  manager: { label: "Manager", tone: "info" },
+  staff: { label: "Staff", tone: "neutral" },
+};
+
+const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
+
+/** Everyone who belongs to the current property, with avatar, email, and role. */
 export function MembersDialog({ propertyId, open, onOpenChange }: Props) {
   const { data: members = [], isLoading } = useQuery({
     ...propertyMembersQueryOptions(propertyId),
@@ -31,76 +48,119 @@ export function MembersDialog({ propertyId, open, onOpenChange }: Props) {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     const list = term
-      ? members.filter((m) => (m.name ?? "").toLowerCase().includes(term))
+      ? members.filter(
+          (m) =>
+            (m.name ?? "").toLowerCase().includes(term) ||
+            (m.email ?? "").toLowerCase().includes(term),
+        )
       : members;
     // Owners first, then managers, then staff; alphabetical within a role.
-    const rank: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
     return [...list].sort(
       (a, b) =>
-        (rank[a.role] ?? 3) - (rank[b.role] ?? 3) ||
+        (RANK[a.role] ?? 3) - (RANK[b.role] ?? 3) ||
         (a.name ?? "").localeCompare(b.name ?? ""),
     );
   }, [members, q]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="gap-3 sm:max-w-md">
         <DialogHeader>
           <DialogTitle>People</DialogTitle>
           <DialogDescription>
-            {members.length} {members.length === 1 ? "person" : "people"} in this
-            property.
+            <span className="tabular-nums">{members.length}</span>{" "}
+            {members.length === 1 ? "person" : "people"} in this property.
           </DialogDescription>
         </DialogHeader>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            name="member-search"
+            aria-label="Search people"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="h-9 pl-8 text-sm"
+            placeholder="Search by name or email…"
+            className="h-9 pl-9"
           />
         </div>
 
         {isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            Loading…
-          </p>
+          <MemberSkeletons />
         ) : filtered.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {q.trim() ? "No one matches that search." : "No members yet."}
-          </p>
+          <EmptyRow searching={Boolean(q.trim())} />
         ) : (
           <ul
             role="list"
-            className="-mx-1 max-h-80 overflow-y-auto"
+            className="max-h-80 divide-y divide-border/50 overflow-y-auto"
           >
             {filtered.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-3 rounded-md px-1 py-2"
-              >
-                <Avatar className="size-8">
-                  {m.avatarUrl ? (
-                    <AvatarImage src={m.avatarUrl} alt="" />
-                  ) : null}
-                  <AvatarFallback className="text-[0.625rem]">
-                    {initials(m.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
-                  {m.name ?? "Unnamed"}
-                </span>
-                <span className="shrink-0 text-xs tracking-tight text-muted-foreground capitalize">
-                  {m.role}
-                </span>
-              </li>
+              <MemberRow key={m.id} member={m} />
             ))}
           </ul>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MemberRow({ member }: { member: PropertyMember }) {
+  const role = ROLE_META[member.role] ?? {
+    label: member.role,
+    tone: "neutral" as RoleTone,
+  };
+  return (
+    <li className="flex items-center gap-3 py-2.5">
+      <Avatar className="size-9 shrink-0">
+        {member.avatarUrl ? (
+          <AvatarImage src={member.avatarUrl} alt="" />
+        ) : null}
+        <AvatarFallback className="text-xs">
+          {initials(member.name)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium tracking-tight text-foreground">
+          {member.name ?? "Unnamed"}
+        </p>
+        {member.email ? (
+          <p className="truncate text-xs text-muted-foreground">
+            {member.email}
+          </p>
+        ) : null}
+      </div>
+      <StatusBadge tone={role.tone} className="capitalize">
+        {role.label}
+      </StatusBadge>
+    </li>
+  );
+}
+
+function MemberSkeletons() {
+  return (
+    <ul role="list" className="divide-y divide-border/50">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="flex items-center gap-3 py-2.5">
+          <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyRow({ searching }: { searching: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-10 text-center">
+      <Users className="size-6 text-muted-foreground/60" />
+      <p className="text-sm text-muted-foreground">
+        {searching ? "No one matches that search." : "No members yet."}
+      </p>
+    </div>
   );
 }
 

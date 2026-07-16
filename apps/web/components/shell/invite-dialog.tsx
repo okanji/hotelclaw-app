@@ -119,10 +119,8 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       They'll get an email from{" "}
-                      <code className="text-[10px]">
-                        noreply@mail.app.supabase.io
-                      </code>
-                      . Check spam if it doesn't arrive.
+                      <code className="text-[10px]">auth@villa.dev</code>.
+                      Check spam if it doesn't arrive.
                     </p>
                   </>
                 ) : success.isExistingUser ? (
@@ -139,7 +137,7 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                       They'll also see it in their in-app pending invites.
                       Email sender:{" "}
                       <code className="text-[10px]">
-                        Hotelclaw &lt;onboarding@resend.dev&gt;
+                        Hotelclaw &lt;noreply@villa.dev&gt;
                       </code>
                       .
                     </p>

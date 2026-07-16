@@ -34,6 +34,9 @@ export type OrgTeam = {
 export type OrgPerson = {
   id: string;
   name: string | null;
+  /** Login email (from auth.users). Populated only by callers with a service
+   *  client (see the org API route); null for the RLS-scoped/bot path. */
+  email: string | null;
   avatarUrl: string | null;
   role: string; // membership role: owner | manager | staff
   title: string | null;
@@ -113,6 +116,7 @@ export async function loadOrgChart(
     return {
       id: m.user_id as string,
       name: p?.full_name ?? null,
+      email: null,
       avatarUrl: p?.avatar_url ?? null,
       role: (m.role as string) ?? "staff",
       title: (m.title as string | null) ?? null,

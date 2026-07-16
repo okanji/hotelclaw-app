@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { loadOrgChart } from "@/lib/org/queries";
 
 /** The company org chart — teams (with parent/lead), people (with title,
@@ -21,6 +21,21 @@ export async function GET(
 
   try {
     const org = await loadOrgChart(supabase, propertyId);
+
+    // Login emails live on auth.users — reachable only via the service client,
+    // and only AFTER RLS has confirmed this user can see the property's roster
+    // (loadOrgChart used the RLS-scoped client above). Best-effort per member.
+    try {
+      const service = createServiceClient();
+      await Promise.all(
+        org.people.map(async (p) => {
+          const { data } = await service.auth.admin.getUserById(p.id);
+          p.email = data.user?.email ?? null;
+        }),
+      );
+    } catch {
+      // Emails are a nicety; leave them null if the admin API is unavailable.
+    }
 
     // Per-team open-task load — turns the chart into a live operational
     // surface (each team row links to its board and shows what's on its

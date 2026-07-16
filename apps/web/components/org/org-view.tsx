@@ -633,6 +633,11 @@ function PersonRow({
               ? ` · ${teamName(person.primaryTeamId)}`
               : ""}
           </p>
+          {person.email ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {person.email}
+            </p>
+          ) : null}
         </div>
       </div>
 
