@@ -41,8 +41,12 @@ export function WelcomeForm({ defaultName, next }: Props) {
           return;
         }
         toast.success(`Welcome, ${fullName.trim()}`);
+        // No router.refresh() here: refreshing /welcome inside this async
+        // transition re-runs its server component, which now redirects
+        // (onboarded_at is set) — and that response races and cancels the
+        // in-flight replace, leaving the button stuck on "Saving…" while the
+        // URL never changes. The replace alone fetches the target fresh.
         router.replace(next);
-        router.refresh();
       } catch {
         // A thrown server action (network drop, server error) used to die
         // silently here, leaving the button stuck on "Saving…".
