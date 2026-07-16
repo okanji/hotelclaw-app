@@ -247,10 +247,24 @@ pass = "env(RESEND_API_KEY)"
 admin_email = "auth@villa.dev"
 sender_name = "Hotelclaw"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Custom auth email templates. The defaults link to Supabase's /verify with a
+# PKCE code, which our token_hash-based /auth/confirm route can't consume and
+# which breaks when the email is opened on another device. These link
+# {{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=… instead — every app
+# caller passes an emailRedirectTo that already carries a query string.
+# (Invite emails are NOT sent by Supabase anymore — createInvite ships them
+# via Resend — so no invite template here.)
+[auth.email.template.confirmation]
+subject = "Confirm your email address"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Hotelclaw password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Your Hotelclaw sign-in link"
+content_path = "./supabase/templates/magic-link.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

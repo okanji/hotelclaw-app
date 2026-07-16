@@ -36,10 +36,15 @@ const CreateSchema = z.object({
  * email link in a *different* browser, exchangeCodeForSession fails with
  * "PKCE code verifier not found." This burned us in production.
  *
- * `auth.admin.inviteUserByEmail` (new users) and `auth.admin.generateLink`
- * (existing users) skip PKCE entirely. They produce token_hash-based links
- * that work cross-browser. Both require service role, which is fine here
- * because we already gate the action by membership role.
+ * `auth.admin.generateLink` skips PKCE entirely and gives us a
+ * `hashed_token` we embed in OUR /auth/confirm URL (never the raw
+ * `action_link` — Supabase's /verify returns the session in the URL
+ * fragment, which the server-rendered invite page can't see; recipients
+ * stayed on the wrong session and got bounced to a login wall). Type
+ * "invite" also CREATES the account without sending Supabase's own email,
+ * so one Resend email covers both new and existing recipients. Requires
+ * service role, which is fine here because we already gate the action by
+ * membership role.
  *
  * Dedup: re-inviting the same email to the same property reuses the
  * pending-invite token (refreshing expiry + role) instead of creating a
@@ -148,57 +153,55 @@ export async function createInvite(
   const inviterName = inviterProfile?.full_name ?? user.email ?? "A teammate";
   const propertyName = property?.name ?? "a workspace";
 
-  // Try invite-new-user first. Returns specific error if user exists.
-  const { error: inviteError } = await service.auth.admin.inviteUserByEmail(
+  // Both paths use `generateLink` and ship ONE Resend email built on the
+  // app's own /auth/confirm token_hash route. We deliberately do NOT email
+  // the raw `action_link`: Supabase's /verify hands the session back in the
+  // URL *fragment*, which a server-rendered page never sees — the recipient
+  // stayed on their old session (or none), hit the wrong-account warning,
+  // and got signed out into a login wall. token_hash → /auth/confirm sets
+  // the session in cookies server-side and works cross-browser.
+  //
+  // `type: "invite"` creates the account without sending Supabase's own
+  // email; existing accounts error with email_exists → retry as magiclink.
+  let linkType: "invite" | "magiclink" = "invite";
+  let linkRes = await service.auth.admin.generateLink({
+    type: "invite",
     email,
-    { redirectTo: inviteAcceptUrl },
-  );
+    options: { redirectTo: inviteAcceptUrl },
+  });
 
-  if (!inviteError) {
-    return {
-      token,
-      url: inviteAcceptUrl,
-      emailSent: true,
-      isExistingUser: false,
-      isResend,
-    };
-  }
-
-  const errMsg = inviteError.message ?? "";
-  const userExists =
-    /already (been )?registered|already exists|email_exists/i.test(errMsg);
-
-  if (!userExists) {
-    return {
-      token,
-      url: inviteAcceptUrl,
-      emailSent: false,
-      isExistingUser: false,
-      isResend,
-      emailError: errMsg,
-    };
-  }
-
-  // Existing user — generate a magic link, then ship it via Resend.
-  const { data: linkData, error: linkError } =
-    await service.auth.admin.generateLink({
+  if (
+    linkRes.error &&
+    /already (been )?registered|already exists|email_exists/i.test(
+      linkRes.error.message ?? "",
+    )
+  ) {
+    linkType = "magiclink";
+    linkRes = await service.auth.admin.generateLink({
       type: "magiclink",
       email,
       options: { redirectTo: inviteAcceptUrl },
     });
+  }
 
-  if (linkError || !linkData?.properties?.action_link) {
+  const isExistingUser = linkType === "magiclink";
+  const { data: linkData, error: linkError } = linkRes;
+
+  if (linkError || !linkData?.properties?.hashed_token) {
     return {
       token,
       url: inviteAcceptUrl,
       emailSent: false,
-      isExistingUser: true,
+      isExistingUser,
       isResend,
-      emailError: linkError?.message ?? "Failed to generate magic link",
+      emailError: linkError?.message ?? "Failed to generate sign-in link",
     };
   }
 
-  const magicUrl = linkData.properties.action_link;
+  // If this one-time sign-in link is stale by the time it's clicked,
+  // /auth/confirm forwards `next` to /login, so the recipient still lands
+  // back on the invite after signing in manually.
+  const magicUrl = `${origin}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=${linkType}&next=${encodeURIComponent(`/invites/${token}`)}`;
 
   // Block re-inviting someone who already belongs to this property. We can
   // only resolve email → membership for existing accounts (memberships key on
@@ -225,8 +228,8 @@ export async function createInvite(
     }
   }
 
-  // Existing user — also drop an in-app notification so they see it as soon
-  // as they next visit the app, even if the email lands in spam.
+  // Also drop an in-app notification so they see it as soon as they next
+  // visit the app, even if the email lands in spam.
   if (linkData.user?.id) {
     await createNotification({
       userId: linkData.user.id,
@@ -253,7 +256,7 @@ export async function createInvite(
     token,
     url: magicUrl,
     emailSent: sendResult.ok,
-    isExistingUser: true,
+    isExistingUser,
     isResend,
     emailError: sendResult.error,
   };

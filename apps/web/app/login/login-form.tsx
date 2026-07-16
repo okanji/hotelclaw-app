@@ -70,12 +70,17 @@ export function LoginForm({ next }: { next: string | null }) {
     };
   }, [email, mode]);
 
+  // OAuth (Google) round-trips through /auth/callback with a PKCE code.
   const callbackUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
   }/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+  // Email links (signup confirm, magic link) go through /auth/confirm with a
+  // token_hash. The `?next=` is ALWAYS present — the custom Supabase email
+  // templates append `&token_hash=…` to this URL, so it must already carry a
+  // query string.
   const confirmUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
-  }/auth/confirm${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+  }/auth/confirm?next=${encodeURIComponent(next ?? "/")}`;
 
   async function handlePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -127,7 +132,9 @@ export function LoginForm({ next }: { next: string | null }) {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: callbackUrl },
+      // token_hash route (not the PKCE callback): the emailed link must work
+      // when opened on a different device than the one that requested it.
+      options: { emailRedirectTo: confirmUrl },
     });
     if (error) {
       setError(error.message);
@@ -225,7 +232,8 @@ export function LoginForm({ next }: { next: string | null }) {
                 ))}
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
-                You'll be added automatically after your account is created.
+                You'll be able to accept these right after your account is
+                created.
               </p>
             </div>
           ) : null}

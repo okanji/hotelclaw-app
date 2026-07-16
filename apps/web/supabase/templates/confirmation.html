@@ -1,0 +1,47 @@
+<!--
+  Signup confirmation. Links through the app's /auth/confirm token_hash route
+  (NOT {{ .ConfirmationURL }}): the default verify link hands the session back
+  as a PKCE ?code= / URL fragment the server-rendered app can't consume, and
+  it breaks when the email is opened on a different device.
+
+  CONSTRAINT: {{ .RedirectTo }} must already contain a query string (the app
+  always passes `?next=` in emailRedirectTo) so the &token_hash append below
+  stays well-formed. Dashboard-triggered sends (no redirectTo) will produce a
+  malformed link — trigger auth emails from the app.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e5e5;">
+          <tr>
+            <td style="padding:32px 32px 16px 32px;">
+              <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0a0a0a;">Confirm your email</h1>
+              <p style="margin:0;color:#525252;font-size:14px;line-height:1.5;">
+                Click below to confirm <strong style="color:#0a0a0a;">{{ .Email }}</strong> and finish creating your Hotelclaw account.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 32px 32px;">
+              <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=signup" style="display:inline-block;padding:12px 20px;background:#0a0a0a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;">
+                Confirm email
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 32px 32px;">
+              <p style="margin:0;color:#737373;font-size:12px;line-height:1.5;">
+                If you didn't create an account, you can ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0 0;color:#a3a3a3;font-size:11px;">Hotelclaw · AI-first hotel productivity</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -74,8 +74,9 @@ function renderInviteHtml({
           <tr>
             <td style="padding:0 32px 32px 32px;">
               <p style="margin:0;color:#737373;font-size:12px;line-height:1.5;">
-                Clicking the link signs you in to your existing account and brings you to the invite acceptance page.
-                The link expires in 7 days. If you weren't expecting this, you can ignore the email.
+                Clicking the link signs you in (creating your account if needed) and brings you to the invite acceptance page.
+                The invite expires in 7 days — if the button asks you to sign in first, you'll land right back on it.
+                If you weren't expecting this, you can ignore the email.
               </p>
             </td>
           </tr>
@@ -108,8 +109,8 @@ function renderInviteText({
     `Accept here:`,
     acceptUrl,
     ``,
-    `Clicking the link signs you in and brings you to the invite acceptance page.`,
-    `The link expires in 7 days.`,
+    `Clicking the link signs you in (creating your account if needed) and brings you to the invite acceptance page.`,
+    `The invite expires in 7 days.`,
     ``,
     `Hotelclaw · AI-first hotel productivity`,
   ].join("\n");

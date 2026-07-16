@@ -26,7 +26,10 @@ export function ForgotPasswordForm() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/confirm`;
+    // `?next=` must be present: the custom recovery email template appends
+    // `&token_hash=…` to this URL. (type=recovery routes to /update-password
+    // in /auth/confirm regardless.)
+    const redirectTo = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/update-password")}`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });

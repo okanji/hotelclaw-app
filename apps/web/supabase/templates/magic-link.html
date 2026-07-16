@@ -1,0 +1,42 @@
+<!--
+  Magic-link sign-in. Token_hash link through /auth/confirm — works even when
+  the email is opened on a different device than the one that requested it
+  (no PKCE verifier needed). See confirmation.html for the RedirectTo
+  query-string constraint.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e5e5;">
+          <tr>
+            <td style="padding:32px 32px 16px 32px;">
+              <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#0a0a0a;">Sign in to Hotelclaw</h1>
+              <p style="margin:0;color:#525252;font-size:14px;line-height:1.5;">
+                Click below to sign in as <strong style="color:#0a0a0a;">{{ .Email }}</strong>.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 32px 32px;">
+              <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink" style="display:inline-block;padding:12px 20px;background:#0a0a0a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;">
+                Sign in
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 32px 32px;">
+              <p style="margin:0;color:#737373;font-size:12px;line-height:1.5;">
+                The link is valid for one hour and can be used once. If you didn't request it, you can ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0 0;color:#a3a3a3;font-size:11px;">Hotelclaw · AI-first hotel productivity</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

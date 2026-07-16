@@ -113,33 +113,22 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                 {success.emailSent ? (
                   <>
                     <p>
-                      Invite sent to{" "}
-                      <span className="font-medium">{success.email}</span> as{" "}
+                      {success.isResend
+                        ? "Invite resent to"
+                        : "Invite sent to"}{" "}
+                      <span className="font-medium">{success.email}</span>
+                      {success.isExistingUser ? " (existing account)" : ""} as{" "}
                       <span className="font-medium">{success.role}</span>.
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       They'll get an email from{" "}
-                      <code className="text-[10px]">auth@villa.dev</code>.
-                      Check spam if it doesn't arrive.
-                    </p>
-                  </>
-                ) : success.isExistingUser ? (
-                  <>
-                    <p>
-                      {success.isResend
-                        ? "Invite resent to"
-                        : "Invite sent to"}{" "}
-                      <span className="font-medium">{success.email}</span>{" "}
-                      (existing account) as{" "}
-                      <span className="font-medium">{success.role}</span>.
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      They'll also see it in their in-app pending invites.
-                      Email sender:{" "}
                       <code className="text-[10px]">
                         Hotelclaw &lt;noreply@villa.dev&gt;
                       </code>
-                      .
+                      . Check spam if it doesn't arrive.
+                      {success.isExistingUser
+                        ? " They'll also see it in their in-app pending invites."
+                        : ""}
                     </p>
                   </>
                 ) : (
@@ -148,6 +137,9 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                     <p className="mt-1 text-xs text-muted-foreground">
                       {success.emailError ??
                         "Share the backup link below directly."}
+                      {success.isExistingUser
+                        ? " They'll still see the invite in their in-app pending invites."
+                        : ""}
                     </p>
                   </>
                 )}

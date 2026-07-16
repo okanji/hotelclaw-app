@@ -20,11 +20,16 @@ export async function GET(request: NextRequest) {
   const origin = url.origin;
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") as EmailOtpType | null;
+  // Legacy/default-template links arrive as `?code=` (Supabase's /verify with
+  // PKCE): exchanged below instead of verified. Same-browser only — the PKCE
+  // verifier cookie must exist — but it rescues emails sent before the
+  // token_hash templates were pushed.
+  const code = url.searchParams.get("code");
   // Sanitized: only same-origin paths — a raw `next` here was an open
   // redirect on the very URL all auth emails link to.
   const next = safeNextPath(url.searchParams.get("next"));
 
-  if (!tokenHash || !type) {
+  if ((!tokenHash || !type) && !code) {
     return NextResponse.redirect(
       new URL("/login?error=missing-token", origin),
     );
@@ -50,14 +55,17 @@ export async function GET(request: NextRequest) {
     },
   );
 
-  const { error } = await supabase.auth.verifyOtp({
-    type,
-    token_hash: tokenHash,
-  });
+  const { error } =
+    tokenHash && type
+      ? await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
+      : await supabase.auth.exchangeCodeForSession(code!);
 
   if (error) {
     const target = new URL("/login", origin);
     target.searchParams.set("error", error.message);
+    // Keep the destination: an invite link whose one-time token has gone
+    // stale should still land the user on the invite after a manual sign-in.
+    if (next) target.searchParams.set("next", next);
     response.headers.set("Location", target.toString());
     return response;
   }
