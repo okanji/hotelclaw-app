@@ -7,6 +7,10 @@ import { upsertStreamUser } from "@/lib/stream/server";
 
 const Schema = z.object({
   fullName: z.string().min(1).max(120),
+  // Accounts born from invite/magic links have no password — without one,
+  // the recipient is locked out the moment their one-time session ends
+  // (this stranded real users twice). The welcome step collects one.
+  password: z.string().min(8).max(72).optional(),
 });
 
 export async function completeOnboarding(
@@ -20,6 +24,22 @@ export async function completeOnboarding(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
+
+  if (parsed.data.password) {
+    const { error: pwErr } = await supabase.auth.updateUser({
+      password: parsed.data.password,
+      data: { has_password: true },
+    });
+    if (pwErr) {
+      // They already have this exact password (e.g. a pre-flag account
+      // re-entering it) — that's fine, just record the flag.
+      if (/different from the old/i.test(pwErr.message)) {
+        await supabase.auth.updateUser({ data: { has_password: true } });
+      } else {
+        return { error: pwErr.message };
+      }
+    }
+  }
 
   const fullName = parsed.data.fullName.trim();
   const onboardedAt = new Date().toISOString();

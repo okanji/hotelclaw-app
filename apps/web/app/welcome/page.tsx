@@ -37,9 +37,23 @@ export default async function WelcomePage({
           .join(" ")
       : "");
 
+  // Ask invite/magic-link-born accounts to create a password so they can
+  // sign back in without an email link. `has_password` is our own metadata
+  // flag: set by password signup, /update-password, and this step. OAuth
+  // accounts (Google etc.) sign in through their provider and never need
+  // one — skip them.
+  const isOAuthUser = (user.app_metadata?.providers ?? []).some(
+    (p: string) => p !== "email",
+  );
+  const askPassword = !user.user_metadata?.has_password && !isOAuthUser;
+
   return (
     <GuestShell>
-      <WelcomeForm defaultName={defaultName} next={next} />
+      <WelcomeForm
+        defaultName={defaultName}
+        next={next}
+        askPassword={askPassword}
+      />
     </GuestShell>
   );
 }

@@ -35,7 +35,12 @@ export function UpdatePasswordForm() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({
+      password,
+      // Marks the account as password-holding so /welcome doesn't ask
+      // them to create one again.
+      data: { has_password: true },
+    });
     if (error) {
       setError(error.message);
       setBusy(false);

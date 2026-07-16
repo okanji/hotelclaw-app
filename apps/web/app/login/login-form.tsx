@@ -103,7 +103,12 @@ export function LoginForm({ next }: { next: string | null }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: confirmUrl },
+        options: {
+          emailRedirectTo: confirmUrl,
+          // Marks the account as password-holding so /welcome doesn't ask
+          // them to create one again.
+          data: { has_password: true },
+        },
       });
       if (error) {
         setError(error.message);

@@ -16,6 +16,10 @@ import { completeOnboarding } from "./actions";
 type Props = {
   defaultName: string;
   next: string;
+  /** True for accounts that arrived via an invite/magic link and have no
+   *  password yet — they must create one here or they're locked out as
+   *  soon as their one-time email-link session ends. */
+  askPassword: boolean;
 };
 
 /**
@@ -23,19 +27,24 @@ type Props = {
  * language as the onboarding wizard. Action is untouched; only the UI
  * changed.
  */
-export function WelcomeForm({ defaultName, next }: Props) {
+export function WelcomeForm({ defaultName, next, askPassword }: Props) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
+  const [password, setPassword] = useState("");
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!fullName.trim()) return;
+    if (askPassword && password.length < 8) return;
     setError(null);
     startTransition(async () => {
       try {
-        const result = await completeOnboarding({ fullName });
+        const result = await completeOnboarding({
+          fullName,
+          password: askPassword ? password : undefined,
+        });
         if ("error" in result) {
           setError(result.error);
           return;
@@ -82,9 +91,37 @@ export function WelcomeForm({ defaultName, next }: Props) {
           disabled={busy}
           className="mt-10"
         />
+        {askPassword ? (
+          <div className="mt-8">
+            <GuestHint>
+              Create a password so you can sign back in any time — email links
+              only work once.
+            </GuestHint>
+            <GuestBigInput
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              maxLength={72}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={busy}
+              className="mt-4"
+            />
+          </div>
+        ) : null}
         {error ? <GuestError>{error}</GuestError> : null}
         <div className="mt-10 flex items-center gap-3">
-          <GuestPrimaryButton disabled={busy || !fullName.trim()}>
+          <GuestPrimaryButton
+            disabled={
+              busy ||
+              !fullName.trim() ||
+              (askPassword && password.length < 8)
+            }
+          >
             {busy ? "Saving…" : "Continue"}
           </GuestPrimaryButton>
           <span className="text-xs text-guest-ink-faint">press Enter ↵</span>
