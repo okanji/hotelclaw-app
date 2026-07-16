@@ -1,14 +1,17 @@
 import { redirect } from "next/navigation";
 import { getSessionUser, getUserMemberships } from "@/lib/auth/session";
-import { isOnboarded } from "@/lib/auth/onboarding";
+import { isOnboarded, needsPasswordSetup } from "@/lib/auth/onboarding";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Profile gate — set name first.
-  if (!(await isOnboarded(user.id))) redirect("/welcome");
+  // Profile gate — set a name (and, for invite/magic-link-born accounts,
+  // a password) first.
+  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
+    redirect("/welcome");
+  }
 
   const memberships = await getUserMemberships();
   if (memberships.length === 0) {

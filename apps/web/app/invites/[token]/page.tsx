@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
-import { isOnboarded } from "@/lib/auth/onboarding";
+import { isOnboarded, needsPasswordSetup } from "@/lib/auth/onboarding";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +29,10 @@ export default async function InvitePage({
     redirect(`/login?next=${encodeURIComponent(`/invites/${token}`)}`);
   }
 
-  // First-time signups need to set their name before joining a workspace —
-  // the welcome page sends them right back here after.
-  if (!(await isOnboarded(user.id))) {
+  // First-time signups set their name — and passwordless accounts create a
+  // password — before joining a workspace; the welcome page sends them
+  // right back here after.
+  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
     redirect(`/welcome?next=${encodeURIComponent(`/invites/${token}`)}`);
   }
 

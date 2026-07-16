@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { getSessionUser, getUserMemberships } from "@/lib/auth/session";
-import { isOnboarded } from "@/lib/auth/onboarding";
+import { isOnboarded, needsPasswordSetup } from "@/lib/auth/onboarding";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,9 @@ import { AcceptButton } from "./[token]/accept-button";
 export default async function PendingInvitesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=%2Finvites");
-  if (!(await isOnboarded(user.id))) redirect("/welcome?next=%2Finvites");
+  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
+    redirect("/welcome?next=%2Finvites");
+  }
 
   const email = user.email?.toLowerCase();
   const service = createServiceClient();

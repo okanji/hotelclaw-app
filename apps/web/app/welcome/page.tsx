@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
+import { needsPasswordSetup } from "@/lib/auth/onboarding";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import { GuestShell } from "@/components/guest/ui";
 import { WelcomeForm } from "./welcome-form";
@@ -21,7 +22,12 @@ export default async function WelcomePage({
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.onboarded_at) redirect(next);
+  // Ask invite/magic-link-born accounts to create a password so they can
+  // sign back in without an email link — even if they already picked a name
+  // (accounts onboarded before this step existed are still passwordless).
+  const askPassword = needsPasswordSetup(user);
+
+  if (profile?.onboarded_at && !askPassword) redirect(next);
 
   // Suggest a sensible default — the local-part of their email, title-cased
   // ("jan.l" → "Jan L") — so they can hit Enter without typing if they want.
@@ -37,22 +43,13 @@ export default async function WelcomePage({
           .join(" ")
       : "");
 
-  // Ask invite/magic-link-born accounts to create a password so they can
-  // sign back in without an email link. `has_password` is our own metadata
-  // flag: set by password signup, /update-password, and this step. OAuth
-  // accounts (Google etc.) sign in through their provider and never need
-  // one — skip them.
-  const isOAuthUser = (user.app_metadata?.providers ?? []).some(
-    (p: string) => p !== "email",
-  );
-  const askPassword = !user.user_metadata?.has_password && !isOAuthUser;
-
   return (
     <GuestShell>
       <WelcomeForm
         defaultName={defaultName}
         next={next}
         askPassword={askPassword}
+        alreadyOnboarded={!!profile?.onboarded_at}
       />
     </GuestShell>
   );
