@@ -55,6 +55,14 @@ export async function GET(request: NextRequest) {
     },
   );
 
+  // Whoever was signed in BEFORE this link replaces the session — an email
+  // link opened in a browser that's already signed in as someone else swaps
+  // accounts silently, which has repeatedly confused people. Capture the
+  // outgoing identity so we can announce the switch after verification.
+  const {
+    data: { user: previousUser },
+  } = await supabase.auth.getUser();
+
   const { error } =
     tokenHash && type
       ? await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
@@ -68,6 +76,19 @@ export async function GET(request: NextRequest) {
     if (next) target.searchParams.set("next", next);
     response.headers.set("Location", target.toString());
     return response;
+  }
+
+  // Announce a silent account swap: JS-readable one-shot cookie that
+  // AccountSwitchNotice (root layout) turns into a toast and clears.
+  const {
+    data: { user: newUser },
+  } = await supabase.auth.getUser();
+  if (previousUser && newUser && previousUser.id !== newUser.id) {
+    response.cookies.set(
+      "account_switched",
+      JSON.stringify({ from: previousUser.email, to: newUser.email }),
+      { path: "/", maxAge: 60, httpOnly: false, sameSite: "lax" },
+    );
   }
 
   // Recovery → set new password page.

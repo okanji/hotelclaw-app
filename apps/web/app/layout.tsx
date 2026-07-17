@@ -4,6 +4,7 @@ import "./globals.css";
 import "stream-chat-react/dist/css/index.css";
 import "./stream-chat-overrides.css";
 import { Toaster } from "@/components/ui/sonner";
+import { AccountSwitchNotice } from "@/components/shell/account-switch-notice";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -56,6 +57,7 @@ export default function RootLayout({
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>
           <Toaster richColors position="top-right" />
+          <AccountSwitchNotice />
         </ThemeProvider>
       </body>
     </html>

@@ -151,7 +151,9 @@ function MemberRow({
         setConfirming(false);
         return;
       }
-      toast.success(`${member.name ?? "Member"} removed`);
+      toast.success(
+        `${member.name ?? "Member"} removed from this property. Their account and other properties are unaffected.`,
+      );
       qc.invalidateQueries({ queryKey: ["property-members", propertyId] });
     });
   }
@@ -186,7 +188,7 @@ function MemberRow({
             disabled={pending}
             onClick={remove}
           >
-            {pending ? "Removing…" : "Remove"}
+            {pending ? "Removing…" : "Remove from property"}
           </Button>
           <Button
             type="button"
