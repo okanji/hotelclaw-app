@@ -11,7 +11,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -30,11 +29,8 @@ export function LoginForm({ next }: { next: string | null }) {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState<
-    null | "password" | "magic" | "google"
-  >(null);
+  const [busy, setBusy] = useState<null | "password">(null);
   const [error, setError] = useState<string | null>(null);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [signupNeedsConfirm, setSignupNeedsConfirm] = useState(false);
   const [invitePreview, setInvitePreview] = useState<InvitePreview[]>([]);
 
@@ -70,14 +66,11 @@ export function LoginForm({ next }: { next: string | null }) {
     };
   }, [email, mode]);
 
-  // OAuth (Google) round-trips through /auth/callback with a PKCE code.
-  const callbackUrl = `${
-    typeof window !== "undefined" ? window.location.origin : ""
-  }/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
-  // Email links (signup confirm, magic link) go through /auth/confirm with a
-  // token_hash. The `?next=` is ALWAYS present — the custom Supabase email
-  // templates append `&token_hash=…` to this URL, so it must already carry a
-  // query string.
+  // Email links (signup confirm) go through /auth/confirm with a token_hash.
+  // The `?next=` is ALWAYS present — the custom Supabase email templates
+  // append `&token_hash=…` to this URL, so it must already carry a query
+  // string. (When Google OAuth lands, its button should redirect through
+  // /auth/callback, which handles the PKCE code exchange.)
   const confirmUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
   }/auth/confirm?next=${encodeURIComponent(next ?? "/")}`;
@@ -133,38 +126,6 @@ export function LoginForm({ next }: { next: string | null }) {
     }
   }
 
-  async function sendMagicLink() {
-    if (!email) {
-      setError("Enter your email first.");
-      return;
-    }
-    setBusy("magic");
-    setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      // token_hash route (not the PKCE callback): the emailed link must work
-      // when opened on a different device than the one that requested it.
-      options: { emailRedirectTo: confirmUrl },
-    });
-    if (error) {
-      setError(error.message);
-      setBusy(null);
-      return;
-    }
-    setMagicLinkSent(true);
-    setBusy(null);
-  }
-
-  async function signInWithGoogle() {
-    setBusy("google");
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: callbackUrl },
-    });
-  }
-
   if (signupNeedsConfirm) {
     return (
       <Card className="w-full max-w-sm">
@@ -180,20 +141,6 @@ export function LoginForm({ next }: { next: string | null }) {
     );
   }
 
-  if (magicLinkSent) {
-    return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Check your inbox</CardTitle>
-          <CardDescription>
-            We sent a sign-in link to{" "}
-            <span className="font-medium text-foreground">{email}</span>.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
@@ -202,7 +149,7 @@ export function LoginForm({ next }: { next: string | null }) {
         </CardTitle>
         <CardDescription>
           {mode === "signin"
-            ? "Email and password, magic link, or Google."
+            ? "Sign in with your email and password."
             : "We'll send a confirmation email to finish setup."}
         </CardDescription>
       </CardHeader>
@@ -326,31 +273,6 @@ export function LoginForm({ next }: { next: string | null }) {
           )}
         </p>
       </CardContent>
-      <CardFooter className="flex-col gap-2">
-        <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-border" />
-          or
-          <div className="h-px flex-1 bg-border" />
-        </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          type="button"
-          onClick={sendMagicLink}
-          disabled={busy !== null}
-        >
-          {busy === "magic" ? "Sending…" : "Send magic link"}
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={signInWithGoogle}
-          type="button"
-          disabled={busy !== null}
-        >
-          Continue with Google
-        </Button>
-      </CardFooter>
     </Card>
   );
 }
