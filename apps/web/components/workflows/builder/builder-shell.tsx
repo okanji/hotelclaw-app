@@ -712,8 +712,8 @@ function SpecErrorBanner({ messages }: { messages: string[] }) {
 
 function WarningBanner({ messages }: { messages: string[] }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+    <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <div className="min-w-0">
         <p className="font-medium text-foreground">Heads up — this still saves</p>
         <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">

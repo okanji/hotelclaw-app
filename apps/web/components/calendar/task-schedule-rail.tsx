@@ -129,7 +129,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
                   className={cn(
                     "text-xs font-medium uppercase tracking-wide",
                     key === "urgent"
-                      ? "text-red-600 dark:text-red-400"
+                      ? "text-destructive"
                       : "text-muted-foreground",
                   )}
                 >

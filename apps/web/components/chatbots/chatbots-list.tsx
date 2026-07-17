@@ -115,7 +115,6 @@ export function ChatbotsList({
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
-        eyebrow="Workspace"
         title="Chatbots"
         description="Build AI chatbots your guests talk to — a front desk that answers questions, room service that takes orders, a restaurant that books tables. They act on real requests: tickets for your team, channel pings, human handoff."
         actions={

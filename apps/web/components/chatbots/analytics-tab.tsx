@@ -104,7 +104,7 @@ export function AnalyticsTab({
           <p className="mb-3 text-sm font-medium">Guest sentiment</p>
           <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
             <span
-              className="bg-emerald-500"
+              className="bg-success"
               style={{ width: `${(sentiment.positive / sentimentTotal) * 100}%` }}
             />
             <span
@@ -112,7 +112,7 @@ export function AnalyticsTab({
               style={{ width: `${(sentiment.neutral / sentimentTotal) * 100}%` }}
             />
             <span
-              className="bg-red-500"
+              className="bg-destructive"
               style={{ width: `${(sentiment.negative / sentimentTotal) * 100}%` }}
             />
           </div>

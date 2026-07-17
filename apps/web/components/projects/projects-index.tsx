@@ -108,7 +108,6 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
       <div className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
         <SectionHeader
           size="page"
-          eyebrow={spaceName ? `Space · ${spaceName}` : "Workspace"}
           title="Projects"
           actions={<>
             <Button

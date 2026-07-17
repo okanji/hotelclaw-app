@@ -108,7 +108,7 @@ export function IntelligenceBody({
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-x-10 gap-y-5 @3xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-2">
       {(data.brief.insights as InsightCard[]).map((card, i) => (
         <InsightCardRow
           key={i}
@@ -158,18 +158,32 @@ function InsightCardRow({
   flow: InsightsMetrics["flow"];
 }) {
   const Icon = KIND_ICON[card.kind] ?? Eye;
-  const tone =
+  const iconTone =
     card.severity === "critical"
-      ? "text-rose-500"
+      ? "text-destructive"
       : card.severity === "warning"
-        ? "text-amber-500"
+        ? "text-warning"
         : card.kind === "win"
-          ? "text-emerald-500"
+          ? "text-success"
           : "text-muted-foreground";
+  // Neutral card, colour only in the severity left-rule + icon (accent, not fill).
+  const railTone =
+    card.severity === "critical"
+      ? "border-l-destructive"
+      : card.severity === "warning"
+        ? "border-l-warning"
+        : card.kind === "win"
+          ? "border-l-success"
+          : "border-l-border";
 
   return (
-    <article className="flex items-start gap-3">
-      <Icon className={cn("mt-0.5 size-4 shrink-0", tone)} />
+    <article
+      className={cn(
+        "flex items-start gap-3 rounded-xl border border-border border-l-4 bg-card p-4",
+        railTone,
+      )}
+    >
+      <Icon className={cn("mt-0.5 size-4 shrink-0", iconTone)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
           <h3 className="min-w-0 text-base font-semibold tracking-tight text-pretty text-foreground">

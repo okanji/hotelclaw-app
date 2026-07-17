@@ -709,9 +709,9 @@ function Kpi({
       <div
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-md",
-          accent === "danger" && "bg-red-500/10 text-red-600 dark:text-red-400",
-          accent === "warning" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-          accent === "success" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+          accent === "danger" && "bg-destructive/10 text-destructive",
+          accent === "warning" && "bg-warning/10 text-warning",
+          accent === "success" && "bg-success/10 text-success",
           accent === "default" && "bg-muted text-muted-foreground",
         )}
       >

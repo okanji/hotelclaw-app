@@ -890,7 +890,7 @@ function StepConfigSection({
   const body = (
     <div className="space-y-3">
       {inputEmpty && stepType.startsWith("ai.") && inputSuggestion && (
-        <div className="flex flex-col gap-2 rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-md border border-warning/25 bg-warning/[0.06] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm leading-relaxed text-foreground/85">
             This step needs text to work on. For task workflows, the complaint or
             details usually live in the task{" "}
@@ -908,7 +908,7 @@ function StepConfigSection({
         </div>
       )}
       {inputEmpty && stepType.startsWith("ai.") && !inputSuggestion && (
-        <p className="rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-sm leading-relaxed text-foreground/85">
+        <p className="rounded-md border border-warning/25 bg-warning/[0.06] px-3 py-2 text-sm leading-relaxed text-foreground/85">
           Choose what text the AI should read — use{" "}
           <span className="font-medium">Insert data</span> on the field below.
         </p>

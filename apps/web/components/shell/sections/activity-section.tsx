@@ -129,8 +129,7 @@ export function ActivitySection({
                 >
                   <v.icon
                     className={cn(
-                      v.attention &&
-                        "text-amber-500 dark:text-amber-400",
+                      v.attention && "text-warning",
                     )}
                   />
                   <span>{v.label}</span>

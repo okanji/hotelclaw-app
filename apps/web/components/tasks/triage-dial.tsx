@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 /**
  * The triage autonomy dial — the top rung of the trust ladder. Each field's
@@ -104,9 +105,7 @@ export function TriageDial({ propertyId }: { propertyId: string }) {
       />
       <PopoverContent align="end" sideOffset={6} className="w-80 p-0">
         <div className="border-b border-border/60 p-3">
-          <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            New-task suggestions
-          </p>
+          <Eyebrow tone="brand">New-task suggestions</Eyebrow>
           <p className="mt-1 text-xs leading-relaxed text-pretty text-muted-foreground">
             Bare tasks get team, assignee, and priority suggestions with
             reasoning. Turn on auto-apply once a field has earned your trust —
@@ -175,7 +174,7 @@ function FieldRow({
   let status: React.ReactNode;
   if (on) {
     status = (
-      <span className="text-emerald-600 dark:text-emerald-500">
+      <span className="text-success">
         Auto-applying high-confidence calls
         {applied > 0 ? ` · ${applied} applied` : ""}
       </span>
@@ -184,7 +183,7 @@ function FieldRow({
     status = <span className="text-muted-foreground">Learning — no reviews yet</span>;
   } else if (ready) {
     status = (
-      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-500">
+      <span className="inline-flex items-center gap-1 text-success">
         <Check className="size-3 shrink-0" />
         Enough signal — safe to auto-apply
       </span>
@@ -230,9 +229,9 @@ function FieldRow({
               className={cn(
                 "h-full rounded-full",
                 rate >= READY_MIN_RATE
-                  ? "bg-emerald-500"
+                  ? "bg-success"
                   : rate >= 50
-                    ? "bg-amber-500"
+                    ? "bg-warning"
                     : "bg-muted-foreground/40",
               )}
               style={{ width: `${rate}%` }}

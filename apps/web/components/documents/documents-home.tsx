@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -11,6 +11,7 @@ import { DocumentRow } from "./document-row";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   documentBoardsQueryOptions,
   documentsQueryOptions,
@@ -145,14 +146,10 @@ function EditorialLayout({
   onCreate: () => void;
   onGenerate: () => void;
 }) {
-  const today = useTodayLabel();
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-col gap-10">
-        <div className="flex items-end justify-between gap-6">
-          <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            {today}
-          </p>
+        <div className="flex items-center justify-end gap-6">
           <div className="flex items-center gap-1.5">
             <DocsActivitySheet propertyId={propertyId} />
             <Button
@@ -485,9 +482,7 @@ function EditorialHeading({
   return (
     <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          {kicker}
-        </span>
+        <Eyebrow tone="brand">{kicker}</Eyebrow>
         <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {children}
         </h2>
@@ -528,20 +523,6 @@ function UnpinZone({
       {children}
     </section>
   );
-}
-
-function useTodayLabel() {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    setLabel(
-      new Date().toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      }),
-    );
-  }, []);
-  return label;
 }
 
 /** Compact relative time ("now", "3m", "2h", "5d", or absolute date past 7d). */

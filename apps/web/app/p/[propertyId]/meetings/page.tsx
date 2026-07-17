@@ -108,7 +108,7 @@ function StatusPill({
 }) {
   if (!ended) {
     return (
-      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
+      <span className="rounded-full bg-success/15 px-2 py-0.5 font-medium text-success">
         Live
       </span>
     );

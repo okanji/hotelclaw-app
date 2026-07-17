@@ -65,7 +65,7 @@ export function FormFill({
         <div className="mt-10">
           {submitted ? (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-border/60 py-14 text-center">
-              <CheckCircle2 className="size-10 text-emerald-500" />
+              <CheckCircle2 className="size-10 text-success" />
               <p className="text-sm font-medium">Response recorded</p>
               <p className="text-sm text-muted-foreground">
                 Thanks — your answers have been submitted.

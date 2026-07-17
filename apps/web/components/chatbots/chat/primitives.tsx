@@ -46,7 +46,7 @@ export function ChatBubble({
         tone === "solid" && "bg-foreground text-background",
         tone === "outline" && "border border-border/60 bg-background",
         tone === "soft" && "bg-foreground/5",
-        tone === "staff" && "bg-sky-500/10 text-foreground",
+        tone === "staff" && "bg-info/10 text-foreground",
         className,
       )}
     >

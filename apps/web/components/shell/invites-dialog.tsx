@@ -215,7 +215,7 @@ function InviteRowItem({
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase",
           row.status === "accepted"
-            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            ? "bg-success/10 text-success"
             : row.status === "expired"
               ? "bg-muted text-muted-foreground"
               : "bg-primary/10 text-primary",
@@ -269,7 +269,7 @@ function InviteRowItem({
 function StatusBadge({ status }: { status: "accepted" | "expired" }) {
   if (status === "accepted") {
     return (
-      <Badge className="shrink-0 gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+      <Badge className="shrink-0 gap-1 bg-success/10 text-success">
         <CheckCircle2 />
         Accepted
       </Badge>

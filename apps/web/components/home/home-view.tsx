@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { QuickAccessRow } from "./quick-access";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -197,6 +198,7 @@ export function HomeView({
             />
           ))}
         </div>
+        <QuickAccessRow propertyId={propertyId} />
       </header>
 
       {showHero && hero ? (

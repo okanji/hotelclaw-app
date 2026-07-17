@@ -13,6 +13,7 @@ import {
   type NotificationView,
 } from "@/components/shell/notification-item";
 import { matchesView, type ActivityViewId } from "./views";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import type { NotificationRow } from "@/lib/notifications/types";
 
 /**
@@ -55,9 +56,9 @@ export function ActivityFeed({
       <div className="flex flex-col gap-7">
         {groups.map((group) => (
           <section key={group.key} className="flex flex-col gap-1.5">
-            <h2 className="px-3 text-xs font-semibold tracking-[0.18em] text-muted-foreground/90 uppercase">
+            <Eyebrow tone="brand" className="px-3">
               {group.label}
-            </h2>
+            </Eyebrow>
             <ul
               role="list"
               className="flex flex-col divide-y divide-border/40"

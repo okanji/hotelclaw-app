@@ -112,7 +112,7 @@ export function AvailableFieldsPanel({
                         onClick={() => copyText(copyValue)}
                       >
                         {copied === copyValue ? (
-                          <Check className="size-3.5 text-emerald-600" aria-hidden />
+                          <Check className="size-3.5 text-success" aria-hidden />
                         ) : (
                           <Copy className="size-3.5" aria-hidden />
                         )}

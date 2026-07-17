@@ -159,7 +159,7 @@ function flowCardTone({
     !selected && !invalid && "hover:border-foreground/15",
     selected && "border-foreground/20 ring-1 ring-foreground/10",
     invalid && "border-destructive/50 hover:border-destructive/70",
-    unaccepted && "ring-1 ring-amber-500/25",
+    unaccepted && "ring-1 ring-warning/25",
     dragging && "border-dashed border-foreground/20 bg-muted/20 opacity-40",
     className,
   );
@@ -978,7 +978,7 @@ function StepRow({
                 <span aria-hidden>▲</span> {invalidReason}
               </p>
             ) : warningReason ? (
-              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-warning">
                 <span aria-hidden>▲</span> {warningReason}
               </p>
             ) : null}

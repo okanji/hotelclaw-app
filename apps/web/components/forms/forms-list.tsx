@@ -80,7 +80,6 @@ export function FormsList({
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
-        eyebrow="Workspace"
         title="Forms"
         description="Build intake and feedback forms for the team — maintenance requests, surveys, checklists. Publish one and share the fill link, or let a workflow react to submissions."
         actions={

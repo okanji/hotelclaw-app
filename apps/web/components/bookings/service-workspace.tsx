@@ -411,10 +411,10 @@ function TicketingView({
             className={cn(
               "block h-full rounded-full",
               soldPct >= 100
-                ? "bg-red-500"
+                ? "bg-destructive"
                 : soldPct >= 80
-                  ? "bg-amber-500"
-                  : "bg-emerald-500",
+                  ? "bg-warning"
+                  : "bg-success",
             )}
             style={{ width: `${soldPct}%` }}
           />

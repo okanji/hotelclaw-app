@@ -199,7 +199,7 @@ export function KanbanColumn({
           className={cn(
             "text-xs tabular-nums tracking-tight",
             overWip
-              ? "font-medium text-amber-600 dark:text-amber-400"
+              ? "font-medium text-warning"
               : "text-muted-foreground",
           )}
           title={

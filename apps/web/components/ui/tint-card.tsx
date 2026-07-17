@@ -22,6 +22,17 @@ const tintTone = {
 
 export type TintTone = keyof typeof tintTone
 
+/** Left-accent border color per hue — the saturated ink token, so a bordered
+ *  card can carry a bold colored left edge (Claude-console signal-card look)
+ *  while its other sides stay neutral. Pair with `border-l-4`. */
+export const tintBorderL = {
+  lavender: "border-l-tint-lavender-ink",
+  blue: "border-l-tint-blue-ink",
+  sage: "border-l-tint-sage-ink",
+  coral: "border-l-tint-coral-ink",
+  honey: "border-l-tint-honey-ink",
+} as const
+
 /** Stable rotation so callers can color a list of tiles without picking hues. */
 const TINT_CYCLE: TintTone[] = ["lavender", "blue", "sage", "coral", "honey"]
 export function tintAt(i: number): TintTone {

@@ -40,7 +40,7 @@ export function StatusIcon({
       <svg
         aria-hidden
         viewBox="0 0 16 16"
-        className={cn(base, "text-amber-500 dark:text-amber-400", className)}
+        className={cn(base, "text-warning", className)}
       >
         <circle
           cx="8"
@@ -63,7 +63,7 @@ export function StatusIcon({
       <svg
         aria-hidden
         viewBox="0 0 16 16"
-        className={cn(base, "text-amber-500 dark:text-amber-400", className)}
+        className={cn(base, "text-warning", className)}
       >
         <circle
           cx="8"
@@ -88,7 +88,7 @@ export function StatusIcon({
     <svg
       aria-hidden
       viewBox="0 0 16 16"
-      className={cn(base, "text-emerald-500 dark:text-emerald-400", className)}
+      className={cn(base, "text-success", className)}
     >
       <circle cx="8" cy="8" r="7" fill="currentColor" />
       <path

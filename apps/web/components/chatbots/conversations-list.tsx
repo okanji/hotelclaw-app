@@ -24,19 +24,19 @@ export function OutcomeBadge({ outcome }: { outcome: ChatbotConversationOutcome 
   switch (outcome) {
     case "order_placed":
       return (
-        <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <Badge className="border-success/30 bg-success/10 text-success">
           Order placed
         </Badge>
       );
     case "booking_made":
       return (
-        <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <Badge className="border-success/30 bg-success/10 text-success">
           Booking made
         </Badge>
       );
     case "escalated":
       return (
-        <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <Badge className="border-warning/30 bg-warning/10 text-warning">
           Escalated
         </Badge>
       );
@@ -44,7 +44,7 @@ export function OutcomeBadge({ outcome }: { outcome: ChatbotConversationOutcome 
       return <Badge variant="secondary">Resolved</Badge>;
     case "unresolved":
       return (
-        <Badge className="border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400">
+        <Badge className="border-destructive/30 bg-destructive/10 text-destructive">
           Unresolved
         </Badge>
       );
@@ -104,7 +104,7 @@ export function ConversationsTab({
               </p>
             </div>
             {c.status === "human" ? (
-              <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <Badge className="border-info/30 bg-info/10 text-info">
                 With staff
               </Badge>
             ) : null}

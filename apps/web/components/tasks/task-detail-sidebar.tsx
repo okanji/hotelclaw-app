@@ -913,7 +913,7 @@ function TaskAutomationsSection({ propertyId }: { propertyId: string }) {
           <span
             className={cn(
               "size-1.5 shrink-0 rounded-full",
-              w.enabled ? "bg-emerald-500" : "bg-muted-foreground/40",
+              w.enabled ? "bg-success" : "bg-muted-foreground/40",
             )}
             title={w.enabled ? "On" : "Off"}
             aria-label={w.enabled ? "On" : "Off"}

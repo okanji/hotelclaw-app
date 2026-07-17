@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 import type { OrgChart, OrgPerson, OrgTeam } from "@/lib/org/queries";
 import { PanCanvas } from "./pan-canvas";
@@ -154,9 +155,9 @@ export function TeamDetail({
         </EmptyState>
       ) : (
         <>
-          <p className="mt-8 mb-3 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+          <Eyebrow tone="brand" className="mt-8 mb-3">
             Reporting hierarchy
-          </p>
+          </Eyebrow>
           <PanCanvas className="h-[min(56vh,480px)]">
             <div className="min-w-max px-8 py-8">
               <ul role="list" className="flex items-start">

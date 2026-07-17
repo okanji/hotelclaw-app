@@ -72,7 +72,6 @@ export function OrgView({
       <SectionHeader
         size="page"
         className={WRAP}
-        eyebrow="Company"
         title="Org chart"
         description={
           <>
@@ -149,6 +148,7 @@ function OrgBody({
           <SectionHeader
             className="mb-5 border-b border-border pb-3"
             eyebrow="Structure"
+            eyebrowTone="brand"
             title="Teams"
             actions={
               <div className="flex gap-1">
@@ -194,7 +194,7 @@ function OrgBody({
       </section>
 
       <section className={cn(WRAP, "mt-16 min-w-0")}>
-        <SectionHeader className="mb-5 border-b border-border pb-3" eyebrow="Directory" title="People" />
+        <SectionHeader className="mb-5 border-b border-border pb-3" eyebrow="Directory" eyebrowTone="brand" title="People" />
         <PeopleDirectory
           propertyId={propertyId}
           org={org}

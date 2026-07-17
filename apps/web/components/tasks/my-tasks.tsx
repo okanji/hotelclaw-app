@@ -262,7 +262,7 @@ export function MyTasks({
           <div className="mt-10 flex flex-col gap-10">
             {blocked.length > 0 ? (
               <section>
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-amber-600 dark:text-amber-500">
+                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-warning">
                   <AlertTriangle className="size-4 shrink-0" />
                   Blocked — needs unsticking
                 </h2>
@@ -366,7 +366,7 @@ export function MyTasks({
 
             {openCount === 0 && delegated.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <Check className="size-8 text-emerald-500" />
+                <Check className="size-8 text-success" />
                 <p className="text-sm font-medium">All clear</p>
                 <p className="max-w-[36ch] text-sm text-pretty text-muted-foreground">
                   Nothing assigned to you right now. Anything new lands here the
@@ -458,7 +458,7 @@ function Stat({
       <p
         className={cn(
           "text-xl font-semibold tracking-tight tabular-nums",
-          emphasize && (amber ? "text-amber-600 dark:text-amber-500" : "text-destructive"),
+          emphasize && (amber ? "text-warning" : "text-destructive"),
         )}
       >
         {value}
@@ -551,7 +551,7 @@ function TaskRow({
           aria-label={`Mark "${task.title}" done`}
           disabled={busy || justDone}
           onClick={() => setStatus("done")}
-          className="group/check relative flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 transition-colors hover:border-emerald-500 disabled:pointer-events-none"
+          className="group/check relative flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 transition-colors hover:border-success disabled:pointer-events-none"
         >
           <span
             className="pointer-events-none absolute top-1/2 left-1/2 size-[max(100%,2rem)] -translate-1/2"
@@ -559,7 +559,7 @@ function TaskRow({
           />
           <Check
             className={cn(
-              "size-3 stroke-emerald-600 opacity-0 transition-opacity group-hover/check:opacity-100",
+              "size-3 stroke-success opacity-0 transition-opacity group-hover/check:opacity-100",
               justDone && "opacity-100",
             )}
           />
@@ -597,8 +597,8 @@ function TaskRow({
       ) : null}
 
       {task.status === "in_progress" && !readOnly ? (
-        <span className="flex shrink-0 items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-          <span className="size-1.5 rounded-full bg-blue-500" />
+        <span className="flex shrink-0 items-center gap-1 text-xs text-info">
+          <span className="size-1.5 rounded-full bg-info" />
           In progress
         </span>
       ) : null}

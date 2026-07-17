@@ -973,7 +973,7 @@ function ClauseCard({
         )}
 
         {valueWarning && (
-          <p className="text-sm text-amber-600 dark:text-amber-400">{valueWarning}</p>
+          <p className="text-sm text-warning">{valueWarning}</p>
         )}
         {!needsValue && clause.path && (
           <p className="text-xs text-muted-foreground">
@@ -1061,7 +1061,7 @@ function ValueInput({
         placeholder="e.g. high, urgent"
         aria-label="Values"
         aria-invalid={!hasValues}
-        className={cn(base, hasValues ? "border-input" : "border-amber-500/60", className)}
+        className={cn(base, hasValues ? "border-input" : "border-warning/60", className)}
       />
     );
   }

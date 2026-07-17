@@ -37,9 +37,9 @@ export const COLUMNS: {
   wipLimit: number | null;
 }[] = [
   { id: "todo", label: "To do", dotClass: "bg-zinc-400", wipLimit: null },
-  { id: "in_progress", label: "In progress", dotClass: "bg-blue-500", wipLimit: 5 },
-  { id: "blocked", label: "Blocked", dotClass: "bg-amber-500", wipLimit: 3 },
-  { id: "done", label: "Done", dotClass: "bg-emerald-500", wipLimit: null },
+  { id: "in_progress", label: "In progress", dotClass: "bg-info", wipLimit: 5 },
+  { id: "blocked", label: "Blocked", dotClass: "bg-warning", wipLimit: 3 },
+  { id: "done", label: "Done", dotClass: "bg-success", wipLimit: null },
 ];
 
 export const STATUS_IDS: TaskStatus[] = COLUMNS.map((c) => c.id);

@@ -906,11 +906,11 @@ function NowLine() {
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-x-0 z-10 h-0.5 -translate-y-1/2 rounded-full bg-rose-500"
+        className="pointer-events-none absolute inset-x-0 z-10 h-0.5 -translate-y-1/2 rounded-full bg-accent-red"
         style={{ top }}
       />
       <div
-        className="pointer-events-none absolute z-10 size-2.5 -translate-y-1/2 rounded-full bg-rose-500 ring-2 ring-background"
+        className="pointer-events-none absolute z-10 size-2.5 -translate-y-1/2 rounded-full bg-accent-red ring-2 ring-background"
         style={{ top, left: -5 }}
       />
     </>

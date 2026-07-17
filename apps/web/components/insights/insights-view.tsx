@@ -37,7 +37,6 @@ import { useInsightsTab, type InsightDashTab } from "./insights-tab-context";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { ReportsView } from "./reports-view";
 import { MyWeekView } from "./my-week-view";
-import { ScopeSwitcher } from "./scope-switcher";
 import { InsightsAskPanel } from "./insights-ask-panel";
 import { InsightsFollowButton } from "./insights-follow-button";
 import { ApiAccessButton } from "./api-access-dialog";
@@ -72,7 +71,7 @@ export function InsightsView({
   // View state (active dashboard tab + lens) is shared with the secondary
   // sidebar that lists the views — see `InsightsTabProvider`. Reports is
   // URL-driven (`view`), so it isn't in the shared state; the pathname wins.
-  const { dashTab, setDashTab, scope, setScope } = useInsightsTab();
+  const { dashTab, setDashTab, scope } = useInsightsTab();
   const { data, isPending } = useQuery(
     insightsMetricsQueryOptions(propertyId, scope),
   );
@@ -169,11 +168,6 @@ export function InsightsView({
                       onReset={reset}
                     />
                   ) : null}
-                  <ScopeSwitcher
-                    propertyId={propertyId}
-                    scope={scope}
-                    onChange={setScope}
-                  />
                 </>
               ) : undefined
             }
