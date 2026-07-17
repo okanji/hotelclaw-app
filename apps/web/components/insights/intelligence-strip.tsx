@@ -15,7 +15,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { relativeShort, WidgetEmpty } from "@/components/home/editorial-section";
-import { tintTone, type TintTone } from "@/components/ui/tint-card";
 import type { InsightsMetrics } from "@/lib/insights/metrics";
 import type { InsightCard } from "@/lib/ai/bots/insights-bot";
 import { insightsBriefQueryOptions } from "@/lib/query/insights-queries";
@@ -167,24 +166,8 @@ function InsightCardRow({
         : card.kind === "win"
           ? "text-success"
           : "text-muted-foreground";
-  // Soft full tint, hue tied to meaning: coral = critical, honey = warning,
-  // sage = win, lavender = neutral watch/trend.
-  const tint: TintTone =
-    card.severity === "critical"
-      ? "coral"
-      : card.severity === "warning"
-        ? "honey"
-        : card.kind === "win"
-          ? "sage"
-          : "lavender";
-
   return (
-    <article
-      className={cn(
-        "flex items-start gap-3 rounded-xl p-4",
-        tintTone[tint],
-      )}
-    >
+    <article className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5">
       <Icon className={cn("mt-0.5 size-4 shrink-0", iconTone)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">

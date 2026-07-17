@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils";
 import { tintTone, type TintTone } from "@/components/ui/tint-card";
 
 /**
- * Quick access to the main workspaces under the Home masthead. Soft brand-tint
- * cards (one per hue), the same gentle tint intensity as the intelligence brief
- * cards so the whole page reads as one tinted-card system. Deep-links via
+ * Quick access to the main workspaces under the Home masthead. Neutral cards in
+ * the house language (subtle border on `bg-card`, matching the KPI stat cards)
+ * — colour lives only in the small tinted icon chip, never the fill, so the
+ * whole page reads as one consistent console-style card system. Deep-links via
  * next/link.
  */
 type QuickTile = {
@@ -64,17 +65,21 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
           <Link
             key={t.label}
             href={t.href(base)}
-            className={cn(
-              "flex min-w-0 items-center gap-3 rounded-xl p-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-sm",
-              tintTone[t.tone],
-            )}
+            className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-muted/20"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-current/10">
+            <span
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                tintTone[t.tone],
+              )}
+            >
               <Icon className="size-[1.15rem]" />
             </span>
             <div className="min-w-0">
-              <div className="font-medium">{t.label}</div>
-              <div className="truncate text-sm text-current/70">{t.sub}</div>
+              <div className="font-medium text-foreground">{t.label}</div>
+              <div className="truncate text-sm text-muted-foreground">
+                {t.sub}
+              </div>
             </div>
           </Link>
         );

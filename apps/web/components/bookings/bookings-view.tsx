@@ -413,21 +413,19 @@ export function BookingsView({
                 dateKey(b.starts_at) <= shiftDate(today, 7),
             );
             const stats = [
-              { label: "Bookings today", value: todays.length, tone: "blue" as const },
+              { label: "Bookings today", value: todays.length },
               {
                 label: "Guests today",
                 value: todays.reduce((sum, b) => sum + b.party_size, 0),
-                tone: "sage" as const,
               },
-              { label: "Pending approval", value: pendingCount, warn: pendingCount > 0, tone: "honey" as const },
-              { label: "Next 7 days", value: week.length, tone: "lavender" as const },
+              { label: "Pending approval", value: pendingCount, warn: pendingCount > 0 },
+              { label: "Next 7 days", value: week.length },
             ];
             return stats.map((s) => (
               <StatCard
                 key={s.label}
                 label={s.label}
                 value={s.value}
-                tone={s.tone}
                 pill={
                   s.warn ? (
                     <StatCardPill tone="warning">Needs a yes</StatCardPill>
