@@ -98,6 +98,26 @@ export async function addUserToPublicChannels(args: {
   );
 }
 
+/** Inverse of addUserToPublicChannels, for member removal — best-effort per
+ *  channel; removing a non-member is harmless. */
+export async function removeUserFromChannels(args: {
+  userId: string;
+  streamChannelIds: string[];
+}) {
+  if (args.streamChannelIds.length === 0) return;
+  const stream = getStreamServer();
+  await Promise.all(
+    args.streamChannelIds.map(async (id) => {
+      try {
+        const channel = stream.channel("team", id);
+        await channel.removeMembers([args.userId]);
+      } catch (e) {
+        console.error(`removeMembers failed for channel ${id}`, e);
+      }
+    }),
+  );
+}
+
 /**
  * Every message in the property where `userId` was @-mentioned, newest first.
  * Server-side twin of the Stream search in `InboxView` — used to prefetch the

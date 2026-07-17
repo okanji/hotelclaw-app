@@ -189,6 +189,8 @@ export function PropertySwitcher({
         propertyId={currentPropertyId}
         open={membersOpen}
         onOpenChange={setMembersOpen}
+        canManage={current?.role === "owner"}
+        currentEmail={email}
       />
       <InvitesDialog
         propertyId={currentPropertyId}

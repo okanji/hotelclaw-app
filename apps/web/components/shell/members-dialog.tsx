@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -9,20 +10,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Users } from "lucide-react";
+import { Search, Users, UserMinus } from "lucide-react";
 import {
   propertyMembersQueryOptions,
   type PropertyMember,
 } from "@/lib/query/section-queries";
+import { removeMember } from "@/lib/members/actions";
 
 type Props = {
   propertyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Owner-only controls (remove people). */
+  canManage: boolean;
+  /** Signed-in user's email — hides the remove control on their own row. */
+  currentEmail: string;
 };
 
 type RoleTone = React.ComponentProps<typeof StatusBadge>["tone"];
@@ -38,7 +45,13 @@ const ROLE_META: Record<string, { label: string; tone: RoleTone }> = {
 const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
 
 /** Everyone who belongs to the current property, with avatar, email, and role. */
-export function MembersDialog({ propertyId, open, onOpenChange }: Props) {
+export function MembersDialog({
+  propertyId,
+  open,
+  onOpenChange,
+  canManage,
+  currentEmail,
+}: Props) {
   const { data: members = [], isLoading } = useQuery({
     ...propertyMembersQueryOptions(propertyId),
     enabled: open,
@@ -95,7 +108,15 @@ export function MembersDialog({ propertyId, open, onOpenChange }: Props) {
             className="max-h-80 divide-y divide-border/50 overflow-y-auto"
           >
             {filtered.map((m) => (
-              <MemberRow key={m.id} member={m} />
+              <MemberRow
+                key={m.id}
+                member={m}
+                propertyId={propertyId}
+                removable={
+                  canManage &&
+                  (m.email ?? "").toLowerCase() !== currentEmail.toLowerCase()
+                }
+              />
             ))}
           </ul>
         )}
@@ -104,13 +125,39 @@ export function MembersDialog({ propertyId, open, onOpenChange }: Props) {
   );
 }
 
-function MemberRow({ member }: { member: PropertyMember }) {
+function MemberRow({
+  member,
+  propertyId,
+  removable,
+}: {
+  member: PropertyMember;
+  propertyId: string;
+  removable: boolean;
+}) {
+  const qc = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const [pending, startTransition] = useTransition();
+
   const role = ROLE_META[member.role] ?? {
     label: member.role,
     tone: "neutral" as RoleTone,
   };
+
+  function remove() {
+    startTransition(async () => {
+      const result = await removeMember({ propertyId, userId: member.id });
+      if ("error" in result) {
+        toast.error(result.error);
+        setConfirming(false);
+        return;
+      }
+      toast.success(`${member.name ?? "Member"} removed`);
+      qc.invalidateQueries({ queryKey: ["property-members", propertyId] });
+    });
+  }
+
   return (
-    <li className="flex items-center gap-3 py-2.5">
+    <li className="group flex items-center gap-3 py-2.5">
       <Avatar className="size-9 shrink-0">
         {member.avatarUrl ? (
           <AvatarImage src={member.avatarUrl} alt="" />
@@ -129,9 +176,48 @@ function MemberRow({ member }: { member: PropertyMember }) {
           </p>
         ) : null}
       </div>
-      <StatusBadge tone={role.tone} className="capitalize">
-        {role.label}
-      </StatusBadge>
+      {removable && confirming ? (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="h-7 px-2 text-xs"
+            disabled={pending}
+            onClick={remove}
+          >
+            {pending ? "Removing…" : "Remove"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            disabled={pending}
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <>
+          <StatusBadge tone={role.tone} className="capitalize">
+            {role.label}
+          </StatusBadge>
+          {removable ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={`Remove ${member.name ?? "member"}`}
+              className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+              onClick={() => setConfirming(true)}
+            >
+              <UserMinus className="size-4" />
+            </Button>
+          ) : null}
+        </>
+      )}
     </li>
   );
 }
