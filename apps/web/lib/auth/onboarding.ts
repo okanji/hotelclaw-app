@@ -21,12 +21,43 @@ export async function isOnboarded(userId: string): Promise<boolean> {
  * True for email-provider accounts that haven't set a password — the
  * invite/magic-link-born accounts that get locked out once their one-time
  * email-link session ends. `has_password` is our own user_metadata flag
- * (set by password signup, /update-password, and the welcome step); it
- * gates UX only, never authorization, so user-editable metadata is fine.
- * OAuth accounts sign in through their provider and never need one.
+ * (set by password signup, password sign-in, /update-password, and the
+ * welcome step); it gates UX only, never authorization, so user-editable
+ * metadata is fine. OAuth accounts sign in through their provider and
+ * never need one.
+ *
+ * Accounts that predate the flag would all read as passwordless, so we
+ * also trust the session itself: a session whose JWT `amr` contains a
+ * `password` entry was created by a password sign-in — proof enough. When
+ * we see that, backfill the flag so the check is cheap next time.
  */
-export function needsPasswordSetup(user: User): boolean {
+export async function needsPasswordSetup(user: User): Promise<boolean> {
   const providers: string[] = user.app_metadata?.providers ?? [];
-  const isOAuth = providers.some((p) => p !== "email");
-  return !isOAuth && !user.user_metadata?.has_password;
+  if (providers.some((p) => p !== "email")) return false;
+  if (user.user_metadata?.has_password) return false;
+
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (sessionAmrMethods(session?.access_token).includes("password")) {
+    // Idempotent backfill; a failure just means we re-derive from amr
+    // next time.
+    await supabase.auth.updateUser({ data: { has_password: true } });
+    return false;
+  }
+  return true;
+}
+
+/** `amr` methods from a Supabase access token, [] when unreadable. */
+function sessionAmrMethods(accessToken: string | undefined): string[] {
+  if (!accessToken) return [];
+  try {
+    const payload = JSON.parse(
+      Buffer.from(accessToken.split(".")[1], "base64url").toString("utf8"),
+    ) as { amr?: { method: string }[] };
+    return (payload.amr ?? []).map((m) => m.method);
+  } catch {
+    return [];
+  }
 }

@@ -88,7 +88,7 @@ export function LoginForm({ next }: { next: string | null }) {
     setError(null);
     const supabase = createClient();
     if (mode === "signin") {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -96,6 +96,12 @@ export function LoginForm({ next }: { next: string | null }) {
         setError(error.message);
         setBusy(null);
         return;
+      }
+      // A successful password sign-in is proof of a password — backfill the
+      // has_password flag for accounts that predate it, so the welcome
+      // gate never asks them to "create" one they already have.
+      if (!data.user?.user_metadata?.has_password) {
+        await supabase.auth.updateUser({ data: { has_password: true } });
       }
       router.replace(next ?? "/");
       router.refresh();

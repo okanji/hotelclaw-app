@@ -9,7 +9,7 @@ export default async function Home() {
 
   // Profile gate — set a name (and, for invite/magic-link-born accounts,
   // a password) first.
-  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
+  if (!(await isOnboarded(user.id)) || (await needsPasswordSetup(user))) {
     redirect("/welcome");
   }
 

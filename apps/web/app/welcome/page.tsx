@@ -26,7 +26,7 @@ export default async function WelcomePage({
   // Ask invite/magic-link-born accounts to create a password so they can
   // sign back in without an email link — even if they already picked a name
   // (accounts onboarded before this step existed are still passwordless).
-  const askPassword = needsPasswordSetup(user);
+  const askPassword = await needsPasswordSetup(user);
 
   if (profile?.onboarded_at && !askPassword) redirect(next);
 

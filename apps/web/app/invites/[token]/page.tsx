@@ -32,7 +32,7 @@ export default async function InvitePage({
   // First-time signups set their name — and passwordless accounts create a
   // password — before joining a workspace; the welcome page sends them
   // right back here after.
-  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
+  if (!(await isOnboarded(user.id)) || (await needsPasswordSetup(user))) {
     redirect(`/welcome?next=${encodeURIComponent(`/invites/${token}`)}`);
   }
 

@@ -24,7 +24,7 @@ import { AcceptButton } from "./[token]/accept-button";
 export default async function PendingInvitesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=%2Finvites");
-  if (!(await isOnboarded(user.id)) || needsPasswordSetup(user)) {
+  if (!(await isOnboarded(user.id)) || (await needsPasswordSetup(user))) {
     redirect("/welcome?next=%2Finvites");
   }
 
