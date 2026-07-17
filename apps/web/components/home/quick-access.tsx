@@ -7,13 +7,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { tintBorderL, tintTone, type TintTone } from "@/components/ui/tint-card";
+import { tintTone, type TintTone } from "@/components/ui/tint-card";
 
 /**
- * Quick access to the main workspaces under the Home masthead. Neutral cards in
- * the house language (white/border, matching the KPI strip) — colour lives only
- * in the small tinted icon chip, never the fill, so the row reads as one
- * consistent card system. Deep-links via next/link.
+ * Quick access to the main workspaces under the Home masthead. Soft brand-tint
+ * cards (one per hue), the same gentle tint intensity as the intelligence brief
+ * cards so the whole page reads as one tinted-card system. Deep-links via
+ * next/link.
  */
 type QuickTile = {
   label: string;
@@ -65,23 +65,16 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
             key={t.label}
             href={t.href(base)}
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-xl border border-border border-l-4 bg-card p-4 transition-colors hover:bg-muted/40",
-              tintBorderL[t.tone],
+              "flex min-w-0 items-center gap-3 rounded-xl p-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-sm",
+              tintTone[t.tone],
             )}
           >
-            <span
-              className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                tintTone[t.tone],
-              )}
-            >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-current/10">
               <Icon className="size-[1.15rem]" />
             </span>
             <div className="min-w-0">
-              <div className="font-medium text-foreground">{t.label}</div>
-              <div className="truncate text-sm text-muted-foreground">
-                {t.sub}
-              </div>
+              <div className="font-medium">{t.label}</div>
+              <div className="truncate text-sm text-current/70">{t.sub}</div>
             </div>
           </Link>
         );

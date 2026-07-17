@@ -16,7 +16,6 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -48,6 +47,7 @@ import {
 import { useDashboardLayout } from "./use-dashboard-layout";
 import Link from "next/link";
 import { StatCard } from "@/components/ui/stat-card";
+import type { TintTone } from "@/components/ui/tint-card";
 import {
   CustomizeMenu,
   EditorialSection,
@@ -194,6 +194,7 @@ export function HomeView({
               value={item.value}
               sub={item.sub}
               pill={item.pill}
+              tone={item.tone}
               render={<Link href={item.href} />}
             />
           ))}
@@ -305,11 +306,19 @@ type HomeStat = {
   sub: string;
   href: string;
   pill?: React.ReactNode;
+  /** Brand tint fill — the masthead strip is the tinted Claude-console row
+   *  (hues tied to meaning, same mapping as the intelligence cards). */
+  tone: TintTone;
 };
 
-/** Small amber corner chip for stats that are waiting on a human. */
+/** Corner chip for stats that are waiting on a human. A current-ink wash so
+ *  it reads on any masthead tint (same treatment as the quick-access plates). */
 function AttentionPill({ children }: { children: React.ReactNode }) {
-  return <Badge variant="warning">{children}</Badge>;
+  return (
+    <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap">
+      {children}
+    </span>
+  );
 }
 
 /** Role-tuned headline stats (Claude-dashboard stat-card row). Owners lead
@@ -333,6 +342,7 @@ function useStatItems(
     value: summary.unread,
     sub: "since you last looked",
     href: `${base}/activity`,
+    tone: "lavender",
   };
 
   if (role === "owner") {
@@ -342,6 +352,7 @@ function useStatItems(
         value: pendingBookings,
         sub: "waiting on a staff yes",
         href: `${base}/bookings?view=pending`,
+        tone: "honey",
         pill:
           pendingBookings > 0 ? (
             <AttentionPill>Needs a yes</AttentionPill>
@@ -352,6 +363,7 @@ function useStatItems(
         value: attention,
         sub: "flagged by pace + slip signals",
         href: `${base}/home/insights`,
+        tone: "coral",
         pill:
           attention > 0 ? <AttentionPill>Review</AttentionPill> : undefined,
       },
@@ -364,12 +376,14 @@ function useStatItems(
       value: summary.open,
       sub: "assigned to you",
       href: `${base}/tasks`,
+      tone: "blue",
     },
     {
       label: "Due within 7 days",
       value: summary.dueSoon,
       sub: "of your open tasks",
       href: `${base}/tasks`,
+      tone: "honey",
     },
     unreadStat,
   ];

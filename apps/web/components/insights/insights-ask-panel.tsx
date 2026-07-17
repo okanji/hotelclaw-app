@@ -84,7 +84,7 @@ export function InsightsAskPanel({
           onClick={() => setOpen(true)}
           className="pointer-events-auto flex items-center gap-2 rounded-full bg-background/95 px-4 py-2 text-sm font-medium text-foreground ring-1 ring-foreground/10 shadow-lg backdrop-blur hover:bg-muted dark:shadow-none"
         >
-          <Sparkles className="size-4 text-brand dark:text-brand-accent" />
+          <Sparkles className="size-4 text-accent-red" />
           Ask AI
         </button>
       </div>
@@ -96,7 +96,7 @@ export function InsightsAskPanel({
       <div className="pointer-events-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background/95 ring-1 ring-foreground/10 shadow-xl backdrop-blur dark:shadow-none">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Sparkles className="size-4 text-brand dark:text-brand-accent" />
+            <Sparkles className="size-4 text-accent-red" />
             Ask AI
           </span>
           <Button
