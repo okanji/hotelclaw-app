@@ -68,6 +68,25 @@
   /* Vivid pink notification/count badges (rail + sidebar rows) — the one
      "look at me" color in shell chrome, same in both themes. */
   --color-notification: var(--notification);
+  /* Red brand accent — eyebrows, active tab underlines, hairline accent rules,
+     small markers/dots. NOT for buttons (primary stays warm ink); this is a
+     highlight used sparingly, the way Claude's own surfaces use coral. */
+  --color-accent-red: var(--accent-red);
+  /* Brand tint card palette (lavender / blue / sage / coral / honey) — the
+     colored card surfaces on Home + Insights, same family as the Claude/
+     Anthropic brand panels. Theme-adaptive: soft pastels on the light plane,
+     deep muted fills on charcoal. Pair `bg-tint-<hue>` with the matching
+     `text-tint-<hue>-ink` so text always has contrast on the fill. */
+  --color-tint-lavender: var(--tint-lavender);
+  --color-tint-lavender-ink: var(--tint-lavender-ink);
+  --color-tint-blue: var(--tint-blue);
+  --color-tint-blue-ink: var(--tint-blue-ink);
+  --color-tint-sage: var(--tint-sage);
+  --color-tint-sage-ink: var(--tint-sage-ink);
+  --color-tint-coral: var(--tint-coral);
+  --color-tint-coral-ink: var(--tint-coral-ink);
+  --color-tint-honey: var(--tint-honey);
+  --color-tint-honey-ink: var(--tint-honey-ink);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
@@ -177,6 +196,19 @@
      badge, chat active-tab underline). */
   --brand: #4a154b;
   --brand-accent: #cba4e6;
+  /* Red brand accent + tint card palette (see @theme mapping above).
+     Light plane: deep terracotta-red accent, soft pastel card fills. */
+  --accent-red: oklch(0.55 0.16 36);
+  --tint-lavender: oklch(0.9 0.045 295);
+  --tint-lavender-ink: oklch(0.4 0.09 295);
+  --tint-blue: oklch(0.89 0.05 245);
+  --tint-blue-ink: oklch(0.42 0.1 250);
+  --tint-sage: oklch(0.9 0.04 158);
+  --tint-sage-ink: oklch(0.42 0.06 160);
+  --tint-coral: oklch(0.88 0.055 42);
+  --tint-coral-ink: oklch(0.45 0.13 40);
+  --tint-honey: oklch(0.92 0.05 82);
+  --tint-honey-ink: oklch(0.45 0.09 80);
   /* Guest palette raw values (see @theme mapping above). Same in dark mode —
      guest surfaces are their own warm-cream world and never theme-switch. */
   --guest-bg: #faf9f5;
@@ -243,6 +275,19 @@
   --info: oklch(0.707 0.165 254.624);
   --brand: #4a154b;
   --brand-accent: #cba4e6;
+  /* Dark plane: brighter coral accent that pops on charcoal, deep muted
+     colored card fills with light ink on top. */
+  --accent-red: oklch(0.7 0.15 40);
+  --tint-lavender: oklch(0.4 0.055 295);
+  --tint-lavender-ink: oklch(0.9 0.03 295);
+  --tint-blue: oklch(0.4 0.06 250);
+  --tint-blue-ink: oklch(0.9 0.035 250);
+  --tint-sage: oklch(0.4 0.045 160);
+  --tint-sage-ink: oklch(0.9 0.03 160);
+  --tint-coral: oklch(0.44 0.08 42);
+  --tint-coral-ink: oklch(0.92 0.03 42);
+  --tint-honey: oklch(0.44 0.055 80);
+  --tint-honey-ink: oklch(0.92 0.03 80);
 }
 
 /* Chat inset fill — kept distinct from --card so other card surfaces

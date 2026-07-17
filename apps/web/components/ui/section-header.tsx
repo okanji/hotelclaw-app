@@ -19,6 +19,7 @@ import { Eyebrow } from "@/components/ui/eyebrow"
 function SectionHeader({
   title,
   eyebrow,
+  eyebrowTone = "app",
   description,
   actions,
   size = "section",
@@ -27,6 +28,8 @@ function SectionHeader({
   title: React.ReactNode
   /** Small uppercase kicker above the title (any tier). */
   eyebrow?: React.ReactNode
+  /** `brand` renders the red accent eyebrow (Home/Insights mastheads). */
+  eyebrowTone?: "app" | "brand"
   /** Context under the title: one line for section/panel, a lede for page. */
   description?: React.ReactNode
   /** Right-aligned controls (buttons, filters). */
@@ -37,7 +40,11 @@ function SectionHeader({
   return (
     <header className={cn("flex items-start justify-between gap-4", className)}>
       <div className={cn("min-w-0", size === "page" && "flex flex-col gap-1.5")}>
-        {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+        {eyebrow ? (
+          <Eyebrow tone={eyebrowTone} className="mb-1">
+            {eyebrow}
+          </Eyebrow>
+        ) : null}
         {size === "page" ? (
           <h1 className="font-serif text-4xl font-medium tracking-tight text-balance text-foreground">
             {title}

@@ -19,6 +19,7 @@ import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,7 +83,6 @@ export function HomeView({
   propertyId,
   userId,
   userName,
-  propertyName,
 }: {
   propertyId: string;
   userId: string;
@@ -146,7 +146,6 @@ export function HomeView({
         <SectionHeader
           size="page"
           className="flex-wrap gap-y-4"
-          eyebrow={propertyName}
           title={greeting}
           description={sublineFor(role)}
           actions={
@@ -203,9 +202,7 @@ export function HomeView({
       {showHero && hero ? (
         <section className="mb-16 min-w-0">
           <div className="mb-6 flex flex-col gap-1.5 border-b border-border pb-3">
-            <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              {hero.kicker}
-            </span>
+            <Eyebrow tone="brand">{hero.kicker}</Eyebrow>
             <h2 className="text-lg font-medium text-accent-foreground">
               {hero.title}
             </h2>

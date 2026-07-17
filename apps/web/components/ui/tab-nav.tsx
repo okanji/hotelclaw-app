@@ -62,7 +62,7 @@ function TabNavItem({
           "[&_svg]:size-3.5 [&_svg]:shrink-0",
           // underline: full-height hit area, ink baseline marker on active
           "group-data-[variant=underline]/tab-nav:h-full group-data-[variant=underline]/tab-nav:rounded-md group-data-[variant=underline]/tab-nav:px-2.5 group-data-[variant=underline]/tab-nav:text-sm",
-          "group-data-[variant=underline]/tab-nav:after:absolute group-data-[variant=underline]/tab-nav:after:inset-x-2 group-data-[variant=underline]/tab-nav:after:-bottom-px group-data-[variant=underline]/tab-nav:after:h-0.5 group-data-[variant=underline]/tab-nav:after:rounded-full group-data-[variant=underline]/tab-nav:after:bg-foreground group-data-[variant=underline]/tab-nav:after:opacity-0 group-data-[variant=underline]/tab-nav:data-active:after:opacity-100",
+          "group-data-[variant=underline]/tab-nav:after:absolute group-data-[variant=underline]/tab-nav:after:inset-x-2 group-data-[variant=underline]/tab-nav:after:-bottom-px group-data-[variant=underline]/tab-nav:after:h-0.5 group-data-[variant=underline]/tab-nav:after:rounded-full group-data-[variant=underline]/tab-nav:after:bg-accent-red group-data-[variant=underline]/tab-nav:after:opacity-0 group-data-[variant=underline]/tab-nav:data-active:after:opacity-100",
           // pill: compact filter chip with a soft ink wash
           "group-data-[variant=pill]/tab-nav:h-6 group-data-[variant=pill]/tab-nav:rounded-full group-data-[variant=pill]/tab-nav:px-2.5 group-data-[variant=pill]/tab-nav:text-xs",
           "group-data-[variant=pill]/tab-nav:hover:bg-foreground/[0.05] group-data-[variant=pill]/tab-nav:data-active:bg-foreground/[0.08]",

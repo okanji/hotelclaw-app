@@ -17,6 +17,23 @@ Two visual worlds, one token source. Read this before building any UI.
 All colors are CSS variables mapped through `@theme inline` — use utilities,
 never raw hex values in components.
 
+**Buttons stay warm ink** — `--primary` is the near-ink used for primary
+buttons/CTAs. **Red is an accent, never a button.** `--destructive` is the
+only red button (delete/danger).
+
+**Red brand accent** — `--accent-red` (utilities `text-accent-red` /
+`border-accent-red` / `bg-accent-red`) is the Claude coral, used sparingly as a
+highlight: section-header eyebrows (`<Eyebrow tone="brand">`), the active tab
+underline (`TabNav variant="underline"`), hairline accent rules, small
+markers. NOT page-masthead eyebrows (those carry no eyebrow) and NOT buttons.
+
+**Brand tint cards** — `--tint-{lavender,blue,sage,coral,honey}` (+ `-ink`),
+via `TintCard` / `StatCard tone`, are the colored card surfaces (Claude/
+Anthropic brand panels). Theme-adaptive: soft pastels on light, deep muted
+fills on charcoal. Reserve for a few feature tiles per view — KPIs and content
+cards stay neutral; tint is the highlight. Insights views navigate via an
+in-page red-underline `TabNav` (not the sidebar).
+
 **App semantic ramp** — `--success` / `--warning` / `--info` / `--destructive`
 is the ONE source for state colors (badges, dots, meters). Never re-pick
 emerald/amber/blue shades inline. Violet (occupied/in-progress) is the only

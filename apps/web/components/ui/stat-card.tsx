@@ -4,6 +4,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 
 import { cn } from "@/lib/utils"
+import { tintTone, type TintTone } from "@/components/ui/tint-card"
 
 /**
  * Stat card — the Claude-platform dashboard headline stat: quiet label,
@@ -20,6 +21,7 @@ function StatCard({
   value,
   sub,
   pill,
+  tone,
   className,
   render,
   ...props
@@ -30,18 +32,30 @@ function StatCard({
   sub?: React.ReactNode
   /** Small status chip in the top-right corner ("0% used", "Needs a yes"). */
   pill?: React.ReactNode
+  /** Brand tint fill (Home masthead strip). Omit for the neutral card. */
+  tone?: TintTone
 }) {
+  const tinted = tone !== undefined
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className={cn("text-sm", tinted ? "text-current/70" : "text-muted-foreground")}>
+          {label}
+        </span>
         {pill}
       </div>
-      <span className="text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+      <span
+        className={cn(
+          "text-3xl font-semibold tracking-tight tabular-nums",
+          tinted ? "text-current" : "text-foreground"
+        )}
+      >
         {value}
       </span>
       {sub ? (
-        <span className="truncate text-sm text-muted-foreground">{sub}</span>
+        <span className={cn("truncate text-sm", tinted ? "text-current/70" : "text-muted-foreground")}>
+          {sub}
+        </span>
       ) : null}
     </>
   )
@@ -51,8 +65,13 @@ function StatCard({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex min-w-0 flex-col gap-2 rounded-xl border border-border bg-card p-4 text-left outline-none",
-          "[&:is(a,button)]:cursor-pointer [&:is(a,button)]:transition-colors [&:is(a,button)]:hover:bg-muted/40 [&:is(a,button)]:focus-visible:ring-2 [&:is(a,button)]:focus-visible:ring-ring/50",
+          "flex min-w-0 flex-col gap-2 rounded-xl border p-4 text-left outline-none",
+          tinted
+            ? cn("border-transparent", tintTone[tone])
+            : "border-border bg-card",
+          tinted
+            ? "[&:is(a,button)]:cursor-pointer [&:is(a,button)]:transition-[transform,box-shadow] [&:is(a,button)]:hover:-translate-y-0.5 [&:is(a,button)]:hover:shadow-sm [&:is(a,button)]:focus-visible:ring-2 [&:is(a,button)]:focus-visible:ring-ring/50"
+            : "[&:is(a,button)]:cursor-pointer [&:is(a,button)]:transition-colors [&:is(a,button)]:hover:bg-muted/40 [&:is(a,button)]:focus-visible:ring-2 [&:is(a,button)]:focus-visible:ring-ring/50",
           className
         ),
         children: body,

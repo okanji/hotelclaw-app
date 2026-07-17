@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeader } from "@/components/ui/section-header";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   CustomizeMenu,
   EditorialSection,
@@ -32,7 +33,8 @@ import {
   INSIGHT_TABS,
   type InsightTab,
 } from "./insights-registry";
-import { useInsightsTab } from "./insights-tab-context";
+import { useInsightsTab, type InsightDashTab } from "./insights-tab-context";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { ReportsView } from "./reports-view";
 import { MyWeekView } from "./my-week-view";
 import { ScopeSwitcher } from "./scope-switcher";
@@ -70,7 +72,7 @@ export function InsightsView({
   // View state (active dashboard tab + lens) is shared with the secondary
   // sidebar that lists the views — see `InsightsTabProvider`. Reports is
   // URL-driven (`view`), so it isn't in the shared state; the pathname wins.
-  const { dashTab, scope, setScope } = useInsightsTab();
+  const { dashTab, setDashTab, scope, setScope } = useInsightsTab();
   const { data, isPending } = useQuery(
     insightsMetricsQueryOptions(propertyId, scope),
   );
@@ -120,6 +122,23 @@ export function InsightsView({
   const available = new Set(availableDefs.map((d) => d.id));
   const shown = visible.filter((id) => available.has(id));
   const isReports = activeTab === "reports";
+
+  // In-page tab strip navigation (mirrors the old sidebar wiring): dash tabs
+  // are shared client state; Reports is a real route so it can be deep-linked.
+  const insightsBase = `/p/${propertyId}/home/insights`;
+  function goReports() {
+    if (isReports) return;
+    window.history.pushState(null, "", `${insightsBase}/reports`);
+    window.dispatchEvent(new Event("hotelclaw:pathname"));
+  }
+  function goDash(tab: InsightDashTab) {
+    setDashTab(tab);
+    if (isReports) {
+      window.history.pushState(null, "", insightsBase);
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
+    }
+  }
+
   const heading = isStaff ? "My week" : "Insights";
   const blurb = isStaff
     ? "Your momentum, your stuck items, and the team's weekly update."
@@ -132,7 +151,6 @@ export function InsightsView({
           <SectionHeader
             size="page"
             className="flex-wrap gap-y-3"
-            eyebrow="Intelligence"
             title={heading}
             description={blurb}
             actions={
@@ -160,6 +178,26 @@ export function InsightsView({
               ) : undefined
             }
           />
+
+          {!isStaff ? (
+            <TabNav variant="underline" className="mt-8">
+              {INSIGHT_TABS.filter((t) => !t.propertyOnly || isProperty).map(
+                (t) => (
+                  <TabNavItem
+                    key={t.id}
+                    active={activeTab === t.id}
+                    onClick={() =>
+                      t.id === "reports"
+                        ? goReports()
+                        : goDash(t.id as InsightDashTab)
+                    }
+                  >
+                    {t.label}
+                  </TabNavItem>
+                ),
+              )}
+            </TabNav>
+          ) : null}
 
           <div className="mt-10 @container">
             {isPending || !data ? (
@@ -299,9 +337,7 @@ export function InsightSection({
     <section className={cn("min-w-0", wide && "@4xl:col-span-2")}>
       <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[0.625rem] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            {kicker}
-          </span>
+          <Eyebrow tone="brand">{kicker}</Eyebrow>
           <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
             {title}
           </h2>

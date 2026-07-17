@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -82,9 +83,7 @@ export function EditorialSection({
             <GripVertical className="size-4" />
           </button>
           <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              {kicker}
-            </span>
+            <Eyebrow tone="brand">{kicker}</Eyebrow>
             <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
               {title}
             </h2>
