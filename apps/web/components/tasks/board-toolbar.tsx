@@ -6,7 +6,6 @@ import {
   Check,
   Columns3,
   List,
-  ListFilter,
   Search,
   Settings2,
   Users,
@@ -26,15 +25,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
-import {
-  PRIORITY_IDS,
-  PRIORITY_META,
-  SORT_LABELS,
-  type SortBy,
-} from "./kanban";
-import { PriorityBars } from "./task-icons";
+import { SORT_LABELS, type SortBy } from "./kanban";
 import { TriageDial } from "./triage-dial";
-import type { TaskPriority } from "@/lib/db/types";
+import {
+  EMPTY_FILTERS,
+  FilterMenu,
+  activeFacetCount,
+  type BoardFilters,
+  type FacetKey,
+} from "./board-filters";
+
+export type { BoardFilters };
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -46,14 +47,6 @@ import type { TaskPriority } from "@/lib/db/types";
  * filter and (in the kanban view) which columns are visible.
  */
 export type StatusPreset = "all" | "active" | "backlog";
-
-export type BoardFilters = {
-  search: string;
-  priorities: TaskPriority[];
-  sortBy: SortBy;
-  /** Pill-tab preset. Replaces the old `hideDone` boolean. */
-  statusPreset: StatusPreset;
-};
 
 export type ViewMode = "board" | "list" | "timeline" | "workload";
 
@@ -79,13 +72,6 @@ const VIEW_TABS: { id: ViewMode; label: string; Icon: typeof Columns3 }[] = [
   { id: "workload", label: "Workload", Icon: Users },
 ];
 
-const EMPTY_FILTERS: BoardFilters = {
-  search: "",
-  priorities: [],
-  sortBy: "manual",
-  statusPreset: "all",
-};
-
 export const DEFAULT_FILTERS = EMPTY_FILTERS;
 
 type Props = {
@@ -96,8 +82,8 @@ type Props = {
   total: number;
   /** Task count AFTER filtering. */
   visible: number;
-  mineOnly: boolean;
-  onToggleMine: () => void;
+  /** Add a facet from the "+ Filter" menu — the board opens it as a chip. */
+  onPickFacet: (facet: FacetKey) => void;
   view: ViewMode;
   onChangeView: (view: ViewMode) => void;
   groupBy: BoardGroupBy;
