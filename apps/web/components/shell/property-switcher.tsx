@@ -85,8 +85,8 @@ export function PropertySwitcher({
             render={<SidebarMenuButton size="lg" className="h-9 w-fit max-w-full" />}
           >
             {/* Org name + chevron only — the property's logo lives in the rail
-                now (RailOrgSwitcher). Bold Loop-style card heading. */}
-            <span className="min-w-0 truncate text-base font-semibold tracking-tight text-sidebar-foreground">
+                now (RailOrgSwitcher). */}
+            <span className="min-w-0 truncate text-sm font-semibold text-sidebar-accent-foreground">
               {current?.property.name ?? "Property"}
             </span>
             <ChevronsUpDown className="size-3.5! shrink-0 text-muted-foreground" />
