@@ -20,9 +20,6 @@ type Props = {
    *  password yet — they must create one here or they're locked out as
    *  soon as their one-time email-link session ends. */
   askPassword: boolean;
-  /** They already picked a name in a past session and are only here for
-   *  the password — reframe the copy around securing the account. */
-  alreadyOnboarded: boolean;
 };
 
 /**
@@ -30,12 +27,7 @@ type Props = {
  * language as the onboarding wizard. Action is untouched; only the UI
  * changed.
  */
-export function WelcomeForm({
-  defaultName,
-  next,
-  askPassword,
-  alreadyOnboarded,
-}: Props) {
+export function WelcomeForm({ defaultName, next, askPassword }: Props) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
   const [password, setPassword] = useState("");
@@ -79,13 +71,10 @@ export function WelcomeForm({
       <Eyebrow tone="guest" className="mb-3">
         Welcome to Hotelclaw
       </Eyebrow>
-      <GuestQuestion>
-        {alreadyOnboarded ? "Secure your account" : "What should we call you?"}
-      </GuestQuestion>
+      <GuestQuestion>What should we call you?</GuestQuestion>
       <GuestHint>
-        {alreadyOnboarded
-          ? "One last thing — create a password so you can sign in any time. Your name is set; adjust it if you like."
-          : "This is how your teammates will see you. You can change it later in your profile."}
+        This is how your teammates will see you. You can change it later in
+        your profile.
       </GuestHint>
       <form onSubmit={onSubmit}>
         <GuestBigInput

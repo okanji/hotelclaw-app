@@ -5,6 +5,7 @@ import { needsPasswordSetup } from "@/lib/auth/onboarding";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import { GuestShell } from "@/components/guest/ui";
 import { WelcomeForm } from "./welcome-form";
+import { SecureAccountForm } from "./secure-account-form";
 
 export default async function WelcomePage({
   searchParams,
@@ -43,13 +44,27 @@ export default async function WelcomePage({
           .join(" ")
       : "");
 
+  // Already named, only missing a password — that's an auth moment, not
+  // onboarding: render the /update-password-style card instead of the
+  // warm first-run wizard.
+  if (profile?.onboarded_at && askPassword) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-muted/30 p-4">
+        <SecureAccountForm
+          fullName={profile.full_name ?? defaultName}
+          email={user.email ?? ""}
+          next={next}
+        />
+      </main>
+    );
+  }
+
   return (
     <GuestShell>
       <WelcomeForm
         defaultName={defaultName}
         next={next}
         askPassword={askPassword}
-        alreadyOnboarded={!!profile?.onboarded_at}
       />
     </GuestShell>
   );
