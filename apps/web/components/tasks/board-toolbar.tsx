@@ -100,8 +100,7 @@ export function BoardToolbar({
   onChange,
   total,
   visible,
-  mineOnly,
-  onToggleMine,
+  onPickFacet,
   view,
   onChangeView,
   groupBy,
@@ -126,8 +125,7 @@ export function BoardToolbar({
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const activeFilterCount =
-    (filters.priorities.length > 0 ? 1 : 0) + (mineOnly ? 1 : 0);
+  const activeFilterCount = activeFacetCount(filters);
 
   const sortDifferent = filters.sortBy !== "manual";
 
@@ -235,13 +233,7 @@ export function BoardToolbar({
           )}
         </div>
 
-        <FilterPopover
-          filters={filters}
-          onChange={onChange}
-          mineOnly={mineOnly}
-          onToggleMine={onToggleMine}
-          activeCount={activeFilterCount}
-        />
+        <FilterMenu filters={filters} onPick={onPickFacet} />
         <SortMenu
           filters={filters}
           onChange={onChange}
@@ -249,109 +241,6 @@ export function BoardToolbar({
         />
       </div>
     </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Filter popover                                                             */
-/* -------------------------------------------------------------------------- */
-
-function FilterPopover({
-  filters,
-  onChange,
-  mineOnly,
-  onToggleMine,
-  activeCount,
-}: {
-  filters: BoardFilters;
-  onChange: (next: BoardFilters) => void;
-  mineOnly: boolean;
-  onToggleMine: () => void;
-  activeCount: number;
-}) {
-  function togglePriority(p: TaskPriority) {
-    onChange({
-      ...filters,
-      priorities: filters.priorities.includes(p)
-        ? filters.priorities.filter((x) => x !== p)
-        : [...filters.priorities, p],
-    });
-  }
-
-  function reset() {
-    onChange({ ...filters, priorities: [] });
-    if (mineOnly) onToggleMine();
-  }
-
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Filter${activeCount > 0 ? ` (${activeCount} active)` : ""}`}
-            title="Filter"
-            className={TOOLBAR_ICON_BUTTON}
-          />
-        }
-      >
-        <span className="relative inline-flex">
-          <ListFilter className="size-4" />
-          {activeCount > 0 ? (
-            <span
-              aria-hidden
-              className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary ring-2 ring-background"
-            />
-          ) : null}
-        </span>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 gap-0 p-0">
-        {/* Priority */}
-        <PopoverSection label="Priority">
-          {PRIORITY_IDS.map((p) => {
-            const selected = filters.priorities.includes(p);
-            const meta = PRIORITY_META[p];
-            return (
-              <PopoverRow
-                key={p}
-                onClick={() => togglePriority(p)}
-                selected={selected}
-              >
-                <span className="flex w-4 items-center justify-center">
-                  <PriorityBars priority={p} />
-                </span>
-                <span className="flex-1">{meta.label}</span>
-              </PopoverRow>
-            );
-          })}
-        </PopoverSection>
-
-        {/* Scope */}
-        <PopoverSection label="Scope">
-          <PopoverRow onClick={onToggleMine} selected={mineOnly}>
-            <span className="flex w-4 items-center justify-center text-muted-foreground">
-              <UserIcon />
-            </span>
-            <span className="flex-1">Only assigned to me</span>
-          </PopoverRow>
-        </PopoverSection>
-
-        {/* Footer */}
-        {activeCount > 0 ? (
-          <div className="border-t border-border/60 p-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 w-full justify-start px-1.5 text-xs text-muted-foreground hover:text-foreground"
-              onClick={reset}
-            >
-              Clear filters
-            </Button>
-          </div>
-        ) : null}
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -467,22 +356,3 @@ const TOOLBAR_ICON_BUTTON = cn(
   "aria-expanded:bg-foreground/[0.06] aria-expanded:text-foreground",
   "data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground",
 );
-
-function UserIcon() {
-  // Inline user icon matches the unassigned-avatar weight used on cards.
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="8" cy="6" r="2.5" />
-      <path d="M3.5 13c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" />
-    </svg>
-  );
-}

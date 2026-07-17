@@ -15,7 +15,6 @@ import {
   Sparkles,
   Tag,
   User,
-  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -482,16 +481,10 @@ function ValuePicker({
 /* Facet chip                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function summaryFor(
-  facet: FacetKey,
-  selected: string[],
-  options: Option[],
-): { text: string; avatars: PropertyMember[] } {
+function summaryFor(selected: string[], options: Option[]): string {
   const byValue = new Map(options.map((o) => [o.value, o.label] as const));
-  const first = byValue.get(selected[0]!) ?? "";
-  const cleaned = first.replace(/ · you$/, "");
-  if (selected.length === 1) return { text: cleaned, avatars: [] };
-  return { text: `${cleaned} +${selected.length - 1}`, avatars: [] };
+  const first = (byValue.get(selected[0]!) ?? "").replace(/ · you$/, "");
+  return selected.length === 1 ? first : `${first} +${selected.length - 1}`;
 }
 
 function FacetControl({
@@ -528,9 +521,10 @@ function FacetControl({
   }
   function clear() {
     onChange({ ...filters, [field]: [] });
+    onEmptyClose();
   }
 
-  const summary = summaryFor(facet, selected, options);
+  const summary = summaryFor(selected, options);
   const { Icon } = meta;
 
   return (
@@ -565,9 +559,7 @@ function FacetControl({
               <span aria-hidden className="text-muted-foreground">
                 :
               </span>
-              <span className="max-w-[10rem] truncate tabular-nums">
-                {summary.text}
-              </span>
+              <span className="max-w-[10rem] truncate">{summary}</span>
             </>
           ) : null}
         </PopoverTrigger>

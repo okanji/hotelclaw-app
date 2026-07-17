@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBroadcastEvent } from "@liveblocks/react";
 import { ListChecks, Plus } from "lucide-react";
@@ -11,10 +11,16 @@ import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
 import {
   BoardToolbar,
+  DEFAULT_FILTERS,
   type BoardFilters,
   type BoardGroupBy,
   type ViewMode,
 } from "./board-toolbar";
+import {
+  ActiveFilterBar,
+  matchesFacets,
+  type FacetKey,
+} from "./board-filters";
 import { KanbanView } from "./kanban-view";
 import { KanbanGroupedView } from "./kanban-grouped-view";
 import { ListView } from "./list-view";
@@ -31,13 +37,6 @@ import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 
 const EMPTY_TASKS: Task[] = [];
 
-const DEFAULT_FILTERS: BoardFilters = {
-  search: "",
-  priorities: [],
-  sortBy: "manual",
-  statusPreset: "all",
-};
-
 export function TasksBoard({
   propertyId,
   currentUserId,
@@ -45,8 +44,6 @@ export function TasksBoard({
   propertyId: string;
   currentUserId: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
   const broadcast = useBroadcastEvent();
@@ -81,6 +78,12 @@ export function TasksBoard({
   const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS);
   const [view, setView] = useState<ViewMode>("board");
   const [groupBy, setGroupBy] = useState<BoardGroupBy>("status");
+  // Facet just added from the "+ Filter" menu — its chip mounts auto-opened
+  // so the user can pick values. Cleared once it has a value or is dismissed.
+  const [addedFacet, setAddedFacet] = useState<FacetKey | null>(null);
+  // Reference "now" for the due-date facet buckets — captured once (day-grain
+  // buckets don't need per-render freshness, and it keeps the memo pure).
+  const [now] = useState(() => Date.now());
 
   // Resolve assignee names/avatars once for the whole board — shared cache.
   const assigneeIds = useMemo(
@@ -128,12 +131,8 @@ export function TasksBoard({
       if (filters.statusPreset === "backlog" && t.status !== "todo") {
         return false;
       }
-      if (
-        filters.priorities.length > 0 &&
-        !filters.priorities.includes(t.priority)
-      ) {
-        return false;
-      }
+      // Additive facet chips (assignee / priority / team / due / …).
+      if (!matchesFacets(t, filters, now)) return false;
       if (needle && !t.title.toLowerCase().includes(needle)) return false;
       return true;
     });
@@ -157,15 +156,7 @@ export function TasksBoard({
       return a.position - b.position;
     });
     return out;
-  }, [scopedTasks, filters]);
-
-  function toggleMine() {
-    const next = new URLSearchParams(searchParams.toString());
-    if (mineOnly) next.delete("view");
-    else next.set("view", "mine");
-    const qs = next.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
-  }
+  }, [scopedTasks, filters, now]);
 
   // Open the full-page create experience, carrying the column the affordance
   // was triggered from plus any active board scope so the new task inherits it.
@@ -234,12 +225,19 @@ export function TasksBoard({
         onChange={setFilters}
         total={scopedTasks.length}
         visible={filteredTasks.length}
-        mineOnly={mineOnly}
-        onToggleMine={toggleMine}
+        onPickFacet={setAddedFacet}
         view={view}
         onChangeView={setView}
         groupBy={groupBy}
         onChangeGroupBy={setGroupBy}
+      />
+      <ActiveFilterBar
+        propertyId={propertyId}
+        filters={filters}
+        onChange={setFilters}
+        currentUserId={currentUserId}
+        addedFacet={addedFacet}
+        onResolveAdded={() => setAddedFacet(null)}
       />
 
       {view === "board" ? (
