@@ -146,14 +146,16 @@ export function SpaceMembersPanel({
               <span className="shrink-0 text-xs tracking-tight text-muted-foreground capitalize">
                 {p.role}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 aria-label={`Remove ${p.name ?? "member"}`}
                 onClick={() => void remove(p.id)}
-                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
               >
                 <X className="size-3.5" />
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

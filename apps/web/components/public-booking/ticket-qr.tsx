@@ -8,12 +8,12 @@ import QRCode from "react-qr-code";
  */
 export function TicketQr({ url, reference }: { url: string; reference: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[#1f1e1b]/20 bg-white p-5">
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-guest-ink/20 bg-white p-5">
       <QRCode value={url} size={140} />
-      <p className="font-mono text-sm font-semibold tracking-widest text-[#1f1e1b]">
+      <p className="font-mono text-sm font-semibold tracking-widest text-guest-ink">
         {reference}
       </p>
-      <p className="text-xs text-[#6f6a60]">Show this at the door</p>
+      <p className="text-xs text-guest-ink-soft">Show this at the door</p>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import { saveCustomAction, deleteCustomAction } from "./actions";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -432,23 +432,17 @@ function CustomActionDialog({
                   placeholder="Check-in date, YYYY-MM-DD"
                   className="h-8 text-xs"
                 />
-                <button
-                  type="button"
-                  aria-pressed={p.required}
+                <Chip
+                  size="sm"
+                  selected={p.required}
                   onClick={() => {
                     const next = [...params];
                     next[i] = { ...p, required: !p.required };
                     setParams(next);
                   }}
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-xs",
-                    p.required
-                      ? "border-foreground/40 text-foreground"
-                      : "border-border text-muted-foreground",
-                  )}
                 >
                   required
-                </button>
+                </Chip>
                 <Button
                   variant="ghost"
                   size="icon-sm"

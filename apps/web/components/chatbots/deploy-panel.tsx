@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import {
   regenerateChatbotSlug,
   setChannelDeployments,
@@ -228,20 +228,14 @@ function ChannelDeploySection({
         {channels.map((c) => {
           const active = selected.has(c.stream_channel_id);
           return (
-            <button
+            <Chip
               key={c.id}
-              type="button"
-              aria-pressed={active}
+              size="sm"
+              selected={active}
               onClick={() => toggle(c.stream_channel_id)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                active
-                  ? "border-foreground/40 bg-foreground/10 text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
             >
               #{c.name}
-            </button>
+            </Chip>
           );
         })}
         {channels.length === 0 ? (

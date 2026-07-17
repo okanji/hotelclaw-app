@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import { useCalendarPrefs } from "./calendar-prefs-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CountBadge } from "@/components/ui/count-badge";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { cn } from "@/lib/utils";
 
@@ -58,9 +59,7 @@ export function TeamOverlayPanel({
           Team availability
         </div>
         {overlayUsers.size > 0 ? (
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-            {overlayUsers.size} on
-          </span>
+          <CountBadge>{overlayUsers.size} on</CountBadge>
         ) : null}
       </div>
       <ul role="list" className="flex max-h-56 flex-col gap-0.5 overflow-auto p-1.5">

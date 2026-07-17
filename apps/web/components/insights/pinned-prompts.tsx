@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { relativeShort, WidgetEmpty } from "@/components/home/editorial-section";
 import {
@@ -83,28 +84,32 @@ function PromptCard({
           {card.prompt}
         </h3>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/prompt:opacity-100">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             aria-label="Re-answer now"
             title="Re-answer now"
             disabled={refresh.isPending}
             onClick={() => refresh.mutate()}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground"
           >
             <RefreshCw
               className={cn("size-3.5", refresh.isPending && "animate-spin")}
             />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             aria-label="Unpin"
             title="Unpin"
             disabled={remove.isPending}
             onClick={() => remove.mutate()}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground"
           >
             <Trash2 className="size-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
       {card.answerMd ? (

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import type { Slot } from "@/lib/bookings/availability";
 import { parseServiceSchedule } from "@/lib/bookings/schema";
 import type { ServiceListItem } from "./bookings-view";
@@ -152,20 +152,15 @@ export function ManualBookingDialog({
               <Label>Duration</Label>
               <div className="flex flex-wrap gap-1.5">
                 {rentalDurations.map((m) => (
-                  <button
+                  <Chip
                     key={m}
-                    type="button"
-                    aria-pressed={effectiveDuration === m}
+                    size="sm"
+                    selected={effectiveDuration === m}
                     onClick={() => setDuration(m)}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1.5 text-sm tabular-nums transition-colors",
-                      effectiveDuration === m
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border hover:bg-muted/50",
-                    )}
+                    className="tabular-nums"
                   >
                     {m % 1440 === 0 ? `${m / 1440}d` : m % 60 === 0 ? `${m / 60}h` : `${m}min`}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -196,20 +191,15 @@ export function ManualBookingDialog({
             ) : (
               <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
                 {slots.map((slot) => (
-                  <button
+                  <Chip
                     key={slot.startsAt}
-                    type="button"
-                    aria-pressed={selected?.startsAt === slot.startsAt}
+                    size="sm"
+                    selected={selected?.startsAt === slot.startsAt}
                     onClick={() => setSelected(slot)}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1.5 text-sm tabular-nums transition-colors",
-                      selected?.startsAt === slot.startsAt
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border hover:bg-muted/50",
-                    )}
+                    className="tabular-nums"
                   >
                     {slot.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             )}

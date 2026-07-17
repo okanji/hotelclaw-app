@@ -376,13 +376,13 @@ function LiveDocRow({
             title={u.name}
           >
             <AvatarImage src={u.avatar} alt={u.name} />
-            <AvatarFallback className="text-[10px]">
+            <AvatarFallback className="text-xs">
               {(u.name[0] ?? "?").toUpperCase()}
             </AvatarFallback>
           </Avatar>
         ))}
         {doc.viewers.length > 4 ? (
-          <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground tabular-nums">
+          <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium text-muted-foreground tabular-nums">
             +{doc.viewers.length - 4}
           </span>
         ) : null}

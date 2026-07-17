@@ -7,6 +7,7 @@ import { CircleDashed, GripVertical, X } from "lucide-react";
 import { toast } from "sonner";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
 import { unscheduleTask } from "@/lib/calendar/actions";
+import { CountBadge } from "@/components/ui/count-badge";
 import { cn } from "@/lib/utils";
 import { PRIORITY_META } from "@/components/tasks/kanban";
 
@@ -117,9 +118,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
           <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" />
           Unscheduled
         </div>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-          {total}
-        </span>
+        <CountBadge>{total}</CountBadge>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         <div className="flex flex-col gap-3">
@@ -136,7 +135,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
                 >
                   {meta.label}
                 </span>
-                <span className="text-[10px] tabular-nums text-muted-foreground/70">
+                <span className="text-xs tabular-nums text-muted-foreground/70">
                   {tasks.length}
                 </span>
               </div>

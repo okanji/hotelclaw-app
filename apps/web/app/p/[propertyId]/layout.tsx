@@ -134,12 +134,10 @@ export default async function PropertyLayout({
                   }
                 >
                  <InsightsTabProvider>
-                  {/* ClickUp-style shell: floating dark icon rail (m-2 card,
-                      see AppRail) beside ONE joined card = secondary sidebar
-                      + content pane, connected flush with a shared hairline
-                      seam (the main pane's border-l). When the sidebar is
-                      collapsed the main pane rounds its left corners back via
-                      the LeftShell peer's data-sidebar-open attribute.
+                  {/* Loop-style shell: three detached rounded cards on a
+                      white canvas — near-black icon rail (m-2, see AppRail),
+                      light-gray section sidebar, white content pane — each
+                      with its own hairline outline and an 8px gutter between.
                       Below md: the rail/sidebar move into a drawer behind the
                       MobileTopBar hamburger and the content goes full-bleed. */}
                   <div className="flex h-svh w-full flex-col overflow-hidden bg-card">
@@ -181,7 +179,7 @@ export default async function PropertyLayout({
                       // over the same bug; it broke position:fixed descendants
                       // and stopped working on Chrome 149 — don't bring it
                       // back.)
-                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-xl border border-shell-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
+                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-2xl border border-shell-border bg-card max-md:m-0 max-md:rounded-none max-md:border-0"
                     >
                       {/* Rectangular clip for the pane's content (see comment
                           above — the radius must not participate in clipping).

@@ -29,11 +29,12 @@ export type PublicService = {
   form?: { formId: string; title: string; fields: FormField[] } | null;
 };
 
+/** Passed into GuestFormFields — same value as the guest-accent token. */
 const ACCENT = "#c96442";
-const INK = "#1f1e1b";
-const INK_SOFT = "#6f6a60";
+/** Deliberately a hair warmer than --guest-bg; this page keeps its own cream. */
 const CANVAS = "#faf7f1";
-const HAIRLINE = "rgba(31,30,27,0.12)";
+/** The warm hairline — guest ink at 12%. */
+const HAIRLINE_CLASS = "border-guest-ink/[0.12]";
 
 type Step = "service" | "when" | "time" | "details" | "done";
 
@@ -156,15 +157,13 @@ export function PublicBookingPage({
   };
 
   return (
-    <div className="min-h-dvh" style={{ backgroundColor: CANVAS, color: INK }}>
+    <div className="min-h-dvh text-guest-ink" style={{ backgroundColor: CANVAS }}>
       <div className="mx-auto max-w-xl px-5 py-10 sm:py-14">
         {/* Heading group: eyebrow + serif headline. */}
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm" style={{ color: INK_SOFT }}>
-            {propertyName}
-          </p>
+          <p className="text-sm text-guest-ink-soft">{propertyName}</p>
           {stepIndex >= 0 ? (
-            <p className="text-sm tabular-nums" style={{ color: INK_SOFT }}>
+            <p className="text-sm text-guest-ink-soft tabular-nums">
               Step {stepIndex + 1} of {stepOrder.length}
             </p>
           ) : null}
@@ -181,8 +180,7 @@ export function PublicBookingPage({
           <button
             type="button"
             onClick={() => setStep(back[step]!)}
-            className="mt-4 inline-flex items-center gap-1 text-sm"
-            style={{ color: INK_SOFT }}
+            className="mt-4 inline-flex items-center gap-1 text-sm text-guest-ink-soft"
           >
             <ArrowLeft className="size-3.5" />
             Back
@@ -202,20 +200,19 @@ export function PublicBookingPage({
                     setDate(s.eventDates[0] ?? "");
                     setStep("when");
                   }}
-                  className="rounded-2xl border bg-white p-4 text-left transition-shadow hover:shadow-sm"
-                  style={{ borderColor: HAIRLINE }}
+                  className={`rounded-2xl border ${HAIRLINE_CLASS} bg-white p-4 text-left transition-shadow hover:shadow-sm`}
                 >
                   <p className="text-base font-semibold">
                     {s.emoji ? `${s.emoji} ` : ""}
                     {s.name}
                   </p>
                   {s.description ? (
-                    <p className="mt-1 text-sm text-pretty" style={{ color: INK_SOFT }}>
+                    <p className="mt-1 text-sm text-pretty text-guest-ink-soft">
                       {s.description}
                     </p>
                   ) : null}
                   {s.priceLabel ? (
-                    <p className="mt-2 text-sm font-medium" style={{ color: ACCENT }}>
+                    <p className="mt-2 text-sm font-medium text-guest-accent">
                       {s.priceLabel}
                     </p>
                   ) : null}
@@ -252,8 +249,7 @@ export function PublicBookingPage({
                     value={date}
                     min={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setDate(e.target.value)}
-                    className="h-12 w-full rounded-xl border bg-white px-4 text-base outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25"
-                    style={{ borderColor: HAIRLINE }}
+                    className={`h-12 w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 text-base outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`}
                   />
                 )}
               </Field>
@@ -303,7 +299,7 @@ export function PublicBookingPage({
 
           {step === "time" ? (
             <div className="flex flex-col gap-4">
-              <p className="text-sm" style={{ color: INK_SOFT }}>
+              <p className="text-sm text-guest-ink-soft">
                 {new Intl.DateTimeFormat("en-US", {
                   weekday: "long",
                   month: "long",
@@ -314,18 +310,18 @@ export function PublicBookingPage({
                 {effectiveDuration ? ` · ${fmtDuration(effectiveDuration)}` : ""}
               </p>
               {error ? (
-                <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p className="rounded-xl border border-guest-danger/30 bg-guest-danger/5 px-3 py-2 text-sm text-guest-danger">
                   {error}
                 </p>
               ) : null}
               {slots === null ? (
-                <p className="flex items-center gap-2 py-6 text-sm" style={{ color: INK_SOFT }}>
+                <p className="flex items-center gap-2 py-6 text-sm text-guest-ink-soft">
                   <Loader2 className="size-4 animate-spin" />
                   Checking availability…
                 </p>
               ) : slots.length === 0 ? (
                 <div className="flex flex-col items-start gap-3 py-6">
-                  <p className="text-sm" style={{ color: INK_SOFT }}>
+                  <p className="text-sm text-guest-ink-soft">
                     {isTicket
                       ? "This date is sold out."
                       : "Nothing free that day."}
@@ -333,8 +329,7 @@ export function PublicBookingPage({
                   <button
                     type="button"
                     onClick={() => setStep("when")}
-                    className="text-sm font-medium underline underline-offset-4"
-                    style={{ color: ACCENT }}
+                    className="text-sm font-medium text-guest-accent underline underline-offset-4"
                   >
                     Choose another date
                   </button>
@@ -350,8 +345,7 @@ export function PublicBookingPage({
                         setError(null);
                         setStep("details");
                       }}
-                      className="h-12 rounded-xl border bg-white text-base font-medium tabular-nums transition-colors"
-                      style={{ borderColor: HAIRLINE }}
+                      className={`h-12 rounded-xl border ${HAIRLINE_CLASS} bg-white text-base font-medium tabular-nums transition-colors`}
                     >
                       {s.label}
                     </button>
@@ -363,15 +357,12 @@ export function PublicBookingPage({
 
           {step === "details" && slot ? (
             <form onSubmit={submit} className="flex flex-col gap-4">
-              <div
-                className="rounded-2xl border bg-white p-4"
-                style={{ borderColor: HAIRLINE }}
-              >
+              <div className={`rounded-2xl border ${HAIRLINE_CLASS} bg-white p-4`}>
                 <p className="text-sm font-semibold">
                   {service.emoji ? `${service.emoji} ` : ""}
                   {service.name}
                 </p>
-                <p className="text-sm" style={{ color: INK_SOFT }}>
+                <p className="text-sm text-guest-ink-soft">
                   {new Intl.DateTimeFormat("en-US", {
                     weekday: "short",
                     month: "short",
@@ -383,7 +374,7 @@ export function PublicBookingPage({
                   · {partyLabel}
                 </p>
                 {service.priceLabel ? (
-                  <p className="mt-1 text-sm font-medium" style={{ color: ACCENT }}>
+                  <p className="mt-1 text-sm font-medium text-guest-accent">
                     {service.priceLabel}
                   </p>
                 ) : null}
@@ -410,8 +401,7 @@ export function PublicBookingPage({
 
               {service.form ? (
                 <div
-                  className="flex flex-col gap-4 rounded-2xl border bg-white p-4"
-                  style={{ borderColor: HAIRLINE }}
+                  className={`flex flex-col gap-4 rounded-2xl border ${HAIRLINE_CLASS} bg-white p-4`}
                 >
                   <p className="font-serif text-lg">{service.form.title}</p>
                   <GuestFormFields
@@ -432,7 +422,7 @@ export function PublicBookingPage({
               ) : null}
 
               {error ? (
-                <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p className="rounded-xl border border-guest-danger/30 bg-guest-danger/5 px-3 py-2 text-sm text-guest-danger">
                   {error}
                 </p>
               ) : null}
@@ -445,7 +435,7 @@ export function PublicBookingPage({
                     ? "Reserve tickets"
                     : "Request booking"}
               </PrimaryButton>
-              <p className="text-center text-xs" style={{ color: INK_SOFT }}>
+              <p className="text-center text-xs text-guest-ink-soft">
                 {!busy && (!name.trim() || !email.trim())
                   ? "Enter your name and email to continue."
                   : "The team confirms your request — nothing is charged online."}
@@ -455,11 +445,8 @@ export function PublicBookingPage({
 
           {step === "done" && done ? (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <span
-                className="flex size-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${ACCENT}1a` }}
-              >
-                <Check className="size-7" style={{ color: ACCENT }} />
+              <span className="flex size-14 items-center justify-center rounded-full bg-guest-accent/10">
+                <Check className="size-7 text-guest-accent" />
               </span>
               <div>
                 <p className="font-serif text-xl font-semibold">
@@ -469,9 +456,9 @@ export function PublicBookingPage({
                       ? "Request received"
                       : "Booked"}
                 </p>
-                <p className="mt-1 max-w-[40ch] text-sm text-pretty" style={{ color: INK_SOFT }}>
+                <p className="mt-1 max-w-[40ch] text-sm text-pretty text-guest-ink-soft">
                   Your reference is{" "}
-                  <strong style={{ color: INK }}>{done.reference}</strong>.{" "}
+                  <strong className="text-guest-ink">{done.reference}</strong>.{" "}
                   {isTicket
                     ? "We emailed your tickets — open the link inside to show your door QR code."
                     : "We emailed your confirmation with a link to view or cancel —"}
@@ -490,8 +477,7 @@ export function PublicBookingPage({
                   setError(null);
                   setStep(services.length === 1 ? "when" : "service");
                 }}
-                className="text-sm underline underline-offset-4"
-                style={{ color: ACCENT }}
+                className="text-sm text-guest-accent underline underline-offset-4"
               >
                 Make another booking
               </button>
@@ -519,7 +505,7 @@ function Field({
       <span className="font-serif text-lg">
         {label}
         {required ? (
-          <span aria-hidden style={{ color: ACCENT }}>
+          <span aria-hidden className="text-guest-accent">
             {" "}
             *
           </span>
@@ -544,12 +530,11 @@ function Chip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="h-11 min-w-11 rounded-full border bg-white px-4 text-base tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
-      style={
+      className={`h-11 min-w-11 rounded-full border bg-white px-4 text-base tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-guest-ink/40 ${
         active
-          ? { borderColor: ACCENT, backgroundColor: `${ACCENT}14`, color: ACCENT }
-          : { borderColor: HAIRLINE, color: INK }
-      }
+          ? "border-guest-accent bg-guest-accent/[0.08] text-guest-accent"
+          : `${HAIRLINE_CLASS} text-guest-ink`
+      }`}
     >
       {children}
     </button>
@@ -580,8 +565,7 @@ function TextInput({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       // 16px — anything smaller makes iOS zoom on focus.
-      className="h-12 w-full rounded-xl border bg-white px-4 text-base outline-none placeholder:text-[#6f6a60]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25"
-      style={{ borderColor: HAIRLINE, color: INK }}
+      className={`h-12 w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 text-base text-guest-ink outline-none placeholder:text-guest-ink-soft/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`}
     />
   );
 }
@@ -602,8 +586,7 @@ function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="h-12 rounded-full text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
-      style={{ backgroundColor: ACCENT }}
+      className="h-12 rounded-full bg-guest-accent text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-guest-ink/40"
     >
       {children}
     </button>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NativeSelect } from "@/components/ui/native-select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Database, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 type EntityType = {
   id: string;
@@ -43,14 +44,10 @@ export function EntitiesClient({
           Workflow-defined entities — rooms, guests, bookings. Workflows can
           create / read / react to them.
         </p>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background"
-        >
-          <Plus className="size-3.5" />
+        <Button size="xs" onClick={() => setCreating(true)}>
+          <Plus data-icon="inline-start" aria-hidden />
           New type
-        </button>
+        </Button>
       </header>
 
       {types.length > 0 ? (
@@ -76,16 +73,10 @@ export function EntitiesClient({
           ))}
         </ul>
       ) : (
-        <div className="rounded-lg border border-border/60 bg-muted/15 p-10 text-center">
-          <Database
-            className="mx-auto mb-3 size-6 text-muted-foreground"
-            aria-hidden
-          />
-          <p className="text-sm text-muted-foreground">
-            No entity types yet. Create one — or build a workflow and let AI
-            propose one when it’s useful.
-          </p>
-        </div>
+        <EmptyState icon={Database} title="No entity types yet">
+          Create one — or build a workflow and let AI propose one when it’s
+          useful.
+        </EmptyState>
       )}
 
       {creating ? (
@@ -178,14 +169,15 @@ function CreateTypeDialog({
       <div className="w-full max-w-[520px] rounded-lg border border-border bg-card p-5 shadow-lg">
         <header className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">New entity type</h2>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={onCancel}
             aria-label="Close"
-            className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+            className="text-muted-foreground"
           >
             <X className="size-3.5" />
-          </button>
+          </Button>
         </header>
 
         <div className="space-y-3">
@@ -251,14 +243,15 @@ function CreateTypeDialog({
                     />
                     req
                   </label>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => removeField(i)}
                     aria-label="Remove field"
-                    className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                    className="text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="size-3" />
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -273,15 +266,11 @@ function CreateTypeDialog({
         </div>
 
         <footer className="mt-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs"
-          >
+          <Button variant="outline" size="xs" onClick={onCancel}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="xs"
             disabled={!canSubmit || busy}
             onClick={() =>
               onSubmit({
@@ -290,12 +279,9 @@ function CreateTypeDialog({
                 fields: fields.filter((f) => f.name.length > 0),
               })
             }
-            className={cn(
-              "rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50",
-            )}
           >
             {busy ? "Creating…" : "Create"}
-          </button>
+          </Button>
         </footer>
       </div>
     </div>

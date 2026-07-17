@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CheckCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   SidebarGroup,
@@ -80,14 +81,16 @@ export function ActivitySection({
             Activity
           </h2>
           {unseenCount > 0 ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               title="Mark all read"
               onClick={markAllRead}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              className="text-muted-foreground hover:bg-sidebar-accent"
             >
               <CheckCheck className="size-4" />
-            </button>
+            </Button>
           ) : null}
         </div>
         <SidebarGroupContent>
@@ -134,9 +137,7 @@ export function ActivitySection({
                 </SidebarMenuButton>
                 {unreadByView[v.id] > 0 ? (
                   <SidebarMenuBadge
-                    className={cn(
-                      v.attention && "text-amber-600 dark:text-amber-400",
-                    )}
+                    className={cn(v.attention && "bg-warning")}
                   >
                     {unreadByView[v.id]}
                   </SidebarMenuBadge>

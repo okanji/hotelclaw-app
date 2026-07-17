@@ -1408,7 +1408,7 @@ function PaletteDialog({
         <DialogHeader className="shrink-0 border-b p-0">
           <DialogTitle className="sr-only">Add a step</DialogTitle>
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => {
@@ -1519,7 +1519,7 @@ function PaletteNavButton({
     >
       <span
         className={cn(
-          "inline-flex size-7 shrink-0 items-center justify-center rounded-[4px]",
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-md",
           item.id === "common"
             ? "bg-foreground/[0.08] text-foreground/80"
             : surfaceMeta(item.id as Surface).tone,

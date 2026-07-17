@@ -211,7 +211,7 @@ export function PriorityBars({
         aria-label="Urgent priority"
         title="Urgent priority"
         className={cn(
-          "inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-[3px] bg-red-500 text-[8px] font-semibold leading-none text-white",
+          "inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-sm bg-destructive text-[8px] font-semibold text-white",
           className,
         )}
       >

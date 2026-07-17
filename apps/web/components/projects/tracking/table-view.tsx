@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type { ProjectTracking } from "@/lib/query/project-queries";
 import {
@@ -172,19 +173,7 @@ export function ProjectsTableView({
 
                 {/* Status */}
                 <div className="w-28 shrink-0">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
-                      status.soft,
-                      status.text,
-                    )}
-                  >
-                    <span
-                      className={cn("size-1.5 rounded-full", status.dot)}
-                      aria-hidden="true"
-                    />
-                    {status.label}
-                  </span>
+                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </div>
 
                 {/* Health */}

@@ -7,14 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Building2, Mail } from "lucide-react";
+import { Building2, Mail, ArrowLeft } from "lucide-react";
 
 type Mode = "signin" | "signup";
 
@@ -128,32 +121,49 @@ export function LoginForm({ next }: { next: string | null }) {
 
   if (signupNeedsConfirm) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Check your inbox</CardTitle>
-          <CardDescription>
+      <div className="space-y-6">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-muted">
+          <Mail className="size-5 text-muted-foreground" />
+        </span>
+        <div className="space-y-2">
+          <h1 className="font-serif text-3xl font-medium tracking-tight text-balance">
+            Check your inbox
+          </h1>
+          <p className="text-sm text-muted-foreground text-pretty">
             We sent a confirmation link to{" "}
             <span className="font-medium text-foreground">{email}</span>. Click
             it to finish creating your account.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="-ml-2.5"
+          onClick={() => {
+            setSignupNeedsConfirm(false);
+            setMode("signin");
+          }}
+        >
+          <ArrowLeft data-icon="inline-start" />
+          Back to sign in
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>
-          {mode === "signin" ? "Sign in to Hotelclaw" : "Create your account"}
-        </CardTitle>
-        <CardDescription>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h1 className="font-serif text-3xl font-medium tracking-tight text-balance">
+          {mode === "signin" ? "Welcome back" : "Create your account"}
+        </h1>
+        <p className="text-sm text-muted-foreground text-pretty">
           {mode === "signin"
-            ? "Sign in with your email and password."
+            ? "Sign in to your Hotelclaw workspace."
             : "We'll send a confirmation email to finish setup."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
+      <div>
         <form onSubmit={handlePassword} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -167,6 +177,7 @@ export function LoginForm({ next }: { next: string | null }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy !== null}
+              className="h-11"
             />
           </div>
           {invitePreview.length > 0 ? (
@@ -220,6 +231,7 @@ export function LoginForm({ next }: { next: string | null }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={busy !== null}
+              className="h-11"
             />
           </div>
           {error ? (
@@ -228,7 +240,7 @@ export function LoginForm({ next }: { next: string | null }) {
           <Button
             type="submit"
             disabled={busy !== null}
-            className="w-full"
+            className="mt-1 h-11 w-full"
           >
             {busy === "password"
               ? mode === "signin"
@@ -239,7 +251,7 @@ export function LoginForm({ next }: { next: string | null }) {
                 : "Create account"}
           </Button>
         </form>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "signin" ? (
             <>
               No account?{" "}
@@ -272,7 +284,7 @@ export function LoginForm({ next }: { next: string | null }) {
             </>
           )}
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

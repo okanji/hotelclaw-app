@@ -160,6 +160,15 @@ const CARD_BASE = cn(
   // Roomy padding (Linear sits ~12px) so the ID row, title, priority, and
   // created-date each have their own breathing room.
   "relative rounded-md border border-border/70 bg-card p-3 shadow-xs",
+  // Offscreen cards skip paint entirely (content-visibility). On a full
+  // board the columns are thousands of px tall; painting all of it into
+  // Chrome's composited scroller textures is what pushed macOS GPU
+  // rasterization over the edge (cards/header going white until a scroll
+  // re-rasters). The intrinsic-size `auto 7rem` keeps scrollbar geometry
+  // stable before a card first renders; `auto` then remembers its real
+  // size. NB: the paint containment this implies clips children to the
+  // card's bounds — nothing inside a card may hang outside it.
+  "[content-visibility:auto] [contain-intrinsic-size:auto_7rem]",
 );
 
 /**
@@ -302,11 +311,14 @@ export const SortableTaskCard = memo(function SortableTaskCard({
         "hover:border-foreground/15",
         "focus-visible:ring-2 focus-visible:ring-ring",
         isDragging && "opacity-40",
-        lockedByOther && "cursor-default ring-2 ring-blue-500/50",
+        lockedByOther && "cursor-default ring-2 ring-info/50",
       )}
     >
       {lockedByOther ? (
-        <div className="absolute -top-2 left-3 rounded-full bg-blue-600 px-2 py-0.5 text-[0.625rem] font-medium text-white shadow-sm">
+        // Sits inside the card (not overlapping its top edge): CARD_BASE's
+        // content-visibility implies paint containment, which clips children
+        // to the card bounds.
+        <div className="absolute top-1.5 left-2 rounded-full bg-blue-600 px-2 py-0.5 text-[0.625rem] font-medium text-white shadow-sm">
           {draggedByName} is moving this…
         </div>
       ) : null}

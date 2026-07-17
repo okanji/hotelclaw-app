@@ -12,6 +12,8 @@ import { useTheme } from "next-themes";
 import emojiData from "@emoji-mart/data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AtSign,
   Bold,
@@ -282,7 +284,7 @@ export function SlackComposer({
               key={u.id}
               className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
             >
-              <span className="size-3 animate-pulse rounded-sm bg-muted-foreground/40" />
+              <Skeleton className="size-3 rounded-sm bg-muted-foreground/40" />
               <span className="max-w-[140px] truncate">{u.name}</span>
             </div>
           ))}
@@ -441,14 +443,16 @@ export function SlackComposer({
             <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
               <PopoverTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Emoji"
                     title="Emoji"
-                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)] [&_svg]:size-[18px]"
+                    className="text-muted-foreground group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
                   >
                     <Smile />
-                  </button>
+                  </Button>
                 }
               />
               <PopoverContent
@@ -495,27 +499,31 @@ export function SlackComposer({
           </ToolbarGroup>
         </div>
         <div className="flex items-center">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Send message"
             onClick={() => void submit()}
             disabled={!canSend}
             className={cn(
-              "inline-flex size-7 items-center justify-center rounded-md transition-colors",
+              "disabled:opacity-100",
               canSend
                 ? "text-foreground hover:bg-black/5 dark:hover:bg-[oklch(1_0_0_/_0.08)]"
                 : "text-muted-foreground/60 group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-muted-foreground",
             )}
           >
-            <Send className="size-[18px]" />
-          </button>
-          <button
+            <Send />
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Send options"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+            className="text-muted-foreground/60 group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
           >
-            <ChevronDown className="size-[18px]" />
-          </button>
+            <ChevronDown />
+          </Button>
         </div>
       </div>
 
@@ -557,24 +565,26 @@ function IconBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       aria-label={label}
       title={label}
+      aria-pressed={active}
       onMouseDown={(e) => {
         // Keep the editor focused so execCommand has a valid selection.
         e.preventDefault();
       }}
       onClick={onClick}
       className={cn(
-        "inline-flex size-7 items-center justify-center rounded-md transition-colors [&_svg]:size-[18px]",
         active
-          ? "bg-black/10 text-foreground dark:bg-[oklch(1_0_0_/_0.1)]"
+          ? "bg-black/10 text-foreground hover:bg-black/10 dark:bg-[oklch(1_0_0_/_0.1)] dark:hover:bg-[oklch(1_0_0_/_0.1)]"
           : "text-muted-foreground hover:bg-black/5 hover:text-foreground group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]",
       )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

@@ -124,7 +124,7 @@ export function MonthGrid({
                 </button>
               ))}
               {overflow > 0 ? (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   +{overflow} more
                 </span>
               ) : null}

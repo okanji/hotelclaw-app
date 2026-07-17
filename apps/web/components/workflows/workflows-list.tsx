@@ -35,8 +35,11 @@ import type { TriggerEventType } from "@/lib/workflows/spec";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,53 +67,59 @@ type WorkflowRow = {
 
 // Run-status palette mirrors workflow-runs.tsx so the list and the runs view
 // read as one system. Each status maps to a leading glyph (left-edge scan) and
-// a pill treatment (right-edge label).
+// a StatusBadge tone (right-edge label).
 const RUN_STATUS: Record<
   string,
-  { label: string; icon: typeof CheckCircle2; tone: string; pill: string; spin?: boolean }
+  {
+    label: string;
+    icon: typeof CheckCircle2;
+    tone: string;
+    badgeTone: React.ComponentProps<typeof StatusBadge>["tone"];
+    spin?: boolean;
+  }
 > = {
   succeeded: {
     label: "Succeeded",
     icon: CheckCircle2,
-    tone: "text-emerald-500",
-    pill: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    tone: "text-success",
+    badgeTone: "success",
   },
   failed: {
     label: "Failed",
     icon: XCircle,
     tone: "text-destructive",
-    pill: "bg-destructive/10 text-destructive",
+    badgeTone: "danger",
   },
   running: {
     label: "Running",
     icon: Loader2,
-    tone: "text-blue-500",
-    pill: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+    tone: "text-info",
+    badgeTone: "info",
     spin: true,
   },
   waiting: {
     label: "Waiting",
     icon: Clock,
-    tone: "text-amber-500",
-    pill: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    tone: "text-warning",
+    badgeTone: "warning",
   },
   queued: {
     label: "Queued",
     icon: Circle,
     tone: "text-muted-foreground",
-    pill: "bg-muted text-muted-foreground",
+    badgeTone: "neutral",
   },
   filtered: {
     label: "Filtered",
     icon: CircleSlash,
     tone: "text-muted-foreground",
-    pill: "bg-muted text-muted-foreground",
+    badgeTone: "neutral",
   },
   cancelled: {
     label: "Cancelled",
     icon: Ban,
     tone: "text-muted-foreground",
-    pill: "bg-muted text-muted-foreground",
+    badgeTone: "neutral",
   },
 };
 
@@ -306,37 +315,30 @@ function Toolbar({
           aria-label="Search workflows"
         />
       </div>
-      <div className="flex items-center rounded-md border border-border/60 p-0.5">
+      <TabNav variant="pill" aria-label="Filter workflows">
         {filters.map((f) => (
-          <button
+          <TabNavItem
             key={f.key}
-            type="button"
+            active={filter === f.key}
             onClick={() => onFilter(f.key)}
-            className={cn(
-              "rounded-[5px] px-2 py-1 text-xs font-medium transition-colors",
-              filter === f.key
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
           >
             {f.label}
-          </button>
+          </TabNavItem>
         ))}
-        <button
-          type="button"
-          onClick={() => onFilter(filter === "failing" ? "all" : "failing")}
+        <TabNavItem
+          active={filter === "failing"}
           disabled={failingCount === 0}
+          onClick={() => onFilter(filter === "failing" ? "all" : "failing")}
           className={cn(
-            "ml-0.5 rounded-[5px] px-2 py-1 text-xs font-medium transition-colors",
             failingCount === 0 && "cursor-default opacity-40",
             filter === "failing"
-              ? "bg-destructive/10 text-destructive"
-              : "text-muted-foreground hover:text-destructive",
+              ? "bg-destructive/10! text-destructive!"
+              : "hover:text-destructive!",
           )}
         >
           {failingCount > 0 ? `${failingCount} failing` : "Failing"}
-        </button>
-      </div>
+        </TabNavItem>
+      </TabNav>
       <span className="w-14 text-right text-xs tabular-nums text-muted-foreground">
         {shown === total ? `${total}` : `${shown}/${total}`}
       </span>
@@ -398,14 +400,9 @@ function Row({
       <div className="flex shrink-0 items-center gap-3">
         <div className="hidden items-center gap-2 sm:flex">
           {status ? (
-            <span
-              className={cn(
-                "inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium",
-                status.pill,
-              )}
-            >
+            <StatusBadge tone={status.badgeTone} dot={false}>
               {status.label}
-            </span>
+            </StatusBadge>
           ) : null}
           <span className="w-16 text-right text-xs tabular-nums text-muted-foreground">
             {relative ?? "Never run"}
@@ -468,24 +465,26 @@ const TRIGGER_ICONS: { prefix: string; icon: typeof Clock }[] = [
 function TriggerBadge({ type }: { type: string | null }) {
   if (!type) {
     return (
-      <span
-        className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground/70"
+      <Badge
+        variant="secondary"
+        className="bg-muted text-muted-foreground/70"
         title="This workflow has no trigger set up yet"
       >
         Draft
-      </span>
+      </Badge>
     );
   }
   const label = getTrigger(type as TriggerEventType)?.label ?? type;
   const Icon = TRIGGER_ICONS.find((t) => type.startsWith(t.prefix))?.icon ?? Zap;
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+    <Badge
+      variant="secondary"
+      className="bg-muted text-muted-foreground"
       title={`Runs ${label.charAt(0).toLowerCase()}${label.slice(1)}`}
     >
-      <Icon className="size-2.5" />
+      <Icon data-icon="inline-start" />
       {label}
-    </span>
+    </Badge>
   );
 }
 

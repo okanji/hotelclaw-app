@@ -40,33 +40,46 @@ export const STATUS_ORDER: ProjectStatus[] = [
   "archived",
 ];
 
+/** StatusBadge tone per project status — the house status→tone map pattern. */
+export type ProjectStatusTone = "neutral" | "success" | "info" | "violet";
+
 export const PROJECT_STATUS_META: Record<
   ProjectStatus,
-  { label: string; dot: string; text: string; soft: string }
+  {
+    label: string;
+    dot: string;
+    text: string;
+    soft: string;
+    tone: ProjectStatusTone;
+  }
 > = {
   planned: {
     label: "Planned",
     dot: "bg-blue-500",
     text: "text-blue-600 dark:text-blue-400",
     soft: "bg-blue-500/10",
+    tone: "info",
   },
   active: {
     label: "Active",
     dot: "bg-emerald-500",
     text: "text-emerald-600 dark:text-emerald-400",
     soft: "bg-emerald-500/10",
+    tone: "success",
   },
   completed: {
     label: "Completed",
     dot: "bg-violet-500",
     text: "text-violet-600 dark:text-violet-400",
     soft: "bg-violet-500/10",
+    tone: "violet",
   },
   archived: {
     label: "Archived",
     dot: "bg-muted-foreground/50",
     text: "text-muted-foreground",
     soft: "bg-muted",
+    tone: "neutral",
   },
 };
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
@@ -216,19 +215,13 @@ function Pane({
           <option value="standard">Standard (Haiku)</option>
           <option value="advanced">Advanced (Sonnet)</option>
         </NativeSelect>
-        <button
-          type="button"
-          aria-pressed={pane.onlyFromSources}
+        <Chip
+          size="sm"
+          selected={pane.onlyFromSources}
           onClick={() => onPatch({ onlyFromSources: !pane.onlyFromSources })}
-          className={cn(
-            "rounded-full border px-2 py-0.5 text-xs",
-            pane.onlyFromSources
-              ? "border-foreground/40 text-foreground"
-              : "border-border text-muted-foreground",
-          )}
         >
           strict
-        </button>
+        </Chip>
         <button
           type="button"
           onClick={() => setShowInstructions((s) => !s)}
@@ -264,7 +257,7 @@ function Pane({
                 {t.content}
               </ChatBubble>
               {t.ms ? (
-                <p className="text-[10px] text-muted-foreground">{t.ms}ms</p>
+                <p className="text-xs text-muted-foreground">{t.ms}ms</p>
               ) : null}
             </div>
           ),

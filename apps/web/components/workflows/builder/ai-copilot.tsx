@@ -9,12 +9,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 
 // Bottom-anchored AI co-pilot for the workflow builder. v1 is non-streaming:
@@ -284,14 +286,7 @@ export function AiCopilot({
             </span>
             <span className="ml-auto inline-flex items-center gap-2">
               <span className="hidden text-xs text-muted-foreground sm:inline">
-                <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
-                  ⏎
-                </kbd>{" "}
-                to send ·{" "}
-                <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
-                  ⇧⏎
-                </kbd>{" "}
-                new line
+                <Kbd>⏎</Kbd> to send · <Kbd>⇧⏎</Kbd> new line
               </span>
               <InputGroupButton
                 type="submit"
@@ -378,14 +373,14 @@ function TranscriptRow({
       {turn.suggestions && turn.suggestions.length > 0 && onPickSuggestion ? (
         <div className="mt-2 flex flex-wrap gap-1.5 pl-6">
           {turn.suggestions.map((s) => (
-            <button
+            <Chip
               key={s}
-              type="button"
+              size="sm"
               onClick={() => onPickSuggestion(s)}
-              className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+              className="bg-background font-medium text-foreground hover:bg-secondary"
             >
               {s}
-            </button>
+            </Chip>
           ))}
         </div>
       ) : null}

@@ -12,16 +12,22 @@ import { cn } from "@/lib/utils"
  *   `guest` — the warm-cream guest world (wizard, public booking, forms
  *             wizard): rust accent on cream. This is the chip the
  *             onboarding wizard hand-rolled.
+ *
+ * Two sizes:
+ *   `default` — the wizard/question-screen scale (generous tap target).
+ *   `sm`      — dense toolbar filter pills (h-6, matches TabNav's pill).
  */
 function Chip({
   selected = false,
   tone = "app",
+  size = "default",
   className,
   type = "button",
   ...props
 }: React.ComponentProps<"button"> & {
   selected?: boolean
   tone?: "app" | "guest"
+  size?: "default" | "sm"
 }) {
   return (
     <button
@@ -29,7 +35,8 @@ function Chip({
       data-slot="chip"
       aria-pressed={selected}
       className={cn(
-        "rounded-full border px-4 py-2 text-sm transition-colors duration-150",
+        "inline-flex items-center gap-1.5 rounded-full border transition-colors duration-150 [&_svg]:size-3.5 [&_svg]:shrink-0",
+        size === "default" ? "px-4 py-2 text-sm" : "h-6 px-2.5 text-xs",
         tone === "app" &&
           (selected
             ? "border-primary/40 bg-primary/10 text-foreground"

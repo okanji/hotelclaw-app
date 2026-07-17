@@ -20,7 +20,7 @@ export function EventBlock({ event }: { event: CalendarEvent }) {
         ) : null}
         <span className="truncate font-medium">{event.title}</span>
       </div>
-      <div className="truncate text-[10px] tabular-nums opacity-70">
+      <div className="truncate text-xs tabular-nums opacity-70">
         {startLabel}
       </div>
     </div>

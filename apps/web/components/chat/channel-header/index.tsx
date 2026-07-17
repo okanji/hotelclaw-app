@@ -182,7 +182,7 @@ function DmAvatar({
   return (
     <Avatar className="size-6">
       <AvatarImage src={other?.image as string | undefined} />
-      <AvatarFallback className="text-[10px]">{initials || "?"}</AvatarFallback>
+      <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
     </Avatar>
   );
 }
@@ -208,7 +208,7 @@ function PresenceDots({
   if (onlineCount === 0) return null;
   return (
     <span
-      className="ml-1 inline-flex size-1.5 rounded-full bg-emerald-500"
+      className="ml-1 inline-flex size-1.5 rounded-full bg-success"
       title={`${onlineCount} online`}
     />
   );

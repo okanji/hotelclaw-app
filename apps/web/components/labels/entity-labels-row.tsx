@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -152,10 +153,12 @@ export function EntityLabelsRow({
         >
           <PopoverTrigger
             render={
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="icon-xs"
                 aria-label="Add label"
-                className="inline-flex size-6 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                className="text-muted-foreground"
               />
             }
           >

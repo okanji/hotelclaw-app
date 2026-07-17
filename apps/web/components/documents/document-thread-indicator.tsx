@@ -7,6 +7,7 @@ import type { ThreadData } from "@liveblocks/client";
 import { Thread } from "@liveblocks/react-ui";
 import type { ThreadProps } from "@liveblocks/react-ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CountBadge } from "@/components/ui/count-badge";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PopoverHeader } from "./document-composer";
@@ -72,7 +73,7 @@ export function DocumentThreadIndicator({ thread }: { thread: ThreadData }) {
       {firstUserId ? (
         <Avatar className="size-7">
           <AvatarImage src={user?.avatar ?? undefined} alt={name} />
-          <AvatarFallback className="text-[10px]">
+          <AvatarFallback className="text-xs">
             {initials || "?"}
           </AvatarFallback>
         </Avatar>
@@ -80,12 +81,13 @@ export function DocumentThreadIndicator({ thread }: { thread: ThreadData }) {
         <MessageSquare className="size-4 text-muted-foreground" />
       )}
       {replyCount > 0 ? (
-        <span
+        <CountBadge
           aria-hidden
-          className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
+          tone="primary"
+          className="absolute -right-1 -top-1"
         >
           {replyCount > 9 ? "9+" : replyCount + 1}
-        </span>
+        </CountBadge>
       ) : null}
     </button>
   );

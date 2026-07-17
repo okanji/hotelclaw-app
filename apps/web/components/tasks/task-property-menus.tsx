@@ -1,5 +1,6 @@
 "use client";
 
+import { type ReactNode } from "react";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -23,6 +24,23 @@ export type PickerMember = {
   name: string | null;
   avatarUrl: string | null;
 };
+
+/**
+ * Shared trigger chrome for the inline property chips — the small bordered
+ * pill (status / priority / assignee / due date) rendered identically by the
+ * task-create page and the detail inline strip. One source, no forks.
+ */
+export const PROPERTY_CHIP_CLASS =
+  "inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-xs transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50";
+
+/** Fixed-size leading icon slot for a property chip. */
+export function PropertyChipIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground">
+      {children}
+    </span>
+  );
+}
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/);

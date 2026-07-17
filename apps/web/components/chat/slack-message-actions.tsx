@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
@@ -144,15 +145,17 @@ function QuickReactionButton({
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       onClick={onClick}
       aria-label={`React with ${label}`}
       title={`React with ${label}`}
-      className="inline-flex size-7 items-center justify-center rounded-md text-base leading-none transition hover:bg-foreground/10"
+      className="text-base"
     >
-      <span className="leading-none">{native}</span>
-    </button>
+      {native}
+    </Button>
   );
 }
 
@@ -168,16 +171,18 @@ function ToolbarButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       onClick={onClick}
       aria-label={label}
       title={label}
-      data-active={active ? "true" : undefined}
-      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground data-[active=true]:bg-foreground/10 data-[active=true]:text-foreground [&_svg]:size-[16px]"
+      aria-pressed={active}
+      className="text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -195,11 +200,13 @@ function AddReactionButton({
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Add reaction"
             title="Add reaction"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground [&_svg]:size-[16px]"
+            className="text-muted-foreground"
           />
         }
       >
@@ -322,11 +329,13 @@ function OverflowMenu({
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="More actions"
             title="More actions"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground [&_svg]:size-[16px]"
+            className="text-muted-foreground"
           />
         }
       >

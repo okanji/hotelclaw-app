@@ -118,7 +118,7 @@ export function InsightsFollowButton({
                   disabled={setCadence.isPending}
                   onClick={() => setCadence.mutate(value)}
                   className={cn(
-                    "flex flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted",
+                    "flex flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     active && "bg-muted",
                   )}
                 >
@@ -132,13 +132,15 @@ export function InsightsFollowButton({
               );
             })}
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={() => setDialogOpen(true)}
-            className="mt-2 w-full rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="mt-2 w-full text-muted-foreground"
           >
             Manage emails &amp; alerts…
-          </button>
+          </Button>
         </PopoverContent>
       </Popover>
 
@@ -295,7 +297,7 @@ function InsightsSubscriptionsDialog({
         </DialogHeader>
 
         {prefs?.unsubscribedAt ? (
-          <div className="flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+          <div className="flex items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
             <p className="text-sm text-foreground">
               You unsubscribed from all Hotelclaw emails.
             </p>
@@ -363,9 +365,9 @@ function InsightsSubscriptionsDialog({
                       type="button"
                       onClick={() => void toggleRule(r)}
                       className={cn(
-                        "rounded-full border px-2 py-0.5 text-xs font-medium",
+                        "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                         r.enabled
-                          ? "border-emerald-500/40 text-emerald-600"
+                          ? "border-success/40 text-success"
                           : "border-border text-muted-foreground",
                       )}
                     >

@@ -146,13 +146,13 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
                 <div className="relative">
                   <Avatar className="size-7 outline-1 -outline-offset-1 outline-black/5">
                     <AvatarImage src={user.image as string | undefined} />
-                    <AvatarFallback className="text-[10px]">
+                    <AvatarFallback className="text-xs">
                       {initials || "?"}
                     </AvatarFallback>
                   </Avatar>
                   {online ? (
                     <span
-                      className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-emerald-500"
+                      className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-success"
                       title="Online"
                     />
                   ) : null}

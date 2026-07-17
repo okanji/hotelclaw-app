@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,12 +63,7 @@ export function ScopeSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border/70 px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
-          />
-        }
+        render={<Button type="button" variant="outline" size="sm" />}
       >
         <span className="max-w-48 truncate">{currentLabel}</span>
         <ChevronsUpDown className="size-3.5 text-muted-foreground" />

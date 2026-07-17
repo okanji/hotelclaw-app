@@ -198,7 +198,7 @@ export function Timetable({
               className="flex items-stretch border-b border-border/40 last:border-b-0"
             >
               <div className="w-24 shrink-0 border-r border-border/40 px-2 py-2">
-                <p className={cn("truncate text-xs font-medium", row.id === "unassigned" && "text-amber-600 dark:text-amber-400")}>
+                <p className={cn("truncate text-xs font-medium", row.id === "unassigned" && "text-warning")}>
                   {row.label}
                 </p>
                 {row.sub ? (
@@ -323,9 +323,9 @@ export function Timetable({
                     className={cn(
                       "absolute top-1.5 -translate-x-1/2 rounded px-1 text-xs font-medium tabular-nums",
                       ratio >= 1
-                        ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                        ? "bg-destructive/15 text-destructive"
                         : ratio >= 0.8
-                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          ? "bg-warning/15 text-warning"
                           : "text-muted-foreground",
                     )}
                   >

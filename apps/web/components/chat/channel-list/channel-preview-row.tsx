@@ -128,7 +128,7 @@ function DmAvatar({
     .join("")
     .toUpperCase();
   return (
-    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
       {initials || "?"}
     </span>
   );

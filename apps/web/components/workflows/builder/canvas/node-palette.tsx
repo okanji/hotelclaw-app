@@ -62,7 +62,7 @@ export function NodePalette({
         )}
         {grouped.map(([surface, items]) => (
           <li key={surface} className="mb-1">
-            <div className="px-2 pt-1 pb-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            <div className="px-2 pt-1 pb-0.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               {surface}
             </div>
             <ul>

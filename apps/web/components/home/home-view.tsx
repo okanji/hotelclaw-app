@@ -16,6 +16,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import {
@@ -205,7 +206,7 @@ export function HomeView({
             <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
               {hero.kicker}
             </span>
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-lg font-medium text-accent-foreground">
               {hero.title}
             </h2>
           </div>
@@ -309,11 +310,7 @@ type HomeStat = {
 
 /** Small amber corner chip for stats that are waiting on a human. */
 function AttentionPill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-md bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning">
-      {children}
-    </span>
-  );
+  return <Badge variant="warning">{children}</Badge>;
 }
 
 /** Role-tuned headline stats (Claude-dashboard stat-card row). Owners lead

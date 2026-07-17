@@ -92,15 +92,17 @@ export function EditorialSection({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {headerRight}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label={`Hide ${title}`}
             title="Hide"
             onClick={onHide}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/section:opacity-100 hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground opacity-0 transition-opacity group-hover/section:opacity-100"
           >
             <EyeOff className="size-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
       {children}
@@ -184,16 +186,17 @@ export function HiddenTray({
           const def = items.find((w) => w.id === id);
           if (!def) return null;
           return (
-            <button
+            <Button
               key={id}
               type="button"
+              variant="outline"
               onClick={() => onRestore(id)}
               title={`Show ${def.title}`}
-              className="flex items-center gap-2 rounded-full border border-dashed border-border/70 bg-muted/30 px-3 py-1.5 text-sm tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted hover:text-foreground"
+              className="gap-2 rounded-full border-dashed border-border/70 bg-muted/30 px-3 font-normal tracking-tight text-muted-foreground hover:border-foreground/25"
             >
               <Eye className="size-3.5" />
               {def.title}
-            </button>
+            </Button>
           );
         })}
       </div>

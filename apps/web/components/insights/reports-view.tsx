@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { InsightSection } from "./insights-view";
 import { ReportMarkdown } from "./report-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 /**
  * Reports — the AI weekly report archive. "Generate" produces (or returns the
@@ -137,17 +138,17 @@ function ReportRow({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-1 py-2.5 text-left"
+        className="flex w-full items-center gap-3 rounded-md px-1 py-2.5 text-left transition-colors hover:bg-muted/50"
       >
         <FileText className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
           Week of {period}
         </span>
         {report.anomalies.length > 0 ? (
-          <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-500">
+          <StatusBadge tone="warning" dot={false} className="shrink-0">
             {report.anomalies.length}{" "}
             {report.anomalies.length === 1 ? "anomaly" : "anomalies"}
-          </span>
+          </StatusBadge>
         ) : null}
         <span className="shrink-0 text-xs text-muted-foreground">
           {open ? "Hide" : "Read"}

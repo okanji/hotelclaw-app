@@ -1,6 +1,7 @@
 "use client";
 
 import { File, MessageSquare, Pin, Plus, StickyNote } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FilesPopover } from "@/components/chat/files/files-popover";
 import { useInfoPanel } from "@/components/chat/info-panel/context";
@@ -29,13 +30,15 @@ export function ChannelTabs() {
         <TabButton label="Files" icon={<File />} />
       </FilesPopover>
       <TabButton label="Pins" icon={<Pin />} />
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
         aria-label="Add tab"
-        className="ml-0.5 inline-flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3.5"
+        className="ml-0.5 text-muted-foreground"
       >
-        <Plus />
-      </button>
+        <Plus className="size-3.5" />
+      </Button>
     </nav>
   );
 }

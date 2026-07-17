@@ -15,6 +15,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { CountBadge } from "@/components/ui/count-badge";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -164,9 +165,7 @@ function Column({
         <h2 className="text-sm font-medium tracking-tight text-foreground">
           {meta.label}
         </h2>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-          {projects.length}
-        </span>
+        <CountBadge>{projects.length}</CountBadge>
       </div>
       <div
         ref={setNodeRef}

@@ -120,7 +120,7 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
             </NodeDescription>
           </div>
           <NodeAction>
-            <SurfaceLabelBadge surface={data.surface as Surface} className="text-[10px]" />
+            <SurfaceLabelBadge surface={data.surface as Surface} />
           </NodeAction>
         </NodeHeader>
         <NodeContent>

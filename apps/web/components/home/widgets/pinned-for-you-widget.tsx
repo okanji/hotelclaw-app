@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Pin, PinOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { documentsQueryOptions } from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
@@ -73,15 +74,17 @@ export function PinnedForYouWidget({ propertyId }: { propertyId: string }) {
               {relativeShort(d.updated_at)}
             </span>
           </Link>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Unpin"
             title="Unpin"
             onClick={() => togglePin(d.id)}
-            className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-foreground group-hover/pin:opacity-100"
+            className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity hover:bg-background group-hover/pin:opacity-100"
           >
             <PinOff className="size-3.5" />
-          </button>
+          </Button>
         </li>
       ))}
     </DividerList>

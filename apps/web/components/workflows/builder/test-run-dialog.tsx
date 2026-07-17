@@ -140,7 +140,7 @@ function TestRunDialogBody({
         </p>
 
         {dirty ? (
-          <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+          <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
             You have unsaved edits — the test runs the last saved version.
           </p>
         ) : null}

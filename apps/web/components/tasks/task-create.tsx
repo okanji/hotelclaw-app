@@ -27,6 +27,8 @@ import {
   PriorityMenuContent,
   StatusMenuContent,
   initials,
+  PROPERTY_CHIP_CLASS as CHIP_BASE,
+  PropertyChipIcon as ChipIcon,
 } from "./task-property-menus";
 import { PRIORITY_META } from "./kanban";
 import { taskHref } from "@/lib/tasks/task-href";
@@ -34,18 +36,6 @@ import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { orgChartQueryOptions } from "@/lib/query/org-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import type { TaskPriority, TaskStatus } from "@/lib/db/types";
-
-// Shared chip styling — mirrors the detail view's inline property strip.
-const CHIP_BASE =
-  "inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-xs transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50";
-
-function ChipIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground">
-      {children}
-    </span>
-  );
-}
 
 function formatTargetDate(iso: string | null) {
   if (!iso) return "Target date";

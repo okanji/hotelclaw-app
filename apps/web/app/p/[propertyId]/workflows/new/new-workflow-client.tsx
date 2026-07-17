@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import { TreeList } from "@/components/workflows/builder/tree-list/tree-list";
@@ -139,14 +140,14 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
             className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-semibold text-foreground hover:border-border/60 focus:border-border focus:outline-none"
           />
         </div>
-        <button
-          type="button"
+        <Button
+          size="xs"
           onClick={create}
           disabled={creating || !name.trim()}
-          className="inline-flex items-center justify-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50 sm:self-auto"
+          className="sm:self-auto"
         >
           {creating ? "Creating…" : "Create workflow"}
-        </button>
+        </Button>
       </header>
 
       <TreeList

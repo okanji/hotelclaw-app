@@ -61,7 +61,7 @@ function ParticipantAvatar({ user }: { user: UserResponse }) {
   return (
     <div
       aria-label={label || undefined}
-      className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-[10px] font-semibold text-muted-foreground"
+      className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-xs font-semibold text-muted-foreground"
     >
       {initialsFor(user.name, user.id)}
     </div>
@@ -70,7 +70,7 @@ function ParticipantAvatar({ user }: { user: UserResponse }) {
 
 function OverflowChip({ count }: { count: number }) {
   return (
-    <div className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-[10px] font-semibold text-muted-foreground">
+    <div className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-xs font-semibold text-muted-foreground">
       +{count}
     </div>
   );

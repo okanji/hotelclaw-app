@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Bot, Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type {
   ChatbotConversationOutcome,
@@ -146,13 +146,15 @@ export function ConversationTranscript({
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 pt-8 pb-6 sm:px-10">
       <header className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/p/${propertyId}/chatbots/${chatbotId}`}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-muted-foreground"
           aria-label="Back to chatbot"
+          render={<Link href={`/p/${propertyId}/chatbots/${chatbotId}`} />}
         >
           <ArrowLeft className="size-4" />
-        </Link>
+        </Button>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold tracking-tight">
             {guestLabel}
@@ -170,9 +172,7 @@ export function ConversationTranscript({
           </p>
         </div>
         {status === "human" ? (
-          <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400">
-            With staff
-          </Badge>
+          <StatusBadge tone="info">With staff</StatusBadge>
         ) : null}
         <OutcomeBadge outcome={conversation.outcome} />
         {status === "human" ? (

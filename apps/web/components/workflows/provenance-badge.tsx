@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 /**
  * Marks records created by a workflow (tasks, documents, entities — anything
@@ -36,7 +37,7 @@ export function WorkflowProvenanceBadge({
         title="Created by a workflow"
         aria-label="Created by a workflow"
         className={cn(
-          "inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300",
+          "inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400",
           className,
         )}
       >
@@ -46,16 +47,18 @@ export function WorkflowProvenanceBadge({
   }
 
   const chip = (
-    <span
+    <StatusBadge
+      tone="violet"
+      dot={false}
       className={cn(
-        "inline-flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
-        workflowId && workflowRunId && "hover:bg-violet-100 dark:hover:bg-violet-950/70",
+        "gap-1",
+        workflowId && workflowRunId && "hover:bg-violet-500/20",
         className,
       )}
     >
       <Zap className="size-3" aria-hidden />
       Created by workflow
-    </span>
+    </StatusBadge>
   );
 
   if (propertyId && workflowId && workflowRunId) {

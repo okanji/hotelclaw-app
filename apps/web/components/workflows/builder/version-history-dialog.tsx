@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -104,9 +106,7 @@ export function VersionHistoryDialog({
                     <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                       Version {v.version}
                       {v.is_current ? (
-                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                          Current
-                        </span>
+                        <Badge className="bg-primary/10 text-primary">Current</Badge>
                       ) : null}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
@@ -115,15 +115,16 @@ export function VersionHistoryDialog({
                     </p>
                   </div>
                   {!v.is_current ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="xs"
                       onClick={() => restore(v.version)}
                       disabled={restoring !== null}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
                     >
-                      <RotateCcw className="size-3" aria-hidden />
+                      <RotateCcw data-icon="inline-start" aria-hidden />
                       {restoring === v.version ? "Restoring…" : "Restore"}
-                    </button>
+                    </Button>
                   ) : null}
                 </li>
               ))}

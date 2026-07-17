@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { useMeeting } from "@/lib/stream/meeting-context";
 import { respondToMeeting, unscheduleTask } from "@/lib/calendar/actions";
@@ -502,9 +503,9 @@ export function TaskDetails({
             >
               {priorityMeta.label}
             </span>
-            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            <StatusBadge tone="neutral" dot={false}>
               {TASK_STATUS_LABEL[event.status]}
-            </span>
+            </StatusBadge>
           </div>
         </DetailRow>
 
@@ -564,36 +565,19 @@ export function TaskDetails({
 // Booking details (guest reservations — tables, spa, tours)
 // ---------------------------------------------------------------------------
 
+// Status→tone map matching the domain source of truth in
+// lib/bookings/status-colors.ts (pending=warning, confirmed=info,
+// seated=violet, completed/cancelled=neutral, no_show=danger).
 const BOOKING_STATUS_BADGE: Record<
   BookingEvent["booking_status"],
-  { label: string; className: string }
+  { label: string; tone: React.ComponentProps<typeof StatusBadge>["tone"] }
 > = {
-  pending: {
-    label: "Pending",
-    className: "bg-amber-500/10 text-amber-700 ring-amber-500/30 dark:text-amber-300",
-  },
-  confirmed: {
-    label: "Confirmed",
-    className:
-      "bg-emerald-500/10 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300",
-  },
-  seated: {
-    label: "Seated",
-    className:
-      "bg-violet-500/10 text-violet-700 ring-violet-500/30 dark:text-violet-300",
-  },
-  completed: {
-    label: "Completed",
-    className: "bg-muted text-muted-foreground ring-border",
-  },
-  cancelled: {
-    label: "Cancelled",
-    className: "bg-muted text-muted-foreground ring-border",
-  },
-  no_show: {
-    label: "No-show",
-    className: "bg-red-500/10 text-red-700 ring-red-500/30 dark:text-red-300",
-  },
+  pending: { label: "Pending", tone: "warning" },
+  confirmed: { label: "Confirmed", tone: "info" },
+  seated: { label: "Seated", tone: "violet" },
+  completed: { label: "Completed", tone: "neutral" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+  no_show: { label: "No-show", tone: "danger" },
 };
 
 export function BookingDetails({
@@ -614,14 +598,9 @@ export function BookingDetails({
             <p className="text-foreground/90">
               {event.guest_name} · party of {event.party_size}
             </p>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-                badge.className,
-              )}
-            >
+            <StatusBadge tone={badge.tone} dot={false}>
               {badge.label}
-            </span>
+            </StatusBadge>
           </div>
           {event.guest_phone ? (
             <p className="text-xs text-muted-foreground">{event.guest_phone}</p>

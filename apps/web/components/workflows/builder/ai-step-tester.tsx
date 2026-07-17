@@ -86,7 +86,7 @@ export function AiStepTester({
       ) : null}
       {result ? (
         <div className="mt-2">
-          <div className="mb-1 flex items-center justify-between text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium tracking-wide text-muted-foreground uppercase">
             <span>Result</span>
             <span className="tabular-nums normal-case">{(result.ms / 1000).toFixed(1)}s</span>
           </div>

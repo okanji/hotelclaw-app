@@ -38,12 +38,15 @@ import type { EntityColor, TaskPriority, TaskStatus } from "@/lib/db/types";
 import { useQuery } from "@tanstack/react-query";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { Button } from "@/components/ui/button";
 import {
   AssigneeMenuContent,
   DueDatePopoverContent,
   PriorityMenuContent,
   StatusMenuContent,
   initials,
+  PROPERTY_CHIP_CLASS as CHIP_BASE,
+  PropertyChipIcon as ChipIcon,
 } from "./task-property-menus";
 
 
@@ -65,13 +68,6 @@ function formatTargetDate(iso: string | null) {
   if (diffDays === -1) return "Yesterday";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-
-// Shared chip styles — small bordered pills with consistent typography.
-const CHIP_BASE =
-  "inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-xs transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50";
-
-const CHIP_ICON_BUTTON =
-  "inline-flex size-6 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50";
 
 /**
  * Linear-style inline property strip surfaced directly under the title and
@@ -227,13 +223,15 @@ export function TaskDetailInlineProperties({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="icon-xs"
                 aria-label="More properties"
-                className={CHIP_ICON_BUTTON}
+                className="text-muted-foreground"
               >
                 <MoreHorizontal className="size-3.5" />
-              </button>
+              </Button>
             }
           />
           <DropdownMenuContent align="start" className="w-48">
@@ -265,14 +263,16 @@ export function TaskDetailInlineProperties({
             onRemove={() => removers.removeLabel(label)}
           />
         ))}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon-xs"
           aria-label="Add label"
           onClick={openers.addLabel}
-          className={CHIP_ICON_BUTTON}
+          className="text-muted-foreground"
         >
           <Plus className="size-3.5" />
-        </button>
+        </Button>
       </PropertyRow>
 
       <PropertyRow label="Resources">
@@ -357,14 +357,6 @@ function PropertyRow({
         {children}
       </div>
     </div>
-  );
-}
-
-function ChipIcon({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground">
-      {children}
-    </span>
   );
 }
 

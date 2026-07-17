@@ -37,7 +37,7 @@ export function CancelBookingButton({ token }: { token: string }) {
             type="button"
             onClick={cancel}
             disabled={busy}
-            className="h-11 flex-1 rounded-full bg-[#b91c1c] text-base font-semibold text-white disabled:opacity-40"
+            className="h-11 flex-1 rounded-full bg-guest-danger text-base font-semibold text-white disabled:opacity-40"
           >
             {busy ? "Cancelling…" : "Yes, cancel it"}
           </button>
@@ -45,7 +45,7 @@ export function CancelBookingButton({ token }: { token: string }) {
             type="button"
             onClick={() => setArming(false)}
             disabled={busy}
-            className="h-11 flex-1 rounded-full border border-[#1f1e1b]/15 bg-white text-base text-[#1f1e1b]"
+            className="h-11 flex-1 rounded-full border border-guest-ink/15 bg-white text-base text-guest-ink"
           >
             Keep it
           </button>
@@ -54,12 +54,12 @@ export function CancelBookingButton({ token }: { token: string }) {
         <button
           type="button"
           onClick={() => setArming(true)}
-          className="h-11 rounded-full border border-[#b91c1c]/40 bg-white text-base font-medium text-[#b91c1c]"
+          className="h-11 rounded-full border border-guest-danger/40 bg-white text-base font-medium text-guest-danger"
         >
           Cancel this booking
         </button>
       )}
-      {error ? <p className="text-sm text-[#b91c1c]">{error}</p> : null}
+      {error ? <p className="text-sm text-guest-danger">{error}</p> : null}
     </div>
   );
 }

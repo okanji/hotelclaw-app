@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ChevronDown, Loader2, Pin, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/utils";
 import { scopeKey, type InsightScope } from "@/lib/insights/scope";
 import { usePinPrompt } from "./pinned-prompts";
@@ -97,14 +99,16 @@ export function InsightsAskPanel({
             <Sparkles className="size-4 text-brand dark:text-brand-accent" />
             Ask AI
           </span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Collapse"
             onClick={() => setOpen(false)}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground"
           >
             <ChevronDown className="size-4" />
-          </button>
+          </Button>
         </div>
 
         <div
@@ -119,14 +123,14 @@ export function InsightsAskPanel({
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {SUGGESTIONS.map((s) => (
-                  <button
+                  <Chip
                     key={s}
-                    type="button"
+                    size="sm"
                     onClick={() => send(s)}
-                    className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="bg-muted/40 hover:bg-muted"
                   >
                     {s}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -150,16 +154,18 @@ export function InsightsAskPanel({
                     <ReactMarkdown>{t.content}</ReactMarkdown>
                   </div>
                   {turns[i - 1]?.role === "user" ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="xs"
                       disabled={pinning}
                       onClick={() => void pin(turns[i - 1].content)}
-                      className="flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="w-fit text-muted-foreground"
                       title="Keep this question on the page — it re-answers itself when the numbers move"
                     >
                       <Pin className="size-3" />
                       Pin this question
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               ),
@@ -196,22 +202,21 @@ export function InsightsAskPanel({
             disabled={busy}
             className="max-h-28 min-h-9 flex-1 resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
           />
-          <button
+          <Button
             type="submit"
             aria-label="Send"
+            size="icon-lg"
             disabled={busy || input.trim().length === 0}
+            // Quiet ghost until there's something to send; then it fills in
+            // (warm ink) as the clear "go" affordance — no flat solid block
+            // sitting there when the field is empty.
+            variant={input.trim().length > 0 ? "default" : "ghost"}
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-              // Quiet ghost until there's something to send; then it fills in
-              // (warm ink) as the clear "go" affordance — no flat solid block
-              // sitting there when the field is empty.
-              input.trim().length > 0
-                ? "bg-foreground text-background hover:bg-foreground/90"
-                : "bg-transparent text-muted-foreground/60",
+              input.trim().length === 0 && "text-muted-foreground/60",
             )}
           >
             <Send className="size-4" />
-          </button>
+          </Button>
         </form>
       </div>
     </div>

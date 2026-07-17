@@ -51,7 +51,7 @@ function ActiveHuddleWidget({ onLeave }: { onLeave: () => void }) {
         <div className="flex min-w-0 items-center gap-2">
           <span
             aria-hidden="true"
-            className="size-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+            className="size-2 shrink-0 animate-pulse rounded-full bg-success"
           />
           <span className="truncate text-sm font-semibold">
             Huddle · {participants.length}{" "}
@@ -153,7 +153,7 @@ function ParticipantAvatar({
     <div
       className={cn(
         "relative rounded-md p-px transition-colors",
-        speakingPulse ? "bg-emerald-500" : "bg-transparent",
+        speakingPulse ? "bg-success" : "bg-transparent",
       )}
       title={name}
     >
@@ -162,7 +162,7 @@ function ParticipantAvatar({
           src={typeof participant.image === "string" ? participant.image : undefined}
           alt=""
         />
-        <AvatarFallback className="rounded-md text-[10px]">
+        <AvatarFallback className="rounded-md text-xs">
           {initials || "?"}
         </AvatarFallback>
       </Avatar>

@@ -10,9 +10,8 @@ import type { FormAnswers, FormField } from "@/lib/forms/schema";
  * per field.
  */
 
-const INK = "#1f1e1b";
-const INK_SOFT = "#6f6a60";
-const HAIRLINE = "rgba(31,30,27,0.12)";
+/** The warm hairline — guest ink at 12% (see --guest-ink in globals.css). */
+const HAIRLINE_CLASS = "border-guest-ink/[0.12]";
 
 export function GuestFormFields({
   fields,
@@ -40,7 +39,7 @@ export function GuestFormFields({
         }
         return (
           <div key={field.id} className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: INK }}>
+            <label className="text-sm font-medium text-guest-ink">
               {field.label}
               {field.required ? (
                 <span aria-hidden style={{ color: accent }}>
@@ -48,20 +47,20 @@ export function GuestFormFields({
                   *
                 </span>
               ) : (
-                <span className="font-normal" style={{ color: INK_SOFT }}>
+                <span className="font-normal text-guest-ink-soft">
                   {" "}
                   (optional)
                 </span>
               )}
             </label>
             {field.description ? (
-              <p className="-mt-1 text-xs" style={{ color: INK_SOFT }}>
+              <p className="-mt-1 text-xs text-guest-ink-soft">
                 {field.description}
               </p>
             ) : null}
             <FieldInput field={field} value={answers[field.id]} accent={accent} onChange={onChange} />
             {errors[field.id] ? (
-              <p className="text-xs text-red-700">{errors[field.id]}</p>
+              <p className="text-xs text-guest-danger">{errors[field.id]}</p>
             ) : null}
           </div>
         );
@@ -81,9 +80,7 @@ function FieldInput({
   accent: string;
   onChange: (fieldId: string, value: FormAnswers[string] | undefined) => void;
 }) {
-  const inputClass =
-    "h-12 w-full rounded-xl border bg-white px-4 text-base outline-none placeholder:text-[#6f6a60]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25";
-  const inputStyle = { borderColor: HAIRLINE, color: INK };
+  const inputClass = `h-12 w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 text-base text-guest-ink outline-none placeholder:text-guest-ink-soft/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`;
 
   switch (field.type) {
     case "long_text":
@@ -93,8 +90,7 @@ function FieldInput({
           placeholder={field.placeholder}
           rows={3}
           onChange={(e) => onChange(field.id, e.target.value)}
-          className="w-full rounded-xl border bg-white px-4 py-3 text-base outline-none placeholder:text-[#6f6a60]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25"
-          style={inputStyle}
+          className={`w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 py-3 text-base text-guest-ink outline-none placeholder:text-guest-ink-soft/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`}
         />
       );
     case "number":
@@ -110,7 +106,6 @@ function FieldInput({
             onChange(field.id, e.target.value === "" ? undefined : Number(e.target.value))
           }
           className={inputClass}
-          style={inputStyle}
         />
       );
     case "date":
@@ -120,7 +115,6 @@ function FieldInput({
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(field.id, e.target.value)}
           className={inputClass}
-          style={inputStyle}
         />
       );
     case "yes_no":
@@ -209,7 +203,6 @@ function FieldInput({
           placeholder={field.placeholder}
           onChange={(e) => onChange(field.id, e.target.value)}
           className={inputClass}
-          style={inputStyle}
         />
       );
   }
@@ -231,11 +224,12 @@ function OptionChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="h-10 rounded-full border bg-white px-3.5 text-sm transition-colors"
+      className={`h-11 rounded-full border ${HAIRLINE_CLASS} bg-white px-4 text-sm text-guest-ink transition-colors`}
+      // The event page's accent is per-bot data — inline style stays for it.
       style={
         active
           ? { borderColor: accent, backgroundColor: `${accent}14`, color: accent }
-          : { borderColor: HAIRLINE, color: INK }
+          : undefined
       }
     >
       {children}

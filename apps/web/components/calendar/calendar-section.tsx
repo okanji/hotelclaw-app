@@ -188,15 +188,15 @@ export function CalendarSection({ propertyId }: { propertyId: string }) {
                 className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
               >
                 {c.last_sync_error ? (
-                  <CircleAlert className="size-4 shrink-0 text-amber-500" />
+                  <CircleAlert className="size-4 shrink-0 text-warning" />
                 ) : (
-                  <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+                  <CheckCircle2 className="size-4 shrink-0 text-success" />
                 )}
                 <div className="flex-1 truncate">
                   <div className="truncate text-xs font-medium">
                     {c.account_email}
                   </div>
-                  <div className="truncate text-[10px] text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground">
                     {PROVIDER_LABEL[c.provider]}
                   </div>
                 </div>

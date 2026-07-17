@@ -496,7 +496,7 @@ function DayColumn({
           }}
         >
           <div className="truncate font-medium">{taskDrop.title}</div>
-          <div className="truncate text-[10px] tabular-nums opacity-70">
+          <div className="truncate text-xs tabular-nums opacity-70">
             {formatMinutesLabel(day, taskDrop.startMin)} –{" "}
             {formatMinutesLabel(day, taskDrop.startMin + 60)}
           </div>
@@ -683,7 +683,7 @@ function ClusterTile({
           {count}
         </span>
         {!compact ? (
-          <span className="text-[9px] font-medium uppercase tracking-wide leading-none text-muted-foreground">
+          <span className="text-xs font-medium uppercase tracking-wide leading-none text-muted-foreground">
             events
           </span>
         ) : null}
@@ -763,7 +763,7 @@ function ClusterCard({
       <div className={cn("flex flex-col gap-1", selected && "hidden")}>
         <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
           <span className="text-sm font-medium">{events.length} events</span>
-          <span className="text-[10px] tabular-nums text-muted-foreground">
+          <span className="text-xs tabular-nums text-muted-foreground">
             {formatTimeRange(start, end)}
           </span>
         </div>
@@ -788,7 +788,7 @@ function ClusterCard({
                 <span className="block truncate text-xs font-medium">
                   {ev.title}
                 </span>
-                <span className="block text-[10px] tabular-nums text-muted-foreground">
+                <span className="block text-xs tabular-nums text-muted-foreground">
                   {formatTimeRange(new Date(ev.start), new Date(ev.end))}
                 </span>
               </span>

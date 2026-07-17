@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
@@ -176,7 +177,7 @@ function ActionCard({
       {action.enabled ? (
         <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
           {knowledgeWarning ? (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               <span>{knowledgeWarning}</span>
             </div>
@@ -238,10 +239,10 @@ function ActionConfigFields({
                 const active =
                   cfg.serviceIds.length === 0 || cfg.serviceIds.includes(s.id);
                 return (
-                  <button
+                  <Chip
                     key={s.id}
-                    type="button"
-                    aria-pressed={active}
+                    size="sm"
+                    selected={active}
                     onClick={() => {
                       const explicit =
                         cfg.serviceIds.length === 0
@@ -259,16 +260,10 @@ function ActionConfigFields({
                         },
                       });
                     }}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs transition-colors",
-                      active
-                        ? "border-foreground/40 bg-foreground/10 text-foreground"
-                        : "border-border text-muted-foreground hover:text-foreground",
-                    )}
                   >
                     {s.emoji ? `${s.emoji} ` : ""}
                     {s.name}
-                  </button>
+                  </Chip>
                 );
               })}
             </div>
@@ -326,25 +321,19 @@ function ActionConfigFields({
         {fields.map(([key, label]) => {
           const active = action.config[key];
           return (
-            <button
+            <Chip
               key={key}
-              type="button"
-              aria-pressed={active}
+              size="sm"
+              selected={active}
               onClick={() =>
                 onChange({
                   ...action,
                   config: { ...action.config, [key]: !active },
                 })
               }
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                active
-                  ? "border-foreground/40 bg-foreground/10 text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
             >
               {label}
-            </button>
+            </Chip>
           );
         })}
       </div>
@@ -443,23 +432,18 @@ function ActionConfigFields({
                 placeholder="Items ordered"
                 className="h-8 text-sm"
               />
-              <button
-                type="button"
-                aria-pressed={!!f.required}
+              <Chip
+                size="sm"
+                selected={!!f.required}
+                className="shrink-0"
                 onClick={() => {
                   const fields = [...cfg.fields];
                   fields[i] = { ...f, required: !f.required };
                   onChange({ ...action, config: { ...cfg, fields } });
                 }}
-                className={cn(
-                  "shrink-0 rounded-full border px-2 py-0.5 text-xs",
-                  f.required
-                    ? "border-foreground/40 text-foreground"
-                    : "border-border text-muted-foreground",
-                )}
               >
                 required
-              </button>
+              </Chip>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -533,10 +517,10 @@ function ActionConfigFields({
           {roles.map(([role, label]) => {
             const active = cfg.notifyRoles.includes(role);
             return (
-              <button
+              <Chip
                 key={role}
-                type="button"
-                aria-pressed={active}
+                size="sm"
+                selected={active}
                 onClick={() =>
                   onChange({
                     ...action,
@@ -548,15 +532,9 @@ function ActionConfigFields({
                     },
                   })
                 }
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition-colors",
-                  active
-                    ? "border-foreground/40 bg-foreground/10 text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground",
-                )}
               >
                 {label}
-              </button>
+              </Chip>
             );
           })}
         </div>

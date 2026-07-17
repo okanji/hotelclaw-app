@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { Check, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
 /**
@@ -169,7 +171,7 @@ export function TaskTriageSuggestions({
                 key={s.id}
                 className="flex items-baseline gap-1.5 text-xs text-muted-foreground"
               >
-                <Check className="size-3 shrink-0 translate-y-0.5 text-emerald-600 dark:text-emerald-500" />
+                <Check className="size-3 shrink-0 translate-y-0.5 text-success" />
                 <span>
                   <span className="font-medium text-foreground/80">
                     {FIELD_LABEL[s.field]}
@@ -191,29 +193,17 @@ function ConfidenceTag({
   confidence: Suggestion["confidence"];
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium",
+    <StatusBadge
+      tone={
         confidence === "high"
-          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+          ? "success"
           : confidence === "medium"
-            ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-            : "bg-muted text-muted-foreground",
-      )}
+            ? "warning"
+            : "neutral"
+      }
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-1.5 rounded-full",
-          confidence === "high"
-            ? "bg-emerald-500"
-            : confidence === "medium"
-              ? "bg-amber-500"
-              : "bg-muted-foreground/50",
-        )}
-      />
       {CONFIDENCE_LABEL[confidence]}
-    </span>
+    </StatusBadge>
   );
 }
 
@@ -231,16 +221,18 @@ function ActionButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="xs"
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "relative inline-flex h-7 items-center gap-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50",
+        "relative",
         tone === "accept"
-          ? "bg-emerald-500/10 px-2 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400"
-          : "px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground",
+          ? "bg-success/10 text-success hover:bg-success/20 hover:text-success"
+          : "px-1.5 text-muted-foreground",
       )}
     >
       {children}
@@ -248,6 +240,6 @@ function ActionButton({
         aria-hidden="true"
         className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
       />
-    </button>
+    </Button>
   );
 }

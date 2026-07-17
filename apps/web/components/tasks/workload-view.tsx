@@ -16,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { CountBadge } from "@/components/ui/count-badge";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { Button } from "@/components/ui/button";
 import {
@@ -459,9 +461,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
                 <PanelRightOpen className="size-3.5" />
                 Inbox
                 {totalInboxCount > 0 ? (
-                  <span className="rounded-full border border-border/70 bg-card px-1.5 py-0.5 text-[0.625rem] font-medium tabular-nums tracking-tight text-muted-foreground">
-                    {totalInboxCount}
-                  </span>
+                  <CountBadge>{totalInboxCount}</CountBadge>
                 ) : null}
               </Button>
             </div>
@@ -928,9 +928,12 @@ function MemberLabel({
         </div>
       </div>
       {role ? (
-        <span className="hidden shrink-0 rounded-full border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[0.625rem] font-medium tracking-tight text-muted-foreground xl:inline-block">
+        <Badge
+          variant="outline"
+          className="hidden rounded-full text-muted-foreground xl:inline-flex"
+        >
           {role}
-        </span>
+        </Badge>
       ) : null}
     </div>
   );
@@ -1085,11 +1088,7 @@ function SidePanel({
             <SheetTitle className="text-sm font-medium tracking-tight">
               Inbox
             </SheetTitle>
-            {totalCount > 0 ? (
-              <span className="rounded-full border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[0.625rem] font-medium tabular-nums tracking-tight text-muted-foreground">
-                {totalCount}
-              </span>
-            ) : null}
+            {totalCount > 0 ? <CountBadge>{totalCount}</CountBadge> : null}
           </div>
           <SheetDescription className="sr-only">
             Tasks that need scheduling, assigning, or follow-up.
@@ -1235,16 +1234,11 @@ function PanelTabButton({
     >
       {icon}
       <span>{label}</span>
-      <span
-        className={cn(
-          "rounded-full px-1 text-[0.625rem] font-medium tabular-nums tracking-tight",
-          active
-            ? "bg-foreground/10 text-foreground"
-            : "bg-muted text-muted-foreground",
-        )}
+      <CountBadge
+        className={cn(active && "bg-foreground/10 text-foreground")}
       >
         {count}
-      </span>
+      </CountBadge>
     </TabNavItem>
   );
 }

@@ -288,11 +288,13 @@ function UnownedActionRow({
         {item.text}
         <span className="text-muted-foreground"> — {item.meetingTitle}</span>
       </span>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="xs"
         disabled={state !== "idle"}
         onClick={() => void makeTask()}
-        className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
+        className="shrink-0 text-muted-foreground"
       >
         {state === "done" ? (
           <>
@@ -305,7 +307,7 @@ function UnownedActionRow({
             Create task
           </>
         )}
-      </button>
+      </Button>
     </li>
   );
 }

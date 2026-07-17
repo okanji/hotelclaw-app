@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultScheduleForKind,
@@ -235,9 +235,9 @@ export function ServiceDialog({
               const range = schedule.weekly[day]?.[0];
               return (
                 <div key={day} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={!!range}
+                  <Chip
+                    size="sm"
+                    selected={!!range}
                     onClick={() =>
                       patchSchedule({
                         weekly: {
@@ -246,15 +246,10 @@ export function ServiceDialog({
                         },
                       })
                     }
-                    className={cn(
-                      "w-12 rounded-full border px-2 py-1 text-xs transition-colors",
-                      range
-                        ? "border-foreground/40 bg-foreground/10 text-foreground"
-                        : "border-border text-muted-foreground",
-                    )}
+                    className="w-12 justify-center px-2"
                   >
                     {WEEKDAY_LABELS[day]}
-                  </button>
+                  </Chip>
                   {range ? (
                     <>
                       <input

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Dialog,
   DialogContent,
@@ -63,20 +63,12 @@ export function ChatbotStatusBadge({
   status: ChatbotListItem["status"];
 }) {
   if (status === "published") {
-    return (
-      <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-        Live
-      </Badge>
-    );
+    return <StatusBadge tone="success">Live</StatusBadge>;
   }
   if (status === "paused") {
-    return (
-      <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-        Paused
-      </Badge>
-    );
+    return <StatusBadge tone="warning">Paused</StatusBadge>;
   }
-  return <Badge variant="secondary">Draft</Badge>;
+  return <StatusBadge tone="neutral">Draft</StatusBadge>;
 }
 
 /** Chatbots index — cards for every bot, plus the template-gallery entry
@@ -262,10 +254,10 @@ function ChatbotCard({
           <span
             className={
               usagePct >= 100
-                ? "block h-full rounded-full bg-red-500"
+                ? "block h-full rounded-full bg-destructive"
                 : usagePct >= 80
-                  ? "block h-full rounded-full bg-amber-500"
-                  : "block h-full rounded-full bg-emerald-500"
+                  ? "block h-full rounded-full bg-warning"
+                  : "block h-full rounded-full bg-success"
             }
             style={{ width: `${usagePct}%` }}
           />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   CoverCard,
   coverTintAt,
@@ -87,25 +88,22 @@ export function TemplatesClient({
 
   if (templates.length === 0) {
     return (
-      <div className="rounded-lg border border-border/60 bg-muted/15 p-10 text-center">
-        <LibraryBig
-          className="mx-auto mb-3 size-6 text-muted-foreground"
-          aria-hidden
-        />
-        <p className="text-sm font-medium text-foreground">No templates yet</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-          You can still create a workflow from scratch — describe what you want
-          and the AI will design it for you.
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push(`/p/${propertyId}/workflows/new`)}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90"
-        >
-          <Sparkles className="size-3.5" aria-hidden />
-          Build one with AI
-        </button>
-      </div>
+      <EmptyState
+        icon={LibraryBig}
+        title="No templates yet"
+        action={
+          <Button
+            size="xs"
+            onClick={() => router.push(`/p/${propertyId}/workflows/new`)}
+          >
+            <Sparkles data-icon="inline-start" aria-hidden />
+            Build one with AI
+          </Button>
+        }
+      >
+        You can still create a workflow from scratch — describe what you want
+        and the AI will design it for you.
+      </EmptyState>
     );
   }
 
@@ -220,14 +218,9 @@ function TemplatePreview({
           ) : null}
           Starts turned off — review it first.
         </p>
-        <button
-          type="button"
-          onClick={onUse}
-          disabled={forking}
-          className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 disabled:opacity-50"
-        >
+        <Button size="xs" onClick={onUse} disabled={forking} className="shrink-0">
           {forking ? "Creating…" : "Use template"}
-        </button>
+        </Button>
       </div>
     </div>
   );

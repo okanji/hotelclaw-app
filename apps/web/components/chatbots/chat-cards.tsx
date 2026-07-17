@@ -1,5 +1,4 @@
 import { CalendarCheck2, Clock, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { parseChatAttachments, type ChatCard } from "@/lib/chatbots/cards";
 
 /**
@@ -102,7 +101,7 @@ function Card({
               <span className="inline-flex items-center gap-1">
                 {label}
                 {typeof slot.spotsLeft === "number" && slot.spotsLeft <= 3 ? (
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-xs text-zinc-400">
                     {slot.spotsLeft} left
                   </span>
                 ) : null}

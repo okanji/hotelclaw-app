@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Pin } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { documentsQueryOptions } from "@/lib/query/section-queries";
 import { documentHref } from "@/lib/documents/document-href";
@@ -65,13 +66,15 @@ export function RecentDocsWidget({ propertyId }: { propertyId: string }) {
                 {relativeShort(d.updated_at)}
               </span>
             </Link>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               aria-label={pinned ? "Unpin" : "Pin for you"}
               title={pinned ? "Unpin" : "Pin for you"}
               onClick={() => togglePin(d.id)}
               className={cn(
-                "absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md transition-opacity hover:bg-background",
+                "absolute top-1/2 right-1.5 -translate-y-1/2 transition-opacity hover:bg-background",
                 pinned
                   ? "text-foreground opacity-100"
                   : "text-muted-foreground opacity-0 hover:text-foreground group-hover/doc:opacity-100",
@@ -80,7 +83,7 @@ export function RecentDocsWidget({ propertyId }: { propertyId: string }) {
               <Pin
                 className={cn("size-3.5", pinned && "fill-current")}
               />
-            </button>
+            </Button>
           </li>
         );
       })}

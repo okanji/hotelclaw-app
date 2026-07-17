@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Ban, ChevronDown, FlaskConical, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { getStep } from "@/lib/workflows/catalog";
 import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
@@ -41,15 +44,19 @@ type StepRow = {
   finished_at: string | null;
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  succeeded: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-  failed: "bg-destructive/10 text-destructive",
-  running: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  queued: "bg-muted text-muted-foreground",
-  skipped: "bg-muted text-muted-foreground",
-  filtered: "bg-muted text-muted-foreground",
-  waiting: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  cancelled: "bg-muted text-muted-foreground",
+/** Run/step lifecycle status → house StatusBadge tone. */
+const STATUS_TONES: Record<
+  string,
+  React.ComponentProps<typeof StatusBadge>["tone"]
+> = {
+  succeeded: "success",
+  failed: "danger",
+  running: "info",
+  queued: "neutral",
+  skipped: "neutral",
+  filtered: "neutral",
+  waiting: "warning",
+  cancelled: "neutral",
 };
 
 function formatDuration(start: string, end: string | null) {
@@ -182,22 +189,18 @@ export function RunInspectorClient({
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              "inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium",
-              STATUS_COLORS[run.status] ?? "bg-muted text-muted-foreground",
-            )}
-          >
+          <StatusBadge tone={STATUS_TONES[run.status] ?? "neutral"}>
             {run.status}
-          </span>
+          </StatusBadge>
           {run.is_dry_run ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
+            <Badge
+              variant="outline"
+              className="text-muted-foreground"
               title="Test run — no side effects, excluded from stats"
             >
-              <FlaskConical className="size-3" aria-hidden />
+              <FlaskConical aria-hidden />
               test run
-            </span>
+            </Badge>
           ) : null}
           <span className="text-xs text-muted-foreground">
             Triggered by {run.trigger_kind ?? "—"} ·{" "}
@@ -206,37 +209,38 @@ export function RunInspectorClient({
         </div>
         <div className="flex items-center gap-2">
           {active ? (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="xs"
               onClick={cancel}
               disabled={running}
               title="Stop this run"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              className="hover:bg-destructive/10 hover:text-destructive"
             >
-              <Ban className="size-3" aria-hidden />
+              <Ban data-icon="inline-start" aria-hidden />
               Cancel
-            </button>
+            </Button>
           ) : null}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => rerun(true)}
             disabled={running}
             title="Replay this run's data with no side effects"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
           >
-            <FlaskConical className="size-3" aria-hidden />
+            <FlaskConical data-icon="inline-start" aria-hidden />
             Test
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => rerun(false)}
             disabled={running}
             title="Replay this run's data for real"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
           >
-            <RotateCw className="size-3" aria-hidden />
+            <RotateCw data-icon="inline-start" aria-hidden />
             Re-run
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -289,24 +293,20 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
           </div>
         </div>
         {step.attempt > 1 ? (
-          <span
-            className="inline-flex rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+          <StatusBadge
+            tone="warning"
+            dot={false}
             title={`Succeeded or failed after ${step.attempt} attempts`}
           >
             ×{step.attempt}
-          </span>
+          </StatusBadge>
         ) : null}
         <span className="text-xs text-muted-foreground tabular-nums">
           {formatDuration(step.started_at, step.finished_at)}
         </span>
-        <span
-          className={cn(
-            "inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium",
-            STATUS_COLORS[step.status] ?? "bg-muted text-muted-foreground",
-          )}
-        >
+        <StatusBadge tone={STATUS_TONES[step.status] ?? "neutral"}>
           {step.status}
-        </span>
+        </StatusBadge>
         <ChevronDown
           className={cn(
             "size-3.5 shrink-0 text-muted-foreground transition-transform",
@@ -418,7 +418,7 @@ function Section({
       </div>
       <div
         className={cn(
-          "rounded-sm bg-muted/40 p-2 font-mono text-xs text-foreground",
+          "rounded-md bg-muted/40 p-2 font-mono text-xs text-foreground",
           tone === "destructive" && "bg-destructive/10 text-destructive",
         )}
       >

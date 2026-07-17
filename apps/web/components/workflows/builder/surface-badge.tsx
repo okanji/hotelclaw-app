@@ -107,7 +107,7 @@ export function SurfaceBadge({
   return (
     <span
       className={cn(
-        "inline-flex size-5 shrink-0 items-center justify-center rounded-[4px]",
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-md",
         meta.tone,
         className,
       )}
@@ -130,7 +130,7 @@ export function SurfaceLabelBadge({
   return (
     <span
       className={cn(
-        "inline-flex w-fit shrink-0 items-center rounded-md border border-transparent px-1.5 py-0.5 text-xs font-medium leading-none",
+        "inline-flex w-fit shrink-0 items-center rounded-md border border-transparent px-1.5 py-0.5 text-xs font-medium",
         meta.tone,
         className,
       )}

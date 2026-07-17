@@ -46,7 +46,7 @@ export function WorkflowSpecPreview({
           <Zap className="size-3.5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-wide text-violet-600 uppercase dark:text-violet-300">
+          <p className="text-xs font-semibold tracking-wide text-violet-600 uppercase dark:text-violet-300">
             When
           </p>
           <p className="text-sm font-medium text-foreground">
@@ -83,7 +83,7 @@ export function WorkflowSpecPreview({
                   </p>
                 ) : null}
               </div>
-              <span className="mt-0.5 shrink-0 font-mono text-[10px] text-muted-foreground/60 tabular-nums">
+              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground/60 tabular-nums">
                 {i + 1}
               </span>
             </div>
@@ -116,7 +116,7 @@ function Connector({ depth, label }: { depth: number; label: string | null }) {
     >
       <span className="h-full w-px bg-border" />
       {label ? (
-        <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+        <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-px text-xs font-medium text-muted-foreground">
           {label}
         </span>
       ) : null}

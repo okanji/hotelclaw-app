@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 import { createDocument, type DocumentKind } from "./actions";
 import {
@@ -200,12 +201,7 @@ export function CreateDocumentDialog({
                       kind.icon
                     )}
                   </div>
-                  <kbd
-                    aria-hidden
-                    className="rounded border border-border/70 bg-muted/40 px-1.5 py-0.5 font-sans text-[0.625rem] font-medium tracking-tight text-muted-foreground"
-                  >
-                    {kind.shortcut.toUpperCase()}
-                  </kbd>
+                  <Kbd aria-hidden>{kind.shortcut.toUpperCase()}</Kbd>
                 </div>
                 <div className="flex w-full flex-col gap-1">
                   <p className="text-sm font-semibold tracking-tight text-foreground">
@@ -224,15 +220,8 @@ export function CreateDocumentDialog({
         </div>
 
         <div className="border-t border-border/70 px-4 py-2.5 text-xs tracking-tight text-muted-foreground">
-          Tip: press{" "}
-          <kbd className="rounded border border-border/70 bg-muted/40 px-1 py-0.5 font-sans text-[0.625rem] font-medium tracking-tight text-foreground">
-            D
-          </kbd>{" "}
-          or{" "}
-          <kbd className="rounded border border-border/70 bg-muted/40 px-1 py-0.5 font-sans text-[0.625rem] font-medium tracking-tight text-foreground">
-            S
-          </kbd>{" "}
-          to pick without leaving the keyboard.
+          Tip: press <Kbd>D</Kbd> or <Kbd>S</Kbd> to pick without leaving the
+          keyboard.
         </div>
       </DialogContent>
     </Dialog>

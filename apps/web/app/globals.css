@@ -62,9 +62,12 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
-  /* Brand lavender/aubergine accents (rail badge, property tile, chat underline). */
+  /* Brand lavender/aubergine accents (property tile, chat underline). */
   --color-brand: var(--brand);
   --color-brand-accent: var(--brand-accent);
+  /* Vivid pink notification/count badges (rail + sidebar rows) — the one
+     "look at me" color in shell chrome, same in both themes. */
+  --color-notification: var(--notification);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
@@ -140,19 +143,21 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.5rem;
-  /* Width of the ClickUp-style icon rail (first sidebar). */
-  --rail-width: 3.25rem;
-  /* The floating icon rail's surface — a true neutral black (ClickUp-style),
+  /* Width of the icon rail (first sidebar). */
+  --rail-width: 3.75rem;
+  /* The floating icon rail's surface — a true neutral near-black,
      deliberately outside the warm-ivory family so the rail reads as chrome,
      not content. Same in both themes; AppRail pins its local --sidebar to
      this so every sidebar-token consumer inside it (badge ring cutouts,
      washes) matches. */
-  --rail: oklch(0.15 0 0);
-  /* ClickUp-style: the secondary sidebar is a neutral light gray pane joined
-     to the white content card, floating on a WHITE shell canvas (the outer
-     container uses bg-card) — deliberately neutral, not warm-ivory, to match
-     the chrome-vs-content split of the reference. */
-  --sidebar: #f8f8f8;
+  --rail: oklch(0.1 0 0);
+  /* The secondary sidebar is its own detached light-gray rounded card
+     floating on the WHITE shell canvas (the outer container uses bg-card)
+     beside the white content card — deliberately neutral, not warm-ivory,
+     so the chrome-vs-content split reads. */
+  --sidebar: #f5f5f5;
+  /* Notification pink — count badges in shell chrome. */
+  --notification: oklch(0.62 0.22 354);
   --sidebar-foreground: oklch(0.27 0.006 106);
   --sidebar-primary: oklch(0.27 0.006 106);
   --sidebar-primary-foreground: oklch(0.985 0.003 106);

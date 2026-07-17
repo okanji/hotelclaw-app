@@ -36,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { CountBadge } from "@/components/ui/count-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
@@ -358,14 +361,14 @@ export function AppTopBar({
           <Icon className="size-4 shrink-0" strokeWidth={1.25} aria-hidden />
           {item.label}
           {activityCount > 0 ? (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-accent px-1 text-xs leading-none font-medium text-[#1c0f1c] tabular-nums">
+            <CountBadge tone="brand">
               {activityCount > 9 ? "9+" : activityCount}
-            </span>
+            </CountBadge>
           ) : null}
           {pendingCount > 0 ? (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-warning/20 px-1 text-xs leading-none font-medium text-warning tabular-nums">
+            <CountBadge tone="warning-soft">
               {pendingCount > 9 ? "9+" : pendingCount}
-            </span>
+            </CountBadge>
           ) : null}
           {failingDot ? (
             <span
@@ -416,14 +419,14 @@ export function AppTopBar({
                 <span className="flex items-center gap-1.5 text-ui font-medium text-foreground">
                   {item.label}
                   {failing ? (
-                    <span className="rounded-full bg-warning/15 px-1.5 py-px text-xs font-medium text-warning tabular-nums">
+                    <StatusBadge tone="warning" dot={false} className="tabular-nums">
                       {failingWorkflows} failing
-                    </span>
+                    </StatusBadge>
                   ) : null}
                   {pending ? (
-                    <span className="rounded-full bg-warning/15 px-1.5 py-px text-xs font-medium text-warning tabular-nums">
+                    <StatusBadge tone="warning" dot={false} className="tabular-nums">
                       {pendingBookings} pending
-                    </span>
+                    </StatusBadge>
                   ) : null}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
@@ -469,20 +472,22 @@ export function AppTopBar({
         </ul>
       </nav>
       <div className="flex shrink-0 items-center gap-1.5">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
           aria-pressed={sidebarCollapsed}
           title={`${sidebarCollapsed ? "Open" : "Close"} sidebar (⌘\\)`}
-          className="flex size-8 items-center justify-center rounded-full text-muted-foreground outline-hidden transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="rounded-full text-muted-foreground hover:bg-accent"
         >
           {sidebarCollapsed ? (
             <PanelLeftOpen className="size-4" strokeWidth={1.25} />
           ) : (
             <PanelLeftClose className="size-4" strokeWidth={1.25} />
           )}
-        </button>
+        </Button>
         <UserMenu user={user} />
       </div>
     </header>

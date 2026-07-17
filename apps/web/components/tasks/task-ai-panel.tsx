@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,19 +70,21 @@ export function TaskAiPanel({
 
   if (!open) {
     return (
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="mt-3 inline-flex items-center gap-2 rounded-md border border-border/60 bg-muted/15 px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+        className="mt-3 text-muted-foreground"
       >
         <Sparkles className="size-4" />
         Ask AI about this task
-      </button>
+      </Button>
     );
   }
 
   return (
-    <section className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+    <section className="mt-3 rounded-xl border border-border/60 bg-muted/10 p-3">
       <header className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Sparkles className="size-4" />
@@ -120,7 +124,9 @@ export function TaskAiPanel({
       ) : null}
 
       <div className="flex items-end gap-2">
-        <textarea
+        <Textarea
+          name="task-ai-question"
+          aria-label="Ask the task assistant"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -131,17 +137,17 @@ export function TaskAiPanel({
           }}
           placeholder="What does this task involve? Who's blocked on this? Suggest next steps…"
           rows={2}
-          className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="min-h-0 flex-1 resize-none bg-background"
           disabled={busy}
         />
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => void send()}
           disabled={busy || !input.trim()}
-          className="rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-50"
         >
           {busy ? "…" : "Ask"}
-        </button>
+        </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         Answers come from a Claude-backed assistant with access to this task,

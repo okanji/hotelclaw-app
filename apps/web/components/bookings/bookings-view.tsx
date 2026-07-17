@@ -15,9 +15,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { ServiceWorkspace } from "./service-workspace";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/ui/stat-card";
+import { Chip } from "@/components/ui/chip";
+import { StatCard, StatCardPill } from "@/components/ui/stat-card";
 import { CoverCard, type COVER_TINTS } from "@/components/ui/cover-card";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -426,9 +428,7 @@ export function BookingsView({
                 value={s.value}
                 pill={
                   s.warn ? (
-                    <span className="rounded-md bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning">
-                      Needs a yes
-                    </span>
+                    <StatCardPill tone="warning">Needs a yes</StatCardPill>
                   ) : undefined
                 }
               />
@@ -488,9 +488,9 @@ export function BookingsView({
               </NativeSelect>
             ) : null}
             {pendingCount > 0 ? (
-              <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <StatusBadge tone="warning" dot={false}>
                 {pendingCount} pending confirmation
-              </Badge>
+              </StatusBadge>
             ) : null}
           </div>
         </div>
@@ -517,23 +517,17 @@ export function BookingsView({
                   // as statuses change under Realtime.
                   const empty = value !== "all" && count === 0;
                   return (
-                    <button
+                    <Chip
                       key={value}
-                      type="button"
-                      aria-pressed={statusFilter === value}
+                      size="sm"
+                      selected={statusFilter === value}
                       disabled={empty}
                       onClick={() => setStatusFilter(value)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs transition-colors",
-                        statusFilter === value
-                          ? "border-foreground/40 bg-foreground/10 text-foreground"
-                          : "border-border text-muted-foreground hover:text-foreground",
-                        empty && "opacity-40 hover:text-muted-foreground",
-                      )}
+                      className={cn(empty && "opacity-40")}
                     >
                       {label}
-                      <span className="ml-1 tabular-nums opacity-70">{count}</span>
-                    </button>
+                      <span className="tabular-nums opacity-70">{count}</span>
+                    </Chip>
                   );
                 })}
               </div>

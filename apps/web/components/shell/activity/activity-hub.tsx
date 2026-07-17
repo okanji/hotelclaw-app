@@ -145,7 +145,7 @@ function FeedRow({
             </p>
           ) : null}
           {v.channel ? (
-            <span className="mt-1.5 inline-flex items-center rounded-sm border border-border bg-muted/50 px-1.5 py-px text-xs font-medium text-foreground/70">
+            <span className="mt-1.5 inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-px text-xs font-medium text-foreground/70">
               {v.channel}
             </span>
           ) : null}

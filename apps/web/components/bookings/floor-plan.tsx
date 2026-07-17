@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Armchair, ChevronLeft, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/ui/chip";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -307,9 +308,9 @@ export function FloorPlanView({
             {service.name} — floor plan
           </p>
           {mode === "live" && seatedCount > 0 ? (
-            <Badge className="border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400">
+            <StatusBadge tone="violet" dot={false}>
               {seatedCount} seated
-            </Badge>
+            </StatusBadge>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
@@ -434,7 +435,7 @@ export function FloorPlanView({
                   mode === "edit" && selectedIdx === i && "ring-2 ring-ring",
                   mode === "live" && "cursor-pointer",
                   mode === "live" && selectedBooking && state === "free" && r.active &&
-                    "ring-2 ring-emerald-500/60",
+                    "ring-2 ring-success/60",
                   mode === "live" && !selectedBooking && focusTableId === r.id &&
                     "ring-2 ring-ring",
                 )}
@@ -516,34 +517,23 @@ export function FloorPlanView({
                 </div>
                 <div className="flex gap-2">
                   {(["rect", "round"] as const).map((shape) => (
-                    <button
+                    <Chip
                       key={shape}
-                      type="button"
-                      aria-pressed={selected.shape === shape}
+                      size="sm"
+                      selected={selected.shape === shape}
                       onClick={() => patchSelected({ shape })}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs",
-                        selected.shape === shape
-                          ? "border-foreground/40 bg-foreground/10 text-foreground"
-                          : "border-border text-muted-foreground",
-                      )}
                     >
                       {shape === "rect" ? "Rectangle" : "Round"}
-                    </button>
+                    </Chip>
                   ))}
-                  <button
-                    type="button"
-                    aria-pressed={!selected.active}
+                  <Chip
+                    size="sm"
+                    selected={!selected.active}
                     onClick={() => patchSelected({ active: !selected.active })}
-                    className={cn(
-                      "ml-auto rounded-full border px-3 py-1 text-xs",
-                      !selected.active
-                        ? "border-foreground/40 text-foreground"
-                        : "border-border text-muted-foreground",
-                    )}
+                    className="ml-auto"
                   >
                     {selected.active ? "Active" : "Inactive"}
-                  </button>
+                  </Chip>
                 </div>
               </>
             ) : (
@@ -603,7 +593,7 @@ export function FloorPlanView({
                     className={cn(
                       "rounded-md border px-2 py-1.5",
                       selectedBooking?.id === b.id
-                        ? "border-emerald-500/60 bg-emerald-500/5"
+                        ? "border-success/60 bg-success/5"
                         : "border-transparent hover:border-border",
                       terminal && "opacity-50",
                     )}
@@ -705,14 +695,16 @@ function TableDetailPanel({
   return (
     <div className="flex max-h-[480px] flex-col gap-3 overflow-y-auto rounded-lg border border-border p-3">
       <div className="flex items-center gap-1.5">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={onBack}
           aria-label="Back to all bookings"
-          className="-ml-1 flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="-ml-1 text-muted-foreground"
         >
           <ChevronLeft className="size-4" />
-        </button>
+        </Button>
         <p className="text-sm font-medium">{table.name}</p>
         <p className="text-xs text-muted-foreground">
           {table.zone ? `${table.zone} · ` : ""}
@@ -722,7 +714,7 @@ function TableDetailPanel({
 
       {free ? (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <p className="text-xs font-medium text-success">
             Free now
           </p>
           {table.active ? (

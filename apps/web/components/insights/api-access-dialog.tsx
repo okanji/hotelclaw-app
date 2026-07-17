@@ -156,7 +156,7 @@ function ApiAccessDialog({
             <button
               type="button"
               onClick={() => copy(mcpUrl, "Endpoint URL")}
-              className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-left font-mono text-xs text-foreground hover:bg-muted/60"
+              className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               title="Copy"
             >
               <span className="truncate">{mcpUrl}</span>
@@ -169,14 +169,14 @@ function ApiAccessDialog({
           </section>
 
           {freshToken ? (
-            <section className="flex flex-col gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3">
+            <section className="flex flex-col gap-1.5 rounded-md border border-success/40 bg-success/5 p-3">
               <p className="text-xs font-medium text-foreground">
                 Token created — copy it now, it won&apos;t be shown again.
               </p>
               <button
                 type="button"
                 onClick={() => copy(freshToken, "Token")}
-                className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 text-left font-mono text-xs text-foreground hover:bg-muted/40"
+                className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <span className="truncate">{freshToken}</span>
                 <Copy className="size-3.5 shrink-0 text-muted-foreground" />

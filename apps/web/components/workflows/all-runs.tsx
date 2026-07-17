@@ -6,16 +6,21 @@ import { History, Workflow } from "lucide-react";
 import { allPropertyRunsQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { WorkflowsTabs } from "./workflows-tabs";
 
-const STATUS_COLORS: Record<string, string> = {
-  succeeded: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-  failed: "bg-destructive/10 text-destructive",
-  filtered: "bg-muted text-muted-foreground",
-  running: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  queued: "bg-muted text-muted-foreground",
-  waiting: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  cancelled: "bg-muted text-muted-foreground",
+const STATUS_TONES: Record<
+  string,
+  React.ComponentProps<typeof StatusBadge>["tone"]
+> = {
+  succeeded: "success",
+  failed: "danger",
+  filtered: "neutral",
+  running: "info",
+  queued: "neutral",
+  waiting: "warning",
+  cancelled: "neutral",
 };
 
 function formatRelative(iso: string | null) {
@@ -64,21 +69,16 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                     href={`/p/${propertyId}/workflows/${r.workflow_id}/runs/${r.id}`}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40"
                   >
-                    <span
-                      className={
-                        "inline-flex shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium " +
-                        (STATUS_COLORS[r.status] ?? "bg-muted text-muted-foreground")
-                      }
-                    >
+                    <StatusBadge tone={STATUS_TONES[r.status] ?? "neutral"} dot={false}>
                       {r.status}
-                    </span>
+                    </StatusBadge>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {r.workflow_name}
                     </span>
                     {r.is_dry_run ? (
-                      <span className="inline-flex shrink-0 rounded-md border border-border/60 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      <Badge variant="outline" className="border-border/60 text-muted-foreground">
                         test
-                      </span>
+                      </Badge>
                     ) : null}
                     <span className="hidden w-28 truncate text-xs text-muted-foreground sm:block">
                       {r.trigger_kind ?? "manual"}

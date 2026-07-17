@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { Kbd } from "@/components/ui/kbd";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
 import { useCommandPalette } from "./command-palette-context";
 
@@ -28,9 +29,9 @@ export function SearchButton() {
       >
         <Search className="size-4 shrink-0 opacity-80 transition-opacity group-hover:opacity-100" />
         <span className="flex-1 text-left">Search</span>
-        <kbd className="rounded bg-background px-1.5 py-0.5 font-mono text-[10px] leading-none text-muted-foreground shadow-2xs ring-1 ring-border/70">
+        <Kbd className="bg-background shadow-2xs ring-1 ring-border/70">
           {shortcut}
-        </kbd>
+        </Kbd>
       </button>
     </SidebarMenuItem>
   );

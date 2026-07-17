@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ListChecks, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
@@ -224,9 +225,9 @@ function PersonBranch({
             </p>
           </div>
           {person.id === head ? (
-            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+            <Badge variant="secondary" className="shrink-0 text-muted-foreground">
               Head
-            </span>
+            </Badge>
           ) : null}
           {isManagement ? (
             <PersonEditPopover

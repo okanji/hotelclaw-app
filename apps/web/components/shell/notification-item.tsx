@@ -107,7 +107,7 @@ export function NotificationItem({
             {view.channel ? (
               <span
                 className={cn(
-                  "inline-flex shrink-0 items-center rounded-sm border border-border bg-muted/50 px-1.5 py-px text-xs font-medium",
+                  "inline-flex shrink-0 items-center rounded-md border border-border bg-muted/50 px-1.5 py-px text-xs font-medium",
                   unseen ? "text-foreground/80" : "text-muted-foreground",
                 )}
               >
@@ -193,6 +193,26 @@ export function notificationView(
         sub: p.taskTitle ?? null,
         href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
         kicker: "Task assigned",
+        preview: p.taskTitle ?? "a task",
+        actor: byName,
+        channel: null,
+      };
+    }
+    case "task_escalated": {
+      const p = n.payload as Partial<TaskEscalatedPayload>;
+      const byName = p.byUserName ?? "Someone";
+      return {
+        icon: <OctagonAlert className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">{byName}</strong> escalated a
+            task to you
+            {p.reason === "team_lead" ? " as team lead" : ""}
+          </>
+        ),
+        sub: p.taskTitle ?? null,
+        href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
+        kicker: "Escalated",
         preview: p.taskTitle ?? "a task",
         actor: byName,
         channel: null,

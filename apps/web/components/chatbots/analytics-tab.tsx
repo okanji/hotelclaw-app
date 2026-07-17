@@ -5,6 +5,7 @@ import { ChartNoAxesColumn, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatbotAnalytics } from "@/lib/chatbots/analytics";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 /**
  * Analytics tab — deterministic counts with Haiku-labeled topics/sentiment
@@ -142,9 +143,7 @@ export function AnalyticsTab({
                 <li key={t.topic} className="flex items-center gap-3 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm">{t.topic}</span>
                   {negShare >= 0.34 ? (
-                    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs text-red-600 dark:text-red-400">
-                      trending negative
-                    </span>
+                    <StatusBadge tone="danger">trending negative</StatusBadge>
                   ) : null}
                   <span
                     className={cn(

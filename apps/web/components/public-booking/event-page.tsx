@@ -17,10 +17,12 @@ import { GuestFormFields } from "./guest-form-fields";
  * `schedule.page`; the booking POST is the same engine as the wizard.
  */
 
-const INK = "#1f1e1b";
-const INK_SOFT = "#6f6a60";
+/** Deliberately a hair warmer than --guest-bg; this page keeps its own cream. */
 const CANVAS = "#faf7f1";
-const HAIRLINE = "rgba(31,30,27,0.12)";
+/** The warm hairline — guest ink at 12%. */
+const HAIRLINE_CLASS = "border-guest-ink/[0.12]";
+/** "Almost gone" urgency amber — bespoke to the ticket page. */
+const LOW_STOCK = "#b45309";
 
 export type EventService = {
   id: string;
@@ -160,7 +162,7 @@ export function EventPage({
     .filter(Boolean);
 
   return (
-    <div className="min-h-dvh" style={{ backgroundColor: CANVAS, color: INK }}>
+    <div className="min-h-dvh text-guest-ink" style={{ backgroundColor: CANVAS }}>
       <div className="mx-auto max-w-4xl px-5 pt-10 pb-20 sm:pt-14 sm:pb-28">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[320px_minmax(0,1fr)]">
           {/* Cover column (the Luma square + host block) — sticky so the
@@ -168,15 +170,14 @@ export function EventPage({
           <div className="mx-auto w-full max-w-80 md:sticky md:top-10 md:mx-0 md:self-start">
             <div
               aria-hidden
-              className="flex aspect-square w-full items-center justify-center rounded-3xl shadow-sm ring-1 ring-[#1f1e1b]/10 ring-inset"
+              className="flex aspect-square w-full items-center justify-center rounded-3xl shadow-sm ring-1 ring-guest-ink/10 ring-inset"
               style={{ background: cover.css }}
             >
               <span className="text-8xl drop-shadow-sm">{coverEmoji}</span>
             </div>
             <div className="mt-5 hidden md:block">
               <p
-                className="border-b pb-1.5 text-xs font-semibold tracking-wide uppercase"
-                style={{ borderColor: HAIRLINE, color: INK_SOFT }}
+                className={`border-b ${HAIRLINE_CLASS} pb-1.5 text-xs font-semibold tracking-wide text-guest-ink-soft uppercase`}
               >
                 Hosted by
               </p>
@@ -195,14 +196,14 @@ export function EventPage({
 
           {/* Title + facts + registration */}
           <div className="min-w-0">
-            <p className="text-sm md:hidden" style={{ color: INK_SOFT }}>
+            <p className="text-sm text-guest-ink-soft md:hidden">
               Hosted by {host}
             </p>
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               {service.name}
             </h1>
             {page.tagline ? (
-              <p className="mt-2 text-base text-pretty" style={{ color: INK_SOFT }}>
+              <p className="mt-2 text-base text-pretty text-guest-ink-soft">
                 {page.tagline}
               </p>
             ) : null}
@@ -212,8 +213,7 @@ export function EventPage({
               {date ? (
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex w-11 shrink-0 flex-col overflow-hidden rounded-lg border text-center"
-                    style={{ borderColor: HAIRLINE }}
+                    className={`flex w-11 shrink-0 flex-col overflow-hidden rounded-lg border ${HAIRLINE_CLASS} text-center`}
                   >
                     <span
                       className="text-xs font-semibold tracking-wide text-white uppercase"
@@ -229,7 +229,7 @@ export function EventPage({
                     <p className="text-sm font-medium">
                       {dateLabel(date, { weekday: "long", month: "long", day: "numeric" })}
                     </p>
-                    <p className="text-sm" style={{ color: INK_SOFT }}>
+                    <p className="text-sm text-guest-ink-soft">
                       {slot
                         ? `${timeLabel(slot.startsAt)} – ${timeLabel(slot.endsAt)}`
                         : slots === null
@@ -244,26 +244,22 @@ export function EventPage({
               {page.location ? (
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-white"
-                    style={{ borderColor: HAIRLINE }}
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-lg border ${HAIRLINE_CLASS} bg-white`}
                   >
-                    <MapPin className="size-4" style={{ color: INK_SOFT }} />
+                    <MapPin className="size-4 text-guest-ink-soft" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{page.location}</p>
-                    <p className="text-sm" style={{ color: INK_SOFT }}>
-                      {propertyName}
-                    </p>
+                    <p className="text-sm text-guest-ink-soft">{propertyName}</p>
                   </div>
                 </div>
               ) : null}
               {service.priceLabel ? (
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-white"
-                    style={{ borderColor: HAIRLINE }}
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-lg border ${HAIRLINE_CLASS} bg-white`}
                   >
-                    <Ticket className="size-4" style={{ color: INK_SOFT }} />
+                    <Ticket className="size-4 text-guest-ink-soft" />
                   </span>
                   <p className="text-sm font-medium">{service.priceLabel}</p>
                 </div>
@@ -272,13 +268,11 @@ export function EventPage({
 
             {/* Registration card */}
             <div
-              className="mt-6 overflow-hidden rounded-2xl border bg-white"
-              style={{ borderColor: HAIRLINE }}
+              className={`mt-6 overflow-hidden rounded-2xl border ${HAIRLINE_CLASS} bg-white`}
             >
               {/* Muted header strip (Luma's "Registration" bar). */}
               <p
-                className="border-b bg-[#1f1e1b]/[0.04] px-4 py-2.5 text-sm font-semibold"
-                style={{ borderColor: HAIRLINE }}
+                className={`border-b ${HAIRLINE_CLASS} bg-guest-ink/[0.04] px-4 py-2.5 text-sm font-semibold`}
               >
                 {done ? "You're in" : soldOut ? "Sold out" : "Get your tickets"}
               </p>
@@ -293,19 +287,19 @@ export function EventPage({
                   </span>
                   <div>
                     <p className="font-serif text-lg font-semibold">Tickets reserved</p>
-                    <p className="mt-1 max-w-[36ch] text-sm text-pretty" style={{ color: INK_SOFT }}>
-                      Reference <strong style={{ color: INK }}>{done.reference}</strong>.
+                    <p className="mt-1 max-w-[36ch] text-sm text-pretty text-guest-ink-soft">
+                      Reference <strong className="text-guest-ink">{done.reference}</strong>.
                       We emailed your tickets — the link inside has your door
                       QR code.
                     </p>
                   </div>
                 </div>
               ) : dates.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm" style={{ color: INK_SOFT }}>
+                <p className="px-4 py-8 text-center text-sm text-guest-ink-soft">
                   No upcoming dates — check back soon.
                 </p>
               ) : soldOut ? (
-                <p className="px-4 py-8 text-center text-sm text-pretty" style={{ color: INK_SOFT }}>
+                <p className="px-4 py-8 text-center text-sm text-pretty text-guest-ink-soft">
                   This date is sold out. Contact {propertyName} directly in
                   case seats free up.
                 </p>
@@ -313,8 +307,8 @@ export function EventPage({
                 <form onSubmit={submit} className="flex flex-col gap-4 px-4 py-4">
                   {remaining !== null ? (
                     <p
-                      className="text-xs font-medium"
-                      style={{ color: lowStock ? "#b45309" : INK_SOFT }}
+                      className={`text-xs font-medium ${lowStock ? "" : "text-guest-ink-soft"}`}
+                      style={lowStock ? { color: LOW_STOCK } : undefined}
                     >
                       {lowStock
                         ? `Almost gone — ${remaining} ticket${remaining === 1 ? "" : "s"} left`
@@ -348,7 +342,7 @@ export function EventPage({
                   ) : null}
 
                   <div>
-                    <p className="mb-1.5 text-xs font-medium" style={{ color: INK_SOFT }}>
+                    <p className="mb-1.5 text-xs font-medium text-guest-ink-soft">
                       How many tickets?
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -387,8 +381,7 @@ export function EventPage({
                     aria-label="Your name"
                     placeholder="Your name"
                     onChange={(e) => setName(e.target.value)}
-                    className="h-12 w-full rounded-xl border bg-white px-4 text-base outline-none placeholder:text-[#6f6a60]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25"
-                    style={{ borderColor: HAIRLINE, color: INK }}
+                    className={`h-12 w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 text-base text-guest-ink outline-none placeholder:text-guest-ink-soft/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`}
                   />
                   <input
                     value={email}
@@ -398,12 +391,11 @@ export function EventPage({
                     aria-label="Email"
                     placeholder="Email — your tickets go here"
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-12 w-full rounded-xl border bg-white px-4 text-base outline-none placeholder:text-[#6f6a60]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1f1e1b]/25"
-                    style={{ borderColor: HAIRLINE, color: INK }}
+                    className={`h-12 w-full rounded-xl border ${HAIRLINE_CLASS} bg-white px-4 text-base text-guest-ink outline-none placeholder:text-guest-ink-soft/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-guest-ink/25`}
                   />
 
                   {error ? (
-                    <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <p className="rounded-xl border border-guest-danger/30 bg-guest-danger/5 px-3 py-2 text-sm text-guest-danger">
                       {error}
                     </p>
                   ) : null}
@@ -411,7 +403,7 @@ export function EventPage({
                   <button
                     type="submit"
                     disabled={busy || !slot || !name.trim() || !email.trim()}
-                    className="flex h-12 items-center justify-center gap-2 rounded-full text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
+                    className="flex h-12 items-center justify-center gap-2 rounded-full text-base font-semibold text-white disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-guest-ink/40"
                     style={{ backgroundColor: accent }}
                   >
                     {busy ? (
@@ -423,7 +415,7 @@ export function EventPage({
                       `Reserve ${party} ticket${party === 1 ? "" : "s"}`
                     )}
                   </button>
-                  <p className="text-center text-xs" style={{ color: INK_SOFT }}>
+                  <p className="text-center text-xs text-guest-ink-soft">
                     {!busy && (!name.trim() || !email.trim())
                       ? "Enter your name and email to continue."
                       : "Reserve now, pay at the venue."}
@@ -439,8 +431,7 @@ export function EventPage({
         {aboutParagraphs.length > 0 ? (
           <div className="mt-10">
             <p
-              className="border-b pb-2 text-xs font-semibold tracking-wide uppercase"
-              style={{ borderColor: HAIRLINE, color: INK_SOFT }}
+              className={`border-b ${HAIRLINE_CLASS} pb-2 text-xs font-semibold tracking-wide text-guest-ink-soft uppercase`}
             >
               About this event
             </p>
@@ -466,8 +457,7 @@ export function EventPage({
             the cover). */}
         <div className="mt-10 md:hidden">
           <p
-            className="border-b pb-2 text-xs font-semibold tracking-wide uppercase"
-            style={{ borderColor: HAIRLINE, color: INK_SOFT }}
+            className={`border-b ${HAIRLINE_CLASS} pb-2 text-xs font-semibold tracking-wide text-guest-ink-soft uppercase`}
           >
             Hosted by
           </p>
@@ -484,8 +474,7 @@ export function EventPage({
         </div>
 
         <footer
-          className="mt-12 flex flex-col items-center gap-1 border-t pt-6 text-center"
-          style={{ borderColor: HAIRLINE }}
+          className={`mt-12 flex flex-col items-center gap-1 border-t ${HAIRLINE_CLASS} pt-6 text-center`}
         >
           <a
             href={`/book/${propertySlug}`}
@@ -494,7 +483,7 @@ export function EventPage({
           >
             More experiences at {propertyName}
           </a>
-          <p className="text-xs" style={{ color: INK_SOFT }}>
+          <p className="text-xs text-guest-ink-soft">
             Reserve online, pay at the venue.
           </p>
         </footer>
@@ -519,11 +508,14 @@ function Chip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="h-11 min-w-11 rounded-full border bg-white px-3.5 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1f1e1b]/40"
+      className={`h-11 min-w-11 rounded-full border ${
+        active ? "" : `${HAIRLINE_CLASS} text-guest-ink`
+      } bg-white px-3.5 text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-guest-ink/40`}
+      // Per-event accent is data — inline style stays for the active state.
       style={
         active
           ? { borderColor: accent, backgroundColor: `${accent}14`, color: accent }
-          : { borderColor: HAIRLINE, color: INK }
+          : undefined
       }
     >
       {children}

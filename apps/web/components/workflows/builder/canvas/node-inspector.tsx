@@ -29,6 +29,7 @@ import {
 import { isTaskTrigger, suggestedTriggerInput } from "@/lib/workflows/suggested-input";
 import { enrichRefsWithPropertyData } from "@/lib/workflows/enrich-refs";
 import { useWorkflowBuilderData } from "@/components/workflows/builder/workflow-builder-data";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TriggerEditorFlowLayout } from "@/components/workflows/builder/trigger-editor-layouts";
 import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
@@ -795,19 +796,20 @@ function StepProducesPanel({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
         {fields.map((f) => (
-          <span
+          <Badge
             key={f.key}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 font-mono text-xs text-foreground"
+            variant="outline"
+            className="gap-1.5 border-border/70 bg-muted/40 font-mono"
           >
             {f.key}
-            <span className="font-sans text-[10px] text-muted-foreground">{f.type}</span>
-          </span>
+            <span className="font-sans text-xs text-muted-foreground">{f.type}</span>
+          </Badge>
         ))}
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
         Later steps can use {fields.length === 1 ? "this" : "these"} via{" "}
         <span className="font-medium text-foreground/80">Insert data</span> — e.g.{" "}
-        <code className="rounded bg-muted/60 px-1 py-px font-mono text-[10px]">
+        <code className="rounded-md bg-muted/60 px-1 py-px font-mono text-xs">
           {`{{steps.${stepId}.output.${fields[0]!.key}}}`}
         </code>
         .

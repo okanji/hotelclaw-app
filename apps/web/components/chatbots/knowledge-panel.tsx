@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -258,13 +259,9 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
         </p>
       </button>
       {source.status === "trained" ? (
-        <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-          Trained
-        </Badge>
+        <StatusBadge tone="success">Trained</StatusBadge>
       ) : source.status === "failed" ? (
-        <Badge className="border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400">
-          Failed
-        </Badge>
+        <StatusBadge tone="danger">Failed</StatusBadge>
       ) : (
         <Badge variant="secondary">Not trained</Badge>
       )}

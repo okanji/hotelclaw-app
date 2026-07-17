@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Columns2, FlaskConical, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
@@ -140,7 +140,7 @@ export function TestConsole({
       ) : null}
 
       {dirty ? (
-        <p className="border-b border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400">
+        <p className="border-b border-warning/20 bg-warning/10 px-3 py-1.5 text-xs text-warning">
           Unsaved changes — the test runs your last saved version.
         </p>
       ) : null}
@@ -154,15 +154,17 @@ export function TestConsole({
             {suggestedQuestions
               .filter((q) => q.trim())
               .map((q) => (
-                <button
+                <Button
                   key={q}
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => void send(q)}
                   disabled={busy}
-                  className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  className="rounded-full font-normal text-muted-foreground hover:text-foreground"
                 >
                   {q}
-                </button>
+                </Button>
               ))}
           </div>
         ) : null}
@@ -209,14 +211,13 @@ export function TestConsole({
             disabled={busy}
             className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm max-sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <button
+          <Button
             type="button"
             onClick={() => void send(input)}
             disabled={busy || !input.trim()}
-            className="h-8 rounded-md bg-foreground px-3 text-sm font-medium text-background hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
             Send
-          </button>
+          </Button>
         </div>
         <p className="mt-1.5 text-xs text-muted-foreground">
           Sandbox: tickets and escalations are simulated; knowledge search is

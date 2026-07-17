@@ -13,7 +13,9 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/ui/chip";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseServiceSchedule } from "@/lib/bookings/schema";
@@ -239,23 +241,17 @@ function ScopedAgenda({
               : dayBookings.filter((b) => b.status === value).length;
           const empty = value !== "all" && count === 0;
           return (
-            <button
+            <Chip
               key={value}
-              type="button"
-              aria-pressed={statusFilter === value}
+              size="sm"
+              selected={statusFilter === value}
               disabled={empty}
               onClick={() => setStatusFilter(value)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                statusFilter === value
-                  ? "border-foreground/40 bg-foreground/10 text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-                empty && "opacity-40 hover:text-muted-foreground",
-              )}
+              className={cn(empty && "opacity-40")}
             >
               {label}
-              <span className="ml-1 tabular-nums opacity-70">{count}</span>
-            </button>
+              <span className="tabular-nums opacity-70">{count}</span>
+            </Chip>
           );
         })}
       </div>
@@ -294,7 +290,7 @@ function TableServiceView({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex gap-1 rounded-lg bg-muted p-0.5" aria-label="View">
+        <TabNav variant="pill" aria-label="View">
           {(
             [
               ["reservations", "Reservations"],
@@ -302,22 +298,11 @@ function TableServiceView({
               ["timetable", "Timetable"],
             ] as const
           ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={tab === id}
-              onClick={() => setTab(id)}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs font-medium",
-                tab === id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
+            <TabNavItem key={id} active={tab === id} onClick={() => setTab(id)}>
               {label}
-            </button>
+            </TabNavItem>
           ))}
-        </nav>
+        </TabNav>
         <DayNav day={day} onChange={setDay} />
       </div>
 
@@ -393,25 +378,14 @@ function TicketingView({
       {dates.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {dates.map((d) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={date === d}
-              onClick={() => setDate(d)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                date === d
-                  ? "border-foreground/40 bg-foreground/10 text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
+            <Chip key={d} size="sm" selected={date === d} onClick={() => setDate(d)}>
               {new Intl.DateTimeFormat("en-US", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
                 timeZone: "UTC",
               }).format(new Date(`${d}T00:00:00Z`))}
-            </button>
+            </Chip>
           ))}
         </div>
       ) : null}
@@ -571,9 +545,9 @@ function DaySheetView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DayNav day={day} onChange={setDay} />
         {rentalMode && outNow > 0 ? (
-          <Badge className="border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400">
+          <StatusBadge tone="violet" dot={false}>
             {outNow} out now
-          </Badge>
+          </StatusBadge>
         ) : null}
       </div>
       {rentalMode && own.length > 0 ? (
