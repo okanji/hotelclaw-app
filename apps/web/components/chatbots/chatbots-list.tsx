@@ -31,6 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TintIcon } from "@/components/ui/tint-card";
 import { parseChatbotConfig, type ChatbotTemplate } from "@/lib/chatbots/schema";
 import { NewChatbotDialog } from "./new-chatbot-dialog";
 import { deleteChatbot } from "./actions";
@@ -190,12 +191,10 @@ function ChatbotCard({
     <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
       <Link href={href} className="absolute inset-0" aria-label={bot.name} />
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-base">
-            {config.appearance.avatarEmoji || (
-              <Bot className="size-4 text-muted-foreground" />
-            )}
-          </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <TintIcon tone="lavender" className="text-base">
+            {config.appearance.avatarEmoji || <Bot />}
+          </TintIcon>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{bot.name}</p>
             <p className="truncate text-xs text-muted-foreground">

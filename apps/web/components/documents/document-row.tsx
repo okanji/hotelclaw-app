@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -44,8 +45,13 @@ export function DocumentRow({
   const editorName = useMemberName(propertyId, doc.last_edited_by);
   const displayTime = timeLabel ?? formatRelative(doc.updated_at);
 
+  // The same doc renders in multiple lists (recents, "all documents"); dnd-kit
+  // keys drag state by id, so a shared `doc:<id>` would make every copy report
+  // isDragging at once. A per-instance id keeps them independent — the actual
+  // document is resolved from `data.documentId` in the DndContext handlers.
+  const instanceId = useId();
   const drag = useDraggable({
-    id: `doc:${doc.id}`,
+    id: `doc:${instanceId}`,
     data: { type: "doc", documentId: doc.id },
     disabled: !draggable,
   });
@@ -60,8 +66,6 @@ export function DocumentRow({
     ? {
         ref: drag.setNodeRef,
         style: { transform: CSS.Translate.toString(drag.transform) },
-        ...drag.attributes,
-        ...drag.listeners,
       }
     : {};
 
@@ -70,7 +74,6 @@ export function DocumentRow({
       {...rowProps}
       className={cn(
         "group/row relative",
-        draggable && "cursor-grab active:cursor-grabbing",
         draggable && drag.isDragging && "opacity-40",
       )}
     >
@@ -82,10 +85,21 @@ export function DocumentRow({
         className="flex items-center gap-3 rounded-lg px-3 py-2.5 group-hover/row:bg-muted/50"
       >
         {draggable ? (
-          <GripVertical
-            aria-hidden
-            className="size-4 shrink-0 self-center text-muted-foreground/30 group-hover/row:text-muted-foreground/60"
-          />
+          // Drag handle: only the grip starts a drag, so grabbing the row's
+          // title or timestamp navigates instead of dragging. Clicks on the
+          // grip are swallowed so it never follows the link.
+          <span
+            {...drag.attributes}
+            {...drag.listeners}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            aria-label="Drag to pin to a board"
+            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-muted-foreground/30 hover:text-muted-foreground/60 active:cursor-grabbing"
+          >
+            <GripVertical aria-hidden className="size-4" />
+          </span>
         ) : (
           <span className="size-4 shrink-0 self-center" aria-hidden="true" />
         )}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TintIcon } from "@/components/ui/tint-card";
 import {
   Dialog,
   DialogContent,
@@ -52,9 +53,9 @@ export function FormAttachmentCard({ attachment }: { attachment: FormAttachmentP
   return (
     <>
       <div className="my-1 flex w-fit max-w-sm items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <ClipboardList className="size-4.5" />
-        </div>
+        <TintIcon tone="honey">
+          <ClipboardList />
+        </TintIcon>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{attachment.title}</p>
           <p className="truncate text-xs text-muted-foreground">

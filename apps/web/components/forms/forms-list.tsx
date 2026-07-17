@@ -34,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TintIcon } from "@/components/ui/tint-card";
 import { FormStatusBadge } from "./status-badge";
 import { GenerateFormDialog } from "./generate-form-dialog";
 import { ShareFormDialog } from "./share-form-dialog";
@@ -210,10 +211,10 @@ function FormCard({
     <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
       <Link href={href} className="absolute inset-0" aria-label={form.title} />
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-base">
-            {form.icon || <ClipboardList className="size-4 text-muted-foreground" />}
-          </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <TintIcon tone="honey">
+            {form.icon || <ClipboardList />}
+          </TintIcon>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{form.title}</p>
             {form.description ? (

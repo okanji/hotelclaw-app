@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { TintIcon, tintAt, type TintTone } from "@/components/ui/tint-card";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
@@ -100,6 +101,16 @@ const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
   chatbots: "Build guest-facing assistants",
   bookings: "Reservations and availability",
   meetings: "Video calls and recordings",
+};
+/** Icon-plate tints for the More menu, following the app-wide domain tones
+ *  (bookings=coral, meetings=sage, chatbots/AI=lavender); unmapped sections
+ *  fall back to the stable rotation. */
+const MORE_TONES: Partial<Record<ShellSection, TintTone>> = {
+  dms: "blue",
+  workflows: "honey",
+  chatbots: "lavender",
+  bookings: "coral",
+  meetings: "sage",
 };
 
 type RailItem = {
@@ -601,7 +612,7 @@ export function AppRail({
                     <p className="px-2 pt-1.5 pb-1 text-sm font-semibold text-foreground">
                       More
                     </p>
-                    {moreItems.map((item) => {
+                    {moreItems.map((item, index) => {
                       const Icon = item.icon;
                       const isActive = section === item.section;
                       const failing =
@@ -618,9 +629,9 @@ export function AppRail({
                             isActive && "bg-accent/60",
                           )}
                         >
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-foreground">
-                            <Icon className="size-5" strokeWidth={1.75} />
-                          </span>
+                          <TintIcon tone={MORE_TONES[item.section] ?? tintAt(index)}>
+                            <Icon strokeWidth={1.75} />
+                          </TintIcon>
                           <span className="flex min-w-0 flex-col gap-0.5">
                             <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                               {item.label}

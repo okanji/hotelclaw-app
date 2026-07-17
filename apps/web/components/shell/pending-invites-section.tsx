@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Mail } from "lucide-react";
+import { TintIcon } from "@/components/ui/tint-card";
 
 type PendingInvite = {
   token: string;
@@ -48,9 +49,9 @@ export function PendingInvitesSection() {
           className="gap-2.5 px-2 py-2"
           render={<Link href={`/invites/${invite.token}`} />}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Mail className="size-4" />
-          </span>
+          <TintIcon tone="honey">
+            <Mail />
+          </TintIcon>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold text-foreground">
               {invite.propertyName}

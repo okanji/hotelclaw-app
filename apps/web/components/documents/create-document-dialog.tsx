@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
+import { TintIcon } from "@/components/ui/tint-card";
 import { cn } from "@/lib/utils";
 import { createDocument, type DocumentKind } from "./actions";
 import {
@@ -46,7 +47,7 @@ const KINDS: Kind[] = [
     id: "doc",
     title: "Document",
     description: "Rich text with headings, lists, embeds, and sub-pages.",
-    icon: <FileText strokeWidth={1.5} className="size-5" />,
+    icon: <FileText strokeWidth={1.5} />,
     hint: "Notion-style page",
     shortcut: "d",
   },
@@ -54,7 +55,7 @@ const KINDS: Kind[] = [
     id: "sheet",
     title: "Spreadsheet",
     description: "Cells with formulas, sortable rows, live collaboration.",
-    icon: <Table2 strokeWidth={1.5} className="size-5" />,
+    icon: <Table2 strokeWidth={1.5} />,
     hint: "Tables & formulas",
     shortcut: "s",
   },
@@ -187,20 +188,13 @@ export function CreateDocumentDialog({
                 )}
               >
                 <div className="flex w-full items-start justify-between">
-                  <div
-                    className={cn(
-                      "flex size-9 items-center justify-center rounded-md text-[var(--icon-accent)]",
-                      kind.id === "doc"
-                        ? "bg-[color-mix(in_oklch,var(--icon-accent)_12%,transparent)]"
-                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                    )}
-                  >
+                  <TintIcon tone="lavender">
                     {isCreating ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="animate-spin" />
                     ) : (
                       kind.icon
                     )}
-                  </div>
+                  </TintIcon>
                   <Kbd aria-hidden>{kind.shortcut.toUpperCase()}</Kbd>
                 </div>
                 <div className="flex w-full flex-col gap-1">

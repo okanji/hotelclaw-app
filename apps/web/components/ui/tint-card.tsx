@@ -65,4 +65,30 @@ function TintCard({
   )
 }
 
-export { TintCard, tintTone }
+/**
+ * The tinted icon plate — the ONLY place brand tint appears on a neutral card
+ * (the Home quick-access language: `border-border bg-card` tile, colour lives
+ * in this small chip, never the card fill). Drop a lucide icon inside; sizing
+ * is handled here. Pair with a `font-medium` title + `text-sm
+ * text-muted-foreground` sub line.
+ */
+function TintIcon({
+  tone = "lavender",
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { tone?: TintTone }) {
+  return (
+    <span
+      data-slot="tint-icon"
+      data-tone={tone}
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-lg [&_svg]:size-[1.15rem] [&_svg]:shrink-0",
+        tintTone[tone],
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { TintCard, TintIcon, tintTone }

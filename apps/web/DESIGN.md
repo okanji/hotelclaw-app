@@ -70,6 +70,7 @@ primitives — **use these instead of hand-rolling**:
 | `StatGroup` + `Stat` | dashboard/agenda metric strips | stat *cards*; icons inside stats; non-`tabular-nums` values |
 | `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states | picking badge colors per domain |
 | `Chip` (`tone="app" \| "guest"`, `selected`) | toggleable filter/option pills | bespoke `rounded-full border` toggles |
+| `TintIcon` (`tone`, from `ui/tint-card`) | the tinted icon plate on a NEUTRAL card — feature/entity tiles pair a `border-border bg-card` frame with this size-9 chip (lucide icon or emoji child); tone by domain: tasks=blue · bookings=coral · calendar=sage · docs/AI=lavender · forms/reports=honey | hand-rolled `size-9 rounded-lg bg-*/10` plates; full-tint card fills on nav/gallery tiles |
 
 Domain status maps stay in the domain (`lib/bookings/status-colors.ts` is the
 model: statuses → tones/classes in ONE file, every surface derives from it).

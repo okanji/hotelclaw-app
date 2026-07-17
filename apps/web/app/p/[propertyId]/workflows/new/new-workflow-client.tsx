@@ -1,20 +1,142 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Sparkles, Workflow } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  CalendarX2,
+  ClipboardList,
+  Headset,
+  LayoutTemplate,
+  LifeBuoy,
+  ListTodo,
+  type LucideIcon,
+  Sparkles,
+  TriangleAlert,
+  Wand2,
+  Workflow,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
+import type { Surface } from "@/lib/workflows/catalog/types";
 import { TreeList } from "@/components/workflows/builder/tree-list/tree-list";
+import { SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import { AiCopilot } from "@/components/workflows/builder/ai-copilot";
 
-const STARTER_PROMPTS = [
-  "When a task labeled guest-complaint is created, summarize it and assign to the manager-on-duty",
-  "Every Monday at 9am, post a digest of last week's completed tasks in #leadership",
-  "When a meeting summary is ready, create follow-up tasks for each action item and share the summary in #ops",
+// The surfaces a workflow can read from and act on — shown as a legend under
+// the hero input so it's obvious how much ground the builder covers.
+const SURFACES: Surface[] = [
+  "tasks",
+  "chat",
+  "docs",
+  "meetings",
+  "calendar",
+  "forms",
+  "bookings",
+  "entities",
+];
+
+type Example = {
+  icon: LucideIcon;
+  title: string;
+  // The plain-English goal seeded into the copilot when the card is clicked —
+  // shown verbatim on the card so it's self-documenting.
+  prompt: string;
+  surfaces: Surface[];
+};
+
+const EXAMPLE_GROUPS: {
+  label: string;
+  tone: TintTone;
+  examples: Example[];
+}[] = [
+  {
+    label: "Triage & routing",
+    tone: "coral",
+    examples: [
+      {
+        icon: LifeBuoy,
+        title: "Route guest complaints",
+        prompt:
+          "When a task labeled guest-complaint is created, summarize it and assign to the manager-on-duty",
+        surfaces: ["tasks", "ai"],
+      },
+      {
+        icon: Wand2,
+        title: "Auto-triage new tasks",
+        prompt:
+          "When a task is created without an owner, suggest a team and assignee based on similar past tasks",
+        surfaces: ["tasks", "ai"],
+      },
+    ],
+  },
+  {
+    label: "Digests & reports",
+    tone: "blue",
+    examples: [
+      {
+        icon: CalendarClock,
+        title: "Monday leadership digest",
+        prompt:
+          "Every Monday at 9am, post a digest of last week's completed tasks in #leadership",
+        surfaces: ["system", "chat"],
+      },
+      {
+        icon: TriangleAlert,
+        title: "Daily blocked-work report",
+        prompt:
+          "Every weekday at 8am, list every blocked task with its owner in #ops",
+        surfaces: ["system", "chat"],
+      },
+    ],
+  },
+  {
+    label: "Follow-ups & handoffs",
+    tone: "sage",
+    examples: [
+      {
+        icon: ListTodo,
+        title: "Meeting action items → tasks",
+        prompt:
+          "When a meeting summary is ready, create follow-up tasks for each action item and share the summary in #ops",
+        surfaces: ["meetings", "tasks", "chat"],
+      },
+      {
+        icon: ClipboardList,
+        title: "Maintenance request → task",
+        prompt:
+          "When someone submits the maintenance-request form, create a task and notify the on-call engineer",
+        surfaces: ["forms", "tasks", "chat"],
+      },
+    ],
+  },
+  {
+    label: "Guest & bookings",
+    tone: "honey",
+    examples: [
+      {
+        icon: Headset,
+        title: "Chatbot handoff alert",
+        prompt:
+          "When the guest chatbot escalates to a human, post the conversation in #front-desk and create a task",
+        surfaces: ["ai", "chat", "tasks"],
+      },
+      {
+        icon: CalendarX2,
+        title: "Late cancellation alert",
+        prompt:
+          "When a booking is cancelled within 24 hours of its start, alert the front-desk channel",
+        surfaces: ["bookings", "chat"],
+      },
+    ],
+  },
 ];
 
 // Decode the base64 ?prefill= JSON and pull out its `goal` string, if any.
@@ -80,40 +202,20 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
 
   if (!spec) {
     return (
-      <div className="mx-auto max-w-[640px]">
+      <div className="mx-auto max-w-[760px] pb-16">
         <header className="mb-6 text-center">
-          <Sparkles className="mx-auto mb-3 size-7 text-primary" aria-hidden />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-primary/10">
+            <Sparkles className="size-5 text-primary" aria-hidden />
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Describe what you want
           </h1>
-          <p className="mx-auto mt-2 max-w-[480px] text-sm leading-relaxed text-muted-foreground">
-            Type a goal in plain English — AI will design the workflow on your
-            property&apos;s tasks, chat, docs, meetings, calendar, and entities.
+          <p className="mx-auto mt-2 max-w-[520px] text-sm leading-relaxed text-muted-foreground">
+            Type a goal in plain English — AI designs the workflow across your
+            property&apos;s tasks, chat, docs, meetings, calendar, forms,
+            bookings, and entities.
           </p>
         </header>
-
-        <div className="mb-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Try one of these
-          </p>
-          <ul className="flex flex-col gap-1.5">
-            {STARTER_PROMPTS.map((p, i) => (
-              <li key={i}>
-                <button
-                  type="button"
-                  onClick={() => setPendingPrompt(p)}
-                  className={cn(
-                    "w-full rounded-md border border-border/60 bg-card px-3 py-2 text-left text-xs text-foreground hover:bg-muted/40",
-                    busy && "opacity-50",
-                  )}
-                  disabled={busy}
-                >
-                  {p}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
 
         <AiCopilot
           propertyId={propertyId}
@@ -124,6 +226,73 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           pendingPrompt={pendingPrompt}
           onPendingPromptConsumed={() => setPendingPrompt(null)}
         />
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-1.5">
+          <span className="mr-0.5 text-xs text-muted-foreground">
+            Works across
+          </span>
+          {SURFACES.map((s) => (
+            <SurfaceLabelBadge key={s} surface={s} />
+          ))}
+        </div>
+
+        <div className="mt-10">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <Eyebrow>Start from an idea</Eyebrow>
+            <Link
+              href={`/p/${propertyId}/workflows/templates`}
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <LayoutTemplate className="size-3.5" aria-hidden />
+              Browse templates
+            </Link>
+          </div>
+
+          <div className="space-y-6">
+            {EXAMPLE_GROUPS.map((group) => (
+              <div key={group.label}>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  {group.label}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {group.examples.map((ex) => (
+                    <button
+                      key={ex.title}
+                      type="button"
+                      onClick={() => setPendingPrompt(ex.prompt)}
+                      disabled={busy}
+                      className={cn(
+                        "group flex h-full flex-col gap-2 rounded-xl border border-border/60 bg-card p-3.5 text-left transition-colors hover:border-border hover:bg-muted/30",
+                        busy && "pointer-events-none opacity-50",
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <TintIcon tone={group.tone}>
+                          <ex.icon aria-hidden />
+                        </TintIcon>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          {ex.title}
+                        </span>
+                        <ArrowRight
+                          className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-hidden
+                        />
+                      </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {ex.prompt}
+                      </p>
+                      <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                        {ex.surfaces.map((s) => (
+                          <SurfaceLabelBadge key={s} surface={s} />
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

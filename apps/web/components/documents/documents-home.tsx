@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { FileText, GripVertical, Plus, Sparkles } from "lucide-react";
+import { FileText, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DocumentRow } from "./document-row";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -17,7 +15,7 @@ import {
   documentsQueryOptions,
 } from "@/lib/query/section-queries";
 import type { DocumentListItem } from "@/lib/documents/queries";
-import { CreateDocumentDialog } from "./create-document-dialog";
+import { QuickCreateRow } from "./quick-create-row";
 import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { DocBoardsSection } from "./doc-boards-section";
 import { DocBoardsBoard } from "./doc-boards-board";
@@ -43,14 +41,11 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * the shared presence map.
  */
 export function DocumentsHome({ propertyId }: { propertyId: string }) {
-  const [createOpen, setCreateOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   return (
     <DocBoardsBoard propertyId={propertyId}>
       <DocumentsHomeBody
         propertyId={propertyId}
-        createOpen={createOpen}
-        setCreateOpen={setCreateOpen}
         generateOpen={generateOpen}
         setGenerateOpen={setGenerateOpen}
       />
@@ -60,14 +55,10 @@ export function DocumentsHome({ propertyId }: { propertyId: string }) {
 
 function DocumentsHomeBody({
   propertyId,
-  createOpen,
-  setCreateOpen,
   generateOpen,
   setGenerateOpen,
 }: {
   propertyId: string;
-  createOpen: boolean;
-  setCreateOpen: (open: boolean) => void;
   generateOpen: boolean;
   setGenerateOpen: (open: boolean) => void;
 }) {
@@ -101,15 +92,9 @@ function DocumentsHomeBody({
         docsCount={docsList.length}
         boardsCount={boards.length}
         editsThisWeek={editsThisWeek}
-        onCreate={() => setCreateOpen(true)}
         onGenerate={() => setGenerateOpen(true)}
       />
 
-      <CreateDocumentDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        propertyId={propertyId}
-      />
       <GenerateDocumentDialog
         open={generateOpen}
         onOpenChange={setGenerateOpen}
@@ -132,7 +117,6 @@ function EditorialLayout({
   docsCount,
   boardsCount,
   editsThisWeek,
-  onCreate,
   onGenerate,
 }: {
   propertyId: string;
@@ -143,29 +127,13 @@ function EditorialLayout({
   docsCount: number;
   boardsCount: number;
   editsThisWeek: number;
-  onCreate: () => void;
   onGenerate: () => void;
 }) {
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-col gap-10">
         <div className="flex items-center justify-end gap-6">
-          <div className="flex items-center gap-1.5">
-            <DocsActivitySheet propertyId={propertyId} />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={onGenerate}
-            >
-              <Sparkles className="size-4" />
-              Generate
-            </Button>
-            <Button type="button" size="sm" onClick={onCreate}>
-              <Plus className="size-4" />
-              New
-            </Button>
-          </div>
+          <DocsActivitySheet propertyId={propertyId} />
         </div>
         <div className="flex flex-col gap-5">
           <h1 className="font-serif text-5xl font-medium tracking-tight text-foreground sm:text-6xl">
@@ -183,6 +151,10 @@ function EditorialLayout({
             <Separator orientation="vertical" className="h-3.5" />
             <Stat label="Edits this week" value={editsThisWeek} />
           </dl>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Eyebrow>Create</Eyebrow>
+          <QuickCreateRow propertyId={propertyId} onGenerate={onGenerate} />
         </div>
       </header>
 
@@ -398,8 +370,12 @@ function TimelineRow({
   const viewers = useDocsHomePresence(doc.id);
   const editorName = useMemberName(propertyId, doc.last_edited_by);
 
+  // Per-instance id: the same doc can appear in more than one list, and dnd-kit
+  // keys drag state by id — a shared `doc:<id>` would drag every copy at once.
+  // The real document is resolved from `data.documentId` in the DnD handlers.
+  const instanceId = useId();
   const drag = useDraggable({
-    id: `doc:${doc.id}`,
+    id: `doc:${instanceId}`,
     data: { type: "doc", documentId: doc.id },
     disabled: !draggable,
   });
@@ -414,8 +390,6 @@ function TimelineRow({
     ? {
         ref: drag.setNodeRef,
         style: { transform: CSS.Translate.toString(drag.transform) },
-        ...drag.attributes,
-        ...drag.listeners,
       }
     : {};
 
@@ -424,7 +398,6 @@ function TimelineRow({
       {...rowProps}
       className={cn(
         "group/row relative",
-        draggable && "cursor-grab active:cursor-grabbing",
         draggable && drag.isDragging && "opacity-40",
       )}
     >
@@ -436,10 +409,21 @@ function TimelineRow({
         className="flex items-center gap-3 px-2 py-2.5"
       >
         {draggable ? (
-          <GripVertical
-            aria-hidden
-            className="size-4 shrink-0 text-muted-foreground/30 group-hover/row:text-muted-foreground/60"
-          />
+          // Drag handle: only the grip starts a drag, so grabbing the row's
+          // title or timestamp navigates instead of dragging. Clicks on the
+          // grip are swallowed so it never follows the link.
+          <span
+            {...drag.attributes}
+            {...drag.listeners}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            aria-label="Drag to pin to a board"
+            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-muted-foreground/30 hover:text-muted-foreground/60 active:cursor-grabbing"
+          >
+            <GripVertical aria-hidden className="size-4" />
+          </span>
         ) : (
           <FileText
             strokeWidth={1.5}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { TintIcon } from "@/components/ui/tint-card";
 import { Textarea } from "@/components/ui/textarea";
 import { createDocument } from "./actions";
 import { setPendingGeneration } from "@/lib/documents/pending-generation";
@@ -100,74 +102,96 @@ export function GenerateDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-medium tracking-tight">
-            <Sparkles className="size-4 text-violet-500" />
-            Generate a document
-          </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
-            Describe what you need. We&apos;ll draft it for you to review and
-            edit.
-          </DialogDescription>
+      <DialogContent className="max-w-lg gap-5">
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 pr-6">
+          <TintIcon tone="lavender" className="mt-0.5">
+            <Sparkles strokeWidth={1.5} />
+          </TintIcon>
+          <div className="flex flex-col gap-1">
+            <DialogTitle className="tracking-tight">
+              Generate a document
+            </DialogTitle>
+            <DialogDescription className="tracking-tight text-pretty">
+              Describe what you need — we&apos;ll draft it for you to review and
+              edit.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
-        <Textarea
-          autoFocus
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-              e.preventDefault();
-              void handleGenerate();
-            }
-          }}
-          placeholder="e.g. Onboarding guide for new front-desk staff…"
-          rows={4}
-          disabled={busy}
-          className="resize-none"
-        />
+        <div className="flex flex-col gap-3">
+          <Textarea
+            autoFocus
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                void handleGenerate();
+              }
+            }}
+            placeholder="e.g. Onboarding guide for new front-desk staff…"
+            rows={4}
+            disabled={busy}
+            className="resize-none"
+          />
 
-        <div className="flex flex-wrap gap-1.5">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex}
-              type="button"
-              disabled={busy}
-              onClick={() => setPrompt(ex)}
-              className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs tracking-tight text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground disabled:opacity-60"
-            >
-              {ex}
-            </button>
-          ))}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium tracking-tight text-muted-foreground">
+              Not sure where to start?
+            </p>
+            <ul role="list" className="flex flex-wrap gap-1.5">
+              {EXAMPLES.map((ex) => (
+                <li key={ex}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setPrompt(ex)}
+                    className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-transparent py-1.5 pr-2.5 pl-3 text-xs tracking-tight text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {ex}
+                    <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenChange(false)}
-            disabled={busy}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleGenerate()}
-            disabled={busy || !prompt.trim()}
-          >
-            {busy ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Creating…
-              </>
-            ) : (
-              <>
-                <Sparkles className="size-4" />
-                Generate
-              </>
-            )}
-          </Button>
+        <DialogFooter className="sm:items-center sm:justify-between">
+          <p className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+            <KbdGroup>
+              <Kbd>⌘</Kbd>
+              <Kbd>⏎</Kbd>
+            </KbdGroup>
+            to generate
+          </p>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleGenerate()}
+              disabled={busy || !prompt.trim()}
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" />
+                  Generate
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

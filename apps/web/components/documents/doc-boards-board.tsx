@@ -10,6 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { FileText } from "lucide-react";
 import {
@@ -82,8 +83,11 @@ function BoardsDnd({
   } | null>(null);
 
   function handleDragStart(event: DragStartEvent) {
-    const id = String(event.active.id);
-    const documentId = id.split(":")[1];
+    // Drag sources carry `{ type, documentId }` in their data — the id itself is
+    // per-instance (a doc can render in several lists) so we never parse it.
+    const documentId = event.active.data.current?.documentId as
+      | string
+      | undefined;
     if (!documentId) return;
     const doc = docsById.get(documentId);
     if (doc) setActiveGhost({ documentId: doc.id, title: doc.title });
@@ -93,11 +97,13 @@ function BoardsDnd({
     setActiveGhost(null);
     const { active, over } = event;
     if (!over) return;
-    const activeId = String(active.id);
+    const activeData = active.data.current as
+      | { type?: string; documentId?: string }
+      | undefined;
     const overId = String(over.id);
 
-    const isCardSource = activeId.startsWith("card:");
-    const documentId = activeId.split(":")[1];
+    const isCardSource = activeData?.type === "card";
+    const documentId = activeData?.documentId;
     if (!documentId) return;
 
     // Each list-style option declares its own "unpin-zone:<style>" droppable so
@@ -132,7 +138,7 @@ function BoardsDnd({
       onDragCancel={handleDragCancel}
     >
       {children}
-      <PortalDragOverlay dropAnimation={null}>
+      <PortalDragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
         {activeGhost ? <DragGhost title={activeGhost.title} /> : null}
       </PortalDragOverlay>
     </DndContext>

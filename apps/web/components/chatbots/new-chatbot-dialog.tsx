@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { TintIcon, tintAt, type TintTone } from "@/components/ui/tint-card";
 import { CHATBOT_TEMPLATE_DEFS } from "@/lib/chatbots/templates";
 import type { ChatbotTemplate } from "@/lib/chatbots/schema";
 import { createChatbot } from "./actions";
@@ -96,11 +97,12 @@ export function NewChatbotDialog({
         </DialogHeader>
         <form onSubmit={create} className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            {CHATBOT_TEMPLATE_DEFS.map((def) => (
+            {CHATBOT_TEMPLATE_DEFS.map((def, i) => (
               <TemplateCard
                 key={def.template}
                 selected={pick === def.template}
                 emoji={def.emoji}
+                tone={tintAt(i)}
                 title={def.name}
                 tagline={def.tagline}
                 onClick={() => setPick(def.template)}
@@ -109,13 +111,15 @@ export function NewChatbotDialog({
             <TemplateCard
               selected={pick === "custom"}
               emoji="🧩"
+              tone={tintAt(CHATBOT_TEMPLATE_DEFS.length)}
               title="Custom"
               tagline="A blank bot — write your own instructions"
               onClick={() => setPick("custom")}
             />
             <TemplateCard
               selected={pick === "describe"}
-              icon={<Sparkles className="size-4" />}
+              icon={<Sparkles />}
+              tone={tintAt(CHATBOT_TEMPLATE_DEFS.length + 1)}
               title="Describe it"
               tagline="Tell AI what the bot should do"
               onClick={() => setPick("describe")}
@@ -183,6 +187,7 @@ function TemplateCard({
   selected,
   emoji,
   icon,
+  tone,
   title,
   tagline,
   onClick,
@@ -190,6 +195,7 @@ function TemplateCard({
   selected: boolean;
   emoji?: string;
   icon?: React.ReactNode;
+  tone: TintTone;
   title: string;
   tagline: string;
   onClick: () => void;
@@ -203,12 +209,10 @@ function TemplateCard({
         "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors",
         selected
           ? "border-foreground/40 bg-muted/50"
-          : "border-border bg-background hover:bg-muted/30",
+          : "border-border bg-card hover:border-foreground/20 hover:bg-muted/20",
       )}
     >
-      <span className="flex size-7 items-center justify-center rounded-md border border-border bg-muted/50 text-sm">
-        {emoji ?? icon ?? <Bot className="size-4" />}
-      </span>
+      <TintIcon tone={tone}>{emoji ?? icon ?? <Bot />}</TintIcon>
       <span className="text-sm font-medium">{title}</span>
       <span className="text-xs leading-snug text-muted-foreground">
         {tagline}

@@ -6,8 +6,7 @@ import {
   Ticket,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { tintTone, type TintTone } from "@/components/ui/tint-card";
+import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 
 /**
  * Quick access to the main workspaces under the Home masthead. Neutral cards in
@@ -67,14 +66,9 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
             href={t.href(base)}
             className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-muted/20"
           >
-            <span
-              className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                tintTone[t.tone],
-              )}
-            >
-              <Icon className="size-[1.15rem]" />
-            </span>
+            <TintIcon tone={t.tone}>
+              <Icon />
+            </TintIcon>
             <div className="min-w-0">
               <div className="font-medium text-foreground">{t.label}</div>
               <div className="truncate text-sm text-muted-foreground">
