@@ -25,6 +25,7 @@
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@hookform/resolvers": "^5.2.2",
+    "@hotelclaw/agent-config": "workspace:*",
     "@json-render/core": "0.19.0",
     "@json-render/react": "0.19.0",
     "@liveblocks/chat-sdk-adapter": "^3.19.1",

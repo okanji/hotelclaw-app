@@ -23,7 +23,8 @@ export type ShellSection =
   | "meetings"
   | "workflows"
   | "chatbots"
-  | "bookings";
+  | "bookings"
+  | "agents";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
@@ -49,6 +50,7 @@ function sectionFromPath(pathname: string): ShellSection | null {
   if (pathname.includes("/activity")) return "activity";
   // Before the /chat check — "/chatbots" contains "/chat" as a substring.
   if (pathname.includes("/chatbots")) return "chatbots";
+  if (pathname.includes("/agents")) return "agents";
   if (pathname.includes("/workflows")) return "workflows";
   // Before the tasks check — "/my-tasks" contains "/tasks" but is a Home
   // surface (the personal agenda), not the team board.

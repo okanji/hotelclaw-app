@@ -155,6 +155,51 @@ Custom node implementations live in `lib/documents/nodes/`; their React views li
 2. Add a slash-menu entry in `components/documents/slash-command.tsx` with a `section` field.
 3. If the bot should be able to author it, extend `ALLOWED_TAGS` + `ATTR_ALLOWLIST` in `lib/ai/bots/doc-bot.ts` and update the `propose_document_content` tool description.
 
+## Agents section — user-built internal agents on the eve runtime (built 2026-07-17)
+
+The **Agents** rail section (`/p/[propertyId]/agents`, More menu) lets staff
+create, inspect, and chat with configurable internal AI agents, plus see a
+read-only transparency gallery of every built-in bot (`lib/agents/builtin.ts`
+— keep it honest when adding bots). Architecture:
+
+- **Data**: migration 0073 — `agents` (versioned `config` jsonb per
+  `packages/agent-config`: instructions, modelTier standard|advanced
+  (Haiku/Sonnet), tool grants, SKILL.md-format skills, document resources,
+  starter prompts) + `agent_sessions` (eve session id ↔ agent/user, holds the
+  continuation token; RLS: personal). Config schema is shared with the
+  runtime via `@hotelclaw/agent-config` (zod-only workspace package;
+  `lib/agents/schema.ts` re-exports it).
+- **Runtime**: `apps/agent` (eve, see root CLAUDE.md for the isolation
+  rules). Per-session resolution via eve `defineDynamic`: channel auth
+  stamps `propertyId`/`role`/`agentId` attributes →
+  `agent/lib/agent-config.ts:resolveSessionAgent` loads the row →
+  instructions (`agent/instructions/dynamic.ts`), model (`agent/agent.ts`),
+  tools (`agent/tools/catalog.ts` — executors for `AGENT_TOOL_CATALOG`, ids
+  must stay in sync; every `execute` INLINE per eve's replay constraint;
+  every query scoped by the stamped propertyId, never RLS), skills
+  (`agent/skills/dynamic.ts`). Paused/archived agents resolve to null →
+  static fallback instructions, no tools.
+- **UI**: `components/agents/*` — gallery (`agents-list.tsx`), editor
+  (`agent-editor.tsx` — the whole config in plain sight), chat
+  (`agent-chat.tsx` — talks to `/eve/v1/*` same-origin with property/agent
+  headers; NDJSON stream replays from index 0 so the transcript is rebuilt
+  from the event log each attach, which makes resume free; tool calls render
+  inline with expandable payloads). Server actions in
+  `components/agents/actions.ts`. Section is server-rendered → rail
+  pushState exception (`AGENTS_ROUTE`), and `/agents` is matched in
+  `sectionFromPath`.
+- **Verify changes** by driving the real loop: with `EVE_DEV=1 pnpm dev`
+  running (Node 24), create a session via `POST /eve/v1/session` with the
+  service bearer + `x-hotelclaw-{property,user,agent}` headers and stream
+  it; check persona, tool calls, and tenant scoping. Agent-file edits are
+  NOT reliably hot-reloaded — restart the dev server after changing
+  `apps/agent/agent/*`.
+- **Not yet done**: production deploy of the eve service (Vercel build
+  output + Node 24 runtime + coexistence of eve's workflow routes with the
+  app's own `withWorkflow` — verify before first deploy), production
+  channel-auth hardening (drop `localDev()`), approval-gated write tools,
+  schedules, session-list UI (rows are recorded already).
+
 ## Tier 2 — OpenClaw (separate service, not in this repo)
 
 One persistent agent handles long-running, scheduled, cross-channel, or skill-heavy work. **Not provisioned yet** — `delegate_to_openclaw` currently runs as a logging stub (`lib/ai/tools/delegate.ts`). Once `OPENCLAW_API_URL` is set, the tool flips to live HTTP delegation without code change.

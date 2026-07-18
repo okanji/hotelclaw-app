@@ -1,0 +1,26 @@
+{
+  "name": "agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Eve agent runtime for internal AI agents. Lives in its own workspace package so its AI SDK v7 dependency tree stays isolated from apps/web (AI SDK v6) under the hoisted node linker.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "eve dev --no-ui",
+    "build": "eve build"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.16",
+    "@hotelclaw/agent-config": "workspace:*",
+    "@supabase/ssr": "0.10",
+    "@supabase/supabase-js": "2",
+    "ai": "^7.0.26",
+    "eve": "^0.24.6",
+    "stream-chat": "9.47.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "microsandbox": "^0.6.6"
+  }
+}

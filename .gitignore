@@ -62,3 +62,10 @@ expo-env.d.ts
 
 # local sparse-checkouts of upstream examples we're porting from
 .references/
+
+# eve build/dev artifacts (apps/agent)
+.eve/
+.workflow-data/
+
+# read-only clone of the gbrain source for docs reference (not a dependency)
+services/gbrain-src/

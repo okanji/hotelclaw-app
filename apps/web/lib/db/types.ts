@@ -45,6 +45,7 @@ export type FormResponseSource = "direct" | "chat" | "workflow" | "onboarding" |
 
 // Kept in sync with the CHECKs in migration 0061_chatbots.sql.
 export type ChatbotStatus = "draft" | "published" | "paused";
+export type AgentStatus = "active" | "paused";
 export type ChatbotTemplateKind =
   | "front_desk"
   | "room_service"
@@ -112,6 +113,8 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
+          client_id: string | null;
+          timezone: string;
           archived_at: string | null;
           created_at: string;
         };
@@ -119,12 +122,16 @@ export interface Database {
           id?: string;
           name: string;
           slug: string;
+          client_id?: string | null;
+          timezone?: string;
           archived_at?: string | null;
           created_at?: string;
         };
         Update: Partial<{
           name: string;
           slug: string;
+          client_id: string | null;
+          timezone: string;
           archived_at: string | null;
         }>;
         Relationships: [];
@@ -1455,6 +1462,7 @@ export interface Database {
           name: string;
           token_hash: string;
           created_by: string;
+          allowed_tools: string[];
           created_at: string;
           last_used_at: string | null;
           revoked_at: string | null;
@@ -1465,11 +1473,13 @@ export interface Database {
           name: string;
           token_hash: string;
           created_by: string;
+          allowed_tools?: string[];
           last_used_at?: string | null;
           revoked_at?: string | null;
         };
         Update: Partial<{
           name: string;
+          allowed_tools: string[];
           last_used_at: string | null;
           revoked_at: string | null;
         }>;
@@ -2090,6 +2100,151 @@ export interface Database {
           priorities: unknown[];
           role_title: string | null;
           answers: Record<string, unknown>;
+        }>;
+        Relationships: [];
+      };
+      clients: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          brain_source: string;
+          brain_client_id: string;
+          brain_client_secret_ref: string;
+          status: "active" | "paused" | "offboarded";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          brain_source?: string;
+          brain_client_id?: string;
+          brain_client_secret_ref?: string;
+          status?: "active" | "paused" | "offboarded";
+        };
+        Update: Partial<{
+          slug: string;
+          name: string;
+          brain_source: string;
+          brain_client_id: string;
+          brain_client_secret_ref: string;
+          status: "active" | "paused" | "offboarded";
+        }>;
+        Relationships: [];
+      };
+      bots: {
+        Row: {
+          id: string;
+          client_id: string;
+          bot_id: string;
+          display_name: string;
+          persona_fallback: string | null;
+          tool_set: string[];
+          model_tier: "standard" | "advanced";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          bot_id: string;
+          display_name: string;
+          persona_fallback?: string | null;
+          tool_set?: string[];
+          model_tier?: "standard" | "advanced";
+        };
+        Update: Partial<{
+          display_name: string;
+          persona_fallback: string | null;
+          tool_set: string[];
+          model_tier: "standard" | "advanced";
+        }>;
+        Relationships: [];
+      };
+      bot_chat_sessions: {
+        Row: {
+          id: string;
+          client_id: string;
+          property_id: string;
+          bot_id: string;
+          channel_id: string;
+          eve_session_id: string | null;
+          eve_continuation_token: string | null;
+          last_turn_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          property_id: string;
+          bot_id: string;
+          channel_id: string;
+          eve_session_id?: string | null;
+          eve_continuation_token?: string | null;
+          last_turn_at?: string | null;
+        };
+        Update: Partial<{
+          eve_session_id: string | null;
+          eve_continuation_token: string | null;
+          last_turn_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      agents: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          config: Record<string, unknown>;
+          status: AgentStatus;
+          created_by: string | null;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          config?: Record<string, unknown>;
+          status?: AgentStatus;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          config: Record<string, unknown>;
+          status: AgentStatus;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      agent_sessions: {
+        Row: {
+          id: string;
+          agent_id: string;
+          property_id: string;
+          user_id: string;
+          title: string;
+          continuation_token: string | null;
+          last_message_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          agent_id: string;
+          property_id: string;
+          user_id: string;
+          title?: string;
+          continuation_token?: string | null;
+          last_message_at?: string;
+        };
+        Update: Partial<{
+          title: string;
+          continuation_token: string | null;
+          last_message_at: string;
         }>;
         Relationships: [];
       };

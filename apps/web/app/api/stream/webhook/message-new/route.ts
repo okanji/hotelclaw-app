@@ -35,6 +35,7 @@ import {
   loadTurns,
   saveTurn,
 } from "@/lib/stream/ai-turn-history";
+import { maybePodBotReply } from "@/lib/stream/pod-bot-reply";
 
 /**
  * Stream Chat webhook → in-app notification fan-out.
@@ -233,6 +234,22 @@ async function processMessageNew(
         console.error("[stream-webhook-message-new] emitWorkflowEvent failed", err);
       }
     });
+  }
+
+  // Pod-bot dispatch (fleet spec M3): a message addressed "@<bot_id> …" in
+  // a pod property's channel goes to the durable eve runtime instead of the
+  // legacy channel bot. Handled == this message's AI response is owned by
+  // the pod bot; notifications/workflow events above still ran.
+  if (!senderIsBot && !isAiGenerated && senderId) {
+    const handledByPodBot = await maybePodBotReply({
+      propertyId: channelRow.property_id,
+      channelId,
+      messageId: msg.id,
+      senderId,
+      senderName: msg.user?.name ?? null,
+      text,
+    });
+    if (handledByPodBot) return;
   }
 
   // AI reply trigger. maybeTriggerAiReply schedules its own after() so the

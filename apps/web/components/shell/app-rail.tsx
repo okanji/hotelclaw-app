@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
   Ticket,
   Video,
   Workflow,
@@ -92,6 +93,7 @@ const MORE_SECTIONS = new Set<ShellSection>([
   "dms",
   "workflows",
   "chatbots",
+  "agents",
   "bookings",
   "meetings",
 ]);
@@ -99,6 +101,7 @@ const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
   dms: "Direct messages",
   workflows: "Automate tasks and triggers",
   chatbots: "Build guest-facing assistants",
+  agents: "Internal AI agents — build, inspect, chat",
   bookings: "Reservations and availability",
   meetings: "Video calls and recordings",
 };
@@ -109,6 +112,7 @@ const MORE_TONES: Partial<Record<ShellSection, TintTone>> = {
   dms: "blue",
   workflows: "honey",
   chatbots: "lavender",
+  agents: "lavender",
   bookings: "coral",
   meetings: "sage",
 };
@@ -173,6 +177,8 @@ const MEETINGS_ROUTE = /^\/p\/[^/]+\/meetings(\/.*)?$/;
 const CHATBOTS_ROUTE = /^\/p\/[^/]+\/chatbots(\/.*)?$/;
 /** Bookings is server-rendered too — same real-navigation requirement. */
 const BOOKINGS_ROUTE = /^\/p\/[^/]+\/bookings(\/.*)?$/;
+/** Agents is server-rendered the same way chatbots is. */
+const AGENTS_ROUTE = /^\/p\/[^/]+\/agents(\/.*)?$/;
 /** Forms pages (list, builder, fill) are server-rendered routes reached
  *  from the Documents sidebar — same real-navigation requirement. */
 const FORMS_ROUTE = /^\/p\/[^/]+\/forms(\/.*)?$/;
@@ -327,6 +333,13 @@ export function AppRail({
         routeKey: "/chatbots",
       },
       {
+        section: "agents",
+        label: "Agents",
+        icon: Sparkles,
+        href: `/p/${propertyId}/agents`,
+        routeKey: "/agents",
+      },
+      {
         section: "bookings",
         label: "Bookings",
         icon: Ticket,
@@ -461,6 +474,8 @@ export function AppRail({
       !MEETINGS_ROUTE.test(pathname) &&
       !CHATBOTS_ROUTE.test(target) &&
       !CHATBOTS_ROUTE.test(pathname) &&
+      !AGENTS_ROUTE.test(target) &&
+      !AGENTS_ROUTE.test(pathname) &&
       !BOOKINGS_ROUTE.test(target) &&
       !BOOKINGS_ROUTE.test(pathname) &&
       !FORMS_ROUTE.test(target) &&

@@ -1,0 +1,11 @@
+{
+  "name": "@hotelclaw/agent-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Versioned config schema + tool catalog for internal AI agents. Shared by apps/web (builder UI validates/writes agents.config) and apps/agent (eve runtime resolves sessions from it). Ships TS source: apps/web transpiles it via next.config transpilePackages, eve's bundler handles it natively. Keep it dependency-free apart from zod.",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

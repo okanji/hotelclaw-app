@@ -1,6 +1,6 @@
 # Monorepo (turborepo + pnpm workspaces)
 
-This repo is a **turborepo** containing two apps:
+This repo is a **turborepo** containing three apps:
 
 - **`apps/web`** — the Next.js web app (everything that used to live at the repo
   root). All of its guidance lives in `apps/web/AGENTS.md`; paths referenced
@@ -9,8 +9,22 @@ This repo is a **turborepo** containing two apps:
   (e.g. `cd apps/web && pnpm dev`, or `pnpm --filter web <script>` from root).
 - **`apps/mobile`** — the Expo / React Native app (Stream Chat). See
   `apps/mobile/CLAUDE.md`.
+- **`apps/agent`** — the **eve** agent runtime backing the web app's Agents
+  section (durable internal AI agents). Deliberately its own workspace
+  package: eve needs **AI SDK v7** while apps/web is on v6, so its
+  `ai`/`@ai-sdk/*` tree nests under `apps/agent/node_modules` (hoisted
+  linker keeps v6 at the root). **Never import apps/web modules that import
+  `ai` into agent code.** Shared agent-config schema lives in
+  `packages/agent-config` (zod-only; eve snapshots its agent root, so shared
+  code must arrive via node_modules, not relative paths). Eve requires
+  **Node ≥ 24** (`.nvmrc` pins 24; `nvm use` before dev) and is gated behind
+  `EVE_DEV=1` in `apps/web/next.config.ts` (`withEve`, eveRoot `../agent`).
+  Dev: `nvm use 24 && EVE_DEV=1 pnpm dev` — one server; eve routes mount at
+  `/eve/v1/*` (middleware-allowlisted; auth = eve channel AuthFn in
+  `apps/agent/agent/channels/eve.ts`: Supabase session cookie or
+  service-role bearer + `x-hotelclaw-property`/`-agent`/`-user` headers).
 
-Shared code (when it exists) goes under `packages/*`.
+Shared code goes under `packages/*` (`@hotelclaw/agent-config` is the first).
 
 ## Common commands (run from repo root)
 

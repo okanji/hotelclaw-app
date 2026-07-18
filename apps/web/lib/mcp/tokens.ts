@@ -20,6 +20,9 @@ export function hashToken(token: string): string {
 export type VerifiedToken = {
   tokenId: string;
   propertyId: string;
+  createdBy: string;
+  /** Actions-MCP tool allow-list (0075). Empty = read-only legacy key. */
+  allowedTools: string[];
 };
 
 export async function verifyApiToken(
@@ -29,7 +32,7 @@ export async function verifyApiToken(
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("api_tokens")
-    .select("id, property_id, revoked_at")
+    .select("id, property_id, created_by, allowed_tools, revoked_at")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
   if (!data || data.revoked_at) return null;
@@ -39,5 +42,10 @@ export async function verifyApiToken(
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", data.id)
     .then(() => undefined);
-  return { tokenId: data.id, propertyId: data.property_id };
+  return {
+    tokenId: data.id,
+    propertyId: data.property_id,
+    createdBy: data.created_by,
+    allowedTools: data.allowed_tools ?? [],
+  };
 }

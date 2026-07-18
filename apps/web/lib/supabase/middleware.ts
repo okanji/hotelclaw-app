@@ -72,6 +72,10 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/g/") ||
     // Public booking pages (/book/<property-slug> + signed manage links).
     pathname.startsWith("/book/") ||
+    // Eve agent runtime routes (apps/agent via withEve). Auth happens inside
+    // eve's channel AuthFn (Supabase session verification), not here — the
+    // middleware must not redirect its JSON/NDJSON endpoints to /login.
+    pathname.startsWith("/eve/") ||
     // The embed widget script loads on third-party hotel websites (the
     // root matcher only exempts image extensions, not .js).
     pathname === "/chatbot-widget.js" ||

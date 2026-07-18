@@ -20,6 +20,7 @@ import { DocumentsTreeSection } from "@/components/documents/documents-tree-sect
 import { MeetingsSection } from "./sections/meetings-section";
 import { WorkflowsSection } from "./sections/workflows-section";
 import { ChatbotsSection } from "./sections/chatbots-section";
+import { AgentsSection } from "./sections/agents-section";
 import { BookingsSection } from "./sections/bookings-section";
 import type { Membership } from "@/lib/auth/session";
 
@@ -128,6 +129,11 @@ export function SectionSidebar({
         <SectionPane active={section === "chatbots"}>
           <Suspense fallback={null}>
             <ChatbotsSection propertyId={currentPropertyId} />
+          </Suspense>
+        </SectionPane>
+        <SectionPane active={section === "agents"}>
+          <Suspense fallback={null}>
+            <AgentsSection propertyId={currentPropertyId} />
           </Suspense>
         </SectionPane>
         <SectionPane active={section === "bookings"}>
