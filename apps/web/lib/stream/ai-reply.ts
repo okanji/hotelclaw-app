@@ -195,9 +195,10 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     // The default channel bot runs on the eve runtime: one durable session
     // per (channel, thread) with real memory + the shared knowledge brain.
     // Custom-chatbot channel deployments keep the legacy stateless path
-    // (their persona/tools merge web-side). Any eve failure falls through
-    // to the legacy path below — the bot never goes silent because the
-    // agent runtime is down. No coalesce loop here: sessions are not a
+    // below (their persona/tools merge web-side). An eve failure FAILS
+    // LOUDLY — a visible error message in the channel, no silent fallback
+    // to the stateless path (a degraded reply hides runtime rot; a loud
+    // failure gets fixed). No coalesce loop here: sessions are not a
     // message queue; messages landing mid-turn arrive as unseen context on
     // the next trigger.
     let eveHandled = false;
@@ -221,10 +222,27 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
         }
         eveHandled = true;
       } else {
-        console.warn("[ai-reply] eve turn failed — legacy fallback", {
+        console.error("[ai-reply] eve turn FAILED — no fallback", {
           channelId: ctx.streamChannelId,
           reason: eveTurn.reason,
         });
+        await channel
+          .sendEvent({
+            type: "typing.stop",
+            user_id: botUserId,
+            ...(parentId ? { parent_id: parentId } : {}),
+          } as unknown as Parameters<typeof channel.sendEvent>[0])
+          .catch((e) => console.error("[ai-reply] typing.stop failed", e));
+        // ai_generated so this can't re-trigger the bot.
+        await channel
+          .sendMessage({
+            text: `⚠️ AI reply failed — eve runtime error: ${eveTurn.reason}. Check the server logs.`,
+            user_id: botUserId,
+            ai_generated: true,
+            ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
+          } as unknown as Parameters<typeof channel.sendMessage>[0])
+          .catch((e) => console.error("[ai-reply] failure notice failed", e));
+        return;
       }
     }
 

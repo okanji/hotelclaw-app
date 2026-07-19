@@ -5,7 +5,8 @@ import "server-only";
  * stateless); this module replaces the GENERATION: one durable eve session
  * per (channel, thread), resolved runtime-side as the virtual `hotelclaw`
  * agent (apps/agent agent/lib/agent-config.ts) with property tools + the
- * shared knowledge brain.
+ * shared knowledge brain (when the property has a binding — brainless
+ * properties get no brain tools and instructions that say so).
  *
  * What durability changes vs the old runBot path:
  *   - The session REMEMBERS — each turn sends only the messages the

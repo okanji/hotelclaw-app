@@ -8,6 +8,7 @@ import {
   upsertStreamUser,
 } from "@/lib/stream/server";
 import { createInvite } from "@/lib/invites/actions";
+import { provisionPropertyBrain } from "@/lib/brain/provision";
 import { startGuestChatbotBuild } from "@/lib/onboarding/chatbot-workflow";
 import {
   seedStarterAutomation,
@@ -47,7 +48,7 @@ function slugify(s: string) {
 async function bootstrapProperty(
   name: string,
   userId: string,
-): Promise<{ propertyId: string } | { error: string }> {
+): Promise<{ propertyId: string; brainWarning?: string } | { error: string }> {
   const baseSlug = slugify(name) || "property";
   const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 6)}`;
   const service = createServiceClient();
@@ -72,7 +73,15 @@ async function bootstrapProperty(
     return { error: memErr.message };
   }
 
-  return { propertyId: property.id };
+  // Bind the property to the shared knowledge brain. Fail-soft: a failure
+  // leaves the property brainless (the provisioning sweep reconciles), and
+  // on hosts without the gbrain CLI this is an instant no-op.
+  const brain = await provisionPropertyBrain(property.id, slug);
+
+  return {
+    propertyId: property.id,
+    brainWarning: "error" in brain ? brain.error : undefined,
+  };
 }
 
 /** Kept for compatibility — the bare "name only" property creation. */
@@ -136,6 +145,7 @@ export async function createWorkspace(input: {
     console.error(`[createWorkspace] ${stage} failed`, e);
     warnings.push(stage);
   };
+  if (bootstrap.brainWarning) warn("brain provisioning", bootstrap.brainWarning);
 
   // ── Stream user (before any channel creation) ────────────────────────────
   const service = createServiceClient();

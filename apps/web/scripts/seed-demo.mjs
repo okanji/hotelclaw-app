@@ -309,6 +309,9 @@ async function seed() {
   // Persist the lock immediately so a mid-run failure is still cleanable.
   writeLock(lock);
   console.log(`✓ Property "${propName}" (${propertyId})`);
+  console.log(
+    "  ℹ run `node --env-file=.env.local scripts/provision-property-brain.mjs --all` to bind it to the knowledge brain",
+  );
 
   /* 2. Owner membership (real user) */
   await sb

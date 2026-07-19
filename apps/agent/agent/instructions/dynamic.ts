@@ -1,9 +1,10 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { serviceClient } from "../lib/supabase";
 import { tenantCallerOrNull } from "../lib/tenant";
-import { resolveSessionAgent } from "../lib/agent-config";
+import { CHANNEL_BOT_SLUG, resolveSessionAgent } from "../lib/agent-config";
 import { resolvePodContext } from "../lib/pods";
 import { getBrainPage } from "../lib/gbrain-http";
+import { resolvePropertyBrainBinding } from "../lib/property-brain";
 
 // Per-session instructions, resolved in priority order:
 //   1. Pod bot (fleet spec): persona from the pod brain's compiled playbook
@@ -65,23 +66,39 @@ export default defineDynamic({
         });
       }
 
-      // 2. Custom agent (Agents section).
+      // 2. Custom agent (Agents section) — also serves the virtual default
+      //    channel bot, which additionally gets an honest per-property
+      //    knowledge-brain section (the brain tools in tools/channel-brain.ts
+      //    mount only when a binding resolves; the instructions must match).
       const resolved = await resolveSessionAgent(ctx);
       if (resolved) {
-        return defineInstructions({
-          markdown: [
-            `# ${resolved.name}`,
+        const markdown = [
+          `# ${resolved.name}`,
+          "",
+          resolved.config.instructions.trim() ||
+            "You are a helpful internal assistant for the property team.",
+          "",
+          "## Context",
+          `- Property: ${propertyName}.`,
+          `- You are speaking with a ${caller.role} member of the property's staff.`,
+          "- Never invent data: answer from your tools, skills, and attached resources.",
+          "- If asked what you can do, describe your granted tools and skills honestly.",
+        ];
+        if (resolved.agentId === `virtual:${CHANNEL_BOT_SLUG}`) {
+          const binding = await resolvePropertyBrainBinding(caller.propertyId);
+          markdown.push(
             "",
-            resolved.config.instructions.trim() ||
-              "You are a helpful internal assistant for the property team.",
-            "",
-            "## Context",
-            `- Property: ${propertyName}.`,
-            `- You are speaking with a ${caller.role} member of the property's staff.`,
-            "- Never invent data: answer from your tools, skills, and attached resources.",
-            "- If asked what you can do, describe your granted tools and skills honestly.",
-          ].join("\n"),
-        });
+            "## Knowledge brain",
+            binding
+              ? [
+                  "- This property has a shared knowledge brain — your brain_search, brain_think, and brain_capture tools.",
+                  "- Try brain_search before answering property-history questions (\"have we dealt with X before\", policies, suppliers, guest preferences).",
+                  "- Cite brain knowledge as [brain: <page-path>].",
+                ].join("\n")
+              : "- No knowledge brain is provisioned for this property: you have NO brain tools and no memory beyond this channel's session. If asked about the brain or remembered knowledge, say so plainly — never claim brain access.",
+          );
+        }
+        return defineInstructions({ markdown: markdown.join("\n") });
       }
 
       // 3. Bare session.
