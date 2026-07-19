@@ -1,0 +1,13 @@
+{
+  "name": "@hotelclaw/chat-ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Chat rich-UI catalog (the ai_ui Stream attachment vocabulary): zod prop schemas, spec validation, deep-link resolution. Shared by apps/web (render_ui tool + client renderer) and apps/agent (the eve channel bot's render_ui). Ships TS source: apps/web transpiles via next.config transpilePackages, eve's bundler handles it natively. Keep it free of react and server-only imports — @json-render/react is used ONLY for its /schema subpath (react-free).",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "@json-render/core": "0.19.0",
+    "@json-render/react": "0.19.0",
+    "zod": "^4.4.3"
+  }
+}

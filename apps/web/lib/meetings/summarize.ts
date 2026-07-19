@@ -196,6 +196,40 @@ export async function processTranscriptReady(args: {
     speakers,
     summaryPreview: summary.summary_md,
   });
+
+  // Durable evidence into the property's shared brain (fail-soft): the
+  // decisions + action items are exactly the "what did we agree and why"
+  // institutional memory other bots should find later. The full summary
+  // stays in the app doc — the brain gets the durable takeaways.
+  try {
+    const { resolvePropertyBrain, captureToBrain } = await import(
+      "@/lib/brain/client"
+    );
+    const binding = await resolvePropertyBrain(args.meeting.propertyId);
+    if (binding && (summary.decisions.length || summary.action_items.length)) {
+      const detail = [
+        summary.decisions.length
+          ? `Decisions:\n${summary.decisions.map((d) => `- ${d}`).join("\n")}`
+          : "",
+        summary.action_items.length
+          ? `Action items:\n${summary.action_items
+              .map((a) => `- ${typeof a === "string" ? a : JSON.stringify(a)}`)
+              .join("\n")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      await captureToBrain(binding, {
+        slug: "operations/meetings",
+        pageTitle: "Meeting outcomes",
+        summary: `${args.meeting.title || "Meeting"}: ${summary.decisions[0] ?? summary.summary_md.split("\n")[0].slice(0, 200)}`,
+        detail,
+        source: `meeting ${args.meeting.id}, ${new Date().toISOString().slice(0, 10)}`,
+      });
+    }
+  } catch (err) {
+    console.warn("[meetings] brain capture failed", err);
+  }
 }
 
 async function notifyParticipants(args: {

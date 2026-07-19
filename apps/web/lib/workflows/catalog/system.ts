@@ -100,15 +100,15 @@ const actions: StepCatalogEntry[] = [
     id: "action.external.delegate_to_openclaw",
     surface: "external",
     category: "action",
-    label: "Hand off to OpenClaw agent",
+    label: "Hand off to durable agent",
     description:
-      "Hands off to OpenClaw, the always-on assistant, for work that outlives this workflow — ongoing monitoring, jobs that span days, or tasks that need outside tools like SMS.",
+      "Hands off to the durable agent runtime for work that outlives this workflow — multi-step jobs that keep running in the background and can pause for human approval.",
     examplePrompts: [
-      "let OpenClaw handle the follow-up monitoring",
-      "delegate to OpenClaw for SMS notification",
+      "delegate the follow-up investigation to the agent",
+      "hand this goal to the durable agent",
     ],
     outputSchema: z.object({ delegated: z.boolean(), task_id: z.string().optional() }),
-    explain: () => "Delegate to OpenClaw",
+    explain: () => "Delegate to durable agent",
   },
 ];
 

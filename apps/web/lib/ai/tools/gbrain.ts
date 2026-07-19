@@ -1,50 +1,95 @@
 import "server-only";
 /**
- * gbrain tools, scoped per-property via the MCP connection.
+ * Shared-brain tools for Tier-1 bots — a CURATED surface over the shared
+ * gbrain server (fleet v2), not raw MCP schema discovery. The serve
+ * exposes ~94 ops; dumping them all into every bot's tool map buries the
+ * useful ones. We expose the read ladder + one disciplined write:
  *
- * gbrain is the shared brain substrate for our two-tier AI architecture
- * (see AGENTS.md). It exposes ~30 tools via MCP — primary ones are:
+ *   • search  — cheap hybrid retrieval (works even before embeddings)
+ *   • think   — LLM-synthesized answer with citations + gap analysis
+ *   • capture — append durable evidence to an entity page's timeline
  *
- *   • capture        — write an observation/signal into the brain (the
- *                      key write operation; how the brain gets smarter
- *                      over time)
- *   • search         — cheap hybrid retrieval (vector + BM25 + RRF). Use
- *                      when you need raw matches.
- *   • think          — LLM-synthesized answer with citations and gap
- *                      analysis. More expensive — reserve for harder
- *                      questions.
- *   • graph-query    — multi-hop traversal over the knowledge graph.
- *
- * Tenant isolation is at the **MCP connection / brain** layer, not in
- * tool args. `getGbrainClient(propertyId)` returns a connection scoped
- * to that property's brain; gbrain's own tools do not accept a
- * `propertyId` parameter (and rejecting unknown fields would break the
- * call). So we expose `client.tools()` as-is — schema discovery is the
- * source of truth.
- *
- * Fail-soft: if gbrain isn't reachable (env missing, no per-property
- * row, or upstream error), returns an empty tool set. Bots keep working,
- * just without gbrain.
+ * Tenant isolation lives in the OAuth CLIENT the property resolves to
+ * (write-source binding + federated-read allow-list enforced by the
+ * serve) — never in tool args. Fail-soft: unresolved binding ⇒ empty
+ * tool set, bots run brainless exactly as before.
  */
-import type { ToolSet } from "ai";
+import { tool, type ToolSet } from "ai";
+import { z } from "zod";
 import type { BotScope } from "@/lib/ai/run-bot";
-import { getGbrainClient } from "@/lib/ai/mcp-clients";
+import {
+  callBrainTool,
+  captureToBrain,
+  resolvePropertyBrain,
+} from "@/lib/brain/client";
 
-/**
- * Return gbrain's MCP tool surface for the given bot's property. Empty
- * object when gbrain isn't reachable for this property.
- */
 export async function buildGbrainTools(scope: BotScope): Promise<ToolSet> {
-  const client = await getGbrainClient(scope.propertyId);
-  if (!client) return {};
+  const binding = await resolvePropertyBrain(scope.propertyId);
+  if (!binding) return {};
 
-  try {
-    // Schema discovery — gbrain's MCP schema is the source of truth.
-    // We do not wrap or modify the tools; the connection itself is
-    // already scoped to this property's brain.
-    return await client.tools();
-  } catch (err) {
-    console.error("[gbrain] failed to load tools", err);
-    return {};
-  }
+  return {
+    search: tool({
+      description:
+        "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, playbooks, team lore). Cheap hybrid retrieval returning matching chunks. Use FIRST for anything that smells like 'have we seen this before'.",
+      inputSchema: z.object({
+        query: z.string().min(2).max(300),
+        limit: z.number().int().min(1).max(10).default(5),
+      }),
+      async execute({ query, limit }) {
+        const result = await callBrainTool(binding, "search", { query, limit });
+        return result.ok
+          ? { results: result.content }
+          : { unavailable: true, reason: result.reason };
+      },
+    }),
+    think: tool({
+      description:
+        "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. More expensive than search — reserve for questions needing judgment across many pages ('why does the pool keep going green?', 'what do we know about this supplier?'). Not for simple lookups.",
+      inputSchema: z.object({
+        question: z.string().min(5).max(500),
+      }),
+      async execute({ question }) {
+        const result = await callBrainTool(
+          binding,
+          "think",
+          { question },
+          { timeoutMs: 60_000 },
+        );
+        return result.ok
+          ? { answer: result.content }
+          : { unavailable: true, reason: result.reason };
+      },
+    }),
+    capture: tool({
+      description:
+        "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for: confirmed recurring issues, how something was fixed, supplier/vendor behavior, decisions the team made, guest-relevant lore. SKIP ephemeral chit-chat and anything already authoritative in the app (tasks, bookings, docs). slug examples: 'systems/pool', 'suppliers/acme-pool-services', 'lore/generator'.",
+      inputSchema: z.object({
+        slug: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9/_-]{2,80}$/)
+          .describe("Entity page path (kebab-case, '/'-separated)"),
+        page_title: z.string().min(2).max(120),
+        observation: z
+          .string()
+          .min(10)
+          .max(1000)
+          .describe("The durable fact, one to three sentences, specific"),
+        source: z
+          .string()
+          .max(140)
+          .describe("Where this came from (e.g. 'chat #maintenance, Oamar, 2026-07-19')"),
+      }),
+      async execute({ slug, page_title, observation, source }) {
+        const result = await captureToBrain(binding, {
+          slug,
+          pageTitle: page_title,
+          summary: observation,
+          source,
+        });
+        return result.ok
+          ? { captured: true, slug }
+          : { captured: false, reason: result.reason };
+      },
+    }),
+  };
 }

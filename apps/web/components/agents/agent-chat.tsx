@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { TintIcon } from "@/components/ui/tint-card";
 import { ChatMarkdown } from "@/components/chatbots/chat-markdown";
 import { cn } from "@/lib/utils";
+import {
+  createTranscriptReducer,
+  type TranscriptItem,
+} from "@/lib/fleet/transcript";
 import { recordAgentSession } from "./actions";
 
 export type AgentChatSession = {
@@ -16,22 +20,16 @@ export type AgentChatSession = {
   title?: string;
 };
 
-type ToolCall = {
-  callId: string;
-  toolName: string;
-  input: unknown;
-  output?: unknown;
-  done: boolean;
-};
-
-type TranscriptItem =
-  | { kind: "user"; text: string }
-  | { kind: "assistant"; text: string; toolCalls: ToolCall[] };
+/** Which AI a session addresses: a stored custom agent (agents table,
+ * x-hotelclaw-agent) or a fleet pod bot (bots table, x-hotelclaw-bot).
+ * Pod-bot sessions are ephemeral test chats — nothing is recorded
+ * (recordAgentSession FKs public.agents). */
+export type AgentChatTarget = { agentId: string } | { botSlug: string };
 
 /**
  * Chat with an agent over eve's HTTP API — same-origin `/eve/v1/*` routes
  * (withEve), Supabase cookie auth verified by the agent's channel AuthFn,
- * property + agent selected via headers. The NDJSON event stream replays
+ * property + target selected via headers. The NDJSON event stream replays
  * from index 0 on every attach, so the transcript is REBUILT from the event
  * log each turn — which also makes resuming a saved session free. Tool
  * calls are rendered inline (name + expandable payload): the transparency
@@ -39,7 +37,7 @@ type TranscriptItem =
  */
 export function AgentChat({
   propertyId,
-  agentId,
+  target,
   agentName,
   avatarEmoji,
   starterPrompts,
@@ -47,7 +45,7 @@ export function AgentChat({
   initialSession,
 }: {
   propertyId: string;
-  agentId: string;
+  target: AgentChatTarget;
   agentName: string;
   avatarEmoji: string;
   starterPrompts: string[];
@@ -62,13 +60,17 @@ export function AgentChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const hydratedRef = useRef(false);
 
+  const targetAgentId = "agentId" in target ? target.agentId : null;
+  const targetBotSlug = "botSlug" in target ? target.botSlug : null;
+
   const headers = useCallback(
     (): Record<string, string> => ({
       "content-type": "application/json",
       "x-hotelclaw-property": propertyId,
-      "x-hotelclaw-agent": agentId,
+      ...(targetAgentId ? { "x-hotelclaw-agent": targetAgentId } : {}),
+      ...(targetBotSlug ? { "x-hotelclaw-bot": targetBotSlug } : {}),
     }),
-    [propertyId, agentId],
+    [propertyId, targetAgentId, targetBotSlug],
   );
 
   /** Read the session's NDJSON stream, rebuilding the transcript from the
@@ -87,96 +89,23 @@ export function AgentChat({
         throw new Error(`stream failed (${response.status})`);
       }
 
-      const items: TranscriptItem[] = [];
-      let currentAssistant: Extract<TranscriptItem, { kind: "assistant" }> | null =
-        null;
-
-      const ensureAssistant = () => {
-        if (!currentAssistant) {
-          currentAssistant = { kind: "assistant", text: "", toolCalls: [] };
-          items.push(currentAssistant);
-        }
-        return currentAssistant;
-      };
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
-      const handle = (event: {
-        type: string;
-        data: Record<string, unknown>;
-      }) => {
-        const data = event.data ?? {};
-        switch (event.type) {
-          case "message.received": {
-            currentAssistant = null;
-            items.push({ kind: "user", text: String(data.message ?? "") });
-            break;
-          }
-          case "message.appended":
-          case "message.completed": {
-            const entry = ensureAssistant();
-            entry.text = String(data.messageSoFar ?? data.message ?? entry.text);
-            // A completed pre-tool message stays; the next append after tool
-            // results continues in the same bubble for a compact transcript.
-            break;
-          }
-          case "actions.requested": {
-            const entry = ensureAssistant();
-            const actions = Array.isArray(data.actions) ? data.actions : [];
-            for (const action of actions as {
-              callId?: string;
-              kind?: string;
-              toolName?: string;
-              input?: unknown;
-            }[]) {
-              if (action.kind === "tool-call") {
-                entry.toolCalls.push({
-                  callId: String(action.callId ?? Math.random()),
-                  toolName: String(action.toolName ?? "tool"),
-                  input: action.input,
-                  done: false,
-                });
-              }
-            }
-            break;
-          }
-          case "action.result": {
-            const result = data.result as
-              | { callId?: string; output?: unknown }
-              | undefined;
-            if (!result?.callId) break;
-            for (const item of items) {
-              if (item.kind !== "assistant") continue;
-              const call = item.toolCalls.find(
-                (c) => c.callId === result.callId,
-              );
-              if (call) {
-                call.done = true;
-                call.output = result.output;
-              }
-            }
-            break;
-          }
-          case "session.waiting": {
-            sessionRef.current = {
-              id: sessionId,
-              continuationToken:
-                typeof data.continuationToken === "string"
-                  ? data.continuationToken
-                  : null,
-            };
-            controller.abort();
-            break;
-          }
-          case "session.failed": {
-            toast.error("The agent run failed — try again.");
-            controller.abort();
-            break;
-          }
-        }
-        setTranscript([...items]);
+      const reducer = createTranscriptReducer({
+        onWaiting: (continuationToken) => {
+          sessionRef.current = { id: sessionId, continuationToken };
+          controller.abort();
+        },
+        onFailed: () => {
+          toast.error("The agent run failed — try again.");
+          controller.abort();
+        },
+      });
+      const handle = (event: { type: string; data: Record<string, unknown> }) => {
+        reducer.handle(event);
+        setTranscript([...reducer.items]);
       };
 
       try {
@@ -247,13 +176,17 @@ export function AgentChat({
 
         await consumeStream(sessionId);
 
-        await recordAgentSession({
-          sessionId,
-          agentId,
-          propertyId,
-          title: isFollowUp ? undefined : message.slice(0, 140),
-          continuationToken: sessionRef.current?.continuationToken ?? null,
-        });
+        // Pod-bot test chats are ephemeral — agent_sessions FKs the agents
+        // table, so only stored-agent sessions are recorded.
+        if (targetAgentId) {
+          await recordAgentSession({
+            sessionId,
+            agentId: targetAgentId,
+            propertyId,
+            title: isFollowUp ? undefined : message.slice(0, 140),
+            continuationToken: sessionRef.current?.continuationToken ?? null,
+          });
+        }
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to reach the agent",
@@ -262,7 +195,7 @@ export function AgentChat({
         setBusy(false);
       }
     },
-    [busy, headers, consumeStream, agentId, propertyId],
+    [busy, headers, consumeStream, targetAgentId, propertyId],
   );
 
   // Resume the saved conversation once on mount: attach to its stream to

@@ -1,7 +1,14 @@
+import { after } from "next/server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 import { verifyApiToken } from "@/lib/mcp/tokens";
 import { createServiceClient } from "@/lib/supabase/server";
+import type { ActionsMcpTool } from "@/lib/mcp/actions-tools";
+import {
+  eveOrigin,
+  fleetServiceHeaders,
+  readSessionTail,
+} from "@/lib/fleet/eve-session";
 
 /**
  * Actions MCP server (fleet spec M5) — the WRITE-capable external surface at
@@ -37,16 +44,15 @@ function authOf(extra: AuthExtra): {
   return { propertyId, userId, allowed };
 }
 
-function requireTool(extra: AuthExtra, tool: string) {
+// Typed against ACTIONS_MCP_TOOLS (lib/mcp/actions-tools.ts) so a new tool
+// registration that isn't in the shared constant fails to compile — the
+// constant feeds the Fleet UI's key-scope multi-select.
+function requireTool(extra: AuthExtra, tool: ActionsMcpTool) {
   const auth = authOf(extra);
   if (!auth.allowed.has(tool)) {
     throw new Error(`This API key is not allowed to call ${tool}.`);
   }
   return auth;
-}
-
-function eveOrigin(): string {
-  return process.env.EVE_INTERNAL_ORIGIN ?? "http://127.0.0.1:3000";
 }
 
 /** Named workflows: a typed brief the durable session executes in task
@@ -195,6 +201,8 @@ const handler = createMcpHandler((server) => {
       // (apps/agent agent/lib/tenant.ts:resolveTenantCaller). Fail-soft:
       // the workflow itself still runs, only subagent delegation degrades.
       if (body.sessionId) {
+        const sessionId = body.sessionId;
+        let rowId: string | null = null;
         try {
           const service = createServiceClient();
           const { data: property } = await service
@@ -205,18 +213,60 @@ const handler = createMcpHandler((server) => {
               .eq("client_id", property.client_id).eq("bot_id", def.bot)
               .single();
             if (bot) {
-              await service.from("bot_chat_sessions").insert({
-                client_id: property.client_id,
-                property_id: propertyId,
-                bot_id: bot.id,
-                channel_id: `workflow:${body.sessionId}`,
-                eve_session_id: body.sessionId,
-                last_turn_at: new Date().toISOString(),
-              });
+              const { data: row } = await service
+                .from("bot_chat_sessions")
+                .insert({
+                  client_id: property.client_id,
+                  property_id: propertyId,
+                  bot_id: bot.id,
+                  channel_id: `workflow:${sessionId}`,
+                  eve_session_id: sessionId,
+                  last_turn_at: new Date().toISOString(),
+                })
+                .select("id")
+                .single();
+              rowId = row?.id ?? null;
             }
           }
         } catch (e) {
           console.warn("[actions-mcp] workflow session record failed", e);
+        }
+        // Workflow sessions never hold a continuation token otherwise (this
+        // route fires and returns) — without this tail read, a workflow
+        // parking on a gated tool would be invisible to the Fleet approvals
+        // inbox. Fail-soft: the workflow itself is unaffected.
+        if (rowId) {
+          const recordId = rowId;
+          after(async () => {
+            try {
+              const tail = await readSessionTail(
+                sessionId,
+                fleetServiceHeaders({ propertyId, userId, botSlug: def.bot }),
+                { deadlineMs: 45_000, breakOnSettle: true },
+              );
+              if (!tail) return;
+              const service = createServiceClient();
+              await service
+                .from("bot_chat_sessions")
+                .update({
+                  eve_continuation_token: tail.continuationToken,
+                  last_turn_at: new Date().toISOString(),
+                  status:
+                    tail.status === "awaiting_approval" ? "awaiting_approval" : "idle",
+                  pending_approval:
+                    tail.status === "awaiting_approval"
+                      ? {
+                          requests: tail.pendingRequests,
+                          requestedAt: new Date().toISOString(),
+                          channelId: `workflow:${sessionId}`,
+                        }
+                      : null,
+                })
+                .eq("id", recordId);
+            } catch (e) {
+              console.warn("[actions-mcp] workflow park stamp failed", e);
+            }
+          });
         }
       }
       return {
@@ -234,80 +284,24 @@ const handler = createMcpHandler((server) => {
     { session_id: z.string().min(4).max(80) },
     async ({ session_id }, extra) => {
       const { propertyId, userId } = requireTool(extra as AuthExtra, "get_workflow_status");
-      const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!secret) throw new Error("server misconfigured");
-      const response = await fetch(
-        `${eveOrigin()}/eve/v1/session/${encodeURIComponent(session_id)}/stream`,
-        {
-          headers: {
-            authorization: `Bearer ${secret}`,
-            "x-hotelclaw-property": propertyId,
-            "x-hotelclaw-user": userId,
-          },
-          signal: AbortSignal.timeout(8000),
-        },
-      ).catch(() => null);
-      if (!response?.ok || !response.body) {
-        throw new Error("session not found or not readable");
-      }
-      // Read the replayed history briefly, then classify from the tail.
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let lastMessage = "";
-      let pendingApproval: unknown = null;
-      let status = "running";
-      const deadline = Date.now() + 6000;
-      try {
-        while (Date.now() < deadline) {
-          // The stream stays open after the replay (no more events until the
-          // agent acts again), so a bare reader.read() can block past the
-          // deadline until the fetch's own AbortSignal kills the request and
-          // the whole tool throws away the events it already parsed. Race
-          // each read against the remaining deadline instead.
-          const chunk = await Promise.race([
-            reader.read(),
-            new Promise<{ done: true; value?: undefined }>((resolve) =>
-              setTimeout(() => resolve({ done: true }), Math.max(50, deadline - Date.now())),
-            ),
-          ]);
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const event = JSON.parse(line) as { type?: string; data?: Record<string, unknown> };
-              if (event.type === "message.completed") {
-                const t = event.data?.message;
-                if (typeof t === "string") lastMessage = t;
-              } else if (event.type === "input.requested") {
-                pendingApproval = event.data?.requests ?? null;
-                status = "awaiting_approval";
-              } else if (event.type === "session.waiting") {
-                if (status !== "awaiting_approval") status = "waiting";
-              } else if (event.type === "session.completed") {
-                status = "completed";
-              } else if (event.type === "session.failed") {
-                status = "failed";
-              }
-            } catch { /* partial line */ }
-          }
-        }
-      } finally {
-        reader.cancel().catch(() => {});
-      }
+      // Read the replayed history briefly, then classify from the tail
+      // (shared reader — deadline-raced because the stream never closes).
+      const tail = await readSessionTail(
+        session_id,
+        fleetServiceHeaders({ propertyId, userId }),
+      );
+      if (!tail) throw new Error("session not found or not readable");
+      const status = tail.status;
       return {
         content: [{
           type: "text",
           text: JSON.stringify({
             session_id,
             status,
-            last_message: lastMessage.slice(0, 1500),
-            pending_approval: pendingApproval,
+            last_message: tail.lastMessage.slice(0, 1500),
+            pending_approval: tail.pendingRequests.length ? tail.pendingRequests : null,
             note: status === "awaiting_approval"
-              ? "A human must approve in-app (message the bot 'approve' in a property channel session, or via the operator console)."
+              ? "A human must approve in-app (Fleet → Approvals, or message the bot 'approve' in its channel)."
               : undefined,
           }),
         }],

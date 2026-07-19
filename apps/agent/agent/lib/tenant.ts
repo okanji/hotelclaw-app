@@ -110,6 +110,19 @@ export async function resolveTenantCaller(
         role: "subagent",
       };
     }
+    // Channel-bot sessions + delegate_task sessions (0078).
+    const { data: channelSession } = await sb
+      .from("channel_bot_sessions")
+      .select("property_id")
+      .eq("eve_session_id", rootId)
+      .maybeSingle();
+    if (channelSession) {
+      return {
+        propertyId: channelSession.property_id as string,
+        userId: "",
+        role: "subagent",
+      };
+    }
   }
   throw new Error(
     "An authenticated property member is required for this session.",

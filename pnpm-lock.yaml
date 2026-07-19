@@ -25,6 +25,9 @@ importers:
       '@hotelclaw/agent-config':
         specifier: workspace:*
         version: link:../../packages/agent-config
+      '@hotelclaw/chat-ui':
+        specifier: workspace:*
+        version: link:../../packages/chat-ui
       '@supabase/ssr':
         specifier: '0.10'
         version: 0.10.3(@supabase/supabase-js@2.105.4)
@@ -165,6 +168,9 @@ importers:
       '@hotelclaw/agent-config':
         specifier: workspace:*
         version: link:../../packages/agent-config
+      '@hotelclaw/chat-ui':
+        specifier: workspace:*
+        version: link:../../packages/chat-ui
       '@json-render/core':
         specifier: 0.19.0
         version: 0.19.0(zod@4.4.3)
@@ -418,6 +424,18 @@ importers:
 
   packages/agent-config:
     dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+
+  packages/chat-ui:
+    dependencies:
+      '@json-render/core':
+        specifier: 0.19.0
+        version: 0.19.0(zod@4.4.3)
+      '@json-render/react':
+        specifier: 0.19.0
+        version: 0.19.0(react@19.2.3)(zod@4.4.3)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -13084,9 +13102,7 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.85.3': {}
 

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
@@ -104,6 +105,41 @@ export async function POST(
       resolved_by: user.id,
     })
     .eq("id", suggestion.id);
+
+  // Accepted routing decisions are institutional memory: "tasks like this
+  // go to X" is exactly what future triage should learn from. Fail-soft,
+  // off the response path. Dismissals are noise — skip them.
+  if (parsed.data.action === "accept") {
+    after(async () => {
+      try {
+        const { resolvePropertyBrain, captureToBrain } = await import(
+          "@/lib/brain/client"
+        );
+        const binding = await resolvePropertyBrain(propertyId);
+        if (!binding) return;
+        const { data: task } = await service
+          .from("tasks")
+          .select("title, space_id, assignee_id, priority, spaces(name)")
+          .eq("id", taskId)
+          .maybeSingle();
+        if (!task) return;
+        const target =
+          suggestion.field === "space"
+            ? `team "${(task.spaces as { name?: string } | null)?.name ?? suggestion.suggested_value}"`
+            : suggestion.field === "assignee"
+              ? `assignee ${suggestion.suggested_value}`
+              : `priority ${suggestion.suggested_value}`;
+        await captureToBrain(binding, {
+          slug: "operations/triage-routing",
+          pageTitle: "Task routing memory",
+          summary: `Task "${String(task.title).slice(0, 120)}" → ${target} (triage suggestion accepted by staff).`,
+          source: `triage, ${new Date().toISOString().slice(0, 10)}`,
+        });
+      } catch (err) {
+        console.warn("[triage] brain capture failed", err);
+      }
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

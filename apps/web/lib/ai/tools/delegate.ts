@@ -1,155 +1,88 @@
 import "server-only";
 /**
- * `delegate_to_openclaw` tool — Tier 1 → Tier 2 handoff.
+ * `delegate_task` tool — Tier 1 → durable-agent handoff.
  *
- * In-app bots use this when a user request doesn't fit Tier 1 shape:
- * anything long-running, scheduled, cross-channel, or requiring the
- * OpenClaw Skills ecosystem. The bot's reply might be "Got it — I'll
- * watch #front-desk for the next hour and ping you if I see complaints"
- * while behind the scenes the work goes to OpenClaw.
+ * In-app bots use this when a request doesn't fit a single turn: the work
+ * goes to a durable eve session (the runtime that also powers the fleet
+ * pod bots and the Agents section) and proceeds after this reply is sent.
+ * Restarts don't kill it, and any money-moving step inside it parks for
+ * human approval.
  *
- * **Current state: stub when no config is resolved.** OpenClaw isn't
- * provisioned yet — the tool stays in the model's tool map so the model
- * learns the delegation pattern, but `execute` records the intended
- * delegation and returns a placeholder. Config is resolved per-property
- * via `resolvePropertyOpenclawConfig(propertyId)` (DB row → env →
- * null); the moment a config exists for a property, the same code path
- * flips to a live HTTP POST against that property's OpenClaw.
+ * OpenClaw is retired; eve owns the whole Tier-2 slot. Recurring
+ * schedules aren't wired yet (eve schedules are authored files, not
+ * per-request) — the tool says so honestly instead of pretending.
  *
- * See AGENTS.md "Two-tier AI architecture" for the design.
+ * Fail-soft: if the agent runtime is unreachable the tool reports it and
+ * the bot tells the user, rather than silently dropping the task.
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { BotScope } from "@/lib/ai/run-bot";
-import {
-  resolvePropertyOpenclawConfig,
-  type OpenclawConfig,
-} from "@/lib/ai/openclaw-config";
+import { delegateToEve } from "@/lib/ai/eve-delegate";
 
 const DelegateInput = z.object({
-  skill: z
+  brief: z
     .string()
-    .min(1)
-    .max(128)
+    .min(20)
+    .max(2000)
     .describe(
-      "OpenClaw skill name to invoke (e.g. 'channel_monitor', 'standup_summary', 'guest_email_followup'). The skill must exist in the OpenClaw registry.",
-    ),
-  args: z
-    .record(z.string(), z.unknown())
-    .describe(
-      "Arguments to pass to the skill. Shape depends on the skill — pass what the user described.",
-    ),
-  schedule: z
-    .enum(["once", "recurring"])
-    .optional()
-    .describe(
-      "Whether the skill should run once (default) or on a recurring schedule. Pick 'recurring' for tasks the user wants ongoing (monitoring, daily summaries, etc.).",
+      "A complete, self-contained task brief for the durable agent: what to do, relevant ids/names, what 'done' looks like. It has no access to this conversation — include everything it needs.",
     ),
   summary: z
     .string()
     .max(280)
+    .describe("One-sentence summary of what was delegated, in plain English."),
+  schedule: z
+    .enum(["once", "recurring"])
+    .optional()
     .describe(
-      "One-sentence summary of what was delegated, in plain English. Used both for logging and for the model to recall in subsequent conversations.",
+      "'once' (default). 'recurring' is not supported yet — prefer suggesting a Workflow to the user for recurring automations.",
     ),
 });
 
 export function buildDelegateTool(scope: BotScope): ToolSet {
   return {
-    delegate_to_openclaw: tool({
+    delegate_task: tool({
       description: [
-        "Hand off a long-running, scheduled, cross-channel, or skill-heavy task to OpenClaw (the persistent agent). Use this when the user wants something that doesn't fit a single turn:",
-        "- monitoring a channel for keywords/events over time",
-        "- scheduled / recurring tasks (daily summaries, weekly reports, etc.)",
-        "- cross-channel automations (route messages from one place to another)",
-        "- workflows requiring OpenClaw skills (email send, SMS, calendar manipulation, etc.)",
-        "DON'T use this for single-turn questions you can answer immediately. The user sees an instant reply confirming the delegation; the actual work runs in OpenClaw.",
+        "Hand off a task that doesn't fit this single turn to the property's durable agent runtime. Use when the user wants something long-running or multi-step that should proceed after you reply:",
+        "- investigate-and-report jobs (dig through bookings/tasks/docs and produce a summary)",
+        "- multi-step operations that may need human approval mid-way",
+        "DON'T use this for questions you can answer right now, and don't promise ongoing monitoring or recurring runs — for recurring automations, point the user at Workflows.",
+        "The user sees your instant reply confirming the delegation; the work continues durably in the background.",
       ].join(" "),
       inputSchema: DelegateInput,
-      execute: async ({ skill, args, schedule, summary }) => {
-        const cfg = await resolvePropertyOpenclawConfig(scope.propertyId);
-        if (!cfg) {
-          console.log("[delegate-to-openclaw:stub]", {
-            propertyId: scope.propertyId,
-            userId: scope.userId,
-            surface: scope.surface,
-            skill,
-            args,
-            schedule,
-            summary,
-          });
+      execute: async ({ brief, summary, schedule }) => {
+        if (schedule === "recurring") {
           return {
-            queued: true,
-            stub: true,
-            note: "OpenClaw isn't provisioned for this property yet — the delegation was logged. Tell the user the task is queued and will run when OpenClaw is online.",
-            skill,
-            summary,
+            delegated: false,
+            reason:
+              "Recurring delegation isn't supported. Suggest the user create a Workflow (Workflows section) for recurring automations.",
           };
         }
-        return runLiveDelegation({
-          skill,
-          args,
-          schedule,
-          summary,
-          scope,
-          cfg,
+        const result = await delegateToEve({
+          propertyId: scope.propertyId,
+          userId: scope.userId,
+          brief,
         });
+        if (!result.ok) {
+          return {
+            delegated: false,
+            reason: `The agent runtime is unavailable (${result.reason}). Tell the user the task could not be delegated right now.`,
+          };
+        }
+        console.log("[delegate-task]", {
+          propertyId: scope.propertyId,
+          surface: scope.surface,
+          sessionId: result.sessionId,
+          summary,
+        });
+        return {
+          delegated: true,
+          sessionId: result.sessionId,
+          note: "Task handed to the durable agent. It proceeds in the background; results land in the app (tasks/notifications) per the brief.",
+          summary,
+        };
       },
     }),
   };
-}
-
-/**
- * Live OpenClaw delegation. Runs only when the resolver returned a config
- * for this property. Until then the stub branch above is used; this stays
- * parked so flipping from stub to live is a config change, not a code change.
- */
-async function runLiveDelegation(args: {
-  skill: string;
-  args: Record<string, unknown>;
-  schedule?: "once" | "recurring";
-  summary: string;
-  scope: BotScope;
-  cfg: OpenclawConfig;
-}): Promise<unknown> {
-  const { url, token } = args.cfg;
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        skill: args.skill,
-        args: args.args,
-        schedule: args.schedule ?? "once",
-        summary: args.summary,
-        scope: {
-          propertyId: args.scope.propertyId,
-          userId: args.scope.userId,
-          surface: args.scope.surface,
-        },
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return {
-        queued: false,
-        error: `OpenClaw returned ${res.status}: ${text.slice(0, 200)}`,
-      };
-    }
-    const body = await res.json().catch(() => ({}));
-    return {
-      queued: true,
-      jobId: (body as { jobId?: string }).jobId,
-      skill: args.skill,
-      summary: args.summary,
-    };
-  } catch (err) {
-    console.error("[delegate-to-openclaw:live] fetch failed", err);
-    return {
-      queued: false,
-      error: "Couldn't reach OpenClaw — the delegation didn't take. Tell the user to try again or check infrastructure.",
-    };
-  }
 }

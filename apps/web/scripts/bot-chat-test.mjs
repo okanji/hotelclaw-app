@@ -21,6 +21,7 @@
 
 import { StreamChat } from "stream-chat";
 import { Redis } from "@upstash/redis";
+import { createClient } from "@supabase/supabase-js";
 import { readFileSync, statSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -37,6 +38,25 @@ if (!STREAM_API_KEY || !STREAM_API_SECRET) {
 }
 
 const stream = StreamChat.getInstance(STREAM_API_KEY, STREAM_API_SECRET);
+const supabase =
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    : null;
+
+/** Eve-path continuity: the durable session row for this channel's root
+ *  thread (channel_bot_sessions, migration 0078). Replaces the Redis
+ *  turn-cache assertions for engaged mode — the session IS the memory. */
+async function readEveSession(channelId) {
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from("channel_bot_sessions")
+    .select("eve_session_id, eve_continuation_token, last_turn_at")
+    .eq("channel_id", channelId)
+    .eq("thread_key", "_root")
+    .maybeSingle();
+  return data ?? null;
+}
+
 const redis = REDIS_URL && REDIS_TOKEN
   ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN })
   : null;
@@ -81,6 +101,11 @@ async function resetEngagement(channelId, channelType = "team") {
   if (redis) {
     const keys = await redis.keys(`ai-turns:${channelId}:*`);
     if (keys.length > 0) await redis.del(...keys);
+  }
+  // Wipe the durable eve session mapping so scenarios start with a fresh
+  // conversation (the session itself is left to expire runtime-side).
+  if (supabase) {
+    await supabase.from("channel_bot_sessions").delete().eq("channel_id", channelId);
   }
   // Brief pause so Stream's channel-data write is visible to the next
   // webhook channel.query (Stream is eventually consistent on channel custom
@@ -305,6 +330,7 @@ async function runScenario(scenario, channelId) {
   // Side-effect inspection: engagement state + Redis history
   const finalEngagement = await readEngagementState(channelId);
   const history = await readRedisHistory(channelId);
+  const eveSession = await readEveSession(channelId);
   const aiLogs = extractAiDecisions(tailDevLog(logOffset).lines);
 
   console.log(`  ─── post-state ───`);
@@ -312,6 +338,7 @@ async function runScenario(scenario, channelId) {
     `  engagement: engaged=${JSON.stringify(finalEngagement.ai_engaged_threads)} skipped=${JSON.stringify(finalEngagement.ai_skipped_threads)}`,
   );
   console.log(`  redis turns persisted: ${history?.length ?? 0}`);
+  console.log(`  eve session: ${eveSession?.eve_session_id ?? "none"} (token: ${eveSession?.eve_continuation_token ? "live" : "none"})`);
   if (aiLogs.length > 0) {
     console.log(`  classifier decisions:`);
     for (const l of aiLogs) console.log(`    ${l}`);
@@ -328,6 +355,11 @@ async function runScenario(scenario, channelId) {
       const n = history?.length ?? 0;
       if (n < scenario.postChecks.minRedisTurns) {
         postFailures.push(`expected ≥${scenario.postChecks.minRedisTurns} redis turns, got ${n}`);
+      }
+    }
+    if (scenario.postChecks.eveSession) {
+      if (!eveSession?.eve_session_id || !eveSession?.eve_continuation_token) {
+        postFailures.push("expected a live eve session (id + continuation token) for this channel");
       }
     }
     if (scenario.postChecks.maxRedisTurns !== undefined) {
@@ -418,10 +450,10 @@ const SCENARIOS = [
     setup: { mode: "auto", sensitivity: "balanced" },
     steps: [
       {
-        send: "Anyone know what tasks are open right now?",
+        send: "Anyone know what meetings are coming up this week?",
         mention: false,
         assert: [
-          { contains: "task" },
+          { contains: "meeting" },
           {
             notContains: [
               "not tagged",
@@ -460,7 +492,7 @@ const SCENARIOS = [
     ],
     postChecks: {
       engagedThreads: ["_root"],
-      minRedisTurns: 1,
+      eveSession: true,
     },
   },
   {
@@ -476,12 +508,14 @@ const SCENARIOS = [
       {
         send: "Of those, which one would you prioritize and why?",
         mention: false,
-        timeoutMs: 25000,
+        // Durable eve turns (session resume + tools + brain) run longer
+        // than the old stateless generateText — give the poll headroom.
+        timeoutMs: 45000,
       },
     ],
     postChecks: {
       engagedThreads: ["_root"],
-      minRedisTurns: 2,
+      eveSession: true,
     },
   },
   {

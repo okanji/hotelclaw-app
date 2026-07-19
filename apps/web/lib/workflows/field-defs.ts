@@ -869,7 +869,8 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "textarea",
       key: "goal",
       label: "Goal for the agent",
-      placeholder: "Monitor this thread and escalate if unresolved in 30 min.",
+      placeholder:
+        "Investigate this booking's history and create a summary task for the front desk.",
       help: TEMPLATE_HELP,
       required: true,
       rows: 3,

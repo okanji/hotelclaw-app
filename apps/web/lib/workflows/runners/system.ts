@@ -1,6 +1,9 @@
 import "server-only";
-import { getGbrainClient } from "@/lib/ai/mcp-clients";
-import { resolvePropertyOpenclawConfig } from "@/lib/ai/openclaw-config";
+import {
+  captureToBrain,
+  resolvePropertyBrain,
+} from "@/lib/brain/client";
+import { delegateToEve } from "@/lib/ai/eve-delegate";
 import type { RunnerImpl } from "./types";
 
 type CaptureConfig = { text: string; tags?: string[] };
@@ -11,8 +14,8 @@ export const gbrainCaptureRunner: RunnerImpl<
 > = async ({ config, ctx }) => {
   if (ctx.dryRun) return { ok: true };
 
-  const client = await getGbrainClient(ctx.propertyId);
-  if (!client) {
+  const binding = await resolvePropertyBrain(ctx.propertyId);
+  if (!binding) {
     console.log("[workflow:gbrain.capture:stub]", {
       propertyId: ctx.propertyId,
       workflowId: ctx.workflowId,
@@ -23,19 +26,14 @@ export const gbrainCaptureRunner: RunnerImpl<
     return { ok: false, stub: true };
   }
 
-  const tools = await client.tools();
-  const capture = tools.capture;
-  if (!capture?.execute) {
-    throw new Error("gbrain capture tool not available");
-  }
-
-  await capture.execute(
-    {
-      text: config.text,
-      ...(config.tags?.length ? { tags: config.tags } : {}),
-    },
-    { toolCallId: `wf-${ctx.runId}-${ctx.stepId}`, messages: [] },
-  );
+  const result = await captureToBrain(binding, {
+    slug: "operations/workflow-signals",
+    pageTitle: "Workflow signals",
+    summary: config.text.slice(0, 1000),
+    ...(config.tags?.length ? { detail: `tags: ${config.tags.join(", ")}` } : {}),
+    source: `workflow ${ctx.workflowId}, run ${ctx.runId}`,
+  });
+  if (!result.ok) throw new Error(`brain capture failed: ${result.reason}`);
   return { ok: true };
 };
 
@@ -44,64 +42,34 @@ type DelegateConfig = {
   context?: Record<string, unknown>;
 };
 
+/**
+ * Workflow delegation to the durable eve runtime (the action id keeps its
+ * historical `action.external.delegate_to_openclaw` name so saved
+ * workflows keep working — OpenClaw itself is retired).
+ */
 export const delegateToOpenclawRunner: RunnerImpl<
   DelegateConfig,
   { queued: boolean; stub?: boolean; jobId?: string; error?: string }
 > = async ({ config, ctx }) => {
   if (ctx.dryRun) return { queued: true, stub: true };
 
-  const cfg = await resolvePropertyOpenclawConfig(ctx.propertyId);
-  if (!cfg) {
-    console.log("[workflow:delegate_to_openclaw:stub]", {
-      propertyId: ctx.propertyId,
-      workflowId: ctx.workflowId,
-      runId: ctx.runId,
-      goal: config.goal,
-      context: config.context,
-    });
-    return { queued: true, stub: true };
-  }
+  const brief = [
+    `Workflow-delegated goal: ${config.goal}`,
+    config.context && Object.keys(config.context).length
+      ? `Context:\n${JSON.stringify(config.context, null, 2).slice(0, 2000)}`
+      : "",
+    "Complete the goal using your tools. Record outcomes in the app (tasks/notifications) where appropriate.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-  const { url, token } = cfg;
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        skill: "workflow_goal",
-        args: {
-          goal: config.goal,
-          context: config.context ?? {},
-        },
-        schedule: "once",
-        summary: config.goal.slice(0, 280),
-        scope: {
-          propertyId: ctx.propertyId,
-          userId: ctx.workflowOwnerId,
-          surface: "workflow-step",
-          workflowId: ctx.workflowId,
-          runId: ctx.runId,
-          stepId: ctx.stepId,
-        },
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return {
-        queued: false,
-        error: `OpenClaw returned ${res.status}: ${text.slice(0, 200)}`,
-      };
-    }
-    const body = await res.json().catch(() => ({}));
-    return {
-      queued: true,
-      jobId: (body as { jobId?: string }).jobId,
-    };
-  } catch (err) {
-    console.error("[workflow:delegate_to_openclaw] fetch failed", err);
-    return { queued: false, error: "Could not reach OpenClaw" };
+  const result = await delegateToEve({
+    propertyId: ctx.propertyId,
+    userId: ctx.workflowOwnerId,
+    brief,
+  });
+  if (!result.ok) {
+    return { queued: false, error: `Agent runtime unavailable: ${result.reason}` };
   }
+  return { queued: true, jobId: result.sessionId };
 };

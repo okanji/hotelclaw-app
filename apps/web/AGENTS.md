@@ -197,30 +197,71 @@ read-only transparency gallery of every built-in bot (`lib/agents/builtin.ts`
 - **Not yet done**: production deploy of the eve service (Vercel build
   output + Node 24 runtime + coexistence of eve's workflow routes with the
   app's own `withWorkflow` — verify before first deploy), production
-  channel-auth hardening (drop `localDev()`), approval-gated write tools,
-  schedules, session-list UI (rows are recorded already).
+  channel-auth hardening (drop `localDev()`).
 
-## Tier 2 — OpenClaw (separate service, not in this repo)
+## Fleet views — pod-bot transparency + ops (built 2026-07-19, inside the Agents section)
 
-One persistent agent handles long-running, scheduled, cross-channel, or skill-heavy work. **Not provisioned yet** — `delegate_to_openclaw` currently runs as a logging stub (`lib/ai/tools/delegate.ts`). Once `OPENCLAW_API_URL` is set, the tool flips to live HTTP delegation without code change.
+For properties that belong to a client (pod), the Agents section grows a
+**Fleet** sidebar group (hidden otherwise; every `/agents/fleet/*` page
+404s for non-pod properties). Routes live under
+`/p/[propertyId]/agents/fleet` (already covered by the `AGENTS_ROUTE`
+pushState exception); components in `components/fleet/*`.
 
-**When to delegate to OpenClaw instead of building a Tier 1 bot:**
-- The task lives longer than a single request (monitoring, watching)
-- It's scheduled / recurring (daily standup, weekly reports)
-- It spans surfaces (read from Stream, send via SMS, write to calendar)
-- It needs the OpenClaw Skills ecosystem (5,400+ skills via Composio)
+- **Pod bots** (`pod-bots-list.tsx`, `bot-detail.tsx`) — gallery + two-pane
+  workspace: owner-editable config (tool allow-list from
+  `lib/fleet/tool-catalog.ts` — a MANUAL mirror of
+  `apps/agent/agent/tools/pod-tools.ts`, keep both in sync; model tier;
+  persona fallback) with a provenance block (brain playbook path, source
+  binding), beside a live test chat driving the REAL pod bot.
+  `AgentChat` was parameterized for this: `target: {agentId}|{botSlug}`
+  emits `x-hotelclaw-agent` or `x-hotelclaw-bot`; bot targets skip
+  `recordAgentSession` (FKs `agents`). Paused pod ⇒ banner + disabled chat
+  (a paused client silently resolves to the base persona otherwise).
+- **Sessions** (`sessions-view.tsx`, `session-transcript.tsx`) — all
+  `bot_chat_sessions` rows (chat + `workflow:*` runs); `?session=<eve id>`
+  opens a read-only Sheet transcript fed by the tenancy proxy
+  `/api/properties/[propertyId]/fleet/sessions/[eveSessionId]/stream`
+  (membership + row-match = the gate; NEVER let the client hit `/eve/v1`
+  with arbitrary ids). Rendering shares `lib/fleet/transcript.ts` (the
+  pure NDJSON reducer agent-chat also uses).
+- **Approvals** (`approvals-view.tsx`) — migration 0077 added
+  `status`/`pending_approval` to `bot_chat_sessions` (+ realtime
+  publication); `lib/stream/pod-bot-reply.ts` stamps the park on
+  `input.requested` and clears it on any completed turn. Approve/Deny call
+  `decideApproval` → `runPodDecisionTurn` (same mechanism as chatting
+  "approve": bare decision + continuation token, with tail-recovery via
+  `lib/fleet/eve-session.ts:readSessionTail` when the stored token is
+  stale; outcome posts to the Stream channel; workflow sessions skip the
+  channel post). `trigger_workflow` (actions-MCP) tail-consumes in
+  `after()` so workflow parks reach the inbox too. Amber badges: Approvals
+  sidebar item + the Agents entry in the rail's More menu.
+- **Brain & access** (`brain-view.tsx`, `actions-api-dialog.tsx`) —
+  server-side gbrain `/health` probe (fail-soft), source binding + secret
+  REF NAME only, isolation copy; plus the Actions API key manager
+  (`api_tokens.allowed_tools` multi-select over
+  `lib/mcp/actions-tools.ts:ACTIONS_MCP_TOOLS` — the route's `requireTool`
+  is typed against it so registrations can't drift; reveal-once, revoke).
+- **Writes**: fleet tables have NO member write policies — server actions
+  (`components/fleet/actions.ts`) use the org-chart pattern (role gate via
+  RLS client, write via service client, row-tenancy re-checked).
+- **Verify** with `scripts/fleet-approvals-test.mjs` (park → payload →
+  UI-path decision via `/api/dev/fleet-decide` → clear + channel outcome)
+  plus `scripts/pod-bot-chat-test.mjs` and `scripts/actions-mcp-test.mjs`.
 
-## Substrate — gbrain (shared brain via MCP)
+## Tier 2 — eve (OpenClaw retired, 2026-07-19)
 
-All bots — Tier 1 + Tier 2 — read/write the same memory pool through gbrain's MCP server. Per-property: each property has its own gbrain process backed by its own Postgres database (gbrain models tenants as "brains" = databases). The MCP client is per-property; `getGbrainClient(propertyId)` returns a connection scoped to that property's brain, so **tenant isolation lives at the connection/brain layer, not in tool args**. `runBot()` discovers gbrain's tool surface via `client.tools()` and merges it into every bot's tool map.
+Eve owns the whole durable-agent slot: long-running, multi-step, approval-gated work runs as durable eve sessions (the same runtime behind the fleet pod bots, the Agents section, and the channel bot). `delegate_task` (`lib/ai/tools/delegate.ts` → `lib/ai/eve-delegate.ts`) hands a self-contained brief to a fresh eve session with the service bearer; the session is recorded in `channel_bot_sessions` (`delegate:<sessionId>`, 0078) so subagents can recover tenant scope and the work is discoverable. The workflow action keeps its historical id `action.external.delegate_to_openclaw` (saved workflows) but its runner (`lib/workflows/runners/system.ts`) delegates to eve. Recurring delegation is NOT wired (eve schedules are authored files) — bots point users at Workflows instead.
 
-**Primary tools** (gbrain exposes ~30; these are the ones the bot picks between):
-- `search` — cheap hybrid retrieval (vector + BM25). Use for raw matches.
-- `think` — LLM-synthesized answer with citations + gap analysis. Use for hard questions; more expensive.
-- `capture` — write an observation/signal into the brain. Use to record durable insights the team or other bots should benefit from.
+**CHANNEL BOT IS ON EVE + GBRAIN (2026-07-19):** the webhook + classifiers (`ai-auto-classifier`, engagement) are unchanged, but default-bot GENERATION runs as one durable eve session per (channel, thread) — `lib/stream/channel-bot-eve.ts` → the virtual `hotelclaw` agent (`apps/agent/agent/lib/agent-config.ts:CHANNEL_BOT_SLUG`: synthetic config → catalog property tools + Sonnet) + brain tools (`apps/agent/agent/tools/channel-brain.ts`). Context packing sends only unseen messages; engaged-mode memory IS the session (Redis turn-cache unused on this path); NO coalesce loop (eve sessions are not a message queue — mid-turn messages arrive as unseen context next trigger); the acting principal is the sender when they're a member, else the property's earliest owner/manager (test users aren't members). Any eve failure falls back to the legacy stateless `runBot()` path — as do custom-chatbot channel deployments (their persona/tools merge web-side). Known gap: `render_ui` rich cards don't exist on the eve path yet (markdown fallback styling applies) — porting the chat-ui catalog to a workspace package is the follow-up.
 
-**Hosting** — per-property gbrain + OpenClaw processes on a shared Supabase Postgres cluster (one DB per property) is the target deployment. Provisioning is deferred. Today, `GBRAIN_MCP_URL` + `GBRAIN_MCP_TOKEN` env vars act as a single shared-instance fallback for dev/staging integration testing. When unset, `getGbrainClient()` returns null and bots run without gbrain tools (fail-soft). The same pattern applies to `OPENCLAW_API_URL` + `OPENCLAW_API_TOKEN`. See `lib/ai/gbrain-config.ts` and `lib/ai/openclaw-config.ts` for the resolution chain.
+## Substrate — gbrain (ONE shared brain server, per-property OAuth clients)
+
+Fleet v2 topology: ONE `gbrain serve --http` (env `BRAIN_MCP_URL`), many sources; **tenant isolation is the OAuth client** (write bound to its source, reads to its federated allow-list — enforced server-side, never in tool args). Per-property resolution (`lib/brain/client.ts:resolvePropertyBrain`): pod properties reuse their client's credential (env ref via `clients` row — Tier-1 captures compound with pod-bot knowledge); other properties use `property_brains` (0078: per-property source + AES-GCM-encrypted OAuth client, provisioned by `scripts/provision-property-brain.mjs` on the brain host). Null ⇒ bots run brainless (fail-soft). The agent runtime mirrors this in `apps/agent/agent/lib/property-brain.ts` (+ `brain-crypto.ts` decrypt mirror — keep derivations in sync).
+
+**Tool surface is CURATED, not MCP discovery** (`lib/ai/tools/gbrain.ts` — the serve exposes ~94 ops; bots get three): `search` (cheap hybrid), `think` (synthesized answer + citations + gap analysis; expensive), `capture` (append durable evidence to an entity page's timeline via `put_page`+`add_timeline_entry`; compiled truth stays human/dream-cycle territory). Deterministic capture writers also feed the brain: meeting summaries (`lib/meetings/summarize.ts` → `operations/meetings`), accepted triage routings (suggestions route → `operations/triage-routing`), workflow `gbrain.capture` steps, and the guest side-channel.
+
+**Guests never get brain tools** (injection/exfiltration risk): `lib/brain/guest-profile.ts` prefetches the guest's profile page (`guests/<sha-hash>` of phone/email) server-side into the guest-bot prompt, and captures deterministically from `save_guest_details` (fixed shape, no model freetext).
 
 ## The boundary in one sentence
 
-> If the response can be generated in a single turn and lives within one surface, it's Tier 1 (build a bot). If it needs to live longer than a request, span surfaces, schedule, or use external skills, it's Tier 2 (delegate to OpenClaw).
+> If the response can be generated in a single turn and lives within one surface, it's Tier 1 (a stateless bot). If it needs to live longer than a request, pause for a human, or remember across sessions, it runs on eve — and anything durable the property LEARNS belongs in the brain.

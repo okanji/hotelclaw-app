@@ -28,6 +28,7 @@ import {
   runBot,
   type ActivationReason as RuntimeActivationReason,
 } from "@/lib/ai/run-bot";
+import { validateChatUiSpec } from "@hotelclaw/chat-ui";
 import { resolveChannelDeployment } from "@/lib/chatbots/channel-deployment";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
@@ -41,6 +42,7 @@ import {
   prefixUser,
   type HistoryTurn,
 } from "./ai-history";
+import { runChannelBotEveTurn } from "./channel-bot-eve";
 import { getStreamServer } from "./server";
 
 /**
@@ -189,13 +191,50 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     // leak onto the reply that actually posts.
     const uiSink: RenderUiSink = { spec: null };
 
-    // ─── Coalesce loop ────────────────────────────────────────────────────
+    // ─── Durable path (default bot only) ──────────────────────────────────
+    // The default channel bot runs on the eve runtime: one durable session
+    // per (channel, thread) with real memory + the shared knowledge brain.
+    // Custom-chatbot channel deployments keep the legacy stateless path
+    // (their persona/tools merge web-side). Any eve failure falls through
+    // to the legacy path below — the bot never goes silent because the
+    // agent runtime is down. No coalesce loop here: sessions are not a
+    // message queue; messages landing mid-turn arrive as unseen context on
+    // the next trigger.
+    let eveHandled = false;
+    if (!deployment) {
+      const eveTurn = await runChannelBotEveTurn({
+        propertyId: ctx.propertyId,
+        streamChannelId: ctx.streamChannelId,
+        channelType: ctx.channelType,
+        parentId,
+        triggerMessage: ctx.triggerMessage,
+        activationReason: ctx.activationReason ?? "mention",
+      });
+      if (eveTurn.ok) {
+        finalText = eveTurn.text;
+        // render_ui spec collected from the session stream (already
+        // validated + link-rewritten runtime-side against the same shared
+        // catalog) — revalidate defensively before attaching.
+        if (eveTurn.uiSpec) {
+          const validated = validateChatUiSpec(eveTurn.uiSpec);
+          if (validated.ok) uiSink.spec = validated.spec;
+        }
+        eveHandled = true;
+      } else {
+        console.warn("[ai-reply] eve turn failed — legacy fallback", {
+          channelId: ctx.streamChannelId,
+          reason: eveTurn.reason,
+        });
+      }
+    }
+
+    // ─── Coalesce loop (legacy stateless path) ────────────────────────────
     // Generate, then re-query the channel/thread. If new non-bot messages
     // arrived during generation, the reply we just made doesn't address
     // them — throw it away and re-generate with the updated history. Up to
     // MAX_COALESCE_ATTEMPTS iterations. Most replies finish in 1 iteration;
     // bursts of 2-3 messages within ~5s typically settle in 2.
-    for (let attempt = 1; attempt <= MAX_COALESCE_ATTEMPTS; attempt++) {
+    for (let attempt = 1; !eveHandled && attempt <= MAX_COALESCE_ATTEMPTS; attempt++) {
       const queryStartedAt = Date.now();
       uiSink.spec = null;
       try {

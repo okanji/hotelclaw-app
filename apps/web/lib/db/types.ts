@@ -2172,6 +2172,8 @@ export interface Database {
           eve_session_id: string | null;
           eve_continuation_token: string | null;
           last_turn_at: string | null;
+          status: "idle" | "awaiting_approval";
+          pending_approval: Record<string, unknown> | null;
           created_at: string;
           updated_at: string;
         };
@@ -2184,10 +2186,69 @@ export interface Database {
           eve_session_id?: string | null;
           eve_continuation_token?: string | null;
           last_turn_at?: string | null;
+          status?: "idle" | "awaiting_approval";
+          pending_approval?: Record<string, unknown> | null;
         };
         Update: Partial<{
           eve_session_id: string | null;
           eve_continuation_token: string | null;
+          last_turn_at: string | null;
+          status: "idle" | "awaiting_approval";
+          pending_approval: Record<string, unknown> | null;
+        }>;
+        Relationships: [];
+      };
+      property_brains: {
+        Row: {
+          property_id: string;
+          source: string;
+          client_id: string;
+          client_secret_enc: string;
+          created_at: string;
+        };
+        Insert: {
+          property_id: string;
+          source: string;
+          client_id: string;
+          client_secret_enc: string;
+        };
+        Update: Partial<{
+          source: string;
+          client_id: string;
+          client_secret_enc: string;
+        }>;
+        Relationships: [];
+      };
+      channel_bot_sessions: {
+        Row: {
+          id: string;
+          property_id: string;
+          channel_id: string;
+          thread_key: string;
+          eve_session_id: string | null;
+          eve_continuation_token: string | null;
+          status: "idle" | "awaiting_approval";
+          pending_approval: Record<string, unknown> | null;
+          last_turn_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          channel_id: string;
+          thread_key?: string;
+          eve_session_id?: string | null;
+          eve_continuation_token?: string | null;
+          status?: "idle" | "awaiting_approval";
+          pending_approval?: Record<string, unknown> | null;
+          last_turn_at?: string | null;
+        };
+        Update: Partial<{
+          eve_session_id: string | null;
+          eve_continuation_token: string | null;
+          status: "idle" | "awaiting_approval";
+          pending_approval: Record<string, unknown> | null;
           last_turn_at: string | null;
         }>;
         Relationships: [];

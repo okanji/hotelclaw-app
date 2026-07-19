@@ -115,4 +115,16 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     tools: ["Per-bot: knowledge search", "Tickets", "Bookings", "Handoff"],
     model: "Haiku / Sonnet",
   },
+  {
+    id: "fleet-pod-bots",
+    name: "Fleet pod bots",
+    emoji: "🤖",
+    where: "Channels (@name), pod properties only",
+    description:
+      "Operated bots on the durable agent runtime — persona from the pod's knowledge brain, tools per-bot allow-listed.",
+    promptSummary:
+      "Durable eve sessions per channel; money-moving tools always park for human approval (Fleet → Approvals). Full config and session logs are in the Fleet views.",
+    tools: ["Per-bot allow-list", "Brain query/write", "Approval-gated money tools"],
+    model: "Haiku / Sonnet",
+  },
 ];

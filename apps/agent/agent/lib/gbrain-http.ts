@@ -42,6 +42,13 @@ async function accessToken(
 ): Promise<string | null> {
   const cred = resolveBrainCredential(tokenRef);
   if (!cred) return null;
+  return accessTokenForCred(brainUrl, cred);
+}
+
+async function accessTokenForCred(
+  brainUrl: string,
+  cred: { clientId: string; clientSecret: string },
+): Promise<string | null> {
   const origin = new URL(brainUrl).origin;
   const cacheKey = `${origin}:${cred.clientId}`;
   const cached = tokenCache.get(cacheKey);
@@ -81,10 +88,35 @@ export async function callBrainTool(
   tokenRef: string | null,
   tool: string,
   args: Record<string, unknown>,
-  { timeoutMs = 30_000 }: { timeoutMs?: number } = {},
+  opts: { timeoutMs?: number } = {},
 ): Promise<BrainResult> {
   if (!brainUrl) return { ok: false, reason: "brain endpoint not configured" };
   const token = await accessToken(brainUrl, tokenRef);
+  return callWithToken(brainUrl, token, tool, args, opts);
+}
+
+/** Direct-credential variant (property_brains rows hold clientId/secret
+ * rather than an env ref — see lib/property-brain.ts). */
+export async function callBrainToolDirect(
+  brainUrl: string | null,
+  cred: { clientId: string; clientSecret: string } | null,
+  tool: string,
+  args: Record<string, unknown>,
+  opts: { timeoutMs?: number } = {},
+): Promise<BrainResult> {
+  if (!brainUrl) return { ok: false, reason: "brain endpoint not configured" };
+  if (!cred) return { ok: false, reason: "brain credential unavailable" };
+  const token = await accessTokenForCred(brainUrl, cred);
+  return callWithToken(brainUrl, token, tool, args, opts);
+}
+
+async function callWithToken(
+  brainUrl: string,
+  token: string | null,
+  tool: string,
+  args: Record<string, unknown>,
+  { timeoutMs = 30_000 }: { timeoutMs?: number } = {},
+): Promise<BrainResult> {
   if (!token) return { ok: false, reason: "brain credential unavailable" };
 
   try {

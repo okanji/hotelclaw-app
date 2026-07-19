@@ -31,6 +31,7 @@ import {
 } from "@/lib/query/section-queries";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { pendingBookingsCountQueryOptions } from "@/lib/query/booking-queries";
+import { pendingApprovalsCountQueryOptions } from "@/lib/query/fleet-queries";
 import {
   Tooltip,
   TooltipContent,
@@ -255,6 +256,13 @@ export function AppRail({
     pendingBookingsCountQueryOptions(propertyId),
   );
 
+  // Same treatment for fleet approvals: pod-bot actions parked on a human
+  // decision. Realtime invalidation lives in AgentsSection (same key);
+  // non-pod properties just count zero.
+  const { data: pendingApprovals = 0 } = useQuery(
+    pendingApprovalsCountQueryOptions(propertyId),
+  );
+
   const items = useMemo<RailItem[]>(
     () => [
       {
@@ -367,7 +375,8 @@ export function AppRail({
   );
   // The overflow's own active/alert state, surfaced on the More button itself.
   const moreActive = MORE_SECTIONS.has(section);
-  const moreAlert = failingWorkflows > 0 || pendingBookings > 0;
+  const moreAlert =
+    failingWorkflows > 0 || pendingBookings > 0 || pendingApprovals > 0;
 
   // The rail uses <button> + router.push (not <Link>), so Next never
   // auto-prefetches these routes. Warm them on mount: a cold first click
@@ -634,6 +643,8 @@ export function AppRail({
                         item.section === "workflows" && failingWorkflows > 0;
                       const pending =
                         item.section === "bookings" && pendingBookings > 0;
+                      const approvals =
+                        item.section === "agents" && pendingApprovals > 0;
                       return (
                         <DropdownMenuItem
                           key={item.section}
@@ -658,6 +669,11 @@ export function AppRail({
                               {pending ? (
                                 <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-semibold text-amber-600 tabular-nums dark:text-amber-400">
                                   {pendingBookings} pending
+                                </span>
+                              ) : null}
+                              {approvals ? (
+                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-semibold text-amber-600 tabular-nums dark:text-amber-400">
+                                  {pendingApprovals} awaiting approval
                                 </span>
                               ) : null}
                             </span>

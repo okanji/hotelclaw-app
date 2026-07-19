@@ -28,17 +28,30 @@ import { TintIcon } from "@/components/ui/tint-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { parseAgentConfig, type AgentRow } from "@/lib/agents/schema";
 import { BUILTIN_AGENTS } from "@/lib/agents/builtin";
+import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { NewAgentDialog } from "./new-agent-dialog";
 import { deleteAgent } from "./actions";
 
-/** Agents index — the property's own agents plus the read-only Built-in AI
- *  gallery (?view=builtin), the section's transparency contract. */
+type PodBotSummary = {
+  id: string;
+  bot_id: string;
+  display_name: string;
+  tool_set: string[];
+  model_tier: "standard" | "advanced";
+};
+
+/** Agents index — the property's own agents, the operated Fleet pod bots
+ *  (when the property belongs to a pod), and the read-only Built-in AI
+ *  gallery (?view=builtin): the section's transparency contract is that
+ *  EVERY AI in the product is visible here. */
 export function AgentsList({
   propertyId,
   agents,
+  podBots = [],
 }: {
   propertyId: string;
   agents: AgentRow[];
+  podBots?: PodBotSummary[];
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -104,6 +117,50 @@ export function AgentsList({
               ))}
             </div>
           )}
+          {podBots.length > 0 ? (
+            <div className="mt-14">
+              <Eyebrow tone="brand">Pod bots</Eyebrow>
+              <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
+                The operated fleet bots serving this property — address them
+                with @name in any channel. Configuration and sessions live in
+                the Fleet views.
+              </p>
+              <ul role="list" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {podBots.map((bot) => (
+                  <li key={bot.id}>
+                    <Link
+                      href={`${base}/fleet/${bot.id}`}
+                      className="flex flex-col gap-2 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40"
+                    >
+                      <div className="flex items-center gap-3">
+                        <TintIcon tone="lavender" className="text-base">
+                          {podBotEmoji(bot.bot_id)}
+                        </TintIcon>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {bot.display_name}
+                          </p>
+                          <p className="truncate font-mono text-xs text-muted-foreground">
+                            @{bot.bot_id}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="tabular-nums">
+                          {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
+                        </span>
+                        <span>
+                          {bot.model_tier === "advanced"
+                            ? "Advanced model"
+                            : "Standard model"}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="mt-14">
             <Eyebrow tone="brand">Built-in AI</Eyebrow>
             <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">

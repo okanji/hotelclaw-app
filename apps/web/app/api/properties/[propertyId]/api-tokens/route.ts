@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
 import { mintToken } from "@/lib/mcp/tokens";
+import { ACTIONS_MCP_TOOLS } from "@/lib/mcp/actions-tools";
 
 /**
  * Property API tokens (the MCP credential). Owner only.
@@ -32,14 +33,20 @@ export async function GET(
   const service = createServiceClient();
   const { data, error } = await service
     .from("api_tokens")
-    .select("id, name, created_at, last_used_at, revoked_at")
+    .select("id, name, created_at, last_used_at, revoked_at, allowed_tools")
     .eq("property_id", propertyId)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ tokens: data ?? [] });
 }
 
-const Body = z.object({ name: z.string().min(1).max(80) });
+const Body = z.object({
+  name: z.string().min(1).max(80),
+  // Actions-MCP tool grants (0075). Omitted/empty = read-only insights key
+  // (the actions server's requireTool rejects everything) — the insights
+  // dialog never sends this field, so its behavior is unchanged.
+  allowed_tools: z.array(z.enum(ACTIONS_MCP_TOOLS)).max(ACTIONS_MCP_TOOLS.length).optional(),
+});
 
 export async function POST(
   request: NextRequest,
@@ -63,6 +70,9 @@ export async function POST(
       name: parsed.data.name.trim(),
       token_hash: hash,
       created_by: auth.user.id,
+      ...(parsed.data.allowed_tools?.length
+        ? { allowed_tools: [...new Set(parsed.data.allowed_tools)] }
+        : {}),
     })
     .select("id, name, created_at")
     .single();

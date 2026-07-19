@@ -20,6 +20,7 @@ import { getStreamServer } from "@/lib/stream/server";
 import { getBotUserId } from "@/lib/stream/ai-adapter";
 import { createNotifications } from "@/lib/notifications/server";
 import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
+import { captureGuestDetails } from "@/lib/brain/guest-profile";
 import { searchChatbotKnowledge } from "@/lib/chatbots/retrieval";
 import {
   executeCustomAction,
@@ -196,6 +197,16 @@ function buildSaveGuestDetailsTool(
             guest_email: guest.guest_email,
             guest_phone: guest.guest_phone,
           },
+        });
+        // Deterministic brain capture (guest-profile side-channel): fixed
+        // shape from validated fields only — no guest freetext reaches the
+        // shared brain. Fail-soft inside the helper.
+        await captureGuestDetails(scope.propertyId, {
+          phone: guest.guest_phone,
+          email: guest.guest_email,
+          name: guest.guest_name,
+          roomNumber: guest.room_number,
+          botName: scope.chatbotName,
         });
       }
       return { saved: true, fields: Object.keys(patch) };

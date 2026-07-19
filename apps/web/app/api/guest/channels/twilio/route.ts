@@ -10,6 +10,7 @@ import {
   validateTwilioSignature,
 } from "@/lib/chatbots/twilio";
 import { runGuestBot } from "@/lib/ai/guest-bot/run-guest-bot";
+import { loadGuestProfile } from "@/lib/brain/guest-profile";
 import { buildGuestBotTools } from "@/lib/ai/guest-bot/tools/registry";
 import type { ModelMessage } from "ai";
 
@@ -172,7 +173,15 @@ export async function POST(request: NextRequest) {
     const result = runGuestBot({
       config,
       propertyName: property?.name ?? "this property",
-      guest: { guestName: convo.guest_name, roomNumber: convo.room_number },
+      guest: {
+        guestName: convo.guest_name,
+        roomNumber: convo.room_number,
+        // The guest's From number IS the session — the strongest identity
+        // we have; profile pages are keyed by its hash.
+        profileNotes: await loadGuestProfile(bot.property_id, {
+          phone: from.replace(/^whatsapp:/, ""),
+        }),
+      },
       tools,
       messages,
       sessionCapReached: (guestCount ?? 0) >= bot.session_message_cap,

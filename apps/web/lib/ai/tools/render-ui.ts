@@ -10,12 +10,10 @@ import "server-only";
  * spec to the final Stream message as `{ type: "ai_ui", spec }`, which
  * `SlackAttachment` renders client-side.
  *
- * Deep links: the model supplies entity refs (`Card.props.link`,
- * `DataTable.props.rowLinks` — `{kind, id}` copied from tool results),
- * NEVER hrefs. Each ref is validated against this property's rows
- * (batched per kind, service client) and rewritten into a real
- * `/p/<propertyId>/<section>/<id>` path; unknown or cross-tenant ids
- * are silently dropped — the insights-brief deep-link pattern.
+ * Catalog + deep-link resolution live in `@hotelclaw/chat-ui` (shared
+ * with the eve channel bot's render_ui — apps/agent
+ * agent/tools/channel-render-ui.ts); this file supplies the web-side DB
+ * lookup and the AI-SDK tool wrapper.
  *
  * Invalid specs return `{ ok: false, error }` so the model can repair
  * and retry within its tool-step budget.
@@ -24,113 +22,37 @@ import { tool } from "ai";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
+  CHAT_UI_LINK_TABLES,
   CHAT_UI_TOOL_DESCRIPTION,
-  ChatUiLinkRef,
-  chatUiPathFor,
+  resolveChatUiLinkRefs,
   validateChatUiSpec,
   type ChatUiLinkKind,
-  type ChatUiLinkRefType,
   type ChatUiSpec,
-} from "@/lib/ai/chat-ui/catalog";
+  type RawChatUiElement,
+} from "@hotelclaw/chat-ui";
 
 export type RenderUiSink = { spec: ChatUiSpec | null };
 
-const LINK_TABLES: Record<ChatUiLinkKind, string> = {
-  task: "tasks",
-  project: "projects",
-  document: "documents",
-  meeting: "meetings",
-  form: "forms",
-  space: "spaces",
-};
-
-type RawElement = {
-  type?: unknown;
-  props?: Record<string, unknown>;
-  children?: unknown;
-};
-
-/**
- * Collect every link ref in the raw spec, verify each id belongs to this
- * property (one query per kind), and rewrite props in place: `link` →
- * `href`, `rowLinks` → `rowHrefs`. Refs that don't parse or don't
- * resolve become null/omitted — never an error, so one bad id can't
- * sink an otherwise-good spec.
- */
-async function resolveLinkRefs(
-  elements: Record<string, RawElement>,
+async function lookupPropertyIds(
   propertyId: string,
-): Promise<void> {
-  const refs: ChatUiLinkRefType[] = [];
-  const collect = (value: unknown): ChatUiLinkRefType | null => {
-    const parsed = ChatUiLinkRef.safeParse(value);
-    if (!parsed.success) return null;
-    refs.push(parsed.data);
-    return parsed.data;
-  };
-
-  // First pass: parse refs out of props (keeping positions).
-  const cardRefs = new Map<string, ChatUiLinkRefType | null>();
-  const rowRefs = new Map<string, (ChatUiLinkRefType | null)[]>();
-  for (const [key, el] of Object.entries(elements)) {
-    const props = el.props;
-    if (!props) continue;
-    if (el.type === "Card" && "link" in props) {
-      cardRefs.set(key, collect(props.link));
-      delete props.link;
-    }
-    if (el.type === "DataTable" && "rowLinks" in props) {
-      const list = Array.isArray(props.rowLinks) ? props.rowLinks : [];
-      rowRefs.set(key, list.map((r) => (r === null ? null : collect(r))));
-      delete props.rowLinks;
-    }
-  }
-  if (refs.length === 0) return;
-
-  // Second pass: batched existence check per kind, scoped to the property.
+  kind: ChatUiLinkKind,
+  ids: string[],
+): Promise<Set<string>> {
   const supabase = createServiceClient();
-  const byKind = new Map<ChatUiLinkKind, Set<string>>();
-  for (const r of refs) {
-    if (!byKind.has(r.kind)) byKind.set(r.kind, new Set());
-    byKind.get(r.kind)!.add(r.id);
+  const { data, error } = await supabase
+    .from(CHAT_UI_LINK_TABLES[kind])
+    .select("id")
+    .eq("property_id", propertyId)
+    .in("id", ids);
+  if (error) {
+    console.error("[render-ui] link validation query failed", {
+      kind,
+      error: error.message,
+    });
+    return new Set();
   }
-  const validIds = new Set<string>();
-  await Promise.all(
-    [...byKind.entries()].map(async ([kind, ids]) => {
-      const { data, error } = await supabase
-        .from(LINK_TABLES[kind])
-        .select("id")
-        .eq("property_id", propertyId)
-        .in("id", [...ids]);
-      if (error) {
-        console.error("[render-ui] link validation query failed", {
-          kind,
-          error: error.message,
-        });
-        return; // fail-soft: links for this kind drop, spec still renders
-      }
-      // Dynamic table name defeats supabase's generated row types.
-      for (const row of (data ?? []) as { id: string }[]) {
-        validIds.add(`${kind}:${row.id}`);
-      }
-    }),
-  );
-  const hrefFor = (ref: ChatUiLinkRefType | null): string | null =>
-    ref && validIds.has(`${ref.kind}:${ref.id}`)
-      ? chatUiPathFor(propertyId, ref)
-      : null;
-
-  // Third pass: write resolved hrefs back into props.
-  for (const [key, ref] of cardRefs) {
-    const href = hrefFor(ref);
-    if (href) elements[key].props!.href = href;
-  }
-  for (const [key, list] of rowRefs) {
-    const hrefs = list.map(hrefFor);
-    if (hrefs.some((h) => h !== null)) {
-      elements[key].props!.rowHrefs = hrefs;
-    }
-  }
+  // Dynamic table name defeats supabase's generated row types.
+  return new Set(((data ?? []) as { id: string }[]).map((r) => r.id));
 }
 
 export function buildRenderUiTool(propertyId: string, sink: RenderUiSink) {
@@ -152,9 +74,10 @@ export function buildRenderUiTool(propertyId: string, sink: RenderUiSink) {
       }),
       execute: async ({ spec }) => {
         try {
-          await resolveLinkRefs(
-            spec.elements as Record<string, RawElement>,
+          await resolveChatUiLinkRefs(
+            spec.elements as Record<string, RawChatUiElement>,
             propertyId,
+            (kind, ids) => lookupPropertyIds(propertyId, kind, ids),
           );
         } catch (err) {
           console.error("[render-ui] link resolution failed", err);

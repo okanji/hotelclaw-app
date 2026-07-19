@@ -21,10 +21,26 @@ export default async function AgentsPage({
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
+  // Fleet pod bots (empty for non-pod properties) — the gallery shows
+  // EVERY AI in the product, operated ones included.
+  const { data: property } = await supabase
+    .from("properties")
+    .select("client_id")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const { data: podBots } = property?.client_id
+    ? await supabase
+        .from("bots")
+        .select("id, bot_id, display_name, tool_set, model_tier")
+        .eq("client_id", property.client_id)
+        .order("bot_id")
+    : { data: [] };
+
   return (
     <AgentsList
       propertyId={propertyId}
       agents={(agents ?? []) as unknown as AgentRow[]}
+      podBots={podBots ?? []}
     />
   );
 }

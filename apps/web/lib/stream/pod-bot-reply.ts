@@ -18,14 +18,17 @@ import "server-only";
 import { after } from "next/server";
 import { getStreamServer } from "@/lib/stream/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  eveOrigin,
+  fleetServiceHeaders,
+  parsePendingRequests,
+  readSessionTail,
+  type PendingRequest,
+} from "@/lib/fleet/eve-session";
 
 const ADDRESS_RX = /^@([a-z0-9][a-z0-9_-]{1,40})\b/;
 const CONTEXT_MESSAGE_LIMIT = 12;
 const CONTEXT_CHAR_CAP = 4000;
-
-function eveOrigin(): string {
-  return process.env.EVE_INTERNAL_ORIGIN ?? "http://127.0.0.1:3000";
-}
 
 type PodBotTrigger = {
   propertyId: string;
@@ -194,9 +197,94 @@ async function runPodBotTurn(
 
   // Consume the event stream until the session parks; keep the last
   // completed assistant message of this turn as the reply.
+  const turn = await consumeTurnStream({
+    sessionId,
+    headers,
+    ownNeedle: turnMessage.slice(0, 120),
+  });
+  const approvalCard = turn.pendingRequests.length
+    ? buildApprovalCard(bot.botSlug, turn.pendingRequests)
+    : null;
+
+  // Post the reply as the bot's own Stream user.
+  const botUserId = `pod-${bot.botSlug}`;
+  await server.upsertUser({ id: botUserId, name: bot.displayName });
+  await channel.sendMessage({
+    text:
+      (approvalCard
+        ? `${turn.replyText ? `${turn.replyText}\n\n` : ""}${approvalCard}`
+        : turn.replyText) ||
+      `Sorry — I couldn't complete that request. Please try again or escalate to the team.`,
+    user_id: botUserId,
+    // Marks the message for the webhook to skip (no legacy bot, no
+    // workflow chat events for machine messages).
+    ai_generated: true,
+  } as Parameters<typeof channel.sendMessage>[0]);
+
+  // Persist the fresh session cursor + park state. A parked turn stamps
+  // awaiting_approval for the Fleet approvals inbox; any completed turn
+  // (including the chat-path "approve"/"deny") clears it back to idle.
+  await service.from("bot_chat_sessions").upsert(
+    {
+      ...(existing?.id ? { id: existing.id } : {}),
+      client_id: bot.clientId,
+      property_id: trigger.propertyId,
+      bot_id: bot.botRowId,
+      channel_id: trigger.channelId,
+      eve_session_id: sessionId,
+      eve_continuation_token: turn.continuationToken,
+      last_turn_at: new Date().toISOString(),
+      status: turn.pendingRequests.length ? "awaiting_approval" : "idle",
+      pending_approval: turn.pendingRequests.length
+        ? {
+            requests: turn.pendingRequests,
+            requestedAt: new Date().toISOString(),
+            channelId: trigger.channelId,
+          }
+        : null,
+    },
+    { onConflict: "channel_id,bot_id" },
+  );
+}
+
+function buildApprovalCard(
+  botSlug: string,
+  pending: PendingRequest[],
+): string {
+  const lines = pending.map((r) => {
+    const input = r.input ? JSON.stringify(r.input) : "";
+    return `• **${r.toolName}** ${input ? `\`${input.slice(0, 300)}\`` : ""}`;
+  });
+  return [
+    `⏸️ **Approval required** — I've parked this request until a human decides:`,
+    ...(lines.length ? lines : ["• (pending action)"]),
+    ``,
+    `Reply **@${botSlug} approve** to proceed or **@${botSlug} deny** to cancel. This request stays parked — even across restarts — until answered.`,
+  ].join("\n");
+}
+
+/**
+ * Consume one turn from a session's replayed stream. Ignores everything
+ * before THIS turn's own message.received echo (`ownNeedle`), or a resumed
+ * session would re-capture (and re-post) earlier turns' output.
+ * (Also used by the channel-bot eve glue — lib/stream/channel-bot-eve.ts.)
+ */
+export async function consumeTurnStream(input: {
+  sessionId: string;
+  headers: Record<string, string>;
+  ownNeedle: string;
+}): Promise<{
+  replyText: string;
+  pendingRequests: PendingRequest[];
+  continuationToken: string | null;
+  /** Validated chat-UI spec from a render_ui call this turn (last wins) —
+   *  the eve channel bot returns it in the tool RESULT (`ai_ui_spec`);
+   *  the glue posts it as the `ai_ui` Stream attachment. */
+  uiSpec: unknown | null;
+}> {
   const streamResponse = await fetch(
-    `${eveOrigin()}/eve/v1/session/${sessionId}/stream`,
-    { headers },
+    `${eveOrigin()}/eve/v1/session/${input.sessionId}/stream`,
+    { headers: input.headers },
   );
   if (!streamResponse.ok || !streamResponse.body) {
     throw new Error(`eve stream failed (${streamResponse.status})`);
@@ -205,14 +293,11 @@ async function runPodBotTurn(
   const decoder = new TextDecoder();
   let buffer = "";
   let replyText = "";
-  let approvalCard: string | null = null;
+  let pendingRequests: PendingRequest[] = [];
   let continuationToken: string | null = null;
+  let uiSpec: unknown | null = null;
   let done = false;
-  // The stream REPLAYS history from index 0 on every attach. Ignore
-  // everything before THIS turn's own message.received echo, or a resumed
-  // session would re-capture (and re-post) earlier turns' output.
   let inOwnTurn = false;
-  const ownNeedle = turnMessage.slice(0, 120);
   while (!done) {
     const chunk = await reader.read();
     if (chunk.done) break;
@@ -229,7 +314,7 @@ async function runPodBotTurn(
       }
       if (event.type === "message.received") {
         const received = event.data?.message;
-        if (typeof received === "string" && received.startsWith(ownNeedle)) {
+        if (typeof received === "string" && received.startsWith(input.ownNeedle)) {
           inOwnTurn = true;
         }
         continue;
@@ -242,28 +327,18 @@ async function runPodBotTurn(
       if (event.type === "message.completed") {
         const text = event.data?.message;
         if (typeof text === "string" && text.trim()) replyText = text;
+      } else if (event.type === "action.result") {
+        // render_ui returns its validated spec in the tool result.
+        const result = event.data?.result as
+          | { output?: { ai_ui_spec?: unknown } }
+          | undefined;
+        if (result?.output && typeof result.output === "object" && result.output.ai_ui_spec) {
+          uiSpec = result.output.ai_ui_spec;
+        }
       } else if (event.type === "input.requested") {
-        // Approval/question park (M4): render the pending request as an
-        // interactive card. A follow-up "@<bot> approve" / "@<bot> deny"
-        // resolves it — eve accepts option-matching follow-up text, so the
-        // normal addressing glue doubles as the approval responder.
-        const requests = Array.isArray(event.data?.requests)
-          ? (event.data?.requests as Array<Record<string, unknown>>)
-          : [];
-        const lines = requests.map((r) => {
-          // Shape (verified): requests[].action = {toolName, input, callId}.
-          const action = (r.action ?? {}) as Record<string, unknown>;
-          const tool =
-            typeof action.toolName === "string" ? action.toolName : "a gated action";
-          const input = action.input ? JSON.stringify(action.input) : "";
-          return `• **${tool}** ${input ? `\`${input.slice(0, 300)}\`` : ""}`;
-        });
-        approvalCard = [
-          `⏸️ **Approval required** — I've parked this request until a human decides:`,
-          ...(lines.length ? lines : ["• (pending action)"]),
-          ``,
-          `Reply **@${bot.botSlug} approve** to proceed or **@${bot.botSlug} deny** to cancel. This request stays parked — even across restarts — until answered.`,
-        ].join("\n");
+        // Approval/question park (M4). A follow-up "approve"/"deny"
+        // resolves it — eve accepts option-matching follow-up text.
+        pendingRequests = parsePendingRequests(event.data);
       } else if (event.type === "session.waiting") {
         const token = event.data?.continuationToken;
         continuationToken = typeof token === "string" ? token : null;
@@ -279,34 +354,137 @@ async function runPodBotTurn(
     }
   }
   reader.cancel().catch(() => {});
+  return { replyText, pendingRequests, continuationToken, uiSpec };
+}
 
-  // Post the reply as the bot's own Stream user.
-  const botUserId = `pod-${bot.botSlug}`;
-  await server.upsertUser({ id: botUserId, name: bot.displayName });
-  await channel.sendMessage({
-    text:
-      (approvalCard
-        ? `${replyText ? `${replyText}\n\n` : ""}${approvalCard}`
-        : replyText) ||
-      `Sorry — I couldn't complete that request. Please try again or escalate to the team.`,
-    user_id: botUserId,
-    // Marks the message for the webhook to skip (no legacy bot, no
-    // workflow chat events for machine messages).
-    ai_generated: true,
-  } as Parameters<typeof channel.sendMessage>[0]);
+type SessionRowForDecision = {
+  id: string;
+  client_id: string;
+  property_id: string;
+  bot_id: string;
+  channel_id: string;
+  eve_session_id: string | null;
+  eve_continuation_token: string | null;
+};
 
-  // Persist the fresh session cursor.
-  await service.from("bot_chat_sessions").upsert(
-    {
-      ...(existing?.id ? { id: existing.id } : {}),
-      client_id: bot.clientId,
-      property_id: trigger.propertyId,
-      bot_id: bot.botRowId,
-      channel_id: trigger.channelId,
-      eve_session_id: sessionId,
-      eve_continuation_token: continuationToken,
+/**
+ * Resolve a parked approval from the app (Fleet approvals inbox) — the
+ * same mechanism as chatting "approve"/"deny" at the bot: POST the bare
+ * decision with the session's continuation token, consume the turn, and
+ * (for channel sessions) post the outcome card into the Stream channel as
+ * the bot. Workflow sessions (`workflow:*` channel ids) have no channel —
+ * the outcome stays in the session log.
+ *
+ * Token hygiene: a stale/missing stored token is re-recovered from the
+ * stream tail (the replay's session.waiting carries the live token). If no
+ * park is recoverable the row is cleared to idle — the approval was
+ * already resolved elsewhere (chat race) or the session is gone.
+ */
+export async function runPodDecisionTurn(input: {
+  sessionRow: SessionRowForDecision;
+  decision: "approve" | "deny";
+  actorUserId: string;
+}): Promise<{ ok: true; outcome: string } | { error: string }> {
+  const { sessionRow, decision } = input;
+  const service = createServiceClient();
+  if (!sessionRow.eve_session_id) {
+    await clearParkState(sessionRow.id);
+    return { error: "This approval is no longer pending." };
+  }
+
+  const { data: bot } = await service
+    .from("bots")
+    .select("bot_id, display_name")
+    .eq("id", sessionRow.bot_id)
+    .maybeSingle();
+  if (!bot) return { error: "Bot not found" };
+
+  const headers = fleetServiceHeaders({
+    propertyId: sessionRow.property_id,
+    userId: input.actorUserId,
+    botSlug: bot.bot_id,
+  });
+  const sessionId = sessionRow.eve_session_id;
+
+  const sendDecision = (token: string) =>
+    fetch(`${eveOrigin()}/eve/v1/session/${sessionId}`, {
+      method: "POST",
+      headers,
+      // Bare, lowercase — eve resolves a parked approval by matching the
+      // follow-up message against the option ids.
+      body: JSON.stringify({ continuationToken: token, message: decision }),
+    });
+
+  let response: Response | null = null;
+  if (sessionRow.eve_continuation_token) {
+    response = await sendDecision(sessionRow.eve_continuation_token);
+    if (!response.ok) response = null;
+  }
+  if (!response) {
+    // Stored token stale/absent — recover the live one from the tail.
+    const tail = await readSessionTail(sessionId, headers);
+    if (!tail?.continuationToken || tail.status !== "awaiting_approval") {
+      await clearParkState(sessionRow.id);
+      return { error: "This approval is no longer pending." };
+    }
+    response = await sendDecision(tail.continuationToken);
+    if (!response.ok) {
+      await clearParkState(sessionRow.id);
+      return { error: "This approval is no longer pending." };
+    }
+  }
+
+  const turn = await consumeTurnStream({
+    sessionId,
+    headers,
+    ownNeedle: decision,
+  });
+
+  // Channel sessions get the outcome posted back where the request lives;
+  // workflow sessions have no channel.
+  if (!sessionRow.channel_id.startsWith("workflow:")) {
+    try {
+      const server = getStreamServer();
+      const botUserId = `pod-${bot.bot_id}`;
+      await server.upsertUser({ id: botUserId, name: bot.display_name });
+      const channel = server.channel("team", sessionRow.channel_id);
+      await channel.sendMessage({
+        text:
+          turn.replyText ||
+          (decision === "approve"
+            ? `✅ Approved — proceeding.`
+            : `🚫 Denied — the parked action was cancelled.`),
+        user_id: botUserId,
+        ai_generated: true,
+      } as Parameters<typeof channel.sendMessage>[0]);
+    } catch (err) {
+      console.warn("[pod-bot-reply] decision outcome post failed", err);
+    }
+  }
+
+  await service
+    .from("bot_chat_sessions")
+    .update({
+      eve_continuation_token: turn.continuationToken,
       last_turn_at: new Date().toISOString(),
-    },
-    { onConflict: "channel_id,bot_id" },
-  );
+      status: turn.pendingRequests.length ? "awaiting_approval" : "idle",
+      pending_approval: turn.pendingRequests.length
+        ? {
+            requests: turn.pendingRequests,
+            requestedAt: new Date().toISOString(),
+            channelId: sessionRow.channel_id,
+          }
+        : null,
+    })
+    .eq("id", sessionRow.id);
+
+  return { ok: true, outcome: turn.replyText || `Decision "${decision}" delivered.` };
+}
+
+async function clearParkState(rowId: string): Promise<void> {
+  const service = createServiceClient();
+  await service
+    .from("bot_chat_sessions")
+    .update({ status: "idle", pending_approval: null })
+    .eq("id", rowId);
 }

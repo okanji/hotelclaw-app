@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.16",
     "@hotelclaw/agent-config": "workspace:*",
+    "@hotelclaw/chat-ui": "workspace:*",
     "@supabase/ssr": "0.10",
     "@supabase/supabase-js": "2",
     "ai": "^7.0.26",

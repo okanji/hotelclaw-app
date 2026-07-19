@@ -131,7 +131,7 @@ export function AgentDetail({
         <div className="min-h-0 border-t border-border/60 lg:border-t-0 lg:border-l">
           <AgentChat
             propertyId={agent.property_id}
-            agentId={agent.id}
+            target={{ agentId: agent.id }}
             agentName={name}
             avatarEmoji={config.avatarEmoji}
             starterPrompts={config.starterPrompts}

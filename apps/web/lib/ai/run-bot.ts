@@ -12,7 +12,7 @@ import "server-only";
  * Three things this runtime guarantees uniformly across bots:
  *   1. The system prompt always tells the model WHY it's responding
  *      (activation reason), to break in-context deferral patterns.
- *   2. Every bot has access to gbrain memory tools and the OpenClaw
+ *   2. Every bot has access to shared-brain memory tools and durable-agent
  *      delegation tool (Tier 2 fallbacks), automatically wired.
  *   3. Consistent model settings (Sonnet 4.6, temperature 0, stepCountIs 5)
  *      — proven via the bot-chat-test harness.
@@ -142,7 +142,7 @@ const IGNORE_DEFERRAL_GUARD = [
 ].join(" ");
 
 const GBRAIN_GUIDANCE = [
-  "You have gbrain tools available — the shared brain for this property, also used by other in-app bots and OpenClaw.",
+  "You have shared-brain tools available — the property's institutional memory, also read and written by the other bots and the durable agents.",
   "Reading: use `search` for cheap hybrid retrieval when you need raw matches; use `think` for a synthesized answer with citations and gap analysis (more expensive — reserve for hard questions).",
   "Writing: when you learn or confirm something durable about this property (a person's role, a recurring issue, a decision the team made, a preference), use `capture` to record it so future turns — yours and other bots' — can build on it. Skip ephemeral chit-chat. Skip facts already authoritative in Supabase (tasks, docs, calendar events). Capture insights, not lookups.",
 ].join(" ");
@@ -184,7 +184,7 @@ function assembleSystemPrompt(opts: {
 
 /**
  * Merge the bot's scoped tools with the always-available shared tools
- * (gbrain memory + OpenClaw delegation). Bot-scoped tool names win on
+ * (shared-brain memory + durable-agent delegation). Bot-scoped tool names win on
  * collision (extremely unlikely, but better defined than ambiguous).
  *
  * Returns `hasGbrain` so the system prompt can conditionally include

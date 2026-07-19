@@ -9,6 +9,7 @@ import {
   recordUsage,
 } from "@/lib/chatbots/limits";
 import { runGuestBot } from "@/lib/ai/guest-bot/run-guest-bot";
+import { loadGuestProfile } from "@/lib/brain/guest-profile";
 import {
   buildGuestBotTools,
   performGuestHandoff,
@@ -290,6 +291,10 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       guest: {
         guestName: conversation.guest_name,
         roomNumber: conversation.room_number,
+        profileNotes: await loadGuestProfile(bot.property_id, {
+          phone: conversation.guest_phone,
+          email: conversation.guest_email,
+        }),
       },
       tools,
       messages,
