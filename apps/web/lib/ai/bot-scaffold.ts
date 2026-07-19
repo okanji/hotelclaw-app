@@ -36,6 +36,7 @@ import { generateText, stepCountIs, type ModelMessage } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createMemoryState } from "./memory-state";
 import { buildPropertyTools } from "./tools";
+import { runBot } from "./run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
 
 type Bot = Chat<{ liveblocks: LiveblocksAdapter }>;
@@ -115,12 +116,19 @@ function buildBot(): Bot {
         thread as unknown as { id: string; adapter: LiveblocksAdapter },
         message,
       );
-      await postReply({
-        thread,
-        systemPrompt: groundedSystemPrompt(context),
-        history,
-        tools,
+      // Through runBot so the shared runtime applies: gbrain + delegate
+      // tools auto-injected, uniform model settings and deferral guard.
+      const result = await runBot({
+        persona: groundedSystemPrompt(context),
+        scopedTools: tools,
+        messages: history,
+        scope: {
+          propertyId: context.propertyId,
+          userId: message.author.userId,
+          surface: "comment-thread",
+        },
       });
+      await thread.post(result.text.trim() || "(no reply)");
     } catch (err) {
       console.error("[liveblocks-bot] onNewMention failed", err);
       await thread.post(

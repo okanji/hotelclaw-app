@@ -290,6 +290,61 @@ export function CalendarAiTools({
         })}
       />
 
+      {/* ---------- search-property-brain (read-only) ---------- */}
+      <RegisterAiTool
+        name="search-property-brain"
+        tool={defineAiTool()({
+          description:
+            "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, policies, team lore). Use for 'have we seen this before' / policy / background questions — NOT for this week's schedule, which is already in your knowledge. Cite results as [brain: <page-path>].",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "2-300 char search query" },
+              limit: {
+                type: "number",
+                description: "Max results (default 5, max 10).",
+              },
+            },
+            required: ["query"],
+            additionalProperties: false,
+          },
+          execute: async (input) => {
+            const res = await fetch(
+              `/api/properties/${propertyId}/brain/search`,
+              {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  query: input.query,
+                  limit: input.limit,
+                }),
+              },
+            );
+            if (!res.ok) {
+              return { data: { error: await res.text() } };
+            }
+            return { data: await res.json() };
+          },
+          render: ({ stage, args, result }) => {
+            if (stage !== "executed") {
+              return <AiTool title="Searching the brain…" icon="🧠" />;
+            }
+            const data = result?.data as
+              | { results?: unknown; unavailable?: boolean; error?: string }
+              | undefined;
+            if (!data || data.error || data.unavailable) {
+              return <AiTool title="Brain unavailable" icon="⚠️" />;
+            }
+            return (
+              <AiTool
+                title={`Searched the brain: "${args.query}"`}
+                icon="🧠"
+              />
+            );
+          },
+        })}
+      />
+
       {/* ---------- find-free-slot (read-only) ---------- */}
       <RegisterAiTool
         name="find-free-slot"

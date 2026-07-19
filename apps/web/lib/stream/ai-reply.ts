@@ -195,14 +195,22 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     // The default channel bot runs on the eve runtime: one durable session
     // per (channel, thread) with real memory + the shared knowledge brain.
     // Custom-chatbot channel deployments keep the legacy stateless path
-    // below (their persona/tools merge web-side). An eve failure FAILS
-    // LOUDLY — a visible error message in the channel, no silent fallback
-    // to the stateless path (a degraded reply hides runtime rot; a loud
-    // failure gets fixed). No coalesce loop here: sessions are not a
-    // message queue; messages landing mid-turn arrive as unseen context on
-    // the next trigger.
+    // below (their persona/tools merge web-side).
+    //
+    // Configured vs failed — two different things:
+    //   * Eve NOT CONFIGURED on this host (no EVE_DEV, no
+    //     EVE_INTERNAL_ORIGIN — e.g. prod until the eve service deploys):
+    //     the legacy stateless path below IS the engine, deliberately.
+    //   * Eve configured but the turn FAILS: FAIL LOUDLY — a visible error
+    //     message in the channel, no silent fallback (a degraded reply
+    //     hides runtime rot; a loud failure gets fixed).
+    // No coalesce loop on the eve path: sessions are not a message queue;
+    // messages landing mid-turn arrive as unseen context on the next
+    // trigger.
+    const eveConfigured =
+      process.env.EVE_DEV === "1" || Boolean(process.env.EVE_INTERNAL_ORIGIN);
     let eveHandled = false;
-    if (!deployment) {
+    if (!deployment && eveConfigured) {
       const eveTurn = await runChannelBotEveTurn({
         propertyId: ctx.propertyId,
         streamChannelId: ctx.streamChannelId,

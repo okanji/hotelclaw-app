@@ -18,6 +18,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { loadOrgChart } from "@/lib/org/queries";
 import { renderOrgChart } from "@/lib/org/render";
+import { callBrainTool, resolvePropertyBrain } from "@/lib/brain/client";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
 
@@ -147,6 +148,27 @@ export async function triageTask(opts: {
       priority: t.priority,
     }));
 
+  // Brain evidence: search institutional memory for this kind of work
+  // (past incidents, supplier quirks, "who handles X" lore). Prefetched
+  // server-side like the guest-profile pattern — keeps the bot single-shot
+  // and the evidence provenance explicit. Fail-soft: no binding or a slow
+  // brain just means no extra evidence.
+  let brainEvidence: unknown = null;
+  try {
+    const binding = await resolvePropertyBrain(opts.propertyId);
+    if (binding && task.title) {
+      const search = await callBrainTool(
+        binding,
+        "search",
+        { query: task.title.slice(0, 200), limit: 3 },
+        { timeoutMs: 8_000 },
+      );
+      if (search.ok) brainEvidence = search.content;
+    }
+  } catch (err) {
+    console.error("[triage] brain evidence fetch failed", opts.taskId, err);
+  }
+
   const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   let result;
   try {
@@ -164,7 +186,7 @@ export async function triageTask(opts: {
         "Rules:",
         "- Suggest ONLY for the fields listed as missing. At most one suggestion per field.",
         "- `value` must be EXACTLY an id/value from the candidates. Anything else is discarded.",
-        "- Ground reasoning in the evidence given (org chart, similar tasks, name/keyword matches, member roles). If the evidence is weak, mark confidence low or omit the field entirely.",
+        "- Ground reasoning in the evidence given (org chart, similar tasks, brain knowledge, name/keyword matches, member roles). If the evidence is weak, mark confidence low or omit the field entirely.",
         "- Assignee suggestions should prefer people who handled similar work or belong to the owning team; never suggest someone with no signal.",
       ].join("\n"),
       prompt: JSON.stringify(
@@ -179,6 +201,9 @@ export async function triageTask(opts: {
             priorities: PRIORITIES,
           },
           similarTasks: similar,
+          // Institutional memory matching the task title (may be null —
+          // treat as one more evidence source, cite it when used).
+          brainKnowledge: brainEvidence,
         },
         null,
         2,

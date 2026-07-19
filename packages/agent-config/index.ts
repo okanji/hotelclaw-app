@@ -124,6 +124,27 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     summary: "Read the full text of documents attached to this agent.",
     category: "read",
   },
+  {
+    id: "brain_search",
+    label: "Search the knowledge brain",
+    summary:
+      "Search the property's institutional memory (past incidents, suppliers, guest history).",
+    category: "read",
+  },
+  {
+    id: "brain_think",
+    label: "Ask the knowledge brain",
+    summary:
+      "Synthesized answers with citations for hard questions spanning many brain pages.",
+    category: "read",
+  },
+  {
+    id: "brain_capture",
+    label: "Capture to the knowledge brain",
+    summary:
+      "Record durable observations to the property's shared brain timeline.",
+    category: "write",
+  },
 ];
 
 export const AGENT_TOOL_IDS = new Set(AGENT_TOOL_CATALOG.map((t) => t.id));

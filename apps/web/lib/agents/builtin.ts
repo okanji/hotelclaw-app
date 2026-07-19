@@ -46,7 +46,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A about a single task, its subtasks and related work.",
     promptSummary:
       "Scoped to the open task: explains status, finds related tasks, suggests next steps. Read-only.",
-    tools: ["Task details", "Subtasks", "Related tasks"],
+    tools: ["Task details", "Subtasks", "Related tasks", "Shared brain (gbrain)"],
     model: "Sonnet",
   },
   {
@@ -57,7 +57,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A over the open document plus inline writing help.",
     promptSummary:
       "Answers questions about the open document and can propose new content blocks; edits are always applied by the human.",
-    tools: ["Read document", "Propose content"],
+    tools: ["Read document", "Propose content", "Shared brain (gbrain)"],
     model: "Sonnet",
   },
   {
@@ -68,7 +68,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Weekly reports, the intelligence brief, and risk annotations.",
     promptSummary:
       "Writes narrative over deterministic metrics — it never computes numbers itself, and every card cites the signals it rests on.",
-    tools: ["Deterministic metrics (read-only)"],
+    tools: ["Deterministic metrics (read-only)", "Shared brain (weekly reports)"],
     model: "Sonnet + Haiku",
   },
   {
@@ -79,7 +79,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A over flow metrics, workload, and operations.",
     promptSummary:
       "Answers with figures pulled from the same metric functions the dashboards chart, citing (metric · lens) for every number.",
-    tools: ["Flow metrics", "Attention", "Portfolio", "Workload", "Operations", "Weekly report"],
+    tools: ["Flow metrics", "Attention", "Portfolio", "Workload", "Operations", "Weekly report", "Shared brain (gbrain)"],
     model: "Sonnet",
   },
   {
@@ -90,7 +90,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Your 'since your last shift' orientation paragraph.",
     promptSummary:
       "Writes only the one-paragraph read over a deterministic change payload; the widget renders the facts directly.",
-    tools: ["Shift window data (read-only)"],
+    tools: ["Shift window data (read-only)", "Shared brain (gbrain)"],
     model: "Haiku",
   },
   {
@@ -101,7 +101,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Suggests team, assignee, and priority for bare new tasks.",
     promptSummary:
       "Suggestions only — values are validated against real candidates and applied by staff (or the owner's auto-apply dial).",
-    tools: ["Similar-task evidence", "Candidate lists"],
+    tools: ["Similar-task evidence", "Candidate lists", "Brain evidence (prefetched)"],
     model: "Haiku",
   },
   {
