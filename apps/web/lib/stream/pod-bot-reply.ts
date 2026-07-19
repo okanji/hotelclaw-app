@@ -315,7 +315,12 @@ export async function consumeTurnStream(input: {
       if (event.type === "message.received") {
         const received = event.data?.message;
         if (typeof received === "string" && received.startsWith(input.ownNeedle)) {
+          // Matching turn found — reset captures so an earlier matching
+          // turn's output (needle collisions on replay) can't leak.
           inOwnTurn = true;
+          replyText = "";
+          pendingRequests = [];
+          uiSpec = null;
         }
         continue;
       }
