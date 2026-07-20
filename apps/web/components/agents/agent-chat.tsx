@@ -56,6 +56,9 @@ export function AgentChat({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<AgentChatSession | null>(initialSession);
+  // User turns the session is known to hold (kept current by every stream
+  // replay) — the next follow-up expects turnsRef.current + 1.
+  const turnsRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hydratedRef = useRef(false);
@@ -74,9 +77,16 @@ export function AgentChat({
   );
 
   /** Read the session's NDJSON stream, rebuilding the transcript from the
-   * full event log. Resolves once the session parks (or the turn fails). */
+   * full event log. The replay includes every HISTORICAL park boundary
+   * (session.waiting), so a follow-up must not stop at the first one it
+   * sees — that's the previous turn's park, and aborting there freezes the
+   * transcript one turn behind. `expectedTurns` is how many user messages
+   * the session holds including the one just sent: the stream is consumed
+   * until the park that FOLLOWS that turn. Pass null when the count is
+   * unknown (resume-on-mount) — the replay of a parked session simply goes
+   * quiet, so reads race a short idle window instead. */
   const consumeStream = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, expectedTurns: number | null) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -92,11 +102,14 @@ export function AgentChat({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let userTurns = 0;
 
       const reducer = createTranscriptReducer({
         onWaiting: (continuationToken) => {
           sessionRef.current = { id: sessionId, continuationToken };
-          controller.abort();
+          if (expectedTurns !== null && userTurns >= expectedTurns) {
+            controller.abort();
+          }
         },
         onFailed: () => {
           toast.error("The agent run failed — try again.");
@@ -104,15 +117,24 @@ export function AgentChat({
         },
       });
       const handle = (event: { type: string; data: Record<string, unknown> }) => {
+        if (event.type === "message.received") userTurns += 1;
         reducer.handle(event);
         setTranscript([...reducer.items]);
       };
 
       try {
         for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          const chunk =
+            expectedTurns === null
+              ? await Promise.race([
+                  reader.read(),
+                  new Promise<{ done: true; value?: undefined }>((resolve) =>
+                    setTimeout(() => resolve({ done: true }), 2000),
+                  ),
+                ])
+              : await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
           for (const line of lines) {
@@ -128,6 +150,9 @@ export function AgentChat({
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           throw error;
         }
+      } finally {
+        reader.cancel().catch(() => {});
+        turnsRef.current = Math.max(turnsRef.current, userTurns);
       }
     },
     [headers],
@@ -174,7 +199,8 @@ export function AgentChat({
           continuationToken: body.continuationToken ?? null,
         };
 
-        await consumeStream(sessionId);
+        if (!isFollowUp) turnsRef.current = 0;
+        await consumeStream(sessionId, turnsRef.current + 1);
 
         // Pod-bot test chats are ephemeral — agent_sessions FKs the agents
         // table, so only stored-agent sessions are recorded.
@@ -206,7 +232,7 @@ export function AgentChat({
     const session = sessionRef.current;
     if (!session?.id) return;
     setBusy(true);
-    consumeStream(session.id)
+    consumeStream(session.id, null)
       .catch(() => {
         // A dead/expired session just starts fresh.
         sessionRef.current = null;

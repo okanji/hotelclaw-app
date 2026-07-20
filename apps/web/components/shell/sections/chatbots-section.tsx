@@ -29,6 +29,13 @@ export function ChatbotsSection({ propertyId }: { propertyId: string }) {
   const onList = pathname === base;
   const view = params.get("view") ?? "all";
 
+  // A chatbot editor route (/chatbots/<botId>/...) has no sidebar item of its
+  // own — keep its parent lit rather than leaving the sidebar unselected.
+  const sub = pathname.startsWith(`${base}/`)
+    ? pathname.slice(base.length + 1).split("/")[0]
+    : null;
+  const onEditor = sub !== null && sub !== "conversations";
+
   const pinned = [
     { id: "all", label: "All chatbots", icon: LayoutGrid },
     { id: "published", label: "Live", icon: Globe },
@@ -51,7 +58,8 @@ export function ChatbotsSection({ propertyId }: { propertyId: string }) {
           </SidebarMenuItem>
           {pinned.map((v) => {
             const href = v.id === "all" ? base : `${base}?view=${v.id}`;
-            const active = onList && view === v.id;
+            const active =
+              (onList && view === v.id) || (onEditor && v.id === "all");
             return (
               <SidebarMenuItem key={v.id}>
                 <SidebarMenuButton

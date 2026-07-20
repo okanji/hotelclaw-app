@@ -36,6 +36,17 @@ export function WorkflowsSection({ propertyId }: { propertyId: string }) {
   const onList = pathname === base;
   const view = params.get("view") ?? "all";
 
+  // Everything under /workflows/<segment> that isn't a library route is a
+  // builder route (`new`, `<workflowId>`, `<workflowId>/runs/...`). Those pages
+  // have no sidebar item of their own, so keep their parent lit rather than
+  // leaving the whole sidebar unselected.
+  const sub = pathname.startsWith(`${base}/`)
+    ? pathname.slice(base.length + 1).split("/")[0]
+    : null;
+  const onNew = sub === "new";
+  const onBuilder =
+    sub !== null && !onNew && !["templates", "runs", "entities"].includes(sub);
+
   const pinned = [
     { id: "all", label: "All workflows", icon: LayoutGrid },
     { id: "mine", label: "My workflows", icon: UserCircle },
@@ -59,6 +70,7 @@ export function WorkflowsSection({ propertyId }: { propertyId: string }) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={`${base}/new`} />}
+                isActive={onNew}
                 tooltip="Build a workflow with AI"
               >
                 <Sparkles />
@@ -67,7 +79,8 @@ export function WorkflowsSection({ propertyId }: { propertyId: string }) {
             </SidebarMenuItem>
             {pinned.map((v) => {
               const href = v.id === "all" ? base : `${base}?view=${v.id}`;
-              const active = onList && view === v.id;
+              const active =
+                (onList && view === v.id) || (onBuilder && v.id === "all");
               return (
                 <SidebarMenuItem key={v.id}>
                   <SidebarMenuButton
