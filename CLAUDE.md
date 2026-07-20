@@ -17,9 +17,10 @@ This repo is a **turborepo** containing three apps:
   `ai` into agent code.** Shared agent-config schema lives in
   `packages/agent-config` (zod-only; eve snapshots its agent root, so shared
   code must arrive via node_modules, not relative paths). Eve requires
-  **Node ≥ 24** (`.nvmrc` pins 24; `nvm use` before dev) and is gated behind
-  `EVE_DEV=1` in `apps/web/next.config.ts` (`withEve`, eveRoot `../agent`).
-  Dev: `nvm use 24 && EVE_DEV=1 pnpm dev` — one server; eve routes mount at
+  **Node ≥ 24** (`.nvmrc` pins 24; `nvm use` before dev) and is
+  **unconditional** as of 2026-07-20 — `withEve` always applies in
+  `apps/web/next.config.ts` (eveRoot `../agent`); the old `EVE_DEV` gate is
+  gone. Dev: `nvm use 24 && pnpm dev` — one server; eve routes mount at
   `/eve/v1/*` (middleware-allowlisted; auth = eve channel AuthFn in
   `apps/agent/agent/channels/eve.ts`: Supabase session cookie or
   service-role bearer + `x-hotelclaw-property`/`-agent`/`-user` headers).

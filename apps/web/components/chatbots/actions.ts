@@ -360,6 +360,23 @@ export async function setChannelDeployments(input: {
     }
   }
 
+  // Deployment persona/tools resolve at eve session START — reset the
+  // affected channels' durable sessions so the change applies on the next
+  // message instead of whenever the old session happens to expire.
+  const affected = [
+    ...new Set([...toRemove.map((d) => d.stream_channel_id), ...toAdd]),
+  ];
+  if (affected.length > 0) {
+    try {
+      await createServiceClient()
+        .from("channel_bot_sessions")
+        .delete()
+        .in("channel_id", affected);
+    } catch (err) {
+      console.error("[chatbots] session reset after deployment change failed", err);
+    }
+  }
+
   revalidatePath(`/p/${pid.data}/chatbots/${bid.data}`);
   return { ok: true };
 }

@@ -16,6 +16,10 @@ const AGENT_HEADER = "x-hotelclaw-agent";
 // against the property's client in lib/pods.ts; bogus slugs resolve to no
 // bot and the base runtime persona applies.
 const BOT_HEADER = "x-hotelclaw-bot";
+// Stream channel id the channel-bot session serves — lets resolvers look up
+// chatbot_channel_deployments. Deployment rows are re-verified against the
+// caller's property in agent-config.ts; a bogus id resolves to no deployment.
+const CHANNEL_HEADER = "x-hotelclaw-channel";
 
 async function verifyMembership(
   userId: string,
@@ -37,6 +41,7 @@ function principal(
   role: string,
   agentId: string | null,
   botSlug: string | null = null,
+  channelId: string | null = null,
 ) {
   return {
     authenticator,
@@ -49,6 +54,7 @@ function principal(
       role,
       ...(agentId ? { agentId } : {}),
       ...(botSlug ? { botSlug } : {}),
+      ...(channelId ? { channelId } : {}),
     },
   };
 }
@@ -95,6 +101,7 @@ function supabaseCookieAuth(): AuthFn<Request> {
       membership.role,
       request.headers.get(AGENT_HEADER),
       request.headers.get(BOT_HEADER),
+      request.headers.get(CHANNEL_HEADER),
     );
   };
 }
@@ -139,6 +146,7 @@ function serviceBearerAuth(): AuthFn<Request> {
       membership.role,
       request.headers.get(AGENT_HEADER),
       compositeBot ?? request.headers.get(BOT_HEADER),
+      request.headers.get(CHANNEL_HEADER),
     );
   };
 }

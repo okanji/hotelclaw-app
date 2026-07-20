@@ -24,8 +24,9 @@ const config = withWorkflow(nextConfig);
 // The eve agent runtime lives in apps/agent (its own workspace package, so its
 // AI SDK v7 dependency tree nests separately from this app's v6 under the
 // hoisted linker; `eve` itself resolves from the hoisted root node_modules).
-// Eve requires Node >= 24, so it is opt-in behind EVE_DEV until the dev +
-// deploy toolchain moves to Node 24.
-export default process.env.EVE_DEV
-  ? withEve(config, { eveRoot: "../agent" })
-  : config;
+// Eve is UNCONDITIONAL infrastructure (2026-07-20): the default channel bot and
+// custom channel deployments run on it with no fallback, so the whole
+// toolchain requires Node >= 24 (.nvmrc / engines pin it). The old EVE_DEV
+// gate caused two silent-absence outages (turbo strict env stripped it in dev
+// and in the Vercel build) and is gone.
+export default withEve(config, { eveRoot: "../agent" });

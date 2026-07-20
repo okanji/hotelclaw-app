@@ -9,6 +9,7 @@ import {
   Brain,
   Inbox,
   LayoutGrid,
+  Library,
   MessagesSquare,
   Plus,
   ShieldCheck,
@@ -112,6 +113,16 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
               >
                 <ShieldCheck />
                 <span>Built-in AI</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={`${base}/brain`} />}
+                isActive={pathname === `${base}/brain`}
+                tooltip="Browse what this property has learned"
+              >
+                <Library />
+                <span>Brain</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

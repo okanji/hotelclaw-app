@@ -14,10 +14,14 @@ import "server-only";
 
 export function eveOrigin(): string {
   // On Vercel the eve Build Output service is reached through the
-  // deployment's own routing layer — VERCEL_URL (no protocol) is the
-  // per-deployment host, correct for previews and prod alike. Local dev
-  // keeps the same-server loopback.
+  // deployment's routing layer. IMPORTANT: prefer the PRODUCTION domain —
+  // per-deployment hosts (VERCEL_URL) are SSO-protected even for prod
+  // deployments, so server-side fetches to them 401. Local dev keeps the
+  // same-server loopback.
   if (process.env.EVE_INTERNAL_ORIGIN) return process.env.EVE_INTERNAL_ORIGIN;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return "http://127.0.0.1:3000";
 }
@@ -144,6 +148,8 @@ export function fleetServiceHeaders(input: {
   propertyId: string;
   userId: string;
   botSlug?: string;
+  /** Stream channel id — lets the runtime resolve chatbot_channel_deployments. */
+  channelId?: string;
 }): Record<string, string> {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("service key missing");
@@ -153,5 +159,6 @@ export function fleetServiceHeaders(input: {
     "x-hotelclaw-property": input.propertyId,
     "x-hotelclaw-user": input.userId,
     ...(input.botSlug ? { "x-hotelclaw-bot": input.botSlug } : {}),
+    ...(input.channelId ? { "x-hotelclaw-channel": input.channelId } : {}),
   };
 }

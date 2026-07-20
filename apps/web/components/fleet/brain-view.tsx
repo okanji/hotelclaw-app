@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { Library } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -45,6 +48,16 @@ export function BrainView({
         eyebrowTone="brand"
         title="Brain & access"
         description="Where the pod's knowledge lives and who can reach this property from outside. Secrets never appear here — only what they're called."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href={`/p/${propertyId}/agents/brain`} />}
+          >
+            <Library data-icon="inline-start" />
+            Browse the brain
+          </Button>
+        }
       />
 
       <hr className="my-10 border-border" />

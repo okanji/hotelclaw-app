@@ -30,11 +30,7 @@ import {
   postSignOff,
   type ActivationReason,
 } from "@/lib/stream/ai-reply";
-import {
-  clearThread,
-  loadTurns,
-  saveTurn,
-} from "@/lib/stream/ai-turn-history";
+import { clearThread } from "@/lib/stream/ai-turn-history";
 import { maybePodBotReply } from "@/lib/stream/pod-bot-reply";
 
 /**
@@ -656,17 +652,13 @@ async function replyWithEngagedPersistence(
     botUserId: string;
     botMentioned: boolean;
   },
-  threadKey: string,
+  _threadKey: string,
   activationReason: ActivationReason,
 ): Promise<void> {
-  const priorTurns = await loadTurns(args.channelId, threadKey);
-  await generateAndPostReply({
-    ...buildReplyContext(args, activationReason),
-    priorTurns,
-    onTurnComplete: async (modelMessages) => {
-      await saveTurn(args.channelId, threadKey, modelMessages);
-    },
-  });
+  // Engaged-mode continuity IS the durable eve session — the old Redis
+  // turn-history (loadTurns/saveTurn) plumbing is gone with the legacy
+  // stateless path.
+  await generateAndPostReply(buildReplyContext(args, activationReason));
 }
 
 /**

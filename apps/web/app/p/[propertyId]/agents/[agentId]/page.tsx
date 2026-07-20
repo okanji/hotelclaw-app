@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePropertyBrain } from "@/lib/brain/client";
 import { AgentDetail } from "@/components/agents/agent-detail";
 import type { AgentRow } from "@/lib/agents/schema";
 
@@ -46,9 +47,17 @@ export default async function AgentPage({
         .maybeSingle()
     : { data: null };
 
+  // Brain binding presence for the resolved-config transparency panel —
+  // resolved server-side, only the source NAME reaches the client.
+  const brainBinding = await resolvePropertyBrain(propertyId);
+
   return (
     <AgentDetail
       agent={agent as unknown as AgentRow}
+      brain={{
+        configured: Boolean(brainBinding),
+        source: brainBinding?.source ?? null,
+      }}
       documents={documents ?? []}
       initialSession={
         lastSession

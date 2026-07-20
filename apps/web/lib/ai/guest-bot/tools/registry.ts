@@ -845,37 +845,10 @@ function buildBookingTools(
  * (no guest to collect details from, no conversation row to escalate).
  * Merged on top of the channel bot's property tools by ai-reply.
  */
-export function buildChannelDeploymentTools(
-  chatbotId: string,
-  chatbotName: string,
-  customActions: CustomActionRow[],
-): ToolSet {
-  const tools: ToolSet = {
-    search_knowledge: tool({
-      description: `Search the "${chatbotName}" bot's trained knowledge base — menus, policies, hours, FAQs the team curated for it.`,
-      inputSchema: z.object({
-        query: z.string().describe("Search terms, rephrased as keywords"),
-      }),
-      execute: async ({ query }) => {
-        const hits = await searchChatbotKnowledge({ chatbotId, query });
-        if (hits.length === 0) {
-          return { results: [], note: "No matches in the knowledge base." };
-        }
-        return {
-          results: hits.map((h) => ({ source: h.sourceTitle, content: h.content })),
-        };
-      },
-    }),
-  };
-  const taken = new Set(Object.keys(tools));
-  for (const row of customActions) {
-    if (!row.enabled) continue;
-    const name = customToolName(row.name, taken);
-    taken.add(name);
-    tools[name] = buildCustomActionTool(row);
-  }
-  return tools;
-}
+// NOTE: buildChannelDeploymentTools moved to the eve runtime (2026-07-20) —
+// channel deployments ride the durable session; see
+// apps/agent/agent/tools/channel-deployment.ts (keep its knowledge-search
+// and custom-action behavior in sync with the guest builders here).
 
 /**
  * Build the bot's tool set from its saved config — enabled actions only.

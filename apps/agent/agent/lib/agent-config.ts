@@ -15,6 +15,10 @@ export type ResolvedAgent = {
   agentId: string;
   name: string;
   config: AgentConfig;
+  /** Present when this channel-bot session serves a custom chatbot deployed
+   * into the channel (chatbot_channel_deployments) — tools/channel-deployment.ts
+   * mounts the bot's knowledge search + custom actions off this. */
+  deployment?: { chatbotId: string; chatbotName: string };
 };
 
 /**
@@ -81,6 +85,64 @@ export async function resolveSessionAgent(
         .maybeSingle();
       if (podBot) return null;
     }
+
+    // Custom chatbot deployed into this channel? Same durable session, the
+    // custom bot's persona/tier swap in; its knowledge + custom-action tools
+    // mount in tools/channel-deployment.ts. Fail-soft: any resolution error
+    // → plain channel bot (a broken deployment must never silence the bot).
+    const channelId = ctx.session.auth.current?.attributes?.channelId;
+    if (typeof channelId === "string" && channelId) {
+      try {
+        const { data: deployment } = await serviceClient()
+          .from("chatbot_channel_deployments")
+          .select("chatbot_id")
+          .eq("stream_channel_id", channelId)
+          .maybeSingle();
+        if (deployment) {
+          const { data: bot } = await serviceClient()
+            .from("chatbots")
+            .select("id, name, config, archived_at, property_id")
+            .eq("id", deployment.chatbot_id)
+            .maybeSingle();
+          // Tenancy: the deployed bot must belong to the caller's property.
+          if (bot && !bot.archived_at && bot.property_id === caller.propertyId) {
+            const botConfig = (bot.config ?? {}) as {
+              instructions?: unknown;
+              modelTier?: unknown;
+            };
+            const instructions = [
+              typeof botConfig.instructions === "string" && botConfig.instructions
+                ? botConfig.instructions
+                : `You are "${bot.name}", a specialist assistant.`,
+              "",
+              `# Where you are right now`,
+              // KEEP IN SYNC conceptually with the guest-side voice: this is
+              // the staff-channel preamble the web path used pre-migration.
+              `You are deployed in a STAFF team channel (Slack-style chat), talking to staff members of this property — not guests. Help the team using your knowledge base and integrations; speak collegially, not in your guest-facing voice. You also have the workspace tools every channel assistant gets (tasks, docs, calendar).`,
+              `Your TRAINED knowledge base (search_knowledge) is the authority for your specialty — check it FIRST for questions in your domain. The shared property brain (brain_search) is for cross-property institutional memory (past incidents, suppliers, guest history), not your curated content.`,
+            ].join("\n");
+            const base = channelBotConfig();
+            return {
+              caller,
+              agentId: `virtual:${CHANNEL_BOT_SLUG}`,
+              name: bot.name,
+              config: {
+                ...base,
+                instructions,
+                modelTier:
+                  botConfig.modelTier === "standard" || botConfig.modelTier === "advanced"
+                    ? botConfig.modelTier
+                    : base.modelTier,
+              },
+              deployment: { chatbotId: bot.id, chatbotName: bot.name },
+            };
+          }
+        }
+      } catch (err) {
+        console.error("[agent-config] deployment resolve failed", err);
+      }
+    }
+
     return {
       caller,
       agentId: `virtual:${CHANNEL_BOT_SLUG}`,

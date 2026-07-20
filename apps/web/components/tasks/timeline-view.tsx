@@ -21,6 +21,7 @@ const DAY_WIDTH = 44; // px per day
 const ROW_HEIGHT = 36; // px per task row
 const LABEL_WIDTH = 256; // px for the left label pane
 const VISIBLE_DAYS = 28; // four-week window
+const HINT_HEIGHT = 28; // px for the "No date" / "Off window" summary rows
 const MS_PER_DAY = 86_400_000;
 
 function startOfDay(d: Date) {
@@ -62,31 +63,51 @@ type Schedulable =
   | { task: Task; kind: "bar"; startDay: number; endDay: number }
   | { task: Task; kind: "milestone"; day: number };
 
-/** Decide how a single task renders on the timeline given the visible window. */
-function place(
-  task: Task,
-  windowStart: Date,
-  windowEnd: Date,
-): Schedulable | null {
+/**
+ * A dated task that sits outside the visible window. Carries the date so the
+ * section can offer a jump to it — without this the task would be invisible
+ * AND uncounted, which reads as "this task doesn't exist".
+ */
+type OffWindow = { task: Task; dir: "before" | "after"; date: Date };
+
+type Placement = Schedulable | OffWindow | null;
+
+const isOffWindow = (p: Placement): p is OffWindow =>
+  p !== null && "dir" in p;
+
+/**
+ * Decide how a single task renders on the timeline given the visible window.
+ * Returns null only for tasks with nothing plottable.
+ *
+ * Comparisons are in whole-day offsets, not raw timestamps: the window bounds
+ * are midnights, so comparing a `due_at` of 14:00 on the final day against
+ * `windowEnd` would drop it a day early.
+ */
+function place(task: Task, windowStart: Date): Placement {
+  const lastDay = VISIBLE_DAYS - 1;
+
   if (task.scheduled_start && task.scheduled_end) {
-    const start = new Date(task.scheduled_start);
-    const end = new Date(task.scheduled_end);
-    // Skip ranges that fall entirely outside the visible window.
-    if (end < windowStart || start > windowEnd) return null;
-    const clampedStart = start < windowStart ? windowStart : start;
-    const clampedEnd = end > windowEnd ? windowEnd : end;
+    const startDate = new Date(task.scheduled_start);
+    const start = diffDays(startDate, windowStart);
+    const end = diffDays(new Date(task.scheduled_end), windowStart);
+    if (end < 0) return { task, dir: "before", date: startDate };
+    if (start > lastDay) return { task, dir: "after", date: startDate };
     return {
       task,
       kind: "bar",
-      startDay: diffDays(clampedStart, windowStart),
-      endDay: diffDays(clampedEnd, windowStart),
+      startDay: Math.max(start, 0),
+      endDay: Math.min(end, lastDay),
     };
   }
+
   if (task.due_at) {
-    const d = new Date(task.due_at);
-    if (d < windowStart || d > windowEnd) return null;
-    return { task, kind: "milestone", day: diffDays(d, windowStart) };
+    const dueDate = new Date(task.due_at);
+    const day = diffDays(dueDate, windowStart);
+    if (day < 0) return { task, dir: "before", date: dueDate };
+    if (day > lastDay) return { task, dir: "after", date: dueDate };
+    return { task, kind: "milestone", day };
   }
+
   return null;
 }
 
@@ -108,27 +129,42 @@ export function TimelineView({
   );
 
   const placedByStatus = useMemo(() => {
-    const out: Record<TaskStatus, { row: Schedulable; unplaced?: false }[]> = {
+    const byStatus = <T,>(): Record<TaskStatus, T[]> => ({
       todo: [],
       in_progress: [],
       blocked: [],
       done: [],
-    };
-    const unscheduled: Record<TaskStatus, Task[]> = {
-      todo: [],
-      in_progress: [],
-      blocked: [],
-      done: [],
-    };
+    });
+    const out = byStatus<{ row: Schedulable }>();
+    const unscheduled = byStatus<Task>();
+    const before = byStatus<OffWindow>();
+    const after = byStatus<OffWindow>();
+
     for (const t of tasks) {
-      const p = place(t, windowStart, windowEnd);
-      if (p) out[t.status].push({ row: p });
-      else if (!t.scheduled_start && !t.scheduled_end && !t.due_at) {
-        unscheduled[t.status].push(t);
-      }
+      const p = place(t, windowStart);
+      if (p === null) unscheduled[t.status].push(t);
+      else if (isOffWindow(p)) {
+        (p.dir === "before" ? before : after)[t.status].push(p);
+      } else out[t.status].push({ row: p });
     }
-    return { out, unscheduled };
-  }, [tasks, windowStart, windowEnd]);
+
+    // Nearest off-window task in each direction, so the jump lands on the
+    // closest week that actually has something rather than a blank one.
+    const nearest = (rows: OffWindow[], dir: "before" | "after") =>
+      rows.length === 0
+        ? null
+        : rows.reduce((best, r) =>
+            dir === "before"
+              ? r.date > best.date
+                ? r
+                : best
+              : r.date < best.date
+                ? r
+                : best,
+          ).date;
+
+    return { out, unscheduled, before, after, nearest };
+  }, [tasks, windowStart]);
 
   const visibleStatuses = STATUS_IDS.filter(
     (s) => !(hideDone && s === "done"),
@@ -210,18 +246,24 @@ export function TimelineView({
             const col = COLUMNS.find((c) => c.id === status)!;
             const rows = placedByStatus.out[status];
             const offRows = placedByStatus.unscheduled[status];
+            const before = placedByStatus.before[status];
+            const after = placedByStatus.after[status];
+            const offWindow = before.length + after.length;
             return (
               <div key={status}>
-                <header className="flex items-center gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
+                {/* h-7 (not py-*) so the border-box height matches the right
+                    pane's h-7 spacer exactly — padding here made the left
+                    header 29px and drifted the panes 1px per status section. */}
+                <header className="flex h-7 items-center gap-2 border-b border-border bg-muted/30 px-3">
                   <span className={cn("size-2 rounded-full", col.dotClass)} />
                   <h3 className="text-xs font-semibold text-foreground">
                     {col.label}
                   </h3>
                   <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                    {rows.length + offRows.length}
+                    {rows.length + offRows.length + offWindow}
                   </span>
                 </header>
-                {rows.length === 0 && offRows.length === 0 ? (
+                {rows.length === 0 && offRows.length === 0 && offWindow === 0 ? (
                   <div
                     className="border-b border-border/40 px-3 text-xs text-muted-foreground/70"
                     style={{ lineHeight: `${ROW_HEIGHT}px`, height: ROW_HEIGHT }}
@@ -243,9 +285,22 @@ export function TimelineView({
                   ))
                 )}
                 {offRows.length > 0 ? (
-                  <div className="border-b border-border/40 px-3 py-1.5">
+                  <div
+                    className="flex items-center border-b border-border/40 px-3"
+                    style={{ height: HINT_HEIGHT }}
+                  >
                     <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
                       No date — {offRows.length}
+                    </p>
+                  </div>
+                ) : null}
+                {offWindow > 0 ? (
+                  <div
+                    className="flex items-center border-b border-border/40 px-3"
+                    style={{ height: HINT_HEIGHT }}
+                  >
+                    <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+                      Off window — {offWindow}
                     </p>
                   </div>
                 ) : null}
@@ -264,7 +319,7 @@ export function TimelineView({
             {/* Background day grid — drawn once for the whole body so column
                 lines stay continuous across status sections */}
             <div
-              className="absolute inset-0"
+              className="pointer-events-none absolute inset-0"
               aria-hidden
               style={{
                 backgroundImage:
@@ -306,12 +361,15 @@ export function TimelineView({
             {visibleStatuses.map((status) => {
               const rows = placedByStatus.out[status];
               const offRows = placedByStatus.unscheduled[status];
+              const before = placedByStatus.before[status];
+              const after = placedByStatus.after[status];
+              const offWindow = before.length + after.length;
               const sectionRows = Math.max(rows.length, 0);
               return (
                 <div key={status}>
                   {/* Status header spacer to match left pane height (28px) */}
                   <div className="h-7 border-b border-border bg-muted/20" />
-                  {sectionRows === 0 && offRows.length === 0 ? (
+                  {sectionRows === 0 && offRows.length === 0 && offWindow === 0 ? (
                     <div
                       className="border-b border-border/40"
                       style={{ height: ROW_HEIGHT }}
@@ -326,10 +384,46 @@ export function TimelineView({
                     ))
                   )}
                   {offRows.length > 0 ? (
-                    <div className="border-b border-border/40 py-1.5">
-                      <p className="px-3 text-[10px] text-muted-foreground/70">
+                    <div
+                      className="flex items-center border-b border-border/40 px-3"
+                      style={{ height: HINT_HEIGHT }}
+                    >
+                      <p className="text-[10px] text-muted-foreground/70">
                         Add a due date to plot here
                       </p>
+                    </div>
+                  ) : null}
+                  {offWindow > 0 ? (
+                    <div
+                      className="relative flex items-center gap-2 border-b border-border/40 px-3"
+                      style={{ height: HINT_HEIGHT }}
+                    >
+                      {before.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = placedByStatus.nearest(before, "before");
+                            if (d) setAnchor(startOfWeek(d));
+                          }}
+                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        >
+                          <ChevronLeft className="size-3" />
+                          {before.length} earlier
+                        </button>
+                      ) : null}
+                      {after.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = placedByStatus.nearest(after, "after");
+                            if (d) setAnchor(startOfWeek(d));
+                          }}
+                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        >
+                          {after.length} later
+                          <ChevronRight className="size-3" />
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

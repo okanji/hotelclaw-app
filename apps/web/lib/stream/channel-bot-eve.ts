@@ -146,6 +146,9 @@ export async function runChannelBotEveTurn(ctx: {
       propertyId: ctx.propertyId,
       userId: actingUserId,
       botSlug: CHANNEL_BOT_SLUG,
+      // Lets the runtime resolve a chatbot_channel_deployments row for this
+      // channel (custom bot persona + tools ride the same durable session).
+      channelId: ctx.streamChannelId,
     });
 
     // Resume when we hold a live continuation, else fresh; a failed resume

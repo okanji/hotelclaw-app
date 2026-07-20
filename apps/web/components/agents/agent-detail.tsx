@@ -16,6 +16,7 @@ import {
 import { updateAgent } from "./actions";
 import { AgentEditor } from "./agent-editor";
 import { AgentChat, type AgentChatSession } from "./agent-chat";
+import { ResolvedConfig } from "./resolved-config";
 
 /**
  * Agent workspace: transparent config editor on the left, a live chat with
@@ -25,10 +26,12 @@ import { AgentChat, type AgentChatSession } from "./agent-chat";
  */
 export function AgentDetail({
   agent,
+  brain,
   documents,
   initialSession,
 }: {
   agent: AgentRow;
+  brain: { configured: boolean; source: string | null };
   documents: { id: string; title: string }[];
   initialSession: AgentChatSession | null;
 }) {
@@ -127,6 +130,8 @@ export function AgentDetail({
             onConfigChange={patchConfig}
             documents={documents}
           />
+          <hr className="my-10 border-border/60" />
+          <ResolvedConfig config={config} status={status} brain={brain} />
         </div>
         <div className="min-h-0 border-t border-border/60 lg:border-t-0 lg:border-l">
           <AgentChat

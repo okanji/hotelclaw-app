@@ -16,8 +16,8 @@ when facts change.
 **Start commands** (dev; each is a long-running process):
 
 ```bash
-# App + eve runtime
-nvm use 24 && EVE_DEV=1 pnpm dev
+# App + eve runtime (eve is unconditional — no flag)
+nvm use 24 && pnpm dev
 # Brain endpoints (from each brain repo dir; PATH needs ~/.bun/bin)
 cd ~/Desktop/hotelclaw-brains/hotelclaw-brain && \
   GBRAIN_HOME=~/Desktop/hotelclaw-brains/.gbrain-homes/master gbrain serve --http --port 7101
