@@ -144,8 +144,12 @@ function serviceBearerAuth(): AuthFn<Request> {
 }
 
 // localDev() stays last for bare local smoke tests (no property attributes →
-// dynamic resolvers fall back to static instructions). Replace with a
-// fail-closed list before production exposure.
+// dynamic resolvers fall back to static instructions) — but ONLY off Vercel:
+// in production the list is fail-closed (Supabase cookie or service bearer,
+// both membership-checked).
+const authChain: AuthFn[] = [supabaseCookieAuth(), serviceBearerAuth()];
+if (!process.env.VERCEL) authChain.push(localDev());
+
 export default eveChannel({
-  auth: [supabaseCookieAuth(), serviceBearerAuth(), localDev()],
+  auth: authChain,
 });

@@ -2,6 +2,21 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": ["**/.env.*local"],
+  "globalEnv": ["EVE_DEV"],
+  "globalPassThroughEnv": [
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "STREAM_API_SECRET",
+    "LIVEBLOCKS_SECRET_KEY",
+    "LIVEBLOCKS_WEBHOOK_SECRET",
+    "XAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "EVE_INTERNAL_ORIGIN",
+    "BRAIN_MCP_URL",
+    "GBRAIN_HOME",
+    "GBRAIN_BIN"
+  ],
   "tasks": {
     "dev": {
       "cache": false,

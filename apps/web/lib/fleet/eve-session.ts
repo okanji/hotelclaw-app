@@ -13,7 +13,13 @@ import "server-only";
  */
 
 export function eveOrigin(): string {
-  return process.env.EVE_INTERNAL_ORIGIN ?? "http://127.0.0.1:3000";
+  // On Vercel the eve Build Output service is reached through the
+  // deployment's own routing layer — VERCEL_URL (no protocol) is the
+  // per-deployment host, correct for previews and prod alike. Local dev
+  // keeps the same-server loopback.
+  if (process.env.EVE_INTERNAL_ORIGIN) return process.env.EVE_INTERNAL_ORIGIN;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://127.0.0.1:3000";
 }
 
 export type PendingRequest = {
