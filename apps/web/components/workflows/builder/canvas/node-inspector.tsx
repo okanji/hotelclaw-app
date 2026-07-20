@@ -926,6 +926,8 @@ function StepConfigSection({
         stepOptions={stepOptions}
         channels={builderData?.channels ?? []}
         channelsLoading={builderData?.channelsLoading}
+        members={builderData?.members ?? []}
+        membersLoading={builderData?.membersLoading}
         triggerEventType={triggerEventType}
         formKey={stepId}
       />

@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import type { FieldDef } from "@/lib/workflows/field-defs";
 import type { RefCandidate } from "@/lib/workflows/refs";
 import type { PropertyChannel } from "@/lib/chat/channels";
+import type { PropertyMember } from "@/lib/query/section-queries";
 import { ChannelField } from "@/components/workflows/builder/config/channel-field";
+import { MemberField } from "@/components/workflows/builder/config/member-field";
 import { TemplateField } from "@/components/workflows/builder/config/template-field";
 import { WorkflowSelect } from "@/components/workflows/builder/workflow-select";
 
@@ -27,6 +29,8 @@ export function TypedStepForm({
   stepOptions = [],
   channels = [],
   channelsLoading,
+  members = [],
+  membersLoading,
   triggerEventType,
   formKey,
 }: {
@@ -39,6 +43,8 @@ export function TypedStepForm({
   stepOptions?: { value: string; label: string }[];
   channels?: PropertyChannel[];
   channelsLoading?: boolean;
+  members?: PropertyMember[];
+  membersLoading?: boolean;
   triggerEventType?: string;
   /** Resets channel prefill when the edited step changes. */
   formKey?: string;
@@ -66,6 +72,8 @@ export function TypedStepForm({
           stepOptions={stepOptions}
           channels={channels}
           channelsLoading={channelsLoading}
+          members={members}
+          membersLoading={membersLoading}
           triggerEventType={triggerEventType}
           formKey={formKey}
           onChange={(v) => set(f.key, v)}
@@ -83,6 +91,8 @@ function FieldRenderer({
   stepOptions,
   channels,
   channelsLoading,
+  members,
+  membersLoading,
   triggerEventType,
   formKey,
 }: {
@@ -93,6 +103,8 @@ function FieldRenderer({
   stepOptions: { value: string; label: string }[];
   channels: PropertyChannel[];
   channelsLoading?: boolean;
+  members: PropertyMember[];
+  membersLoading?: boolean;
   triggerEventType?: string;
   formKey?: string;
 }) {
@@ -121,6 +133,8 @@ function FieldRenderer({
         stepOptions={stepOptions}
         channels={channels}
         channelsLoading={channelsLoading}
+        members={members}
+        membersLoading={membersLoading}
         triggerEventType={triggerEventType}
         formKey={formKey}
         invalid={invalid}
@@ -151,6 +165,8 @@ function FieldInput({
   stepOptions,
   channels,
   channelsLoading,
+  members,
+  membersLoading,
   triggerEventType,
   formKey,
   invalid,
@@ -163,6 +179,8 @@ function FieldInput({
   stepOptions: { value: string; label: string }[];
   channels: PropertyChannel[];
   channelsLoading?: boolean;
+  members: PropertyMember[];
+  membersLoading?: boolean;
   triggerEventType?: string;
   formKey?: string;
   invalid?: boolean;
@@ -202,6 +220,20 @@ function FieldInput({
           channelsLoading={channelsLoading}
           triggerEventType={triggerEventType}
           refs={refs}
+        />
+      );
+
+    case "member":
+      return (
+        <MemberField
+          value={typeof value === "string" ? value : ""}
+          onChange={(v) => onChange(v)}
+          placeholder={field.placeholder}
+          required={field.required}
+          members={members}
+          membersLoading={membersLoading}
+          refs={refs}
+          invalid={invalid}
         />
       );
 

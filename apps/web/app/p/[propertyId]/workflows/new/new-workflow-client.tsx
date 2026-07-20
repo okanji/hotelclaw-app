@@ -27,6 +27,7 @@ import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import type { Surface } from "@/lib/workflows/catalog/types";
 import { TreeList } from "@/components/workflows/builder/tree-list/tree-list";
+import { WorkflowBuilderDataProvider } from "@/components/workflows/builder/workflow-builder-data";
 import { SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import { AiCopilot } from "@/components/workflows/builder/ai-copilot";
 
@@ -319,11 +320,15 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
         </Button>
       </header>
 
-      <TreeList
-        spec={spec}
-        isDurable={classifyMode(spec) === "durable"}
-        onChange={setSpec}
-      />
+      {/* The inspector's pickers (channels, members) read this context; without
+          it they degrade to raw-id text fields. */}
+      <WorkflowBuilderDataProvider propertyId={propertyId}>
+        <TreeList
+          spec={spec}
+          isDurable={classifyMode(spec) === "durable"}
+          onChange={setSpec}
+        />
+      </WorkflowBuilderDataProvider>
 
       <div className="mt-4">
         <AiCopilot

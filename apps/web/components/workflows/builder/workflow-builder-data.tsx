@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { channelsQueryOptions, tasksQueryOptions } from "@/lib/query/section-queries";
+import {
+  channelsQueryOptions,
+  propertyMembersQueryOptions,
+  tasksQueryOptions,
+  type PropertyMember,
+} from "@/lib/query/section-queries";
 import type { PropertyChannel } from "@/lib/chat/channels";
 import type { Task } from "@/components/tasks/kanban";
 
@@ -23,6 +28,8 @@ type WorkflowBuilderData = {
   taskLabelsLoading: boolean;
   channels: PropertyChannel[];
   channelsLoading: boolean;
+  members: PropertyMember[];
+  membersLoading: boolean;
 };
 
 const WorkflowBuilderDataContext = createContext<WorkflowBuilderData | null>(null);
@@ -38,6 +45,9 @@ export function WorkflowBuilderDataProvider({
   const { data: channels = [], isLoading: channelsLoading } = useQuery(
     channelsQueryOptions(propertyId),
   );
+  const { data: members = [], isLoading: membersLoading } = useQuery(
+    propertyMembersQueryOptions(propertyId),
+  );
 
   const taskLabels = useMemo(() => collectTaskLabels(tasks ?? []), [tasks]);
 
@@ -48,8 +58,10 @@ export function WorkflowBuilderDataProvider({
       taskLabelsLoading: tasksLoading,
       channels,
       channelsLoading,
+      members,
+      membersLoading,
     }),
-    [propertyId, taskLabels, tasksLoading, channels, channelsLoading],
+    [propertyId, taskLabels, tasksLoading, channels, channelsLoading, members, membersLoading],
   );
 
   return (

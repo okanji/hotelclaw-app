@@ -84,6 +84,16 @@ export type FieldDef =
       required?: boolean;
     }
   | {
+      // Pick a property member by name; stores the user id. Falls back to a
+      // data-capable template field for {{ref}} values / unknown ids.
+      kind: "member";
+      key: string;
+      label: string;
+      help?: string;
+      placeholder?: string;
+      required?: boolean;
+    }
+  | {
       // Pick one other step by id (e.g. a foreach loop body's first step).
       kind: "step-ref";
       key: string;
@@ -426,7 +436,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
   // ─── Notify ────────────────────────────────────────────────────────────
   "action.notify.user": [
     {
-      kind: "template",
+      kind: "member",
       key: "user_id",
       label: "Who to notify",
       placeholder: "The person to notify",
@@ -540,7 +550,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       ],
     },
     {
-      kind: "template",
+      kind: "member",
       key: "assignee_id",
       label: "Assign to",
       placeholder: "Who to assign it to",
@@ -569,7 +579,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       required: true,
     },
     {
-      kind: "template",
+      kind: "member",
       key: "assignee_id",
       label: "Assign to",
       placeholder: "Who to assign it to",
@@ -608,7 +618,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       required: true,
     },
     {
-      kind: "template",
+      kind: "member",
       key: "user_id",
       label: "Who to mention",
       placeholder: "The person to mention",
@@ -696,7 +706,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       required: true,
     },
     {
-      kind: "template",
+      kind: "member",
       key: "assignee_id",
       label: "Assign all to (optional)",
       placeholder: "Leave blank to leave them unassigned",
