@@ -12,14 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Check, ChevronDown, Copy, Mail } from "lucide-react";
+import { Copy, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { createInvite } from "@/lib/invites/actions";
 import type { Role } from "@/lib/db/types";
 
@@ -83,7 +78,10 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
 
   function reset() {
     setEmail("");
-    setRole("staff");
+    // Role deliberately survives "Invite another": snapping it back to staff
+    // silently downgraded the next invite while the success card the inviter
+    // was reading still said "as owner". Inviting a run of people to the same
+    // role is also the common case.
     setSuccess(null);
   }
 
@@ -190,35 +188,50 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                 autoFocus
               />
             </div>
+            {/* Laid out flat rather than in a dropdown: the selected role has
+                to be visible at the moment you press Enter in the email field,
+                which submits the form. A collapsed picker meant people sent
+                staff invites believing they'd chosen owner. */}
             <div className="space-y-2">
-              <Label>Role</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={<Button type="button" variant="outline" />}
-                >
-                  <span className="capitalize">{role}</span>
-                  <ChevronDown className="size-4 opacity-50" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {ROLES.map((r) => (
-                    <DropdownMenuItem
+              <Label id="invite-role-label">Role</Label>
+              <div
+                role="radiogroup"
+                aria-labelledby="invite-role-label"
+                className="grid grid-cols-3 gap-1.5"
+              >
+                {ROLES.map((r) => {
+                  const selected = role === r.id;
+                  return (
+                    <button
                       key={r.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={pending}
                       onClick={() => setRole(r.id)}
-                      className="flex items-start gap-2"
+                      className={cn(
+                        "rounded-lg border px-2.5 py-2 text-left transition-colors",
+                        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        selected
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-muted/60",
+                      )}
                     >
-                      <Check
-                        className={`mt-0.5 size-4 ${role === r.id ? "opacity-100" : "opacity-0"}`}
-                      />
-                      <div>
-                        <div className="text-sm font-medium">{r.label}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.hint}
-                        </div>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <span
+                        className={cn(
+                          "block text-sm font-medium",
+                          selected ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {r.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {r.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <DialogFooter>
               <Button

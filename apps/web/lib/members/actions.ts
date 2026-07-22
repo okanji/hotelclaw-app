@@ -10,6 +10,68 @@ const Schema = z.object({
   userId: z.string().uuid(),
 });
 
+const RoleSchema = Schema.extend({
+  role: z.enum(["owner", "manager", "staff"]),
+});
+
+/**
+ * Change a member's role. Owner-only, same trust level as removal.
+ *
+ * You can't change your OWN role — which is also what keeps a property from
+ * orphaning itself: the only person who can act here is an owner, so there is
+ * always at least one owner left standing after any change they make.
+ *
+ * Writes go through the service client: memberships RLS has no update policy
+ * for members (same reason the org-chart editor uses it).
+ */
+export async function updateMemberRole(
+  input: z.input<typeof RoleSchema>,
+): Promise<{ ok: true } | { error: string }> {
+  const parsed = RoleSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid input" };
+  const { propertyId, userId, role } = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  if (user.id === userId) {
+    return { error: "You can't change your own role." };
+  }
+
+  const { data: callerMembership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("property_id", propertyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (callerMembership?.role !== "owner") {
+    return { error: "Only the owner can change roles." };
+  }
+
+  const service = createServiceClient();
+
+  const { data: target } = await service
+    .from("memberships")
+    .select("user_id")
+    .eq("property_id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!target) return { error: "They're not a member of this property." };
+
+  const { error } = await service
+    .from("memberships")
+    .update({ role })
+    .eq("property_id", propertyId)
+    .eq("user_id", userId);
+  if (error) return { error: error.message };
+
+  return { ok: true };
+}
+
 /**
  * Remove a member from a property. Owner-only — the same trust level that
  * can't be granted by invite dialogs. Guardrails:

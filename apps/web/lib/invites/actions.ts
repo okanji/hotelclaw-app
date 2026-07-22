@@ -9,7 +9,11 @@ import {
 } from "@/lib/stream/server";
 import { sendInviteEmail } from "@/lib/email/send-invite-email";
 import { getOrigin } from "@/lib/utils/origin";
-import { createNotification } from "@/lib/notifications/server";
+import {
+  createNotification,
+  createNotifications,
+  findAlreadyNotifiedUserIds,
+} from "@/lib/notifications/server";
 import type { Role } from "@/lib/db/types";
 
 const Roles = ["owner", "manager", "staff"] as const;
@@ -308,6 +312,67 @@ export async function revokeInvite(input: {
   return { ok: true };
 }
 
+/**
+ * Fix the role on a still-pending invite. Owner/manager only — the same gate
+ * as creating one.
+ *
+ * Exists because the role is decided in one dialog and only visible in
+ * another: an invite sent with the wrong role used to be unfixable without
+ * revoking and re-sending (which mails the recipient a second time). The
+ * invite's role is only read at accept time, so editing it in place is safe
+ * right up until it's used.
+ */
+export async function updateInviteRole(input: {
+  propertyId: string;
+  token: string;
+  role: Role;
+}): Promise<{ ok: true } | { error: string }> {
+  const parsed = z
+    .object({
+      propertyId: z.string().uuid(),
+      token: z.string().min(1),
+      role: z.enum(Roles),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("property_id", parsed.data.propertyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "manager")
+  ) {
+    return { error: "You don't have permission to manage invites here." };
+  }
+
+  const service = createServiceClient();
+  const { data: updated, error } = await service
+    .from("invites")
+    .update({ role: parsed.data.role })
+    .eq("property_id", parsed.data.propertyId)
+    .eq("token", parsed.data.token)
+    .is("accepted_at", null)
+    .select("token")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!updated) {
+    return { error: "That invite has already been accepted or revoked." };
+  }
+  return { ok: true };
+}
+
 export async function acceptInvite(
   token: string,
   // Edits the invited user made in the acceptance onboarding form. When
@@ -462,4 +527,97 @@ export async function switchAccountForInvite(token: string): Promise<never> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect(next);
+}
+
+/**
+ * The other half of the "wrong account" escape hatch — for the (common) case
+ * where the recipient can't sign in as the invited address at all, because
+ * the inviter typed a stale or misspelled one.
+ *
+ * Signing out doesn't help them; the only path was to chase the inviter down
+ * out of band, so people simply gave up here. This pings the inviter in-app
+ * with the address the person actually uses, so they can retarget the invite.
+ *
+ * Deliberately conservative: it only fires from a genuine mismatch on a live
+ * invite, it reveals nothing about the invite to the caller beyond what the
+ * page already showed them, and it's deduped per (invite, requester) for 24h
+ * so a frustrated click-click-click doesn't spam the inviter.
+ */
+export async function requestInviteAccess(
+  token: string,
+): Promise<{ ok: true; notified: boolean } | { error: string }> {
+  const parsed = z.string().min(1).max(255).safeParse(token);
+  if (!parsed.success) return { error: "Invalid invite" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { error: "Sign in first." };
+
+  const service = createServiceClient();
+  const { data: invite } = await service
+    .from("invites")
+    .select("property_id, email, expires_at, accepted_at, created_by")
+    .eq("token", parsed.data)
+    .maybeSingle();
+
+  if (!invite) return { error: "Invite not found." };
+  if (invite.accepted_at) return { error: "This invite has already been used." };
+  if (new Date(invite.expires_at).getTime() < Date.now()) {
+    return { error: "This invite has expired. Ask for a fresh one." };
+  }
+  // Only a real mismatch may ask — the matching case has an Accept button.
+  if (user.email.toLowerCase() === invite.email.toLowerCase()) {
+    return { error: "You can accept this invite directly." };
+  }
+
+  // Notify the inviter, falling back to the property's owners if they've
+  // since left (or the row predates created_by).
+  let recipients: string[] = invite.created_by ? [invite.created_by] : [];
+  if (recipients.length === 0) {
+    const { data: owners } = await service
+      .from("memberships")
+      .select("user_id")
+      .eq("property_id", invite.property_id)
+      .eq("role", "owner");
+    recipients = (owners ?? []).map((o) => o.user_id as string);
+  }
+  if (recipients.length === 0) return { ok: true, notified: false };
+
+  const alreadyNotified = await findAlreadyNotifiedUserIds({
+    userIds: recipients,
+    type: "invite_access_requested",
+    match: { key: "requestedBy", value: user.id },
+  });
+  const fresh = recipients.filter((id) => !alreadyNotified.has(id));
+  if (fresh.length === 0) return { ok: true, notified: true };
+
+  const { data: property } = await service
+    .from("properties")
+    .select("name")
+    .eq("id", invite.property_id)
+    .maybeSingle();
+  const { data: profile } = await service
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await createNotifications(
+    fresh.map((userId) => ({
+      userId,
+      propertyId: invite.property_id,
+      type: "invite_access_requested" as const,
+      payload: {
+        requestedBy: user.id,
+        requesterName: profile?.full_name ?? null,
+        requesterEmail: user.email!,
+        invitedEmail: invite.email,
+        propertyName: property?.name ?? "your property",
+      },
+    })),
+  );
+
+  return { ok: true, notified: true };
 }

@@ -16,8 +16,10 @@ import {
   type BoardGroupBy,
   type ViewMode,
 } from "./board-toolbar";
+import { propertyTaskFieldValuesQueryOptions } from "@/lib/query/custom-field-queries";
 import {
   ActiveFilterBar,
+  buildFieldValueIndex,
   matchesFacets,
   type FacetKey,
 } from "./board-filters";
@@ -116,6 +118,21 @@ export function TasksBoard({
     return out;
   }, [topLevelTasks, mineOnly, currentUserId, spaceFilter, projectFilter]);
 
+  // Custom-field values for the whole property, indexed for match time. The
+  // query only runs while a field filter is active — boards without one pay
+  // nothing.
+  const hasFieldFilter = Object.values(filters.fieldValues).some(
+    (v) => v.length > 0,
+  );
+  const { data: fieldValueRows = [] } = useQuery({
+    ...propertyTaskFieldValuesQueryOptions(propertyId),
+    enabled: hasFieldFilter,
+  });
+  const fieldIndex = useMemo(
+    () => buildFieldValueIndex(fieldValueRows),
+    [fieldValueRows],
+  );
+
   // Resolve the active scope's name for the breadcrumb (cheap, cached).
   const { data: spaces = [] } = useQuery({
     ...spacesQueryOptions(propertyId),
@@ -145,7 +162,7 @@ export function TasksBoard({
         return false;
       }
       // Additive facet chips (assignee / priority / team / due / …).
-      if (!matchesFacets(t, filters, now)) return false;
+      if (!matchesFacets(t, filters, now, fieldIndex)) return false;
       if (needle && !t.title.toLowerCase().includes(needle)) return false;
       return true;
     });
@@ -177,7 +194,7 @@ export function TasksBoard({
       return a.position - b.position;
     });
     return out;
-  }, [scopedTasks, filters, now]);
+  }, [scopedTasks, filters, now, fieldIndex]);
 
   // Open the full-page create experience, carrying the column the affordance
   // was triggered from plus any active board scope so the new task inherits it.

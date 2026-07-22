@@ -12,7 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AcceptButton, SwitchAccountButton } from "./accept-button";
+import {
+  AcceptButton,
+  RequestAccessButton,
+  SwitchAccountButton,
+} from "./accept-button";
 
 export default async function InvitePage({
   params,
@@ -90,24 +94,51 @@ export default async function InvitePage({
             <span className="font-medium text-foreground">{user.email}</span>
           </p>
           {emailMismatch ? (
-            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              This invite was sent to{" "}
-              <span className="font-medium">{invite.email}</span> and can only
-              be accepted from that account. Sign in with{" "}
-              <span className="font-medium">{invite.email}</span> to join — or
-              ask the inviter to send a new invite to{" "}
-              <span className="font-medium">{user.email}</span>.
-            </p>
+            <div className="space-y-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <p>
+                This invite was sent to{" "}
+                <span className="font-medium break-all">{invite.email}</span>,
+                so it can&apos;t be accepted from this account.
+              </p>
+              <p>
+                Sign in with that address to join — or, if it isn&apos;t yours,
+                ask whoever invited you to re-send it here.
+              </p>
+            </div>
           ) : null}
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="ghost" nativeButton={false} render={<Link href="/" />}>
-            Cancel
-          </Button>
+        {/* The mismatch case stacks: two full-width choices read as two real
+            options, and neither long email address gets squeezed into a row. */}
+        <CardFooter
+          className={
+            emailMismatch
+              ? "flex flex-col items-stretch gap-2"
+              : "flex justify-between gap-2"
+          }
+        >
           {emailMismatch ? (
-            <SwitchAccountButton token={token} invitedEmail={invite.email} />
+            <>
+              <SwitchAccountButton token={token} invitedEmail={invite.email} />
+              <RequestAccessButton token={token} myEmail={user.email!} />
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={<Link href="/" />}
+              >
+                Cancel
+              </Button>
+            </>
           ) : (
-            <AcceptButton token={token} />
+            <>
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={<Link href="/" />}
+              >
+                Cancel
+              </Button>
+              <AcceptButton token={token} />
+            </>
           )}
         </CardFooter>
       </Card>

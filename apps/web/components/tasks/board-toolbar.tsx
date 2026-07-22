@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 import { SORT_LABELS } from "./kanban";
 import { TriageDial } from "./triage-dial";
 import { CustomFieldManager } from "./custom-field-manager";
+import { useQuery } from "@tanstack/react-query";
+import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
 import {
   EMPTY_FILTERS,
   FilterMenu,
@@ -127,6 +129,10 @@ export function BoardToolbar({
   }, []);
 
   const activeFilterCount = activeFacetCount(filters);
+  // Offered as filter dimensions in the "+ Filter" menu alongside built-ins.
+  const { data: customFields = [] } = useQuery(
+    customFieldsQueryOptions(propertyId),
+  );
 
   const sortDifferent =
     filters.sortKeys.length > 0 || filters.sortBy !== "manual";
@@ -237,7 +243,11 @@ export function BoardToolbar({
           )}
         </div>
 
-        <FilterMenu filters={filters} onPick={onPickFacet} />
+        <FilterMenu
+          filters={filters}
+          onPick={onPickFacet}
+          customFields={customFields}
+        />
         <SortMenu
           filters={filters}
           onChange={onChange}

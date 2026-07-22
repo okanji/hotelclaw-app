@@ -41,6 +41,17 @@ export type InviteReceivedPayload = {
   role: string;
 };
 
+/** Someone hit the wrong-account wall on an invite you sent, and told you the
+ *  address they actually use. */
+export type InviteAccessRequestedPayload = {
+  requestedBy: string;
+  requesterName: string | null;
+  requesterEmail: string;
+  /** The address the invite was originally sent to. */
+  invitedEmail: string;
+  propertyName: string;
+};
+
 export type MentionPayload = {
   channelId: string;
   /** Stream channel type — `"messaging"` for a DM, `"team"` for a channel.

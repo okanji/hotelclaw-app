@@ -15,20 +15,28 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Users, UserMinus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Check, ChevronDown, Search, Users, UserMinus } from "lucide-react";
 import {
   propertyMembersQueryOptions,
   type PropertyMember,
 } from "@/lib/query/section-queries";
-import { removeMember } from "@/lib/members/actions";
+import { removeMember, updateMemberRole } from "@/lib/members/actions";
+import { cn } from "@/lib/utils";
+import type { Role } from "@/lib/db/types";
 
 type Props = {
   propertyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Owner-only controls (remove people). */
+  /** Owner-only controls (change roles, remove people). */
   canManage: boolean;
-  /** Signed-in user's email — hides the remove control on their own row. */
+  /** Signed-in user's email — hides the manage controls on their own row. */
   currentEmail: string;
 };
 
@@ -43,6 +51,9 @@ const ROLE_META: Record<string, { label: string; tone: RoleTone }> = {
 };
 
 const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
+
+/** Order the role picker offers. Most-privileged first, matching the badge sort. */
+const ROLE_ORDER: Role[] = ["owner", "manager", "staff"];
 
 /** Everyone who belongs to the current property, with avatar, email, and role. */
 export function MembersDialog({
@@ -112,7 +123,7 @@ export function MembersDialog({
                 key={m.id}
                 member={m}
                 propertyId={propertyId}
-                removable={
+                manageable={
                   canManage &&
                   (m.email ?? "").toLowerCase() !== currentEmail.toLowerCase()
                 }
@@ -128,11 +139,11 @@ export function MembersDialog({
 function MemberRow({
   member,
   propertyId,
-  removable,
+  manageable,
 }: {
   member: PropertyMember;
   propertyId: string;
-  removable: boolean;
+  manageable: boolean;
 }) {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
@@ -142,6 +153,25 @@ function MemberRow({
     label: member.role,
     tone: "neutral" as RoleTone,
   };
+
+  function changeRole(next: Role) {
+    if (next === member.role) return;
+    startTransition(async () => {
+      const result = await updateMemberRole({
+        propertyId,
+        userId: member.id,
+        role: next,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        `${member.name ?? "Member"} is now ${ROLE_META[next]?.label ?? next}.`,
+      );
+      qc.invalidateQueries({ queryKey: ["property-members", propertyId] });
+    });
+  }
 
   function remove() {
     startTransition(async () => {
@@ -178,7 +208,7 @@ function MemberRow({
           </p>
         ) : null}
       </div>
-      {removable && confirming ? (
+      {manageable && confirming ? (
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             type="button"
@@ -203,10 +233,47 @@ function MemberRow({
         </div>
       ) : (
         <>
-          <StatusBadge tone={role.tone} className="capitalize">
-            {role.label}
-          </StatusBadge>
-          {removable ? (
+          {manageable ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Change role for ${member.name ?? "member"}`}
+                    disabled={pending}
+                    className="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  />
+                }
+              >
+                <StatusBadge tone={role.tone} className="capitalize">
+                  {role.label}
+                  <ChevronDown className="ml-0.5 size-3 opacity-60" />
+                </StatusBadge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ROLE_ORDER.map((id) => (
+                  <DropdownMenuItem
+                    key={id}
+                    onClick={() => changeRole(id)}
+                    className="gap-2"
+                  >
+                    <Check
+                      className={cn(
+                        "size-4",
+                        member.role === id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {ROLE_META[id]?.label ?? id}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <StatusBadge tone={role.tone} className="capitalize">
+              {role.label}
+            </StatusBadge>
+          )}
+          {manageable ? (
             <Button
               type="button"
               size="icon"

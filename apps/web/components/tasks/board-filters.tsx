@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
+  CalendarDays,
   Check,
   Circle,
   Flag,
@@ -13,7 +14,9 @@ import {
   PenLine,
   Plus,
   Sparkles,
+  SquareCheck,
   Tag,
+  Type,
   User,
   X,
   Zap,
@@ -43,7 +46,12 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
+import {
+  customFieldsQueryOptions,
+  type CustomFieldRow,
+} from "@/lib/query/custom-field-queries";
 import type {
+  CustomFieldType,
   EntityColor,
   RecordSource,
   TaskPriority,
@@ -92,6 +100,10 @@ export type BoardFilters = {
   labelIds: string[];
   due: DueBucket[];
   sources: RecordSource[];
+  /** Custom-field filters (migration 0080): field id → selected values.
+   *  Values are option ids for dropdowns, "true"/"false" for checkboxes, and
+   *  the FIELD_SET / FIELD_EMPTY sentinels for has-a-value / is-empty. */
+  fieldValues: Record<string, string[]>;
 };
 
 export const EMPTY_FILTERS: BoardFilters = {
@@ -108,14 +120,18 @@ export const EMPTY_FILTERS: BoardFilters = {
   labelIds: [],
   due: [],
   sources: [],
+  fieldValues: {},
 };
 
 /** Sentinels — real ids never collide with these. */
 export const UNASSIGNED = "__unassigned__";
 export const NONE = "__none__";
+/** Custom-field sentinels: any value at all / no value at all. */
+export const FIELD_SET = "__set__";
+export const FIELD_EMPTY = "__empty__";
 
-/** The nine facet dimensions, in menu + chip order. */
-export type FacetKey =
+/** The nine built-in facet dimensions, in menu + chip order. */
+export type StaticFacetKey =
   | "assignee"
   | "creator"
   | "priority"
@@ -126,7 +142,27 @@ export type FacetKey =
   | "due"
   | "source";
 
-export const FACET_ORDER: FacetKey[] = [
+/**
+ * A facet is either one of the built-ins or a custom field, addressed as
+ * `field:<uuid>`. Custom fields are defined per property at runtime, so they
+ * can't live in a fixed union — encoding the id in the key lets them flow
+ * through the same menu / chip / matching pipeline as everything else.
+ */
+export type FacetKey = StaticFacetKey | `field:${string}`;
+
+export function isFieldFacet(facet: FacetKey): facet is `field:${string}` {
+  return facet.startsWith("field:");
+}
+
+export function fieldFacetKey(fieldId: string): FacetKey {
+  return `field:${fieldId}`;
+}
+
+export function fieldIdOf(facet: FacetKey): string {
+  return facet.slice("field:".length);
+}
+
+export const FACET_ORDER: StaticFacetKey[] = [
   "assignee",
   "creator",
   "priority",
@@ -139,7 +175,7 @@ export const FACET_ORDER: FacetKey[] = [
 ];
 
 /** Which `BoardFilters` array each facet reads/writes. */
-const FACET_FIELD: Record<FacetKey, keyof BoardFilters> = {
+const FACET_FIELD: Record<StaticFacetKey, keyof BoardFilters> = {
   assignee: "assignees",
   creator: "creators",
   priority: "priorities",
@@ -152,7 +188,7 @@ const FACET_FIELD: Record<FacetKey, keyof BoardFilters> = {
 };
 
 const FACET_META: Record<
-  FacetKey,
+  StaticFacetKey,
   { label: string; Icon: typeof User; searchable: boolean }
 > = {
   assignee: { label: "Assignee", Icon: User, searchable: true },
@@ -184,14 +220,23 @@ const SOURCE_LABELS: Record<RecordSource, string> = {
 /* -------------------------------------------------------------------------- */
 
 function facetValues(filters: BoardFilters, facet: FacetKey): string[] {
+  if (isFieldFacet(facet)) return filters.fieldValues[fieldIdOf(facet)] ?? [];
   return filters[FACET_FIELD[facet]] as string[];
 }
 
+/** Field facets currently carrying a selection, in field id order. */
+export function activeFieldFacets(filters: BoardFilters): FacetKey[] {
+  return Object.entries(filters.fieldValues)
+    .filter(([, values]) => values.length > 0)
+    .map(([fieldId]) => fieldFacetKey(fieldId));
+}
+
 export function activeFacetCount(filters: BoardFilters): number {
-  return FACET_ORDER.reduce(
+  const builtIn = FACET_ORDER.reduce(
     (n, f) => n + (facetValues(filters, f).length > 0 ? 1 : 0),
     0,
   );
+  return builtIn + activeFieldFacets(filters).length;
 }
 
 export function hasAnyFacet(filters: BoardFilters): boolean {
@@ -211,6 +256,7 @@ export function clearFacets(filters: BoardFilters): BoardFilters {
     labelIds: [],
     due: [],
     sources: [],
+    fieldValues: {},
   };
 }
 
@@ -232,13 +278,22 @@ function taskDueBuckets(task: Task, now: number): DueBucket[] {
 }
 
 /**
+ * Custom-field values for the whole board, normalized to comparable strings:
+ * task id → field id → value. Absence of a key IS the "empty" signal, so no
+ * field definitions are needed at match time.
+ */
+export type FieldValueIndex = Map<string, Map<string, string>>;
+
+/**
  * AND across facets, OR within a facet. `currentUserId` is unused here — "Me"
  * rows store the real user id, so no special-casing is needed at match time.
+ * `fieldIndex` is only consulted when a custom-field filter is active.
  */
 export function matchesFacets(
   task: Task,
   filters: BoardFilters,
   now: number,
+  fieldIndex?: FieldValueIndex,
 ): boolean {
   if (filters.assignees.length) {
     const ok = filters.assignees.some((a) =>
@@ -280,7 +335,33 @@ export function matchesFacets(
       return false;
     }
   }
+  for (const [fieldId, selected] of Object.entries(filters.fieldValues)) {
+    if (selected.length === 0) continue;
+    const value = fieldIndex?.get(task.id)?.get(fieldId);
+    const ok = selected.some((v) => {
+      if (v === FIELD_EMPTY) return value === undefined;
+      if (v === FIELD_SET) return value !== undefined;
+      return value === v;
+    });
+    if (!ok) return false;
+  }
   return true;
+}
+
+/** Build the match-time index from raw `task_field_values` rows. */
+export function buildFieldValueIndex(
+  rows: { task_id: string; field_id: string; value: unknown }[],
+): FieldValueIndex {
+  const index: FieldValueIndex = new Map();
+  for (const row of rows) {
+    let perTask = index.get(row.task_id);
+    if (!perTask) {
+      perTask = new Map();
+      index.set(row.task_id, perTask);
+    }
+    perTask.set(row.field_id, String(row.value));
+  }
+  return index;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -318,13 +399,39 @@ export type FacetData = {
   spaces: { id: string; name: string; color: EntityColor }[];
   projects: { id: string; name: string; color: EntityColor }[];
   labels: { id: string; name: string; color: EntityColor }[];
+  customFields: CustomFieldRow[];
 };
+
+/** Icon per custom-field type — mirrors the task sidebar's Fields section. */
+const FIELD_TYPE_ICON: Record<CustomFieldType, typeof User> = {
+  text: Type,
+  number: Hash,
+  select: ListFilter,
+  date: CalendarDays,
+  checkbox: SquareCheck,
+};
+
+/** Chip/menu metadata for any facet, built-in or custom field. */
+function facetMeta(
+  facet: FacetKey,
+  data: FacetData,
+): { label: string; Icon: typeof User; searchable: boolean } {
+  if (!isFieldFacet(facet)) return FACET_META[facet];
+  const field = data.customFields.find((f) => f.id === fieldIdOf(facet));
+  return {
+    label: field?.name ?? "Field",
+    Icon: field ? FIELD_TYPE_ICON[field.type] : ListFilter,
+    // Dropdowns can carry a long option list; the rest are 2-3 rows.
+    searchable: (field?.options.length ?? 0) > 8,
+  };
+}
 
 function buildOptions(
   facet: FacetKey,
   data: FacetData,
   currentUserId: string,
 ): Option[] {
+  if (isFieldFacet(facet)) return buildFieldOptions(facet, data);
   switch (facet) {
     case "assignee": {
       const people = data.members.map<Option>((m) => ({
@@ -429,6 +536,52 @@ function buildOptions(
   }
 }
 
+/**
+ * Options for a custom-field facet. Dropdowns list their real options (values
+ * are option ids, so renaming an option never breaks a saved filter) and
+ * checkboxes list both states; free-text / number / date fields can't offer a
+ * meaningful value list, so they filter on presence instead.
+ */
+function buildFieldOptions(facet: FacetKey, data: FacetData): Option[] {
+  const field = data.customFields.find((f) => f.id === fieldIdOf(facet));
+  if (!field) return [];
+  const glyph = <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" />;
+  const emptyOption: Option = {
+    value: FIELD_EMPTY,
+    label: "Empty",
+    keywords: "empty none not set blank",
+    node: <span className="size-2 shrink-0 rounded-full border border-muted-foreground/40" />,
+  };
+
+  if (field.type === "select") {
+    return [
+      ...field.options.map<Option>((o) => ({
+        value: o.id,
+        label: o.label,
+        keywords: o.label,
+        node: glyph,
+      })),
+      emptyOption,
+    ];
+  }
+  if (field.type === "checkbox") {
+    return [
+      { value: "true", label: "Checked", keywords: "checked yes true", node: glyph },
+      { value: "false", label: "Unchecked", keywords: "unchecked no false", node: glyph },
+      emptyOption,
+    ];
+  }
+  return [
+    {
+      value: FIELD_SET,
+      label: "Has a value",
+      keywords: "set any value filled",
+      node: glyph,
+    },
+    emptyOption,
+  ];
+}
+
 /* -------------------------------------------------------------------------- */
 /* Value picker (multi-select)                                                */
 /* -------------------------------------------------------------------------- */
@@ -512,22 +665,36 @@ function FacetControl({
   onEmptyClose: () => void;
 }) {
   const [open, setOpen] = useState(autoOpen);
-  const field = FACET_FIELD[facet];
-  const selected = filters[field] as string[];
-  const meta = FACET_META[facet];
+  const selected = facetValues(filters, facet);
+  const meta = facetMeta(facet, data);
   const options = useMemo(
     () => buildOptions(facet, data, currentUserId),
     [facet, data, currentUserId],
   );
 
+  /** Write a facet's values back into whichever slice of state owns it. */
+  function commit(values: string[]): BoardFilters {
+    if (isFieldFacet(facet)) {
+      const fieldId = fieldIdOf(facet);
+      const nextFields = { ...filters.fieldValues };
+      if (values.length === 0) delete nextFields[fieldId];
+      else nextFields[fieldId] = values;
+      return { ...filters, fieldValues: nextFields };
+    }
+    return { ...filters, [FACET_FIELD[facet]]: values };
+  }
+
   function toggle(value: string) {
-    const next = selected.includes(value)
-      ? selected.filter((v) => v !== value)
-      : [...selected, value];
-    onChange({ ...filters, [field]: next });
+    onChange(
+      commit(
+        selected.includes(value)
+          ? selected.filter((v) => v !== value)
+          : [...selected, value],
+      ),
+    );
   }
   function clear() {
-    onChange({ ...filters, [field]: [] });
+    onChange(commit([]));
     onEmptyClose();
   }
 
@@ -605,12 +772,18 @@ function FacetControl({
 export function FilterMenu({
   filters,
   onPick,
+  customFields = [],
 }: {
   filters: BoardFilters;
   onPick: (facet: FacetKey) => void;
+  /** Custom fields offered alongside the built-in facets. */
+  customFields?: CustomFieldRow[];
 }) {
   const [open, setOpen] = useState(false);
   const inactive = FACET_ORDER.filter((f) => facetValues(filters, f).length === 0);
+  const inactiveFields = customFields.filter(
+    (f) => (filters.fieldValues[f.id] ?? []).length === 0,
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -656,6 +829,27 @@ export function FilterMenu({
                 );
               })}
             </CommandGroup>
+            {inactiveFields.length > 0 ? (
+              <CommandGroup heading="Custom fields">
+                {inactiveFields.map((field) => {
+                  const Icon = FIELD_TYPE_ICON[field.type];
+                  return (
+                    <CommandItem
+                      key={field.id}
+                      value={`${field.name} field`}
+                      onSelect={() => {
+                        onPick(fieldFacetKey(field.id));
+                        setOpen(false);
+                      }}
+                      className="gap-2"
+                    >
+                      <Icon className="size-4 text-muted-foreground" />
+                      <span className="flex-1 truncate">{field.name}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -693,13 +887,19 @@ export function ActiveFilterBar({
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
   const { data: labels = [] } = useQuery(labelsQueryOptions(propertyId));
-
-  const data: FacetData = useMemo(
-    () => ({ members, spaces, projects, labels }),
-    [members, spaces, projects, labels],
+  const { data: customFields = [] } = useQuery(
+    customFieldsQueryOptions(propertyId),
   );
 
-  const active = FACET_ORDER.filter((f) => facetValues(filters, f).length > 0);
+  const data: FacetData = useMemo(
+    () => ({ members, spaces, projects, labels, customFields }),
+    [members, spaces, projects, labels, customFields],
+  );
+
+  const active: FacetKey[] = [
+    ...FACET_ORDER.filter((f) => facetValues(filters, f).length > 0),
+    ...activeFieldFacets(filters),
+  ];
   const shown =
     addedFacet && !active.includes(addedFacet) ? [...active, addedFacet] : active;
 

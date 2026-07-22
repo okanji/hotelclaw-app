@@ -18,6 +18,7 @@ import type {
   GuestEscalationPayload,
   InsightAlertPayload,
   InviteReceivedPayload,
+  InviteAccessRequestedPayload,
   MeetingSummaryPayload,
   MentionPayload,
   NotificationRow,
@@ -297,6 +298,33 @@ export function notificationView(
         kicker: "Workspace invite",
         preview: `Join ${p.propertyName ?? "a workspace"} as ${p.role ?? "member"}`,
         actor: null,
+        channel: null,
+      };
+    }
+    case "invite_access_requested": {
+      const p = n.payload as Partial<InviteAccessRequestedPayload>;
+      const who = p.requesterName ?? p.requesterEmail ?? "Someone";
+      return {
+        icon: <Mail className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">{who}</strong>{" "}
+            can&apos;t accept your invite — it was sent to{" "}
+            <span className="font-medium">
+              {p.invitedEmail ?? "another address"}
+            </span>
+          </>
+        ),
+        sub: p.requesterEmail
+          ? `They use ${p.requesterEmail}. Re-send the invite to that address.`
+          : null,
+        // No deep link: invites are managed from a dialog, not a route.
+        href: null,
+        kicker: "Invite needs a new address",
+        preview: p.requesterEmail
+          ? `Re-send to ${p.requesterEmail}`
+          : "Invite sent to the wrong address",
+        actor: who,
         channel: null,
       };
     }

@@ -13,7 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Copy,
   MailX,
@@ -23,7 +31,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { revokeInvite } from "@/lib/invites/actions";
+import { revokeInvite, updateInviteRole } from "@/lib/invites/actions";
+import type { Role } from "@/lib/db/types";
+
+/** Roles a pending invite can be switched to, most-privileged first. */
+const ROLE_ORDER: Role[] = ["owner", "manager", "staff"];
 
 type InviteRow = {
   token: string;
@@ -196,6 +208,24 @@ function InviteRowItem({
     });
   }
 
+  function changeRole(next: Role) {
+    if (next === row.role) return;
+    startTransition(async () => {
+      const result = await updateInviteRole({
+        propertyId,
+        token: row.token,
+        role: next,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`They'll join as ${next}.`);
+      qc.invalidateQueries({ queryKey: ["property-invites", propertyId] });
+      qc.invalidateQueries({ queryKey: ["pending-invites"] });
+    });
+  }
+
   function revoke() {
     startTransition(async () => {
       const result = await revokeInvite({ propertyId, token: row.token });
@@ -229,9 +259,46 @@ function InviteRowItem({
           <span className="min-w-0 truncate text-sm font-medium text-foreground">
             {row.email}
           </span>
-          <Badge variant="secondary" className="shrink-0 capitalize">
-            {row.role}
-          </Badge>
+          {row.status === "pending" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Change role for ${row.email}`}
+                    disabled={pending}
+                    className="shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  />
+                }
+              >
+                <Badge variant="secondary" className="capitalize">
+                  {row.role}
+                  <ChevronDown className="ml-0.5 size-3 opacity-60" />
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ROLE_ORDER.map((id) => (
+                  <DropdownMenuItem
+                    key={id}
+                    onClick={() => changeRole(id)}
+                    className="gap-2 capitalize"
+                  >
+                    <Check
+                      className={cn(
+                        "size-4",
+                        row.role === id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {id}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Badge variant="secondary" className="shrink-0 capitalize">
+              {row.role}
+            </Badge>
+          )}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {metaLine(row)}

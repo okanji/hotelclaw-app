@@ -12,6 +12,7 @@ export type NotificationType =
   | "task_unassigned"
   | "channel_added"
   | "invite_received"
+  | "invite_access_requested"
   | "mention"
   | "meeting_summary"
   | "workflow"
