@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { SectionHeader } from "@/components/ui/section-header";
 import {
+  projectSpacesQueryOptions,
   projectsTrackingQueryOptions,
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
@@ -17,6 +18,7 @@ import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { CreateEntityDialog } from "./create-entity-dialog";
 import {
   type ProjectMember,
+  type ProjectTeam,
   type ProjectsViewMode,
 } from "./tracking/tracking-shared";
 import { ProjectsBoardView } from "./tracking/board-view";
@@ -81,6 +83,23 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     ? spaces.find((t) => t.id === spaceFilter)?.name
     : null;
 
+  // Teams involved per project — chips on every view's rows/cards.
+  const { data: projectSpacePairs = [] } = useQuery(
+    projectSpacesQueryOptions(propertyId),
+  );
+  const teamsByProject = useMemo(() => {
+    const spaceById = new Map(spaces.map((s) => [s.id, s]));
+    const map = new Map<string, ProjectTeam[]>();
+    for (const pair of projectSpacePairs) {
+      const space = spaceById.get(pair.space_id);
+      if (!space) continue;
+      const list = map.get(pair.project_id) ?? [];
+      list.push({ id: space.id, name: space.name, color: space.color });
+      map.set(pair.project_id, list);
+    }
+    return map;
+  }, [projectSpacePairs, spaces]);
+
   const shown = useMemo(() => {
     if (!spaceFilter) return projects;
     const ids = new Set(spaceProjectIds ?? []);
@@ -100,6 +119,7 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     propertyId,
     projects: shown,
     members: memberList,
+    teamsByProject,
     onChanged,
   };
 

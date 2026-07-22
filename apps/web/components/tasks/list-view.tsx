@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -22,10 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { deleteTask, moveTask } from "./actions";
+import { deleteTask, moveTask, updateTask } from "./actions";
 import {
   COLUMNS,
   PRIORITY_META,
+  PRIORITY_IDS,
   STATUS_IDS,
   computePosition,
   type Task,
@@ -39,6 +41,8 @@ import type { TaskStatus } from "@/lib/db/types";
 type Props = {
   propertyId: string;
   tasks: Task[];
+  /** Sub-tasks by parent id — rendered as expandable indented rows. */
+  childrenByParent?: Map<string, Task[]>;
   assignees: Record<string, AssigneeInfo>;
   hideDone: boolean;
   onChanged: () => void;
@@ -72,17 +76,44 @@ function formatDate(iso: string, now: number) {
 export function ListView({
   propertyId,
   tasks,
+  childrenByParent,
   assignees,
   hideDone,
   onChanged,
   onOpenFullCreate,
 }: Props) {
+  // Which parents' sub-tasks are expanded.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [collapsed, setCollapsed] = useState<Record<TaskStatus, boolean>>({
     todo: false,
     in_progress: false,
     blocked: false,
     done: false,
   });
+
+  // Multi-select for bulk actions — a Set of task ids; the floating bar
+  // appears while anything is selected. Selection survives status regrouping
+  // but drops ids that left the visible set.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const visibleIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
+  const activeSelection = useMemo(
+    () => new Set([...selected].filter((id) => visibleIds.has(id))),
+    [selected, visibleIds],
+  );
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const grouped = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = {
@@ -98,7 +129,8 @@ export function ListView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {/* Sticky table header — matches the row template below */}
-      <div className="sticky top-0 z-10 grid grid-cols-[1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-background/95 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase backdrop-blur">
+      <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-background/95 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase backdrop-blur">
+        <span />
         <span>Title</span>
         <span>Priority</span>
         <span>Due</span>
@@ -152,23 +184,173 @@ export function ListView({
                   No tasks in this status.
                 </div>
               ) : (
-                rows.map((task) => (
-                  <ListRow
-                    key={task.id}
-                    propertyId={propertyId}
-                    task={task}
-                    assignee={
-                      task.assignee_id ? assignees[task.assignee_id] : undefined
-                    }
-                    grouped={grouped}
-                    onChanged={onChanged}
-                  />
-                ))
+                rows.map((task) => {
+                  const children = childrenByParent?.get(task.id) ?? [];
+                  const isExpanded = expanded.has(task.id);
+                  return (
+                    <div key={task.id}>
+                      <ListRow
+                        propertyId={propertyId}
+                        task={task}
+                        assignee={
+                          task.assignee_id
+                            ? assignees[task.assignee_id]
+                            : undefined
+                        }
+                        grouped={grouped}
+                        onChanged={onChanged}
+                        selected={activeSelection.has(task.id)}
+                        selectionActive={activeSelection.size > 0}
+                        onToggleSelected={() => toggleSelected(task.id)}
+                        subtaskCount={children.length}
+                        subtasksExpanded={isExpanded}
+                        onToggleSubtasks={() => toggleExpanded(task.id)}
+                      />
+                      {isExpanded
+                        ? children.map((child) => (
+                            <ListRow
+                              key={child.id}
+                              propertyId={propertyId}
+                              task={child}
+                              assignee={
+                                child.assignee_id
+                                  ? assignees[child.assignee_id]
+                                  : undefined
+                              }
+                              grouped={grouped}
+                              onChanged={onChanged}
+                              selected={activeSelection.has(child.id)}
+                              selectionActive={activeSelection.size > 0}
+                              onToggleSelected={() => toggleSelected(child.id)}
+                              indent
+                            />
+                          ))
+                        : null}
+                    </div>
+                  );
+                })
               )
             ) : null}
           </section>
         );
       })}
+
+      {activeSelection.size > 0 ? (
+        <BulkActionBar
+          ids={[...activeSelection]}
+          onDone={() => {
+            setSelected(new Set());
+            onChanged();
+          }}
+          onClear={() => setSelected(new Set())}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Floating bulk-action bar (bottom center) — move / prioritize / delete every
+ * selected task. Actions run per task through the existing single-task
+ * server actions; partial failures surface once.
+ */
+function BulkActionBar({
+  ids,
+  onDone,
+  onClear,
+}: {
+  ids: string[];
+  onDone: () => void;
+  onClear: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function runAll(fn: (id: string) => Promise<{ error?: string } | { ok: true }>, label: string) {
+    startTransition(async () => {
+      const results = await Promise.all(ids.map((id) => fn(id)));
+      const failed = results.filter((r) => "error" in r && r.error).length;
+      if (failed > 0) toast.error(`${label} failed for ${failed} of ${ids.length}`);
+      else toast.success(`${label} — ${ids.length} ${ids.length === 1 ? "task" : "tasks"}`);
+      onDone();
+    });
+  }
+
+  return (
+    <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center px-4">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur">
+        <span className="pr-1 text-xs font-medium tabular-nums text-foreground">
+          {ids.length} selected
+        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={pending} />
+            }
+          >
+            Move to
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top">
+            {COLUMNS.map((c) => (
+              <DropdownMenuItem
+                key={c.id}
+                onClick={() =>
+                  runAll((id) => updateTask({ taskId: id, status: c.id }), `Moved to ${c.label}`)
+                }
+              >
+                <StatusIcon status={c.id} className="size-3.5" />
+                {c.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={pending} />
+            }
+          >
+            Priority
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top">
+            {PRIORITY_IDS.map((pId) => (
+              <DropdownMenuItem
+                key={pId}
+                onClick={() =>
+                  runAll(
+                    (id) => updateTask({ taskId: id, priority: pId }),
+                    `Priority set to ${PRIORITY_META[pId].label}`,
+                  )
+                }
+              >
+                <PriorityBars priority={pId} />
+                {PRIORITY_META[pId].label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs text-destructive hover:text-destructive"
+          disabled={pending}
+          onClick={() => runAll((id) => deleteTask(id), "Deleted")}
+        >
+          Delete
+        </Button>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs text-muted-foreground"
+          disabled={pending}
+          onClick={onClear}
+        >
+          Clear
+        </Button>
+      </div>
     </div>
   );
 }
@@ -179,12 +361,26 @@ function ListRow({
   assignee,
   grouped,
   onChanged,
+  selected,
+  selectionActive,
+  onToggleSelected,
+  subtaskCount = 0,
+  subtasksExpanded = false,
+  onToggleSubtasks,
+  indent = false,
 }: {
   propertyId: string;
   task: Task;
   assignee: AssigneeInfo | undefined;
   grouped: Record<TaskStatus, Task[]>;
   onChanged: () => void;
+  selected: boolean;
+  selectionActive: boolean;
+  onToggleSelected: () => void;
+  subtaskCount?: number;
+  subtasksExpanded?: boolean;
+  onToggleSubtasks?: () => void;
+  indent?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [now] = useState(() => Date.now());
@@ -228,18 +424,57 @@ function ListRow({
   return (
     <div
       className={cn(
-        "group grid grid-cols-[1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border/40 px-4 py-2 text-sm",
+        "group grid grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border/40 px-4 py-2 text-sm",
         "hover:bg-muted/40",
+        selected && "bg-muted/50",
         pending && "opacity-60",
       )}
     >
-      <Link
-        href={taskHref(propertyId, task.id)}
-        onClick={handleTitleClick}
-        className="truncate font-medium text-foreground hover:underline"
+      <Checkbox
+        checked={selected}
+        onCheckedChange={onToggleSelected}
+        aria-label={selected ? "Deselect task" : "Select task"}
+        className={cn(
+          "transition-opacity",
+          selected || selectionActive
+            ? "opacity-100"
+            : "opacity-0 group-hover:opacity-100",
+        )}
+      />
+      <span
+        className={cn(
+          "flex min-w-0 items-center gap-1.5",
+          indent && "pl-7",
+        )}
       >
-        {task.title}
-      </Link>
+        {subtaskCount > 0 && onToggleSubtasks ? (
+          <button
+            type="button"
+            onClick={onToggleSubtasks}
+            aria-label={
+              subtasksExpanded ? "Collapse sub-tasks" : "Expand sub-tasks"
+            }
+            className="flex shrink-0 items-center gap-0.5 rounded px-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {subtasksExpanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
+            <span className="text-[11px] tabular-nums">{subtaskCount}</span>
+          </button>
+        ) : null}
+        <Link
+          href={taskHref(propertyId, task.id)}
+          onClick={handleTitleClick}
+          className={cn(
+            "truncate font-medium text-foreground hover:underline",
+            indent && "text-sm font-normal",
+          )}
+        >
+          {task.title}
+        </Link>
+      </span>
 
       <span
         className={cn(

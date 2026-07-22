@@ -145,7 +145,7 @@ export function WorkspaceShell({
         </div>
 
         {rightRail && !railCollapsed ? (
-          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/40 px-6 py-12 md:flex">
+          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/40 px-6 pt-12 pb-20 md:flex">
             {rightRail}
           </aside>
         ) : null}

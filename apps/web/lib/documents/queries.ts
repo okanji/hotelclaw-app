@@ -22,7 +22,7 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     // see `lib/documents/snapshot.ts`. Full text isn't huge in practice
     // (kB range per doc) and a single round-trip beats 50 Liveblocks rooms.
     .select(
-      "id, title, updated_at, body_text, created_at, created_by, last_edited_by",
+      "id, title, updated_at, body_text, created_at, created_by, last_edited_by, space_id",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

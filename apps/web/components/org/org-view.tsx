@@ -30,6 +30,7 @@ import { updatePersonHierarchy } from "./actions";
 import { OrgDiagram } from "./org-diagram";
 import { TeamDetail } from "./team-detail";
 import { TeamEditPopover } from "./team-edit-popover";
+import { OrgProposals } from "./org-proposals";
 
 function initials(name: string | null): string {
   if (!name) return "?";
@@ -100,13 +101,18 @@ export function OrgView({
           />
         </div>
       ) : (
-        <OrgBody
-          propertyId={propertyId}
-          propertyName={propertyName}
-          org={data}
-          isManagement={isManagement}
-          onSelectTeam={setSelectedTeamId}
-        />
+        <>
+          <div className={cn(WRAP, "mt-8")}>
+            <OrgProposals propertyId={propertyId} org={data} />
+          </div>
+          <OrgBody
+            propertyId={propertyId}
+            propertyName={propertyName}
+            org={data}
+            isManagement={isManagement}
+            onSelectTeam={setSelectedTeamId}
+          />
+        </>
       )}
     </div>
   );

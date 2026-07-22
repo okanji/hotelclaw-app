@@ -11,7 +11,13 @@ export type TaskDetailMeta = {
     priority: string;
   }>;
   links: Array<{ id: string; url: string; title: string | null }>;
-  relatedTasks: Array<{ id: string; title: string; status: string; relationId: string }>;
+  relatedTasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    relationId: string;
+    relation: "related" | "blocks" | "blocked_by";
+  }>;
   labels: string[];
   projectName: string | null;
   favorited: boolean;
@@ -68,11 +74,11 @@ export async function getTaskDetailMeta(
       .order("created_at", { ascending: true }),
     supabase
       .from("task_relations")
-      .select("id, related_task_id")
+      .select("id, related_task_id, kind")
       .eq("task_id", taskId),
     supabase
       .from("task_relations")
-      .select("id, task_id")
+      .select("id, task_id, kind")
       .eq("related_task_id", taskId),
     supabase
       .from("task_favorites")
@@ -111,12 +117,25 @@ export async function getTaskDetailMeta(
       .limit(20),
   ]);
 
-  const relatedIds = new Map<string, string>();
+  // Direction decides the label: an outgoing 'blocks' row means this task
+  // BLOCKS the other; an incoming one means this task is BLOCKED BY it.
+  const relatedIds = new Map<
+    string,
+    { relationId: string; relation: "related" | "blocks" | "blocked_by" }
+  >();
   for (const r of relationsOutRes.data ?? []) {
-    relatedIds.set(r.related_task_id, r.id);
+    relatedIds.set(r.related_task_id, {
+      relationId: r.id,
+      relation: r.kind === "blocks" ? "blocks" : "related",
+    });
   }
   for (const r of relationsInRes.data ?? []) {
-    if (!relatedIds.has(r.task_id)) relatedIds.set(r.task_id, r.id);
+    if (!relatedIds.has(r.task_id)) {
+      relatedIds.set(r.task_id, {
+        relationId: r.id,
+        relation: r.kind === "blocks" ? "blocked_by" : "related",
+      });
+    }
   }
 
   let relatedTasks: TaskDetailMeta["relatedTasks"] = [];
@@ -129,7 +148,8 @@ export async function getTaskDetailMeta(
       id: t.id,
       title: t.title,
       status: t.status,
-      relationId: relatedIds.get(t.id)!,
+      relationId: relatedIds.get(t.id)!.relationId,
+      relation: relatedIds.get(t.id)!.relation,
     }));
   }
 

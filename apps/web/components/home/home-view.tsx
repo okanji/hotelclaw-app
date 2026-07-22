@@ -15,7 +15,7 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Check, Eye, Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -30,8 +30,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
-import { GenerateDocumentDialog } from "@/components/documents/generate-document-dialog";
 import {
   tasksQueryOptions,
   propertyMembersQueryOptions,
@@ -59,6 +57,7 @@ import {
 } from "./dashboard-filter";
 import {
   asHomeRole,
+  DASHBOARD_PRESETS,
   heroFor,
   roleWeightedOrder,
   type HomeLens,
@@ -89,8 +88,6 @@ export function HomeView({
   userName: string | null;
   propertyName: string;
 }) {
-  const [createOpen, setCreateOpen] = useState(false);
-  const [generateOpen, setGenerateOpen] = useState(false);
   const [filter, setFilter] = useState<DashboardFilter>({ kind: "all" });
   const greeting = useGreeting(userName);
 
@@ -103,10 +100,30 @@ export function HomeView({
     [members, userId],
   );
   const [viewAs, setViewAs] = useState<HomeRole | null>(null);
-  const role: HomeLens = viewAs ?? realRole;
+  // C5 — true impersonation (owner only): pick a member, Home renders THEIR
+  // view. Display-only: every query the impersonated view makes is one the
+  // owner is already allowed to read (property-scoped RLS); any ACTION still
+  // executes as the owner. Widgets whose data is personal-RLS or derived
+  // from the session user server-side are hidden (allowlist below) instead
+  // of silently showing the owner's own data mislabeled.
+  const [viewAsUser, setViewAsUser] = useState<{
+    id: string;
+    name: string;
+    role: HomeRole;
+  } | null>(null);
+  const role: HomeLens = viewAsUser?.role ?? viewAs ?? realRole;
+  const effectiveUserId = viewAsUser?.id ?? userId;
 
-  const { order, visible, hidden, isHidden, setOrder, toggleHidden, reset } =
-    useDashboardLayout(
+  const {
+    order,
+    visible,
+    hidden,
+    isHidden,
+    setOrder,
+    toggleHidden,
+    reset,
+    applyLayout,
+  } = useDashboardLayout(
       propertyId,
       userId,
       DASHBOARD_WIDGET_IDS,
@@ -114,7 +131,7 @@ export function HomeView({
       roleWeightedOrder(role),
     );
 
-  const summary = usePersonalSummary(propertyId, userId);
+  const summary = usePersonalSummary(propertyId, effectiveUserId);
   const statItems = useStatItems(role, summary, propertyId);
 
   // The one signal lifted out of the masonry into the "Today" hero for this
@@ -122,9 +139,15 @@ export function HomeView({
   // real widgets filtered out of the grid below so they aren't shown twice.
   const heroId = heroFor(role);
   const showHero =
-    heroId !== null && (heroId === "intelligence" || !isHidden(heroId));
+    heroId !== null &&
+    (heroId === "intelligence" || !isHidden(heroId)) &&
+    !(viewAsUser && !IMPERSONATION_SAFE_WIDGETS.has(heroId));
   const hero = heroId ? HERO_META[heroId] : null;
-  const gridIds = visible.filter((id) => id !== heroId);
+  const gridIds = visible.filter(
+    (id) =>
+      id !== heroId &&
+      (!viewAsUser || IMPERSONATION_SAFE_WIDGETS.has(id)),
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -154,7 +177,26 @@ export function HomeView({
                 <ViewAsMenu
                   realRole={realRole}
                   viewAs={viewAs}
-                  onChange={setViewAs}
+                  onChange={(next) => {
+                    setViewAs(next);
+                    setViewAsUser(null);
+                  }}
+                  members={
+                    realRole === "owner"
+                      ? (members ?? [])
+                          .filter((m) => m.id !== userId)
+                          .map((m) => ({
+                            id: m.id,
+                            name: m.name ?? "Unnamed",
+                            role: asHomeRole(m.role) ?? "staff",
+                          }))
+                      : []
+                  }
+                  viewAsUser={viewAsUser}
+                  onChangeUser={(next) => {
+                    setViewAsUser(next);
+                    setViewAs(null);
+                  }}
                 />
               ) : null}
               <DashboardFilterMenu
@@ -168,23 +210,36 @@ export function HomeView({
                 isHidden={isHidden}
                 onToggle={toggleHidden}
                 onReset={reset}
+                presets={DASHBOARD_PRESETS}
+                onApplyPreset={(presetId) => {
+                  const preset = DASHBOARD_PRESETS.find(
+                    (candidate) => candidate.id === presetId,
+                  );
+                  if (preset) applyLayout(preset.order, preset.hidden);
+                }}
               />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setGenerateOpen(true)}
-              >
-                <Sparkles className="size-4" />
-                Generate
-              </Button>
-              <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-                <Plus className="size-4" />
-                New doc
-              </Button>
             </>
           }
         />
+        {viewAsUser ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-sm">
+            <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="text-foreground">
+              Viewing as <strong>{viewAsUser.name}</strong> ({ROLE_LABEL[viewAsUser.role]})
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Read-only preview — personal sections (shift brief, notifications)
+              are hidden; anything you click still acts as you.
+            </span>
+            <button
+              type="button"
+              onClick={() => setViewAsUser(null)}
+              className="ml-auto text-xs font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Exit
+            </button>
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {statItems.map((item) => (
             <StatCard
@@ -246,7 +301,10 @@ export function HomeView({
                       wide={def.wide}
                       onHide={() => toggleHidden(id)}
                     >
-                      <Component propertyId={propertyId} userId={userId} />
+                      <Component
+                        propertyId={propertyId}
+                        userId={effectiveUserId}
+                      />
                     </EditorialSection>
                   );
                 })}
@@ -262,16 +320,6 @@ export function HomeView({
         onRestore={toggleHidden}
       />
 
-      <CreateDocumentDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        propertyId={propertyId}
-      />
-      <GenerateDocumentDialog
-        open={generateOpen}
-        onOpenChange={setGenerateOpen}
-        propertyId={propertyId}
-      />
     </div>
     </DashboardFilterProvider>
   );
@@ -405,6 +453,22 @@ function HeroBody({
   }
 }
 
+/** Widgets that are safe to render for an impersonated user: their data is
+ *  property-readable and keyed by the userId PROP. Widgets backed by
+ *  personal-RLS tables or session-derived APIs (shift brief, morning
+ *  check-in, notifications, personal pins, calendar day) would silently show
+ *  the OWNER's data — hidden instead. */
+const IMPERSONATION_SAFE_WIDGETS = new Set([
+  "your-tasks",
+  "team",
+  "property-pulse",
+  "attention",
+  "workflow-health",
+  "bookings-today",
+  "recent-docs",
+  "pinned",
+]);
+
 /* ── "Viewing as" lens preview ─────────────────────────────────────────────── */
 
 /** Lets an owner/manager preview how Home looks for each role — which signal
@@ -415,10 +479,19 @@ function ViewAsMenu({
   realRole,
   viewAs,
   onChange,
+  members,
+  viewAsUser,
+  onChangeUser,
 }: {
   realRole: HomeRole;
   viewAs: HomeRole | null;
   onChange: (role: HomeRole | null) => void;
+  /** Owner only — non-empty enables true per-person impersonation. */
+  members: { id: string; name: string; role: HomeRole }[];
+  viewAsUser: { id: string; name: string; role: HomeRole } | null;
+  onChangeUser: (
+    member: { id: string; name: string; role: HomeRole } | null,
+  ) => void;
 }) {
   const active = viewAs ?? realRole;
   return (
@@ -428,7 +501,7 @@ function ViewAsMenu({
           <Button type="button" size="sm" variant="ghost">
             <Eye className="size-4" />
             <span className="hidden sm:inline">Viewing as </span>
-            {ROLE_LABEL[active]}
+            {viewAsUser ? viewAsUser.name : ROLE_LABEL[active]}
           </Button>
         }
       />
@@ -455,12 +528,46 @@ function ViewAsMenu({
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
-        {viewAs ? (
+        {members.length > 0 ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onChange(null)}>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
+                View as a person
+              </DropdownMenuLabel>
+              {members.slice(0, 20).map((m) => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() =>
+                    onChangeUser(viewAsUser?.id === m.id ? null : m)
+                  }
+                >
+                  <Check
+                    className={cn(
+                      "size-4",
+                      viewAsUser?.id === m.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{m.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {ROLE_LABEL[m.role]}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+        {viewAs || viewAsUser ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                onChange(null);
+                onChangeUser(null);
+              }}
+            >
               <RotateCcw className="size-4" />
-              Back to my role
+              Back to my view
             </DropdownMenuItem>
           </>
         ) : null}

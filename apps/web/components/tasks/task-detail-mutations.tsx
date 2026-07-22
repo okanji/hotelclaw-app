@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { StatusIcon } from "./task-icons";
 import {
   addTaskLabel,
@@ -123,6 +124,9 @@ export function useTaskDetailMutations(
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectValue, setProjectValue] = useState("");
   const [relatedOpen, setRelatedOpen] = useState(false);
+  const [relationKind, setRelationKind] = useState<
+    "related" | "blocks" | "blocked_by"
+  >("related");
   const [relatedSearch, setRelatedSearch] = useState("");
   const [documentOpen, setDocumentOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -307,10 +311,17 @@ export function useTaskDetailMutations(
 
   function commitRelation(relatedTaskId: string) {
     runAction(async () => {
-      const result = await addTaskRelation({ taskId, relatedTaskId });
+      const result = await addTaskRelation({
+        taskId,
+        relatedTaskId,
+        kind: relationKind,
+      });
       if ("error" in result) return result;
-      toast.success("Related task linked");
+      toast.success(
+        relationKind === "related" ? "Related task linked" : "Dependency added",
+      );
       setRelatedOpen(false);
+      setRelationKind("related");
       return result;
     });
   }
@@ -477,6 +488,29 @@ export function useTaskDetailMutations(
           <DialogHeader>
             <DialogTitle>Link related task</DialogTitle>
           </DialogHeader>
+          <div className="flex gap-1">
+            {(
+              [
+                ["related", "Related"],
+                ["blocked_by", "Blocked by"],
+                ["blocks", "Blocks"],
+              ] as const
+            ).map(([kind, label]) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setRelationKind(kind)}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  relationKind === kind
+                    ? "border-foreground/30 bg-muted text-foreground"
+                    : "border-border/60 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <Input
             placeholder="Search tasks…"
             value={relatedSearch}

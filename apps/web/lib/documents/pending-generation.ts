@@ -26,3 +26,23 @@ export function takePendingGeneration(documentId: string): string | null {
   pending.delete(documentId);
   return prompt;
 }
+
+/**
+ * Same one-shot hand-off for the "Import a document" flow — but the payload
+ * is ready-to-insert HTML (converted client-side from the picked file), which
+ * the editor sets as the document body once Yjs is ready. No AI involved.
+ */
+const pendingImports = new Map<string, string>();
+
+/** Stash imported HTML for `documentId`. */
+export function setPendingImport(documentId: string, html: string): void {
+  pendingImports.set(documentId, html);
+}
+
+/** Consume (and clear) the imported HTML for `documentId`, if any. */
+export function takePendingImport(documentId: string): string | null {
+  const html = pendingImports.get(documentId);
+  if (html === undefined) return null;
+  pendingImports.delete(documentId);
+  return html;
+}

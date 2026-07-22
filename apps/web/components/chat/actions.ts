@@ -43,13 +43,30 @@ export async function createChannel(input: {
 
   const { data: members, error: memErr } = await supabase
     .from("memberships")
-    .select("user_id")
+    .select("user_id, role")
     .eq("property_id", parsed.data.propertyId);
   if (memErr) return { error: memErr.message };
 
+  const me = (members ?? []).find((m) => m.user_id === user.id);
   const memberIds = (members ?? []).map((m) => m.user_id);
-  if (!memberIds.includes(user.id)) {
+  if (!me) {
     return { error: "Forbidden" };
+  }
+
+  // Workspace policy: when channel creation is restricted to management,
+  // staff can't create channels (the sidebar hides the affordance too — this
+  // is the enforcement).
+  const { data: property } = await supabase
+    .from("properties")
+    .select("channel_creation")
+    .eq("id", parsed.data.propertyId)
+    .maybeSingle();
+  if (
+    property?.channel_creation === "management" &&
+    me.role !== "owner" &&
+    me.role !== "manager"
+  ) {
+    return { error: "Only managers can create channels in this workspace" };
   }
 
   const { data: existing, error: existingErr } = await supabase
@@ -99,4 +116,34 @@ export async function createChannel(input: {
   }
 
   return { channelId: row.id, streamChannelId };
+}
+
+/**
+ * Set who may create channels in this workspace. RLS
+ * (properties_update_owner_manager) already restricts the write to
+ * owners/managers — a staff caller's update simply matches zero rows.
+ */
+export async function setChannelCreationPolicy(input: {
+  propertyId: string;
+  policy: "everyone" | "management";
+}): Promise<{ ok: true } | { error: string }> {
+  if (input.policy !== "everyone" && input.policy !== "management") {
+    return { error: "Invalid policy" };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data, error } = await supabase
+    .from("properties")
+    .update({ channel_creation: input.policy })
+    .eq("id", input.propertyId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "Only owners and managers can change this" };
+  }
+  return { ok: true };
 }

@@ -25,8 +25,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
-import { SORT_LABELS, type SortBy } from "./kanban";
+import { SORT_LABELS } from "./kanban";
 import { TriageDial } from "./triage-dial";
+import { CustomFieldManager } from "./custom-field-manager";
 import {
   EMPTY_FILTERS,
   FilterMenu,
@@ -127,7 +128,8 @@ export function BoardToolbar({
 
   const activeFilterCount = activeFacetCount(filters);
 
-  const sortDifferent = filters.sortBy !== "manual";
+  const sortDifferent =
+    filters.sortKeys.length > 0 || filters.sortBy !== "manual";
 
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-3">
@@ -189,6 +191,8 @@ export function BoardToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+
+        <CustomFieldManager propertyId={propertyId} />
 
         <TriageDial propertyId={propertyId} />
 
@@ -263,7 +267,15 @@ function SortMenu({
         render={
           <button
             type="button"
-            aria-label={`Sort${modified ? ` by ${SORT_LABELS[filters.sortBy].toLowerCase()}` : ""}`}
+            aria-label={`Sort${
+              filters.sortKeys.length > 0
+                ? ` by ${filters.sortKeys
+                    .map((k) => SORT_LABELS[k].toLowerCase())
+                    .join(", then ")}`
+                : modified
+                  ? ` by ${SORT_LABELS[filters.sortBy].toLowerCase()}`
+                  : ""
+            }`}
             title="Sort"
             className={TOOLBAR_ICON_BUTTON}
           />
@@ -281,15 +293,41 @@ function SortMenu({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-56 gap-0 p-0">
         <PopoverSection label="Ordering">
-          {(Object.keys(SORT_LABELS) as SortBy[]).map((key) => {
-            const selected = filters.sortBy === key;
+          <PopoverRow
+            onClick={() =>
+              onChange({ ...filters, sortBy: "manual", sortKeys: [] })
+            }
+            selected={
+              filters.sortKeys.length === 0 && filters.sortBy === "manual"
+            }
+          >
+            <span className="flex-1">Manual order</span>
+          </PopoverRow>
+          {(["priority", "due_at"] as const).map((key) => {
+            const index = filters.sortKeys.indexOf(key);
+            const selected = index !== -1;
             return (
               <PopoverRow
                 key={key}
-                onClick={() => onChange({ ...filters, sortBy: key })}
+                onClick={() =>
+                  onChange({
+                    ...filters,
+                    sortBy: "manual",
+                    // Click to stack; click again to unstack (ClickUp's
+                    // click-in-succession multi-sort).
+                    sortKeys: selected
+                      ? filters.sortKeys.filter((k) => k !== key)
+                      : [...filters.sortKeys, key],
+                  })
+                }
                 selected={selected}
               >
                 <span className="flex-1">{SORT_LABELS[key]}</span>
+                {selected && filters.sortKeys.length > 1 ? (
+                  <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </span>
+                ) : null}
               </PopoverRow>
             );
           })}

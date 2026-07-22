@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { Chip } from "@/components/ui/chip";
+import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   documentBoardsQueryOptions,
   documentsQueryOptions,
@@ -227,6 +229,11 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
   const { data, isPending, isError, error } = useQuery(
     documentsQueryOptions(propertyId),
   );
+  const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
+  // Team lens: "all" | "general" (no team) | a space id. Docs are tagged with
+  // a team via the team workspace's Docs panel — this makes that organization
+  // visible from the library instead of one long pile.
+  const [teamLens, setTeamLens] = useState<string>("all");
 
   if (isPending) {
     return (
@@ -272,7 +279,68 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
     );
   }
 
-  return <GroupedList propertyId={propertyId} docs={docs} draggable />;
+  const shown =
+    teamLens === "all"
+      ? docs
+      : teamLens === "general"
+        ? docs.filter((d) => !d.space_id)
+        : docs.filter((d) => d.space_id === teamLens);
+  const generalCount = docs.filter((d) => !d.space_id).length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {spaces.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Chip
+            size="sm"
+            selected={teamLens === "all"}
+            onClick={() => setTeamLens("all")}
+          >
+            All
+          </Chip>
+          {spaces.map((s) => {
+            const count = docs.filter((d) => d.space_id === s.id).length;
+            if (count === 0) return null;
+            return (
+              <Chip
+                key={s.id}
+                size="sm"
+                selected={teamLens === s.id}
+                onClick={() => setTeamLens(teamLens === s.id ? "all" : s.id)}
+              >
+                {s.icon ? <span>{s.icon}</span> : null}
+                {s.name}
+                <span className="text-muted-foreground tabular-nums">
+                  {count}
+                </span>
+              </Chip>
+            );
+          })}
+          {generalCount > 0 ? (
+            <Chip
+              size="sm"
+              selected={teamLens === "general"}
+              onClick={() =>
+                setTeamLens(teamLens === "general" ? "all" : "general")
+              }
+            >
+              General
+              <span className="text-muted-foreground tabular-nums">
+                {generalCount}
+              </span>
+            </Chip>
+          ) : null}
+        </div>
+      ) : null}
+      {shown.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border/60 px-6 py-8 text-center text-sm text-muted-foreground">
+          No documents in this team yet.
+        </p>
+      ) : (
+        <GroupedList propertyId={propertyId} docs={shown} draggable />
+      )}
+    </div>
+  );
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */

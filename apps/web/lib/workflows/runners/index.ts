@@ -6,6 +6,7 @@ import {
   updateTaskRunner,
   assignTaskRunner,
   addLabelRunner,
+  queryTasksRunner,
 } from "./tasks";
 import {
   postMessageRunner,
@@ -57,6 +58,7 @@ import {
 
 export const RUNNERS: Partial<Record<StepType, Runner>> = {
   // Tasks
+  "action.task.query": queryTasksRunner as Runner,
   "action.task.create": createTaskRunner as Runner,
   "action.task.update": updateTaskRunner as Runner,
   "action.task.assign": assignTaskRunner as Runner,

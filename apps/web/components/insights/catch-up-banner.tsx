@@ -65,6 +65,9 @@ export function CatchUpBanner({
 
   const payload = data?.catchUp?.payload;
   const summary = data?.catchUp?.summary_md;
+  // The change counts deep-link into the tasks board scoped to this subject
+  // ("2 created" should be clickable, not just a number).
+  const boardHref = `/p/${propertyId}/tasks?${subjectKind === "space" ? "space" : "project"}=${subjectId}`;
   const total = payload
     ? payload.created + payload.completed + payload.blocked + payload.assignedToMe
     : 0;
@@ -101,13 +104,28 @@ export function CatchUpBanner({
             {summary}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-            {payload.created > 0 ? <span>{payload.created} created</span> : null}
-            {payload.completed > 0 ? (
-              <span>{payload.completed} completed</span>
+            {payload.created > 0 ? (
+              <Link href={boardHref} className="hover:text-foreground hover:underline">
+                {payload.created} created
+              </Link>
             ) : null}
-            {payload.blocked > 0 ? <span>{payload.blocked} blocked</span> : null}
+            {payload.completed > 0 ? (
+              <Link href={boardHref} className="hover:text-foreground hover:underline">
+                {payload.completed} completed
+              </Link>
+            ) : null}
+            {payload.blocked > 0 ? (
+              <Link href={boardHref} className="hover:text-foreground hover:underline">
+                {payload.blocked} blocked
+              </Link>
+            ) : null}
             {payload.assignedToMe > 0 ? (
-              <span>{payload.assignedToMe} assigned to you</span>
+              <Link
+                href={`/p/${propertyId}/my-tasks`}
+                className="hover:text-foreground hover:underline"
+              >
+                {payload.assignedToMe} assigned to you
+              </Link>
             ) : null}
             {payload.highlights.length > 0 ? (
               <button

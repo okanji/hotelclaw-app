@@ -95,7 +95,10 @@ import { Embed } from "@/lib/documents/nodes/embed";
 import { SpreadsheetEmbed } from "@/lib/documents/nodes/spreadsheet-embed";
 import { Chart } from "@/lib/documents/nodes/chart";
 import "./document-drag-handle.css";
-import { takePendingGeneration } from "@/lib/documents/pending-generation";
+import {
+  takePendingGeneration,
+  takePendingImport,
+} from "@/lib/documents/pending-generation";
 
 const TITLE_SYNC_DEBOUNCE_MS = 600;
 const TITLE_MAX_LENGTH = 200;
@@ -460,6 +463,22 @@ function EditorInner({
     if (!brief) return;
     generationFired.current = true;
     const t = setTimeout(() => aiPanelRef.current?.generate(brief), 300);
+    return () => clearTimeout(t);
+  }, [editor, isReady, syncTimedOut, documentId]);
+
+  // "Import a document": the import dialog stashed converted HTML keyed by
+  // this doc id and navigated here. Once Yjs is ready, set it as the body —
+  // a normal edit, so collaboration/undo/snapshotting all behave.
+  const importFired = useRef(false);
+  useEffect(() => {
+    if (importFired.current || !editor) return;
+    if (!isReady && !syncTimedOut) return;
+    const html = takePendingImport(documentId);
+    if (!html) return;
+    importFired.current = true;
+    const t = setTimeout(() => {
+      editor.commands.setContent(html, { emitUpdate: true });
+    }, 300);
     return () => clearTimeout(t);
   }, [editor, isReady, syncTimedOut, documentId]);
 

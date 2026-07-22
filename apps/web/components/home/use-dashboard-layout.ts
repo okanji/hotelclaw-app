@@ -82,6 +82,8 @@ export type UseDashboardLayout = {
   isHidden: (id: string) => boolean;
   /** Persist a new full order (after a drag). */
   setOrder: (order: string[]) => void;
+  /** Apply a preset's full order + hidden set in one commit. */
+  applyLayout: (order: string[], hidden: string[]) => void;
   /** Hide a widget (to the tray) or bring it back. */
   toggleHidden: (id: string) => void;
   /** Restore the shipped default (all visible, registry order). */
@@ -151,6 +153,24 @@ export function useDashboardLayout(
     [commit, seedKey],
   );
 
+  /** Apply a named preset: explicit order + hidden in one commit. Ids not in
+   *  the preset order are appended (visible) so new widgets never vanish. */
+  const applyLayout = useCallback(
+    (order: string[], hiddenIds: string[]) => {
+      const known = new Set(allIds);
+      const cleanOrder = order.filter((id) => known.has(id));
+      for (const id of allIds) {
+        if (!cleanOrder.includes(id)) cleanOrder.push(id);
+      }
+      commit({
+        order: cleanOrder,
+        hidden: hiddenIds.filter((id) => known.has(id)),
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commit],
+  );
+
   const visible = layout.order.filter((id) => !layout.hidden.includes(id));
   const hidden = layout.order.filter((id) => layout.hidden.includes(id));
 
@@ -163,5 +183,6 @@ export function useDashboardLayout(
     setOrder,
     toggleHidden,
     reset,
+    applyLayout,
   };
 }

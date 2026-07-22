@@ -72,10 +72,16 @@ export type DueBucket = "overdue" | "today" | "week" | "none";
  * always-visible toolbar controls; the remaining arrays are the additive
  * facets surfaced as removable chips (Linear model).
  */
+/** Stackable sort dimensions (ClickUp-style multi-key ordering). */
+export type SortStackKey = "priority" | "due_at";
+
 export type BoardFilters = {
   search: string;
   statusPreset: StatusPreset;
   sortBy: SortBy;
+  /** Ordered sort stack — first key wins, later keys break ties, manual
+   *  position is the final tie-break. Empty = single `sortBy` behavior. */
+  sortKeys: SortStackKey[];
   /* Facets — empty array = facet inactive. */
   assignees: string[]; // member ids; `UNASSIGNED` sentinel = no assignee
   creators: string[]; // member ids (created_by)
@@ -92,6 +98,7 @@ export const EMPTY_FILTERS: BoardFilters = {
   search: "",
   statusPreset: "all",
   sortBy: "manual",
+  sortKeys: [],
   assignees: [],
   creators: [],
   priorities: [],

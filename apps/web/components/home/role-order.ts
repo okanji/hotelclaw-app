@@ -45,6 +45,7 @@ export function heroFor(role: HomeLens): string | null {
  */
 const BASE_ORDER: Record<HomeRole, string[]> = {
   owner: [
+    "morning-checkin",
     "bookings-today",
     "attention",
     "property-pulse",
@@ -59,6 +60,7 @@ const BASE_ORDER: Record<HomeRole, string[]> = {
     "pinned",
   ],
   manager: [
+    "morning-checkin",
     "property-pulse",
     "workflow-health",
     "your-tasks",
@@ -73,6 +75,7 @@ const BASE_ORDER: Record<HomeRole, string[]> = {
     "pinned",
   ],
   staff: [
+    "morning-checkin",
     "your-tasks",
     "your-day",
     "attention",
@@ -103,3 +106,78 @@ export function roleWeightedOrder(role: HomeLens): string[] {
   }
   return order;
 }
+
+/**
+ * Named dashboard presets (C4) — per-persona starting layouts the PO asked
+ * for ("a template for the maintenance manager dashboard, front office
+ * dashboard…"). Applying one overwrites the user's saved arrangement (they
+ * can keep customizing after; Reset returns to their role default).
+ */
+export type DashboardPreset = {
+  id: string;
+  label: string;
+  order: string[];
+  hidden: string[];
+};
+
+export const DASHBOARD_PRESETS: DashboardPreset[] = [
+  {
+    id: "ops-manager",
+    label: "Ops / maintenance manager",
+    order: [
+      "morning-checkin",
+      "attention",
+      "your-tasks",
+      "workflow-health",
+      "property-pulse",
+      "shift-brief",
+      "activity",
+      "team",
+    ],
+    hidden: ["bookings-today", "recent-docs", "pinned", "pinned-for-you"],
+  },
+  {
+    id: "front-office",
+    label: "Front office",
+    order: [
+      "morning-checkin",
+      "bookings-today",
+      "your-day",
+      "your-tasks",
+      "shift-brief",
+      "attention",
+      "activity",
+    ],
+    hidden: ["workflow-health", "recent-docs"],
+  },
+  {
+    id: "owner-overview",
+    label: "Owner's overview",
+    order: [
+      "attention",
+      "property-pulse",
+      "workflow-health",
+      "bookings-today",
+      "team",
+      "activity",
+      "shift-brief",
+    ],
+    hidden: ["your-day", "pinned-for-you"],
+  },
+  {
+    id: "my-shift",
+    label: "My shift only",
+    order: ["morning-checkin", "your-tasks", "your-day", "shift-brief"],
+    hidden: [
+      "property-pulse",
+      "workflow-health",
+      "attention",
+      "activity",
+      "recent-docs",
+      "team",
+      "bookings-today",
+      "pinned",
+      "pinned-for-you",
+    ],
+  },
+];

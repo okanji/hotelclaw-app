@@ -13,6 +13,7 @@ import {
   PROJECT_STATUS_META,
   ProgressBar,
   type ProjectsViewProps,
+  TeamChips,
   progressPct,
   projectHealth,
   shortDate,
@@ -74,13 +75,15 @@ const COLUMNS: {
   { key: "progress", label: "Progress", className: "w-[200px] shrink-0" },
   { key: null, label: "Start", className: "hidden w-16 shrink-0 text-right xl:block" },
   { key: "target", label: "Target", className: "w-16 shrink-0 text-right" },
-  { key: null, label: "Team", className: "hidden w-20 shrink-0 sm:block" },
+  { key: null, label: "Teams", className: "hidden w-40 shrink-0 lg:block" },
+  { key: null, label: "People", className: "hidden w-20 shrink-0 sm:block" },
 ];
 
 export function ProjectsTableView({
   propertyId,
   projects,
   members,
+  teamsByProject,
 }: ProjectsViewProps) {
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
 
@@ -217,7 +220,12 @@ export function ProjectsTableView({
                   {shortDate(p.target_date)}
                 </div>
 
-                {/* Team */}
+                {/* Teams involved */}
+                <div className="hidden w-40 shrink-0 lg:block">
+                  <TeamChips teams={teamsByProject?.get(p.id)} />
+                </div>
+
+                {/* People */}
                 <div className="hidden w-20 shrink-0 sm:flex sm:justify-start">
                   <ContributorStack
                     ids={p.contributorIds}

@@ -98,6 +98,30 @@ export function spacesQueryOptions(propertyId: string) {
   });
 }
 
+/**
+ * Which teams (spaces) each project involves — one row per (project, space)
+ * across the whole property. Feeds the "Teams" chips on the projects
+ * overview views.
+ */
+export function projectSpacesQueryOptions(propertyId: string) {
+  return queryOptions({
+    queryKey: ["project-spaces", propertyId] as const,
+    queryFn: async (): Promise<{ project_id: string; space_id: string }[]> => {
+      const supabase = createBrowserClient();
+      const { data, error } = await supabase
+        .from("project_spaces")
+        .select("project_id, space_id, projects!inner(property_id)")
+        .eq("projects.property_id", propertyId);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => ({
+        project_id: r.project_id,
+        space_id: r.space_id,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
 /** User ids belonging to a space (mapped against property members for names). */
 export function spaceMemberIdsQueryOptions(spaceId: string) {
   return queryOptions({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,8 +10,12 @@ import {
   Loader2,
   Sparkles,
   Table2,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
+import { marked } from "marked";
+import { renameDocument } from "./actions";
+import { setPendingImport } from "@/lib/documents/pending-generation";
 import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 import { cn } from "@/lib/utils";
 import { createDocument } from "./actions";
@@ -33,7 +37,7 @@ import {
  * the separate `forms` table and opens the form builder. "generate" defers to
  * the existing `GenerateDocumentDialog` via `onGenerate`.
  */
-type TileId = "doc" | "sheet" | "form" | "generate";
+type TileId = "doc" | "sheet" | "form" | "generate" | "import";
 
 type Tile = {
   id: TileId;
@@ -72,7 +76,61 @@ const TILES: Tile[] = [
     icon: Sparkles,
     tone: "coral",
   },
+  {
+    id: "import",
+    label: "Import",
+    sub: "Markdown, HTML, text",
+    icon: Upload,
+    tone: "sage",
+  },
 ];
+
+type ImportKind = "md" | "html" | "txt";
+
+function importKindFor(fileName: string): ImportKind | null {
+  const ext = fileName.toLowerCase().split(".").pop() ?? "";
+  if (ext === "md" || ext === "markdown") return "md";
+  if (ext === "html" || ext === "htm") return "html";
+  if (ext === "txt") return "txt";
+  return null;
+}
+
+/** Title from the file's own structure, falling back to the filename. */
+function titleFromImport(fileName: string, kind: ImportKind, raw: string): string {
+  if (kind === "md") {
+    const m = raw.match(/^#\s+(.+)$/m);
+    if (m) return m[1].trim().slice(0, 120);
+  }
+  if (kind === "html") {
+    const m =
+      raw.match(/<title[^>]*>([^<]+)<\/title>/i) ??
+      raw.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (m) return m[1].trim().slice(0, 120);
+  }
+  return fileName.replace(/\.[^.]+$/, "").trim().slice(0, 120) || "Imported document";
+}
+
+/** Convert the picked file's text to editor-ready HTML. */
+function htmlFromImport(kind: ImportKind, raw: string): string {
+  if (kind === "md") return marked.parse(raw, { async: false }) as string;
+  if (kind === "html") {
+    // Tiptap's schema-driven parser drops anything it doesn't know; strip the
+    // document chrome so we hand it just the body.
+    const body = raw.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return body ? body[1] : raw;
+  }
+  return raw
+    .split(/\n{2,}/)
+    .map(
+      (p) =>
+        `<p>${p
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\n", "<br>")}</p>`,
+    )
+    .join("");
+}
 
 export function QuickCreateRow({
   propertyId,
@@ -84,6 +142,7 @@ export function QuickCreateRow({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<TileId | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function createDoc(kind: "doc" | "sheet") {
     const res = await createDocument(propertyId, null, kind);
@@ -125,10 +184,65 @@ export function QuickCreateRow({
     router.push(`/p/${propertyId}/forms/${res.formId}`);
   }
 
+  // Import: convert the picked file client-side, create + rename the doc,
+  // stash the HTML for the editor to set once Yjs is ready, and navigate.
+  async function handleImportFile(file: File) {
+    const kind = importKindFor(file.name);
+    if (!kind) {
+      toast.error("Use a .md, .html, or .txt file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("That file is too large (2 MB max)");
+      return;
+    }
+    setBusy("import");
+    try {
+      const raw = await file.text();
+      const html = htmlFromImport(kind, raw);
+      const title = titleFromImport(file.name, kind, raw);
+
+      const res = await createDocument(propertyId, null, "doc");
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+      const renamed = await renameDocument(res.id, title);
+      if ("error" in renamed) toast.error(renamed.error);
+
+      const treeKey = documentsTreeQueryOptions(propertyId).queryKey;
+      queryClient.setQueryData<DocumentTreeRow[]>(treeKey, (current) => {
+        if (!current || current.some((d) => d.id === res.id)) return current;
+        const placeholder: DocumentTreeRow = {
+          id: res.id,
+          title,
+          parent_id: null,
+          position: Number.MAX_SAFE_INTEGER,
+          kind: "doc",
+          updated_at: new Date().toISOString(),
+          last_edited_by: null,
+        };
+        return [...current, placeholder];
+      });
+
+      setPendingImport(res.id, html);
+      void queryClient.invalidateQueries({
+        queryKey: documentsQueryOptions(propertyId).queryKey,
+      });
+      router.push(`/p/${propertyId}/documents/${res.id}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handle(id: TileId) {
     if (busy) return;
     if (id === "generate") {
       onGenerate();
+      return;
+    }
+    if (id === "import") {
+      fileInputRef.current?.click();
       return;
     }
     setBusy(id);
@@ -141,7 +255,18 @@ export function QuickCreateRow({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.markdown,.html,.htm,.txt"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handleImportFile(file);
+        }}
+      />
       {TILES.map((t) => {
         const Icon = t.icon;
         const isBusy = busy === t.id;

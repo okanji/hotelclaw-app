@@ -92,14 +92,50 @@ export default defineDynamic({
       if (grants.has("create_task")) {
         tools.create_task = defineTool({
           description:
-            "Create a task in this property's board. Use only when the user asks for work to be filed or you were instructed to file follow-ups. Returns the new task's id and title.",
+            "Create a task in this property's board. NEVER call this on a vague ask — first make sure you know the concrete deliverable, which team it belongs to, and any specifics the assignee will need (ask ONE short clarifying question if not); a task without context gets lost. Pass `team` when the user named one (fuzzy name match; on no match you get the valid team names back — re-ask, don't guess). Returns the task plus a `url` — always include it in your reply as a markdown link so people can open the task.",
           inputSchema: z.object({
             title: z.string().min(3).max(200),
-            description: z.string().max(2000).optional(),
+            description: z
+              .string()
+              .max(2000)
+              .optional()
+              .describe(
+                "Context the assignee needs: what/where/why, anything the requester said.",
+              ),
             priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+            team: z
+              .string()
+              .max(120)
+              .optional()
+              .describe("Team (space) name to file the task under."),
+            due_at: z.iso
+              .datetime({ offset: true })
+              .optional()
+              .describe("Due date-time, ISO 8601 with offset."),
           }),
-          async execute({ title, description, priority }) {
-            const { data, error } = await serviceClient()
+          async execute({ title, description, priority, team, due_at }) {
+            const supabase = serviceClient();
+            let spaceId: string | null = null;
+            if (team) {
+              const { data: spaces } = await supabase
+                .from("spaces")
+                .select("id, name")
+                .eq("property_id", propertyId);
+              const needle = team.trim().toLowerCase();
+              const match =
+                (spaces ?? []).find((s) => s.name.toLowerCase() === needle) ??
+                (spaces ?? []).find((s) =>
+                  s.name.toLowerCase().includes(needle),
+                );
+              if (!match) {
+                return {
+                  error: `No team matches "${team}".`,
+                  teams: (spaces ?? []).map((s) => s.name),
+                };
+              }
+              spaceId = match.id;
+            }
+            const { data, error } = await supabase
               .from("tasks")
               .insert({
                 property_id: propertyId,
@@ -109,11 +145,17 @@ export default defineDynamic({
                 status: "todo",
                 source: "ai",
                 created_by: userId,
+                ...(spaceId ? { space_id: spaceId } : {}),
+                ...(due_at ? { due_at } : {}),
               })
-              .select("id, title")
+              .select("id, title, space_id")
               .single();
             if (error) return { error: error.message };
-            return { created: true, task: data };
+            return {
+              created: true,
+              task: data,
+              url: `/p/${propertyId}/tasks/${data.id}`,
+            };
           },
         });
       }

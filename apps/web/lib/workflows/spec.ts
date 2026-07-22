@@ -18,6 +18,7 @@ export const TRIGGER_EVENT_TYPES = [
   "task.label_added",
   "task.added_to_space",
   "task.added_to_project",
+  "task.field_changed",
   "chat.message_posted",
   "chat.mention",
   "doc.created",
@@ -110,6 +111,23 @@ const CreateTaskStep = z.object({
     project_id: z.string().optional(),
     priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
     parent_id: z.string().optional(),
+  }),
+});
+
+const QueryTasksStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.task.query"),
+  config: z.object({
+    /** 'open' = everything not done. */
+    status: z
+      .enum(["open", "todo", "in_progress", "blocked", "done"])
+      .default("open"),
+    space_id: TplString.optional(),
+    /** 'overdue' narrows to past-due tasks that aren't done. */
+    due: z.enum(["any", "overdue"]).default("any"),
+    /** Only tasks untouched for at least N days ("stuck"). */
+    stuck_days: z.number().int().min(1).max(90).optional(),
+    limit: z.number().int().min(1).max(50).default(25),
   }),
 });
 
@@ -526,6 +544,7 @@ const EndStep = z.object({
 // ─── Discriminated union of every step type ─────────────────────────────────
 
 export const StepNode = z.discriminatedUnion("type", [
+  QueryTasksStep,
   CreateTaskStep,
   UpdateTaskStep,
   AssignTaskStep,

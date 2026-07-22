@@ -29,10 +29,12 @@ import {
   PROJECT_STATUS_META,
   ProgressBar,
   STATUS_ORDER,
+  TeamChips,
   progressPct,
   projectHealth,
   shortDate,
   type ProjectMember,
+  type ProjectTeam,
   type ProjectsViewProps,
 } from "./tracking-shared";
 
@@ -46,10 +48,12 @@ function isStatus(id: string): id is ProjectStatus {
 function CardBody({
   project,
   members,
+  teams,
   dragging,
 }: {
   project: ProjectTracking;
   members: ProjectMember[];
+  teams?: ProjectTeam[];
   dragging?: boolean;
 }) {
   const health = projectHealth(project);
@@ -95,6 +99,8 @@ function CardBody({
         </span>
       </div>
 
+      {teams && teams.length > 0 ? <TeamChips teams={teams} /> : null}
+
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
           <CalendarDays className="size-3.5" strokeWidth={1.75} />
@@ -114,10 +120,12 @@ function DraggableCard({
   propertyId,
   project,
   members,
+  teams,
 }: {
   propertyId: string;
   project: ProjectTracking;
   members: ProjectMember[];
+  teams?: ProjectTeam[];
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: project.id,
@@ -133,7 +141,7 @@ function DraggableCard({
       {...attributes}
       {...listeners}
     >
-      <CardBody project={project} members={members} />
+      <CardBody project={project} members={members} teams={teams} />
     </Link>
   );
 }
@@ -145,12 +153,14 @@ function Column({
   projects,
   propertyId,
   members,
+  teamsByProject,
   isOver,
 }: {
   status: ProjectStatus;
   projects: ProjectTracking[];
   propertyId: string;
   members: ProjectMember[];
+  teamsByProject?: Map<string, ProjectTeam[]>;
   isOver: boolean;
 }) {
   const meta = PROJECT_STATUS_META[status];
@@ -185,6 +195,7 @@ function Column({
               propertyId={propertyId}
               project={project}
               members={members}
+              teams={teamsByProject?.get(project.id)}
             />
           ))
         )}
@@ -199,6 +210,7 @@ export function ProjectsBoardView({
   propertyId,
   projects,
   members,
+  teamsByProject,
   onChanged,
 }: ProjectsViewProps) {
   // Local mirror of props so a drop can move a card optimistically.
@@ -302,6 +314,7 @@ export function ProjectsBoardView({
             projects={byStatus[status]}
             propertyId={propertyId}
             members={members}
+            teamsByProject={teamsByProject}
             isOver={overStatus === status}
           />
         ))}
@@ -311,7 +324,12 @@ export function ProjectsBoardView({
       >
         {activeProject ? (
           <div className="min-w-[280px] cursor-grabbing">
-            <CardBody project={activeProject} members={members} dragging />
+            <CardBody
+              project={activeProject}
+              members={members}
+              teams={teamsByProject?.get(activeProject.id)}
+              dragging
+            />
           </div>
         ) : null}
       </PortalDragOverlay>

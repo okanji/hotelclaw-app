@@ -16,6 +16,8 @@ const LinkSchema = z.object({
 const RelationSchema = z.object({
   taskId: Uuid,
   relatedTaskId: Uuid,
+  /** 'blocked_by' is sugar — stored as a reversed 'blocks' row. */
+  kind: z.enum(["related", "blocks", "blocked_by"]).default("related"),
 });
 
 const LabelSchema = z.object({
@@ -133,9 +135,12 @@ export async function addTaskRelation(
     return { error: "Related task not found" };
   }
 
+  // "X is blocked by Y" is stored as "Y blocks X" — one canonical direction.
+  const inverted = parsed.data.kind === "blocked_by";
   const { error } = await supabase.from("task_relations").insert({
-    task_id: parsed.data.taskId,
-    related_task_id: parsed.data.relatedTaskId,
+    task_id: inverted ? parsed.data.relatedTaskId : parsed.data.taskId,
+    related_task_id: inverted ? parsed.data.taskId : parsed.data.relatedTaskId,
+    kind: parsed.data.kind === "related" ? "related" : "blocks",
     created_by: user.id,
   });
   if (error) {

@@ -461,6 +461,13 @@ export async function createWorkspace(input: {
   }
 
   // ── Invites (best-effort, per row) ───────────────────────────────────────
+  // A department picked in the wizard becomes the invitee's home team via
+  // the invite-prefill columns (0072) — they land already positioned.
+  const spaceIdByDeptName = new Map<string, string>();
+  for (const s of plan.spaces) {
+    const id = spaceIdBySlug.get(s.channelSlug);
+    if (id) spaceIdByDeptName.set(s.name.toLowerCase(), id);
+  }
   for (const invite of answers.invites) {
     try {
       const result = await createInvite({
@@ -469,6 +476,9 @@ export async function createWorkspace(input: {
         role: invite.role,
         fullName: invite.name,
         title: invite.title,
+        primarySpaceId: invite.department
+          ? spaceIdByDeptName.get(invite.department.toLowerCase())
+          : undefined,
       });
       if ("error" in result) {
         warn(`invite ${invite.email}`, result.error);

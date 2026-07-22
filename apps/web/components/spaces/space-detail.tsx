@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Layers,
   MoreHorizontal,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
@@ -38,6 +39,8 @@ import {
   updateSpace,
 } from "@/components/projects/actions";
 import { unpinFormFromSpace } from "@/components/forms/share-actions";
+import { DailyOpsPanel, TeamScoreboard } from "./daily-ops-panel";
+import { SpaceAutomationsPanel } from "./space-automations-panel";
 import {
   MetadataItem,
   MetadataRow,
@@ -433,7 +436,7 @@ export function SpaceDetail({
 
       <Link
         href={`/p/${propertyId}/tasks?space=${spaceId}`}
-        title={`${tasks.length} issues`}
+        title={`${tasks.length} tasks`}
         className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm tracking-tight text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
       >
         <Layers className="size-3.5" strokeWidth={1.5} />
@@ -499,6 +502,7 @@ export function SpaceDetail({
       label: "Overview",
       content: (
         <div className="flex flex-col gap-10">
+          <TeamScoreboard propertyId={propertyId} spaceId={spaceId} />
           <ProgressOverview tasks={tasks} />
           <SpacePinnedResources
             propertyId={propertyId}
@@ -535,13 +539,31 @@ export function SpaceDetail({
       ),
     },
     {
+      id: "daily-ops",
+      label: "Daily ops",
+      content: <DailyOpsPanel propertyId={propertyId} spaceId={spaceId} />,
+    },
+    {
+      id: "automations",
+      label: "Automations",
+      content: (
+        <SpaceAutomationsPanel
+          propertyId={propertyId}
+          spaceId={spaceId}
+          spaceName={space.name}
+        />
+      ),
+    },
+    {
       id: "activity",
       label: "Activity",
       content: <ActivityFeed events={activity} pending={activityPending} />,
     },
     {
+      // Historical id (kept stable for saved tab state) — the label follows
+      // the product vocabulary: this is the team's task list.
       id: "issues",
-      label: "Issues",
+      label: "Tasks",
       count: tasks.length,
       content: (
         <TasksPanel
@@ -616,7 +638,7 @@ export function SpaceDetail({
             </span>
           )}
         </PropertyRow>
-        <PropertyRow label="Issues">
+        <PropertyRow label="Tasks">
           <Link
             href={`/p/${propertyId}/tasks?space=${spaceId}`}
             className={railValueClass}
@@ -690,6 +712,24 @@ export function SpaceDetail({
         <MoreHorizontal className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6}>
+        <DropdownMenuItem
+          onClick={() => {
+            // Contextual workflow entry — seeds the AI builder with this
+            // team so triggers/steps come back pre-scoped (same ?prefill=
+            // channel the task menus use).
+            const prefill = encodeURIComponent(
+              btoa(
+                JSON.stringify({
+                  goal: `Build an automation for the ${space.name} team`,
+                }),
+              ),
+            );
+            router.push(`/p/${propertyId}/workflows/new?prefill=${prefill}`);
+          }}
+        >
+          <Workflow className="size-3.5" />
+          <span className="flex-1">Automate this team</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleArchive}>
           <Archive className="size-3.5" />
           <span className="flex-1">Archive team</span>

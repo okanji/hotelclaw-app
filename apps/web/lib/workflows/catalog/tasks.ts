@@ -136,6 +136,28 @@ const triggers: TriggerCatalogEntry[] = [
     explain: (filter) =>
       explainTaskTrigger("task.added_to_project", "When a task is added to a project", filter),
   },
+  {
+    id: "task.field_changed",
+    surface: "tasks",
+    category: "trigger",
+    label: "When a custom field changes",
+    description:
+      "Fires when a custom field's value on a task is set, changed, or cleared. The payload has field_name, field_type, and the from/to values — filter on field_name and to for things like 'when Material Status becomes LPO created'.",
+    examplePrompts: [
+      "when Material Status changes to LPO created",
+      "whenever the Cost field is set on a task",
+      "when a task's Sign-off checkbox is ticked",
+    ],
+    outputSchema: z.object({
+      field_id: z.string(),
+      field_name: z.string(),
+      field_type: z.string(),
+      from: z.unknown().nullable(),
+      to: z.unknown().nullable(),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.field_changed", "When a custom field changes", filter),
+  },
 ];
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -157,6 +179,25 @@ const actions: StepCatalogEntry[] = [
       const c = config as { title?: string };
       return `Create task${c.title ? `: "${c.title}"` : ""}`;
     },
+  },
+  {
+    id: "action.task.query",
+    surface: "tasks",
+    category: "action",
+    label: "Find tasks",
+    description:
+      "Reads tasks matching filters (status, team, overdue, untouched-for-N-days) so later steps can report on them. Output has `count`, the raw `tasks`, and a ready-to-post `summary` — one line per task with status, assignee, due date, and staleness. Pair with a schedule trigger + a chat post for daily reports.",
+    examplePrompts: [
+      "every weekday at 8am, list blocked tasks in #ops",
+      "find tasks untouched for 5 days and report them",
+      "daily overdue-work report for the maintenance team",
+    ],
+    outputSchema: z.object({
+      count: z.number(),
+      tasks: z.array(z.record(z.string(), z.unknown())),
+      summary: z.string(),
+    }),
+    explain: () => "Find tasks matching filters",
   },
   {
     id: "action.task.update",

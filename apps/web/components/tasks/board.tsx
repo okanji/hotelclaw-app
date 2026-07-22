@@ -71,6 +71,19 @@ export function TasksBoard({
     () => allTasks.filter((t) => !t.parent_id),
     [allTasks],
   );
+  // Sub-tasks grouped by parent — the list view renders them as expandable
+  // indented rows under their parent.
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, typeof allTasks>();
+    for (const t of allTasks) {
+      if (!t.parent_id) continue;
+      const list = map.get(t.parent_id) ?? [];
+      list.push(t);
+      map.set(t.parent_id, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.position - b.position);
+    return map;
+  }, [allTasks]);
 
   // Filters/view live in component state — they're UI-only and don't need
   // to round-trip through the URL (the existing `?view=mine` flag is still
@@ -137,21 +150,29 @@ export function TasksBoard({
       return true;
     });
 
-    // Sort within `out`, preserving manual order when requested. For the
+    // Sort within `out`. The sort STACK wins when present (multi-key,
+    // ClickUp-style: first key orders, later keys break ties); otherwise the
+    // single `sortBy`; manual position is always the final tie-break. For the
     // kanban view, columns enforce status grouping later — sort here only
     // changes per-column / per-row ordering.
-    out.sort((a, b) => {
-      if (filters.sortBy === "priority") {
-        const dp =
-          PRIORITY_META[a.priority].order - PRIORITY_META[b.priority].order;
-        if (dp !== 0) return dp;
-        return a.position - b.position;
+    const stack: ("priority" | "due_at")[] =
+      filters.sortKeys.length > 0
+        ? filters.sortKeys
+        : filters.sortBy !== "manual"
+          ? [filters.sortBy]
+          : [];
+    const compareBy = (key: "priority" | "due_at", a: Task, b: Task): number => {
+      if (key === "priority") {
+        return PRIORITY_META[a.priority].order - PRIORITY_META[b.priority].order;
       }
-      if (filters.sortBy === "due_at") {
-        const av = a.due_at ? Date.parse(a.due_at) : Number.POSITIVE_INFINITY;
-        const bv = b.due_at ? Date.parse(b.due_at) : Number.POSITIVE_INFINITY;
-        if (av !== bv) return av - bv;
-        return a.position - b.position;
+      const av = a.due_at ? Date.parse(a.due_at) : Number.POSITIVE_INFINITY;
+      const bv = b.due_at ? Date.parse(b.due_at) : Number.POSITIVE_INFINITY;
+      return av - bv;
+    };
+    out.sort((a, b) => {
+      for (const key of stack) {
+        const d = compareBy(key, a, b);
+        if (d !== 0) return d;
       }
       return a.position - b.position;
     });
@@ -262,6 +283,7 @@ export function TasksBoard({
         <ListView
           propertyId={propertyId}
           tasks={filteredTasks}
+          childrenByParent={childrenByParent}
           assignees={assignees}
           hideDone={hideDone}
           onChanged={notifyChanged}

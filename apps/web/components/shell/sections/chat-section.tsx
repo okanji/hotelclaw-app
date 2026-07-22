@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Archive, MessageSquareText, Plus, Video } from "lucide-react";
+import { Archive, MessageSquareText, Plus, Settings2, Video } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { channelCreationQueryOptions } from "@/lib/query/chat-queries";
 import {
   SidebarGroup,
   SidebarGroupAction,
@@ -16,6 +18,7 @@ import {
 import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
 import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
 import { ArchivedChannelsDialog } from "@/components/chat/archived-channels-dialog";
+import { ChannelPolicyDialog } from "@/components/chat/channel-policy-dialog";
 import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
 import { DmsSection } from "./dms-section";
 
@@ -37,6 +40,15 @@ export function ChatSection({
   const pathname = usePathname();
   const [channelOpen, setChannelOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Workspace policy: staff lose the "New channel" affordance when creation
+  // is restricted to management (the server action enforces it regardless).
+  const { data: creationPolicy } = useQuery(
+    channelCreationQueryOptions(propertyId),
+  );
+  const canCreateChannel =
+    isChannelAdmin || (creationPolicy ?? "everyone") === "everyone";
 
   return (
     <>
@@ -54,12 +66,14 @@ export function ChatSection({
 
       <SidebarGroup>
         <SidebarGroupLabel>Channels</SidebarGroupLabel>
-        <SidebarGroupAction
-          onClick={() => setChannelOpen(true)}
-          title="New channel"
-        >
-          <Plus />
-        </SidebarGroupAction>
+        {canCreateChannel ? (
+          <SidebarGroupAction
+            onClick={() => setChannelOpen(true)}
+            title="New channel"
+          >
+            <Plus />
+          </SidebarGroupAction>
+        ) : null}
         <SidebarGroupContent>
           <ChannelListSection
             propertyId={propertyId}
@@ -80,6 +94,17 @@ export function ChatSection({
                   <span>Archived</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                  tooltip="Channel settings"
+                  className="text-sidebar-foreground/55"
+                >
+                  <Settings2 />
+                  <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           ) : null}
         </SidebarGroupContent>
@@ -91,11 +116,18 @@ export function ChatSection({
         onOpenChange={setChannelOpen}
       />
       {isChannelAdmin ? (
-        <ArchivedChannelsDialog
-          propertyId={propertyId}
-          open={archivedOpen}
-          onOpenChange={setArchivedOpen}
-        />
+        <>
+          <ArchivedChannelsDialog
+            propertyId={propertyId}
+            open={archivedOpen}
+            onOpenChange={setArchivedOpen}
+          />
+          <ChannelPolicyDialog
+            propertyId={propertyId}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+          />
+        </>
       ) : null}
     </>
   );

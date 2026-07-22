@@ -62,6 +62,9 @@ export const AnswersSchema = z.object({
         /** Inviter-provided pre-fill — carried onto the invite row. */
         name: z.string().max(120).optional(),
         title: z.string().max(80).optional(),
+        /** Department (by name from `departments`) this person is responsible
+         *  for / belongs to — becomes their home team via invite prefill. */
+        department: z.string().max(60).optional(),
       }),
     )
     .max(20)

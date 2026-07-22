@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import { TaskProjectSpacePicker } from "./task-project-space-picker";
+import { TaskCustomFields } from "./task-custom-fields";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import type { EntityColor } from "@/lib/db/types";
 
@@ -185,6 +186,10 @@ export function TaskDetailSidebar({
         />
       </SidebarSection>
 
+      <SidebarSection title="Fields" defaultOpen>
+        <TaskCustomFields propertyId={propertyId} taskId={taskId} />
+      </SidebarSection>
+
       <SidebarSection title="Links & attachments" defaultOpen>
         {(meta?.links ?? []).map((link) => (
           <LinkRow
@@ -236,6 +241,7 @@ export function TaskDetailSidebar({
             taskId={rel.id}
             title={rel.title}
             status={rel.status as TaskStatus}
+            relation={rel.relation}
             onRemove={() => removers.removeRelation(rel.relationId)}
           />
         ))}
@@ -557,12 +563,14 @@ function RelatedTaskRow({
   taskId,
   title,
   status,
+  relation = "related",
   onRemove,
 }: {
   propertyId: string;
   taskId: string;
   title: string;
   status: TaskStatus;
+  relation?: "related" | "blocks" | "blocked_by";
   onRemove: () => void;
 }) {
   return (
@@ -574,6 +582,18 @@ function RelatedTaskRow({
       >
         {title}
       </Link>
+      {relation !== "related" ? (
+        <span
+          className={cn(
+            "shrink-0 rounded-full border px-1.5 py-px text-[10px] font-medium",
+            relation === "blocked_by"
+              ? "border-red-500/30 text-red-600 dark:text-red-400"
+              : "border-border text-muted-foreground",
+          )}
+        >
+          {relation === "blocked_by" ? "Blocked by" : "Blocks"}
+        </span>
+      ) : null}
       <button
         type="button"
         aria-label="Remove relation"

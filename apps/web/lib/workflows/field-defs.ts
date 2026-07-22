@@ -252,6 +252,52 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
   ],
 
   // ─── Task actions ──────────────────────────────────────────────────────
+  "action.task.query": [
+    {
+      kind: "enum",
+      key: "status",
+      label: "Status",
+      default: "open",
+      options: [
+        { value: "open", label: "Open (not done)" },
+        { value: "todo", label: "To do" },
+        { value: "in_progress", label: "In progress" },
+        { value: "blocked", label: "Blocked" },
+        { value: "done", label: "Done" },
+      ],
+    },
+    {
+      kind: "template",
+      key: "space_id",
+      label: "Team (optional)",
+      placeholder: "Space id — leave empty for all teams",
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "enum",
+      key: "due",
+      label: "Due date",
+      default: "any",
+      options: [
+        { value: "any", label: "Any" },
+        { value: "overdue", label: "Overdue only" },
+      ],
+    },
+    {
+      kind: "number",
+      key: "stuck_days",
+      label: "Untouched for at least (days)",
+      help: "Leave empty to include everything",
+      min: 1,
+      max: 90,
+    },
+    {
+      kind: "number",
+      key: "limit",
+      label: "Max tasks",
+      default: 25,
+    },
+  ],
   "action.task.create": [
     {
       kind: "template",

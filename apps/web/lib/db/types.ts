@@ -29,6 +29,19 @@ export type MeetingRecurrence = {
 };
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
+
+// ── Custom fields (migration 0080) ──────────────────────────────────────────
+export type CustomFieldType = "text" | "number" | "select" | "date" | "checkbox";
+/** Select options — values store the option `id`, so labels stay renameable. */
+export type CustomFieldOption = { id: string; label: string };
+/** jsonb value per field type: text/select/date → string, number → number,
+ *  checkbox → boolean. */
+export type CustomFieldValue = string | number | boolean;
+
+// ── Daily operations (migration 0082) ───────────────────────────────────────
+/** Checklist item on a routine — ids are stable slugs so runs survive
+ *  relabeling. */
+export type RoutineItem = { id: string; label: string };
 /** Accent colors shared by document boards, teams, and projects. */
 export type EntityColor =
   | "slate"
@@ -115,6 +128,7 @@ export interface Database {
           slug: string;
           client_id: string | null;
           timezone: string;
+          channel_creation: "everyone" | "management";
           archived_at: string | null;
           created_at: string;
         };
@@ -124,6 +138,7 @@ export interface Database {
           slug: string;
           client_id?: string | null;
           timezone?: string;
+          channel_creation?: "everyone" | "management";
           archived_at?: string | null;
           created_at?: string;
         };
@@ -132,6 +147,7 @@ export interface Database {
           slug: string;
           client_id: string | null;
           timezone: string;
+          channel_creation: "everyone" | "management";
           archived_at: string | null;
         }>;
         Relationships: [];
@@ -428,6 +444,196 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      custom_fields: {
+        Row: {
+          id: string;
+          property_id: string;
+          space_id: string | null;
+          name: string;
+          type: CustomFieldType;
+          options: CustomFieldOption[];
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          space_id?: string | null;
+          name: string;
+          type: CustomFieldType;
+          options?: CustomFieldOption[];
+          position?: number;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          space_id: string | null;
+          name: string;
+          options: CustomFieldOption[];
+          position: number;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      task_field_values: {
+        Row: {
+          task_id: string;
+          field_id: string;
+          property_id: string;
+          value: CustomFieldValue;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          task_id: string;
+          field_id: string;
+          property_id: string;
+          value: CustomFieldValue;
+          updated_by?: string | null;
+        };
+        Update: Partial<{
+          value: CustomFieldValue;
+          updated_by: string | null;
+        }>;
+        Relationships: [];
+      };
+      routines: {
+        Row: {
+          id: string;
+          property_id: string;
+          space_id: string;
+          name: string;
+          items: RoutineItem[];
+          days: number[];
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          reviewed_at: string | null;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          space_id: string;
+          name: string;
+          items?: RoutineItem[];
+          days?: number[];
+          position?: number;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          items: RoutineItem[];
+          days: number[];
+          position: number;
+          reviewed_at: string | null;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      org_change_proposals: {
+        Row: {
+          id: string;
+          property_id: string;
+          kind: "set_title" | "set_manager" | "set_home_team" | "set_team_lead";
+          subject_user_id: string | null;
+          subject_space_id: string | null;
+          new_text: string | null;
+          new_id: string | null;
+          note: string | null;
+          status: "pending" | "approved" | "rejected";
+          created_by: string | null;
+          created_at: string;
+          decided_by: string | null;
+          decided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          kind: "set_title" | "set_manager" | "set_home_team" | "set_team_lead";
+          subject_user_id?: string | null;
+          subject_space_id?: string | null;
+          new_text?: string | null;
+          new_id?: string | null;
+          note?: string | null;
+          status?: "pending" | "approved" | "rejected";
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          status: "pending" | "approved" | "rejected";
+          decided_by: string | null;
+          decided_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      routine_feedback: {
+        Row: {
+          id: string;
+          property_id: string;
+          routine_id: string;
+          item_id: string | null;
+          note: string;
+          created_by: string | null;
+          created_at: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          routine_id: string;
+          item_id?: string | null;
+          note: string;
+          created_by?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: Partial<{
+          note: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        }>;
+        Relationships: [];
+      };
+      routine_runs: {
+        Row: {
+          id: string;
+          property_id: string;
+          routine_id: string;
+          run_date: string;
+          done_items: string[];
+          completed_at: string | null;
+          signed_off_by: string | null;
+          signed_off_at: string | null;
+          rating: number | null;
+          rating_note: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          routine_id: string;
+          run_date: string;
+          done_items?: string[];
+          completed_at?: string | null;
+          signed_off_by?: string | null;
+          signed_off_at?: string | null;
+          rating?: number | null;
+          rating_note?: string | null;
+        };
+        Update: Partial<{
+          done_items: string[];
+          completed_at: string | null;
+          signed_off_by: string | null;
+          signed_off_at: string | null;
+          rating: number | null;
+          rating_note: string | null;
+        }>;
+        Relationships: [];
+      };
       labels: {
         Row: {
           id: string;
@@ -662,6 +868,7 @@ export interface Database {
           id: string;
           task_id: string;
           related_task_id: string;
+          kind: "related" | "blocks";
           created_by: string | null;
           created_at: string;
         };
@@ -669,6 +876,7 @@ export interface Database {
           id?: string;
           task_id: string;
           related_task_id: string;
+          kind?: "related" | "blocks";
           created_by?: string | null;
           created_at?: string;
         };

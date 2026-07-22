@@ -11,6 +11,7 @@ import { BookingsWidget } from "./widgets/bookings-widget";
 import { PinnedResourcesWidget } from "./widgets/pinned-resources-widget";
 import { AttentionWidget } from "./widgets/attention-widget";
 import { ShiftBriefWidget } from "./widgets/shift-brief-widget";
+import { MorningCheckinWidget } from "./widgets/morning-checkin-widget";
 
 export type WidgetProps = { propertyId: string; userId: string };
 
@@ -35,6 +36,13 @@ export type WidgetDef = {
  * with Property pulse.
  */
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
+  {
+    id: "morning-checkin",
+    kicker: "Your daily ritual",
+    title: "Morning check-in",
+    wide: true,
+    Component: MorningCheckinWidget,
+  },
   {
     id: "shift-brief",
     kicker: "Since your last shift",

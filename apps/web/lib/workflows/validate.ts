@@ -246,7 +246,7 @@ function validateRef(
   declaredVars: Set<string>,
 ): string | null {
   const head = ref.split(".")[0];
-  if (head === "trigger" || head === "context" || head === "now") return null;
+  if (head === "trigger" || head === "context" || head === "now" || head === "org") return null;
 
   if (head === "vars") {
     const name = ref.split(".")[1];

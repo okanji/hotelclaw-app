@@ -5,6 +5,7 @@ import type { InsightsMetrics } from "@/lib/insights/metrics";
 import type { InsightScope } from "@/lib/insights/scope";
 import { IntelligenceBody, IntelligenceUpdated } from "./intelligence-strip";
 import { AttentionList, FlowBody, OpenWorkBody } from "./pulse-view";
+import { TeamsPulseBody } from "@/components/insights/teams-pulse";
 import { PortfolioBody } from "./portfolio-view";
 import { WorkloadBody } from "./workload-view";
 import {
@@ -191,6 +192,15 @@ export const INSIGHT_SECTIONS: InsightSectionDef[] = [
     propertyOnly: true,
     ownerOnly: true,
     Component: TeamBody,
+  },
+  {
+    id: "teams-pulse",
+    tab: "operations",
+    kicker: "Friendly competition",
+    title: "Teams pulse",
+    wide: true,
+    propertyOnly: true,
+    Component: TeamsPulseBody,
   },
 ];
 

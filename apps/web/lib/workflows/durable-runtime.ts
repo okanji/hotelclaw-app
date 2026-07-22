@@ -4,6 +4,7 @@ import { start } from "workflow/api";
 import { createServiceClient } from "@/lib/supabase/server";
 import { type StepNode } from "@/lib/workflows/spec";
 import { resolveValue, type ResolutionScope } from "@/lib/workflows/resolve";
+import { buildOrgScope } from "@/lib/workflows/org-scope";
 import { evaluatePredicate } from "@/lib/workflows/predicate";
 import { getRunner } from "@/lib/workflows/runners";
 import { notifyWorkflowRunFailed } from "@/lib/workflows/notify-failure";
@@ -272,6 +273,7 @@ export async function runWorkflowSpec(args: InstantRunArgs): Promise<{
 
   const scope: ResolutionScope = {
     trigger: args.triggerPayload,
+    org: await buildOrgScope(args.propertyId),
     steps: {},
     vars: Object.fromEntries(
       Object.entries(args.spec.variables ?? {}).map(([k, v]) => [k, v.default ?? null]),

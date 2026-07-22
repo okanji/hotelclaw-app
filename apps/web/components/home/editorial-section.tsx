@@ -119,12 +119,16 @@ export function CustomizeMenu({
   isHidden,
   onToggle,
   onReset,
+  presets,
+  onApplyPreset,
 }: {
   items: { id: string; title: string }[];
   visibleCount: number;
   isHidden: (id: string) => boolean;
   onToggle: (id: string) => void;
   onReset: () => void;
+  presets?: { id: string; label: string }[];
+  onApplyPreset?: (presetId: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -153,6 +157,24 @@ export function CustomizeMenu({
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuGroup>
+        {presets && presets.length > 0 && onApplyPreset ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
+                Presets
+              </DropdownMenuLabel>
+              {presets.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  onClick={() => onApplyPreset(preset.id)}
+                >
+                  {preset.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onReset}>
           <RotateCcw className="size-4" />

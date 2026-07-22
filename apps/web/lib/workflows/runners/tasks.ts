@@ -141,3 +141,89 @@ export const addLabelRunner: RunnerImpl<
   if (error) throw new Error(`add_label failed: ${error.message}`);
   return { task: data as Record<string, unknown> };
 };
+
+type QueryTasksConfig = {
+  status?: "open" | "todo" | "in_progress" | "blocked" | "done";
+  space_id?: string;
+  due?: "any" | "overdue";
+  stuck_days?: number;
+  limit?: number;
+};
+
+/**
+ * Read step: fetch tasks matching filters so scheduled workflows can build
+ * real reports ("every morning, list blocked work"). Output carries the raw
+ * rows plus a preformatted `summary` (one line per task with status /
+ * assignee / due / days-since-touch) that ai.* and chat steps can template
+ * directly via {{steps.<id>.output.summary}}.
+ */
+export const queryTasksRunner: RunnerImpl<
+  QueryTasksConfig,
+  { count: number; tasks: Record<string, unknown>[]; summary: string }
+> = async ({ config, ctx }) => {
+  if (ctx.dryRun) {
+    return { count: 0, tasks: [], summary: "(dry-run: no tasks queried)" };
+  }
+  const supabase = createServiceClient();
+  let query = supabase
+    .from("tasks")
+    .select("id, title, status, priority, assignee_id, due_at, updated_at, space_id")
+    .eq("property_id", ctx.propertyId)
+    .order("updated_at", { ascending: true })
+    .limit(Math.min(config.limit ?? 25, 50));
+
+  const status = config.status ?? "open";
+  if (status === "open") query = query.neq("status", "done");
+  else query = query.eq("status", status);
+  if (config.space_id) query = query.eq("space_id", config.space_id);
+  if (config.due === "overdue") {
+    query = query.lt("due_at", new Date().toISOString()).neq("status", "done");
+  }
+  if (config.stuck_days) {
+    const cutoff = new Date(
+      Date.now() - config.stuck_days * 86_400_000,
+    ).toISOString();
+    query = query.lt("updated_at", cutoff);
+  }
+
+  const { data: tasks, error } = await query;
+  if (error) throw new Error(`task query failed: ${error.message}`);
+
+  const assigneeIds = [
+    ...new Set(
+      (tasks ?? [])
+        .map((t) => t.assignee_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const nameById = new Map<string, string>();
+  if (assigneeIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", assigneeIds);
+    for (const p of profiles ?? []) {
+      if (p.full_name) nameById.set(p.id, p.full_name);
+    }
+  }
+
+  const now = Date.now();
+  const lines = (tasks ?? []).map((t) => {
+    const staleDays = Math.floor(
+      (now - new Date(t.updated_at).getTime()) / 86_400_000,
+    );
+    const parts = [
+      `- ${t.title} [${t.status}]`,
+      t.assignee_id ? `@${nameById.get(t.assignee_id) ?? "someone"}` : "(unassigned)",
+      t.due_at ? `due ${String(t.due_at).slice(0, 10)}` : null,
+      staleDays > 0 ? `untouched ${staleDays}d` : null,
+    ].filter(Boolean);
+    return parts.join(" · ");
+  });
+
+  return {
+    count: (tasks ?? []).length,
+    tasks: (tasks ?? []) as Record<string, unknown>[],
+    summary: lines.length > 0 ? lines.join("\n") : "No matching tasks.",
+  };
+};

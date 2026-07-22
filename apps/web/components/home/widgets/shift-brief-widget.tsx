@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createTask } from "@/components/tasks/actions";
 import { HandoverDialog } from "@/components/home/handover-dialog";
@@ -37,6 +38,10 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
   const [marking, setMarking] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  // Which section the narration is currently reading — that section gets a
+  // highlight + is scrolled into view, so eyes and ears stay in sync (C2).
+  const [speakingSegment, setSpeakingSegment] = useState<string | null>(null);
+  const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Stop any in-flight narration when the widget unmounts.
   useEffect(() => {
@@ -64,35 +69,73 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
     if (speaking) {
       synth.cancel();
       setSpeaking(false);
+      setSpeakingSegment(null);
       return;
     }
-    const parts: string[] = [];
-    if (summary) parts.push(summary);
+    // One utterance per section: onstart highlights + scrolls that section,
+    // so the narration walks the reader through the widget.
+    const parts: { segment: string; text: string }[] = [];
+    if (summary) parts.push({ segment: "summary", text: summary });
     if (payload.attention.length > 0) {
-      parts.push(
-        `${payload.attention.length} item${payload.attention.length === 1 ? "" : "s"} need you: ` +
+      parts.push({
+        segment: "attention",
+        text:
+          `${payload.attention.length} item${payload.attention.length === 1 ? "" : "s"} need you: ` +
           payload.attention
             .slice(0, 5)
             .map((a) => `${a.title}, ${a.kind.replaceAll("_", " ")}`)
             .join(". "),
-      );
+      });
     }
     for (const d of payload.decisions.slice(0, 3)) {
-      parts.push(`Decided in ${d.meetingTitle}: ${d.decision}`);
+      parts.push({
+        segment: "decisions",
+        text: `Decided in ${d.meetingTitle}: ${d.decision}`,
+      });
     }
     if (payload.unownedActionItems.length > 0) {
-      parts.push(
-        `${payload.unownedActionItems.length} meeting commitment${payload.unownedActionItems.length === 1 ? " has" : "s have"} no owner.`,
-      );
+      parts.push({
+        segment: "unowned",
+        text: `${payload.unownedActionItems.length} meeting commitment${payload.unownedActionItems.length === 1 ? " has" : "s have"} no owner.`,
+      });
     }
-    const utterance = new SpeechSynthesisUtterance(parts.join(" — "));
-    utterance.rate = 1.05;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
     synth.cancel();
-    synth.speak(utterance);
+    parts.forEach(({ segment, text }, i) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.05;
+      utterance.onstart = () => {
+        setSpeakingSegment(segment);
+        segmentRefs.current[segment]?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      };
+      if (i === parts.length - 1) {
+        utterance.onend = () => {
+          setSpeaking(false);
+          setSpeakingSegment(null);
+        };
+      }
+      utterance.onerror = () => {
+        setSpeaking(false);
+        setSpeakingSegment(null);
+      };
+      synth.speak(utterance);
+    });
     setSpeaking(true);
   }
+
+  // Highlight helper — a soft ring on the section being read.
+  const segmentProps = (segment: string) => ({
+    ref: (el: HTMLDivElement | null) => {
+      segmentRefs.current[segment] = el;
+    },
+    className: cn(
+      "flex flex-col gap-1.5 rounded-lg transition-all duration-300",
+      speakingSegment === segment &&
+        "bg-muted/50 px-3 py-2 ring-1 ring-border",
+    ),
+  });
 
   async function markCaughtUp() {
     setMarking(true);
@@ -120,14 +163,16 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
   return (
     <div className="flex flex-col gap-5">
       {summary ? (
-        <p className="flex max-w-[72ch] items-start gap-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
-          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-foreground/50" />
-          <span>{summary}</span>
-        </p>
+        <div {...segmentProps("summary")}>
+          <p className="flex max-w-[72ch] items-start gap-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-foreground/50" />
+            <span>{summary}</span>
+          </p>
+        </div>
       ) : null}
 
       {payload.attention.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
+        <div {...segmentProps("attention")}>
           <SubHeading>Yours to move</SubHeading>
           <AttentionList
             propertyId={propertyId}
@@ -137,7 +182,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       ) : null}
 
       {payload.decisions.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
+        <div {...segmentProps("decisions")}>
           <SubHeading>Decided while you were away</SubHeading>
           <ul className="flex flex-col gap-1">
             {payload.decisions.slice(0, 5).map((d, i) => (
@@ -156,7 +201,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       ) : null}
 
       {payload.unownedActionItems.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
+        <div {...segmentProps("unowned")}>
           <SubHeading>Commitments with no owner</SubHeading>
           <ul className="flex flex-col divide-y divide-border/40">
             {payload.unownedActionItems.map((item, i) => (

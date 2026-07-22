@@ -94,13 +94,18 @@ export function authorTriggerFilterHint(eventType: TriggerEventType): string | n
     );
   }
   if (eventType.startsWith("task.")) {
-    return "Task triggers expose trigger.new (title, description, priority, assignee_id, labels, …). Use {{trigger.new.*}} in step configs.";
+    return (
+      "Task triggers expose trigger.new (title, description, priority, assignee_id, labels, …). Use {{trigger.new.*}} in step configs. " +
+      "For user-id fields (assignee, notify), prefer ROLE refs that survive staffing changes: {{org.lead.<team name>}} or {{org.title.<job title>}} resolve to the current holder at run time."
+    );
   }
   if (eventType === "schedule.cron" || eventType === "schedule.at_time") {
     return (
       "Set trigger.schedule.cron (and timezone) for recurring runs. Do NOT add empty trigger.filter. " +
       "For digests/reports, use ai.freeform to gather data, then action.chat.post_message — reference outputs as {{steps.<step_id>.output.text}} using the actual step id from your spec. " +
-      "Avoid redundant ai.summarize_text after ai.freeform unless the freeform step returns raw data to summarize."
+      "Avoid redundant ai.summarize_text after ai.freeform unless the freeform step returns raw data to summarize. " +
+      "For scheduled task reports, prefer action.task.query over ai.freeform — its output.summary is ready to post. " +
+      "User-id fields accept role refs: {{org.lead.<team name>}} / {{org.title.<job title>}}."
     );
   }
   return null;

@@ -81,6 +81,127 @@ const SummarySchema = z.object({
     .describe("Decisions explicitly made during the meeting."),
 });
 
+/**
+ * H1 — import an EXTERNAL transcript (a recorder device, another tool's
+ * export) through the same pipeline as native Stream meetings: meeting row +
+ * mirrored transcript + AI summary + transcript document + optional channel
+ * post + meeting_summaries row. Plain text in ("Name: line" or freeform);
+ * speaker names are best-effort parsed from leading "Name:" patterns.
+ */
+export async function processImportedTranscript(args: {
+  propertyId: string;
+  hostId: string;
+  title: string;
+  rawText: string;
+  channelId?: string | null;
+}): Promise<{ meetingId: string } | { error: string }> {
+  const service = createServiceClient();
+  const text = args.rawText.trim().slice(0, 400_000);
+  if (text.length < 40) return { error: "That transcript looks empty" };
+
+  // Best-effort speakers: distinct leading "Name:" tokens (≤ 12).
+  const speakerNames = new Set<string>();
+  for (const line of text.split("\n")) {
+    const m = /^([A-Za-zÀ-ž][\w .'-]{1,40}):\s/.exec(line.trim());
+    if (m) speakerNames.add(m[1].trim());
+    if (speakerNames.size >= 12) break;
+  }
+  const speakers: Speaker[] = [...speakerNames].map((name) => ({
+    id: name,
+    name,
+  }));
+
+  const { data: meetingRow, error: meetingErr } = await service
+    .from("meetings")
+    .insert({
+      property_id: args.propertyId,
+      channel_id: args.channelId ?? null,
+      stream_call_id: `import-${crypto.randomUUID()}`,
+      title: args.title,
+      host_id: args.hostId,
+      started_at: new Date().toISOString(),
+      ended_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (meetingErr || !meetingRow) {
+    return { error: meetingErr?.message ?? "meeting insert failed" };
+  }
+
+  const meeting: MeetingMeta = {
+    id: meetingRow.id,
+    propertyId: args.propertyId,
+    channelId: args.channelId ?? null,
+    hostId: args.hostId,
+    title: args.title,
+    streamCallId: `import-${meetingRow.id}`,
+  };
+
+  const { data: transcriptRow, error: insertErr } = await service
+    .from("meeting_transcripts")
+    .insert({
+      meeting_id: meeting.id,
+      source_url: "imported://transcript",
+      raw_jsonl: text,
+      speakers,
+      duration_seconds: null,
+      status: "fetched",
+      fetched_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insertErr || !transcriptRow) {
+    return { error: insertErr?.message ?? "transcript insert failed" };
+  }
+
+  const rendered = text.slice(0, 120_000);
+  let summary: z.infer<typeof SummarySchema>;
+  try {
+    const result = await generateObject({
+      model: getModel(SUMMARY_MODEL),
+      schema: SummarySchema,
+      system:
+        "You summarize meeting transcripts for a hotel-operations team. " +
+        "Be specific: name people involved, capture deadlines, distinguish " +
+        "decisions from open questions. If the transcript is too short or " +
+        "garbled to summarize, return summary_md = 'Meeting too short to summarize.' " +
+        "with empty arrays.",
+      prompt: `Meeting title: ${meeting.title}\n\nTranscript:\n${rendered}`,
+    });
+    summary = result.object;
+  } catch (e) {
+    console.error("imported-transcript summarization failed", e);
+    // Transcript is saved; the meeting shows without a summary.
+    return { meetingId: meeting.id };
+  }
+
+  const documentId = await createTranscriptDocument({
+    service,
+    meeting,
+    summary,
+    rendered,
+    speakers,
+  });
+  const chatMessageId = await postSummaryToChannel({
+    meeting,
+    summary,
+    speakers,
+    durationSeconds: null,
+  });
+  await service.from("meeting_summaries").insert({
+    meeting_id: meeting.id,
+    transcript_id: transcriptRow.id,
+    model: SUMMARY_MODEL,
+    summary_md: summary.summary_md,
+    action_items: summary.action_items,
+    decisions: summary.decisions,
+    document_id: documentId,
+    chat_message_id: chatMessageId,
+  });
+
+  return { meetingId: meeting.id };
+}
+
 export async function processTranscriptReady(args: {
   meeting: MeetingMeta;
   transcript: TranscriptMeta;

@@ -24,13 +24,44 @@ export type ProjectMember = {
 
 export type ProjectsViewMode = "board" | "table" | "timeline";
 
+export type ProjectTeam = { id: string; name: string; color: EntityColor };
+
 export type ProjectsViewProps = {
   propertyId: string;
   projects: ProjectTracking[];
   members: ProjectMember[];
+  /** Teams (spaces) involved per project id — renders as chips on rows/cards. */
+  teamsByProject?: Map<string, ProjectTeam[]>;
   /** Invalidate the tracking + projects queries after a mutation. */
   onChanged: () => void;
 };
+
+/** Compact "teams involved" chips (first two + overflow count). */
+export function TeamChips({ teams }: { teams: ProjectTeam[] | undefined }) {
+  if (!teams || teams.length === 0) return null;
+  const shown = teams.slice(0, 2);
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      {shown.map((t) => (
+        <span
+          key={t.id}
+          className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border/50 px-1.5 py-px text-[11px] tracking-tight text-muted-foreground"
+        >
+          <span
+            className={cn("size-1.5 shrink-0 rounded-full", COLOR_DOT[t.color])}
+            aria-hidden="true"
+          />
+          <span className="truncate">{t.name}</span>
+        </span>
+      ))}
+      {teams.length > shown.length ? (
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+          +{teams.length - shown.length}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /** Status order used by the board columns and as the default sort. */
 export const STATUS_ORDER: ProjectStatus[] = [

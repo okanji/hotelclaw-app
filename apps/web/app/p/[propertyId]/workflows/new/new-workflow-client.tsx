@@ -173,6 +173,31 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
     if (!name) setName(next.name);
   }
 
+  // Manual path (AI stays the primary flow): open the tree builder on a
+  // minimal one-step skeleton the user edits directly. The empty channel_id
+  // is deliberate — the create API validates the spec, so an untouched
+  // skeleton can't be saved by accident.
+  function startFromScratch() {
+    setSpec({
+      workflow_spec_version: 1,
+      name: "Untitled workflow",
+      trigger: { event_type: "task.created" },
+      entry_step_id: "step_1",
+      steps: {
+        step_1: {
+          id: "step_1",
+          type: "action.chat.post_message",
+          config: {
+            channel_id: "",
+            text: "New task: {{trigger.task.title}}",
+          },
+        },
+      },
+      metadata: { last_edited_by: "human" },
+    } as WorkflowSpec);
+    if (!name) setName("Untitled workflow");
+  }
+
   async function create() {
     if (!spec || creating) return;
     setCreating(true);
@@ -235,6 +260,18 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           {SURFACES.map((s) => (
             <SurfaceLabelBadge key={s} surface={s} />
           ))}
+        </div>
+
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={startFromScratch}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <Workflow className="size-3.5" aria-hidden />
+            Or build it by hand — start from scratch
+          </button>
         </div>
 
         <div className="mt-10">

@@ -4,6 +4,7 @@ import { WorkflowSpec, type StepNode } from "@/lib/workflows/spec";
 import { getStep } from "@/lib/workflows/catalog";
 import { getRunner } from "@/lib/workflows/runners";
 import { resolveValue, type ResolutionScope } from "@/lib/workflows/resolve";
+import { buildOrgScope } from "@/lib/workflows/org-scope";
 import { evaluatePredicate } from "@/lib/workflows/predicate";
 import { notifyWorkflowRunFailed } from "@/lib/workflows/notify-failure";
 import type { RunnerContext } from "@/lib/workflows/catalog/types";
@@ -80,6 +81,7 @@ export async function runWorkflowInstant(args: InstantRunArgs): Promise<InstantR
   const runId = runRow.id;
   const scope: ResolutionScope = {
     trigger: args.triggerPayload,
+    org: await buildOrgScope(args.propertyId),
     steps: {},
     vars: Object.fromEntries(
       Object.entries(args.spec.variables ?? {}).map(([k, v]) => [k, v.default ?? null]),

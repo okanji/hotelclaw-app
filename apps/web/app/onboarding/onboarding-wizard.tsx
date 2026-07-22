@@ -142,7 +142,7 @@ const GUEST_CONTACT_OPTIONS: { id: string; label: string }[] = [
 ];
 
 type Dept = { name: string; icon: string; color: EntityColor };
-type InviteRow = { email: string; role: "manager" | "staff" };
+type InviteRow = { email: string; role: "manager" | "staff"; department?: string };
 
 type Answers = {
   propertyName: string;
@@ -192,6 +192,9 @@ export function OnboardingWizard({
   // own edits survive going back and forth without a type change.
   const [presetFor, setPresetFor] = useState<string | null>(null);
   const [deptDraft, setDeptDraft] = useState("");
+  // Inline department rename (click a selected chip; X removes it).
+  const [renamingDept, setRenamingDept] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const set = <K extends keyof Answers>(key: K, value: Answers[K]) =>
     setAnswers((a) => ({ ...a, [key]: value }));
@@ -217,6 +220,43 @@ export function OnboardingWizard({
     );
     setPresetFor(answers.propertyType);
   };
+
+  const commitRename = (oldName: string) => {
+    const name = renameDraft.trim();
+    setRenamingDept(null);
+    if (!name || name === oldName) return;
+    if (
+      answers.departments.some(
+        (d) => d.name.toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      return;
+    }
+    set(
+      "departments",
+      answers.departments.map((d) =>
+        d.name === oldName ? { ...d, name } : d,
+      ),
+    );
+  };
+
+  // Everything in the preset catalog (all property types) the user hasn't
+  // selected — one tap toggles a department on instead of typing it.
+  const deptSuggestions = useMemo(() => {
+    const selected = new Set(
+      answers.departments.map((d) => d.name.toLowerCase()),
+    );
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const preferred = DEPARTMENT_PRESETS[answers.propertyType] ?? [];
+    for (const name of [...preferred, ...Object.values(DEPARTMENT_PRESETS).flat()]) {
+      const key = name.toLowerCase();
+      if (seen.has(key) || selected.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+    }
+    return out.slice(0, 10);
+  }, [answers.departments, answers.propertyType]);
 
   const canContinue = useMemo(() => {
     switch (step) {
@@ -356,23 +396,81 @@ export function OnboardingWizard({
                 own.
               </GuestHint>
               <div className="mt-8 flex flex-wrap gap-2">
-                {answers.departments.map((d) => (
-                  <Chip
-                    key={d.name}
-                    selected
-                    onClick={() =>
-                      set(
-                        "departments",
-                        answers.departments.filter((x) => x.name !== d.name),
-                      )
-                    }
-                  >
-                    <span className="mr-1.5">{d.icon}</span>
-                    {d.name}
-                    <X className="ml-2 inline size-3.5 opacity-50" aria-hidden />
-                  </Chip>
-                ))}
+                {answers.departments.map((d) =>
+                  renamingDept === d.name ? (
+                    <GuestInput
+                      key={d.name}
+                      autoFocus
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => commitRename(d.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitRename(d.name);
+                        }
+                        if (e.key === "Escape") setRenamingDept(null);
+                      }}
+                      maxLength={60}
+                      className="h-9 w-44"
+                    />
+                  ) : (
+                    <Chip
+                      key={d.name}
+                      selected
+                      title="Click to rename"
+                      onClick={() => {
+                        setRenamingDept(d.name);
+                        setRenameDraft(d.name);
+                      }}
+                    >
+                      <span className="mr-1.5">{d.icon}</span>
+                      {d.name}
+                      <X
+                        className="ml-2 inline size-3.5 opacity-50 hover:opacity-100"
+                        aria-hidden
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          set(
+                            "departments",
+                            answers.departments.filter(
+                              (x) => x.name !== d.name,
+                            ),
+                          );
+                        }}
+                      />
+                    </Chip>
+                  ),
+                )}
               </div>
+              {deptSuggestions.length > 0 ? (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs text-guest-ink-faint">
+                    More to toggle on
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {deptSuggestions.map((name) => (
+                      <Chip
+                        key={name}
+                        selected={false}
+                        onClick={() =>
+                          set("departments", [
+                            ...answers.departments,
+                            {
+                              name,
+                              icon: defaultDeptIcon(name),
+                              color: colorAt(answers.departments.length),
+                            },
+                          ])
+                        }
+                      >
+                        <span className="mr-1.5">{defaultDeptIcon(name)}</span>
+                        {name}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-5 flex items-center gap-2">
                 <GuestInput
                   value={deptDraft}
@@ -494,6 +592,7 @@ export function OnboardingWizard({
           {step === 5 && (
             <InviteStep
               propertyName={propertyName}
+              departments={answers.departments.map((d) => d.name)}
               invites={answers.invites}
               onChange={(invites) => set("invites", invites)}
               onContinue={next}
@@ -524,6 +623,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function InviteStep({
   propertyName,
+  departments,
   invites,
   onChange,
   onContinue,
@@ -531,6 +631,7 @@ function InviteStep({
   onBack,
 }: {
   propertyName: string;
+  departments: string[];
   invites: InviteRow[];
   onChange: (rows: InviteRow[]) => void;
   onContinue: () => void;
@@ -556,7 +657,11 @@ function InviteStep({
         e.preventDefault();
         if (hasPartial) return;
         onChange(
-          validRows.map((r) => ({ email: r.email.trim().toLowerCase(), role: r.role })),
+          validRows.map((r) => ({
+            email: r.email.trim().toLowerCase(),
+            role: r.role,
+            department: r.department,
+          })),
         );
         onContinue();
       }}
@@ -591,6 +696,23 @@ function InviteStep({
                 </button>
               ))}
             </div>
+            {departments.length > 0 ? (
+              <select
+                value={row.department ?? ""}
+                onChange={(e) =>
+                  update(i, { department: e.target.value || undefined })
+                }
+                aria-label="Team"
+                className="h-9 max-w-36 truncate rounded-full border border-guest-line bg-guest-card px-3 text-xs text-guest-ink outline-none"
+              >
+                <option value="">No team yet</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             {rows.length > 1 ? (
               <button
                 type="button"

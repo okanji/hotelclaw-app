@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMeetings } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
 import { Video } from "lucide-react";
+import { ImportTranscriptDialog } from "@/components/chat/meeting/import-transcript-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +40,12 @@ export default async function MeetingsPage({
         title="Meetings"
         icon={<Video />}
         actions={
-          <p className="text-xs text-muted-foreground">
-            Recorded meetings, transcripts, and AI-generated notes
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              Recorded meetings, transcripts, and AI-generated notes
+            </p>
+            <ImportTranscriptDialog propertyId={propertyId} />
+          </div>
         }
       />
       <div className="flex-1 overflow-y-auto p-4">

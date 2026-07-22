@@ -15,6 +15,9 @@ export type ResolutionScope = {
   steps?: Record<string, { output?: unknown }>;
   vars?: Record<string, unknown>;
   context?: Record<string, unknown>;
+  /** Role-based org refs (D1): {{org.lead.<team name>}} / {{org.title.<job
+   *  title>}} → the CURRENT holder's user id, resolved at run time. */
+  org?: { lead: Record<string, string>; title: Record<string, string> };
 };
 
 export function resolveValue(input: unknown, scope: ResolutionScope): unknown {
@@ -48,6 +51,17 @@ function lookup(ref: string, scope: ResolutionScope): unknown {
   const head = parts[0];
 
   if (head === "now") return new Date().toISOString();
+
+  // Org refs: the key is everything after the kind, joined back (team names
+  // may contain dots) and lowercased to match buildOrgScope's keys.
+  if (head === "org") {
+    const kind = parts[1];
+    const key = parts.slice(2).join(".").trim().toLowerCase();
+    if (!scope.org || !key) return undefined;
+    if (kind === "lead") return scope.org.lead[key];
+    if (kind === "title") return scope.org.title[key];
+    return undefined;
+  }
 
   let cursor: unknown;
   if (head === "trigger") cursor = scope.trigger;

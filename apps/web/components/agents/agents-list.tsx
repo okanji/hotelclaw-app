@@ -30,6 +30,7 @@ import { parseAgentConfig, type AgentRow } from "@/lib/agents/schema";
 import { BUILTIN_AGENTS } from "@/lib/agents/builtin";
 import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { NewAgentDialog } from "./new-agent-dialog";
+import { AgentBuilderDialog } from "./agent-builder-dialog";
 import { deleteAgent } from "./actions";
 
 type PodBotSummary = {
@@ -57,6 +58,7 @@ export function AgentsList({
   const params = useSearchParams();
   const wantsNew = params.get("new") === "1";
   const [newOpen, setNewOpen] = useState(wantsNew);
+  const [describeOpen, setDescribeOpen] = useState(false);
   const [deleting, setDeleting] = useState<AgentRow | null>(null);
   const base = `/p/${propertyId}/agents`;
   const view = params.get("view") ?? "all";
@@ -79,10 +81,16 @@ export function AgentsList({
         title="Agents"
         description="Build internal AI agents for your team — give each one instructions, tools, skills, and resources, then chat with it. Everything an agent can see or do is configured and visible here, including the AI that ships with the app."
         actions={
-          <Button onClick={() => setNewOpen(true)}>
-            <Plus data-slot="icon" />
-            New agent
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setDescribeOpen(true)}>
+              <Sparkles data-slot="icon" />
+              Describe it
+            </Button>
+            <Button onClick={() => setNewOpen(true)}>
+              <Plus data-slot="icon" />
+              New agent
+            </Button>
+          </>
         }
       />
 
@@ -174,6 +182,11 @@ export function AgentsList({
         <BuiltinGrid />
       )}
 
+      <AgentBuilderDialog
+        propertyId={propertyId}
+        open={describeOpen}
+        onOpenChange={setDescribeOpen}
+      />
       <NewAgentDialog
         propertyId={propertyId}
         open={newOpen}

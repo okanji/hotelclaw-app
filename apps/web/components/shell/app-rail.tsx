@@ -65,11 +65,11 @@ const railItemClass =
 // always-dark look (white icons, translucent-white wash).
 const railTileClass =
   "relative flex size-9 items-center justify-center rounded-xl transition-colors " +
-  "text-zinc-700 group-hover/item:bg-black/5 group-hover/item:text-zinc-900 " +
-  "data-current:bg-black/[0.07] data-current:text-zinc-900 " +
+  "text-zinc-700 group-hover/item:bg-black/[0.08] group-hover/item:text-zinc-900 " +
+  "data-current:bg-black/10 data-current:text-zinc-900 " +
   "group-focus-visible/item:ring-2 group-focus-visible/item:ring-black/15 " +
-  "dark:text-white/85 dark:group-hover/item:bg-white/10 dark:group-hover/item:text-white " +
-  "dark:data-current:bg-white/15 dark:data-current:text-white " +
+  "dark:text-white/85 dark:group-hover/item:bg-white/15 dark:group-hover/item:text-white " +
+  "dark:data-current:bg-white/20 dark:data-current:text-white " +
   "dark:group-focus-visible/item:ring-white/40";
 const railLabelClass =
   "block w-full truncate text-center text-[10px] font-semibold leading-none tracking-tight transition-colors";
