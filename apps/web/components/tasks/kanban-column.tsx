@@ -257,7 +257,18 @@ export function KanbanColumn({
 
       <div
         ref={setScrollRefs}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2"
+        // BLOCK layout, not flex — load-bearing. Chrome ignores
+        // `contain-intrinsic-size` for a `content-visibility: auto` element
+        // that is a FLEX ITEM: the flex algorithm resolves the item's main
+        // size from its (skipped, therefore empty) content, so every
+        // offscreen card collapsed to 26px of padding and the column's
+        // scrollHeight was ~40% of the truth. Same markup in a block
+        // container reserves the full size correctly (verified side by side:
+        // block scrollHeight 7280 vs flex 1280 for identical children).
+        // Cards feed dnd-kit's droppable rects, and dnd-kit measures those
+        // once per drag — collapsed rects meant drops landed nowhere near
+        // the cursor. `space-y-1.5` replaces the old `gap-1.5`.
+        className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2"
       >
         {adding ? (
           <InlineAddCard
@@ -300,7 +311,7 @@ export function KanbanColumn({
             type="button"
             ref={sentinelRef}
             onClick={() => setVisibleCount((c) => c + COLUMN_PAGE)}
-            className="shrink-0 rounded-md py-2 text-center text-xs text-muted-foreground/70 hover:text-foreground"
+            className="block w-full rounded-md py-2 text-center text-xs text-muted-foreground/70 hover:text-foreground"
           >
             {taskIds.length - visibleIds.length} more…
           </button>

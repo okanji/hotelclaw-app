@@ -164,16 +164,36 @@ const CARD_BASE = cn(
   // board the columns are thousands of px tall; painting all of it into
   // Chrome's composited scroller textures is what pushed macOS GPU
   // rasterization over the edge (cards/header going white until a scroll
-  // re-rasters). The intrinsic-size `auto 7rem` keeps scrollbar geometry
-  // stable before a card first renders; `auto` then remembers its real
-  // size. NB: the paint containment this implies clips children to the
-  // card's bounds — nothing inside a card may hang outside it.
-  "[content-visibility:auto] [contain-intrinsic-size:auto_7rem]",
+  // re-rasters). `contain-intrinsic-size` reserves the space a skipped card
+  // would have taken; `auto` then remembers its real size, so a card that
+  // has been seen once holds its exact height forever after and the column
+  // never reflows as you scroll. That stability is what dnd-kit's geometry
+  // rests on — it measures every droppable ONCE per drag and afterwards only
+  // offsets those rects by the scroll delta, so any reflow mid-drag puts the
+  // drop somewhere other than the cursor.
+  //
+  // REQUIRES the card's scroll container to be BLOCK, not flex — Chrome
+  // silently ignores `contain-intrinsic-size` on a flex item and collapses
+  // it to 26px of padding. See the comment in `kanban-column.tsx`.
+  //
+  // NB: the paint containment this implies clips children to the card's
+  // bounds — nothing inside a card may hang outside it.
+  //
+  // 8rem is the CONTENT box (the card adds 26px of padding + border on top),
+  // putting a never-yet-rendered card at ~154px against a real 134–176px —
+  // i.e. within ~24px. It only ever applies until a card has been seen once;
+  // after that `auto` pins it to its exact remembered height.
+  "[content-visibility:auto] [contain-intrinsic-size:auto_8rem]",
 );
 
 /**
  * The card rendered inside the `DragOverlay` — a detached, lifted copy that
  * follows the cursor while the real card stays dimmed in its column.
+ *
+ * `w-full`, never a fixed width: dnd-kit sizes the overlay wrapper to the
+ * source card's measured rect (272px in a kanban column, 276px in the grouped
+ * view), so a hardcoded `w-72` (288px) made the ghost overhang its own
+ * wrapper by 12–16px.
  */
 export function TaskCardOverlay({
   task,
@@ -187,7 +207,7 @@ export function TaskCardOverlay({
     <div
       className={cn(
         CARD_BASE,
-        "w-72 cursor-grabbing shadow-lg ring-1 ring-black/10 dark:ring-white/10",
+        "w-full cursor-grabbing shadow-lg ring-1 ring-black/10 dark:ring-white/10",
       )}
     >
       <CardHeader task={task} assignee={assignee} />

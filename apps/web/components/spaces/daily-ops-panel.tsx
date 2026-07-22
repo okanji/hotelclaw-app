@@ -236,6 +236,11 @@ export function DailyOpsPanel({
     void queryClient.invalidateQueries({ queryKey: ["routines", spaceId] });
     void queryClient.invalidateQueries({ queryKey: ["routine-rating-trend", spaceId] });
     void queryClient.invalidateQueries({ queryKey: ["routine-feedback", spaceId] });
+    // The Overview tab's scoreboard and the cross-team Insights table read
+    // the same runs — without these, ticking or signing off leaves them
+    // stale until a reload.
+    void queryClient.invalidateQueries({ queryKey: ["routine-scoreboard", spaceId] });
+    void queryClient.invalidateQueries({ queryKey: ["teams-pulse", propertyId] });
   }
 
   function toggle(routineId: string, itemId: string, done: boolean) {
