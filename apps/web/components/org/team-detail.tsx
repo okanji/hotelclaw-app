@@ -11,8 +11,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 import type { OrgChart, OrgPerson, OrgTeam } from "@/lib/org/queries";
-import { PanCanvas } from "./pan-canvas";
 import { PersonEditPopover } from "./person-edit-popover";
+import { TreeScroller } from "./tree-scroller";
 import { TeamEditPopover } from "./team-edit-popover";
 
 function initials(name: string | null): string {
@@ -158,8 +158,8 @@ export function TeamDetail({
           <Eyebrow tone="brand" className="mt-8 mb-3">
             Reporting hierarchy
           </Eyebrow>
-          <PanCanvas className="h-[min(56vh,480px)]">
-            <div className="min-w-max px-8 py-8">
+          <TreeScroller>
+            <div className="min-w-max py-2">
               <ul role="list" className="flex items-start">
                 {roots.map((p) => (
                   <PersonBranch
@@ -176,7 +176,7 @@ export function TeamDetail({
                 ))}
               </ul>
             </div>
-          </PanCanvas>
+          </TreeScroller>
         </>
       )}
     </div>
@@ -205,13 +205,13 @@ function PersonBranch({
 }) {
   const reports = depth > 8 ? [] : childrenOf(person.id);
   const rail =
-    "relative flex flex-col items-center px-2.5 pt-6 before:absolute before:top-0 before:left-1/2 before:h-6 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
+    "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
 
   return (
     <li className={depth === 0 ? "flex flex-col items-center" : rail}>
       <div className="flex flex-col items-center">
-        <div className="group relative flex w-52 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
-          <Avatar className="size-8">
+        <div className="group relative flex w-48 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
+          <Avatar className="size-8 shrink-0">
             {person.avatarUrl ? (
               <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
             ) : null}
@@ -242,7 +242,7 @@ function PersonBranch({
 
         {reports.length > 0 ? (
           <>
-            <div className="h-6 w-px bg-border" aria-hidden="true" />
+            <div className="h-4 w-px bg-border" aria-hidden="true" />
             <ul role="list" className="flex items-start">
               {reports.map((r) => (
                 <PersonBranch

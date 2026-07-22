@@ -10,7 +10,7 @@ import type { OrgPerson } from "@/lib/org/queries";
 import { TeamEditPopover } from "./team-edit-popover";
 import { PersonEditPopover } from "./person-edit-popover";
 import { AddTeamDialog } from "./add-team-dialog";
-import { PanCanvas } from "./pan-canvas";
+import { TreeScroller } from "./tree-scroller";
 
 function initials(name: string | null): string {
   if (!name) return "?";
@@ -21,18 +21,22 @@ function initials(name: string | null): string {
 
 /** Connector rail + stem for a node sitting in a row of siblings. */
 const RAIL =
-  "relative flex flex-col items-center px-2.5 pt-6 before:absolute before:top-0 before:left-1/2 before:h-6 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
+  "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
+
+/** Shared node width — every card in the tree matches so branches align. */
+const NODE = "w-44";
 
 /** Which parent a pending "add team" targets (null = top level). */
 type AddTarget = { id: string | null; name: string | null };
 
 /**
- * The hierarchy diagram — a top-down org chart on a pannable canvas. Property
- * leadership at the root, teams as cards connected by hairline elbows, sub-
- * teams beneath their parent. Management edits structure in place (each card's
- * popover) and adds teams via the dashed "+" placeholders — at the top level,
- * as a sibling of any team, or as a sub-team of a leaf. Two-finger scroll (or
- * drag) pans the canvas; it never scrolls the page.
+ * The hierarchy diagram — a top-down org chart rendered inline on the page.
+ * Property leadership at the root, teams as cards connected by hairline
+ * elbows, sub-teams beneath their parent. Management edits structure in place
+ * (each card's popover) and adds teams via the dashed "+" placeholders — at
+ * the top level, as a sibling of any team, or as a sub-team of a leaf. The
+ * tree grows to its natural height; only the horizontal axis scrolls when a
+ * wide branch outruns the viewport.
  */
 export function OrgDiagram({
   propertyId,
@@ -73,11 +77,11 @@ export function OrgDiagram({
 
   return (
     <>
-      <PanCanvas className="h-[min(78vh,760px)]">
-        <div className="min-w-max px-8 py-8">
+      <TreeScroller>
+        <div className="min-w-max py-2">
           <div className="flex flex-col items-center">
             {/* Root — the property + its leadership. */}
-            <div className="w-56 rounded-lg border border-border bg-muted/30 px-4 py-3 text-center">
+            <div className="w-48 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-center">
               <p className="truncate text-sm font-semibold text-foreground">
                 {propertyName}
               </p>
@@ -106,7 +110,7 @@ export function OrgDiagram({
               ) : null}
             </div>
 
-            <div className="h-6 w-px bg-border" aria-hidden="true" />
+            <div className="h-4 w-px bg-border" aria-hidden="true" />
             <BranchRow
               teams={roots}
               parentId={null}
@@ -120,7 +124,7 @@ export function OrgDiagram({
             />
           </div>
         </div>
-      </PanCanvas>
+      </TreeScroller>
 
       {isManagement ? (
         <AddTeamDialog
@@ -239,8 +243,13 @@ function DiagramNode({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="group relative w-52 rounded-lg border border-border bg-background px-3.5 py-3">
-        <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          "group relative rounded-lg border border-border bg-background px-3 py-2.5",
+          NODE,
+        )}
+      >
+        <div className="flex items-center gap-1.5">
           {team.icon ? (
             <span className="shrink-0 text-sm" aria-hidden="true">
               {team.icon}
@@ -269,8 +278,8 @@ function DiagramNode({
         </div>
 
         {lead ? (
-          <div className="mt-2 flex items-center gap-1.5">
-            <Avatar size="sm" className="size-5">
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <Avatar size="sm" className="size-5 shrink-0">
               {lead.avatarUrl ? (
                 <AvatarImage src={lead.avatarUrl} alt={lead.name ?? ""} />
               ) : null}
@@ -286,12 +295,12 @@ function DiagramNode({
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-muted-foreground">
             {isManagement ? "No head yet — assign one" : "No head yet"}
           </p>
         )}
 
-        <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+        <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
           {team.memberIds.length}{" "}
           {team.memberIds.length === 1 ? "member" : "members"}
           {open > 0 ? ` · ${open} open` : ""}
@@ -300,7 +309,7 @@ function DiagramNode({
 
       {hasBranch ? (
         <>
-          <div className="h-6 w-px bg-border" aria-hidden="true" />
+          <div className="h-4 w-px bg-border" aria-hidden="true" />
           <ul role="list" className="flex items-start">
             {/* People who report to the head, then their reports. */}
             {topPeople.map((p) => (
@@ -367,8 +376,13 @@ function PersonNode({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="group relative flex w-52 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
-        <Avatar className="size-7">
+      <div
+        className={cn(
+          "group relative flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2",
+          NODE,
+        )}
+      >
+        <Avatar className="size-7 shrink-0">
           {person.avatarUrl ? (
             <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
           ) : null}
@@ -396,7 +410,7 @@ function PersonNode({
 
       {reports.length > 0 ? (
         <>
-          <div className="h-6 w-px bg-border" aria-hidden="true" />
+          <div className="h-4 w-px bg-border" aria-hidden="true" />
           <ul role="list" className="flex items-start">
             {reports.map((r) => (
               <li key={r.id} className={RAIL}>
@@ -430,7 +444,10 @@ function AddPlaceholder({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[4.75rem] w-52 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className={cn(
+        "flex h-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+        NODE,
+      )}
     >
       <Plus className="size-4" />
       Add {label.toLowerCase()}
