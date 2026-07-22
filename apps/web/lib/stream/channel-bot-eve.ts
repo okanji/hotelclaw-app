@@ -149,6 +149,10 @@ export async function runChannelBotEveTurn(ctx: {
       // Lets the runtime resolve a chatbot_channel_deployments row for this
       // channel (custom bot persona + tools ride the same durable session).
       channelId: ctx.streamChannelId,
+      // The RAW sender, even when not a member — role-gated tools check the
+      // sender's own membership, so the owner-fallback acting principal
+      // can't leak management surfaces to non-member senders.
+      senderId: ctx.triggerMessage.userId,
     });
 
     // Resume when we hold a live continuation, else fresh; a failed resume

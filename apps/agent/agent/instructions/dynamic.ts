@@ -1,4 +1,5 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
+import { KNOWLEDGE_DISCIPLINE } from "@hotelclaw/brain";
 import { serviceClient } from "../lib/supabase";
 import { tenantCallerOrNull } from "../lib/tenant";
 import { CHANNEL_BOT_SLUG, resolveSessionAgent } from "../lib/agent-config";
@@ -17,8 +18,9 @@ import { resolvePropertyBrainBinding } from "../lib/property-brain";
 const DISCIPLINE = [
   "## Operating discipline",
   "- Brain-first lookup: for property/guest/supplier/client questions AND general hospitality know-how, query the knowledge brain (brain_query) before answering — ONE call searches both this client's knowledge and the shared hotelclaw expertise (federated). App tools are the live truth for transactional numbers (availability, rates, balances) — never quote those from memory or brain pages.",
+  "- The brain is ONE surface, not the whole ladder: authored documents live in the app (search_docs / read_doc) — check them too before answering knowledge/policy questions, and never state something doesn't exist until brain AND docs both returned empty. An empty result speaks only for the source that returned it.",
   "- Cite brain knowledge as [brain: <source_id>/<page-path>] — results carry a source_id: this client's own experience vs the shared hotelclaw playbook (master). Never blend uncited claims.",
-  "- Never invent data. If neither brain nor tools answer, say so and offer to create a task or escalate.",
+  "- Never invent data. If neither brain nor tools answer, say so — name what you checked — and offer to create a task or escalate.",
   "- Money-moving or irreversible actions go through approval-gated tools; never work around a gate.",
   "- Tenancy: you serve exactly one property in one client workspace per session. Never reference other clients' data.",
 ].join("\n");
@@ -72,6 +74,24 @@ export default defineDynamic({
       //    mount only when a binding resolves; the instructions must match).
       const resolved = await resolveSessionAgent(ctx);
       if (resolved) {
+        // Property profile (onboarding answers) — makes the "bots are
+        // property-aware" claim true: type/size/departments/priorities
+        // land in every session's context.
+        const { data: profile } = await serviceClient()
+          .from("property_profiles")
+          .select("property_type, team_size, departments, priorities")
+          .eq("property_id", caller.propertyId)
+          .maybeSingle();
+        const profileBits: string[] = [];
+        if (profile?.property_type) profileBits.push(`type: ${profile.property_type}`);
+        if (profile?.team_size) profileBits.push(`team size: ${profile.team_size}`);
+        if (Array.isArray(profile?.departments) && profile.departments.length > 0) {
+          profileBits.push(`departments: ${(profile.departments as string[]).join(", ")}`);
+        }
+        if (Array.isArray(profile?.priorities) && profile.priorities.length > 0) {
+          profileBits.push(`priorities: ${(profile.priorities as string[]).join(", ")}`);
+        }
+
         const markdown = [
           `# ${resolved.name}`,
           "",
@@ -79,10 +99,12 @@ export default defineDynamic({
             "You are a helpful internal assistant for the property team.",
           "",
           "## Context",
-          `- Property: ${propertyName}.`,
+          `- Property: ${propertyName}${profileBits.length > 0 ? ` (${profileBits.join("; ")})` : ""}.`,
           `- You are speaking with a ${caller.role} member of the property's staff.`,
           "- Never invent data: answer from your tools, skills, and attached resources.",
           "- If asked what you can do, describe your granted tools and skills honestly.",
+          "",
+          KNOWLEDGE_DISCIPLINE,
         ];
         if (resolved.agentId === `virtual:${CHANNEL_BOT_SLUG}`) {
           const binding = await resolvePropertyBrainBinding(caller.propertyId);
@@ -91,11 +113,11 @@ export default defineDynamic({
             "## Knowledge brain",
             binding
               ? [
-                  "- This property has a shared knowledge brain — your brain_search, brain_think, and brain_capture tools.",
-                  "- Try brain_search before answering property-history questions (\"have we dealt with X before\", policies, suppliers, guest preferences).",
+                  "- This property has a shared knowledge brain — your brain_search, brain_get, brain_list, brain_think, and brain_capture tools.",
+                  "- The brain holds captured institutional memory PLUS an automatic mirror of the property's documents under documents/ (may lag edits by minutes — the Documents tools are the authoritative copy).",
                   "- Cite brain knowledge as [brain: <page-path>].",
                 ].join("\n")
-              : "- No knowledge brain is provisioned for this property: you have NO brain tools and no memory beyond this channel's session. If asked about the brain or remembered knowledge, say so plainly — never claim brain access.",
+              : "- No knowledge brain is provisioned for this property: you have NO brain tools and no memory beyond this channel's session. If asked about the brain or remembered knowledge, say so plainly — never claim brain access. Documents/tasks/meetings tools still work — check them before saying anything doesn't exist.",
           );
         }
         return defineInstructions({ markdown: markdown.join("\n") });

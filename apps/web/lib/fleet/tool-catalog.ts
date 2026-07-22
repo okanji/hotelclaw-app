@@ -90,9 +90,9 @@ export const POD_TOOL_CATALOG: PodToolInfo[] = [
   },
   {
     id: "brain_write",
-    label: "Write brain page",
+    label: "Capture to brain",
     description:
-      "Write/update a page in the pod's own brain source (never the master).",
+      "Append an outcome/learning to an entity page's timeline in the pod's own brain source (never the master; never rewrites compiled truth).",
     gated: false,
     category: "Brain",
   },

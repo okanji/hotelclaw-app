@@ -12,12 +12,17 @@ import "server-only";
  *      (provisioned via scripts/provision-property-brain.mjs).
  *   3. null → bots run brainless (fail-soft, the historical behavior).
  *
- * Transport notes (learned on the fleet build, keep in sync with
- * apps/agent/agent/lib/gbrain-http.ts): client_credentials exchange at
- * <origin>/token with a cached access token; the MCP serve replies over
- * SSE and KEEPS THE STREAM OPEN — read the first complete `data:` line
- * and cancel, `response.text()` hangs.
+ * Transport (token exchange, SSE-aware tools/call) and the capture shape
+ * live in @hotelclaw/brain — shared with the eve runtime. This module owns
+ * only the web-side binding resolution + thin wrappers keeping the
+ * historical call signatures.
  */
+import {
+  callBrain,
+  captureEvidence,
+  getBrainPageMarkdown,
+  type BrainResult,
+} from "@hotelclaw/brain";
 import { createServiceClient } from "@/lib/supabase/server";
 import { decryptBrainSecret } from "@/lib/brain/crypto";
 
@@ -28,9 +33,7 @@ export type BrainBinding = {
   source: string;
 };
 
-export type BrainResult =
-  | { ok: true; content: unknown }
-  | { ok: false; reason: string };
+export type { BrainResult };
 
 const bindingCache = new Map<string, { binding: BrainBinding | null; at: number }>();
 const BINDING_TTL_MS = 5 * 60_000;
@@ -107,125 +110,14 @@ export async function resolvePropertyBrain(
   return binding;
 }
 
-const tokenCache = new Map<string, { token: string; expiresAt: number }>();
-
-async function accessToken(binding: BrainBinding): Promise<string | null> {
-  const origin = new URL(binding.url).origin;
-  const cacheKey = `${origin}:${binding.clientId}`;
-  const cached = tokenCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
-
-  try {
-    const response = await fetch(`${origin}/token`, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: binding.clientId,
-        client_secret: binding.clientSecret,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) return null;
-    const body = (await response.json()) as {
-      access_token?: string;
-      expires_in?: number;
-    };
-    if (!body.access_token) return null;
-    tokenCache.set(cacheKey, {
-      token: body.access_token,
-      expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
-    });
-    return body.access_token;
-  } catch {
-    return null;
-  }
-}
-
-let rpcId = 0;
-
 export async function callBrainTool(
   binding: BrainBinding | null,
   tool: string,
   args: Record<string, unknown>,
-  { timeoutMs = 30_000 }: { timeoutMs?: number } = {},
+  opts: { timeoutMs?: number } = {},
 ): Promise<BrainResult> {
   if (!binding) return { ok: false, reason: "brain not configured" };
-  const token = await accessToken(binding);
-  if (!token) return { ok: false, reason: "brain credential unavailable" };
-
-  try {
-    const response = await fetch(binding.url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: ++rpcId,
-        method: "tools/call",
-        params: { name: tool, arguments: args },
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) {
-      return { ok: false, reason: `brain returned ${response.status}` };
-    }
-    const contentType = response.headers.get("content-type") ?? "";
-    let payload: {
-      result?: { content?: Array<{ type?: string; text?: string }>; isError?: boolean };
-      error?: { message?: string };
-    };
-    if (contentType.includes("text/event-stream")) {
-      if (!response.body) return { ok: false, reason: "empty brain response" };
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let dataLine: string | null = null;
-      try {
-        while (dataLine === null) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          if (buffer.includes("\n")) {
-            const complete = buffer
-              .slice(0, buffer.lastIndexOf("\n"))
-              .split("\n")
-              .filter((l) => l.startsWith("data:"));
-            if (complete.length > 0) dataLine = complete[complete.length - 1];
-          }
-        }
-      } finally {
-        reader.cancel().catch(() => {});
-      }
-      if (!dataLine) return { ok: false, reason: "empty brain response" };
-      payload = JSON.parse(dataLine.slice(5));
-    } else {
-      payload = await response.json();
-    }
-    if (payload.error) {
-      return { ok: false, reason: payload.error.message ?? "brain error" };
-    }
-    const text = (payload.result?.content ?? [])
-      .filter((b) => b && typeof b.text === "string")
-      .map((b) => b.text)
-      .join("\n");
-    if (payload.result?.isError) {
-      return { ok: false, reason: text.slice(0, 300) || "brain tool error" };
-    }
-    try {
-      return { ok: true, content: JSON.parse(text) };
-    } catch {
-      return { ok: true, content: text };
-    }
-  } catch (e) {
-    return {
-      ok: false,
-      reason: e instanceof Error ? e.message : "brain unreachable",
-    };
-  }
+  return callBrain(binding.url, binding, tool, args, opts);
 }
 
 /** Fetch a page's markdown, or null. */
@@ -233,11 +125,8 @@ export async function getBrainPage(
   binding: BrainBinding | null,
   slug: string,
 ): Promise<string | null> {
-  const result = await callBrainTool(binding, "get_page", { slug });
-  if (!result.ok) return null;
-  if (typeof result.content === "string") return result.content || null;
-  const page = result.content as { content?: string; markdown?: string } | null;
-  return page?.content ?? page?.markdown ?? null;
+  if (!binding) return null;
+  return getBrainPageMarkdown(binding.url, binding, slug);
 }
 
 /**
@@ -256,20 +145,5 @@ export async function captureToBrain(
   },
 ): Promise<BrainResult> {
   if (!binding) return { ok: false, reason: "brain not configured" };
-  const existing = await getBrainPage(binding, input.slug);
-  if (existing === null) {
-    const created = await callBrainTool(binding, "put_page", {
-      slug: input.slug,
-      content: `# ${input.pageTitle}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`,
-      ingested_via: "hotelclaw-app",
-    });
-    if (!created.ok) return created;
-  }
-  return callBrainTool(binding, "add_timeline_entry", {
-    slug: input.slug,
-    date: new Date().toISOString().slice(0, 10),
-    summary: input.summary,
-    ...(input.detail ? { detail: input.detail.slice(0, 4000) } : {}),
-    source: input.source,
-  });
+  return captureEvidence(binding.url, binding, input);
 }

@@ -89,6 +89,13 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
+    id: "search_tasks",
+    label: "Search tasks",
+    summary:
+      "Full-text search over all tasks — including done — by title and description.",
+    category: "read",
+  },
+  {
     id: "create_task",
     label: "Create tasks",
     summary: "File new tasks into the property's board.",
@@ -97,19 +104,86 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
   {
     id: "search_documents",
     label: "Search documents",
-    summary: "Full-text search over the property's documents.",
+    summary:
+      "Full-text search over the property's documents (including extracted text of file attachments).",
+    category: "read",
+  },
+  {
+    id: "list_documents",
+    label: "List documents",
+    summary: "List the property's documents by title, most recently edited first.",
     category: "read",
   },
   {
     id: "list_upcoming_meetings",
-    label: "Read meetings",
+    label: "Read upcoming meetings",
     summary: "List meetings scheduled in the coming days.",
     category: "read",
   },
   {
+    id: "list_meetings",
+    label: "Read meetings (past + future)",
+    summary: "List meetings in any window — past history included.",
+    category: "read",
+  },
+  {
     id: "list_today_bookings",
-    label: "Read bookings",
+    label: "Read today's bookings",
     summary: "List today's bookings across services (time, party, status).",
+    category: "read",
+  },
+  {
+    id: "list_bookings",
+    label: "Read bookings (any window)",
+    summary: "List bookings across services for a past/future window.",
+    category: "read",
+  },
+  {
+    id: "search_chat_messages",
+    label: "Search chat history",
+    summary:
+      "Search past messages in channels the requesting person belongs to.",
+    category: "read",
+  },
+  {
+    id: "list_forms",
+    label: "Read forms",
+    summary: "List the property's forms and their status/response counts.",
+    category: "read",
+  },
+  {
+    id: "get_form_response_summaries",
+    label: "Read form responses",
+    summary:
+      "Aggregated response summaries for a form (choice counts, recent text answers).",
+    category: "read",
+  },
+  {
+    id: "guest_conversation_insights",
+    label: "Read guest chatbot activity",
+    summary:
+      "What guests asked the property's chatbots: topics, sentiment, escalations, outcomes.",
+    category: "read",
+  },
+  {
+    id: "get_insight_brief",
+    label: "Read the intelligence brief",
+    summary:
+      "The cached Insights brief cards. Only answers owners/managers.",
+    category: "read",
+  },
+  {
+    id: "get_weekly_report",
+    label: "Read weekly reports",
+    summary:
+      "The cached weekly management/staff report. Only answers owners/managers.",
+    category: "read",
+  },
+  {
+    id: "list_handovers",
+    label: "Read handovers",
+    summary:
+      "Recent published shift handovers. Only answers owners/managers.",
     category: "read",
   },
   {
@@ -136,6 +210,18 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     label: "Ask the knowledge brain",
     summary:
       "Synthesized answers with citations for hard questions spanning many brain pages.",
+    category: "read",
+  },
+  {
+    id: "brain_get",
+    label: "Read brain pages",
+    summary: "Read one full knowledge-brain page by slug.",
+    category: "read",
+  },
+  {
+    id: "brain_list",
+    label: "List brain pages",
+    summary: "List knowledge-brain pages (optionally under a slug prefix).",
     category: "read",
   },
   {

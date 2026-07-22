@@ -150,6 +150,11 @@ export function fleetServiceHeaders(input: {
   botSlug?: string;
   /** Stream channel id — lets the runtime resolve chatbot_channel_deployments. */
   channelId?: string;
+  /** RAW message sender (may not be a member). Role-gated tools resolve the
+   * sender's OWN membership from this — the acting-principal fallback
+   * (earliest owner when the sender isn't a member) must never satisfy a
+   * role gate on the sender's behalf. */
+  senderId?: string;
 }): Record<string, string> {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("service key missing");
@@ -160,5 +165,6 @@ export function fleetServiceHeaders(input: {
     "x-hotelclaw-user": input.userId,
     ...(input.botSlug ? { "x-hotelclaw-bot": input.botSlug } : {}),
     ...(input.channelId ? { "x-hotelclaw-channel": input.channelId } : {}),
+    ...(input.senderId ? { "x-hotelclaw-sender": input.senderId } : {}),
   };
 }

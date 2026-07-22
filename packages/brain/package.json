@@ -1,0 +1,11 @@
+{
+  "name": "@hotelclaw/brain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared gbrain surface: MCP transport (OAuth client_credentials + SSE-aware tools/call), the disciplined capture shape, at-rest secret crypto, the curated tool descriptions/schemas (search/think/capture/get/list), the knowledge-discipline instruction text, and document->brain sync helpers. Shared by apps/web (Tier-1 bots, doc sync, provisioning) and apps/agent (eve runtime). Ships TS source: apps/web transpiles via next.config transpilePackages, eve's bundler handles it natively. Keep it dependency-free apart from zod (node builtins allowed); NO react, NO server-only.",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

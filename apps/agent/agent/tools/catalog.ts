@@ -1,5 +1,12 @@
 import { defineDynamic, defineTool } from "eve/tools";
 import { z } from "zod";
+import { StreamChat } from "stream-chat";
+import {
+  brainToolDescriptions,
+  brainToolSchemas,
+  normalizeListPages,
+  operatorReviewPage,
+} from "@hotelclaw/brain";
 import { serviceClient } from "../lib/supabase";
 import { resolveSessionAgent } from "../lib/agent-config";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
@@ -29,6 +36,14 @@ export default defineDynamic({
       const { caller, config } = resolved;
       const propertyId = caller.propertyId;
       const userId = caller.userId;
+      // The RAW message sender for role-gated tools. Channel-bot sessions
+      // may act as a fallback property principal when the sender isn't a
+      // member — role gates must check the SENDER's own membership, so a
+      // non-member (or staff-level member) in a public channel can never
+      // pull owner/manager surfaces through the bot.
+      const senderAttr = ctx.session.auth.current?.attributes?.senderId;
+      const senderId =
+        typeof senderAttr === "string" && senderAttr ? senderAttr : userId;
       const grants = new Set(config.tools);
       const resourceIds = config.resources.documentIds;
 
@@ -359,12 +374,527 @@ export default defineDynamic({
         });
       }
 
+      if (grants.has("search_tasks")) {
+        tools.search_tasks = defineTool({
+          description:
+            "Full-text search over ALL tasks — including done — by title and description. Use for 'have we ever had a task about X' and finding past work. Returns previews; if count is 0, no matching tasks exist.",
+          inputSchema: z.object({
+            query: z.string().min(1).max(200),
+            include_done: z.boolean().default(true),
+            limit: z.number().int().min(1).max(20).default(10),
+          }),
+          async execute({ query, include_done, limit }) {
+            const { data, error } = await serviceClient().rpc(
+              "search_tasks_keyword",
+              {
+                property_id_param: propertyId,
+                query_text: query,
+                include_done,
+                match_count: limit,
+              },
+            );
+            if (error) return { error: error.message };
+            const rows = (data ?? []) as Array<{
+              id: string;
+              title: string;
+              status: string;
+              priority: string | null;
+              due_at: string | null;
+              preview: string;
+              updated_at: string;
+            }>;
+            return {
+              count: rows.length,
+              tasks: rows.map((t) => ({
+                id: t.id,
+                title: t.title,
+                status: STATUS_LABELS[t.status] ?? t.status,
+                priority: t.priority,
+                due: t.due_at,
+                preview: t.preview,
+                updated: t.updated_at,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("list_documents")) {
+        tools.list_documents = defineTool({
+          description:
+            "List the property's documents (title, kind, last edited), most recently edited first. Use for enumeration questions — 'what SOPs/docs do we have' — optionally narrowed by a title fragment; use search_documents for content matches.",
+          inputSchema: z.object({
+            title_contains: z
+              .string()
+              .max(100)
+              .optional()
+              .describe("Case-insensitive title filter, e.g. 'SOP'"),
+            limit: z.number().int().min(1).max(50).default(25),
+          }),
+          async execute({ title_contains, limit }) {
+            let query = serviceClient()
+              .from("documents")
+              .select("id, title, kind, updated_at")
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .order("updated_at", { ascending: false })
+              .limit(limit);
+            if (title_contains) {
+              query = query.ilike("title", `%${title_contains}%`);
+            }
+            const { data, error } = await query;
+            if (error) return { error: error.message };
+            return {
+              count: (data ?? []).length,
+              documents: (data ?? []).map((d) => ({
+                id: d.id,
+                title: d.title,
+                kind: d.kind,
+                updated: d.updated_at,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("list_meetings")) {
+        tools.list_meetings = defineTool({
+          description:
+            "List meetings in a window — PAST meetings included (title, start, end, location). Use for 'what came out of last week's meetings' (then search_documents for the meeting-summary doc) and upcoming schedules. Times ISO 8601.",
+          inputSchema: z.object({
+            past_days: z.number().int().min(0).max(365).default(0),
+            next_days: z.number().int().min(0).max(60).default(7),
+            limit: z.number().int().min(1).max(30).default(15),
+          }),
+          async execute({ past_days, next_days, limit }) {
+            const now = Date.now();
+            const from = new Date(now - past_days * 86_400_000);
+            const to = new Date(now + next_days * 86_400_000);
+            const { data, error } = await serviceClient()
+              .from("meetings")
+              .select("id, title, scheduled_start, scheduled_end, location")
+              .eq("property_id", propertyId)
+              .gte("scheduled_start", from.toISOString())
+              .lte("scheduled_start", to.toISOString())
+              .order("scheduled_start", { ascending: past_days === 0 })
+              .limit(limit);
+            if (error) return { error: error.message };
+            return {
+              count: (data ?? []).length,
+              meetings: (data ?? []).map((m) => ({
+                id: m.id,
+                title: m.title,
+                start: m.scheduled_start,
+                end: m.scheduled_end,
+                location: m.location,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("list_bookings")) {
+        tools.list_bookings = defineTool({
+          description:
+            "List bookings across all services for a window — past history included (service, time, party, status, reference). Defaults to the next 24h; raise past_days for history questions ('how many no-shows last week').",
+          inputSchema: z.object({
+            past_days: z.number().int().min(0).max(60).default(0),
+            next_days: z.number().int().min(0).max(60).default(1),
+            status: z
+              .enum([
+                "pending",
+                "confirmed",
+                "seated",
+                "completed",
+                "cancelled",
+                "no_show",
+              ])
+              .optional(),
+            limit: z.number().int().min(1).max(50).default(25),
+          }),
+          async execute({ past_days, next_days, status, limit }) {
+            const now = Date.now();
+            let query = serviceClient()
+              .from("bookings")
+              .select(
+                "id, reference, guest_name, party_size, status, starts_at, bookable_services(name)",
+              )
+              .eq("property_id", propertyId)
+              .gte("starts_at", new Date(now - past_days * 86_400_000).toISOString())
+              .lte("starts_at", new Date(now + next_days * 86_400_000).toISOString())
+              .order("starts_at", { ascending: true })
+              .limit(limit);
+            if (status) query = query.eq("status", status);
+            const { data, error } = await query;
+            if (error) return { error: error.message };
+            return {
+              count: (data ?? []).length,
+              bookings: (data ?? []).map((b) => ({
+                reference: b.reference,
+                guest: b.guest_name,
+                party: b.party_size,
+                status: b.status,
+                starts_at: b.starts_at,
+                service:
+                  (b.bookable_services as { name?: string } | null)?.name ?? null,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("search_chat_messages")) {
+        tools.search_chat_messages = defineTool({
+          description:
+            "Search past chat messages in this property's channels — scoped to channels the REQUESTING PERSON is a member of. Use for 'what did we say about X' / 'who mentioned Y'. Returns message text, sender, channel, and time.",
+          inputSchema: z.object({
+            query: z.string().min(2).max(200),
+            limit: z.number().int().min(1).max(20).default(10),
+          }),
+          async execute({ query, limit }) {
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const secret = process.env.STREAM_API_SECRET;
+            if (!apiKey || !secret) return { error: "Chat search not configured." };
+            try {
+              const server = StreamChat.getInstance(apiKey, secret, {
+                timeout: 15_000,
+              });
+              // Tenancy: property_id custom field + the SENDER's channel
+              // membership. A non-member sender matches no channels — empty,
+              // never leaking the acting principal's channels.
+              const res = await server.search(
+                {
+                  type: { $in: ["team", "messaging"] },
+                  property_id: propertyId,
+                  members: { $in: [senderId] },
+                } as Parameters<typeof server.search>[0],
+                query,
+                { limit, sort: [{ created_at: -1 }] },
+              );
+              return {
+                count: res.results.length,
+                messages: res.results.map((r) => ({
+                  text: (r.message.text ?? "").slice(0, 500),
+                  sender: r.message.user?.name ?? r.message.user?.id ?? "unknown",
+                  channel: r.message.channel?.id ?? null,
+                  at: r.message.created_at,
+                })),
+              };
+            } catch (e) {
+              return {
+                error: e instanceof Error ? e.message : "chat search failed",
+              };
+            }
+          },
+        });
+      }
+
+      if (grants.has("list_forms")) {
+        tools.list_forms = defineTool({
+          description:
+            "List the property's forms (title, status, response count). Use to answer 'what forms do we have' and to find a form id for get_form_response_summaries.",
+          inputSchema: z.object({
+            limit: z.number().int().min(1).max(50).default(25),
+          }),
+          async execute({ limit }) {
+            const supabase = serviceClient();
+            const { data: forms, error } = await supabase
+              .from("forms")
+              .select("id, title, description, status, updated_at")
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .order("updated_at", { ascending: false })
+              .limit(limit);
+            if (error) return { error: error.message };
+            const ids = (forms ?? []).map((f) => f.id);
+            const countByForm = new Map<string, number>();
+            if (ids.length > 0) {
+              const { data: responses } = await supabase
+                .from("form_responses")
+                .select("form_id")
+                .in("form_id", ids);
+              for (const r of responses ?? []) {
+                countByForm.set(r.form_id, (countByForm.get(r.form_id) ?? 0) + 1);
+              }
+            }
+            return {
+              count: (forms ?? []).length,
+              forms: (forms ?? []).map((f) => ({
+                id: f.id,
+                title: f.title,
+                description: f.description,
+                status: f.status,
+                responses: countByForm.get(f.id) ?? 0,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("get_form_response_summaries")) {
+        tools.get_form_response_summaries = defineTool({
+          description:
+            "Aggregated response summary for one form: per-field value counts for choice/number/boolean fields and recent samples for text fields. Get the form id from list_forms first.",
+          inputSchema: z.object({
+            form_id: z.string().uuid(),
+            limit: z.number().int().min(1).max(500).default(200),
+          }),
+          async execute({ form_id, limit }) {
+            const supabase = serviceClient();
+            const { data: form } = await supabase
+              .from("forms")
+              .select("id, title, schema")
+              .eq("id", form_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!form) return { error: "Form not found in this property." };
+            const { data: responses, error } = await supabase
+              .from("form_responses")
+              .select("answers, created_at")
+              .eq("form_id", form_id)
+              .order("created_at", { ascending: false })
+              .limit(limit);
+            if (error) return { error: error.message };
+
+            const schema = (form.schema ?? {}) as {
+              fields?: Array<{ id?: string; label?: string; type?: string }>;
+            };
+            const fields = (schema.fields ?? []).filter(
+              (f): f is { id: string; label?: string; type?: string } =>
+                typeof f?.id === "string",
+            );
+            const summaries = fields.map((field) => {
+              const values = (responses ?? [])
+                .map((r) => (r.answers as Record<string, unknown>)?.[field.id])
+                .filter((v) => v !== undefined && v !== null && v !== "");
+              const scalars = values.filter(
+                (v) =>
+                  typeof v === "boolean" ||
+                  typeof v === "number" ||
+                  (typeof v === "string" && v.length <= 80),
+              );
+              const counts = new Map<string, number>();
+              for (const v of scalars) {
+                const key = String(v);
+                counts.set(key, (counts.get(key) ?? 0) + 1);
+              }
+              const topValues = [...counts.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([value, n]) => ({ value, count: n }));
+              const textSamples = values
+                .filter((v): v is string => typeof v === "string" && v.length > 80)
+                .slice(0, 3)
+                .map((v) => v.slice(0, 300));
+              return {
+                field: field.label ?? field.id,
+                type: field.type ?? "unknown",
+                answered: values.length,
+                top_values: topValues,
+                ...(textSamples.length > 0 ? { recent_text: textSamples } : {}),
+              };
+            });
+            return {
+              form: { id: form.id, title: form.title },
+              response_count: (responses ?? []).length,
+              fields: summaries,
+            };
+          },
+        });
+      }
+
+      if (grants.has("guest_conversation_insights")) {
+        tools.guest_conversation_insights = defineTool({
+          description:
+            "What guests have been asking the property's chatbots: totals by outcome, topic + sentiment breakdown, and recent escalated/negative conversations. Use for 'what are guests complaining about', 'how busy was the chatbot'.",
+          inputSchema: z.object({
+            days: z.number().int().min(1).max(90).default(7),
+            limit: z.number().int().min(1).max(200).default(100),
+          }),
+          async execute({ days, limit }) {
+            const since = new Date(Date.now() - days * 86_400_000).toISOString();
+            const { data, error } = await serviceClient()
+              .from("chatbot_conversations")
+              .select(
+                "id, chatbot_id, channel, status, outcome, topic, sentiment, guest_name, message_count, created_at, chatbots(name)",
+              )
+              .eq("property_id", propertyId)
+              .gte("created_at", since)
+              .order("created_at", { ascending: false })
+              .limit(limit);
+            if (error) return { error: error.message };
+            const rows = data ?? [];
+            const byOutcome: Record<string, number> = {};
+            const topics = new Map<
+              string,
+              { count: number; negative: number; positive: number }
+            >();
+            for (const c of rows) {
+              byOutcome[c.outcome] = (byOutcome[c.outcome] ?? 0) + 1;
+              if (c.topic) {
+                const t = topics.get(c.topic) ?? {
+                  count: 0,
+                  negative: 0,
+                  positive: 0,
+                };
+                t.count += 1;
+                if (c.sentiment === "negative") t.negative += 1;
+                if (c.sentiment === "positive") t.positive += 1;
+                topics.set(c.topic, t);
+              }
+            }
+            return {
+              window_days: days,
+              conversation_count: rows.length,
+              by_outcome: byOutcome,
+              topics: [...topics.entries()]
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 12)
+                .map(([topic, t]) => ({ topic, ...t })),
+              recent_escalations: rows
+                .filter((c) => c.outcome === "escalated" || c.sentiment === "negative")
+                .slice(0, 8)
+                .map((c) => ({
+                  bot: (c.chatbots as { name?: string } | null)?.name ?? null,
+                  channel: c.channel,
+                  topic: c.topic,
+                  sentiment: c.sentiment,
+                  outcome: c.outcome,
+                  guest: c.guest_name,
+                  at: c.created_at,
+                })),
+            };
+          },
+        });
+      }
+
+      // Role-gated management surfaces. These check the SENDER's own
+      // membership at call time — the acting-principal fallback never
+      // satisfies them (see senderId above).
+      if (
+        grants.has("get_insight_brief") ||
+        grants.has("get_weekly_report") ||
+        grants.has("list_handovers")
+      ) {
+        const requireManagerSender = async (): Promise<string | null> => {
+          const { data } = await serviceClient()
+            .from("memberships")
+            .select("role")
+            .eq("property_id", propertyId)
+            .eq("user_id", senderId)
+            .maybeSingle();
+          if (!data || !["owner", "manager"].includes(data.role)) {
+            return "This is a management surface — only property owners and managers can ask for it. Tell the requester that, plainly.";
+          }
+          return null;
+        };
+
+        if (grants.has("get_insight_brief")) {
+          tools.get_insight_brief = defineTool({
+            description:
+              "The property's cached intelligence brief (Insights cards: pace flags, anomalies, watch items). Owner/manager only — refuse politely for anyone else. Never generates; reads the cache.",
+            inputSchema: z.object({}),
+            async execute() {
+              const denied = await requireManagerSender();
+              if (denied) return { denied };
+              const { data, error } = await serviceClient()
+                .from("insight_briefs")
+                .select("insights, generated_at")
+                .eq("property_id", propertyId)
+                .maybeSingle();
+              if (error) return { error: error.message };
+              if (!data) return { count: 0, note: "No brief has been generated yet." };
+              return {
+                generated_at: data.generated_at,
+                insights: JSON.parse(
+                  JSON.stringify(data.insights).slice(0, 12_000),
+                ),
+              };
+            },
+          });
+        }
+
+        if (grants.has("get_weekly_report")) {
+          tools.get_weekly_report = defineTool({
+            description:
+              "The latest cached weekly report (management or staff audience). Owner/manager only — refuse politely for anyone else. Never generates; reads the cache.",
+            inputSchema: z.object({
+              audience: z.enum(["management", "staff"]).default("management"),
+            }),
+            async execute({ audience }) {
+              const denied = await requireManagerSender();
+              if (denied) return { denied };
+              const { data, error } = await serviceClient()
+                .from("insight_reports")
+                .select("period_start, period_end, audience, summary_md, created_at")
+                .eq("property_id", propertyId)
+                .eq("audience", audience)
+                .order("period_start", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (error) return { error: error.message };
+              if (!data) return { note: "No weekly report has been generated yet." };
+              return {
+                period: { start: data.period_start, end: data.period_end },
+                audience: data.audience,
+                report_md: data.summary_md.slice(0, 8_000),
+              };
+            },
+          });
+        }
+
+        if (grants.has("list_handovers")) {
+          tools.list_handovers = defineTool({
+            description:
+              "Recent published shift handovers (author, window, content). Owner/manager only — refuse politely for anyone else.",
+            inputSchema: z.object({
+              limit: z.number().int().min(1).max(10).default(5),
+            }),
+            async execute({ limit }) {
+              const denied = await requireManagerSender();
+              if (denied) return { denied };
+              const supabase = serviceClient();
+              const { data, error } = await supabase
+                .from("handovers")
+                .select("id, author_id, body_md, window_start, window_end, created_at")
+                .eq("property_id", propertyId)
+                .order("created_at", { ascending: false })
+                .limit(limit);
+              if (error) return { error: error.message };
+              const authorIds = [
+                ...new Set((data ?? []).map((h) => h.author_id)),
+              ];
+              const { data: profiles } = authorIds.length
+                ? await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .in("id", authorIds)
+                : { data: [] };
+              const nameById = new Map(
+                (profiles ?? []).map((p) => [p.id, p.full_name]),
+              );
+              return {
+                count: (data ?? []).length,
+                handovers: (data ?? []).map((h) => ({
+                  author: nameById.get(h.author_id) ?? "Unknown",
+                  window: { start: h.window_start, end: h.window_end },
+                  published: h.created_at,
+                  body_md: h.body_md.slice(0, 2_000),
+                })),
+              };
+            },
+          });
+        }
+      }
+
       // Brain grants (mirror tools/channel-brain.ts — keep descriptions in
       // sync). Fail-soft: granted but no property binding ⇒ the tools simply
       // don't exist, same as every other ungranted capability.
       const wantsBrain =
         grants.has("brain_search") ||
         grants.has("brain_think") ||
+        grants.has("brain_get") ||
+        grants.has("brain_list") ||
         grants.has("brain_capture");
       const binding = wantsBrain
         ? await resolvePropertyBrainBinding(propertyId)
@@ -378,12 +908,8 @@ export default defineDynamic({
 
         if (grants.has("brain_search")) {
           tools.brain_search = defineTool({
-            description:
-              "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, team lore). Cheap hybrid retrieval returning matching chunks. Use FIRST for anything that smells like 'have we seen this before'.",
-            inputSchema: z.object({
-              query: z.string().min(2).max(300),
-              limit: z.number().int().min(1).max(10).default(5),
-            }),
+            description: brainToolDescriptions.brain_search,
+            inputSchema: brainToolSchemas.brain_search,
             async execute({ query, limit }) {
               const result = await callBrainToolDirect(url, cred, "search", {
                 query,
@@ -398,11 +924,8 @@ export default defineDynamic({
 
         if (grants.has("brain_think")) {
           tools.brain_think = defineTool({
-            description:
-              "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. Expensive — reserve for questions needing judgment across many pages. Not for simple lookups.",
-            inputSchema: z.object({
-              question: z.string().min(5).max(500),
-            }),
+            description: brainToolDescriptions.brain_think,
+            inputSchema: brainToolSchemas.brain_think,
             async execute({ question }) {
               const result = await callBrainToolDirect(
                 url,
@@ -418,16 +941,58 @@ export default defineDynamic({
           });
         }
 
+        if (grants.has("brain_get")) {
+          tools.brain_get = defineTool({
+            description: brainToolDescriptions.brain_get,
+            inputSchema: brainToolSchemas.brain_get,
+            async execute({ slug }) {
+              const result = await callBrainToolDirect(url, cred, "get_page", {
+                slug,
+              });
+              if (!result.ok) {
+                return { unavailable: true, reason: result.reason };
+              }
+              const page =
+                typeof result.content === "string"
+                  ? result.content
+                  : ((result.content as { content?: string; markdown?: string } | null)
+                      ?.content ??
+                    (result.content as { markdown?: string } | null)?.markdown ??
+                    "");
+              if (!page) return { found: false, slug };
+              return { found: true, slug, markdown: page.slice(0, 20_000) };
+            },
+          });
+        }
+
+        if (grants.has("brain_list")) {
+          tools.brain_list = defineTool({
+            description: brainToolDescriptions.brain_list,
+            inputSchema: brainToolSchemas.brain_list,
+            async execute({ prefix, limit }) {
+              const result = await callBrainToolDirect(url, cred, "list_pages", {
+                ...(prefix ? { prefix } : {}),
+                limit,
+                sort: "updated_desc",
+              });
+              if (!result.ok) {
+                return { unavailable: true, reason: result.reason };
+              }
+              const listed = normalizeListPages(result.content);
+              // Some serves ignore unknown filter params — apply the prefix
+              // client-side too so the contract holds regardless.
+              const pages = prefix
+                ? listed.pages.filter((p) => p.slug.startsWith(prefix))
+                : listed.pages;
+              return { count: pages.length, pages: pages.slice(0, limit) };
+            },
+          });
+        }
+
         if (grants.has("brain_capture")) {
           tools.brain_capture = defineTool({
-            description:
-              "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for confirmed recurring issues, fixes, supplier behavior, team decisions. SKIP chit-chat and anything already authoritative in the app (tasks, bookings, docs). slug examples: 'systems/pool', 'suppliers/acme-pool-services'.",
-            inputSchema: z.object({
-              slug: z.string().regex(/^[a-z0-9][a-z0-9/_-]{2,80}$/),
-              page_title: z.string().min(2).max(120),
-              observation: z.string().min(10).max(1000),
-              source: z.string().max(140),
-            }),
+            description: brainToolDescriptions.brain_capture,
+            inputSchema: brainToolSchemas.brain_capture,
             async execute({ slug, page_title, observation, source }) {
               const existing = await callBrainToolDirect(url, cred, "get_page", {
                 slug,
@@ -435,7 +1000,7 @@ export default defineDynamic({
               if (!existing.ok) {
                 const created = await callBrainToolDirect(url, cred, "put_page", {
                   slug,
-                  content: `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`,
+                  content: operatorReviewPage(page_title),
                   ingested_via: "hotelclaw-custom-agent",
                 });
                 if (!created.ok) return { captured: false, reason: created.reason };

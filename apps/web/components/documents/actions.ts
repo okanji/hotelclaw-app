@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { sweepDocumentsBrainSync } from "@/lib/brain/doc-sync";
 
 const PropertyId = z.string().uuid();
 const DocumentId = z.string().uuid();
@@ -237,6 +239,10 @@ export async function archiveDocument(
   });
   if (error) return { error: error.message };
 
+  // Remove the brain mirrors for the archived subtree (the sweep targets
+  // exactly the rows whose archive state drifted past the sync cursor).
+  after(() => sweepDocumentsBrainSync({ limit: 50 }));
+
   revalidatePath(`/p/${doc.property_id}/documents`);
   return { ok: true };
 }
@@ -265,6 +271,35 @@ export async function restoreDocument(
     root: id.data,
   });
   if (error) return { error: error.message };
+
+  // Null the brain-sync cursor for the restored subtree so the sweep
+  // re-mirrors it (the cursor was advanced when the archive deleted the
+  // mirror pages, and body_updated_at predates it — the staleness check
+  // alone would never fire).
+  const { data: propertyDocs } = await supabase
+    .from("documents")
+    .select("id, parent_id")
+    .eq("property_id", doc.property_id);
+  const childrenByParent = new Map<string | null, string[]>();
+  for (const d of propertyDocs ?? []) {
+    const list = childrenByParent.get(d.parent_id) ?? [];
+    list.push(d.id);
+    childrenByParent.set(d.parent_id, list);
+  }
+  const subtree: string[] = [];
+  const queue = [id.data];
+  while (queue.length > 0) {
+    const current = queue.pop()!;
+    subtree.push(current);
+    queue.push(...(childrenByParent.get(current) ?? []));
+  }
+  await supabase
+    .from("documents")
+    .update({ brain_synced_at: null })
+    .in("id", subtree);
+
+  // Re-mirror the restored subtree into the brain.
+  after(() => sweepDocumentsBrainSync({ limit: 50 }));
 
   revalidatePath(`/p/${doc.property_id}/documents`);
   return { ok: true };

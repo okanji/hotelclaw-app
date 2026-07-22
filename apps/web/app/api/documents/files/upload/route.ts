@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ingestAttachmentText } from "@/lib/documents/attachment-text";
 
 /**
  * Non-image file upload endpoint for the FileAttachment / PDF block.
@@ -136,6 +138,21 @@ export async function POST(request: NextRequest) {
   if (uploadErr) {
     return NextResponse.json({ error: uploadErr.message }, { status: 500 });
   }
+
+  // Index the file's text off the request path (PDF/plain-text extraction →
+  // document_attachment_texts → body_fts weight C → brain mirror). The
+  // bytes are read here because the File is gone once the response returns.
+  const buffer = await file.arrayBuffer();
+  after(() =>
+    ingestAttachmentText({
+      propertyId,
+      documentId,
+      storagePath: path,
+      fileName: file.name,
+      mime: file.type,
+      buffer,
+    }),
+  );
 
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return NextResponse.json({

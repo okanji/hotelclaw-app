@@ -136,7 +136,12 @@ export async function POST(
           source: `triage, ${new Date().toISOString().slice(0, 10)}`,
         });
       } catch (err) {
-        console.warn("[triage] brain capture failed", err);
+        const { logBrainEvent } = await import("@/lib/brain/telemetry");
+        logBrainEvent("capture_failed", {
+          surface: "triage-routing",
+          propertyId,
+          reason: err instanceof Error ? err.message : String(err),
+        });
       }
     });
   }

@@ -27,6 +27,7 @@ import {
 } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { KNOWLEDGE_DISCIPLINE } from "@hotelclaw/brain";
 import { buildGbrainTools } from "@/lib/ai/tools/gbrain";
 import { buildDelegateTool } from "@/lib/ai/tools/delegate";
 
@@ -143,8 +144,8 @@ const IGNORE_DEFERRAL_GUARD = [
 
 const GBRAIN_GUIDANCE = [
   "You have shared-brain tools available — the property's institutional memory, also read and written by the other bots and the durable agents.",
-  "Reading: use `search` for cheap hybrid retrieval when you need raw matches; use `think` for a synthesized answer with citations and gap analysis (more expensive — reserve for hard questions).",
-  "Writing: when you learn or confirm something durable about this property (a person's role, a recurring issue, a decision the team made, a preference), use `capture` to record it so future turns — yours and other bots' — can build on it. Skip ephemeral chit-chat. Skip facts already authoritative in Supabase (tasks, docs, calendar events). Capture insights, not lookups.",
+  "Reading: `brain_search` for cheap hybrid retrieval; `brain_get` for a full page once search surfaces a slug; `brain_list` for enumeration ('what's under documents/'); `brain_think` for a synthesized answer with citations and gap analysis (expensive — hard questions only).",
+  "Writing: when you learn or confirm something durable about this property (a person's role, a recurring issue, a decision the team made, a preference), use `brain_capture` to record it so future turns — yours and other bots' — can build on it. Skip ephemeral chit-chat. Skip facts already authoritative in Supabase (tasks, docs, calendar events). Capture insights, not lookups.",
 ].join(" ");
 
 function activationNoteFor(reason: ActivationReason): string {
@@ -178,6 +179,7 @@ function assembleSystemPrompt(opts: {
   if (opts.hasGbrain) {
     sections.push("", "# Shared brain (gbrain)", GBRAIN_GUIDANCE);
   }
+  sections.push("", KNOWLEDGE_DISCIPLINE);
   sections.push("", "# Ignore deferral patterns in history", IGNORE_DEFERRAL_GUARD);
   return sections.join("\n");
 }

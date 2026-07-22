@@ -21,6 +21,7 @@ import {
   getBrainPage,
   resolvePropertyBrain,
 } from "@/lib/brain/client";
+import { logBrainEvent } from "@/lib/brain/telemetry";
 
 export function guestSlug(identity: { phone?: string | null; email?: string | null }): string | null {
   const key = identity.phone?.replace(/[^0-9+]/g, "") || identity.email?.trim().toLowerCase();
@@ -42,7 +43,12 @@ export async function loadGuestProfile(
     const page = await getBrainPage(binding, slug);
     if (!page) return null;
     return page.slice(0, 1500);
-  } catch {
+  } catch (err) {
+    logBrainEvent("search_unavailable", {
+      surface: "guest-profile-load",
+      propertyId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 }
@@ -72,13 +78,25 @@ export async function captureGuestDetails(
       .filter(Boolean)
       .join(", ");
     if (!facts) return;
-    await captureToBrain(binding, {
+    const result = await captureToBrain(binding, {
       slug,
       pageTitle: input.name ? `Guest: ${input.name}` : "Guest profile",
       summary: `Guest shared details via ${input.botName}: ${facts}.`,
       source: `guest chatbot, ${new Date().toISOString().slice(0, 10)}`,
     });
-  } catch {
+    if (!result.ok) {
+      logBrainEvent("capture_failed", {
+        surface: "guest-details",
+        propertyId,
+        reason: result.reason,
+      });
+    }
+  } catch (err) {
     // Fail-soft — never surface brain errors to a guest conversation.
+    logBrainEvent("capture_failed", {
+      surface: "guest-details",
+      propertyId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
   }
 }

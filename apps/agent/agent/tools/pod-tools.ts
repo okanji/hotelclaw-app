@@ -4,7 +4,12 @@ import { z } from "zod";
 import { StreamChat } from "stream-chat";
 import { serviceClient } from "../lib/supabase";
 import { resolvePodContext } from "../lib/pods";
-import { brainQuery, getBrainPage, putBrainPage } from "../lib/gbrain-http";
+import {
+  brainQuery,
+  callBrainTool,
+  getBrainPage,
+  putBrainPage,
+} from "../lib/gbrain-http";
 
 // Pod-bot tool surface (fleet spec M2). Built per session from the
 // addressed bot's `tool_set` allow-list — a tool not in the list does not
@@ -419,20 +424,55 @@ export default defineDynamic({
       }
 
       if (allowed.has("brain_write")) {
+        // Disciplined capture shape (same contract as every other bot's
+        // brain_capture): append EVIDENCE to an entity page's timeline —
+        // never a whole-page overwrite. Compiled truth stays human/dream-
+        // cycle territory; a bot rewriting it destroyed provenance.
         tools.brain_write = defineTool({
           description:
-            "Write an outcome/learning to the knowledge brain (timeline entry or entity-page update). Outcomes only, never chatter; follow the brain's filing + PII rules.",
+            "Record an outcome/learning in the knowledge brain as a timeline entry on an entity page (created with a review marker if missing). Outcomes only, never chatter; every entry carries its source. Follow the brain's filing + PII rules.",
           inputSchema: z.object({
             path: z
               .string()
               .min(2)
               .max(300)
-              .describe("Page path per filing rules, e.g. timeline/2026/07/17-pool-pump-replaced"),
-            markdown: z.string().min(10).max(8000),
+              .describe(
+                "Entity page path per filing rules, e.g. systems/pool-pump or suppliers/acme",
+              ),
+            page_title: z.string().min(2).max(120),
+            observation: z
+              .string()
+              .min(10)
+              .max(1000)
+              .describe("The durable outcome/learning, one to three sentences"),
+            source: z
+              .string()
+              .max(140)
+              .describe("Where this came from (channel, person, date)"),
           }),
-          async execute({ path, markdown }) {
-            const result = await putBrainPage(brainUrl, brainTokenRef, path, markdown);
-            if (!result.ok) return { unavailable: true, reason: result.reason };
+          async execute({ path, page_title, observation, source }) {
+            const existing = await getBrainPage(brainUrl, brainTokenRef, path);
+            if (existing === null) {
+              const created = await putBrainPage(
+                brainUrl,
+                brainTokenRef,
+                path,
+                `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`,
+              );
+              if (!created.ok) return { unavailable: true, reason: created.reason };
+            }
+            const entry = await callBrainTool(
+              brainUrl,
+              brainTokenRef,
+              "add_timeline_entry",
+              {
+                slug: path,
+                date: new Date().toISOString().slice(0, 10),
+                summary: observation,
+                source,
+              },
+            );
+            if (!entry.ok) return { unavailable: true, reason: entry.reason };
             return { written: true, path };
           },
         });

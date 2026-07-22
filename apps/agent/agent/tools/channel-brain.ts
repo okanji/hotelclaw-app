@@ -1,15 +1,21 @@
 import { defineDynamic, defineTool } from "eve/tools";
-import { z } from "zod";
+import {
+  brainToolDescriptions,
+  brainToolSchemas,
+  normalizeListPages,
+  operatorReviewPage,
+} from "@hotelclaw/brain";
 import { CHANNEL_BOT_SLUG } from "../lib/agent-config";
 import { tenantCallerOrNull } from "../lib/tenant";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
 import { callBrainToolDirect } from "../lib/gbrain-http";
 
 // Shared-brain tools for the DEFAULT CHANNEL BOT sessions (virtual agent
-// `hotelclaw` — lib/agent-config.ts). Read ladder + one disciplined write,
-// matching the web Tier-1 surface (apps/web/lib/ai/tools/gbrain.ts) so the
-// bot behaves identically wherever it runs. Tenancy = the OAuth client the
-// property resolves to; fail-soft: no binding ⇒ no tools.
+// `hotelclaw` — lib/agent-config.ts). The full read ladder (search → get/
+// list → think) + one disciplined write, matching the web Tier-1 surface
+// (apps/web/lib/ai/tools/gbrain.ts) — descriptions/schemas come from
+// @hotelclaw/brain so the surfaces cannot drift. Tenancy = the OAuth client
+// the property resolves to; fail-soft: no binding ⇒ no tools.
 //
 // eve constraint: every execute INLINE (replay reconstruction).
 
@@ -33,12 +39,8 @@ export default defineDynamic({
 
       return {
         brain_search: defineTool({
-          description:
-            "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, team lore). Cheap hybrid retrieval returning matching chunks. Use FIRST for anything that smells like 'have we seen this before'.",
-          inputSchema: z.object({
-            query: z.string().min(2).max(300),
-            limit: z.number().int().min(1).max(10).default(5),
-          }),
+          description: brainToolDescriptions.brain_search,
+          inputSchema: brainToolSchemas.brain_search,
           async execute({ query, limit }) {
             const result = await callBrainToolDirect(url, cred, "search", {
               query,
@@ -50,11 +52,8 @@ export default defineDynamic({
           },
         }),
         brain_think: defineTool({
-          description:
-            "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. Expensive — reserve for questions needing judgment across many pages. Not for simple lookups.",
-          inputSchema: z.object({
-            question: z.string().min(5).max(500),
-          }),
+          description: brainToolDescriptions.brain_think,
+          inputSchema: brainToolSchemas.brain_think,
           async execute({ question }) {
             const result = await callBrainToolDirect(
               url,
@@ -68,15 +67,45 @@ export default defineDynamic({
               : { unavailable: true, reason: result.reason };
           },
         }),
+        brain_get: defineTool({
+          description: brainToolDescriptions.brain_get,
+          inputSchema: brainToolSchemas.brain_get,
+          async execute({ slug }) {
+            const result = await callBrainToolDirect(url, cred, "get_page", {
+              slug,
+            });
+            if (!result.ok) return { unavailable: true, reason: result.reason };
+            const page =
+              typeof result.content === "string"
+                ? result.content
+                : ((result.content as { content?: string; markdown?: string } | null)
+                    ?.content ??
+                  (result.content as { markdown?: string } | null)?.markdown ??
+                  "");
+            if (!page) return { found: false, slug };
+            return { found: true, slug, markdown: page.slice(0, 20_000) };
+          },
+        }),
+        brain_list: defineTool({
+          description: brainToolDescriptions.brain_list,
+          inputSchema: brainToolSchemas.brain_list,
+          async execute({ prefix, limit }) {
+            const result = await callBrainToolDirect(url, cred, "list_pages", {
+              ...(prefix ? { prefix } : {}),
+              limit,
+              sort: "updated_desc",
+            });
+            if (!result.ok) return { unavailable: true, reason: result.reason };
+            const listed = normalizeListPages(result.content);
+            const pages = prefix
+              ? listed.pages.filter((p) => p.slug.startsWith(prefix))
+              : listed.pages;
+            return { count: pages.length, pages: pages.slice(0, limit) };
+          },
+        }),
         brain_capture: defineTool({
-          description:
-            "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for confirmed recurring issues, fixes, supplier behavior, team decisions. SKIP chit-chat and anything already authoritative in the app (tasks, bookings, docs). slug examples: 'systems/pool', 'suppliers/acme-pool-services'.",
-          inputSchema: z.object({
-            slug: z.string().regex(/^[a-z0-9][a-z0-9/_-]{2,80}$/),
-            page_title: z.string().min(2).max(120),
-            observation: z.string().min(10).max(1000),
-            source: z.string().max(140),
-          }),
+          description: brainToolDescriptions.brain_capture,
+          inputSchema: brainToolSchemas.brain_capture,
           async execute({ slug, page_title, observation, source }) {
             const existing = await callBrainToolDirect(url, cred, "get_page", {
               slug,
@@ -84,7 +113,7 @@ export default defineDynamic({
             if (!existing.ok) {
               const created = await callBrainToolDirect(url, cred, "put_page", {
                 slug,
-                content: `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`,
+                content: operatorReviewPage(page_title),
                 ingested_via: "hotelclaw-channel-bot",
               });
               if (!created.ok) return { captured: false, reason: created.reason };

@@ -24,6 +24,10 @@
     {
       "path": "/api/chatbots/auto-retrain",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/brain/sync-documents",
+      "schedule": "30 3 * * *"
     }
   ]
 }

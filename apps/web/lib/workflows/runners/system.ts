@@ -3,6 +3,7 @@ import {
   captureToBrain,
   resolvePropertyBrain,
 } from "@/lib/brain/client";
+import { logBrainEvent } from "@/lib/brain/telemetry";
 import { delegateToEve } from "@/lib/ai/eve-delegate";
 import type { RunnerImpl } from "./types";
 
@@ -16,12 +17,14 @@ export const gbrainCaptureRunner: RunnerImpl<
 
   const binding = await resolvePropertyBrain(ctx.propertyId);
   if (!binding) {
-    console.log("[workflow:gbrain.capture:stub]", {
+    // Kept as a stub (not a run failure) for workflow back-compat, but the
+    // skip is structured telemetry now — a brainless property running
+    // capture steps is a provisioning gap someone should see.
+    logBrainEvent("capture_skipped_no_binding", {
+      surface: "workflow-capture",
       propertyId: ctx.propertyId,
       workflowId: ctx.workflowId,
       runId: ctx.runId,
-      text: config.text,
-      tags: config.tags,
     });
     return { ok: false, stub: true };
   }

@@ -267,6 +267,13 @@ export interface Database {
           // TSV plaintext rendering of the sheet body — drives body_fts.
           sheet_text: string | null;
           sheet_updated_at: string | null;
+          // Concatenated extracted text of uploaded file attachments
+          // (migration 0089, lib/documents/attachment-text.ts). Weight C
+          // in body_fts; mirrored into the brain page.
+          attachments_text: string;
+          // Last successful mirror into the property's gbrain source
+          // (migration 0088, lib/brain/doc-sync.ts). Null = never mirrored.
+          brain_synced_at: string | null;
           space_id: string | null;
           project_id: string | null;
           created_by: string | null;
@@ -297,6 +304,8 @@ export interface Database {
           sheet_state?: unknown;
           sheet_text?: string | null;
           sheet_updated_at?: string | null;
+          attachments_text?: string;
+          brain_synced_at?: string | null;
           space_id?: string | null;
           project_id?: string | null;
           created_by?: string | null;
@@ -320,12 +329,43 @@ export interface Database {
           sheet_state: unknown;
           sheet_text: string | null;
           sheet_updated_at: string | null;
+          attachments_text: string;
+          brain_synced_at: string | null;
           space_id: string | null;
           project_id: string | null;
           last_edited_by: string | null;
           icon: string | null;
           cover_url: string | null;
           archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      // Extracted plaintext of files uploaded to the documents-files bucket
+      // (migration 0089). Service-client writes; members read.
+      document_attachment_texts: {
+        Row: {
+          id: string;
+          property_id: string;
+          document_id: string;
+          storage_path: string;
+          file_name: string;
+          mime: string;
+          text_content: string;
+          extracted_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          document_id: string;
+          storage_path: string;
+          file_name: string;
+          mime: string;
+          text_content?: string;
+          extracted_at?: string;
+        };
+        Update: Partial<{
+          text_content: string;
+          extracted_at: string;
         }>;
         Relationships: [];
       };

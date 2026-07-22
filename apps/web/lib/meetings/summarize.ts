@@ -340,16 +340,31 @@ export async function processTranscriptReady(args: {
       ]
         .filter(Boolean)
         .join("\n\n");
-      await captureToBrain(binding, {
+      const captured = await captureToBrain(binding, {
         slug: "operations/meetings",
         pageTitle: "Meeting outcomes",
         summary: `${args.meeting.title || "Meeting"}: ${summary.decisions[0] ?? summary.summary_md.split("\n")[0].slice(0, 200)}`,
         detail,
         source: `meeting ${args.meeting.id}, ${new Date().toISOString().slice(0, 10)}`,
       });
+      if (!captured.ok) {
+        const { logBrainEvent } = await import("@/lib/brain/telemetry");
+        logBrainEvent("capture_failed", {
+          surface: "meeting-outcomes",
+          propertyId: args.meeting.propertyId,
+          meetingId: args.meeting.id,
+          reason: captured.reason,
+        });
+      }
     }
   } catch (err) {
-    console.warn("[meetings] brain capture failed", err);
+    const { logBrainEvent } = await import("@/lib/brain/telemetry");
+    logBrainEvent("capture_failed", {
+      surface: "meeting-outcomes",
+      propertyId: args.meeting.propertyId,
+      meetingId: args.meeting.id,
+      reason: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
