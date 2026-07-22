@@ -1,7 +1,7 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
 __eveDirname(__eveFileURLToPath(import.meta.url));
-import { I as dispatchScheduleTask } from "../_libs/eve.mjs";
+import { I as dispatchScheduleTask } from "../_libs/eve+zod.mjs";
 //#region #eve-schedule-task/eve.schedule.c2NoZWR1bGVzL21vcm5pbmdfb3BzLm1k
 const config = { "kind": "production" };
 var eve_schedule_default = {

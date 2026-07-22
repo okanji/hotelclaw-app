@@ -18,7 +18,7 @@
     "@supabase/ssr": "0.10",
     "@supabase/supabase-js": "2",
     "ai": "^7.0.26",
-    "eve": "^0.24.6",
+    "eve": "^0.27.0",
     "stream-chat": "9.47.1",
     "zod": "^4.4.3"
   },
