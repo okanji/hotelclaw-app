@@ -398,8 +398,12 @@ export default defineDynamic({
               return {
                 unavailable: true,
                 reason: result.reason,
+                // Wording constraint: the eve build transform captures any
+                // token in this body matching a resolver-scope binding —
+                // never write the bare word "t-o-o-l-s" (the accumulator's
+                // name) in here.
                 guidance:
-                  "The knowledge brain is unreachable. Answer from app tools only and say institutional knowledge is temporarily unavailable.",
+                  "The knowledge brain is unreachable. Answer from live app data only and say institutional knowledge is temporarily unavailable.",
               };
             }
             return { result: result.content };

@@ -36,6 +36,15 @@ const CHANNEL_BOT_SLUG = "hotelclaw";
 const CONTEXT_MESSAGE_LIMIT = 12;
 const CONTEXT_CHAR_CAP = 4000;
 
+// Identity of the runtime build serving this process. Prod: the Vercel
+// deployment id (changes exactly when a new build ships). Dev: a boot UUID
+// (changes on every dev-server restart — which is also when agent-file
+// edits take effect, so stale-session confusion dies with it).
+const RUNTIME_TAG =
+  process.env.VERCEL_DEPLOYMENT_ID ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  `dev-${crypto.randomUUID()}`;
+
 const ACTIVATION_NOTES: Record<ActivationReason, string> = {
   mention: "you were @-mentioned in the newest message",
   "auto-classifier":
@@ -62,10 +71,18 @@ export async function runChannelBotEveTurn(ctx: {
 
     const { data: existing } = await service
       .from("channel_bot_sessions")
-      .select("id, eve_session_id, eve_continuation_token, last_turn_at")
+      .select("id, eve_session_id, eve_continuation_token, last_turn_at, runtime_tag")
       .eq("channel_id", ctx.streamChannelId)
       .eq("thread_key", threadKey)
       .maybeSingle();
+
+    // Sessions must not survive a runtime build change: eve persists
+    // dynamic-tool references against the creating build's exec registry,
+    // and resuming across builds skips every unmatched tool — the bot runs
+    // TOOLLESS (prod incident 2026-07-22). On tag mismatch, resume is
+    // skipped and a fresh session starts on this build.
+    const staleRuntime =
+      !!existing && (existing.runtime_tag ?? null) !== RUNTIME_TAG;
 
     // Context packing: messages the session hasn't seen (excluding the
     // trigger and the bot's own posts), tight + char-capped.
@@ -155,9 +172,9 @@ export async function runChannelBotEveTurn(ctx: {
       senderId: ctx.triggerMessage.userId,
     });
 
-    // Resume when we hold a live continuation, else fresh; a failed resume
-    // (expired session/token) transparently starts fresh.
-    let sessionId = existing?.eve_session_id ?? null;
+    // Resume when we hold a live continuation FROM THIS BUILD, else fresh;
+    // a failed resume (expired session/token) transparently starts fresh.
+    let sessionId = staleRuntime ? null : (existing?.eve_session_id ?? null);
     let sendResponse: Response | null = null;
     if (sessionId && existing?.eve_continuation_token) {
       sendResponse = await fetch(`${eveOrigin()}/eve/v1/session/${sessionId}`, {
@@ -198,6 +215,7 @@ export async function runChannelBotEveTurn(ctx: {
         channel_id: ctx.streamChannelId,
         thread_key: threadKey,
         eve_session_id: sessionId,
+        runtime_tag: RUNTIME_TAG,
         last_turn_at: new Date().toISOString(),
       },
       { onConflict: "channel_id,thread_key" },
@@ -217,6 +235,7 @@ export async function runChannelBotEveTurn(ctx: {
         thread_key: threadKey,
         eve_session_id: sessionId,
         eve_continuation_token: turn.continuationToken,
+        runtime_tag: RUNTIME_TAG,
         last_turn_at: new Date().toISOString(),
         status: turn.pendingRequests.length ? "awaiting_approval" : "idle",
         pending_approval: turn.pendingRequests.length

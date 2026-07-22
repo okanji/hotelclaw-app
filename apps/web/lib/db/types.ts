@@ -2477,6 +2477,10 @@ export interface Database {
           eve_continuation_token: string | null;
           status: "idle" | "awaiting_approval";
           pending_approval: Record<string, unknown> | null;
+          // Runtime build that created the eve session (0091) — mismatch
+          // means start fresh, never resume (tool registries don't survive
+          // across builds).
+          runtime_tag: string | null;
           last_turn_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2490,6 +2494,7 @@ export interface Database {
           eve_continuation_token?: string | null;
           status?: "idle" | "awaiting_approval";
           pending_approval?: Record<string, unknown> | null;
+          runtime_tag?: string | null;
           last_turn_at?: string | null;
         };
         Update: Partial<{
@@ -2497,6 +2502,7 @@ export interface Database {
           eve_continuation_token: string | null;
           status: "idle" | "awaiting_approval";
           pending_approval: Record<string, unknown> | null;
+          runtime_tag: string | null;
           last_turn_at: string | null;
         }>;
         Relationships: [];

@@ -15,7 +15,9 @@ export default function NotFound() {
           This page doesn&apos;t exist, or you no longer have access to it.
         </p>
       </div>
-      <Button render={<Link href="/" />}>Back to your workspace</Button>
+      <Button render={<Link href="/" />} nativeButton={false}>
+        Back to your workspace
+      </Button>
     </div>
   );
 }

@@ -770,24 +770,13 @@ export default defineDynamic({
 
       // Role-gated management surfaces. These check the SENDER's own
       // membership at call time — the acting-principal fallback never
-      // satisfies them (see senderId above).
-      if (
-        grants.has("get_insight_brief") ||
-        grants.has("get_weekly_report") ||
-        grants.has("list_handovers")
-      ) {
-        const requireManagerSender = async (): Promise<string | null> => {
-          const { data } = await serviceClient()
-            .from("memberships")
-            .select("role")
-            .eq("property_id", propertyId)
-            .eq("user_id", senderId)
-            .maybeSingle();
-          if (!data || !["owner", "manager"].includes(data.role)) {
-            return "This is a management surface — only property owners and managers can ask for it. Tell the requester that, plainly.";
-          }
-          return null;
-        };
+      // satisfies them (see senderId above). The check is INLINED in each
+      // execute rather than a shared helper: the eve build transform
+      // serializes closure captures, and a captured FUNCTION does not
+      // survive workflow replay on Vercel.
+      {
+        const ROLE_DENIED =
+          "This is a management surface — only property owners and managers can ask for it. Tell the requester that, plainly.";
 
         if (grants.has("get_insight_brief")) {
           tools.get_insight_brief = defineTool({
@@ -795,8 +784,15 @@ export default defineDynamic({
               "The property's cached intelligence brief (Insights cards: pace flags, anomalies, watch items). Owner/manager only — refuse politely for anyone else. Never generates; reads the cache.",
             inputSchema: z.object({}),
             async execute() {
-              const denied = await requireManagerSender();
-              if (denied) return { denied };
+              const { data: sender } = await serviceClient()
+                .from("memberships")
+                .select("role")
+                .eq("property_id", propertyId)
+                .eq("user_id", senderId)
+                .maybeSingle();
+              if (!sender || !["owner", "manager"].includes(sender.role)) {
+                return { denied: ROLE_DENIED };
+              }
               const { data, error } = await serviceClient()
                 .from("insight_briefs")
                 .select("insights, generated_at")
@@ -822,8 +818,15 @@ export default defineDynamic({
               audience: z.enum(["management", "staff"]).default("management"),
             }),
             async execute({ audience }) {
-              const denied = await requireManagerSender();
-              if (denied) return { denied };
+              const { data: sender } = await serviceClient()
+                .from("memberships")
+                .select("role")
+                .eq("property_id", propertyId)
+                .eq("user_id", senderId)
+                .maybeSingle();
+              if (!sender || !["owner", "manager"].includes(sender.role)) {
+                return { denied: ROLE_DENIED };
+              }
               const { data, error } = await serviceClient()
                 .from("insight_reports")
                 .select("period_start, period_end, audience, summary_md, created_at")
@@ -851,8 +854,18 @@ export default defineDynamic({
               limit: z.number().int().min(1).max(10).default(5),
             }),
             async execute({ limit }) {
-              const denied = await requireManagerSender();
-              if (denied) return { denied };
+              const { data: sender } = await serviceClient()
+                .from("memberships")
+                .select("role")
+                .eq("property_id", propertyId)
+                .eq("user_id", senderId)
+                .maybeSingle();
+              if (!sender || !["owner", "manager"].includes(sender.role)) {
+                return {
+                  denied:
+                    "This is a management surface — only property owners and managers can ask for it. Tell the requester that, plainly.",
+                };
+              }
               const supabase = serviceClient();
               const { data, error } = await supabase
                 .from("handovers")
@@ -900,8 +913,8 @@ export default defineDynamic({
         ? await resolvePropertyBrainBinding(propertyId)
         : null;
       if (binding) {
-        const url = binding.url;
-        const cred = {
+        const brainMcpUrl = binding.url;
+        const brainCred = {
           clientId: binding.clientId,
           clientSecret: binding.clientSecret,
         };
@@ -911,7 +924,7 @@ export default defineDynamic({
             description: brainToolDescriptions.brain_search,
             inputSchema: brainToolSchemas.brain_search,
             async execute({ query, limit }) {
-              const result = await callBrainToolDirect(url, cred, "search", {
+              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
                 query,
                 limit,
               });
@@ -928,8 +941,8 @@ export default defineDynamic({
             inputSchema: brainToolSchemas.brain_think,
             async execute({ question }) {
               const result = await callBrainToolDirect(
-                url,
-                cred,
+                brainMcpUrl,
+                brainCred,
                 "think",
                 { question },
                 { timeoutMs: 60_000 },
@@ -946,7 +959,7 @@ export default defineDynamic({
             description: brainToolDescriptions.brain_get,
             inputSchema: brainToolSchemas.brain_get,
             async execute({ slug }) {
-              const result = await callBrainToolDirect(url, cred, "get_page", {
+              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
                 slug,
               });
               if (!result.ok) {
@@ -970,7 +983,7 @@ export default defineDynamic({
             description: brainToolDescriptions.brain_list,
             inputSchema: brainToolSchemas.brain_list,
             async execute({ prefix, limit }) {
-              const result = await callBrainToolDirect(url, cred, "list_pages", {
+              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
                 ...(prefix ? { prefix } : {}),
                 limit,
                 sort: "updated_desc",
@@ -994,18 +1007,18 @@ export default defineDynamic({
             description: brainToolDescriptions.brain_capture,
             inputSchema: brainToolSchemas.brain_capture,
             async execute({ slug, page_title, observation, source }) {
-              const existing = await callBrainToolDirect(url, cred, "get_page", {
+              const existing = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
                 slug,
               });
               if (!existing.ok) {
-                const created = await callBrainToolDirect(url, cred, "put_page", {
+                const created = await callBrainToolDirect(brainMcpUrl, brainCred, "put_page", {
                   slug,
                   content: operatorReviewPage(page_title),
                   ingested_via: "hotelclaw-custom-agent",
                 });
                 if (!created.ok) return { captured: false, reason: created.reason };
               }
-              const entry = await callBrainToolDirect(url, cred, "add_timeline_entry", {
+              const entry = await callBrainToolDirect(brainMcpUrl, brainCred, "add_timeline_entry", {
                 slug,
                 date: new Date().toISOString().slice(0, 10),
                 summary: observation,

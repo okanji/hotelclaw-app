@@ -13,7 +13,14 @@ export default defineAgent({
   model: defineDynamic({
     fallback: anthropic("claude-haiku-4-5-20251001"),
     events: {
-      "session.started": async (_event, ctx) => {
+      // step.started, NOT session.started: session-scoped model selections
+      // must be serializable strings on the Vercel workflow backend — a
+      // provider object here is rejected at runtime ("must be serializable
+      // ... or use step.started") and EVERY session silently fell back to
+      // Haiku in prod. Step scope accepts provider objects; we return the
+      // same model every step, so there's no mid-session model switching
+      // and prompt caching is unaffected.
+      "step.started": async (_event, ctx) => {
         const pod = await resolvePodContext(ctx);
         if (pod?.bot) return anthropic(AGENT_TIER_MODELS[pod.bot.modelTier]);
         const resolved = await resolveSessionAgent(ctx);

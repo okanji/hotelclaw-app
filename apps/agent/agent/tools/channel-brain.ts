@@ -34,15 +34,15 @@ export default defineDynamic({
       }
       const binding = await resolvePropertyBrainBinding(caller.propertyId);
       if (!binding) return null;
-      const url = binding.url;
-      const cred = { clientId: binding.clientId, clientSecret: binding.clientSecret };
+      const brainMcpUrl = binding.url;
+      const brainCred = { clientId: binding.clientId, clientSecret: binding.clientSecret };
 
       return {
         brain_search: defineTool({
           description: brainToolDescriptions.brain_search,
           inputSchema: brainToolSchemas.brain_search,
           async execute({ query, limit }) {
-            const result = await callBrainToolDirect(url, cred, "search", {
+            const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
               query,
               limit,
             });
@@ -56,8 +56,8 @@ export default defineDynamic({
           inputSchema: brainToolSchemas.brain_think,
           async execute({ question }) {
             const result = await callBrainToolDirect(
-              url,
-              cred,
+              brainMcpUrl,
+              brainCred,
               "think",
               { question },
               { timeoutMs: 60_000 },
@@ -71,7 +71,7 @@ export default defineDynamic({
           description: brainToolDescriptions.brain_get,
           inputSchema: brainToolSchemas.brain_get,
           async execute({ slug }) {
-            const result = await callBrainToolDirect(url, cred, "get_page", {
+            const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
               slug,
             });
             if (!result.ok) return { unavailable: true, reason: result.reason };
@@ -90,7 +90,7 @@ export default defineDynamic({
           description: brainToolDescriptions.brain_list,
           inputSchema: brainToolSchemas.brain_list,
           async execute({ prefix, limit }) {
-            const result = await callBrainToolDirect(url, cred, "list_pages", {
+            const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
               ...(prefix ? { prefix } : {}),
               limit,
               sort: "updated_desc",
@@ -107,18 +107,18 @@ export default defineDynamic({
           description: brainToolDescriptions.brain_capture,
           inputSchema: brainToolSchemas.brain_capture,
           async execute({ slug, page_title, observation, source }) {
-            const existing = await callBrainToolDirect(url, cred, "get_page", {
+            const existing = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
               slug,
             });
             if (!existing.ok) {
-              const created = await callBrainToolDirect(url, cred, "put_page", {
+              const created = await callBrainToolDirect(brainMcpUrl, brainCred, "put_page", {
                 slug,
                 content: operatorReviewPage(page_title),
                 ingested_via: "hotelclaw-channel-bot",
               });
               if (!created.ok) return { captured: false, reason: created.reason };
             }
-            const entry = await callBrainToolDirect(url, cred, "add_timeline_entry", {
+            const entry = await callBrainToolDirect(brainMcpUrl, brainCred, "add_timeline_entry", {
               slug,
               date: new Date().toISOString().slice(0, 10),
               summary: observation,
