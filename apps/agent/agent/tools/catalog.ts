@@ -1,4 +1,5 @@
 import { defineDynamic, defineTool } from "eve/tools";
+import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { StreamChat } from "stream-chat";
 import {
@@ -376,6 +377,226 @@ export default defineDynamic({
               title: data.title,
               content: (data.body_text ?? "").slice(0, 30_000),
             };
+          },
+        });
+      }
+
+      if (grants.has("update_task")) {
+        tools.update_task = defineTool({
+          description:
+            "Update a task's status, priority, due date, assignee, title, or description. Get the task id from list_open_tasks/search_tasks first. Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            status: z.enum(["todo", "in_progress", "blocked", "done"]).optional(),
+            priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
+            due_at: z.iso.datetime({ offset: true }).nullish(),
+            assignee_name: z
+              .string()
+              .max(120)
+              .nullish()
+              .describe("Person to assign (fuzzy name match); null to unassign."),
+            title: z.string().min(3).max(200).optional(),
+            description: z.string().max(4000).optional(),
+          }),
+          async execute({ task_id, status, priority, due_at, assignee_name, title, description }) {
+            const supabase = serviceClient();
+            const { data: task } = await supabase
+              .from("tasks")
+              .select("id, title, assignee_id")
+              .eq("id", task_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!task) return { error: "Task not found in this property." };
+
+            const patch: Record<string, unknown> = {};
+            if (status) patch.status = status;
+            if (priority) patch.priority = priority;
+            if (due_at !== undefined) patch.due_at = due_at;
+            if (title) patch.title = title;
+            if (description !== undefined) patch.description = description;
+
+            let assigneeId: string | null | undefined;
+            if (assignee_name === null) assigneeId = null;
+            else if (typeof assignee_name === "string") {
+              const { data: members } = await supabase
+                .from("memberships")
+                .select("user_id")
+                .eq("property_id", propertyId);
+              const ids = (members ?? []).map((m) => m.user_id);
+              const { data: profiles } = ids.length
+                ? await supabase.from("profiles").select("id, full_name").in("id", ids)
+                : { data: [] };
+              const needle = assignee_name.trim().toLowerCase();
+              const match =
+                (profiles ?? []).find((p) => (p.full_name ?? "").toLowerCase() === needle) ??
+                (profiles ?? []).find((p) =>
+                  (p.full_name ?? "").toLowerCase().includes(needle),
+                );
+              if (!match) {
+                return {
+                  error: `No member matches "${assignee_name}".`,
+                  members: (profiles ?? []).map((p) => p.full_name).filter(Boolean),
+                };
+              }
+              assigneeId = match.id;
+            }
+            if (assigneeId !== undefined) patch.assignee_id = assigneeId;
+            if (Object.keys(patch).length === 0) {
+              return { error: "Nothing to update — pass at least one field." };
+            }
+
+            const { error } = await supabase
+              .from("tasks")
+              .update(patch)
+              .eq("id", task_id)
+              .eq("property_id", propertyId);
+            if (error) return { error: error.message };
+
+            // Mirror the app's assignment notification (workflow events are
+            // covered by the tasks DB triggers; notifications are app-level).
+            if (assigneeId && assigneeId !== task.assignee_id) {
+              await supabase.from("notifications").insert({
+                user_id: assigneeId,
+                property_id: propertyId,
+                type: "task_assigned",
+                payload: { taskId: task_id, taskTitle: title ?? task.title },
+              });
+            }
+            return {
+              updated: true,
+              task_id,
+              changed: Object.keys(patch),
+              link: `/p/${propertyId}/tasks/${task_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("create_document")) {
+        tools.create_document = defineTool({
+          description:
+            "Create a NEW document with real content (SOPs, runbooks, notes, plans). Write the body as clean HTML using only: h1-h3, p, ul/ol/li, blockquote, pre/code, table/thead/tbody/tr/th/td, strong/em/a. Returns the doc link — always include it in your reply. The content is immediately searchable and brain-mirrored.",
+          inputSchema: z.object({
+            title: z.string().min(1).max(200),
+            content_html: z.string().min(20).max(100_000),
+          }),
+          async execute({ title, content_html }, toolCtx) {
+            void toolCtx;
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/write`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                body: JSON.stringify({
+                  propertyId,
+                  title,
+                  html: content_html,
+                  mode: "replace",
+                  actorUserId: userId,
+                }),
+                signal: AbortSignal.timeout(45_000),
+              },
+            ).catch(() => null);
+            if (!response?.ok) {
+              const detail = response
+                ? ((await response.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Document write failed (${response?.status ?? "unreachable"}).` };
+            }
+            const body = (await response.json()) as {
+              documentId: string;
+              bodyTextLength: number;
+              url: string;
+            };
+            return {
+              created: true,
+              document_id: body.documentId,
+              characters: body.bodyTextLength,
+              link: body.url,
+            };
+          },
+        });
+      }
+
+      if (grants.has("update_document")) {
+        tools.update_document = defineTool({
+          description:
+            "Write CONTENT into an existing document — replace the whole body or append sections. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. This REPLACES/extends what's there — when unsure whether to overwrite meaningful existing content, confirm with the requester first. Content is immediately searchable and brain-mirrored; the doc updates live for anyone viewing it.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            content_html: z.string().min(10).max(100_000),
+            mode: z
+              .enum(["replace", "append"])
+              .default("replace")
+              .describe("replace = new body; append = add to the end"),
+          }),
+          async execute({ document_id, content_html, mode }) {
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/write`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                body: JSON.stringify({
+                  propertyId,
+                  documentId: document_id,
+                  html: content_html,
+                  mode,
+                }),
+                signal: AbortSignal.timeout(45_000),
+              },
+            ).catch(() => null);
+            if (!response?.ok) {
+              const detail = response
+                ? ((await response.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Document write failed (${response?.status ?? "unreachable"}).` };
+            }
+            const body = (await response.json()) as {
+              documentId: string;
+              bodyTextLength: number;
+              url: string;
+            };
+            return {
+              updated: true,
+              document_id: body.documentId,
+              characters: body.bodyTextLength,
+              link: body.url,
+            };
+          },
+        });
+      }
+
+      if (grants.has("archive_document")) {
+        tools.archive_document = defineTool({
+          description:
+            "Archive a document AND all its sub-pages (reversible from the app's Archived list, but high-impact). The SYSTEM parks every call for human approval before it executes — call it directly when asked and let the approval gate do its job; never work around it.",
+          approval: always(),
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            reason: z.string().min(5).max(300),
+          }),
+          async execute({ document_id, reason }) {
+            const supabase = serviceClient();
+            const { data: doc } = await supabase
+              .from("documents")
+              .select("id, title")
+              .eq("id", document_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!doc) return { error: "Document not found in this property." };
+            const { error } = await supabase.rpc("archive_document_tree", {
+              root: document_id,
+            });
+            if (error) return { error: error.message };
+            // Brain mirrors of the subtree are cleaned by the nightly
+            // doc-sync sweep (archived_at > brain_synced_at staleness).
+            return { archived: true, title: doc.title, reason };
           },
         });
       }

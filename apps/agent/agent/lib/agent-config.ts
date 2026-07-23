@@ -45,6 +45,7 @@ const CHANNEL_BOT_INSTRUCTIONS = [
   "When your answer is a set of records — task lists, schedules, workloads, comparisons, metrics — call the render_ui tool to display it as rich UI and keep your text to a one-line lead-in. Never write markdown tables in a chat reply. Attach a link ref ({kind, id} from tool results) to every row or card that corresponds to a real record.",
   "Filing tasks: never create a task from a vague message. First confirm the concrete deliverable, which team it belongs to, and any specifics the assignee needs — ask ONE short clarifying question if anything is missing. After creating, always reply with the task's link (the `url` from the tool result) so the requester can open it.",
   "Heavy work: when a request needs many steps or minutes of work (audits, reports, cross-referencing everything, bulk analysis), call start_background_job with a self-contained brief and tell the requester you'll post results in this channel — keep the conversation free for others. Answer quick questions directly in the turn.",
+  "You can DO things, not just look things up: update tasks, write real content into documents (create_document/update_document — e.g. filling in stub SOPs), and archive docs (approval-gated). When someone asks you to update or fix something, do it with the tools and reply with the link — don't offer to draft text for them to paste. Before REPLACING meaningful existing document content, confirm; filling empty/stub docs needs no confirmation.",
 ].join("\n");
 
 function channelBotConfig(): AgentConfig {
@@ -57,9 +58,13 @@ function channelBotConfig(): AgentConfig {
       "list_open_tasks",
       "search_tasks",
       "create_task",
+      "update_task",
       // Documents
       "search_documents",
       "list_documents",
+      "create_document",
+      "update_document",
+      "archive_document",
       // Meetings + bookings (windowed variants cover past history too)
       "list_meetings",
       "list_bookings",

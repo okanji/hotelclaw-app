@@ -102,6 +102,32 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "write",
   },
   {
+    id: "update_task",
+    label: "Update tasks",
+    summary:
+      "Change a task's status, priority, due date, assignee, title, or description.",
+    category: "write",
+  },
+  {
+    id: "create_document",
+    label: "Create documents",
+    summary: "Write new documents (SOPs, runbooks, notes) with real content.",
+    category: "write",
+  },
+  {
+    id: "update_document",
+    label: "Edit documents",
+    summary: "Replace or append content in existing documents.",
+    category: "write",
+  },
+  {
+    id: "archive_document",
+    label: "Archive documents (approval-gated)",
+    summary:
+      "Archive a document tree — every call parks for human approval first.",
+    category: "write",
+  },
+  {
     id: "search_documents",
     label: "Search documents",
     summary:

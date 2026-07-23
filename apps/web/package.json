@@ -60,6 +60,7 @@
     "@tiptap/extension-typography": "^3",
     "@tiptap/extension-youtube": "^3",
     "@tiptap/extensions": "^3",
+    "@tiptap/html": "^3.28.0",
     "@tiptap/pm": "^3",
     "@tiptap/react": "^3",
     "@tiptap/starter-kit": "^3",
