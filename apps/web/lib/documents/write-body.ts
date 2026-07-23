@@ -62,7 +62,7 @@ export async function writeDocumentBody(input: {
   const supabase = createServiceClient();
   const { data: doc } = await supabase
     .from("documents")
-    .select("id, property_id, kind, archived_at")
+    .select("id, property_id, kind, archived_at, body_text, body_json")
     .eq("id", input.documentId)
     .eq("property_id", input.propertyId)
     .maybeSingle();
@@ -72,27 +72,80 @@ export async function writeDocumentBody(input: {
     return { ok: false, error: "Only rich-text documents can be written (not sheets)." };
   }
 
+  // Undo safety net (0094): a REPLACE of non-trivial existing content
+  // stashes the current snapshot first — the only recovery path once the
+  // Liveblocks body and Postgres snapshot are overwritten. Capped at the
+  // 10 newest revisions per document.
+  if (input.mode === "replace" && (doc.body_text ?? "").trim().length > 80) {
+    await supabase.from("document_ai_revisions").insert({
+      property_id: input.propertyId,
+      document_id: input.documentId,
+      body_json: doc.body_json ?? null,
+      body_text: doc.body_text ?? "",
+      note: "pre-replace snapshot (AI write)",
+    });
+    const { data: extra } = await supabase
+      .from("document_ai_revisions")
+      .select("id")
+      .eq("document_id", input.documentId)
+      .order("replaced_at", { ascending: false })
+      .range(10, 50);
+    if ((extra ?? []).length > 0) {
+      await supabase
+        .from("document_ai_revisions")
+        .delete()
+        .in("id", (extra ?? []).map((r) => r.id));
+    }
+  }
+
   const incoming = htmlToProseMirrorDoc(input.html);
   if (!incoming.content || incoming.content.length === 0) {
     return { ok: false, error: "Content produced an empty document." };
   }
+  // Top-level blocks as real schema nodes — written one transaction each.
+  const blocks = (incoming.content as unknown[]).map((b) =>
+    SCHEMA.nodeFromJSON(b),
+  );
 
   const liveblocks = getLiveblocksServer();
   const roomId = roomIdForDocument(input.propertyId, input.documentId);
   await liveblocks.getOrCreateRoom(roomId, { defaultAccesses: [] });
 
+  // PROGRESSIVE, TRANSACTIONAL writing (not whole-body setContent):
+  //   • append inserts each block at the CURRENT end via a ProseMirror
+  //     transaction — concurrent human edits anywhere in the doc merge
+  //     cleanly through Yjs position mapping, nothing is clobbered.
+  //   • replace clears once, then streams blocks in one-by-one. A human's
+  //     concurrent keystroke during the clear itself is the only loss
+  //     window (and the pre-replace revision stash covers recovery).
+  //   • Each update() syncs through Yjs individually, so anyone viewing
+  //     the doc (chat split-panel, editor tab) literally watches the AI
+  //     write section by section.
+  // Group huge docs so total round-trips stay bounded (each update() is a
+  // Liveblocks sync); typical docs stream block-by-block.
+  const GROUP_TARGET = 24;
+  const groupSize = Math.max(1, Math.ceil(blocks.length / GROUP_TARGET));
+  const groups: (typeof blocks)[] = [];
+  for (let i = 0; i < blocks.length; i += groupSize) {
+    groups.push(blocks.slice(i, i + groupSize));
+  }
+  const paceMs = groups.length > 15 ? 80 : 180;
+
   await withProsemirrorDocument(
     { client: liveblocks, roomId, schema: SCHEMA },
     async (api) => {
-      if (input.mode === "append") {
-        const current = api.toJSON() as ProseMirrorNode;
-        const merged: ProseMirrorNode = {
-          type: "doc",
-          content: [...(current.content ?? []), ...(incoming.content ?? [])],
-        };
-        await api.setContent(merged);
-      } else {
-        await api.setContent(incoming);
+      if (input.mode === "replace") {
+        await api.update((doc, tr) => tr.delete(0, doc.content.size));
+      }
+      for (const group of groups) {
+        await api.update((doc, tr) => {
+          let out = tr;
+          for (const block of group) {
+            out = out.insert(out.doc.content.size, block);
+          }
+          return out;
+        });
+        await new Promise((resolve) => setTimeout(resolve, paceMs));
       }
     },
   );

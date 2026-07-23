@@ -17,6 +17,7 @@ import type {
 import { ChannelHeader } from "./channel-header";
 import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
+import { ArtifactSidePanel } from "./artifact-side-panel";
 import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
 import { MessageJumper } from "./search/message-jumper";
@@ -168,6 +169,7 @@ export function ChannelView({
               out of the channel UI. */}
           <SlackThread />
           <ChannelInfoPanel propertyId={propertyId} />
+          <ArtifactSidePanel propertyId={propertyId} />
           <MessageJumper messageId={messageId} />
         </Channel>
       </ChatView>

@@ -95,9 +95,20 @@ export async function POST(request: NextRequest) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 422 });
   }
+  let title = input.title ?? null;
+  if (!title) {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("documents")
+      .select("title")
+      .eq("id", documentId)
+      .maybeSingle();
+    title = data?.title ?? null;
+  }
   return NextResponse.json({
     ok: true,
     documentId,
+    title,
     bodyTextLength: result.bodyTextLength,
     url: `/p/${input.propertyId}/documents/${documentId}`,
   });

@@ -27,8 +27,10 @@ break_stale_locks() {
 }
 
 each_source() {
-  # gbrain sources list output: one source name per line (first column).
-  gbrain sources list 2>/dev/null | awk '{print $1}' | grep -v '^$' || true
+  # Per-PROPERTY sources only (prop-<hex> — single-token, so column parsing
+  # is safe). Multi-word curated sources would be mangled by $1 and are
+  # human-maintained; the dream cycle targets bot-evidence sources.
+  gbrain sources list --timeout=45s 2>/dev/null | awk '{print $1}' | grep -E '^prop-' || true
 }
 
 case "$MODE" in

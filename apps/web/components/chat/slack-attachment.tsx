@@ -1,7 +1,9 @@
 "use client";
 
 import { Attachment as DefaultAttachment, type AttachmentProps } from "stream-chat-react";
+import { isAppArtifactAttachment } from "@hotelclaw/chat-ui";
 import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
+import { ArtifactCard } from "@/components/chat/artifact-card";
 import { SlackMessageImage } from "@/components/chat/slack-message-image";
 import { FormAttachmentCard } from "@/components/forms/form-attachment-card";
 import type { FormAttachmentPayload } from "@/components/forms/share-actions";
@@ -26,8 +28,9 @@ export function SlackAttachment(props: AttachmentProps) {
 
   const formAttachments = (attachments ?? []).filter(isForm);
   const aiUiAttachments = (attachments ?? []).filter(isAiUiAttachment);
+  const artifactAttachments = (attachments ?? []).filter(isAppArtifactAttachment);
   const others = (attachments ?? []).filter(
-    (a) => !isForm(a) && !isAiUiAttachment(a),
+    (a) => !isForm(a) && !isAiUiAttachment(a) && !isAppArtifactAttachment(a),
   );
 
   return (
@@ -37,6 +40,9 @@ export function SlackAttachment(props: AttachmentProps) {
       ))}
       {aiUiAttachments.map((a, i) => (
         <AiUiAttachment key={i} attachment={a} />
+      ))}
+      {artifactAttachments.map((a, i) => (
+        <ArtifactCard key={a.document_id ?? i} attachment={a} />
       ))}
       {others.length > 0 ? (
         <DefaultAttachment

@@ -454,12 +454,24 @@ export default defineDynamic({
 
             // Mirror the app's assignment notification (workflow events are
             // covered by the tasks DB triggers; notifications are app-level).
+            // The payload shape matches emitTaskAssignmentNotifications —
+            // the feed renders byUserName, falling back to "Someone".
             if (assigneeId && assigneeId !== task.assignee_id) {
+              const { data: senderProfile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", senderId)
+                .maybeSingle();
               await supabase.from("notifications").insert({
                 user_id: assigneeId,
                 property_id: propertyId,
                 type: "task_assigned",
-                payload: { taskId: task_id, taskTitle: title ?? task.title },
+                payload: {
+                  taskId: task_id,
+                  taskTitle: title ?? task.title,
+                  byUserId: senderId,
+                  byUserName: senderProfile?.full_name ?? "Hotelclaw AI",
+                },
               });
             }
             return {
@@ -475,13 +487,51 @@ export default defineDynamic({
       if (grants.has("create_document")) {
         tools.create_document = defineTool({
           description:
-            "Create a NEW document with real content (SOPs, runbooks, notes, plans). Write the body as clean HTML using only: h1-h3, p, ul/ol/li, blockquote, pre/code, table/thead/tbody/tr/th/td, strong/em/a. Returns the doc link — always include it in your reply. The content is immediately searchable and brain-mirrored.",
+            "Create a NEW document with real content (SOPs, runbooks, notes, plans). Write the body as clean HTML using only: h1-h3, p, ul/ol/li, blockquote, pre/code, table/thead/tbody/tr/th/td, strong/em/a. An artifact card appears in the channel so people can watch the doc being written live. Returns the doc link — include it in your reply.",
           inputSchema: z.object({
             title: z.string().min(1).max(200),
             content_html: z.string().min(20).max(100_000),
           }),
           async execute({ title, content_html }, toolCtx) {
-            void toolCtx;
+            // Live artifact card FIRST (deterministic id per tool call —
+            // Stream upserts on id, so step replays can't duplicate it).
+            const cardId = `eve-artifact-${toolCtx.callId}`;
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            let cardChannel: ReturnType<StreamChat["channel"]> | null = null;
+            if (apiKey && streamSecret && sessionChannelId) {
+              const { data: chatRow } = await serviceClient()
+                .from("channel_bot_sessions")
+                .select("channel_type")
+                .eq("channel_id", sessionChannelId)
+                .eq("thread_key", "_root")
+                .maybeSingle();
+              const server = StreamChat.getInstance(apiKey, streamSecret, {
+                timeout: 15_000,
+              });
+              cardChannel = server.channel(
+                chatRow?.channel_type ?? "team",
+                sessionChannelId,
+              );
+              await cardChannel
+                .sendMessage({
+                  id: cardId,
+                  text: "",
+                  user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                  ai_generated: true,
+                  attachments: [
+                    {
+                      type: "app_artifact",
+                      kind: "document",
+                      status: "writing",
+                      title,
+                      property_id: propertyId,
+                    },
+                  ],
+                } as unknown as Parameters<NonNullable<typeof cardChannel>["sendMessage"]>[0])
+                .catch(() => {});
+            }
+
             const response = await fetch(
               `${eveSelfOrigin()}/api/internal/documents/write`,
               {
@@ -497,7 +547,7 @@ export default defineDynamic({
                   mode: "replace",
                   actorUserId: userId,
                 }),
-                signal: AbortSignal.timeout(45_000),
+                signal: AbortSignal.timeout(55_000),
               },
             ).catch(() => null);
             if (!response?.ok) {
@@ -508,9 +558,41 @@ export default defineDynamic({
             }
             const body = (await response.json()) as {
               documentId: string;
+              title: string | null;
               bodyTextLength: number;
               url: string;
             };
+            if (cardChannel) {
+              // sendMessage with an existing id DEDUPES (returns the
+              // original) — flipping the card needs a partial UPDATE.
+              const server2 = StreamChat.getInstance(
+                process.env.NEXT_PUBLIC_STREAM_API_KEY ?? "",
+                process.env.STREAM_API_SECRET ?? "",
+                { timeout: 15_000 },
+              );
+              await server2
+                .partialUpdateMessage(
+                  cardId,
+                  {
+                    set: {
+                      attachments: [
+                        {
+                          type: "app_artifact",
+                          kind: "document",
+                          status: "done",
+                          action: "created",
+                          title: body.title ?? title,
+                          document_id: body.documentId,
+                          href: body.url,
+                          property_id: propertyId,
+                        },
+                      ],
+                    },
+                  } as unknown as Parameters<typeof server2.partialUpdateMessage>[1],
+                  process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                )
+                .catch(() => {});
+            }
             return {
               created: true,
               document_id: body.documentId,
@@ -524,7 +606,7 @@ export default defineDynamic({
       if (grants.has("update_document")) {
         tools.update_document = defineTool({
           description:
-            "Write CONTENT into an existing document — replace the whole body or append sections. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. This REPLACES/extends what's there — when unsure whether to overwrite meaningful existing content, confirm with the requester first. Content is immediately searchable and brain-mirrored; the doc updates live for anyone viewing it.",
+            "Write CONTENT into an existing document — replace the whole body or append sections. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. This REPLACES/extends what's there — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
           inputSchema: z.object({
             document_id: z.string().uuid(),
             content_html: z.string().min(10).max(100_000),
@@ -533,7 +615,56 @@ export default defineDynamic({
               .default("replace")
               .describe("replace = new body; append = add to the end"),
           }),
-          async execute({ document_id, content_html, mode }) {
+          async execute({ document_id, content_html, mode }, toolCtx) {
+            const supabase = serviceClient();
+            const { data: docRow } = await supabase
+              .from("documents")
+              .select("title")
+              .eq("id", document_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!docRow) return { error: "Document not found in this property." };
+
+            const cardId = `eve-artifact-${toolCtx.callId}`;
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            let cardChannel: ReturnType<StreamChat["channel"]> | null = null;
+            if (apiKey && streamSecret && sessionChannelId) {
+              const { data: chatRow } = await supabase
+                .from("channel_bot_sessions")
+                .select("channel_type")
+                .eq("channel_id", sessionChannelId)
+                .eq("thread_key", "_root")
+                .maybeSingle();
+              const server = StreamChat.getInstance(apiKey, streamSecret, {
+                timeout: 15_000,
+              });
+              cardChannel = server.channel(
+                chatRow?.channel_type ?? "team",
+                sessionChannelId,
+              );
+              await cardChannel
+                .sendMessage({
+                  id: cardId,
+                  text: "",
+                  user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                  ai_generated: true,
+                  attachments: [
+                    {
+                      type: "app_artifact",
+                      kind: "document",
+                      status: "writing",
+                      action: mode === "append" ? "appending" : "rewriting",
+                      title: docRow.title,
+                      document_id,
+                      href: `/p/${propertyId}/documents/${document_id}`,
+                      property_id: propertyId,
+                    },
+                  ],
+                } as unknown as Parameters<NonNullable<typeof cardChannel>["sendMessage"]>[0])
+                .catch(() => {});
+            }
+
             const response = await fetch(
               `${eveSelfOrigin()}/api/internal/documents/write`,
               {
@@ -548,7 +679,7 @@ export default defineDynamic({
                   html: content_html,
                   mode,
                 }),
-                signal: AbortSignal.timeout(45_000),
+                signal: AbortSignal.timeout(55_000),
               },
             ).catch(() => null);
             if (!response?.ok) {
@@ -559,9 +690,41 @@ export default defineDynamic({
             }
             const body = (await response.json()) as {
               documentId: string;
+              title: string | null;
               bodyTextLength: number;
               url: string;
             };
+            if (cardChannel) {
+              // sendMessage with an existing id DEDUPES (returns the
+              // original) — flipping the card needs a partial UPDATE.
+              const server2 = StreamChat.getInstance(
+                process.env.NEXT_PUBLIC_STREAM_API_KEY ?? "",
+                process.env.STREAM_API_SECRET ?? "",
+                { timeout: 15_000 },
+              );
+              await server2
+                .partialUpdateMessage(
+                  cardId,
+                  {
+                    set: {
+                      attachments: [
+                        {
+                          type: "app_artifact",
+                          kind: "document",
+                          status: "done",
+                          action: "updated",
+                          title: body.title ?? docRow.title,
+                          document_id: body.documentId,
+                          href: body.url,
+                          property_id: propertyId,
+                        },
+                      ],
+                    },
+                  } as unknown as Parameters<typeof server2.partialUpdateMessage>[1],
+                  process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                )
+                .catch(() => {});
+            }
             return {
               updated: true,
               document_id: body.documentId,

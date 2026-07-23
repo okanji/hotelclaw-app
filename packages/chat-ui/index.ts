@@ -197,6 +197,40 @@ export type ChatUiValidation =
  * version-drifted attachment degrades to nothing instead of crashing
  * the message list.
  */
+/**
+ * App-artifact attachment — the "the AI is working on this record" card
+ * (Stream attachment `{type:"app_artifact", ...}`). Posted by the eve
+ * runtime's write tools: once with status "writing" the moment work starts
+ * (so people can open the live split panel and WATCH the edit — Liveblocks
+ * renders the bot's transactional writes in realtime), then upserted (same
+ * deterministic message id) to status "done" with the href.
+ */
+export type AppArtifactAttachment = {
+  type: "app_artifact";
+  kind: "document";
+  status: "writing" | "done";
+  title: string;
+  property_id: string;
+  action?: string;
+  document_id?: string;
+  href?: string;
+};
+
+export function isAppArtifactAttachment(
+  input: unknown,
+): input is AppArtifactAttachment {
+  if (typeof input !== "object" || input === null) return false;
+  const a = input as Record<string, unknown>;
+  return (
+    a.type === "app_artifact" &&
+    a.kind === "document" &&
+    (a.status === "writing" || a.status === "done") &&
+    typeof a.title === "string" &&
+    typeof a.property_id === "string" &&
+    (a.href === undefined || (typeof a.href === "string" && INTERNAL_HREF_RX.test(a.href)))
+  );
+}
+
 export function validateChatUiSpec(input: unknown): ChatUiValidation {
   if (typeof input !== "object" || input === null) {
     return { ok: false, error: "spec must be an object with root + elements" };

@@ -36,6 +36,7 @@ import { CalendarPrefsProvider } from "@/components/calendar/calendar-prefs-cont
 import { CalendarSurface } from "@/components/calendar/calendar-surface";
 import { LiveblocksProviders } from "@/lib/liveblocks/room-provider";
 import { InfoPanelProvider } from "@/components/chat/info-panel/context";
+import { ArtifactPanelProvider } from "@/components/chat/artifact-panel-context";
 import { CommandPaletteProvider } from "@/components/shell/command-palette-context";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { ChatEventNotifier } from "@/components/shell/chat-event-notifier";
@@ -124,6 +125,7 @@ export default async function PropertyLayout({
       <LiveblocksProviders propertyId={propertyId}>
        <TimeFormatProvider initial={initialTimeFormat}>
         <InfoPanelProvider>
+         <ArtifactPanelProvider>
           <UserProfilePanelProvider>
             <CommandPaletteProvider>
               <SidebarProvider>
@@ -264,6 +266,7 @@ export default async function PropertyLayout({
               </SidebarProvider>
             </CommandPaletteProvider>
           </UserProfilePanelProvider>
+         </ArtifactPanelProvider>
         </InfoPanelProvider>
        </TimeFormatProvider>
       </LiveblocksProviders>

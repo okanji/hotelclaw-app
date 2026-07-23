@@ -170,12 +170,17 @@ async function waitForBotReply({
       await sleep(intervalMs);
       continue;
     }
+    // Non-empty text must be part of the PREDICATE: artifact-card messages
+    // (app_artifact attachments) are bot messages with EMPTY text — a
+    // find() that matches them first would blind the poll to the real
+    // reply sitting behind them.
     const botReply = messages.find(
       (m) =>
         m.user?.id === BOT_USER_ID &&
-        new Date(m.created_at).getTime() > afterTimestamp,
+        new Date(m.created_at).getTime() > afterTimestamp &&
+        (m.text ?? "").trim().length > 0,
     );
-    if (botReply && (botReply.text ?? "").trim().length > 0) {
+    if (botReply) {
       return botReply;
     }
     await sleep(intervalMs);
@@ -899,6 +904,185 @@ const PARALLEL_SCENARIOS = [
   },
 ];
 
+// ─── Write-tool scenarios (chat as control surface, Phase 1) ───────────────
+// Verifies the bot can actually MUTATE the app: fill a stub document
+// through the Liveblocks write path (incl. brain re-mirror) and update a
+// task (incl. the attributed assignment notification). Fixtures are fixed-
+// title rows reset at the start of each run — idempotent, no residue.
+
+const WRITES_DOC_TITLE = "AI Writes Harness Scratch Doc";
+const WRITES_TASK_TITLE = "AI writes harness scratch task";
+
+const WRITES_SCENARIOS = [
+  {
+    name: "writes/document: bot fills a stub doc (Liveblocks + brain mirror)",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      if (!supabase) return { passed: false, reason: "needs supabase env" };
+      const { data: ch } = await supabase
+        .from("chat_channels")
+        .select("property_id")
+        .eq("stream_channel_id", channelId)
+        .maybeSingle();
+      const propertyId = ch?.property_id;
+      if (!propertyId) return { passed: false, reason: "channel property not found" };
+
+      // Reset the fixture doc to a stub.
+      const { data: existingDoc } = await supabase
+        .from("documents")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("title", WRITES_DOC_TITLE)
+        .maybeSingle();
+      let docId = existingDoc?.id;
+      if (docId) {
+        await supabase
+          .from("documents")
+          .update({ body_text: "Stub — needs content.", body_json: null, archived_at: null })
+          .eq("id", docId);
+      } else {
+        const { data: created } = await supabase
+          .from("documents")
+          .insert({
+            property_id: propertyId,
+            title: WRITES_DOC_TITLE,
+            body_text: "Stub — needs content.",
+          })
+          .select("id")
+          .single();
+        docId = created?.id;
+      }
+      if (!docId) return { passed: false, reason: "fixture doc create failed" };
+
+      const sentAt = Date.now();
+      await sendAsTestUser(
+        channelId,
+        `@hotelclaw the doc titled "${WRITES_DOC_TITLE}" is a stub — write a short 3-section procedure into it (purpose, steps, checklist). Go ahead without confirming.`,
+        { mentionBot: true },
+      );
+      const reply = await waitForBotReply({ channelId, afterTimestamp: sentAt, timeoutMs: 180000 });
+      if (!reply) return { passed: false, reason: "no reply" };
+
+      // Give the write + snapshot + brain mirror a moment to settle.
+      let doc = null;
+      for (let i = 0; i < 10; i++) {
+        await sleep(4000);
+        const { data } = await supabase
+          .from("documents")
+          .select("body_text, brain_synced_at, body_updated_at")
+          .eq("id", docId)
+          .single();
+        doc = data;
+        if ((doc?.body_text?.length ?? 0) > 300) break;
+      }
+      if ((doc?.body_text?.length ?? 0) <= 300) {
+        return {
+          passed: false,
+          reason: `doc body not written (len=${doc?.body_text?.length ?? 0}); reply: ${reply.text.slice(0, 120)}`,
+        };
+      }
+      if (!doc.brain_synced_at || doc.brain_synced_at < doc.body_updated_at) {
+        return { passed: false, reason: "brain mirror did not re-sync after the write" };
+      }
+      return { passed: true, bodyLength: doc.body_text.length };
+    },
+  },
+  {
+    name: "writes/task: bot updates status + assigns (attributed notification)",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      if (!supabase) return { passed: false, reason: "needs supabase env" };
+      const { data: ch } = await supabase
+        .from("chat_channels")
+        .select("property_id")
+        .eq("stream_channel_id", channelId)
+        .maybeSingle();
+      const propertyId = ch?.property_id;
+      if (!propertyId) return { passed: false, reason: "channel property not found" };
+
+      // A real member to assign to.
+      const { data: members } = await supabase
+        .from("memberships")
+        .select("user_id")
+        .eq("property_id", propertyId)
+        .limit(5);
+      const ids = (members ?? []).map((m) => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+      const target = (profiles ?? []).find((p) => p.full_name);
+      if (!target) return { passed: false, reason: "no named member to assign" };
+
+      // Reset the fixture task.
+      const { data: existingTask } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("title", WRITES_TASK_TITLE)
+        .maybeSingle();
+      let taskId = existingTask?.id;
+      if (taskId) {
+        await supabase
+          .from("tasks")
+          .update({ status: "todo", assignee_id: null })
+          .eq("id", taskId);
+      } else {
+        const { data: created } = await supabase
+          .from("tasks")
+          .insert({ property_id: propertyId, title: WRITES_TASK_TITLE, status: "todo" })
+          .select("id")
+          .single();
+        taskId = created?.id;
+      }
+      if (!taskId) return { passed: false, reason: "fixture task create failed" };
+      const notifiedBefore = Date.now();
+
+      const sentAt = Date.now();
+      await sendAsTestUser(
+        channelId,
+        `@hotelclaw set the task "${WRITES_TASK_TITLE}" to blocked and assign it to ${target.full_name}.`,
+        { mentionBot: true },
+      );
+      const reply = await waitForBotReply({ channelId, afterTimestamp: sentAt, timeoutMs: 120000 });
+      if (!reply) return { passed: false, reason: "no reply" };
+
+      let task = null;
+      for (let i = 0; i < 8; i++) {
+        await sleep(3000);
+        const { data } = await supabase
+          .from("tasks")
+          .select("status, assignee_id")
+          .eq("id", taskId)
+          .single();
+        task = data;
+        if (task?.status === "blocked" && task?.assignee_id === target.id) break;
+      }
+      if (task?.status !== "blocked" || task?.assignee_id !== target.id) {
+        return {
+          passed: false,
+          reason: `task not updated (status=${task?.status}, assignee=${task?.assignee_id?.slice(0, 8)})`,
+        };
+      }
+      // Attributed notification (renderer reads byUserName — must not fall
+      // back to "Someone").
+      const { data: notifs } = await supabase
+        .from("notifications")
+        .select("payload, created_at")
+        .eq("user_id", target.id)
+        .eq("type", "task_assigned")
+        .gte("created_at", new Date(notifiedBefore).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const payload = notifs?.[0]?.payload;
+      if (!payload?.byUserName) {
+        return { passed: false, reason: "assignment notification missing byUserName attribution" };
+      }
+      return { passed: true, assignedTo: target.full_name, by: payload.byUserName };
+    },
+  },
+];
+
 async function runStress(channelId, scenarios = STRESS_SCENARIOS, label = "STRESS") {
   console.log(`\n━━━ ${label} SUITE ━━━`);
   const results = [];
@@ -968,6 +1152,7 @@ async function main() {
   send  --channel <id> [--mode mention|auto|always|engaged] [--sensitivity ...] [--mention] --message "..."
   suite [--channel <id>]
   parallel [--channel <id>]   (queue drain, role gate, background job — several minutes)
+  writes [--channel <id>]     (doc fill via Liveblocks + task update + notification)
   state [--channel <id>]
   reset [--channel <id>]
 `);
@@ -1027,6 +1212,13 @@ async function main() {
     // Concurrency + background-job coverage (0093). The job scenario takes
     // several minutes — the detached session does real work.
     await runStress(channelId, PARALLEL_SCENARIOS, "PARALLEL");
+    return;
+  }
+
+  if (cmd === "writes") {
+    // Write-tool coverage (control surface Phase 1): doc fill via the
+    // Liveblocks path + task update with attributed notification.
+    await runStress(channelId, WRITES_SCENARIOS, "WRITES");
     return;
   }
 

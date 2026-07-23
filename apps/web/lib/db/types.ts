@@ -340,6 +340,32 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      // Pre-replace snapshots of AI document writes (migration 0094) —
+      // the undo safety net for update_document(mode: replace).
+      document_ai_revisions: {
+        Row: {
+          id: string;
+          property_id: string;
+          document_id: string;
+          body_json: unknown;
+          body_text: string;
+          note: string | null;
+          replaced_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          document_id: string;
+          body_json?: unknown;
+          body_text?: string;
+          note?: string | null;
+          replaced_at?: string;
+        };
+        Update: Partial<{
+          note: string | null;
+        }>;
+        Relationships: [];
+      };
       // Extracted plaintext of files uploaded to the documents-files bucket
       // (migration 0089). Service-client writes; members read.
       document_attachment_texts: {

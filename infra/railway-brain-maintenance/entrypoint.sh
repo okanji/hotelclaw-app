@@ -36,7 +36,11 @@ hour="$(date -u +%H)"
 mode="${MAINTENANCE_MODE:-auto}"
 
 each_source() {
-  $GBRAIN sources list 2>/dev/null | awk '{print $1}' | grep -v '^$' || true
+  # Per-PROPERTY sources only (prop-<hex> — single-token, so column parsing
+  # is safe by construction). Multi-word curated sources ("Oamar portfolio",
+  # "Hotelclaw expertise") would be mangled by $1 AND are human-maintained —
+  # the dream cycle is for sources that accumulate bot evidence.
+  $GBRAIN sources list --timeout=45s 2>/dev/null | awk '{print $1}' | grep -E '^prop-' || true
 }
 
 run_embed() {
