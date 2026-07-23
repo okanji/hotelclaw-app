@@ -773,6 +773,11 @@
   border-radius: 0 !important;
   padding-inline: 0 !important;
   box-shadow: none !important;
+  /* Stream frames the bubble with a 1px border only when the message carries
+     an attachment (`--chat-border`). In the Slack look the attachment card
+     draws its own frame, so this leaked through as a double border around
+     artifact/form/image cards — flatten it here with the rest of the chrome. */
+  border: 0 !important;
 }
 
 .str-chat__avatar,
