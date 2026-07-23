@@ -2,6 +2,13 @@ import { eveChannel } from "eve/channels/eve";
 import { localDev, type AuthFn } from "eve/channels/auth";
 import { createServerClient } from "@supabase/ssr";
 import { serviceClient } from "../lib/supabase";
+import {
+  deliverFailure,
+  deliverReply,
+  findSessionRow,
+  releaseGenerationLock,
+  updateSessionRow,
+} from "../lib/channel-delivery";
 
 // The property the caller wants to work in. Verified against memberships
 // below — the header only *selects* among the caller's real properties.
@@ -169,6 +176,148 @@ function serviceBearerAuth(): AuthFn<Request> {
 const authChain: AuthFn[] = [supabaseCookieAuth(), serviceBearerAuth()];
 if (!process.env.VERCEL) authChain.push(localDev());
 
+// ---------------------------------------------------------------------------
+// Event-driven chat delivery (default channel bot only).
+//
+// Per eve's channel doctrine, event handlers "deliver completed messages
+// back to the surface that owns this channel" (docs/channels/custom) — the
+// runtime posts the reply to Stream when the turn actually finishes,
+// instead of the webhook function holding a connection open until the turn
+// parks. Handlers run "inside the ALS-scoped harness step"
+// (callback-context.d.ts), i.e., in workflow compute — turn length is
+// unbounded and parked work holds no compute.
+//
+// Scope guard: only sessions whose VERIFIED auth attributes mark them as
+// default-channel-bot sessions (botSlug 'hotelclaw', a channelId, no
+// stored-agent id). Agent-section chats, pod bots, and delegate sessions
+// are untouched — their existing paths still own delivery.
+//
+// Accumulation is DURABLE on channel_bot_sessions (0092): steps can run on
+// different instances, so nothing lives in module memory. The web glue
+// stamps `turn_nonce` on the row when it queues a turn (ChannelEvents has
+// no message.received hook, so the nonce can't be recovered here) — only
+// nonce-open turns accumulate/deliver. Fleet approval-decision turns don't
+// re-stamp the nonce, so their parks skip delivery here (their own web
+// path posts outcomes); the delivered_nonce guard plus a deterministic
+// Stream message id make delivery idempotent under handler replay.
+// ---------------------------------------------------------------------------
+
+const CHANNEL_BOT_SLUG = "hotelclaw";
+
+type HandlerCtx = {
+  session: {
+    id: string;
+    auth: { current?: { attributes?: Record<string, unknown> } | null };
+  };
+};
+
+function channelBotSession(ctx: HandlerCtx): boolean {
+  const attributes = ctx.session.auth.current?.attributes ?? {};
+  return (
+    attributes.botSlug === CHANNEL_BOT_SLUG &&
+    typeof attributes.channelId === "string" &&
+    typeof attributes.agentId !== "string"
+  );
+}
+
 export default eveChannel({
   auth: authChain,
+  events: {
+    // Last completed assistant message of the turn wins — the same
+    // semantics consumeTurnStream implemented web-side. One retry covers
+    // the tiny race between session creation and the web glue's row upsert.
+    "message.completed": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const text = typeof data.message === "string" ? data.message : null;
+      if (!text?.trim()) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 1 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      await updateSessionRow(row.id, { reply_candidate: text });
+    },
+
+    // render_ui returns the validated spec in its tool RESULT (ai_ui_spec)
+    // — capture it for the delivery post.
+    "action.result": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const result = data.result as
+        | { toolName?: string; output?: { ai_ui_spec?: unknown } }
+        | undefined;
+      if (result?.toolName !== "render_ui") return;
+      const spec = result.output?.ai_ui_spec;
+      if (!spec) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      await updateSessionRow(row.id, { ui_spec: spec });
+    },
+
+    // Approval park: stamp the payload so the fleet inbox (realtime on this
+    // table) lights up exactly as before.
+    "input.requested": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const requests = Array.isArray((data as { requests?: unknown[] }).requests)
+        ? ((data as { requests: Array<Record<string, unknown>> }).requests).map((r) => {
+            const action = (r.action ?? {}) as Record<string, unknown>;
+            return {
+              toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
+              input: action.input ?? null,
+              callId: typeof action.callId === "string" ? action.callId : null,
+            };
+          })
+        : [];
+      if (requests.length === 0) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce) return;
+      await updateSessionRow(row.id, {
+        status: "awaiting_approval",
+        pending_approval: {
+          requests,
+          requestedAt: new Date().toISOString(),
+          channelId: row.channel_id,
+        },
+      });
+    },
+
+    // Turn parked: THE delivery point. Store the fresh continuation token
+    // (docs: follow-ups must use "the current continuationToken from that
+    // event"), post the reply once per nonce, release the web-side
+    // generation lock.
+    "session.waiting": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id);
+      if (!row) return;
+      const token =
+        typeof (data as { continuationToken?: unknown }).continuationToken === "string"
+          ? (data as { continuationToken: string }).continuationToken
+          : null;
+      if (token) {
+        await updateSessionRow(row.id, {
+          eve_continuation_token: token,
+          last_turn_at: new Date().toISOString(),
+        });
+      }
+      if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
+        await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
+        await deliverReply(row);
+      }
+      await releaseGenerationLock(row.channel_id, row.thread_key);
+    },
+
+    // Fail-loud contract: a dead session posts a visible ⚠️, never silence.
+    // (session.failed handlers receive no ctx — resolve the row from the
+    // sessionId in the event data.)
+    "session.failed": async (data) => {
+      const sessionId = (data as { sessionId?: unknown }).sessionId;
+      if (typeof sessionId !== "string") return;
+      const row = await findSessionRow(sessionId, { retries: 0 });
+      if (!row) return;
+      if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
+        await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
+        await deliverFailure(
+          row,
+          `${(data as { code?: string }).code ?? "unknown"}: ${(data as { message?: string }).message ?? ""}`,
+        );
+      }
+      await releaseGenerationLock(row.channel_id, row.thread_key);
+    },
+  },
 });

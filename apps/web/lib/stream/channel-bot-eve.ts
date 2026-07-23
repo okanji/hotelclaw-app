@@ -2,11 +2,20 @@ import "server-only";
 /**
  * Channel bot on the durable eve runtime. The webhook + classifiers stay
  * exactly as they were (deciding WHETHER to respond is cheap and
- * stateless); this module replaces the GENERATION: one durable eve session
+ * stateless); this module QUEUES the generation: one durable eve session
  * per (channel, thread), resolved runtime-side as the virtual `hotelclaw`
  * agent (apps/agent agent/lib/agent-config.ts) with property tools + the
  * shared knowledge brain (when the property has a binding — brainless
  * properties get no brain tools and instructions that say so).
+ *
+ * DELIVERY IS EVENT-DRIVEN (2026-07-23): this module fires the turn and
+ * returns immediately; the eve channel's `events` handlers
+ * (apps/agent/agent/channels/eve.ts + agent/lib/channel-delivery.ts) post
+ * the reply to Stream when the turn actually parks — per eve's channel
+ * doctrine ("deliver completed messages back to the surface that owns this
+ * channel") the webhook function is never held open, so turn length is
+ * unbounded. The old consume-in-function path caused the prod incident of
+ * 2026-07-22 (function killed at maxDuration mid-generation, reply lost).
  *
  * What durability changes vs the old runBot path:
  *   - The session REMEMBERS — each turn sends only the messages the
@@ -17,17 +26,12 @@ import "server-only";
  *     message queue — one turn at a time; messages that land mid-turn
  *     arrive as unseen context on the next trigger.
  *
- * Fail-soft: any failure returns { ok: false } and the caller falls back
- * to the legacy stateless runBot path — the bot never goes silent because
- * the agent runtime is down.
+ * Fail-loud: a failure to QUEUE returns { ok:false } and the caller posts
+ * a visible ⚠️; failures INSIDE the turn are posted by the runtime's
+ * session.failed handler.
  */
 import { createServiceClient } from "@/lib/supabase/server";
-import {
-  eveOrigin,
-  fleetServiceHeaders,
-  type PendingRequest,
-} from "@/lib/fleet/eve-session";
-import { consumeTurnStream } from "@/lib/stream/pod-bot-reply";
+import { eveOrigin, fleetServiceHeaders } from "@/lib/fleet/eve-session";
 import { getStreamServer } from "./server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
 import type { ActivationReason } from "@/lib/ai/run-bot";
@@ -61,10 +65,7 @@ export async function runChannelBotEveTurn(ctx: {
   parentId: string | null;
   triggerMessage: { id: string; text: string; userId: string; userName?: string | null };
   activationReason: ActivationReason;
-}): Promise<
-  | { ok: true; text: string; pendingRequests: PendingRequest[]; uiSpec: unknown | null }
-  | { ok: false; reason: string }
-> {
+}): Promise<{ ok: true; queued: true } | { ok: false; reason: string }> {
   try {
     const service = createServiceClient();
     const threadKey = ctx.parentId ?? ROOT_THREAD_KEY;
@@ -176,6 +177,7 @@ export async function runChannelBotEveTurn(ctx: {
     // a failed resume (expired session/token) transparently starts fresh.
     let sessionId = staleRuntime ? null : (existing?.eve_session_id ?? null);
     let sendResponse: Response | null = null;
+    let sendResponseWasResume = false;
     if (sessionId && existing?.eve_continuation_token) {
       sendResponse = await fetch(`${eveOrigin()}/eve/v1/session/${sessionId}`, {
         method: "POST",
@@ -187,6 +189,7 @@ export async function runChannelBotEveTurn(ctx: {
         signal: AbortSignal.timeout(15_000),
       }).catch(() => null);
       if (!sendResponse?.ok) sendResponse = null;
+      else sendResponseWasResume = true;
     }
     if (!sendResponse) {
       sendResponse = await fetch(`${eveOrigin()}/eve/v1/session`, {
@@ -206,58 +209,49 @@ export async function runChannelBotEveTurn(ctx: {
     }
     if (!sessionId) return { ok: false, reason: "no eve session id" };
 
-    // Record BEFORE consuming — subagents resolve tenant scope from the
-    // root session id mid-turn (apps/agent tenant.ts fallback).
-    await service.from("channel_bot_sessions").upsert(
+    // Record the session immediately: subagents resolve tenant scope from
+    // the root session id mid-turn (apps/agent tenant.ts fallback), and the
+    // runtime's delivery handlers find this row by eve_session_id to
+    // accumulate + post the reply (channel_type tells them how to address
+    // the Stream channel). Everything after this point — reply text,
+    // render_ui spec, approval parks, the fresh continuation token, the
+    // Stream post itself — happens runtime-side in the eve channel's
+    // events handlers when the turn actually finishes.
+    const { error: upsertError } = await service.from("channel_bot_sessions").upsert(
       {
         ...(existing?.id ? { id: existing.id } : {}),
         property_id: ctx.propertyId,
         channel_id: ctx.streamChannelId,
+        channel_type: ctx.channelType,
         thread_key: threadKey,
         eve_session_id: sessionId,
         runtime_tag: RUNTIME_TAG,
+        // Open the delivery accumulator for THIS turn (the runtime's
+        // ChannelEvents surface has no message.received hook, so the nonce
+        // is stamped here, where it's minted). Candidates reset with it.
+        turn_nonce: turnNonce,
+        reply_candidate: null,
+        ui_spec: null,
+        pending_approval: null,
+        status: "idle",
         last_turn_at: new Date().toISOString(),
       },
       { onConflict: "channel_id,thread_key" },
     );
-
-    const turn = await consumeTurnStream({
-      sessionId,
-      headers,
-      ownNeedle: `[turn ${turnNonce}`,
-    });
-
-    await service.from("channel_bot_sessions").upsert(
-      {
-        ...(existing?.id ? { id: existing.id } : {}),
-        property_id: ctx.propertyId,
-        channel_id: ctx.streamChannelId,
-        thread_key: threadKey,
-        eve_session_id: sessionId,
-        eve_continuation_token: turn.continuationToken,
-        runtime_tag: RUNTIME_TAG,
-        last_turn_at: new Date().toISOString(),
-        status: turn.pendingRequests.length ? "awaiting_approval" : "idle",
-        pending_approval: turn.pendingRequests.length
-          ? {
-              requests: turn.pendingRequests,
-              requestedAt: new Date().toISOString(),
-              channelId: ctx.streamChannelId,
-            }
-          : null,
-      },
-      { onConflict: "channel_id,thread_key" },
-    );
-
-    if (!turn.replyText.trim()) {
-      return { ok: false, reason: "empty eve reply" };
+    if (upsertError) {
+      // Without the row the runtime cannot deliver — fail the queue loudly
+      // rather than letting the turn run into a void.
+      return { ok: false, reason: `session row upsert failed: ${upsertError.message}` };
     }
-    return {
-      ok: true,
-      text: turn.replyText,
-      pendingRequests: turn.pendingRequests,
-      uiSpec: turn.uiSpec,
-    };
+
+    console.log("[channel-bot-eve] turn queued", {
+      channelId: ctx.streamChannelId,
+      threadKey,
+      sessionId,
+      turnNonce,
+      resumed: !!sendResponseWasResume,
+    });
+    return { ok: true, queued: true };
   } catch (e) {
     return {
       ok: false,

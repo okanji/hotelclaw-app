@@ -472,9 +472,444 @@ var agent_default$2 = defineAgent({
 	}
 });
 //#endregion
+//#region ../../packages/chat-ui/index.ts
+var import_main = require_main();
+var import_index_node = require_index_node();
+/**
+* Chat UI catalog — the component vocabulary the channel bot can render
+* inside a Stream message (custom attachment type `"ai_ui"`).
+*
+* Built on @json-render (core + react, pinned — pre-1.0): we use its spec
+* format ({ root, elements } flat map), its structural `validateSpec`, and
+* the client-side `defineRegistry`/`Renderer` machinery, but we OWN the
+* component catalog and validate every element's props with the zod
+* schemas below before a spec is accepted. We deliberately do NOT use
+* `catalog.prompt()` (it's a 14KB JSONL-patch streaming prompt aimed at
+* `useUIStream`) — the bot supplies a complete spec as a tool argument,
+* documented compactly in `CHAT_UI_TOOL_DESCRIPTION`.
+*
+* Display-only by design: no state, no actions, no visibility conditions.
+* Anything interactive (fill a form, confirm a booking) should be a real
+* custom attachment with a real handler, like the `form` attachment.
+*
+* Shared by the server tool (`lib/ai/tools/render-ui.ts`) and the client
+* renderer (`components/chat/ai-ui-attachment.tsx`) — keep it free of
+* "server-only" and React imports.
+*/
+/** Element types that take children. Everything else is a leaf. */
+const CONTAINER_TYPES = /* @__PURE__ */ new Set([
+	"Stack",
+	"CardGrid",
+	"StatRow"
+]);
+const Tone = _enum([
+	"neutral",
+	"success",
+	"warning",
+	"info",
+	"destructive"
+]);
+/**
+* Deep links. The model NEVER writes hrefs — it supplies entity refs
+* (`link` / `rowLinks` in the tool input), and the render_ui tool
+* validates each id against the property and rewrites refs into real
+* `/p/<propertyId>/<section>/<id>` paths before the spec is stored
+* (the insights-brief deep-link pattern). Stored specs therefore only
+* carry `href` strings, which must match this shape — so a hand-crafted
+* attachment can at worst point somewhere else INSIDE the app, never at
+* an external or javascript: URL.
+*/
+const INTERNAL_HREF_RX = /^\/p\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[a-z][a-z0-9/?=&-]*$/i;
+const ChatUiLinkRef = object({
+	kind: _enum([
+		"task",
+		"project",
+		"document",
+		"meeting",
+		"form",
+		"space"
+	]),
+	id: string().uuid()
+});
+/** Route section per link kind — all detail routes are /p/<pid>/<section>/<id>. */
+const LINK_SECTIONS = {
+	task: "tasks",
+	project: "projects",
+	document: "documents",
+	meeting: "meetings",
+	form: "forms",
+	space: "spaces"
+};
+function chatUiPathFor(propertyId, ref) {
+	return `/p/${propertyId}/${LINK_SECTIONS[ref.kind]}/${ref.id}`;
+}
+const InternalHref = string().regex(INTERNAL_HREF_RX);
+/**
+* Prop schemas per component. Caps keep specs within Stream's custom-data
+* budget (~5KB/message) and keep the rendered UI scannable in a chat column.
+*/
+const CHAT_UI_PROPS = {
+	Stack: object({}),
+	DataTable: object({
+		title: string().max(120).optional(),
+		columns: array(string().max(60)).min(1).max(6),
+		rows: array(array(string().max(160))).max(20),
+		/** Per-row deep link, aligned with `rows`. Written by the server, never the model. */
+		rowHrefs: array(InternalHref.nullable()).max(20).optional()
+	}),
+	CardGrid: object({}),
+	Card: object({
+		title: string().max(120),
+		subtitle: string().max(160).optional(),
+		/** Deep link for the whole card. Written by the server, never the model. */
+		href: InternalHref.optional(),
+		badge: object({
+			label: string().max(40),
+			tone: Tone.optional()
+		}).optional(),
+		fields: array(object({
+			label: string().max(60),
+			value: string().max(160)
+		})).max(8).optional()
+	}),
+	StatRow: object({}),
+	Stat: object({
+		label: string().max(60),
+		value: string().max(40),
+		hint: string().max(80).optional()
+	})
+};
+defineCatalog(schema, {
+	components: {
+		Stack: {
+			props: CHAT_UI_PROPS.Stack,
+			slots: ["default"],
+			description: "Vertical container; use as root for multiple blocks."
+		},
+		DataTable: {
+			props: CHAT_UI_PROPS.DataTable,
+			description: "Tabular data with a header row."
+		},
+		CardGrid: {
+			props: CHAT_UI_PROPS.CardGrid,
+			slots: ["default"],
+			description: "Responsive grid of Card children."
+		},
+		Card: {
+			props: CHAT_UI_PROPS.Card,
+			description: "A record card: title, optional badge and label/value fields."
+		},
+		StatRow: {
+			props: CHAT_UI_PROPS.StatRow,
+			slots: ["default"],
+			description: "Divider-separated strip of Stat children."
+		},
+		Stat: {
+			props: CHAT_UI_PROPS.Stat,
+			description: "One headline metric."
+		}
+	},
+	actions: {}
+});
+const MAX_ELEMENTS = 40;
+const MAX_SPEC_JSON_CHARS = 4e3;
+/**
+* Validate + sanitize a model-supplied spec. Returns a rebuilt spec
+* containing only known element types, parsed props (unknown keys
+* stripped), and children references that resolve — or a message the
+* model can act on (it gets one shot at repair within the tool-step
+* budget).
+*
+* The client runs this too before rendering, so a hand-crafted or
+* version-drifted attachment degrades to nothing instead of crashing
+* the message list.
+*/
+function validateChatUiSpec(input) {
+	if (typeof input !== "object" || input === null) return {
+		ok: false,
+		error: "spec must be an object with root + elements"
+	};
+	const raw = input;
+	if (typeof raw.root !== "string" || typeof raw.elements !== "object" || raw.elements === null) return {
+		ok: false,
+		error: "spec must be { root: string, elements: Record<key, element> }"
+	};
+	const structural = validateSpec(raw);
+	if (!structural.valid) return {
+		ok: false,
+		error: structural.issues.map((i) => i.message).join("; ")
+	};
+	const entries = Object.entries(raw.elements);
+	if (entries.length === 0) return {
+		ok: false,
+		error: "elements is empty"
+	};
+	if (entries.length > MAX_ELEMENTS) return {
+		ok: false,
+		error: `too many elements (max ${MAX_ELEMENTS})`
+	};
+	const elements = {};
+	for (const [key, value] of entries) {
+		if (typeof value !== "object" || value === null) return {
+			ok: false,
+			error: `element "${key}" must be an object`
+		};
+		const el = value;
+		const type = el.type;
+		if (typeof type !== "string" || !(type in CHAT_UI_PROPS)) return {
+			ok: false,
+			error: `element "${key}" has unknown type "${String(el.type)}" — allowed: ${Object.keys(CHAT_UI_PROPS).join(", ")}`
+		};
+		const parsed = CHAT_UI_PROPS[type].safeParse(el.props ?? {});
+		if (parsed.success && type === "DataTable") {
+			const p = parsed.data;
+			if (p.rowHrefs && p.rowHrefs.length > p.rows.length) p.rowHrefs = p.rowHrefs.slice(0, p.rows.length);
+		}
+		if (!parsed.success) return {
+			ok: false,
+			error: `element "${key}" (${type}) has invalid props: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`
+		};
+		const children = Array.isArray(el.children) ? el.children.filter((c) => typeof c === "string") : [];
+		if (children.length > 0 && !CONTAINER_TYPES.has(type)) return {
+			ok: false,
+			error: `element "${key}" (${type}) cannot have children`
+		};
+		for (const c of children) if (!(c in raw.elements)) return {
+			ok: false,
+			error: `element "${key}" references missing child "${c}"`
+		};
+		elements[key] = {
+			type,
+			props: parsed.data,
+			...children.length > 0 ? { children } : {}
+		};
+	}
+	if (!(raw.root in elements)) return {
+		ok: false,
+		error: `root "${raw.root}" not found in elements`
+	};
+	const spec = {
+		root: raw.root,
+		elements
+	};
+	const size = JSON.stringify(spec).length;
+	if (size > MAX_SPEC_JSON_CHARS) return {
+		ok: false,
+		error: `spec too large (${size} chars, max ${MAX_SPEC_JSON_CHARS}) — trim rows or summarize`
+	};
+	return {
+		ok: true,
+		spec
+	};
+}
+/**
+* Compact tool description — the model's entire manual for the spec
+* format. Kept in the shared file next to the schemas it documents.
+*/
+const CHAT_UI_TOOL_DESCRIPTION = [
+	"Render rich UI beneath your chat reply. USE THIS whenever your answer is structured data — task lists, schedules, workload breakdowns, comparisons, metrics — instead of writing a markdown table (chat CANNOT render markdown tables).",
+	"Pass spec = { root: \"<key>\", elements: { \"<key>\": { type, props, children? } } }. children is an array of element keys, only valid on container types.",
+	"Component types:",
+	"- Stack — container; props {}; use as root when combining blocks.",
+	"- DataTable — props { title?, columns: string[] (1-6), rows: string[][] (≤20 rows, cells ≤160 chars), rowLinks?: ({kind,id}|null)[] aligned with rows }.",
+	"- CardGrid — container for Card children; props {}.",
+	"- Card — props { title, subtitle?, link?: {kind,id}, badge?: { label, tone?: \"neutral\"|\"success\"|\"warning\"|\"info\"|\"destructive\" }, fields?: [{ label, value }] (≤8) }.",
+	"- StatRow — container for Stat children; props {}.",
+	"- Stat — props { label, value, hint? } — one headline number.",
+	"Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: \"task\"|\"project\"|\"document\"|\"meeting\"|\"form\"|\"space\", id: \"<uuid>\" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.",
+	"Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
+	"Call at most once per reply — a second call replaces the first. After calling, keep your text to a one-line lead-in; never repeat the data in text."
+].join("\n");
+/** DB table per link kind (both runtimes query the same schema). */
+const CHAT_UI_LINK_TABLES = {
+	task: "tasks",
+	project: "projects",
+	document: "documents",
+	meeting: "meetings",
+	form: "forms",
+	space: "spaces"
+};
+async function resolveChatUiLinkRefs(elements, propertyId, lookupIds) {
+	const refs = [];
+	const collect = (value) => {
+		const parsed = ChatUiLinkRef.safeParse(value);
+		if (!parsed.success) return null;
+		refs.push(parsed.data);
+		return parsed.data;
+	};
+	const cardRefs = /* @__PURE__ */ new Map();
+	const rowRefs = /* @__PURE__ */ new Map();
+	for (const [key, el] of Object.entries(elements)) {
+		const props = el.props;
+		if (!props) continue;
+		if (el.type === "Card" && "link" in props) {
+			cardRefs.set(key, collect(props.link));
+			delete props.link;
+		}
+		if (el.type === "DataTable" && "rowLinks" in props) {
+			const list = Array.isArray(props.rowLinks) ? props.rowLinks : [];
+			rowRefs.set(key, list.map((r) => r === null ? null : collect(r)));
+			delete props.rowLinks;
+		}
+	}
+	if (refs.length === 0) return;
+	const byKind = /* @__PURE__ */ new Map();
+	for (const r of refs) {
+		if (!byKind.has(r.kind)) byKind.set(r.kind, /* @__PURE__ */ new Set());
+		byKind.get(r.kind).add(r.id);
+	}
+	const validIds = /* @__PURE__ */ new Set();
+	await Promise.all([...byKind.entries()].map(async ([kind, ids]) => {
+		try {
+			const found = await lookupIds(kind, [...ids]);
+			for (const id of found) validIds.add(`${kind}:${id}`);
+		} catch {}
+	}));
+	const hrefFor = (ref) => ref && validIds.has(`${ref.kind}:${ref.id}`) ? chatUiPathFor(propertyId, ref) : null;
+	for (const [key, ref] of cardRefs) {
+		const href = hrefFor(ref);
+		if (href) elements[key].props.href = href;
+	}
+	for (const [key, list] of rowRefs) {
+		const hrefs = list.map(hrefFor);
+		if (hrefs.some((h) => h !== null)) elements[key].props.rowHrefs = hrefs;
+	}
+}
+//#endregion
+//#region agent/lib/channel-delivery.ts
+/**
+* Runtime-side Stream delivery for DEFAULT CHANNEL BOT sessions — the
+* executor half of the `events` handlers in agent/channels/eve.ts.
+*
+* Eve channel doctrine (docs/channels/custom + channels/eve): event
+* handlers "deliver completed messages back to the surface that owns this
+* channel" — delivery happens in workflow compute when the turn actually
+* finishes, so no HTTP function is ever held open and turn length is
+* unbounded ("The workflow holds no compute resources during these
+* waits" — execution-model docs).
+*
+* Durable accumulation lives on channel_bot_sessions (migration 0092):
+* handlers may run on different instances across steps, so nothing is
+* kept in module memory.
+*/
+const ROW_COLUMNS = "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce";
+/** Resolve the session row for an eve session id. Retries briefly: the web
+* glue upserts the row right after the 202, but the first runtime event can
+* race it by a few hundred ms. */
+async function findSessionRow(eveSessionId, { retries = 3, delayMs = 400 } = {}) {
+	for (let attempt = 0;; attempt++) {
+		const { data } = await serviceClient().from("channel_bot_sessions").select(ROW_COLUMNS).eq("eve_session_id", eveSessionId).maybeSingle();
+		if (data) return data;
+		if (attempt >= retries) return null;
+		await new Promise((resolve) => setTimeout(resolve, delayMs));
+	}
+}
+async function updateSessionRow(rowId, patch) {
+	const { error } = await serviceClient().from("channel_bot_sessions").update(patch).eq("id", rowId);
+	if (error) console.error("[channel-delivery] row update failed", rowId, error.message);
+}
+function streamServer() {
+	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+	const secret = process.env.STREAM_API_SECRET;
+	if (!apiKey || !secret) return null;
+	return import_index_node.StreamChat.getInstance(apiKey, secret, { timeout: 15e3 });
+}
+function botUserId() {
+	return process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai";
+}
+const ROOT_THREAD_KEY = "_root";
+/**
+* Post the accumulated turn reply to the Stream channel. Idempotent twice
+* over: the caller gates on delivered_nonce, and the Stream message id is
+* deterministic per nonce so a replayed post dedupes server-side.
+*/
+async function deliverReply(row) {
+	const server = streamServer();
+	if (!server) {
+		console.error("[channel-delivery] Stream not configured — reply stranded", { channelId: row.channel_id });
+		return;
+	}
+	const channel = server.channel(row.channel_type, row.channel_id);
+	const parentId = row.thread_key === ROOT_THREAD_KEY ? null : row.thread_key;
+	const botId = botUserId();
+	await channel.sendEvent({
+		type: "typing.stop",
+		user_id: botId,
+		...parentId ? { parent_id: parentId } : {}
+	}).catch(() => {});
+	const text = (row.reply_candidate ?? "").trim();
+	if (!text) {
+		await channel.sendMessage({
+			id: row.turn_nonce ? `eve-${row.turn_nonce}` : void 0,
+			text: "⚠️ AI reply failed — the agent turn completed without producing a reply. Check the runtime logs.",
+			user_id: botId,
+			ai_generated: true,
+			...parentId ? {
+				parent_id: parentId,
+				show_in_channel: false
+			} : {}
+		}).catch((e) => console.error("[channel-delivery] empty-turn notice failed", e));
+		return;
+	}
+	let attachments;
+	if (row.ui_spec) {
+		const validated = validateChatUiSpec(row.ui_spec);
+		if (validated.ok) attachments = [{
+			type: "ai_ui",
+			spec: validated.spec
+		}];
+	}
+	try {
+		await channel.sendMessage({
+			id: row.turn_nonce ? `eve-${row.turn_nonce}` : void 0,
+			text,
+			user_id: botId,
+			ai_generated: true,
+			...attachments ? { attachments } : {},
+			...parentId ? {
+				parent_id: parentId,
+				show_in_channel: false
+			} : {}
+		});
+	} catch (err) {
+		console.error("[channel-delivery] sendMessage failed", err);
+	}
+}
+/** Post the fail-loud error notice (session.failed handler). */
+async function deliverFailure(row, reason) {
+	const server = streamServer();
+	if (!server) return;
+	const channel = server.channel(row.channel_type, row.channel_id);
+	const parentId = row.thread_key === ROOT_THREAD_KEY ? null : row.thread_key;
+	await channel.sendMessage({
+		text: `⚠️ AI reply failed — eve session error: ${reason.slice(0, 300)}. Check the runtime logs.`,
+		user_id: botUserId(),
+		ai_generated: true,
+		...parentId ? {
+			parent_id: parentId,
+			show_in_channel: false
+		} : {}
+	}).catch((e) => console.error("[channel-delivery] failure notice failed", e));
+}
+/**
+* Release the web-side generation lock (Upstash REST DEL — the lock module
+* lives in apps/web; the key shape `ai-gen-lock:<channel>:<thread>` is the
+* shared contract, TTL 60s is the fallback if this call never lands).
+*/
+async function releaseGenerationLock(channelId, threadKey) {
+	const url = process.env.UPSTASH_REDIS_REST_URL;
+	const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+	if (!url || !token) return;
+	try {
+		await fetch(`${url}/del/${encodeURIComponent(`ai-gen-lock:${channelId}:${threadKey}`)}`, {
+			headers: { authorization: `Bearer ${token}` },
+			signal: AbortSignal.timeout(5e3)
+		});
+	} catch {}
+}
+//#endregion
 //#region agent/channels/eve.ts
 var eve_exports = /* @__PURE__ */ __exportAll({ default: () => eve_default });
-var import_main = require_main();
 const PROPERTY_HEADER = "x-hotelclaw-property";
 const USER_HEADER = "x-hotelclaw-user";
 const AGENT_HEADER = "x-hotelclaw-agent";
@@ -554,7 +989,82 @@ function serviceBearerAuth() {
 }
 const authChain = [supabaseCookieAuth(), serviceBearerAuth()];
 if (!process.env.VERCEL) authChain.push(localDev());
-var eve_default = eveChannel({ auth: authChain });
+const CHANNEL_BOT_SLUG = "hotelclaw";
+function channelBotSession(ctx) {
+	const attributes = ctx.session.auth.current?.attributes ?? {};
+	return attributes.botSlug === CHANNEL_BOT_SLUG && typeof attributes.channelId === "string" && typeof attributes.agentId !== "string";
+}
+var eve_default = eveChannel({
+	auth: authChain,
+	events: {
+		"message.completed": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const text = typeof data.message === "string" ? data.message : null;
+			if (!text?.trim()) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 1 });
+			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+			await updateSessionRow(row.id, { reply_candidate: text });
+		},
+		"action.result": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const result = data.result;
+			if (result?.toolName !== "render_ui") return;
+			const spec = result.output?.ai_ui_spec;
+			if (!spec) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+			await updateSessionRow(row.id, { ui_spec: spec });
+		},
+		"input.requested": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const requests = Array.isArray(data.requests) ? data.requests.map((r) => {
+				const action = r.action ?? {};
+				return {
+					toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
+					input: action.input ?? null,
+					callId: typeof action.callId === "string" ? action.callId : null
+				};
+			}) : [];
+			if (requests.length === 0) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce) return;
+			await updateSessionRow(row.id, {
+				status: "awaiting_approval",
+				pending_approval: {
+					requests,
+					requestedAt: (/* @__PURE__ */ new Date()).toISOString(),
+					channelId: row.channel_id
+				}
+			});
+		},
+		"session.waiting": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const row = await findSessionRow(ctx.session.id);
+			if (!row) return;
+			const token = typeof data.continuationToken === "string" ? data.continuationToken : null;
+			if (token) await updateSessionRow(row.id, {
+				eve_continuation_token: token,
+				last_turn_at: (/* @__PURE__ */ new Date()).toISOString()
+			});
+			if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
+				await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
+				await deliverReply(row);
+			}
+			await releaseGenerationLock(row.channel_id, row.thread_key);
+		},
+		"session.failed": async (data) => {
+			const sessionId = data.sessionId;
+			if (typeof sessionId !== "string") return;
+			const row = await findSessionRow(sessionId, { retries: 0 });
+			if (!row) return;
+			if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
+				await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
+				await deliverFailure(row, `${data.code ?? "unknown"}: ${data.message ?? ""}`);
+			}
+			await releaseGenerationLock(row.channel_id, row.thread_key);
+		}
+	}
+});
 //#endregion
 //#region ../../packages/brain/index.ts
 /**
@@ -1033,7 +1543,6 @@ var playbook_default = defineDynamic({ events: { "session.started": async (_even
 //#endregion
 //#region agent/tools/catalog.ts
 var catalog_exports = /* @__PURE__ */ __exportAll({ default: () => catalog_default });
-var import_index_node = require_index_node();
 var __eveStepRegistrySym$4 = Symbol.for("@workflow/core//registeredSteps");
 if (!globalThis[__eveStepRegistrySym$4]) globalThis[__eveStepRegistrySym$4] = /* @__PURE__ */ new Map();
 var __eveStepRegistry$4 = globalThis[__eveStepRegistrySym$4];
@@ -1960,14 +2469,14 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_search: defineTool({
 			description: brainToolDescriptions.brain_search,
 			inputSchema: brainToolSchemas.brain_search,
-			execute: async ({ query, limit }) => await __eve_dynamic_exec_0({
+			execute: async ({ query, limit }) => await __eve_dynamic_exec_17({
 				brainMcpUrl,
 				brainCred
 			}, {
 				query,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_0,
+			__executeStepFn: __eve_dynamic_exec_17,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -1976,11 +2485,11 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_think: defineTool({
 			description: brainToolDescriptions.brain_think,
 			inputSchema: brainToolSchemas.brain_think,
-			execute: async ({ question }) => await __eve_dynamic_exec_1({
+			execute: async ({ question }) => await __eve_dynamic_exec_18({
 				brainMcpUrl,
 				brainCred
 			}, { question }),
-			__executeStepFn: __eve_dynamic_exec_1,
+			__executeStepFn: __eve_dynamic_exec_18,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -1989,11 +2498,11 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_get: defineTool({
 			description: brainToolDescriptions.brain_get,
 			inputSchema: brainToolSchemas.brain_get,
-			execute: async ({ slug }) => await __eve_dynamic_exec_2({
+			execute: async ({ slug }) => await __eve_dynamic_exec_19({
 				brainMcpUrl,
 				brainCred
 			}, { slug }),
-			__executeStepFn: __eve_dynamic_exec_2,
+			__executeStepFn: __eve_dynamic_exec_19,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -2002,14 +2511,14 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_list: defineTool({
 			description: brainToolDescriptions.brain_list,
 			inputSchema: brainToolSchemas.brain_list,
-			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_3({
+			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_20({
 				brainMcpUrl,
 				brainCred
 			}, {
 				prefix,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_3,
+			__executeStepFn: __eve_dynamic_exec_20,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -2018,7 +2527,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_capture: defineTool({
 			description: brainToolDescriptions.brain_capture,
 			inputSchema: brainToolSchemas.brain_capture,
-			execute: async ({ slug, page_title, observation, source }) => await __eve_dynamic_exec_4({
+			execute: async ({ slug, page_title, observation, source }) => await __eve_dynamic_exec_21({
 				brainMcpUrl,
 				brainCred
 			}, {
@@ -2027,7 +2536,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 				observation,
 				source
 			}),
-			__executeStepFn: __eve_dynamic_exec_4,
+			__executeStepFn: __eve_dynamic_exec_21,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -2035,7 +2544,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		})
 	};
 } } });
-async function __eve_dynamic_exec_0(__vars, { query, limit }) {
+async function __eve_dynamic_exec_17(__vars, { query, limit }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
 		query,
@@ -2046,7 +2555,7 @@ async function __eve_dynamic_exec_0(__vars, { query, limit }) {
 		reason: result.reason
 	};
 }
-async function __eve_dynamic_exec_1(__vars, { question }) {
+async function __eve_dynamic_exec_18(__vars, { question }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "think", { question }, { timeoutMs: 6e4 });
 	return result.ok ? { answer: result.content } : {
@@ -2054,7 +2563,7 @@ async function __eve_dynamic_exec_1(__vars, { question }) {
 		reason: result.reason
 	};
 }
-async function __eve_dynamic_exec_2(__vars, { slug }) {
+async function __eve_dynamic_exec_19(__vars, { slug }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", { slug });
 	if (!result.ok) return {
@@ -2072,7 +2581,7 @@ async function __eve_dynamic_exec_2(__vars, { slug }) {
 		markdown: page.slice(0, 2e4)
 	};
 }
-async function __eve_dynamic_exec_3(__vars, { prefix, limit }) {
+async function __eve_dynamic_exec_20(__vars, { prefix, limit }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
 		...prefix ? { prefix } : {},
@@ -2090,7 +2599,7 @@ async function __eve_dynamic_exec_3(__vars, { prefix, limit }) {
 		pages: pages.slice(0, limit)
 	};
 }
-async function __eve_dynamic_exec_4(__vars, { slug, page_title, observation, source }) {
+async function __eve_dynamic_exec_21(__vars, { slug, page_title, observation, source }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	if (!(await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", { slug })).ok) {
 		const created = await callBrainToolDirect(brainMcpUrl, brainCred, "put_page", {
@@ -2117,16 +2626,16 @@ async function __eve_dynamic_exec_4(__vars, { slug, page_title, observation, sou
 		reason: entry.reason
 	};
 }
-__eve_dynamic_exec_0.stepId = "eve:dynamic-tool//__eve_dynamic_exec_0";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_0", __eve_dynamic_exec_0);
-__eve_dynamic_exec_1.stepId = "eve:dynamic-tool//__eve_dynamic_exec_1";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_1", __eve_dynamic_exec_1);
-__eve_dynamic_exec_2.stepId = "eve:dynamic-tool//__eve_dynamic_exec_2";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_2", __eve_dynamic_exec_2);
-__eve_dynamic_exec_3.stepId = "eve:dynamic-tool//__eve_dynamic_exec_3";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_3", __eve_dynamic_exec_3);
-__eve_dynamic_exec_4.stepId = "eve:dynamic-tool//__eve_dynamic_exec_4";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_4", __eve_dynamic_exec_4);
+__eve_dynamic_exec_17.stepId = "eve:dynamic-tool//__eve_dynamic_exec_17";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_17", __eve_dynamic_exec_17);
+__eve_dynamic_exec_18.stepId = "eve:dynamic-tool//__eve_dynamic_exec_18";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_18", __eve_dynamic_exec_18);
+__eve_dynamic_exec_19.stepId = "eve:dynamic-tool//__eve_dynamic_exec_19";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_19", __eve_dynamic_exec_19);
+__eve_dynamic_exec_20.stepId = "eve:dynamic-tool//__eve_dynamic_exec_20";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_20", __eve_dynamic_exec_20);
+__eve_dynamic_exec_21.stepId = "eve:dynamic-tool//__eve_dynamic_exec_21";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_21", __eve_dynamic_exec_21);
 //#endregion
 //#region agent/lib/action-crypto.ts
 /**
@@ -2380,8 +2889,8 @@ var channel_deployment_default = defineDynamic({ events: { "session.started": as
 	const tools = { search_knowledge: defineTool({
 		description: `Search the "${chatbotName}" bot's trained knowledge base — menus, policies, hours, FAQs the team curated for it.`,
 		inputSchema: object({ query: string().describe("Search terms, rephrased as keywords") }),
-		execute: async ({ query }) => await __eve_dynamic_exec_5({ chatbotId }, { query }),
-		__executeStepFn: __eve_dynamic_exec_5,
+		execute: async ({ query }) => await __eve_dynamic_exec_15({ chatbotId }, { query }),
+		__executeStepFn: __eve_dynamic_exec_15,
 		__closureVars: { chatbotId }
 	}) };
 	const { data: actionRows } = await serviceClient().from("chatbot_custom_actions").select("*").eq("chatbot_id", chatbotId).eq("enabled", true);
@@ -2399,14 +2908,14 @@ var channel_deployment_default = defineDynamic({ events: { "session.started": as
 		tools[name] = defineTool({
 			description: row.when_to_use ? `Call the property's "${row.name}" integration.\nWhen to use: ${row.when_to_use}` : `Call the property's "${row.name}" integration.`,
 			inputSchema: object(shape),
-			execute: async (params) => await __eve_dynamic_exec_6({ row }, params),
-			__executeStepFn: __eve_dynamic_exec_6,
+			execute: async (params) => await __eve_dynamic_exec_16({ row }, params),
+			__executeStepFn: __eve_dynamic_exec_16,
 			__closureVars: { row }
 		});
 	}
 	return tools;
 } } });
-async function __eve_dynamic_exec_5(__vars, { query }) {
+async function __eve_dynamic_exec_15(__vars, { query }) {
 	const { chatbotId } = __vars;
 	const hits = await searchKnowledge(chatbotId, query);
 	if (hits.length === 0) return {
@@ -2418,7 +2927,7 @@ async function __eve_dynamic_exec_5(__vars, { query }) {
 		content: h.content
 	})) };
 }
-async function __eve_dynamic_exec_6(__vars, params) {
+async function __eve_dynamic_exec_16(__vars, params) {
 	const { row } = __vars;
 	const result = await executeCustomAction(row, params);
 	if (!result.ok) return {
@@ -2432,312 +2941,10 @@ async function __eve_dynamic_exec_6(__vars, params) {
 		data: result.data
 	};
 }
-__eve_dynamic_exec_5.stepId = "eve:dynamic-tool//__eve_dynamic_exec_5";
-__eveStepRegistry$2.set("eve:dynamic-tool//__eve_dynamic_exec_5", __eve_dynamic_exec_5);
-__eve_dynamic_exec_6.stepId = "eve:dynamic-tool//__eve_dynamic_exec_6";
-__eveStepRegistry$2.set("eve:dynamic-tool//__eve_dynamic_exec_6", __eve_dynamic_exec_6);
-//#endregion
-//#region ../../packages/chat-ui/index.ts
-/**
-* Chat UI catalog — the component vocabulary the channel bot can render
-* inside a Stream message (custom attachment type `"ai_ui"`).
-*
-* Built on @json-render (core + react, pinned — pre-1.0): we use its spec
-* format ({ root, elements } flat map), its structural `validateSpec`, and
-* the client-side `defineRegistry`/`Renderer` machinery, but we OWN the
-* component catalog and validate every element's props with the zod
-* schemas below before a spec is accepted. We deliberately do NOT use
-* `catalog.prompt()` (it's a 14KB JSONL-patch streaming prompt aimed at
-* `useUIStream`) — the bot supplies a complete spec as a tool argument,
-* documented compactly in `CHAT_UI_TOOL_DESCRIPTION`.
-*
-* Display-only by design: no state, no actions, no visibility conditions.
-* Anything interactive (fill a form, confirm a booking) should be a real
-* custom attachment with a real handler, like the `form` attachment.
-*
-* Shared by the server tool (`lib/ai/tools/render-ui.ts`) and the client
-* renderer (`components/chat/ai-ui-attachment.tsx`) — keep it free of
-* "server-only" and React imports.
-*/
-/** Element types that take children. Everything else is a leaf. */
-const CONTAINER_TYPES = /* @__PURE__ */ new Set([
-	"Stack",
-	"CardGrid",
-	"StatRow"
-]);
-const Tone = _enum([
-	"neutral",
-	"success",
-	"warning",
-	"info",
-	"destructive"
-]);
-/**
-* Deep links. The model NEVER writes hrefs — it supplies entity refs
-* (`link` / `rowLinks` in the tool input), and the render_ui tool
-* validates each id against the property and rewrites refs into real
-* `/p/<propertyId>/<section>/<id>` paths before the spec is stored
-* (the insights-brief deep-link pattern). Stored specs therefore only
-* carry `href` strings, which must match this shape — so a hand-crafted
-* attachment can at worst point somewhere else INSIDE the app, never at
-* an external or javascript: URL.
-*/
-const INTERNAL_HREF_RX = /^\/p\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[a-z][a-z0-9/?=&-]*$/i;
-const ChatUiLinkRef = object({
-	kind: _enum([
-		"task",
-		"project",
-		"document",
-		"meeting",
-		"form",
-		"space"
-	]),
-	id: string().uuid()
-});
-/** Route section per link kind — all detail routes are /p/<pid>/<section>/<id>. */
-const LINK_SECTIONS = {
-	task: "tasks",
-	project: "projects",
-	document: "documents",
-	meeting: "meetings",
-	form: "forms",
-	space: "spaces"
-};
-function chatUiPathFor(propertyId, ref) {
-	return `/p/${propertyId}/${LINK_SECTIONS[ref.kind]}/${ref.id}`;
-}
-const InternalHref = string().regex(INTERNAL_HREF_RX);
-/**
-* Prop schemas per component. Caps keep specs within Stream's custom-data
-* budget (~5KB/message) and keep the rendered UI scannable in a chat column.
-*/
-const CHAT_UI_PROPS = {
-	Stack: object({}),
-	DataTable: object({
-		title: string().max(120).optional(),
-		columns: array(string().max(60)).min(1).max(6),
-		rows: array(array(string().max(160))).max(20),
-		/** Per-row deep link, aligned with `rows`. Written by the server, never the model. */
-		rowHrefs: array(InternalHref.nullable()).max(20).optional()
-	}),
-	CardGrid: object({}),
-	Card: object({
-		title: string().max(120),
-		subtitle: string().max(160).optional(),
-		/** Deep link for the whole card. Written by the server, never the model. */
-		href: InternalHref.optional(),
-		badge: object({
-			label: string().max(40),
-			tone: Tone.optional()
-		}).optional(),
-		fields: array(object({
-			label: string().max(60),
-			value: string().max(160)
-		})).max(8).optional()
-	}),
-	StatRow: object({}),
-	Stat: object({
-		label: string().max(60),
-		value: string().max(40),
-		hint: string().max(80).optional()
-	})
-};
-defineCatalog(schema, {
-	components: {
-		Stack: {
-			props: CHAT_UI_PROPS.Stack,
-			slots: ["default"],
-			description: "Vertical container; use as root for multiple blocks."
-		},
-		DataTable: {
-			props: CHAT_UI_PROPS.DataTable,
-			description: "Tabular data with a header row."
-		},
-		CardGrid: {
-			props: CHAT_UI_PROPS.CardGrid,
-			slots: ["default"],
-			description: "Responsive grid of Card children."
-		},
-		Card: {
-			props: CHAT_UI_PROPS.Card,
-			description: "A record card: title, optional badge and label/value fields."
-		},
-		StatRow: {
-			props: CHAT_UI_PROPS.StatRow,
-			slots: ["default"],
-			description: "Divider-separated strip of Stat children."
-		},
-		Stat: {
-			props: CHAT_UI_PROPS.Stat,
-			description: "One headline metric."
-		}
-	},
-	actions: {}
-});
-const MAX_ELEMENTS = 40;
-const MAX_SPEC_JSON_CHARS = 4e3;
-/**
-* Validate + sanitize a model-supplied spec. Returns a rebuilt spec
-* containing only known element types, parsed props (unknown keys
-* stripped), and children references that resolve — or a message the
-* model can act on (it gets one shot at repair within the tool-step
-* budget).
-*
-* The client runs this too before rendering, so a hand-crafted or
-* version-drifted attachment degrades to nothing instead of crashing
-* the message list.
-*/
-function validateChatUiSpec(input) {
-	if (typeof input !== "object" || input === null) return {
-		ok: false,
-		error: "spec must be an object with root + elements"
-	};
-	const raw = input;
-	if (typeof raw.root !== "string" || typeof raw.elements !== "object" || raw.elements === null) return {
-		ok: false,
-		error: "spec must be { root: string, elements: Record<key, element> }"
-	};
-	const structural = validateSpec(raw);
-	if (!structural.valid) return {
-		ok: false,
-		error: structural.issues.map((i) => i.message).join("; ")
-	};
-	const entries = Object.entries(raw.elements);
-	if (entries.length === 0) return {
-		ok: false,
-		error: "elements is empty"
-	};
-	if (entries.length > MAX_ELEMENTS) return {
-		ok: false,
-		error: `too many elements (max ${MAX_ELEMENTS})`
-	};
-	const elements = {};
-	for (const [key, value] of entries) {
-		if (typeof value !== "object" || value === null) return {
-			ok: false,
-			error: `element "${key}" must be an object`
-		};
-		const el = value;
-		const type = el.type;
-		if (typeof type !== "string" || !(type in CHAT_UI_PROPS)) return {
-			ok: false,
-			error: `element "${key}" has unknown type "${String(el.type)}" — allowed: ${Object.keys(CHAT_UI_PROPS).join(", ")}`
-		};
-		const parsed = CHAT_UI_PROPS[type].safeParse(el.props ?? {});
-		if (parsed.success && type === "DataTable") {
-			const p = parsed.data;
-			if (p.rowHrefs && p.rowHrefs.length > p.rows.length) p.rowHrefs = p.rowHrefs.slice(0, p.rows.length);
-		}
-		if (!parsed.success) return {
-			ok: false,
-			error: `element "${key}" (${type}) has invalid props: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`
-		};
-		const children = Array.isArray(el.children) ? el.children.filter((c) => typeof c === "string") : [];
-		if (children.length > 0 && !CONTAINER_TYPES.has(type)) return {
-			ok: false,
-			error: `element "${key}" (${type}) cannot have children`
-		};
-		for (const c of children) if (!(c in raw.elements)) return {
-			ok: false,
-			error: `element "${key}" references missing child "${c}"`
-		};
-		elements[key] = {
-			type,
-			props: parsed.data,
-			...children.length > 0 ? { children } : {}
-		};
-	}
-	if (!(raw.root in elements)) return {
-		ok: false,
-		error: `root "${raw.root}" not found in elements`
-	};
-	const spec = {
-		root: raw.root,
-		elements
-	};
-	const size = JSON.stringify(spec).length;
-	if (size > MAX_SPEC_JSON_CHARS) return {
-		ok: false,
-		error: `spec too large (${size} chars, max ${MAX_SPEC_JSON_CHARS}) — trim rows or summarize`
-	};
-	return {
-		ok: true,
-		spec
-	};
-}
-/**
-* Compact tool description — the model's entire manual for the spec
-* format. Kept in the shared file next to the schemas it documents.
-*/
-const CHAT_UI_TOOL_DESCRIPTION = [
-	"Render rich UI beneath your chat reply. USE THIS whenever your answer is structured data — task lists, schedules, workload breakdowns, comparisons, metrics — instead of writing a markdown table (chat CANNOT render markdown tables).",
-	"Pass spec = { root: \"<key>\", elements: { \"<key>\": { type, props, children? } } }. children is an array of element keys, only valid on container types.",
-	"Component types:",
-	"- Stack — container; props {}; use as root when combining blocks.",
-	"- DataTable — props { title?, columns: string[] (1-6), rows: string[][] (≤20 rows, cells ≤160 chars), rowLinks?: ({kind,id}|null)[] aligned with rows }.",
-	"- CardGrid — container for Card children; props {}.",
-	"- Card — props { title, subtitle?, link?: {kind,id}, badge?: { label, tone?: \"neutral\"|\"success\"|\"warning\"|\"info\"|\"destructive\" }, fields?: [{ label, value }] (≤8) }.",
-	"- StatRow — container for Stat children; props {}.",
-	"- Stat — props { label, value, hint? } — one headline number.",
-	"Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: \"task\"|\"project\"|\"document\"|\"meeting\"|\"form\"|\"space\", id: \"<uuid>\" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.",
-	"Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
-	"Call at most once per reply — a second call replaces the first. After calling, keep your text to a one-line lead-in; never repeat the data in text."
-].join("\n");
-/** DB table per link kind (both runtimes query the same schema). */
-const CHAT_UI_LINK_TABLES = {
-	task: "tasks",
-	project: "projects",
-	document: "documents",
-	meeting: "meetings",
-	form: "forms",
-	space: "spaces"
-};
-async function resolveChatUiLinkRefs(elements, propertyId, lookupIds) {
-	const refs = [];
-	const collect = (value) => {
-		const parsed = ChatUiLinkRef.safeParse(value);
-		if (!parsed.success) return null;
-		refs.push(parsed.data);
-		return parsed.data;
-	};
-	const cardRefs = /* @__PURE__ */ new Map();
-	const rowRefs = /* @__PURE__ */ new Map();
-	for (const [key, el] of Object.entries(elements)) {
-		const props = el.props;
-		if (!props) continue;
-		if (el.type === "Card" && "link" in props) {
-			cardRefs.set(key, collect(props.link));
-			delete props.link;
-		}
-		if (el.type === "DataTable" && "rowLinks" in props) {
-			const list = Array.isArray(props.rowLinks) ? props.rowLinks : [];
-			rowRefs.set(key, list.map((r) => r === null ? null : collect(r)));
-			delete props.rowLinks;
-		}
-	}
-	if (refs.length === 0) return;
-	const byKind = /* @__PURE__ */ new Map();
-	for (const r of refs) {
-		if (!byKind.has(r.kind)) byKind.set(r.kind, /* @__PURE__ */ new Set());
-		byKind.get(r.kind).add(r.id);
-	}
-	const validIds = /* @__PURE__ */ new Set();
-	await Promise.all([...byKind.entries()].map(async ([kind, ids]) => {
-		try {
-			const found = await lookupIds(kind, [...ids]);
-			for (const id of found) validIds.add(`${kind}:${id}`);
-		} catch {}
-	}));
-	const hrefFor = (ref) => ref && validIds.has(`${ref.kind}:${ref.id}`) ? chatUiPathFor(propertyId, ref) : null;
-	for (const [key, ref] of cardRefs) {
-		const href = hrefFor(ref);
-		if (href) elements[key].props.href = href;
-	}
-	for (const [key, list] of rowRefs) {
-		const hrefs = list.map(hrefFor);
-		if (hrefs.some((h) => h !== null)) elements[key].props.rowHrefs = hrefs;
-	}
-}
+__eve_dynamic_exec_15.stepId = "eve:dynamic-tool//__eve_dynamic_exec_15";
+__eveStepRegistry$2.set("eve:dynamic-tool//__eve_dynamic_exec_15", __eve_dynamic_exec_15);
+__eve_dynamic_exec_16.stepId = "eve:dynamic-tool//__eve_dynamic_exec_16";
+__eveStepRegistry$2.set("eve:dynamic-tool//__eve_dynamic_exec_16", __eve_dynamic_exec_16);
 //#endregion
 //#region agent/tools/channel-render-ui.ts
 var channel_render_ui_exports = /* @__PURE__ */ __exportAll({ default: () => channel_render_ui_default });
@@ -2760,12 +2967,12 @@ var channel_render_ui_default = defineDynamic({ events: { "session.started": asy
 				children: array(string()).optional()
 			}))
 		}) }),
-		execute: async ({ spec }) => await __eve_dynamic_exec_21({ propertyId }, { spec }),
-		__executeStepFn: __eve_dynamic_exec_21,
+		execute: async ({ spec }) => await __eve_dynamic_exec_14({ propertyId }, { spec }),
+		__executeStepFn: __eve_dynamic_exec_14,
 		__closureVars: { propertyId }
 	}) };
 } } });
-async function __eve_dynamic_exec_21(__vars, { spec }) {
+async function __eve_dynamic_exec_14(__vars, { spec }) {
 	const { propertyId } = __vars;
 	try {
 		await resolveChatUiLinkRefs(spec.elements, propertyId, async (kind, ids) => {
@@ -2785,8 +2992,8 @@ async function __eve_dynamic_exec_21(__vars, { spec }) {
 		note: "UI attached — it renders beneath your reply. Keep your text to a one-line lead-in and do not repeat the data."
 	};
 }
-__eve_dynamic_exec_21.stepId = "eve:dynamic-tool//__eve_dynamic_exec_21";
-__eveStepRegistry$1.set("eve:dynamic-tool//__eve_dynamic_exec_21", __eve_dynamic_exec_21);
+__eve_dynamic_exec_14.stepId = "eve:dynamic-tool//__eve_dynamic_exec_14";
+__eveStepRegistry$1.set("eve:dynamic-tool//__eve_dynamic_exec_14", __eve_dynamic_exec_14);
 //#endregion
 //#region agent/tools/morning_ops_run.ts
 var morning_ops_run_exports = /* @__PURE__ */ __exportAll({ default: () => morning_ops_run_default });
@@ -2911,11 +3118,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			]).optional(),
 			limit: number().int().min(1).max(30).default(15)
 		}),
-		execute: async ({ status, limit }) => await __eve_dynamic_exec_7({ propertyId }, {
+		execute: async ({ status, limit }) => await __eve_dynamic_exec_0({ propertyId }, {
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_7,
+		__executeStepFn: __eve_dynamic_exec_0,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("create_task")) tools.create_task = defineTool({
@@ -2930,7 +3137,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 				"urgent"
 			]).default("medium")
 		}),
-		execute: async ({ title, description, priority }) => await __eve_dynamic_exec_8({
+		execute: async ({ title, description, priority }) => await __eve_dynamic_exec_1({
 			propertyId,
 			userId
 		}, {
@@ -2938,7 +3145,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description,
 			priority
 		}),
-		__executeStepFn: __eve_dynamic_exec_8,
+		__executeStepFn: __eve_dynamic_exec_1,
 		__closureVars: {
 			propertyId,
 			userId
@@ -2961,12 +3168,12 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 				"urgent"
 			]).optional()
 		}),
-		execute: async ({ task_id, status, priority }) => await __eve_dynamic_exec_9({ propertyId }, {
+		execute: async ({ task_id, status, priority }) => await __eve_dynamic_exec_2({ propertyId }, {
 			task_id,
 			status,
 			priority
 		}),
-		__executeStepFn: __eve_dynamic_exec_9,
+		__executeStepFn: __eve_dynamic_exec_2,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("search_docs")) tools.search_docs = defineTool({
@@ -2975,18 +3182,18 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			query: string().min(1).max(200),
 			limit: number().int().min(1).max(10).default(5)
 		}),
-		execute: async ({ query, limit }) => await __eve_dynamic_exec_10({ propertyId }, {
+		execute: async ({ query, limit }) => await __eve_dynamic_exec_3({ propertyId }, {
 			query,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_10,
+		__executeStepFn: __eve_dynamic_exec_3,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("read_doc")) tools.read_doc = defineTool({
 		description: "Read an app document's full text by id (from search_docs results).",
 		inputSchema: object({ document_id: string().uuid() }),
-		execute: async ({ document_id }) => await __eve_dynamic_exec_11({ propertyId }, { document_id }),
-		__executeStepFn: __eve_dynamic_exec_11,
+		execute: async ({ document_id }) => await __eve_dynamic_exec_4({ propertyId }, { document_id }),
+		__executeStepFn: __eve_dynamic_exec_4,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("get_bookings")) tools.get_bookings = defineTool({
@@ -3004,20 +3211,20 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			]).optional(),
 			limit: number().int().min(1).max(50).default(25)
 		}),
-		execute: async ({ from, days, status, limit }) => await __eve_dynamic_exec_12({ propertyId }, {
+		execute: async ({ from, days, status, limit }) => await __eve_dynamic_exec_5({ propertyId }, {
 			from,
 			days,
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_12,
+		__executeStepFn: __eve_dynamic_exec_5,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("get_booking")) tools.get_booking = defineTool({
 		description: "Fetch one booking by its reference (BKG-XXXXXX).",
 		inputSchema: object({ reference: string().min(4).max(20) }),
-		execute: async ({ reference }) => await __eve_dynamic_exec_13({ propertyId }, { reference }),
-		__executeStepFn: __eve_dynamic_exec_13,
+		execute: async ({ reference }) => await __eve_dynamic_exec_6({ propertyId }, { reference }),
+		__executeStepFn: __eve_dynamic_exec_6,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("notify_channel")) tools.notify_channel = defineTool({
@@ -3026,11 +3233,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			channel_id: string().min(1).max(120),
 			text: string().min(1).max(4e3)
 		}),
-		execute: async ({ channel_id, text }) => await __eve_dynamic_exec_14({ propertyId }, {
+		execute: async ({ channel_id, text }) => await __eve_dynamic_exec_7({ propertyId }, {
 			channel_id,
 			text
 		}),
-		__executeStepFn: __eve_dynamic_exec_14,
+		__executeStepFn: __eve_dynamic_exec_7,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("refund_booking")) tools.refund_booking = defineTool({
@@ -3040,7 +3247,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			reference: string().min(4).max(20),
 			reason: string().min(5).max(500)
 		}),
-		execute: async ({ reference, reason }) => await __eve_dynamic_exec_15({
+		execute: async ({ reference, reason }) => await __eve_dynamic_exec_8({
 			bot,
 			propertyId,
 			userId
@@ -3048,7 +3255,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			reference,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_15,
+		__executeStepFn: __eve_dynamic_exec_8,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -3063,7 +3270,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description: string().min(10).max(500),
 			new_rate: string().min(1).max(60).describe("The overridden rate, as quoted")
 		}),
-		execute: async ({ booking_reference, description, new_rate }) => await __eve_dynamic_exec_16({
+		execute: async ({ booking_reference, description, new_rate }) => await __eve_dynamic_exec_9({
 			bot,
 			propertyId,
 			userId
@@ -3072,7 +3279,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description,
 			new_rate
 		}),
-		__executeStepFn: __eve_dynamic_exec_16,
+		__executeStepFn: __eve_dynamic_exec_9,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -3086,7 +3293,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			booking_reference: string().min(4).max(20),
 			reason: string().min(10).max(500)
 		}),
-		execute: async ({ booking_reference, reason }) => await __eve_dynamic_exec_17({
+		execute: async ({ booking_reference, reason }) => await __eve_dynamic_exec_10({
 			bot,
 			propertyId,
 			userId
@@ -3094,7 +3301,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			booking_reference,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_17,
+		__executeStepFn: __eve_dynamic_exec_10,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -3104,11 +3311,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	if (allowed.has("brain_query")) tools.brain_query = defineTool({
 		description: `Query the ${clientSlug} knowledge brain (institutional memory: property systems, guests, suppliers, playbooks, local area). ALWAYS try this before answering property-specific questions. Cite returned page paths as [brain: <path>].`,
 		inputSchema: object({ query: string().min(2).max(300) }),
-		execute: async ({ query }) => await __eve_dynamic_exec_18({
+		execute: async ({ query }) => await __eve_dynamic_exec_11({
 			brainUrl,
 			brainTokenRef
 		}, { query }),
-		__executeStepFn: __eve_dynamic_exec_18,
+		__executeStepFn: __eve_dynamic_exec_11,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -3117,11 +3324,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	if (allowed.has("brain_get")) tools.brain_get = defineTool({
 		description: `Fetch a full page from the ${clientSlug} knowledge brain by path (e.g. properties/${propertySlug}/welcome-book).`,
 		inputSchema: object({ path: string().min(2).max(300) }),
-		execute: async ({ path }) => await __eve_dynamic_exec_19({
+		execute: async ({ path }) => await __eve_dynamic_exec_12({
 			brainUrl,
 			brainTokenRef
 		}, { path }),
-		__executeStepFn: __eve_dynamic_exec_19,
+		__executeStepFn: __eve_dynamic_exec_12,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -3135,7 +3342,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			observation: string().min(10).max(1e3).describe("The durable outcome/learning, one to three sentences"),
 			source: string().max(140).describe("Where this came from (channel, person, date)")
 		}),
-		execute: async ({ path, page_title, observation, source }) => await __eve_dynamic_exec_20({
+		execute: async ({ path, page_title, observation, source }) => await __eve_dynamic_exec_13({
 			brainUrl,
 			brainTokenRef
 		}, {
@@ -3144,7 +3351,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			observation,
 			source
 		}),
-		__executeStepFn: __eve_dynamic_exec_20,
+		__executeStepFn: __eve_dynamic_exec_13,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -3152,7 +3359,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	});
 	return tools;
 } } });
-async function __eve_dynamic_exec_7(__vars, { status, limit }) {
+async function __eve_dynamic_exec_0(__vars, { status, limit }) {
 	const { propertyId } = __vars;
 	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
 	if (status) query = query.eq("status", status);
@@ -3169,7 +3376,7 @@ async function __eve_dynamic_exec_7(__vars, { status, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_8(__vars, { title, description, priority }) {
+async function __eve_dynamic_exec_1(__vars, { title, description, priority }) {
 	const { propertyId, userId } = __vars;
 	const { data, error } = await serviceClient().from("tasks").insert({
 		property_id: propertyId,
@@ -3186,7 +3393,7 @@ async function __eve_dynamic_exec_8(__vars, { title, description, priority }) {
 		task: data
 	};
 }
-async function __eve_dynamic_exec_9(__vars, { task_id, status, priority }) {
+async function __eve_dynamic_exec_2(__vars, { task_id, status, priority }) {
 	const { propertyId } = __vars;
 	if (!status && !priority) return { error: "Nothing to update." };
 	const { data, error } = await serviceClient().from("tasks").update({
@@ -3200,7 +3407,7 @@ async function __eve_dynamic_exec_9(__vars, { task_id, status, priority }) {
 		task: data
 	};
 }
-async function __eve_dynamic_exec_10(__vars, { query, limit }) {
+async function __eve_dynamic_exec_3(__vars, { query, limit }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().rpc("search_documents_keyword", {
 		property_id_param: propertyId,
@@ -3217,7 +3424,7 @@ async function __eve_dynamic_exec_10(__vars, { query, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_11(__vars, { document_id }) {
+async function __eve_dynamic_exec_4(__vars, { document_id }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().from("documents").select("id, title, body_text").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
 	if (error || !data) return { error: "Document not found." };
@@ -3227,7 +3434,7 @@ async function __eve_dynamic_exec_11(__vars, { document_id }) {
 		content: (data.body_text ?? "").slice(0, 3e4)
 	};
 }
-async function __eve_dynamic_exec_12(__vars, { from, days, status, limit }) {
+async function __eve_dynamic_exec_5(__vars, { from, days, status, limit }) {
 	const { propertyId } = __vars;
 	const start = from ? /* @__PURE__ */ new Date(`${from}T00:00:00Z`) : /* @__PURE__ */ new Date();
 	const end = new Date(start.getTime() + days * 864e5);
@@ -3247,14 +3454,14 @@ async function __eve_dynamic_exec_12(__vars, { from, days, status, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_13(__vars, { reference }) {
+async function __eve_dynamic_exec_6(__vars, { reference }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().from("bookings").select("reference, guest_name, guest_email, party_size, status, starts_at, ends_at, notes, bookable_services(name)").eq("property_id", propertyId).eq("reference", reference.toUpperCase()).maybeSingle();
 	if (error) return { error: error.message };
 	if (!data) return { error: "No booking with that reference here." };
 	return { booking: data };
 }
-async function __eve_dynamic_exec_14(__vars, { channel_id, text }) {
+async function __eve_dynamic_exec_7(__vars, { channel_id, text }) {
 	const { propertyId } = __vars;
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const secret = process.env.STREAM_API_SECRET;
@@ -3271,7 +3478,7 @@ async function __eve_dynamic_exec_14(__vars, { channel_id, text }) {
 		})).message.id
 	};
 }
-async function __eve_dynamic_exec_15(__vars, { reference, reason }) {
+async function __eve_dynamic_exec_8(__vars, { reference, reason }) {
 	const { bot, propertyId, userId } = __vars;
 	const supabase = serviceClient();
 	const { data: booking } = await supabase.from("bookings").select("id, reference, status, guest_name").eq("property_id", propertyId).eq("reference", reference.toUpperCase()).maybeSingle();
@@ -3294,7 +3501,7 @@ async function __eve_dynamic_exec_15(__vars, { reference, reason }) {
 		refund_task_created: true
 	};
 }
-async function __eve_dynamic_exec_16(__vars, { booking_reference, description, new_rate }) {
+async function __eve_dynamic_exec_9(__vars, { booking_reference, description, new_rate }) {
 	const { bot, propertyId, userId } = __vars;
 	const { data, error } = await serviceClient().from("tasks").insert({
 		property_id: propertyId,
@@ -3311,7 +3518,7 @@ async function __eve_dynamic_exec_16(__vars, { booking_reference, description, n
 		follow_up_task: data.id
 	};
 }
-async function __eve_dynamic_exec_17(__vars, { booking_reference, reason }) {
+async function __eve_dynamic_exec_10(__vars, { booking_reference, reason }) {
 	const { bot, propertyId, userId } = __vars;
 	const { data: booking } = await serviceClient().from("bookings").select("id, reference, guest_name").eq("property_id", propertyId).eq("reference", booking_reference.toUpperCase()).maybeSingle();
 	if (!booking) return { error: "No booking with that reference here." };
@@ -3331,7 +3538,7 @@ async function __eve_dynamic_exec_17(__vars, { booking_reference, reason }) {
 		follow_up_task: data.id
 	};
 }
-async function __eve_dynamic_exec_18(__vars, { query }) {
+async function __eve_dynamic_exec_11(__vars, { query }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	const result = await brainQuery(brainUrl, brainTokenRef, query);
 	if (!result.ok) return {
@@ -3341,7 +3548,7 @@ async function __eve_dynamic_exec_18(__vars, { query }) {
 	};
 	return { result: result.content };
 }
-async function __eve_dynamic_exec_19(__vars, { path }) {
+async function __eve_dynamic_exec_12(__vars, { path }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	const page = await getBrainPage(brainUrl, brainTokenRef, path);
 	const result = page ? {
@@ -3357,7 +3564,7 @@ async function __eve_dynamic_exec_19(__vars, { path }) {
 	};
 	return { page: result.content };
 }
-async function __eve_dynamic_exec_20(__vars, { path, page_title, observation, source }) {
+async function __eve_dynamic_exec_13(__vars, { path, page_title, observation, source }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	if (await getBrainPage(brainUrl, brainTokenRef, path) === null) {
 		const created = await putBrainPage(brainUrl, brainTokenRef, path, `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`);
@@ -3381,6 +3588,20 @@ async function __eve_dynamic_exec_20(__vars, { path, page_title, observation, so
 		path
 	};
 }
+__eve_dynamic_exec_0.stepId = "eve:dynamic-tool//__eve_dynamic_exec_0";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_0", __eve_dynamic_exec_0);
+__eve_dynamic_exec_1.stepId = "eve:dynamic-tool//__eve_dynamic_exec_1";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_1", __eve_dynamic_exec_1);
+__eve_dynamic_exec_2.stepId = "eve:dynamic-tool//__eve_dynamic_exec_2";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_2", __eve_dynamic_exec_2);
+__eve_dynamic_exec_3.stepId = "eve:dynamic-tool//__eve_dynamic_exec_3";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_3", __eve_dynamic_exec_3);
+__eve_dynamic_exec_4.stepId = "eve:dynamic-tool//__eve_dynamic_exec_4";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_4", __eve_dynamic_exec_4);
+__eve_dynamic_exec_5.stepId = "eve:dynamic-tool//__eve_dynamic_exec_5";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_5", __eve_dynamic_exec_5);
+__eve_dynamic_exec_6.stepId = "eve:dynamic-tool//__eve_dynamic_exec_6";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_6", __eve_dynamic_exec_6);
 __eve_dynamic_exec_7.stepId = "eve:dynamic-tool//__eve_dynamic_exec_7";
 __eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_7", __eve_dynamic_exec_7);
 __eve_dynamic_exec_8.stepId = "eve:dynamic-tool//__eve_dynamic_exec_8";
@@ -3395,20 +3616,6 @@ __eve_dynamic_exec_12.stepId = "eve:dynamic-tool//__eve_dynamic_exec_12";
 __eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_12", __eve_dynamic_exec_12);
 __eve_dynamic_exec_13.stepId = "eve:dynamic-tool//__eve_dynamic_exec_13";
 __eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_13", __eve_dynamic_exec_13);
-__eve_dynamic_exec_14.stepId = "eve:dynamic-tool//__eve_dynamic_exec_14";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_14", __eve_dynamic_exec_14);
-__eve_dynamic_exec_15.stepId = "eve:dynamic-tool//__eve_dynamic_exec_15";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_15", __eve_dynamic_exec_15);
-__eve_dynamic_exec_16.stepId = "eve:dynamic-tool//__eve_dynamic_exec_16";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_16", __eve_dynamic_exec_16);
-__eve_dynamic_exec_17.stepId = "eve:dynamic-tool//__eve_dynamic_exec_17";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_17", __eve_dynamic_exec_17);
-__eve_dynamic_exec_18.stepId = "eve:dynamic-tool//__eve_dynamic_exec_18";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_18", __eve_dynamic_exec_18);
-__eve_dynamic_exec_19.stepId = "eve:dynamic-tool//__eve_dynamic_exec_19";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_19", __eve_dynamic_exec_19);
-__eve_dynamic_exec_20.stepId = "eve:dynamic-tool//__eve_dynamic_exec_20";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_20", __eve_dynamic_exec_20);
 //#endregion
 //#region agent/subagents/bookings/agent.ts
 var agent_exports$1 = /* @__PURE__ */ __exportAll({ default: () => agent_default$1 });
@@ -3493,7 +3700,7 @@ var list_tasks_default = defineTool({
 	}
 });
 //#endregion
-//#region .eve/builds/mrwkc6mp-4468f6bc-3b86-4d35-a30b-84fd4e6af98c/host/compiled-artifacts-bootstrap.mjs
+//#region .eve/builds/mrx3aicl-b4f85975-72c7-404b-a1c6-d2428722fd23/host/compiled-artifacts-bootstrap.mjs
 installEveWorkflowQueueNamespace("agent");
 const moduleMap = Object.freeze({ "nodes": Object.freeze({
 	"__root__": Object.freeze({ "modules": Object.freeze({
@@ -3532,9 +3739,9 @@ const metadata = {
 		},
 		"manifest": {
 			"path": ".output/.eve/discovery/agent-discovery-manifest.json",
-			"sha256": "2acad07799682f0fea49009739c40121d85c28b67eab2242f52d3bc346641d02"
+			"sha256": "278ab641045f9883088ee8c6cf6321efb03fe4a72361a54947223676c01e4b58"
 		},
-		"sourceGraphHash": "85f99539e456fb59566c92180857fcde390579ab598f777bb0aa5b005df39c51",
+		"sourceGraphHash": "04f14da93127c8515fefbd03e36febed610f6a2df0ed02b5082652aaf9542495",
 		"summary": {
 			"errors": 0,
 			"warnings": 0
@@ -3560,7 +3767,7 @@ const manifest = {
 			"urlPath": "/eve/v1/info",
 			"sourceId": "channels/eve.ts",
 			"sourceKind": "module",
-			"adapterKind": "http"
+			"adapterKind": "defineChannel"
 		},
 		{
 			"kind": "channel",
@@ -3570,7 +3777,7 @@ const manifest = {
 			"urlPath": "/eve/v1/session",
 			"sourceId": "channels/eve.ts",
 			"sourceKind": "module",
-			"adapterKind": "http"
+			"adapterKind": "defineChannel"
 		},
 		{
 			"kind": "channel",
@@ -3580,7 +3787,7 @@ const manifest = {
 			"urlPath": "/eve/v1/session/:sessionId",
 			"sourceId": "channels/eve.ts",
 			"sourceKind": "module",
-			"adapterKind": "http"
+			"adapterKind": "defineChannel"
 		},
 		{
 			"kind": "channel",
@@ -3590,7 +3797,7 @@ const manifest = {
 			"urlPath": "/eve/v1/session/:sessionId/cancel",
 			"sourceId": "channels/eve.ts",
 			"sourceKind": "module",
-			"adapterKind": "http"
+			"adapterKind": "defineChannel"
 		},
 		{
 			"kind": "channel",
@@ -3600,7 +3807,7 @@ const manifest = {
 			"urlPath": "/eve/v1/session/:sessionId/stream",
 			"sourceId": "channels/eve.ts",
 			"sourceKind": "module",
-			"adapterKind": "http"
+			"adapterKind": "defineChannel"
 		}
 	],
 	"connections": [],
@@ -3989,7 +4196,7 @@ const POST = ba(Buffer.from([
 	"VTBzUTBGQlF5eERRVUZETzBOQlFVVXNSMEZCUlN4VlFVRlBMRTFCUVVjN1JVRkJReXhGUVVGRkxGVkJRVkVzUTBGQlF5eEhRVUZGTEVWQlFVVXNZVUZCVnl4TFFVRkxMRXRCUVVjc1VVRkJVU3hGUVVGRkxGRkJRVkU3UTBGQlF5eEhRVUZGTEdGQlFWY3NXVUZCVXp0RlFVRkRMRWxCUVVjc1RVRkJTU3hOUVVGTExFdEJRVWtzVFVGQlRTeFJRVUZSTEZGQlFWRXNSMEZCUlN4RlFVRkZMRk5CUVU4c1NVRkJSenRIUVVGRExFbEJRVWtzU1VGQlJTeEZRVUZGTEUxQlFVMDdSMEZCUlN4RlFVRkZMRTFCUVUwc1ZVRkJVU3hEUVVGRExFZEJRVVVzUlVGQlJTeE5RVUZOTEZkQlFWTXNTMEZCU3l4SFFVRkZMRVZCUVVVc1QwRkJUeXhQUVVGTExFVkJRVVVzVFVGQlRTeFRRVUZQTEVOQlFVTXNTVUZCUlN4RlFVRkZMRTlCUVU4c1RVRkJUU3hUUVVGUExHRkJRVmNzUlVGQlJTeExRVUZMTEVWQlFVVXNUMEZCVHl4TFFVRkxMRWRCUVVVc1NVRkJTU3hGUVVGRkxFdEJRVXNzUjBGQlJTeE5RVUZOTEZGQlFWRXNVVUZCVVR0RlFVRkRPME5CUVVNN1EwRkJSU3hQUVVGTk8wVkJRVU1zWTBGQllUdEhRVUZETEVsQlFVY3NUVUZCU1N4TFFVRkxMRWRCUVVVc1RVRkJUU3hOUVVGTkxITkVRVUZ6UkR0SFFVRkZMRVZCUVVVc1RVRkJUU3hWUVVGUkxFTkJRVU1zUjBGQlJTeEZRVUZGTEUxQlFVMHNWMEZCVXl4TFFVRkxMRWRCUVVVc1JVRkJSU3hQUVVGUExGTkJRVThzUlVGQlJTeE5RVUZOTEZOQlFVOHNRMEZCUXl4SlFVRkhMRWxCUVVVc1MwRkJTeXhIUVVGRkxFbEJRVVU3UlVGQlNUdEZRVUZGTEUxQlFVMHNWVUZCVXp0SFFVRkRMRTFCUVVrc1MwRkJTeXhOUVVGSkxFMUJRVTBzV1VGQldTeEZRVUZGTEVsQlFVa3NSMEZCUlN4SlFVRkZMRXRCUVVzN1JVRkJSVHRGUVVGRkxFOUJRVTA3UjBGQlF5eEpRVUZITEUxQlFVa3NTMEZCU3l4SFFVRkZMRTFCUVUwc1RVRkJUU3h6UlVGQmMwVTdSMEZCUlN4SlFVRkhMRTFCUVVrc1RVRkJTeXhQUVVGUE8wZEJRVVVzU1VGQlNTeERRVUZETzBkQlFVVXNTMEZCU1N4SlFVRkpMRXRCUVVzc1IwRkJSU3hKUVVGSkxFTkJRVU03UjBGQlJTeFBRVUZQTEVWQlFVVXNWVUZCVVN4RlFVRkZMRTlCUVUwc1RVRkJSeXhGUVVGRkxFMUJRVTBzUzBGQlJ5eEpRVUZGTzBsQlFVTXNUMEZCVFR0SlFVRkpMRkZCUVU4N1MwRkJReXhOUVVGTExFTkJRVU03UzBGQlJTeFBRVUZOTEV0QlFVczdTVUZCUXp0SlFVRkZMRTlCUVUwN1IwRkJReXhIUVVGRkxFbEJRVVVzVVVGQlVTeFJRVUZSTEVWQlFVVXNUVUZCVFN4SFFVRkZMRTFCUVVrc1MwRkJSeXhaUVVGVE8wbEJRVU1zVDBGQlN5eEZRVUZGTEZkQlFWTXNTVUZCUnl4TlFVRk5MRWxCUVVrc1UwRkJVU3hOUVVGSE8wdEJRVU1zU1VGQlJUdEpRVUZETEVOQlFVTTdTVUZCUlN4SlFVRkpMRWxCUVVVc1JVRkJSU3hOUVVGTk8wbEJRVVVzVDBGQlR5eEpRVUZGTEVkQlFVVXNSVUZCUlR0SFFVRk5MRVZCUVVFc1EwRkJSeXhIUVVGRk8wVkJRVVU3UlVGQlJTeE5RVUZOTEUxQlFVMHNSMEZCUlR0SFFVRkRMRWxCUVVjc1EwRkJReXhMUVVGSExFZEJRVWNzUzBGQlN5eFZRVUZSTEVkQlFVVTdSMEZCVHl4SlFVRkpMRWxCUVVVc1YwRkJWeXhGUVVGRExFOUJRVTBzUlVGQlF5eERRVUZETEVkQlFVVXNTVUZCUlR0SlFVRkRMRkZCUVU4c1EwRkJRenRKUVVGRkxGTkJRVkVzUTBGQlF6dEpRVUZGTEUxQlFVczdTVUZCUlN4VlFVRlRMRVZCUVVVc1QwRkJUeXhqUVVGakxFTkJRVU03U1VGQlJTeFRRVUZSTEVOQlFVTTdTVUZCUlN4VFFVRlJMRU5CUVVNN1IwRkJRenRIUVVGRkxFbEJRVWNzVFVGQlNTeExRVUZMTEVkQlFVVTdTVUZCUXl4TlFVRk5MRzFDUVVGdFFpeEZRVUZGTEVsQlFVa3NSMEZCUlN4UFFVRlBMRU5CUVVNc1IwRkJSU3hKUVVGRk8wbEJRVVU3UjBGQlRUdEhRVUZETEVsQlFVa3NTVUZCUlR0SFFVRkZMRWxCUVVrc1EwRkJReXhIUVVGRkxFbEJRVWtzUTBGQlF5eEhRVUZGTEUxQlFVMHNiVUpCUVcxQ0xFVkJRVVVzU1VGQlNTeEhRVUZGTEU5QlFVOHNRMEZCUXl4SFFVRkZMRTFCUVUwc1YwRkJWenRIUVVGRkxFbEJRVWM3U1VGQlF5eE5RVUZOTEZsQlFWa3NSVUZCUlN4SlFVRkpPMGRCUVVNc1UwRkJUeXhIUVVGRk8wbEJRVU1zU1VGQlJTeExRVUZMTzBsQlFVVXNTVUZCUnp0TFFVRkRMRTFCUVUwc1dVRkJXU3hGUVVGRkxFbEJRVWs3U1VGQlF5eFJRVUZOTEVOQlFVTTdTVUZCUXl4TlFVRk5PMGRCUVVNN1IwRkJReXhGUVVGRkxGVkJRVkVzUTBGQlF5eEhRVUZGTEVWQlFVVXNTMEZCU3l4RFFVRkRMRWRCUVVVc1NVRkJSU3hIUVVGRkxFMUJRVTBzVjBGQlZ6dEZRVUZETzBOQlFVTTdRVUZCUXpzN08wRkRRM0o0UWl4bFFVRmxMR05CUVdNc1IwRkJSVHREUVVGRExFbEJRVWNzUlVGQlF5eGxRVUZqTEUxQlFVY3NiMEpCUVc5Q0xFZEJRVVVzU1VGQlJTeEZRVUZGTEd0Q1FVRnJRaXcwUWtGQk1FSXNTVUZCUnl4SlFVRkZMRVZCUVVVc2EwSkJRV3RDTEdGQlFWa3NTVUZCUlN4RlFVRkZMR3RDUVVGclFpeHhRa0ZCYjBJc1NVRkJSU3hGUVVGRkxHdENRVUZyUWp0RFFVRmpMRVZCUVVVc2EwSkJRV3RDTEcxQ1FVRnBRanREUVVGRkxFbEJRVWtzU1VGQlJTeFpRVUZaTzBOQlFVVXNTVUZCUnp0RlFVRkRMRWxCUVVrc1NVRkJSU3hyUWtGQmEwSXNSVUZCUlN4cFFrRkJhVUlzUjBGQlJTeEpRVUZGTERSQ1FVRTBRaXhGUVVGRkxHbENRVUZwUWl4SFFVRkZMRVZCUVVNc1QwRkJUU3hOUVVGSExFMUJRVTBzYTBKQlFXdENPMGRCUVVNc2VVSkJRWGRDTEVWQlFVVTdSMEZCVHl4dFFrRkJhMEk3UjBGQlJTeHBRa0ZCWjBJc1JVRkJSVHRIUVVGUExGRkJRVThzUlVGQlJUdEhRVUZQTEdOQlFXRXNSVUZCUlN4TlFVRk5PMGRCUVdFc1pVRkJZenRIUVVGRkxGZEJRVlU3UjBGQlJTeGxRVUZqTzBWQlFVTXNRMEZCUXp0RlFVRkZMRTlCUVU4c1RVRkJUU3hqUVVGak8wZEJRVU1zWTBGQllUdEhRVUZGTEdkQ1FVRmxPMGRCUVVVc1kwRkJZVHRKUVVGRExFMUJRVXM3U1VGQlZTeFZRVUZUTEVOQlFVTTdTMEZCUXl4VFFVRlJMRVZCUVVVc1RVRkJUVHRMUVVGUkxGTkJRVkVzUlVGQlJTeE5RVUZOTzB0QlFWRXNZMEZCWVN4RlFVRkZMRTFCUVUwN1NVRkJXU3hEUVVGRE8wbEJRVVVzVjBGQlZTeHhRa0ZCY1VJc1JVRkJSU3hwUWtGQmFVSTdSMEZCUXp0SFFVRkZMRTFCUVVzN1IwRkJSU3h0UWtGQmEwSXNSVUZCUlR0SFFVRnJRaXhqUVVGaE8wVkJRVU1zUTBGQlF6dERRVUZETEZOQlFVOHNSMEZCUlR0RlFVRkRMRTFCUVUwc1RVRkJUU3dyUWtGQkswSTdSMEZCUXl4UFFVRk5MREpDUVVFeVFpeERRVUZETzBkQlFVVXNaMEpCUVdVN1IwRkJSU3h0UWtGQmEwSXNSVUZCUlR0RlFVRnBRaXhEUVVGRExFZEJRVVVzVFVGQlRTeDNRa0ZCZDBJN1IwRkJReXhQUVVGTkxESkNRVUV5UWl4RFFVRkRPMGRCUVVVc2JVSkJRV3RDTEVWQlFVVTdSMEZCYTBJc1VVRkJUenRGUVVGUkxFTkJRVU1zUjBGQlJTeE5RVUZOTERCQ1FVRXdRanRIUVVGRExGRkJRVThzYlVOQlFXMURMRVZCUVVVc2JVSkJRV3RDTEVOQlFVTTdSMEZCUlN4dFFrRkJhMElzUlVGQlJUdEZRVUZwUWl4RFFVRkRMRWRCUVVVN1EwRkJRenRCUVVGRE8wRkJRVU1zWlVGQlpTeGpRVUZqTEVkQlFVVTdRMEZCUXl4SlFVRkpMRWxCUVVVc1YwRkJWeXhGUVVGRExFOUJRVTBzUjBGQlJ5eEZRVUZGTEdGQlFXRXNWVUZCVlN4UFFVRk5MRU5CUVVNc1IwRkJSU3hKUVVGRkxFVkJRVVVzVDBGQlR5eGpRVUZqTEVOQlFVTXNSMEZCUlN4SlFVRkZMRWRCUVVVc05rSkJRWGxDTEVkQlFVY3NSVUZCUlN4aFFVRmhMRlZCUVZVc1owSkJRV2RDTEU5QlFVOHNSMEZCUnl4TFFVRkpMRWxCUVVVc1EwRkJReXhIUVVGRkxFbEJRVVVzTUVKQlFUQkNMRU5CUVVNc1IwRkJSU3hIUVVGRkxGVkJRVkVzVDBGQlRTeE5RVUZITzBWQlFVTXNTVUZCU1N4SlFVRkZMRTFCUVUwc2NVSkJRWEZDTzBkQlFVTXNiMEpCUVcxQ08wZEJRVVVzWTBGQllTeEZRVUZGTzBkQlFXRXNZMEZCWVN4eFFrRkJjVUk3UjBGQlJTeFZRVUZUTEVWQlFVVTdSMEZCVXl4alFVRmhPMGRCUVVVc1RVRkJTeXhGUVVGRk8wZEJRVXNzWjBKQlFXVXNSVUZCUlR0SFFVRmxMRzFDUVVGclFpeEZRVUZGTzBkQlFXdENMR05CUVdFc1JVRkJSVHRGUVVGWkxFTkJRVU03UlVGQlJTeFBRVUZQTEUxQlFVMHNTVUZCU1N4SFFVRkZMRWxCUVVVc1JVRkJSU3hUUVVGUkxFVkJRVVU3UTBGQlRUdERRVUZGTEVsQlFVYzdSVUZCUXl4RlFVRkZMR0ZCUVdFc2NVSkJRVzFDTEUxQlFVMHNSVUZCUlN4TlFVRk5MRVZCUVVVc1lVRkJZU3hwUWtGQmFVSTdSVUZCUlN4SlFVRkpMRWxCUVVVc1RVRkJUU3hSUVVGUk8wZEJRVU1zVlVGQlV5eEZRVUZGTzBkQlFXRXNiVUpCUVd0Q0xFVkJRVVU3UjBGQmEwSXNZMEZCWVN4RlFVRkZPMFZCUVZrc1EwRkJRenRGUVVGRkxGTkJRVTg3UjBGQlF5eEpRVUZITEVWQlFVVXNVMEZCVHl4UlFVRlBMRTlCUVU4c1RVRkJUU3hoUVVGaE8wbEJRVU1zVVVGQlR6dEpRVUZGTEdkQ1FVRmxMRVZCUVVVN1IwRkJZeXhEUVVGRE8wZEJRVVVzU1VGQlJ5eEZRVUZGTEZOQlFVOHNVVUZCVHl4TlFVRk5MRTFCUVUwc01rTkJRVEpETEVWQlFVVXNTMEZCU3l4SFFVRkhPMGRCUVVVc1NVRkJSeXhGUVVGRkxHTkJRVmtzUTBGQlF5eEhRVUZGTzBsQlFVTXNTVUZCU1N4SlFVRkZMRTFCUVUwc2QwSkJRWGRDTzB0QlFVTXNaMEpCUVdVc1JVRkJSVHRMUVVGbExHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTEVOQlFVTTdTVUZCUlN4SlFVRkZPMHRCUVVNc1IwRkJSenRMUVVGRkxHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTzBkQlFVTTdSMEZCUXl4SlFVRkhMRU5CUVVNc1JVRkJSU3hoUVVGaExHMUNRVUZyUWl4TlFVRk5MRTFCUVUwc2MwMUJRWE5OTzBkQlFVVXNTVUZCUnl4TlFVRk5MRVZCUVVVc1RVRkJUU3hGUVVGRkxHRkJRV0VzYVVKQlFXbENMRWRCUVVVc1JVRkJSU3h6UWtGQmIwSXNSVUZCUlN4dFFrRkJiVUlzVTBGQlR5eEhRVUZGTzBsQlFVTXNTVUZCU1N4SlFVRkZMRVZCUVVVc2JVSkJRVzFDTEZGQlFVOHNTVUZCUlN4RFFVRkRPMGxCUVVVc1QwRkJTeXhGUVVGRkxGTkJRVThzU1VGQlJ6dExRVUZETEVsQlFVa3NTVUZCUlN4TlFVRk5MRVZCUVVVc1MwRkJTenRMUVVGRkxFbEJRVWNzUlVGQlJTeE5RVUZMTzB0QlFVMHNSVUZCUlN4TlFVRk5MRk5CUVU4c1lVRkJWeXhGUVVGRkxFdEJRVXNzUjBGQlJ5eEZRVUZGTEUxQlFVMHNVVUZCVVR0SlFVRkRPMGxCUVVNc1NVRkJSU3hOUVVGTkxGRkJRVkU3UzBGQlF5eFZRVUZUTzAxQlFVTXNUVUZCU3p0TlFVRlZMRlZCUVZNN1MwRkJRenRMUVVGRkxHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTEVOQlFVTTdTVUZCUlR0SFFVRlJPMGRCUVVNc1NVRkJTU3hKUVVGRkxFMUJRVTBzYlVKQlFXMUNPMGxCUVVNc2IwSkJRVzFDTzBsQlFVVXNZMEZCWVR0SFFVRkRMRU5CUVVNN1IwRkJSU3hKUVVGSExFMUJRVWtzVFVGQlN5eFBRVUZOTEVWQlFVTXNVVUZCVHl4SFFVRkZPMGRCUVVVc1NVRkJTU3hKUVVGRkxFMUJRVTBzZFVKQlFYVkNPMGxCUVVNc1RVRkJTeXhGUVVGRk8wbEJRVXNzWjBKQlFXVXNSVUZCUlR0SlFVRmxMRlZCUVZNc1JVRkJSVHRKUVVGVExHTkJRV0VzUlVGQlJUdEhRVUZaTEVOQlFVTTdSMEZCUlN4TlFVRkpMRXRCUVVzc1RVRkJTU3hKUVVGRkxFMUJRVTBzVVVGQlVUdEpRVUZETEZWQlFWTTdTMEZCUXl4TlFVRkxMRVZCUVVVN1MwRkJTeXhOUVVGTE8wdEJRVlVzVlVGQlV5eERRVUZETEVOQlFVTTdTMEZCUlN4WFFVRlZMRVZCUVVVN1NVRkJVenRKUVVGRkxHMUNRVUZyUWl4RlFVRkZPMGxCUVd0Q0xHTkJRV0VzUlVGQlJUdEhRVUZaTEVOQlFVTTdSVUZCUlR0RFFVRkRMRlZCUVZFN1JVRkJReXhOUVVGTkxFbEJRVWtzUjBGQlJTeE5RVUZOTEVWQlFVVXNVVUZCVVN4SFFVRkZMRTFCUVUwc1dVRkJXU3hEUVVGRE8wTkJRVU03UVVGQlF6dEJRVUZETEdWQlFXVXNZVUZCWVN4SFFVRkZPME5CUVVNc1NVRkJSeXhGUVVGRExGRkJRVThzUjBGQlJTeHRRa0ZCYTBJc1RVRkJSeXhGUVVGRkxGRkJRVThzU1VGQlJTeEZRVUZGTEU5QlFVOHNXVUZCVlN4RFFVRkRPME5CUVVVc1QwRkJUeXhOUVVGTkxIZENRVUYzUWp0RlFVRkRMRTlCUVUwc1NVRkJSU3hKUVVGRkxFdEJRVXM3UlVGQlJTeFJRVUZQTEVsQlFVVXNTMEZCU3l4SlFVRkZPMFZCUVVVc2JVSkJRV3RDTzBWQlFVVXNVVUZCVHl4SlFVRkZMRmRCUVZNN1JVRkJXU3hQUVVGTkxFbEJRVVVzUzBGQlN5eEpRVUZGTEVWQlFVVXNUMEZCVHp0RFFVRkxMRU5CUVVNc1IwRkJSU3hOUVVGTkxEQkNRVUV3UWp0RlFVRkRMRkZCUVU4c1NVRkJSU3h0UTBGQmJVTXNSMEZCUlN4RFFVRkRMRWxCUVVVc2NVTkJRWEZETEVkQlFVVXNRMEZCUXp0RlFVRkZMRzFDUVVGclFqdEZRVUZGTEU5QlFVMHNTVUZCUlN4TFFVRkxMRWxCUVVVc1JVRkJSU3hQUVVGUE8wTkJRVXNzUTBGQlF5eEhRVUZGTEVWQlFVTXNVVUZCVHl4RlFVRkRPMEZCUVVNN1FVRkJReXhsUVVGbExHMUNRVUZ0UWl4SFFVRkZPME5CUVVNc1NVRkJSeXhGUVVGRkxHMUNRVUZ0UWl4VFFVRlBMRWRCUVVVc1QwRkJUeXh0UWtGQmJVSXNSVUZCUlN4dFFrRkJiVUlzVDBGQlR5eERRVUZETEVOQlFVTTdRMEZCUlN4VFFVRlBPMFZCUVVNc1NVRkJTU3hKUVVGRkxFMUJRVTBzUlVGQlJTeGhRVUZoTEV0QlFVczdSVUZCUlN4SlFVRkhMRVZCUVVVc1lVRkJZU3haUVVGWkxFZEJRVVVzUlVGQlJTeE5RVUZMTEU5QlFVODdSVUZCU3l4SlFVRkhMRVZCUVVVc1RVRkJUU3hUUVVGUExGZEJRVlU3UlVGQlV5eEpRVUZKTEVsQlFVVXNSVUZCUlR0RlFVRk5MRk5CUVU4N1IwRkJReXhKUVVGSkxFbEJRVVVzVFVGQlRTeHBRa0ZCYVVJc1JVRkJSU3hoUVVGaExFdEJRVXNzUTBGQlF6dEhRVUZGTEVsQlFVY3NUVUZCU1N4eFFrRkJiVUlzUlVGQlJTeGhRVUZoTEZsQlFWa3NSMEZCUlN4RlFVRkZMRTlCUVUwN1IwRkJUU3hGUVVGRkxFMUJRVTBzVTBGQlR5eGpRVUZaTEVsQlFVVXNiVUpCUVcxQ0xFTkJRVU1zUjBGQlJTeEZRVUZGTEV0QlFVc3NRMEZCUXp0RlFVRkZPMFZCUVVNc1QwRkJUenREUVVGRE8wRkJRVU03UVVGQlF5eE5RVUZOTEcxQ1FVRnBRaXhQUVVGUExHdENRVUZyUWp0QlFVRkZMR1ZCUVdVc2FVSkJRV2xDTEVkQlFVVTdRMEZCUXl4UFFVRlBMRTFCUVUwc1VVRkJVU3hSUVVGUkxFZEJRVVVzVFVGQlRTeFJRVUZSTEV0QlFVc3NRMEZCUXl4SFFVRkZMRkZCUVZFc1VVRkJVU3huUWtGQlowSXNRMEZCUXl4RFFVRkRPMEZCUVVNN1FVRkRhbk5NTEdOQlFXTXNZVUZCWVR0QlFVTXpRaXhYUVVGWExHOUNRVUZ2UWl4SlFVRkpMR2REUVVGblF5eGhRVUZoSW4wPQo="
 ].join(""), "base64").toString("utf8"), { namespace: "eve6167656e74" });
 //#endregion
-//#region .eve/builds/mrwkc6mp-4468f6bc-3b86-4d35-a30b-84fd4e6af98c/nitro/workflow/workflows-handler.mjs
+//#region .eve/builds/mrx3aicl-b4f85975-72c7-404b-a1c6-d2428722fd23/nitro/workflow/workflows-handler.mjs
 var workflows_handler_default = async ({ req }) => {
 	return await POST(req);
 };
@@ -4244,7 +4451,7 @@ async function error_handler_default(error, event) {
 	}
 }
 //#endregion
-//#region .eve/builds/mrwkc6mp-4468f6bc-3b86-4d35-a30b-84fd4e6af98c/host/compiled-artifacts-workflow-world.mjs
+//#region .eve/builds/mrx3aicl-b4f85975-72c7-404b-a1c6-d2428722fd23/host/compiled-artifacts-workflow-world.mjs
 const workflowWorld = await br({ dataDir: resolveLocalWorkflowWorldDataDirectory(process.cwd()) });
 validateWorkflowWorld({
 	packageName: void 0,

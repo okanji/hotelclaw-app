@@ -23,8 +23,6 @@ import "server-only";
  *      in one shot. Non-streaming by design.
  */
 import { type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-bot";
-import { type RenderUiSink } from "@/lib/ai/tools/render-ui";
-import { validateChatUiSpec } from "@hotelclaw/chat-ui";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
 import {
@@ -109,73 +107,52 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     return;
   }
 
-  try {
-    // Native typing indicator (no placeholder message; renders inline).
-    await channel
-      .sendEvent({
-        type: "typing.start",
-        user_id: botUserId,
-        ...(parentId ? { parent_id: parentId } : {}),
-      } as unknown as Parameters<typeof channel.sendEvent>[0])
-      .catch((e) => console.error("[ai-reply] typing.start failed", e));
+  // Native typing indicator (no placeholder message; renders inline —
+  // Stream expires it client-side; the runtime also sends typing.stop
+  // right before it posts the reply).
+  await channel
+    .sendEvent({
+      type: "typing.start",
+      user_id: botUserId,
+      ...(parentId ? { parent_id: parentId } : {}),
+    } as unknown as Parameters<typeof channel.sendEvent>[0])
+    .catch((e) => console.error("[ai-reply] typing.start failed", e));
 
-    const eveTurn = await runChannelBotEveTurn({
-      propertyId: ctx.propertyId,
-      streamChannelId: ctx.streamChannelId,
-      channelType: ctx.channelType,
-      parentId,
-      triggerMessage: ctx.triggerMessage,
-      activationReason: ctx.activationReason ?? "mention",
+  // EVENT-DRIVEN DELIVERY (2026-07-23): this only QUEUES the turn. The eve
+  // channel's events handlers (apps/agent/agent/channels/eve.ts) post the
+  // reply/ai_ui/⚠️ to Stream when the turn parks, and release the
+  // generation lock then — so the lock is deliberately NOT released here on
+  // success; it spans the whole turn (TTL is the crash fallback).
+  const eveTurn = await runChannelBotEveTurn({
+    propertyId: ctx.propertyId,
+    streamChannelId: ctx.streamChannelId,
+    channelType: ctx.channelType,
+    parentId,
+    triggerMessage: ctx.triggerMessage,
+    activationReason: ctx.activationReason ?? "mention",
+  });
+
+  if (!eveTurn.ok) {
+    console.error("[ai-reply] eve turn queue FAILED — no fallback", {
+      channelId: ctx.streamChannelId,
+      reason: eveTurn.reason,
     });
-
     await channel
       .sendEvent({
         type: "typing.stop",
         user_id: botUserId,
         ...(parentId ? { parent_id: parentId } : {}),
       } as unknown as Parameters<typeof channel.sendEvent>[0])
-      .catch((e) => console.error("[ai-reply] typing.stop failed", e));
-
-    if (!eveTurn.ok) {
-      console.error("[ai-reply] eve turn FAILED — no fallback", {
-        channelId: ctx.streamChannelId,
-        reason: eveTurn.reason,
-      });
-      // ai_generated so this can't re-trigger the bot.
-      await channel
-        .sendMessage({
-          text: `⚠️ AI reply failed — eve runtime error: ${eveTurn.reason}. Check the server logs.`,
-          user_id: botUserId,
-          ai_generated: true,
-          ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
-        } as unknown as Parameters<typeof channel.sendMessage>[0])
-        .catch((e) => console.error("[ai-reply] failure notice failed", e));
-      return;
-    }
-
-    // render_ui spec collected from the session stream (already validated +
-    // link-rewritten runtime-side against the same shared catalog) —
-    // revalidate defensively before attaching.
-    const uiSink: RenderUiSink = { spec: null };
-    if (eveTurn.uiSpec) {
-      const validated = validateChatUiSpec(eveTurn.uiSpec);
-      if (validated.ok) uiSink.spec = validated.spec;
-    }
-
-    try {
-      await channel.sendMessage({
-        text: eveTurn.text,
+      .catch(() => {});
+    // ai_generated so this can't re-trigger the bot.
+    await channel
+      .sendMessage({
+        text: `⚠️ AI reply failed — eve runtime error: ${eveTurn.reason}. Check the server logs.`,
         user_id: botUserId,
         ai_generated: true,
-        ...(uiSink.spec
-          ? { attachments: [{ type: "ai_ui", spec: uiSink.spec }] }
-          : {}),
         ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
-      } as unknown as Parameters<typeof channel.sendMessage>[0]);
-    } catch (err) {
-      console.error("[ai-reply] sendMessage final failed", err);
-    }
-  } finally {
+      } as unknown as Parameters<typeof channel.sendMessage>[0])
+      .catch((e) => console.error("[ai-reply] failure notice failed", e));
     await releaseGenerationLock(ctx.streamChannelId, threadKey);
   }
 }

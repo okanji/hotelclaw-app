@@ -37,7 +37,11 @@ if (!STREAM_API_KEY || !STREAM_API_SECRET) {
   process.exit(1);
 }
 
-const stream = StreamChat.getInstance(STREAM_API_KEY, STREAM_API_SECRET);
+// 15s HTTP timeout: the SDK's 3s default intermittently kills long channel
+// queries mid-suite (axios "timeout of 3000ms exceeded" fatals).
+const stream = StreamChat.getInstance(STREAM_API_KEY, STREAM_API_SECRET, {
+  timeout: 15000,
+});
 const supabase =
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
     ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -107,6 +111,14 @@ async function resetEngagement(channelId, channelType = "team") {
   if (supabase) {
     await supabase.from("channel_bot_sessions").delete().eq("channel_id", channelId);
   }
+  // Event-driven delivery (2026-07-23): the generation lock is released by
+  // the RUNTIME when the turn parks — but this reset may have deleted the
+  // session row out from under an in-flight turn (delivery then can't find
+  // it), so clear the lock explicitly or every subsequent scenario drops
+  // as "in-flight" for the lock TTL.
+  if (redis) {
+    await redis.del(`ai-gen-lock:${channelId}:_root`).catch(() => {});
+  }
   // Brief pause so Stream's channel-data write is visible to the next
   // webhook channel.query (Stream is eventually consistent on channel custom
   // fields, ~100-300ms in practice). Without this, the next scenario's first
@@ -134,7 +146,10 @@ async function waitForBotReply({
   channelType = "team",
   afterTimestamp,
   parentId,
-  timeoutMs = 30000,
+  // Event-driven delivery (2026-07-23): the runtime posts when the turn
+  // parks — tool-ladder turns routinely take 30-60s, so the assertion
+  // window covers the p99 turn, not a synchronous function's budget.
+  timeoutMs = 90000,
   intervalMs = 800,
 }) {
   const channel = stream.channel(channelType, channelId);
@@ -273,7 +288,13 @@ async function runScenario(scenario, channelId) {
         channelId,
         afterTimestamp: sentAt,
         parentId: step.parentId,
-        timeoutMs: step.timeoutMs ?? 20000,
+        // Event-driven delivery: the runtime posts when the turn parks, so
+        // per-step budgets tuned for the old synchronous model are floored
+        // to the p99 turn. Silence assertions keep their short windows.
+        timeoutMs:
+          step.expectReply === "no"
+            ? (step.timeoutMs ?? 8000)
+            : Math.max(step.timeoutMs ?? 0, 90000),
       });
       if (!botReply) {
         if (step.expectReply === "no") {
@@ -616,12 +637,14 @@ const STRESS_SCENARIOS = [
         replies.push(reply.text);
         await sleep(1500);
       }
-      // Check Redis has roughly N turns (could be N+1 if bot self-saved, etc.)
-      const history = await readRedisHistory(channelId);
-      if ((history?.length ?? 0) < turns.length) {
+      // Memory on the eve path IS the durable session (the Redis turn-cache
+      // is unused there — AGENTS.md channel-bot section). Depth persistence
+      // = one live session carried across all six turns.
+      const eveSession = await readEveSession(channelId);
+      if (!eveSession?.eve_session_id || !eveSession?.eve_continuation_token) {
         return {
           passed: false,
-          reason: `expected ≥${turns.length} redis turns, got ${history?.length ?? 0}`,
+          reason: "expected a live eve session (id + continuation token) after 6 turns",
         };
       }
       // Sanity: the last reply (summary) should reference at least one of
@@ -636,7 +659,7 @@ const STRESS_SCENARIOS = [
           reason: "final summary didn't reference any task/blocked/priority concepts",
         };
       }
-      return { passed: true, turns: replies.length, redisTurns: history?.length };
+      return { passed: true, turns: replies.length, eveSession: eveSession.eve_session_id };
     },
   },
 
@@ -697,23 +720,29 @@ const STRESS_SCENARIOS = [
       if (seen.length > 1) {
         return {
           passed: false,
-          reason: `expected 1 cohesive reply, got ${seen.length} replies — lock/coalesce may have failed`,
+          reason: `expected 1 reply for the burst, got ${seen.length} — the generation lock failed to serialize`,
         };
       }
-      // One reply — verify it addresses all 3 themes.
+      // One reply — the eve-path contract (channel-bot-eve.ts: "No
+      // coalesce loop"): the in-flight turn absorbs the burst via the
+      // generation lock, and any burst messages its context packing missed
+      // arrive as unseen context on the NEXT trigger. So assert the reply
+      // addresses AT LEAST the first message's theme; requiring all three
+      // tested the pre-eve coalesce loop, which was deliberately removed
+      // on 2026-07-19.
       const txt = seen[0].text.toLowerCase();
-      const missing = themes.filter((t) => !txt.includes(t));
-      if (missing.length > 0) {
+      const covered = themes.filter((t) => txt.includes(t));
+      if (covered.length === 0) {
         return {
           passed: false,
-          reason: `single reply missing themes: ${missing.join(", ")}`,
+          reason: "single reply addressed none of the burst themes",
           reply: seen[0].text.slice(0, 200),
         };
       }
       return {
         passed: true,
         replies: 1,
-        note: "single cohesive reply addressing all 3 themes",
+        note: `single reply covering ${covered.length}/3 burst themes (remainder arrives as unseen context next trigger)`,
       };
     },
   },
@@ -725,7 +754,9 @@ const STRESS_SCENARIOS = [
  * landed before we move on. Without this, late replies from a slow scenario
  * pollute the next scenario's count of fresh replies.
  */
-async function waitForChannelDrain(channelId, quietMs = 6000, maxMs = 30000) {
+// maxMs sized for event-driven delivery: turns park in 30-60s and the
+// runtime posts then — draining must outlast the turn, not a function.
+async function waitForChannelDrain(channelId, quietMs = 6000, maxMs = 120000) {
   const channel = stream.channel("team", channelId);
   const start = Date.now();
   let lastBotMessageAt = 0;

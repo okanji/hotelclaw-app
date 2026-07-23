@@ -90,11 +90,12 @@ const BROADCAST_RX = /(?:^|\s)@channel\b/;
 
 // Vercel function ceiling. Stream's webhook timeout is short (we return in
 // ~50ms via `after()`), but the `after()` callback itself — channel.query +
-// Haiku classifier + Sonnet generation + Stream sendMessage — needs the
-// function instance alive long enough to finish. Default is 10s on the Hobby
-// tier; we lift to 60s (Hobby max) so multi-step tool flows have headroom.
-// Per node_modules/ai/docs/06-advanced/10-vercel-deployment-guide.mdx.
-export const maxDuration = 60;
+// Haiku classifier + eve turn (skill load + tool ladder + render_ui) +
+// Stream sendMessage — needs the function instance alive until the turn
+// parks; consumeTurnStream has no internal deadline. 60s was killing real
+// turns mid-generation (prod, 2026-07-22: function hit 1m/1m, reply never
+// posted). Fluid Compute's default ceiling is 300s on all plans — use it.
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const stream = getStreamServer();

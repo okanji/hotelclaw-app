@@ -2481,6 +2481,13 @@ export interface Database {
           // means start fresh, never resume (tool registries don't survive
           // across builds).
           runtime_tag: string | null;
+          // Event-driven delivery accumulator (0092) — written by the eve
+          // channel's events handlers (agent/lib/channel-delivery.ts).
+          channel_type: "team" | "messaging";
+          turn_nonce: string | null;
+          reply_candidate: string | null;
+          ui_spec: unknown;
+          delivered_nonce: string | null;
           last_turn_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2495,6 +2502,11 @@ export interface Database {
           status?: "idle" | "awaiting_approval";
           pending_approval?: Record<string, unknown> | null;
           runtime_tag?: string | null;
+          channel_type?: "team" | "messaging";
+          turn_nonce?: string | null;
+          reply_candidate?: string | null;
+          ui_spec?: unknown;
+          delivered_nonce?: string | null;
           last_turn_at?: string | null;
         };
         Update: Partial<{
@@ -2503,6 +2515,11 @@ export interface Database {
           status: "idle" | "awaiting_approval";
           pending_approval: Record<string, unknown> | null;
           runtime_tag: string | null;
+          channel_type: "team" | "messaging";
+          turn_nonce: string | null;
+          reply_candidate: string | null;
+          ui_spec: unknown;
+          delivered_nonce: string | null;
           last_turn_at: string | null;
         }>;
         Relationships: [];

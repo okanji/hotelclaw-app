@@ -33,7 +33,12 @@ import { Redis } from "@upstash/redis";
  * recover. Tune up if you observe lock-held errors with legitimate long
  * generations; tune down if stuck-lock incidents become common.
  */
-const LOCK_TTL_SECONDS = 60;
+// The lock now spans the WHOLE eve turn (event-driven delivery: acquired
+// here, released by the runtime's session.waiting/failed handlers via
+// Upstash REST — agent/lib/channel-delivery.ts shares the key shape). The
+// TTL is only the crash fallback, so it's sized for long tool-ladder
+// turns rather than a single function invocation.
+const LOCK_TTL_SECONDS = 180;
 
 let _client: Redis | null = null;
 let _warned = false;
