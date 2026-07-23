@@ -9,6 +9,7 @@ import {
   Mail,
   MessageSquareText,
   OctagonAlert,
+  Sparkles,
   UserMinus,
   Video,
   Workflow,
@@ -200,7 +201,7 @@ export function notificationView(
       };
     }
     case "task_escalated": {
-      const p = n.payload as Partial<TaskEscalatedPayload>;
+      const p = n.payload as Partial<TaskEscalatedPayload & { note: string }>;
       const byName = p.byUserName ?? "Someone";
       return {
         icon: <OctagonAlert className="size-3.5" />,
@@ -211,27 +212,7 @@ export function notificationView(
             {p.reason === "team_lead" ? " as team lead" : ""}
           </>
         ),
-        sub: p.taskTitle ?? null,
-        href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
-        kicker: "Escalated",
-        preview: p.taskTitle ?? "a task",
-        actor: byName,
-        channel: null,
-      };
-    }
-    case "task_escalated": {
-      const p = n.payload as Partial<TaskEscalatedPayload>;
-      const byName = p.byUserName ?? "Someone";
-      return {
-        icon: <OctagonAlert className="size-3.5" />,
-        lead: (
-          <>
-            <strong className="font-semibold">{byName}</strong> escalated a
-            task to you
-            {p.reason === "team_lead" ? " as team lead" : ""}
-          </>
-        ),
-        sub: p.taskTitle ?? null,
+        sub: p.note ?? p.taskTitle ?? null,
         href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
         kicker: "Escalated",
         preview: p.taskTitle ?? "a task",
@@ -419,6 +400,26 @@ export function notificationView(
         href: `/p/${propertyId}/home/insights/reports`,
         kicker: "Weekly insights",
         preview: p.headline ?? "This week's report is ready",
+        actor: null,
+        channel: null,
+      };
+    }
+    case "ai_message": {
+      const p = n.payload as Partial<{ message: string; byUserName: string }>;
+      return {
+        icon: <Sparkles className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">
+              {p.byUserName ?? "Someone"}
+            </strong>{" "}
+            sent a note via the AI
+          </>
+        ),
+        sub: p.message ?? null,
+        href: null,
+        kicker: "AI note",
+        preview: p.message ?? "New AI note",
         actor: null,
         channel: null,
       };

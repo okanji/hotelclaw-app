@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Loader2, ExternalLink, PanelRight } from "lucide-react";
+import { FileText, Loader2, ExternalLink, PanelRight, Table2 } from "lucide-react";
 import type { AppArtifactAttachment } from "@hotelclaw/chat-ui";
 import { Button } from "@/components/ui/button";
 import { useArtifactPanel } from "./artifact-panel-context";
@@ -14,15 +14,19 @@ import { useArtifactPanel } from "./artifact-panel-context";
  * room, so the write streams in visibly.
  */
 export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment }) {
-  const { openDocument } = useArtifactPanel();
+  const { open } = useArtifactPanel();
   const writing = attachment.status === "writing";
   const canOpen = typeof attachment.document_id === "string";
+  const isSheet = attachment.kind === "sheet";
+  const noun = isSheet ? "Spreadsheet" : "Document";
 
   return (
     <div className="my-1 flex w-fit max-w-md items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
         {writing ? (
           <Loader2 data-slot="icon" className="size-4 animate-spin text-muted-foreground" />
+        ) : isSheet ? (
+          <Table2 data-slot="icon" className="size-4 text-muted-foreground" />
         ) : (
           <FileText data-slot="icon" className="size-4 text-muted-foreground" />
         )}
@@ -35,8 +39,8 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
               ? "AI is adding sections…"
               : "AI is writing…"
             : attachment.action === "created"
-              ? "Document created"
-              : "Document updated"}
+              ? `${noun} created`
+              : `${noun} updated`}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -45,7 +49,11 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
             size="sm"
             variant={writing ? "default" : "outline"}
             onClick={() =>
-              openDocument(attachment.document_id as string, attachment.title)
+              open({
+                kind: isSheet ? "sheet" : "document",
+                documentId: attachment.document_id as string,
+                title: attachment.title,
+              })
             }
           >
             <PanelRight data-slot="icon" />

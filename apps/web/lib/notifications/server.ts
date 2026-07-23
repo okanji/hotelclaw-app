@@ -21,7 +21,8 @@ export type NotificationType =
   | "task_slip"
   | "insight_alert"
   | "guest_escalation"
-  | "task_escalated";
+  | "task_escalated"
+  | "ai_message";
 
 export type NotificationPayload = Record<string, unknown>;
 

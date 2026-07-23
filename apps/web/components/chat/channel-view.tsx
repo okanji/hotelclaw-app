@@ -20,6 +20,7 @@ import { ChannelInfoPanel } from "./info-panel/info-panel";
 import { ArtifactSidePanel } from "./artifact-side-panel";
 import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
+import { AiThinkingIndicator } from "./ai-thinking-indicator";
 import { MessageJumper } from "./search/message-jumper";
 import { slackRenderText } from "./slack-render-text";
 import { CLUSTER_TIME_GAP_MS } from "./slack-message-ui";
@@ -162,6 +163,9 @@ export function ChannelView({
               // with the same constant so the two layers can't drift.
               maxTimeBetweenGroupedMessages={CLUSTER_TIME_GAP_MS}
             />
+            {/* DB-driven "AI is thinking" row — spans the WHOLE eve turn
+                (Stream's native typing indicator expires after seconds). */}
+            <AiThinkingIndicator streamChannelId={channelId} />
             <SlackComposer />
           </Window>
           {/* Slack-styled thread panel — same SlackComposer + SlackMessageUI

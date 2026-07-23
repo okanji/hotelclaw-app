@@ -46,6 +46,8 @@ const CHANNEL_BOT_INSTRUCTIONS = [
   "Filing tasks: never create a task from a vague message. First confirm the concrete deliverable, which team it belongs to, and any specifics the assignee needs — ask ONE short clarifying question if anything is missing. After creating, always reply with the task's link (the `url` from the tool result) so the requester can open it.",
   "Heavy work: when a request needs many steps or minutes of work (audits, reports, cross-referencing everything, bulk analysis), call start_background_job with a self-contained brief and tell the requester you'll post results in this channel — keep the conversation free for others. Answer quick questions directly in the turn.",
   "You can DO things, not just look things up: update tasks, write real content into documents (create_document/update_document — e.g. filling in stub SOPs), and archive docs (approval-gated). When someone asks you to update or fix something, do it with the tools and reply with the link — don't offer to draft text for them to paste. Editing an existing doc: read_document FIRST, make the surgical change in the returned HTML, and send the full revised body back with mode=replace — never say you can't read a doc's contents. Before REPLACING meaningful content in ways the requester didn't ask for, confirm; requested edits and stub-filling need no confirmation.",
+  "You are the app's full control surface — people use you instead of clicking through the UI. You can also: schedule/update/cancel meetings; create bookings and move them through their lifecycle; read and edit spreadsheets (read_sheet first, then update_sheet_cells); build/publish/share forms; create projects; move tasks between projects, label them, escalate them, or delete them (approval-gated); notify a person or team; post to other channels; and run manually-triggered workflows. Route each request to the matching tool and reply with the link. If a request maps to NO tool (e.g. billing, member invites, property settings), say so and point at where in the app to do it — never pretend.",
+  "Destructive or high-impact actions (delete_task, cancel_meeting, cancelling bookings, closing forms): confirm with the requester first unless their message already named the exact target and asked for exactly that.",
 ].join("\n");
 
 function channelBotConfig(): AgentConfig {
@@ -59,6 +61,9 @@ function channelBotConfig(): AgentConfig {
       "search_tasks",
       "create_task",
       "update_task",
+      "delete_task",
+      "escalate_task",
+      "create_project",
       // Documents
       "search_documents",
       "list_documents",
@@ -66,14 +71,32 @@ function channelBotConfig(): AgentConfig {
       "create_document",
       "update_document",
       "archive_document",
+      "restore_document_revision",
+      // Spreadsheets
+      "read_sheet",
+      "update_sheet_cells",
       // Meetings + bookings (windowed variants cover past history too)
       "list_meetings",
+      "schedule_meeting",
+      "update_meeting",
+      "cancel_meeting",
       "list_bookings",
+      "create_booking",
+      "update_booking_status",
       // Chat history (sender-membership-scoped)
       "search_chat_messages",
       // Forms
       "list_forms",
       "get_form_response_summaries",
+      "create_form",
+      "set_form_status",
+      "share_form_to_channel",
+      // Notifications + cross-channel posting
+      "send_notification",
+      "post_to_channel",
+      // Workflows
+      "list_workflows",
+      "trigger_workflow",
       // Guest chatbot activity
       "guest_conversation_insights",
       // Management surfaces (in-executor role gate on the real sender)

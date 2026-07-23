@@ -207,7 +207,7 @@ export type ChatUiValidation =
  */
 export type AppArtifactAttachment = {
   type: "app_artifact";
-  kind: "document";
+  kind: "document" | "sheet";
   status: "writing" | "done";
   title: string;
   property_id: string;
@@ -223,7 +223,7 @@ export function isAppArtifactAttachment(
   const a = input as Record<string, unknown>;
   return (
     a.type === "app_artifact" &&
-    a.kind === "document" &&
+    (a.kind === "document" || a.kind === "sheet") &&
     (a.status === "writing" || a.status === "done") &&
     typeof a.title === "string" &&
     typeof a.property_id === "string" &&

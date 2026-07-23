@@ -16,11 +16,11 @@ import "server-only";
  * messages landing mid-turn arrive as unseen context on the next trigger.
  *
  * Flow:
- *   1. Single-flight lock per (channel, thread).
- *   2. `typing.start` (native indicator, no placeholder message).
- *   3. Eve turn — resume the durable session or start one.
- *   4. `typing.stop` + post the reply (with any validated ai_ui attachment)
- *      in one shot. Non-streaming by design.
+ *   1. Atomic turn claim per (channel, thread) — the claim itself drives the
+ *      client's "thinking" row (ai-thinking-indicator.tsx via Realtime).
+ *   2. Eve turn — resume the durable session or start one.
+ *   3. The runtime posts the reply (with any validated ai_ui attachment)
+ *      when the turn parks, then releases the claim. Non-streaming by design.
  */
 import { type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -127,16 +127,10 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
     return;
   }
 
-  // Native typing indicator (no placeholder message; renders inline —
-  // Stream expires it client-side; the runtime also sends typing.stop
-  // right before it posts the reply).
-  await channel
-    .sendEvent({
-      type: "typing.start",
-      user_id: botUserId,
-      ...(parentId ? { parent_id: parentId } : {}),
-    } as unknown as Parameters<typeof channel.sendEvent>[0])
-    .catch((e) => console.error("[ai-reply] typing.start failed", e));
+  // NO Stream typing event here: the client renders its own thinking row
+  // off the DB turn claim (components/chat/ai-thinking-indicator.tsx) —
+  // Stream's native indicator expires after a few seconds while eve turns
+  // run 30s–minutes, so it died mid-turn and misaligned with message rows.
 
   // EVENT-DRIVEN DELIVERY (2026-07-23): this only QUEUES the turn. The eve
   // channel's events handlers (apps/agent/agent/channels/eve.ts) post the
@@ -157,13 +151,6 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
       channelId: ctx.streamChannelId,
       reason: eveTurn.reason,
     });
-    await channel
-      .sendEvent({
-        type: "typing.stop",
-        user_id: botUserId,
-        ...(parentId ? { parent_id: parentId } : {}),
-      } as unknown as Parameters<typeof channel.sendEvent>[0])
-      .catch(() => {});
     // ai_generated so this can't re-trigger the bot.
     await channel
       .sendMessage({

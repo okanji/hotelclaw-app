@@ -103,14 +103,8 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   const channel = server.channel(row.channel_type, row.channel_id);
   const parentId = deliveryParentId(row);
   const botId = botUserId();
-
-  await channel
-    .sendEvent({
-      type: "typing.stop",
-      user_id: botId,
-      ...(parentId ? { parent_id: parentId } : {}),
-    } as unknown as Parameters<typeof channel.sendEvent>[0])
-    .catch(() => {});
+  // No typing.stop: the web no longer sends typing.start — the client's
+  // thinking row watches the DB turn claim instead (spans the whole turn).
 
   const rawText = (row.reply_candidate ?? "").trim();
   const text =

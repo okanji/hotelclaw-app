@@ -54,6 +54,8 @@ export function htmlToProseMirrorDoc(html: string): ProseMirrorNode {
 export async function readDocumentBodyHtml(input: {
   propertyId: string;
   documentId: string;
+  /** Read a stashed pre-replace revision instead of the live body. */
+  revisionId?: string | null;
 }): Promise<
   | { ok: true; title: string; html: string; characters: number }
   | { ok: false; error: string }
@@ -69,16 +71,31 @@ export async function readDocumentBodyHtml(input: {
   if (doc.kind !== "doc") {
     return { ok: false, error: "Only rich-text documents are readable this way (not sheets)." };
   }
+
+  let bodyJson: unknown = doc.body_json;
+  let bodyText: string = doc.body_text ?? "";
+  if (input.revisionId) {
+    const { data: rev } = await supabase
+      .from("document_ai_revisions")
+      .select("body_json, body_text")
+      .eq("id", input.revisionId)
+      .eq("document_id", input.documentId)
+      .maybeSingle();
+    if (!rev) return { ok: false, error: "Revision not found for this document." };
+    bodyJson = rev.body_json;
+    bodyText = rev.body_text ?? "";
+  }
+
   let html = "";
-  if (doc.body_json) {
+  if (bodyJson) {
     try {
-      html = generateHTML(doc.body_json as object, EXTENSIONS);
+      html = generateHTML(bodyJson as object, EXTENSIONS);
     } catch {
       html = "";
     }
   }
   if (!html) {
-    html = (doc.body_text ?? "")
+    html = bodyText
       .split("\n")
       .filter((line: string) => line.trim())
       .map(

@@ -384,7 +384,7 @@ export default defineDynamic({
       if (grants.has("update_task")) {
         tools.update_task = defineTool({
           description:
-            "Update a task's status, priority, due date, assignee, title, or description. Get the task id from list_open_tasks/search_tasks first. Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
+            "Update a task's status, priority, due date, assignee, title, description, labels, or project. Get the task id from list_open_tasks/search_tasks first. Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
           inputSchema: z.object({
             task_id: z.string().uuid(),
             status: z.enum(["todo", "in_progress", "blocked", "done"]).optional(),
@@ -397,12 +397,19 @@ export default defineDynamic({
               .describe("Person to assign (fuzzy name match); null to unassign."),
             title: z.string().min(3).max(200).optional(),
             description: z.string().max(4000).optional(),
+            labels_add: z.array(z.string().min(1).max(40)).max(10).optional(),
+            labels_remove: z.array(z.string().min(1).max(40)).max(10).optional(),
+            project_name: z
+              .string()
+              .max(200)
+              .optional()
+              .describe("Project to move the task into (fuzzy name match); empty string to remove from its project."),
           }),
-          async execute({ task_id, status, priority, due_at, assignee_name, title, description }) {
+          async execute({ task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
             const supabase = serviceClient();
             const { data: task } = await supabase
               .from("tasks")
-              .select("id, title, assignee_id")
+              .select("id, title, assignee_id, labels")
               .eq("id", task_id)
               .eq("property_id", propertyId)
               .maybeSingle();
@@ -414,6 +421,42 @@ export default defineDynamic({
             if (due_at !== undefined) patch.due_at = due_at;
             if (title) patch.title = title;
             if (description !== undefined) patch.description = description;
+
+            if (labels_add?.length || labels_remove?.length) {
+              const current: string[] = Array.isArray(task.labels) ? task.labels : [];
+              const removeSet = new Set(
+                (labels_remove ?? []).map((l) => l.trim().toLowerCase()),
+              );
+              const next = current.filter((l) => !removeSet.has(l.toLowerCase()));
+              for (const l of labels_add ?? []) {
+                const clean = l.trim();
+                if (clean && !next.some((x) => x.toLowerCase() === clean.toLowerCase())) {
+                  next.push(clean);
+                }
+              }
+              patch.labels = next;
+            }
+
+            if (project_name === "") {
+              patch.project_id = null;
+            } else if (typeof project_name === "string") {
+              const { data: projects } = await supabase
+                .from("projects")
+                .select("id, name")
+                .eq("property_id", propertyId)
+                .is("archived_at", null);
+              const projNeedle = project_name.trim().toLowerCase();
+              const proj =
+                (projects ?? []).find((p) => p.name.toLowerCase() === projNeedle) ??
+                (projects ?? []).find((p) => p.name.toLowerCase().includes(projNeedle));
+              if (!proj) {
+                return {
+                  error: `No project matches "${project_name}".`,
+                  projects: (projects ?? []).map((p) => p.name),
+                };
+              }
+              patch.project_id = proj.id;
+            }
 
             let assigneeId: string | null | undefined;
             if (assignee_name === null) assigneeId = null;
@@ -1424,6 +1467,1116 @@ export default defineDynamic({
               started: true,
               headline,
               note: "Job is running detached. Tell the requester results will be posted to this channel when it finishes.",
+            };
+          },
+        });
+      }
+
+      if (grants.has("delete_task")) {
+        tools.delete_task = defineTool({
+          description:
+            "Permanently DELETE a task (irreversible — unlike marking it done). The SYSTEM parks every call for human approval before it executes — call it directly when asked and let the approval gate do its job; never work around it.",
+          approval: always(),
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            reason: z.string().min(5).max(300),
+          }),
+          async execute({ task_id, reason }) {
+            const supabase = serviceClient();
+            const { data: task } = await supabase
+              .from("tasks")
+              .select("id, title")
+              .eq("id", task_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!task) return { error: "Task not found in this property." };
+            const { error } = await supabase
+              .from("tasks")
+              .delete()
+              .eq("id", task_id)
+              .eq("property_id", propertyId);
+            if (error) return { error: error.message };
+            return { deleted: true, title: task.title, reason };
+          },
+        });
+      }
+
+      if (grants.has("escalate_task")) {
+        tools.escalate_task = defineTool({
+          description:
+            "Escalate a task: notifies the right person up the chain (the assignee's manager, else the task's team lead, else the property owners/managers) with your note. Use when someone reports a task is stuck/urgent and needs management attention. Returns who was notified.",
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            note: z.string().min(5).max(500),
+          }),
+          async execute({ task_id, note }) {
+            const supabase = serviceClient();
+            const { data: task } = await supabase
+              .from("tasks")
+              .select("id, title, assignee_id, space_id")
+              .eq("id", task_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!task) return { error: "Task not found in this property." };
+
+            // Escalation target ladder: assignee's manager → team lead →
+            // property owners/managers (deduped, capped).
+            const targetIds = new Set<string>();
+            if (task.assignee_id) {
+              const { data: mrow } = await supabase
+                .from("memberships")
+                .select("manager_id")
+                .eq("property_id", propertyId)
+                .eq("user_id", task.assignee_id)
+                .maybeSingle();
+              if (mrow?.manager_id) targetIds.add(mrow.manager_id);
+            }
+            if (targetIds.size === 0 && task.space_id) {
+              const { data: team } = await supabase
+                .from("spaces")
+                .select("lead_user_id")
+                .eq("id", task.space_id)
+                .maybeSingle();
+              if (team?.lead_user_id) targetIds.add(team.lead_user_id);
+            }
+            if (targetIds.size === 0) {
+              const { data: mgrs } = await supabase
+                .from("memberships")
+                .select("user_id, role")
+                .eq("property_id", propertyId)
+                .in("role", ["owner", "manager"])
+                .limit(3);
+              for (const m of mgrs ?? []) targetIds.add(m.user_id);
+            }
+            targetIds.delete(senderId);
+            if (targetIds.size === 0) {
+              return { error: "No escalation target found (no manager, lead, or owner)." };
+            }
+
+            const { data: senderProfile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", senderId)
+              .maybeSingle();
+            const byName = senderProfile?.full_name ?? "Hotelclaw AI";
+            const inserts = Array.from(targetIds).map((uid) => ({
+              user_id: uid,
+              property_id: propertyId,
+              type: "task_escalated",
+              payload: {
+                taskId: task_id,
+                taskTitle: task.title,
+                byUserId: senderId,
+                byUserName: byName,
+                note,
+              },
+            }));
+            const { error } = await supabase.from("notifications").insert(inserts);
+            if (error) return { error: error.message };
+
+            const { data: targetProfiles } = await supabase
+              .from("profiles")
+              .select("id, full_name")
+              .in("id", Array.from(targetIds));
+            return {
+              escalated: true,
+              task_title: task.title,
+              notified: (targetProfiles ?? []).map((p) => p.full_name).filter(Boolean),
+              link: `/p/${propertyId}/tasks/${task_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("create_project")) {
+        tools.create_project = defineTool({
+          description:
+            "Create a new project on the board. Optionally place it in a team (fuzzy team-name match) and set color/status. Returns the project link — include it in your reply.",
+          inputSchema: z.object({
+            name: z.string().min(2).max(200),
+            description: z.string().max(2000).optional(),
+            team_name: z.string().max(120).optional(),
+            color: z
+              .enum(["slate", "blue", "green", "amber", "rose", "violet"])
+              .default("blue"),
+            status: z.enum(["active", "planned"]).default("active"),
+          }),
+          async execute({ name, description, team_name, color, status }) {
+            const supabase = serviceClient();
+            let teamId: string | null = null;
+            if (team_name) {
+              const { data: teams } = await supabase
+                .from("spaces")
+                .select("id, name")
+                .eq("property_id", propertyId);
+              const teamNeedle = team_name.trim().toLowerCase();
+              const team =
+                (teams ?? []).find((t) => t.name.toLowerCase() === teamNeedle) ??
+                (teams ?? []).find((t) => t.name.toLowerCase().includes(teamNeedle));
+              if (!team) {
+                return {
+                  error: `No team matches "${team_name}".`,
+                  teams: (teams ?? []).map((t) => t.name),
+                };
+              }
+              teamId = team.id;
+            }
+            const { data: maxRow } = await supabase
+              .from("projects")
+              .select("position")
+              .eq("property_id", propertyId)
+              .order("position", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            const { data: proj, error } = await supabase
+              .from("projects")
+              .insert({
+                property_id: propertyId,
+                name,
+                description: description ?? null,
+                color,
+                status,
+                position: (maxRow?.position ?? 0) + 1024,
+                created_by: userId,
+              })
+              .select("id")
+              .single();
+            if (error || !proj) return { error: error?.message ?? "Insert failed." };
+            if (teamId) {
+              await supabase
+                .from("project_spaces")
+                .insert({ project_id: proj.id, space_id: teamId })
+                .then(() => {});
+            }
+            return {
+              created: true,
+              project_id: proj.id,
+              name,
+              link: `/p/${propertyId}/projects/${proj.id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("schedule_meeting")) {
+        tools.schedule_meeting = defineTool({
+          description:
+            "Schedule a meeting on the property calendar (title, start time, optional end time and location). Times must include a timezone offset. The sender becomes the host when they're a member. Returns the meeting link.",
+          inputSchema: z.object({
+            title: z.string().min(2).max(200),
+            starts_at: z.iso.datetime({ offset: true }),
+            ends_at: z.iso.datetime({ offset: true }).optional(),
+            location: z.string().max(300).optional(),
+          }),
+          async execute({ title, starts_at, ends_at, location }) {
+            const supabase = serviceClient();
+            const { data: senderMember } = await supabase
+              .from("memberships")
+              .select("user_id")
+              .eq("property_id", propertyId)
+              .eq("user_id", senderId)
+              .maybeSingle();
+            const { data: meeting, error } = await supabase
+              .from("meetings")
+              .insert({
+                property_id: propertyId,
+                stream_call_id: `meeting-${crypto.randomUUID()}`,
+                title,
+                host_id: senderMember ? senderId : userId,
+                scheduled_start: starts_at,
+                scheduled_end: ends_at ?? null,
+                location: location ?? null,
+                started_at: starts_at,
+              })
+              .select("id")
+              .single();
+            if (error || !meeting) return { error: error?.message ?? "Insert failed." };
+            return {
+              scheduled: true,
+              meeting_id: meeting.id,
+              title,
+              starts_at,
+              link: `/p/${propertyId}/meetings/${meeting.id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("update_meeting")) {
+        tools.update_meeting = defineTool({
+          description:
+            "Reschedule, retitle, or relocate an UPCOMING meeting (get the id from list_meetings). Meetings that already happened can't be changed.",
+          inputSchema: z.object({
+            meeting_id: z.string().uuid(),
+            title: z.string().min(2).max(200).optional(),
+            starts_at: z.iso.datetime({ offset: true }).optional(),
+            ends_at: z.iso.datetime({ offset: true }).nullish(),
+            location: z.string().max(300).nullish(),
+          }),
+          async execute({ meeting_id, title, starts_at, ends_at, location }) {
+            const supabase = serviceClient();
+            const { data: meeting } = await supabase
+              .from("meetings")
+              .select("id, title, scheduled_start, ended_at")
+              .eq("id", meeting_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!meeting) return { error: "Meeting not found in this property." };
+            if (meeting.ended_at) return { error: "That meeting already ended — it can't be changed." };
+            const patch: Record<string, unknown> = {};
+            if (title) patch.title = title;
+            if (starts_at) {
+              patch.scheduled_start = starts_at;
+              patch.started_at = starts_at;
+            }
+            if (ends_at !== undefined) patch.scheduled_end = ends_at;
+            if (location !== undefined) patch.location = location;
+            if (Object.keys(patch).length === 0) {
+              return { error: "Nothing to update — pass at least one field." };
+            }
+            const { error } = await supabase
+              .from("meetings")
+              .update(patch)
+              .eq("id", meeting_id)
+              .eq("property_id", propertyId);
+            if (error) return { error: error.message };
+            return {
+              updated: true,
+              meeting_id,
+              changed: Object.keys(patch).filter((k) => k !== "started_at"),
+              link: `/p/${propertyId}/meetings/${meeting_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("cancel_meeting")) {
+        tools.cancel_meeting = defineTool({
+          description:
+            "Cancel (delete) an UPCOMING meeting from the calendar. Confirm with the requester before calling — this removes the meeting for everyone. Meetings that already happened can't be cancelled.",
+          inputSchema: z.object({
+            meeting_id: z.string().uuid(),
+          }),
+          async execute({ meeting_id }) {
+            const supabase = serviceClient();
+            const { data: meeting } = await supabase
+              .from("meetings")
+              .select("id, title, ended_at")
+              .eq("id", meeting_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!meeting) return { error: "Meeting not found in this property." };
+            if (meeting.ended_at) return { error: "That meeting already ended — it can't be cancelled." };
+            const { error } = await supabase
+              .from("meetings")
+              .delete()
+              .eq("id", meeting_id)
+              .eq("property_id", propertyId);
+            if (error) return { error: error.message };
+            return { cancelled: true, title: meeting.title };
+          },
+        });
+      }
+
+      if (grants.has("create_booking")) {
+        tools.create_booking = defineTool({
+          description:
+            "Create a booking through the REAL availability engine (revalidates the slot, assigns tables, emits workflow events — never a raw insert). service_name is fuzzy-matched against the property's bookable services. starts_at without an offset is wall time in the SERVICE's timezone. On a full slot you get alternatives back — offer them. Confirm details with the requester before booking.",
+          inputSchema: z.object({
+            service_name: z.string().min(2).max(200),
+            starts_at: z.string().min(10).describe("ISO start, e.g. 2026-07-24T19:00 (service-local) or with offset"),
+            party_size: z.number().int().min(1).max(200),
+            guest_name: z.string().min(1).max(200),
+            guest_phone: z.string().max(40).optional(),
+            notes: z.string().max(1000).optional(),
+            duration_minutes: z.number().int().min(15).max(1440).optional(),
+          }),
+          async execute({ service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
+            const supabase = serviceClient();
+            const { data: services } = await supabase
+              .from("bookable_services")
+              .select("id, name")
+              .eq("property_id", propertyId)
+              .eq("active", true);
+            const svcNeedle = service_name.trim().toLowerCase();
+            const svc =
+              (services ?? []).find((s) => s.name.toLowerCase() === svcNeedle) ??
+              (services ?? []).find((s) => s.name.toLowerCase().includes(svcNeedle));
+            if (!svc) {
+              return {
+                error: `No bookable service matches "${service_name}".`,
+                services: (services ?? []).map((s) => s.name),
+              };
+            }
+            const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+              },
+              body: JSON.stringify({
+                propertyId,
+                serviceId: svc.id,
+                startsAt: starts_at,
+                partySize: party_size,
+                guestName: guest_name,
+                guestPhone: guest_phone ?? null,
+                notes: notes ?? null,
+                durationMinutes: duration_minutes ?? null,
+              }),
+              signal: AbortSignal.timeout(30_000),
+            }).catch(() => null);
+            if (!response) return { error: "Booking service unreachable." };
+            const body = (await response.json().catch(() => null)) as {
+              error?: string;
+              alternatives?: unknown[];
+              booking?: Record<string, unknown>;
+            } | null;
+            if (!response.ok || !body?.booking) {
+              return {
+                error: body?.error ?? `Booking failed (${response.status}).`,
+                alternatives: body?.alternatives ?? [],
+              };
+            }
+            return {
+              booked: true,
+              service: svc.name,
+              ...body.booking,
+              link: `/p/${propertyId}/bookings`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("update_booking_status")) {
+        tools.update_booking_status = defineTool({
+          description:
+            "Move a booking through its lifecycle by reference (BKG-XXXXXX): pending→confirmed/cancelled, confirmed→seated/completed/no_show/cancelled, seated→completed. Get references from list_bookings. Cancelling emits the booking.cancelled workflow event.",
+          inputSchema: z.object({
+            reference: z.string().min(4).max(20),
+            status: z.enum(["confirmed", "seated", "completed", "no_show", "cancelled"]),
+          }),
+          async execute({ reference, status }) {
+            const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
+              method: "PATCH",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+              },
+              body: JSON.stringify({ propertyId, reference, status }),
+              signal: AbortSignal.timeout(20_000),
+            }).catch(() => null);
+            if (!response) return { error: "Booking service unreachable." };
+            const body = (await response.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            if (!response.ok) {
+              return { error: body?.error ?? `Status change failed (${response.status}).` };
+            }
+            return { updated: true, reference, status, link: `/p/${propertyId}/bookings` };
+          },
+        });
+      }
+
+      if (grants.has("read_sheet")) {
+        tools.read_sheet = defineTool({
+          description:
+            "Read a SPREADSHEET document's live cells as an A1 grid (list_documents shows which docs are sheets). Use before answering questions about sheet data and ALWAYS before update_sheet_cells. sheet_title picks a tab; omit for the first tab.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            sheet_title: z.string().max(120).optional(),
+          }),
+          async execute({ document_id, sheet_title }) {
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/sheets?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}`,
+              {
+                headers: {
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                signal: AbortSignal.timeout(25_000),
+              },
+            ).catch(() => null);
+            if (!response?.ok) {
+              const detail = response
+                ? ((await response.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Sheet read failed (${response?.status ?? "unreachable"}).` };
+            }
+            const body = (await response.json()) as {
+              title: string;
+              workbook: {
+                sheets: Array<{
+                  title: string;
+                  columns: Array<{ id: string }>;
+                  rows: Array<{ id: string }>;
+                  cells: Record<string, string>;
+                }>;
+              };
+            };
+            const tabNeedle = (sheet_title ?? "").trim().toLowerCase();
+            const tab = tabNeedle
+              ? body.workbook.sheets.find((s) => s.title.toLowerCase() === tabNeedle)
+              : body.workbook.sheets[0];
+            if (!tab) {
+              return {
+                error: `No sheet tab named "${sheet_title}".`,
+                tabs: body.workbook.sheets.map((s) => s.title),
+              };
+            }
+            // colId/rowId → A1. Column letters follow array order.
+            const colLetter = (n: number) => {
+              let s = "";
+              let i = n;
+              do {
+                s = String.fromCharCode(65 + (i % 26)) + s;
+                i = Math.floor(i / 26) - 1;
+              } while (i >= 0);
+              return s;
+            };
+            const colIndexById = new Map(tab.columns.map((c, i) => [c.id, i]));
+            const rowIndexById = new Map(tab.rows.map((r, i) => [r.id, i]));
+            const grid: Record<string, string> = {};
+            let dropped = 0;
+            for (const [cellKey, cellValue] of Object.entries(tab.cells)) {
+              const at = cellKey.indexOf("@");
+              const ci = colIndexById.get(cellKey.slice(0, at));
+              const ri = rowIndexById.get(cellKey.slice(at + 1));
+              if (ci === undefined || ri === undefined) continue;
+              if (Object.keys(grid).length >= 800) {
+                dropped += 1;
+                continue;
+              }
+              grid[`${colLetter(ci)}${ri + 1}`] = cellValue;
+            }
+            return {
+              title: body.title,
+              tab: tab.title,
+              tabs: body.workbook.sheets.map((s) => s.title),
+              dimensions: `${tab.columns.length} cols × ${tab.rows.length} rows`,
+              cells: grid,
+              truncated_cells: dropped,
+              link: `/p/${propertyId}/documents/${document_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("update_sheet_cells")) {
+        tools.update_sheet_cells = defineTool({
+          description:
+            "Write values into a SPREADSHEET document's cells (A1 references, ≤200 per call) — changes land LIVE for anyone viewing the sheet. ALWAYS read_sheet first so you write the right cells. An artifact card appears in the channel so people can watch. Values are plain strings; formulas are written as-is.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            sheet_title: z.string().max(120).optional(),
+            cells: z
+              .array(z.object({ ref: z.string().min(2).max(8), value: z.string().max(2000) }))
+              .min(1)
+              .max(200),
+          }),
+          async execute({ document_id, sheet_title, cells }, toolCtx) {
+            const supabase = serviceClient();
+            const { data: doc } = await supabase
+              .from("documents")
+              .select("id, title, kind")
+              .eq("id", document_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!doc || doc.kind !== "sheet") {
+              return { error: "Spreadsheet not found in this property." };
+            }
+
+            const cardId = `eve-artifact-${toolCtx.callId}`;
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            let cardPosted = false;
+            if (apiKey && streamSecret && sessionChannelId) {
+              const { data: chatRow } = await supabase
+                .from("channel_bot_sessions")
+                .select("channel_type")
+                .eq("channel_id", sessionChannelId)
+                .eq("thread_key", "_root")
+                .maybeSingle();
+              const server = StreamChat.getInstance(apiKey, streamSecret, {
+                timeout: 15_000,
+              });
+              await server
+                .channel(chatRow?.channel_type ?? "team", sessionChannelId)
+                .sendMessage({
+                  id: cardId,
+                  text: "",
+                  user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                  ai_generated: true,
+                  attachments: [
+                    {
+                      type: "app_artifact",
+                      kind: "sheet",
+                      status: "writing",
+                      title: doc.title,
+                      property_id: propertyId,
+                      document_id,
+                    },
+                  ],
+                } as unknown as Parameters<ReturnType<StreamChat["channel"]>["sendMessage"]>[0])
+                .then(() => {
+                  cardPosted = true;
+                })
+                .catch(() => {});
+            }
+
+            const response = await fetch(`${eveSelfOrigin()}/api/internal/sheets`, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+              },
+              body: JSON.stringify({
+                propertyId,
+                documentId: document_id,
+                sheetTitle: sheet_title ?? null,
+                cells,
+              }),
+              signal: AbortSignal.timeout(45_000),
+            }).catch(() => null);
+            const body = response
+              ? ((await response.json().catch(() => null)) as {
+                  error?: string;
+                  written?: number;
+                  sheetTitle?: string;
+                } | null)
+              : null;
+
+            if (cardPosted) {
+              const server2 = StreamChat.getInstance(
+                process.env.NEXT_PUBLIC_STREAM_API_KEY ?? "",
+                process.env.STREAM_API_SECRET ?? "",
+                { timeout: 15_000 },
+              );
+              await server2
+                .partialUpdateMessage(
+                  cardId,
+                  {
+                    set: {
+                      attachments: [
+                        {
+                          type: "app_artifact",
+                          kind: "sheet",
+                          status: "done",
+                          action: "edited",
+                          title: doc.title,
+                          property_id: propertyId,
+                          document_id,
+                          href: `/p/${propertyId}/documents/${document_id}`,
+                        },
+                      ],
+                    },
+                  } as unknown as Parameters<typeof server2.partialUpdateMessage>[1],
+                  process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                )
+                .catch(() => {});
+            }
+
+            if (!response?.ok || !body || body.error) {
+              return { error: body?.error ?? `Sheet write failed (${response?.status ?? "unreachable"}).` };
+            }
+            return {
+              written: body.written,
+              tab: body.sheetTitle,
+              link: `/p/${propertyId}/documents/${document_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("create_form")) {
+        tools.create_form = defineTool({
+          description:
+            "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section). select/multi_select need options. Created as DRAFT unless publish=true. Returns the builder link.",
+          inputSchema: z.object({
+            title: z.string().min(2).max(200),
+            description: z.string().max(1000).optional(),
+            publish: z.boolean().default(false),
+            fields: z
+              .array(
+                z.object({
+                  label: z.string().min(1).max(200),
+                  type: z.enum([
+                    "short_text",
+                    "long_text",
+                    "email",
+                    "phone",
+                    "number",
+                    "select",
+                    "multi_select",
+                    "yes_no",
+                    "rating",
+                    "date",
+                    "section",
+                  ]),
+                  required: z.boolean().default(false),
+                  options: z.array(z.string().min(1).max(120)).max(20).optional(),
+                }),
+              )
+              .min(1)
+              .max(30),
+          }),
+          async execute({ title, description, publish, fields }) {
+            const supabase = serviceClient();
+            for (const f of fields) {
+              if (
+                (f.type === "select" || f.type === "multi_select") &&
+                (!f.options || f.options.length < 2)
+              ) {
+                return { error: `Field "${f.label}" is a ${f.type} and needs at least 2 options.` };
+              }
+            }
+            // Server-assigned stable field ids (answer keys).
+            const schemaFields = fields.map((f, i) => ({
+              id: `f${i + 1}_${crypto.randomUUID().slice(0, 6)}`,
+              type: f.type,
+              label: f.label,
+              required: f.required && f.type !== "section",
+              ...(f.options
+                ? {
+                    options: f.options.map((opt, j) => ({
+                      id: `o${j + 1}_${crypto.randomUUID().slice(0, 4)}`,
+                      label: opt,
+                    })),
+                  }
+                : {}),
+            }));
+            const { data: form, error } = await supabase
+              .from("forms")
+              .insert({
+                property_id: propertyId,
+                title,
+                description: description ?? null,
+                schema: { version: 1, fields: schemaFields },
+                status: publish ? "published" : "draft",
+                created_by: userId,
+              })
+              .select("id")
+              .single();
+            if (error || !form) return { error: error?.message ?? "Insert failed." };
+            return {
+              created: true,
+              form_id: form.id,
+              status: publish ? "published" : "draft",
+              field_count: schemaFields.length,
+              link: `/p/${propertyId}/forms/${form.id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("set_form_status")) {
+        tools.set_form_status = defineTool({
+          description:
+            "Publish, close, or re-draft a form (get the id from list_forms). Published forms accept responses; closed forms stop accepting them.",
+          inputSchema: z.object({
+            form_id: z.string().uuid(),
+            status: z.enum(["draft", "published", "closed"]),
+          }),
+          async execute({ form_id, status }) {
+            const supabase = serviceClient();
+            const { data: form } = await supabase
+              .from("forms")
+              .select("id, title, status")
+              .eq("id", form_id)
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .maybeSingle();
+            if (!form) return { error: "Form not found in this property." };
+            if (form.status === status) {
+              return { unchanged: true, title: form.title, status };
+            }
+            const { error } = await supabase
+              .from("forms")
+              .update({ status })
+              .eq("id", form_id)
+              .eq("property_id", propertyId);
+            if (error) return { error: error.message };
+            return {
+              updated: true,
+              title: form.title,
+              status,
+              link: `/p/${propertyId}/forms/${form_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("share_form_to_channel") && sessionChannelId) {
+        tools.share_form_to_channel = defineTool({
+          description:
+            "Post a PUBLISHED form into this channel as a fill-in-place card (same card the app's Share button posts). Get the id from list_forms; publish drafts first with set_form_status.",
+          inputSchema: z.object({
+            form_id: z.string().uuid(),
+            message: z.string().max(300).optional().describe("Optional line above the card."),
+          }),
+          async execute({ form_id, message }) {
+            const supabase = serviceClient();
+            const { data: form } = await supabase
+              .from("forms")
+              .select("id, title, description, status, schema")
+              .eq("id", form_id)
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .maybeSingle();
+            if (!form) return { error: "Form not found in this property." };
+            if (form.status !== "published") {
+              return { error: `"${form.title}" is ${form.status} — publish it first (set_form_status).` };
+            }
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            if (!apiKey || !streamSecret) return { error: "Chat credentials missing." };
+            const { data: chatRow } = await supabase
+              .from("channel_bot_sessions")
+              .select("channel_type")
+              .eq("channel_id", sessionChannelId)
+              .eq("thread_key", "_root")
+              .maybeSingle();
+            const server = StreamChat.getInstance(apiKey, streamSecret, { timeout: 15_000 });
+            const fieldTotal = Array.isArray(
+              (form.schema as { fields?: unknown[] } | null)?.fields,
+            )
+              ? ((form.schema as { fields: unknown[] }).fields.length)
+              : 0;
+            const sent = await server
+              .channel(chatRow?.channel_type ?? "team", sessionChannelId)
+              .sendMessage({
+                text: message ?? "",
+                user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                ai_generated: true,
+                attachments: [
+                  {
+                    type: "form",
+                    form_id: form.id,
+                    property_id: propertyId,
+                    title: form.title,
+                    description: form.description ?? undefined,
+                    field_count: fieldTotal,
+                  },
+                ],
+              } as unknown as Parameters<ReturnType<StreamChat["channel"]>["sendMessage"]>[0])
+              .catch((err: unknown) => ({ err }));
+            if (sent && "err" in sent) return { error: "Posting the form card failed." };
+            return { shared: true, title: form.title, field_count: fieldTotal };
+          },
+        });
+      }
+
+      if (grants.has("send_notification")) {
+        tools.send_notification = defineTool({
+          description:
+            "Send an in-app notification to a named person or a whole team (fuzzy name match; on no match you get valid names back). Use for 'remind X to…', 'let the kitchen team know…'. The notification shows who asked for it.",
+          inputSchema: z.object({
+            person_name: z.string().max(120).optional(),
+            team_name: z.string().max(120).optional(),
+            message: z.string().min(3).max(500),
+          }),
+          async execute({ person_name, team_name, message }) {
+            if (!person_name && !team_name) {
+              return { error: "Pass person_name or team_name." };
+            }
+            const supabase = serviceClient();
+            const targetIds = new Set<string>();
+            let targetLabel = "";
+            if (person_name) {
+              const { data: members } = await supabase
+                .from("memberships")
+                .select("user_id")
+                .eq("property_id", propertyId);
+              const ids = (members ?? []).map((m) => m.user_id);
+              const { data: profiles } = ids.length
+                ? await supabase.from("profiles").select("id, full_name").in("id", ids)
+                : { data: [] };
+              const needle = person_name.trim().toLowerCase();
+              const match =
+                (profiles ?? []).find((p) => (p.full_name ?? "").toLowerCase() === needle) ??
+                (profiles ?? []).find((p) =>
+                  (p.full_name ?? "").toLowerCase().includes(needle),
+                );
+              if (!match) {
+                return {
+                  error: `No member matches "${person_name}".`,
+                  members: (profiles ?? []).map((p) => p.full_name).filter(Boolean),
+                };
+              }
+              targetIds.add(match.id);
+              targetLabel = match.full_name ?? person_name;
+            } else if (team_name) {
+              const { data: teams } = await supabase
+                .from("spaces")
+                .select("id, name")
+                .eq("property_id", propertyId);
+              const teamNeedle = team_name.trim().toLowerCase();
+              const team =
+                (teams ?? []).find((t) => t.name.toLowerCase() === teamNeedle) ??
+                (teams ?? []).find((t) => t.name.toLowerCase().includes(teamNeedle));
+              if (!team) {
+                return {
+                  error: `No team matches "${team_name}".`,
+                  teams: (teams ?? []).map((t) => t.name),
+                };
+              }
+              const { data: teamMembers } = await supabase
+                .from("space_members")
+                .select("user_id")
+                .eq("space_id", team.id);
+              for (const m of teamMembers ?? []) targetIds.add(m.user_id);
+              targetLabel = team.name;
+              if (targetIds.size === 0) {
+                return { error: `Team "${team.name}" has no members.` };
+              }
+            }
+            targetIds.delete(senderId);
+            if (targetIds.size === 0) {
+              return { error: "The only match is the requester themself." };
+            }
+            const { data: senderProfile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", senderId)
+              .maybeSingle();
+            const { error } = await supabase.from("notifications").insert(
+              Array.from(targetIds).map((uid) => ({
+                user_id: uid,
+                property_id: propertyId,
+                type: "ai_message",
+                payload: {
+                  message,
+                  byUserId: senderId,
+                  byUserName: senderProfile?.full_name ?? "Hotelclaw AI",
+                },
+              })),
+            );
+            if (error) return { error: error.message };
+            return { sent: true, to: targetLabel, recipients: targetIds.size };
+          },
+        });
+      }
+
+      if (grants.has("post_to_channel")) {
+        tools.post_to_channel = defineTool({
+          description:
+            "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — find it via search_chat_messages results or ask the requester. Only this property's channels are allowed.",
+          inputSchema: z.object({
+            channel_id: z.string().min(6).max(120),
+            message: z.string().min(1).max(3000),
+          }),
+          async execute({ channel_id, message }) {
+            // Tenancy guard: property channel ids are minted as
+            // prop-<first 8 of property uuid>-… — anything else is another
+            // property's channel (or not ours to post in).
+            if (!channel_id.startsWith(`prop-${propertyId.slice(0, 8)}`)) {
+              return { error: "That channel doesn't belong to this property." };
+            }
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            if (!apiKey || !streamSecret) return { error: "Chat credentials missing." };
+            const server = StreamChat.getInstance(apiKey, streamSecret, { timeout: 15_000 });
+            const found = await server
+              .queryChannels({ id: channel_id }, {}, { limit: 1 })
+              .catch(() => []);
+            if (!found.length) return { error: "Channel not found." };
+            const sent = await found[0]
+              .sendMessage({
+                text: message,
+                user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                ai_generated: true,
+              } as unknown as Parameters<(typeof found)[0]["sendMessage"]>[0])
+              .catch((err: unknown) => ({ err }));
+            if (sent && "err" in sent) return { error: "Posting failed." };
+            return { posted: true, channel_id };
+          },
+        });
+      }
+
+      if (grants.has("list_workflows")) {
+        tools.list_workflows = defineTool({
+          description:
+            "List the property's workflow automations: name, enabled, trigger, last run. Workflows whose trigger is 'Manual run' can be started with trigger_workflow.",
+          inputSchema: z.object({}),
+          async execute() {
+            const supabase = serviceClient();
+            const { data: rows, error } = await supabase
+              .from("workflows")
+              .select("id, name, description, enabled, current_version_id, last_run_at, last_run_status")
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .order("updated_at", { ascending: false })
+              .limit(40);
+            if (error) return { error: error.message };
+            const versionIds = (rows ?? [])
+              .map((w) => w.current_version_id)
+              .filter((v): v is string => !!v);
+            const { data: versions } = versionIds.length
+              ? await supabase
+                  .from("workflow_versions")
+                  .select("id, spec")
+                  .in("id", versionIds)
+              : { data: [] };
+            const triggerByVersion = new Map(
+              (versions ?? []).map((v) => [
+                v.id,
+                ((v.spec as { trigger?: { event_type?: string } } | null)?.trigger
+                  ?.event_type ?? null) as string | null,
+              ]),
+            );
+            return {
+              count: (rows ?? []).length,
+              workflows: (rows ?? []).map((w) => ({
+                name: w.name,
+                description: w.description,
+                enabled: w.enabled,
+                trigger: w.current_version_id
+                  ? triggerByVersion.get(w.current_version_id)
+                  : null,
+                manually_triggerable:
+                  w.enabled &&
+                  triggerByVersion.get(w.current_version_id ?? "") === "manual.run",
+                last_run_at: w.last_run_at,
+                last_run_status: w.last_run_status,
+              })),
+            };
+          },
+        });
+      }
+
+      if (grants.has("trigger_workflow")) {
+        tools.trigger_workflow = defineTool({
+          description:
+            "Start a workflow whose trigger is 'Manual run' (check list_workflows — only enabled + manual.run workflows can be triggered). The run is queued through the same dispatcher the app's Run button uses.",
+          inputSchema: z.object({
+            workflow_name: z.string().min(2).max(200),
+          }),
+          async execute({ workflow_name }) {
+            const supabase = serviceClient();
+            const { data: rows } = await supabase
+              .from("workflows")
+              .select("id, name, enabled, current_version_id")
+              .eq("property_id", propertyId)
+              .is("archived_at", null);
+            const wfNeedle = workflow_name.trim().toLowerCase();
+            const wf =
+              (rows ?? []).find((w) => w.name.toLowerCase() === wfNeedle) ??
+              (rows ?? []).find((w) => w.name.toLowerCase().includes(wfNeedle));
+            if (!wf) {
+              return {
+                error: `No workflow matches "${workflow_name}".`,
+                workflows: (rows ?? []).map((w) => w.name),
+              };
+            }
+            if (!wf.enabled) return { error: `"${wf.name}" is disabled — enable it in Workflows first.` };
+            const { data: version } = wf.current_version_id
+              ? await supabase
+                  .from("workflow_versions")
+                  .select("spec")
+                  .eq("id", wf.current_version_id)
+                  .maybeSingle()
+              : { data: null };
+            const triggerType = (version?.spec as { trigger?: { event_type?: string } } | null)
+              ?.trigger?.event_type;
+            if (triggerType !== "manual.run") {
+              return {
+                error: `"${wf.name}" is triggered by ${triggerType ?? "an event"}, not manually — it runs on its own when that happens.`,
+              };
+            }
+            // Same emission as the app's manual-run route; the dispatcher
+            // cron picks the event up within a minute.
+            const { error } = await supabase.from("workflow_events").insert({
+              property_id: propertyId,
+              source: "manual",
+              event_type: "manual.run",
+              entity_id: wf.id,
+              entity_kind: "workflow",
+              payload: { run_by_user_id: senderId, workflow_id: wf.id, input: {} },
+            });
+            if (error) return { error: error.message };
+            return {
+              triggered: true,
+              name: wf.name,
+              note: "Run queued — it starts within a minute.",
+              link: `/p/${propertyId}/workflows/${wf.id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("restore_document_revision")) {
+        tools.restore_document_revision = defineTool({
+          description:
+            "UNDO an AI document replace: list a doc's stashed pre-replace revisions (call without revision_id) and restore one (call with revision_id — the current body is stashed first, so a restore is itself undoable). Only docs the AI has replaced have revisions.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            revision_id: z.string().uuid().optional(),
+          }),
+          async execute({ document_id, revision_id }) {
+            const listResponse = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}&revisions=1`,
+              {
+                headers: {
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                signal: AbortSignal.timeout(20_000),
+              },
+            ).catch(() => null);
+            if (!listResponse?.ok) {
+              return { error: `Revision list failed (${listResponse?.status ?? "unreachable"}).` };
+            }
+            const listBody = (await listResponse.json()) as {
+              revisions: Array<{ id: string; replaced_at: string; preview: string; characters: number }>;
+            };
+            if (!revision_id) {
+              return {
+                revisions: listBody.revisions,
+                note: listBody.revisions.length
+                  ? "Call again with revision_id to restore one."
+                  : "No stashed revisions for this document.",
+              };
+            }
+            if (!listBody.revisions.some((r) => r.id === revision_id)) {
+              return { error: "That revision doesn't belong to this document.", revisions: listBody.revisions };
+            }
+            const revResponse = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}&revisionId=${encodeURIComponent(revision_id)}`,
+              {
+                headers: {
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                signal: AbortSignal.timeout(20_000),
+              },
+            ).catch(() => null);
+            if (!revResponse?.ok) {
+              return { error: `Revision read failed (${revResponse?.status ?? "unreachable"}).` };
+            }
+            const revBody = (await revResponse.json()) as { html: string };
+            if (!revBody.html) return { error: "Revision has no restorable content." };
+            const writeResponse = await fetch(`${eveSelfOrigin()}/api/internal/documents/write`, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+              },
+              body: JSON.stringify({
+                propertyId,
+                documentId: document_id,
+                html: revBody.html,
+                mode: "replace",
+                actorUserId: userId,
+              }),
+              signal: AbortSignal.timeout(55_000),
+            }).catch(() => null);
+            if (!writeResponse?.ok) {
+              const detail = writeResponse
+                ? ((await writeResponse.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Restore write failed (${writeResponse?.status ?? "unreachable"}).` };
+            }
+            return {
+              restored: true,
+              revision_id,
+              link: `/p/${propertyId}/documents/${document_id}`,
             };
           },
         });

@@ -22,7 +22,34 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
   }
-  const result = await readDocumentBodyHtml({ propertyId, documentId });
+
+  // ?revisions=1 → list the pre-replace revision stash (newest first).
+  if (request.nextUrl.searchParams.get("revisions") === "1") {
+    const { createServiceClient } = await import("@/lib/supabase/server");
+    const { data } = await createServiceClient()
+      .from("document_ai_revisions")
+      .select("id, replaced_at, note, body_text")
+      .eq("document_id", documentId)
+      .eq("property_id", propertyId)
+      .order("replaced_at", { ascending: false })
+      .limit(10);
+    return NextResponse.json({
+      ok: true,
+      revisions: (data ?? []).map((r) => ({
+        id: r.id,
+        replaced_at: r.replaced_at,
+        note: r.note,
+        preview: (r.body_text ?? "").slice(0, 160),
+        characters: (r.body_text ?? "").length,
+      })),
+    });
+  }
+
+  const result = await readDocumentBodyHtml({
+    propertyId,
+    documentId,
+    revisionId: request.nextUrl.searchParams.get("revisionId"),
+  });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

@@ -39,7 +39,7 @@ export const AgentConfigZod = z.object({
   modelTier: z.enum(["standard", "advanced"]).default("standard"),
   /** Tool grants: ids from AGENT_TOOL_CATALOG. The eve runtime builds only
    * these tools for the session; everything else simply doesn't exist. */
-  tools: z.array(z.string().max(64)).max(32).default([]),
+  tools: z.array(z.string().max(64)).max(64).default([]),
   skills: z.array(AgentSkillZod).max(AGENT_SKILL_LIMIT).default([]),
   /** Attached documents the agent may read in full via `read_resource`. */
   resources: z
@@ -268,6 +268,118 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     label: "Capture to the knowledge brain",
     summary:
       "Record durable observations to the property's shared brain timeline.",
+    category: "write",
+  },
+  {
+    id: "delete_task",
+    label: "Delete tasks (approval-gated)",
+    summary: "Permanently delete a task — every call parks for human approval first.",
+    category: "write",
+  },
+  {
+    id: "escalate_task",
+    label: "Escalate tasks",
+    summary:
+      "Flag a task to its team lead or a manager with a notification and a note.",
+    category: "write",
+  },
+  {
+    id: "create_project",
+    label: "Create projects",
+    summary: "Create a new project, optionally inside a team.",
+    category: "write",
+  },
+  {
+    id: "schedule_meeting",
+    label: "Schedule meetings",
+    summary: "Put a meeting on the calendar with a title, time, and location.",
+    category: "write",
+  },
+  {
+    id: "update_meeting",
+    label: "Update meetings",
+    summary: "Reschedule or retitle an upcoming meeting.",
+    category: "write",
+  },
+  {
+    id: "cancel_meeting",
+    label: "Cancel meetings",
+    summary: "Cancel (delete) an upcoming meeting.",
+    category: "write",
+  },
+  {
+    id: "create_booking",
+    label: "Create bookings",
+    summary:
+      "Book a guest into a bookable service through the real availability engine.",
+    category: "write",
+  },
+  {
+    id: "update_booking_status",
+    label: "Update booking status",
+    summary:
+      "Confirm, seat, complete, no-show, or cancel a booking by reference.",
+    category: "write",
+  },
+  {
+    id: "read_sheet",
+    label: "Read spreadsheets",
+    summary: "Read a spreadsheet document's cells as an A1 grid.",
+    category: "read",
+  },
+  {
+    id: "update_sheet_cells",
+    label: "Edit spreadsheets",
+    summary: "Write values into spreadsheet cells (A1 references), live.",
+    category: "write",
+  },
+  {
+    id: "create_form",
+    label: "Create forms",
+    summary: "Build a new form with typed fields, ready to publish.",
+    category: "write",
+  },
+  {
+    id: "set_form_status",
+    label: "Publish/close forms",
+    summary: "Move a form between draft, published, and closed.",
+    category: "write",
+  },
+  {
+    id: "share_form_to_channel",
+    label: "Share forms to chat",
+    summary: "Post a published form into this channel as a fill-in-place card.",
+    category: "write",
+  },
+  {
+    id: "send_notification",
+    label: "Send notifications",
+    summary: "Send an in-app notification to a named person or a whole team.",
+    category: "write",
+  },
+  {
+    id: "post_to_channel",
+    label: "Post to channels",
+    summary: "Post a message to another channel in this property as the bot.",
+    category: "write",
+  },
+  {
+    id: "list_workflows",
+    label: "List workflows",
+    summary: "List the property's workflow automations and their triggers.",
+    category: "read",
+  },
+  {
+    id: "trigger_workflow",
+    label: "Trigger workflows",
+    summary: "Run a manually-triggerable workflow by name.",
+    category: "write",
+  },
+  {
+    id: "restore_document_revision",
+    label: "Restore document revisions",
+    summary:
+      "Undo an AI replace by restoring a document's stashed pre-replace revision.",
     category: "write",
   },
 ];
