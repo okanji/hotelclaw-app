@@ -11,6 +11,7 @@ import { serviceClient } from "../lib/supabase";
 import { resolveSessionAgent } from "../lib/agent-config";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
 import { callBrainToolDirect } from "../lib/gbrain-http";
+import { channelBotHeaders, eveSelfOrigin } from "../lib/channel-delivery";
 
 // The executor side of AGENT_TOOL_CATALOG (apps/web/lib/agents/schema.ts —
 // keep the id sets in sync; the UI describes exactly what can be granted
@@ -44,6 +45,11 @@ export default defineDynamic({
       const senderAttr = ctx.session.auth.current?.attributes?.senderId;
       const senderId =
         typeof senderAttr === "string" && senderAttr ? senderAttr : userId;
+      // Stream channel this session serves (channel-bot sessions only) —
+      // background jobs deliver their results back into it.
+      const channelAttr = ctx.session.auth.current?.attributes?.channelId;
+      const sessionChannelId =
+        typeof channelAttr === "string" && channelAttr ? channelAttr : null;
       const grants = new Set(config.tools);
       const resourceIds = config.resources.documentIds;
 
@@ -898,6 +904,107 @@ export default defineDynamic({
             },
           });
         }
+      }
+
+      // Detached background jobs ("Separate sessions still run
+      // independently" — eve execution-model docs). The conversational
+      // session stays free for everyone else while N jobs run in parallel;
+      // each job's result is posted to the channel by the same delivery
+      // handlers when its session parks (kind='job' row, migration 0093).
+      if (grants.has("start_background_job") && sessionChannelId) {
+        tools.start_background_job = defineTool({
+          description:
+            "Start a DETACHED background job for heavy, long-running work (audits, reports, bulk analysis, anything needing many steps or minutes of work) and reply to the requester immediately. The job runs in its own session with the same capabilities and posts its results to this channel when done, prefixed with your headline. After calling this, tell the requester the job is running and results will be posted here. Do NOT use it for quick lookups you can answer in this turn.",
+          inputSchema: z.object({
+            headline: z
+              .string()
+              .min(5)
+              .max(120)
+              .describe("Short label shown when results post, e.g. 'Weekly SOP coverage audit'"),
+            brief: z
+              .string()
+              .min(20)
+              .max(4000)
+              .describe(
+                "Self-contained task brief: goal, scope, what the final answer must contain. The job cannot ask follow-up questions.",
+              ),
+          }),
+          async execute({ headline, brief }, toolCtx) {
+            const supabase = serviceClient();
+            // Recursion guard: jobs may not spawn jobs.
+            const selfSessionId = toolCtx?.session?.id;
+            if (selfSessionId) {
+              const { data: selfRow } = await supabase
+                .from("channel_bot_sessions")
+                .select("kind")
+                .eq("eve_session_id", selfSessionId)
+                .maybeSingle();
+              if (selfRow?.kind === "job") {
+                return {
+                  error:
+                    "Already running as a background job — do the work here instead of starting another job.",
+                };
+              }
+            }
+
+            const jobHeaders = await channelBotHeaders({
+              propertyId,
+              channelId: sessionChannelId,
+              senderId,
+            });
+            if (!jobHeaders) return { error: "Could not authorize the job session." };
+
+            const jobNonce = crypto.randomUUID();
+            const jobMessage = [
+              `[turn ${jobNonce} — internal marker, ignore]`,
+              `[Background job — you are running DETACHED. Work autonomously to completion; nobody can answer follow-up questions. Never call start_background_job. Deliver ONE final answer — it will be posted to the team channel under the headline "${headline}". Keep it tight and scannable (aim under 4000 characters): lead with findings, use short sections, cut process narration.]`,
+              brief,
+            ].join("\n\n");
+
+            const created = await fetch(`${eveSelfOrigin()}/eve/v1/session`, {
+              method: "POST",
+              headers: jobHeaders,
+              body: JSON.stringify({ message: jobMessage }),
+              signal: AbortSignal.timeout(15_000),
+            }).catch(() => null);
+            if (!created?.ok) {
+              return { error: `Job session create failed (${created?.status ?? "unreachable"}).` };
+            }
+            const createdBody = (await created.json()) as { sessionId?: string };
+            if (!createdBody.sessionId) return { error: "Job session returned no id." };
+
+            const { data: chatRow } = await supabase
+              .from("channel_bot_sessions")
+              .select("channel_type")
+              .eq("channel_id", sessionChannelId)
+              .eq("thread_key", "_root")
+              .maybeSingle();
+
+            const { error: rowError } = await supabase
+              .from("channel_bot_sessions")
+              .insert({
+                property_id: propertyId,
+                channel_id: sessionChannelId,
+                channel_type: chatRow?.channel_type ?? "team",
+                thread_key: `job:${crypto.randomUUID()}`,
+                kind: "job",
+                job_headline: headline,
+                eve_session_id: createdBody.sessionId,
+                turn_nonce: jobNonce,
+                turn_state: "running",
+                turn_started_at: new Date().toISOString(),
+                last_turn_at: new Date().toISOString(),
+              });
+            if (rowError) {
+              return { error: `Job started but tracking failed: ${rowError.message}` };
+            }
+            return {
+              started: true,
+              headline,
+              note: "Job is running detached. Tell the requester results will be posted to this channel when it finishes.",
+            };
+          },
+        });
       }
 
       // Brain grants (mirror tools/channel-brain.ts — keep descriptions in

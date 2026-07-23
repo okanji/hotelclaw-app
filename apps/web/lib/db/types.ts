@@ -2488,6 +2488,11 @@ export interface Database {
           reply_candidate: string | null;
           ui_spec: unknown;
           delivered_nonce: string | null;
+          // Turn claim + background jobs (0093).
+          turn_state: "idle" | "running";
+          turn_started_at: string | null;
+          kind: "chat" | "job";
+          job_headline: string | null;
           last_turn_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2507,6 +2512,10 @@ export interface Database {
           reply_candidate?: string | null;
           ui_spec?: unknown;
           delivered_nonce?: string | null;
+          turn_state?: "idle" | "running";
+          turn_started_at?: string | null;
+          kind?: "chat" | "job";
+          job_headline?: string | null;
           last_turn_at?: string | null;
         };
         Update: Partial<{
@@ -2520,7 +2529,32 @@ export interface Database {
           reply_candidate: string | null;
           ui_spec: unknown;
           delivered_nonce: string | null;
+          turn_state: "idle" | "running";
+          turn_started_at: string | null;
+          kind: "chat" | "job";
+          job_headline: string | null;
           last_turn_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      channel_bot_queue: {
+        Row: {
+          id: string;
+          property_id: string;
+          channel_id: string;
+          thread_key: string;
+          message: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          channel_id: string;
+          thread_key?: string;
+          message: Record<string, unknown>;
+        };
+        Update: Partial<{
+          message: Record<string, unknown>;
         }>;
         Relationships: [];
       };

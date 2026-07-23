@@ -26,10 +26,11 @@ import { type ActivationReason as RuntimeActivationReason } from "@/lib/ai/run-b
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBotUserId, ROOT_THREAD_KEY } from "./ai-adapter";
 import {
-  releaseGenerationLock,
-  tryAcquireGenerationLock,
-} from "./ai-generation-lock";
-import { runChannelBotEveTurn } from "./channel-bot-eve";
+  claimChannelTurn,
+  enqueueChannelMessage,
+  releaseChannelTurn,
+  runChannelBotEveTurn,
+} from "./channel-bot-eve";
 import { getStreamServer } from "./server";
 
 /**
@@ -92,17 +93,36 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
   const parentId = ctx.parentId ?? null;
   const threadKey = parentId ?? ROOT_THREAD_KEY;
 
-  // ─── Single-flight lock ─────────────────────────────────────────────────
-  // Only one generation runs at a time per channel+thread. If we can't
-  // acquire the lock, another turn is already in flight for this
-  // conversation — drop silently; the message we'd have answered arrives
-  // as unseen context on that session's next trigger.
-  const got = await tryAcquireGenerationLock(ctx.streamChannelId, threadKey);
-  if (!got) {
-    console.log("[ai-reply] gen lock held — dropping (in-flight turn will absorb)", {
+  // ─── Turn claim + lossless queue ────────────────────────────────────────
+  // One turn at a time per channel+thread, enforced by an atomic Postgres
+  // claim on the session row (crash-safe; a wedged turn is reclaimable
+  // after the staleness cutoff). A message that can't claim is ENQUEUED —
+  // never dropped: the runtime drains the queue into the very next turn
+  // the moment the session parks (the eve-docs-prescribed app-layer queue,
+  // execution-model-and-durability.md "Message delivery and queueing").
+  const claimed = await claimChannelTurn({
+    propertyId: ctx.propertyId,
+    channelId: ctx.streamChannelId,
+    channelType: ctx.channelType,
+    threadKey,
+  });
+  if (!claimed) {
+    console.log("[ai-reply] turn in flight — enqueueing for drain-on-park", {
       channelId: ctx.streamChannelId,
       threadKey,
       triggerMsgId: ctx.triggerMessage.id,
+    });
+    await enqueueChannelMessage({
+      propertyId: ctx.propertyId,
+      channelId: ctx.streamChannelId,
+      threadKey,
+      message: {
+        messageId: ctx.triggerMessage.id,
+        text: ctx.triggerMessage.text,
+        userId: ctx.triggerMessage.userId,
+        userName: ctx.triggerMessage.userName ?? null,
+        activationReason: ctx.activationReason ?? "mention",
+      },
     });
     return;
   }
@@ -153,7 +173,9 @@ export async function generateAndPostReply(ctx: ReplyContext): Promise<void> {
         ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
       } as unknown as Parameters<typeof channel.sendMessage>[0])
       .catch((e) => console.error("[ai-reply] failure notice failed", e));
-    await releaseGenerationLock(ctx.streamChannelId, threadKey);
+    // The runtime never got a session to park — nothing else will reset
+    // the claim, so unwedge the channel here.
+    await releaseChannelTurn(ctx.streamChannelId, threadKey);
   }
 }
 

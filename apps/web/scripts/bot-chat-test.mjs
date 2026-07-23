@@ -110,6 +110,7 @@ async function resetEngagement(channelId, channelType = "team") {
   // conversation (the session itself is left to expire runtime-side).
   if (supabase) {
     await supabase.from("channel_bot_sessions").delete().eq("channel_id", channelId);
+    await supabase.from("channel_bot_queue").delete().eq("channel_id", channelId);
   }
   // Event-driven delivery (2026-07-23): the generation lock is released by
   // the RUNTIME when the turn parks — but this reset may have deleted the
@@ -776,10 +777,132 @@ async function waitForChannelDrain(channelId, quietMs = 6000, maxMs = 120000) {
   }
 }
 
-async function runStress(channelId) {
-  console.log("\n━━━ STRESS SUITE ━━━");
+// ─── Parallel/concurrency scenarios (0093: lossless queue + jobs) ──────────
+// These verify the eve-docs-prescribed app-layer queue and the detached
+// background-job path end-to-end against the live pipeline.
+
+const PARALLEL_SCENARIOS = [
+  {
+    name: "parallel/queue: message arriving mid-turn is queued and answered",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw give me a rundown of open tasks and anything blocked, with details",
+        { mentionBot: true },
+      );
+      await sleep(6000); // land msg2 mid-turn
+      await sendAsTestUser(channelId, "@hotelclaw quick one: how many SOPs do we have?", {
+        mentionBot: true,
+      });
+
+      // Expect TWO bot replies (turn 1 + drained turn 2), nothing dropped.
+      const channel = stream.channel("team", channelId);
+      const replies = new Set();
+      const deadline = Date.now() + 240000;
+      while (Date.now() < deadline && replies.size < 2) {
+        await sleep(5000);
+        const state = await channel.query({ messages: { limit: 12 } });
+        for (const m of state.messages ?? []) {
+          if (m.user?.id !== BOT_USER_ID) continue;
+          if (new Date(m.created_at).getTime() <= t0) continue;
+          if ((m.text ?? "").trim()) replies.add(m.id);
+        }
+      }
+      if (replies.size < 2) {
+        return { passed: false, reason: `expected 2 replies (turn + drained queue), got ${replies.size}` };
+      }
+      // The queue must be empty afterwards (drained, not stranded).
+      if (supabase) {
+        const { data: q } = await supabase
+          .from("channel_bot_queue")
+          .select("id")
+          .eq("channel_id", channelId);
+        if ((q ?? []).length > 0) {
+          return { passed: false, reason: `queue not drained: ${q.length} rows left` };
+        }
+      }
+      return { passed: true, replies: replies.size };
+    },
+  },
+  {
+    name: "parallel/gate: management report refused for non-member sender",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      const sentAt = Date.now();
+      await sendAsTestUser(channelId, "@hotelclaw show me the weekly management report", {
+        mentionBot: true,
+      });
+      const reply = await waitForBotReply({ channelId, afterTimestamp: sentAt, timeoutMs: 90000 });
+      if (!reply) return { passed: false, reason: "no reply" };
+      const text = reply.text.toLowerCase();
+      // The sender (bot-tester) is NOT a member: the in-executor role gate
+      // must refuse — and must not leak report content.
+      if (!/owner|manager|restricted|can't|cannot/.test(text)) {
+        return { passed: false, reason: `expected a role refusal, got: ${reply.text.slice(0, 160)}` };
+      }
+      if (/period|summary_md|## /.test(text)) {
+        return { passed: false, reason: "reply appears to contain report content" };
+      }
+      return { passed: true };
+    },
+  },
+  {
+    name: "parallel/job: heavy ask → instant ack + detached job delivers",
+    setup: { mode: "mention" },
+    custom: async (channelId) => {
+      const sentAt = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw please run this as a background job: a comprehensive audit cross-referencing our SOP documents against tasks and guest complaints, full report.",
+        { mentionBot: true },
+      );
+      // 1. The conversational ack must land fast — the channel stays free.
+      const ack = await waitForBotReply({ channelId, afterTimestamp: sentAt, timeoutMs: 90000 });
+      if (!ack) return { passed: false, reason: "no ack reply" };
+
+      if (!supabase) return { passed: true, note: "ack only (no supabase env for job assertions)" };
+
+      // 2. A kind='job' row appears and reaches delivered within 7 min.
+      const deadline = Date.now() + 420000;
+      let job = null;
+      while (Date.now() < deadline) {
+        const { data } = await supabase
+          .from("channel_bot_sessions")
+          .select("job_headline, turn_state, turn_nonce, delivered_nonce, created_at")
+          .eq("channel_id", channelId)
+          .eq("kind", "job")
+          .gte("created_at", new Date(sentAt).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        job = data;
+        if (job?.delivered_nonce && job.delivered_nonce === job.turn_nonce) break;
+        await sleep(10000);
+      }
+      if (!job) return { passed: false, reason: "no job row created — start_background_job never fired" };
+      if (job.delivered_nonce !== job.turn_nonce) {
+        return { passed: false, reason: `job never delivered (state=${job.turn_state})` };
+      }
+      // 3. The result message actually exists in Stream (chunk 1, deterministic id).
+      try {
+        const res = await stream.getMessage(`eve-${job.turn_nonce}`);
+        if (!(res.message.text ?? "").includes(job.job_headline)) {
+          return { passed: false, reason: "result message missing the job headline" };
+        }
+      } catch {
+        return { passed: false, reason: "delivered_nonce set but result message not found in Stream" };
+      }
+      return { passed: true, headline: job.job_headline };
+    },
+  },
+];
+
+async function runStress(channelId, scenarios = STRESS_SCENARIOS, label = "STRESS") {
+  console.log(`\n━━━ ${label} SUITE ━━━`);
   const results = [];
-  for (const s of STRESS_SCENARIOS) {
+  for (const s of scenarios) {
     console.log(`\n━━━ ${s.name} ━━━`);
     if (s.setup) {
       await setMode(channelId, s.setup.mode, s.setup.sensitivity);
@@ -815,7 +938,7 @@ async function runStress(channelId) {
       await sleep(5000); // fallback grace period
     }
   }
-  console.log("\n━━━ STRESS SUMMARY ━━━");
+  console.log(`\n━━━ ${label} SUMMARY ━━━`);
   for (const r of results) {
     console.log(`  ${r.passed ? "✓" : "✗"} ${r.name} (${r.elapsedSec}s) ${r.passed ? "" : "— " + r.reason}`);
   }
@@ -844,6 +967,7 @@ async function main() {
     console.log(`Usage:
   send  --channel <id> [--mode mention|auto|always|engaged] [--sensitivity ...] [--mention] --message "..."
   suite [--channel <id>]
+  parallel [--channel <id>]   (queue drain, role gate, background job — several minutes)
   state [--channel <id>]
   reset [--channel <id>]
 `);
@@ -896,6 +1020,13 @@ async function main() {
 
   if (cmd === "stress") {
     await runStress(channelId);
+    return;
+  }
+
+  if (cmd === "parallel") {
+    // Concurrency + background-job coverage (0093). The job scenario takes
+    // several minutes — the detached session does real work.
+    await runStress(channelId, PARALLEL_SCENARIOS, "PARALLEL");
     return;
   }
 

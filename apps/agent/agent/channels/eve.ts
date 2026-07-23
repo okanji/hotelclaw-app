@@ -5,8 +5,8 @@ import { serviceClient } from "../lib/supabase";
 import {
   deliverFailure,
   deliverReply,
+  drainQueueOrIdle,
   findSessionRow,
-  releaseGenerationLock,
   updateSessionRow,
 } from "../lib/channel-delivery";
 
@@ -279,11 +279,13 @@ export default eveChannel({
 
     // Turn parked: THE delivery point. Store the fresh continuation token
     // (docs: follow-ups must use "the current continuationToken from that
-    // event"), post the reply once per nonce, release the web-side
-    // generation lock.
+    // event"), post the reply once per nonce, then either DRAIN queued
+    // messages into the next turn (with that same fresh token — the
+    // eve-docs app-layer-queue pattern) or mark the turn slot idle.
     "session.waiting": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      const row = await findSessionRow((ctx as HandlerCtx).session.id);
+      const sessionId = (ctx as HandlerCtx).session.id;
+      const row = await findSessionRow(sessionId);
       if (!row) return;
       const token =
         typeof (data as { continuationToken?: unknown }).continuationToken === "string"
@@ -299,12 +301,13 @@ export default eveChannel({
         await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
         await deliverReply(row);
       }
-      await releaseGenerationLock(row.channel_id, row.thread_key);
+      await drainQueueOrIdle(row, sessionId, token);
     },
 
     // Fail-loud contract: a dead session posts a visible ⚠️, never silence.
     // (session.failed handlers receive no ctx — resolve the row from the
-    // sessionId in the event data.)
+    // sessionId in the event data.) The queue is left intact: the next
+    // trigger's web-side fallback drain answers what queued up.
     "session.failed": async (data) => {
       const sessionId = (data as { sessionId?: unknown }).sessionId;
       if (typeof sessionId !== "string") return;
@@ -317,7 +320,7 @@ export default eveChannel({
           `${(data as { code?: string }).code ?? "unknown"}: ${(data as { message?: string }).message ?? ""}`,
         );
       }
-      await releaseGenerationLock(row.channel_id, row.thread_key);
+      await updateSessionRow(row.id, { turn_state: "idle" });
     },
   },
 });

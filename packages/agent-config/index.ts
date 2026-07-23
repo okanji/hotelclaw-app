@@ -187,6 +187,13 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
+    id: "start_background_job",
+    label: "Run background jobs",
+    summary:
+      "Hand heavy, long-running work to a detached session that posts results back to the channel when done.",
+    category: "write",
+  },
+  {
     id: "get_org_chart",
     label: "Read org chart",
     summary: "Teams, reporting lines, and who owns what.",

@@ -364,6 +364,45 @@ export const KNOWLEDGE_DISCIPLINE = [
 ].join("\n");
 
 // ---------------------------------------------------------------------------
+// Stream-safe text chunking. Stream Chat SILENTLY DISCARDS messages past
+// its ~5KB text limit (the send "succeeds", the message never exists —
+// observed 2026-07-23 with a 19KB background-job report). Long deliveries
+// must be chunked; continuation chunks post as thread replies.
+// ---------------------------------------------------------------------------
+
+export const STREAM_CHUNK_LIMIT = 4200;
+export const STREAM_MAX_CHUNKS = 8;
+
+/** Split text into Stream-safe chunks, preferring newline boundaries in
+ * the back half of each window. Past maxChunks the tail is dropped with a
+ * truncation marker appended to the final chunk. */
+export function chunkStreamText(
+  text: string,
+  {
+    limit = STREAM_CHUNK_LIMIT,
+    maxChunks = STREAM_MAX_CHUNKS,
+  }: { limit?: number; maxChunks?: number } = {},
+): string[] {
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0 && chunks.length < maxChunks) {
+    if (remaining.length <= limit) {
+      chunks.push(remaining);
+      remaining = "";
+      break;
+    }
+    let cut = remaining.lastIndexOf("\n", limit);
+    if (cut < limit / 2) cut = limit;
+    chunks.push(remaining.slice(0, cut));
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length > 0 && chunks.length >= maxChunks) {
+    chunks[chunks.length - 1] += "\n\n…(truncated — ask for the rest)";
+  }
+  return chunks;
+}
+
+// ---------------------------------------------------------------------------
 // Document → brain sync helpers (the doc mirror pages)
 // ---------------------------------------------------------------------------
 
