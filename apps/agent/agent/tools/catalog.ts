@@ -484,6 +484,44 @@ export default defineDynamic({
         });
       }
 
+      if (grants.has("read_document")) {
+        tools.read_document = defineTool({
+          description:
+            "Read a document's FULL body as clean HTML (faithful structure: headings, lists, tables). Use before answering detailed questions about a doc's contents, and ALWAYS before update_document on an existing doc — edit the returned HTML surgically and send the whole revised body back, preserving everything you didn't change. Get the id from list_documents/search_documents.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+          }),
+          async execute({ document_id }) {
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}`,
+              {
+                headers: {
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                signal: AbortSignal.timeout(20_000),
+              },
+            ).catch(() => null);
+            if (!response?.ok) {
+              const detail = response
+                ? ((await response.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Document read failed (${response?.status ?? "unreachable"}).` };
+            }
+            const body = (await response.json()) as {
+              title: string;
+              html: string;
+              characters: number;
+            };
+            return {
+              title: body.title,
+              html: body.html.slice(0, 60_000),
+              characters: body.characters,
+              link: `/p/${propertyId}/documents/${document_id}`,
+            };
+          },
+        });
+      }
+
       if (grants.has("create_document")) {
         tools.create_document = defineTool({
           description:

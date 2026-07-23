@@ -141,6 +141,12 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
+    id: "read_document",
+    label: "Read documents",
+    summary: "Read any document's full body (faithful HTML incl. tables/lists).",
+    category: "read",
+  },
+  {
     id: "list_upcoming_meetings",
     label: "Read upcoming meetings",
     summary: "List meetings scheduled in the coming days.",

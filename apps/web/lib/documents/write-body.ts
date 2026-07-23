@@ -10,7 +10,7 @@ import "server-only";
  * REMEMBER: `setContent(string)` inserts literal text — it must be
  * ProseMirror JSON (the seed-demo gotcha).
  */
-import { generateJSON } from "@tiptap/html";
+import { generateHTML, generateJSON } from "@tiptap/html";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { Table } from "@tiptap/extension-table";
@@ -42,6 +42,52 @@ type ProseMirrorNode = { type: string; content?: unknown[] };
 export function htmlToProseMirrorDoc(html: string): ProseMirrorNode {
   const clean = sanitizeDocHtml(html);
   return generateJSON(clean, EXTENSIONS) as ProseMirrorNode;
+}
+
+/**
+ * A document's body as clean HTML (from the body_json snapshot, same
+ * extension set the writer uses) — the faithful read the AI needs before
+ * surgical edits, so unchanged sections round-trip without losing
+ * structure (tables, lists). Falls back to paragraph-wrapped body_text
+ * for docs whose JSON snapshot predates the webhook.
+ */
+export async function readDocumentBodyHtml(input: {
+  propertyId: string;
+  documentId: string;
+}): Promise<
+  | { ok: true; title: string; html: string; characters: number }
+  | { ok: false; error: string }
+> {
+  const supabase = createServiceClient();
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id, title, body_json, body_text, archived_at, kind")
+    .eq("id", input.documentId)
+    .eq("property_id", input.propertyId)
+    .maybeSingle();
+  if (!doc) return { ok: false, error: "Document not found in this property." };
+  if (doc.kind !== "doc") {
+    return { ok: false, error: "Only rich-text documents are readable this way (not sheets)." };
+  }
+  let html = "";
+  if (doc.body_json) {
+    try {
+      html = generateHTML(doc.body_json as object, EXTENSIONS);
+    } catch {
+      html = "";
+    }
+  }
+  if (!html) {
+    html = (doc.body_text ?? "")
+      .split("\n")
+      .filter((line: string) => line.trim())
+      .map(
+        (line: string) =>
+          `<p>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`,
+      )
+      .join("");
+  }
+  return { ok: true, title: doc.title, html, characters: html.length };
 }
 
 export type WriteBodyResult =
