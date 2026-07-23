@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -100,40 +101,53 @@ export function AiThinkingIndicator({
     return () => cancelAnimationFrame(id);
   }, [thinking]);
 
-  // Keep the viewer pinned to the bottom when the row appears — they almost
-  // always just sent the trigger message.
+  // Keep the viewer pinned to the bottom while the row is up (they almost
+  // always just sent the trigger message). This must be a poll, not a
+  // one-shot: Stream loads messages asynchronously and scrolls to the
+  // bottom of the MESSAGES after our row is already in the DOM, stranding
+  // the row one row-height below the fold on a mid-turn page load. The
+  // interval re-pins whenever the viewer is near-but-not-at the bottom;
+  // scrolled-up readers (gap ≥ 400) are never yanked.
   useEffect(() => {
     if (!thinking || !portalEl) return;
-    const id = requestAnimationFrame(() => {
-      const scroller = portalEl.closest(".str-chat__list") ?? portalEl;
-      if (!(scroller instanceof HTMLElement)) return;
+    const pin = () => {
+      // Nearest scrollable ANCESTOR of the list content (`.str-chat__message-list`
+      // here — but found structurally, so a Stream class rename can't break it).
+      let scroller: HTMLElement | null = portalEl.parentElement as HTMLElement | null;
+      while (scroller && scroller.scrollHeight <= scroller.clientHeight + 1) {
+        scroller = scroller.parentElement;
+      }
+      if (!scroller) return;
       const gap =
         scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-      if (gap < 400) {
-        scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+      if (gap > 1 && gap < 400) {
+        scroller.scrollTop = scroller.scrollHeight;
       }
-    });
-    return () => cancelAnimationFrame(id);
+    };
+    const id = requestAnimationFrame(pin);
+    const interval = setInterval(pin, 400);
+    return () => {
+      cancelAnimationFrame(id);
+      clearInterval(interval);
+    };
   }, [thinking, portalEl]);
 
   const row =
     thinking && portalEl
       ? createPortal(
-          <div className="flex items-start gap-[10px] py-1 pl-[22px] pr-4">
-            <div className="str-chat__avatar str-chat__avatar--with-border str-chat__avatar--one-letter str-chat__avatar--size-md shrink-0">
+          <div className="flex items-start gap-[10px] py-1.5 pl-[22px] pr-4">
+            <div className="str-chat__avatar str-chat__avatar--with-border str-chat__avatar--one-letter str-chat__avatar--size-md shrink-0 opacity-80">
               <div className="str-chat__avatar-initials">H</div>
             </div>
-            <div className="flex min-w-0 flex-col pt-px">
+            <div className="flex min-w-0 flex-col">
               <span className="text-[15px] font-bold leading-[22px]">
                 Hotelclaw
               </span>
-              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                {longRunning ? "Still working on it" : "Thinking"}
-                <span className="inline-flex gap-0.5" aria-hidden>
-                  <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
-                  <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
-                  <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
-                </span>
+              {/* Same treatment as every other AI surface's busy state
+                  (task/doc panels): small spinner + muted "Thinking…". */}
+              <span className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                {longRunning ? "Still working on it…" : "Thinking…"}
               </span>
             </div>
           </div>,
