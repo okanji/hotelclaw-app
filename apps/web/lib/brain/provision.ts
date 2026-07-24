@@ -9,15 +9,27 @@ import "server-only";
  *   - CLI  — drives the `gbrain` binary against a local GBRAIN_HOME. Only
  *            works where the app and the brain home share a host (dev / the
  *            brain host). This is the historical path.
- *   - HTTP — drives the shared serve over MCP `tools/call` with an
- *            admin-scoped OAuth client (BRAIN_TOKEN_ADMIN). Works from
- *            anywhere the serve is reachable — including Vercel — so a
- *            property created in prod gets a brain at creation time.
- *            Requires the serve to expose the `register_client` op
- *            (source creation via `sources_add` is already remote-callable).
+ *   - HTTP — drives the shared serve over HTTP. Works from anywhere the
+ *            serve is reachable — including Vercel — so a property created
+ *            in prod gets a brain at creation time. Three calls:
+ *              1. `sources_add` over MCP tools/call (BRAIN_TOKEN_ADMIN, an
+ *                 admin-scoped OAuth client) — creates the bare source.
+ *              2. POST /admin/login with GBRAIN_ADMIN_BOOTSTRAP_TOKEN →
+ *                 `gbrain_admin` session cookie (in-memory serve-side, so
+ *                 login per provisioning run), then
+ *                 POST /admin/api/register-client → { clientId,
+ *                 clientSecret } (registered on source 'default').
+ *              3. POST /admin/api/rescope-client → move the client onto
+ *                 the property source + federated_read fence. Requires the
+ *                 serve pinned ≥ gbrain 69bc37f7 (rescope-client landed
+ *                 2026-07-24; our Railway pin tracks it — see
+ *                 infra/railway-brain-serve/README.md).
  *
- * Selection: CLI when GBRAIN_HOME is present (proven, and it's the brain
- * host), else HTTP when BRAIN_TOKEN_ADMIN is present, else a no-op skip.
+ * Selection: HTTP whenever BRAIN_MCP_URL + BRAIN_TOKEN_ADMIN +
+ * GBRAIN_ADMIN_BOOTSTRAP_TOKEN are present (uniform across dev and prod,
+ * and immune to the CLI's cross-region startup cost — gbrain 0.42.65's
+ * connectEngine issues dozens of sequential config reads, >10s from a
+ * ~300ms-RTT machine); CLI as the fallback where only GBRAIN_HOME exists.
  * Never throws — a provisioning failure degrades to a brainless property
  * (the sweep / the "Provision now" button reconcile later).
  */
@@ -38,8 +50,14 @@ export type ProvisionResult =
 
 /** Which transport this host can provision through, if any. */
 export function provisionTransport(): "cli" | "http" | null {
+  if (
+    process.env.BRAIN_MCP_URL &&
+    process.env.BRAIN_TOKEN_ADMIN &&
+    process.env.GBRAIN_ADMIN_BOOTSTRAP_TOKEN
+  ) {
+    return "http";
+  }
   if (process.env.GBRAIN_HOME) return "cli";
-  if (process.env.BRAIN_MCP_URL && process.env.BRAIN_TOKEN_ADMIN) return "http";
   return null;
 }
 
@@ -155,13 +173,41 @@ async function provisionViaCli(
   return { ok: true, source, clientId, transport: "cli" };
 }
 
+/** POST JSON to the serve's admin API; returns the parsed body or throws. */
+async function adminPost<T>(
+  origin: string,
+  path: string,
+  body: Record<string, unknown>,
+  cookie?: string,
+): Promise<{ status: number; body: T; setCookie: string | null }> {
+  const response = await fetch(`${origin}${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const setCookie = response.headers.get("set-cookie");
+  let parsed: T;
+  try {
+    parsed = (await response.json()) as T;
+  } catch {
+    parsed = {} as T;
+  }
+  return { status: response.status, body: parsed, setCookie };
+}
+
 /**
- * HTTP transport — the same two operations over the serve's MCP surface
- * with the admin credential:
- *   - `sources_add` (already remote-callable; over the remote plane it
- *     creates a bare source with no host path, exactly what we want)
- *   - `register_client` (mints the source-fenced OAuth client and returns
- *     its plaintext secret ONCE)
+ * HTTP transport — three calls against the shared serve:
+ *   1. `sources_add` over MCP (BRAIN_TOKEN_ADMIN) — bare source, no host
+ *      path (the serve rejects path/clone_dir from remote callers).
+ *   2. /admin/login (bootstrap token) → cookie → /admin/api/register-client
+ *      — mints the client (plaintext secret returned once, on 'default').
+ *   3. /admin/api/rescope-client — fences it to the property source.
+ * If rescope fails the client is NOT stored — a default-scoped credential
+ * must never end up in property_brains (it could read the master source).
  */
 async function provisionViaHttp(
   propertyId: string,
@@ -169,10 +215,12 @@ async function provisionViaHttp(
   source: string,
 ): Promise<ProvisionResult> {
   const url = process.env.BRAIN_MCP_URL!;
+  const bootstrapToken = process.env.GBRAIN_ADMIN_BOOTSTRAP_TOKEN!;
   const admin = adminCredential();
   if (!admin) return { error: "BRAIN_TOKEN_ADMIN is not a clientId:secret pair" };
+  const origin = new URL(url).origin;
 
-  // Source (idempotent: tolerate an "exists" from a previous partial run).
+  // 1. Source (idempotent: tolerate "exists" from a previous partial run).
   const added = await callBrain(url, admin, "sources_add", {
     id: source,
     name: source,
@@ -181,31 +229,49 @@ async function provisionViaHttp(
     return { error: `sources_add failed: ${added.reason}` };
   }
 
-  const registerArgs = (name: string) => ({
-    name,
-    grant_types: ["client_credentials"],
-    scopes: "read write",
-    source,
-    federated_read: [source],
+  // 2a. Admin session (in-memory serve-side; login per run, never cached).
+  const login = await adminPost<{ status?: string }>(origin, "/admin/login", {
+    token: bootstrapToken,
   });
-  let registered = await callBrain(url, admin, "register_client", registerArgs(`prop-${slug}`));
-  if (!registered.ok && /exist/i.test(registered.reason)) {
-    registered = await callBrain(
-      url,
-      admin,
-      "register_client",
-      registerArgs(`prop-${slug}-${randomBytes(2).toString("hex")}`),
-    );
-  }
-  if (!registered.ok) {
-    return { error: `register_client failed: ${registered.reason}` };
+  const cookie = login.setCookie?.match(/gbrain_admin=[^;]+/)?.[0];
+  if (login.status !== 200 || !cookie) {
+    return { error: `admin login failed (${login.status})` };
   }
 
-  const body = registered.content as { clientId?: string; clientSecret?: string } | null;
-  const clientId = typeof body?.clientId === "string" ? body.clientId : undefined;
-  const clientSecret = typeof body?.clientSecret === "string" ? body.clientSecret : undefined;
-  if (!clientId || !clientSecret) {
-    return { error: "register_client returned no credentials" };
+  // 2b. Register. The name is cosmetic; on a stale-name collision (a prior
+  // run died before the DB upsert) retry once with a random suffix.
+  type Registered = { clientId?: string; clientSecret?: string; error?: string };
+  const register = (name: string) =>
+    adminPost<Registered>(
+      origin,
+      "/admin/api/register-client",
+      { name, scopes: "read write", grantTypes: ["client_credentials"] },
+      cookie,
+    );
+  let registered = await register(`prop-${slug}`);
+  if (registered.status !== 200 && /exist/i.test(registered.body?.error ?? "")) {
+    registered = await register(`prop-${slug}-${randomBytes(2).toString("hex")}`);
+  }
+  const clientId = registered.body?.clientId;
+  const clientSecret = registered.body?.clientSecret;
+  if (registered.status !== 200 || !clientId || !clientSecret) {
+    return {
+      error: `register-client failed (${registered.status}): ${registered.body?.error ?? "no credentials returned"}`,
+    };
+  }
+
+  // 3. Fence to the property source. On failure, revoke-by-abandon: the
+  // secret is never stored, and we surface the error for the sweep/button.
+  const rescoped = await adminPost<{ error?: string }>(
+    origin,
+    "/admin/api/rescope-client",
+    { clientId, sourceId: source, federatedRead: [source] },
+    cookie,
+  );
+  if (rescoped.status !== 200) {
+    return {
+      error: `rescope-client failed (${rescoped.status}): ${rescoped.body?.error ?? "unknown"} — client ${clientId.slice(0, 20)}… left unscoped and unstored`,
+    };
   }
 
   await storeBinding(propertyId, source, clientId, clientSecret);

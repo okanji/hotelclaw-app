@@ -29,7 +29,7 @@ the npm `railway` shim silently exits when its platform binary is missing):
   (`embed|dream|doctor|all`) overrides the hour-based auto mode — handy
   for a manual one-off run via redeploy.
 
-Each run reinstalls gbrain (`bun add gbrain@github:garrytan/gbrain#f72de97`,
+Each run reinstalls gbrain (`bun add gbrain@github:garrytan/gbrain#1f319e6d5aff7674d8f48f289768ff75911a9ea8`,
 ~1-2 min). If that cost ever matters, bake the Dockerfile in this
 directory into an image instead — it's the same script with the install
 done at build time. **Keep the pin in step with the serve deployment.**

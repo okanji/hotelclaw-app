@@ -5,7 +5,7 @@
 # shared Supabase Postgres; config.json is generated from env at boot,
 # so NO volume is needed (Railway volumes are single-service anyway).
 #
-# Pin matches the serve deployment (gbrain#f72de97) — bump both together.
+# Pin matches the serve deployment (gbrain#1f319e6d) — bump both together.
 FROM oven/bun:1-debian
 
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 
 WORKDIR /app
 RUN bun init -y >/dev/null 2>&1 || true
-RUN bun add gbrain@github:garrytan/gbrain#f72de97
+RUN bun add gbrain@github:garrytan/gbrain#1f319e6d5aff7674d8f48f289768ff75911a9ea8
 
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
