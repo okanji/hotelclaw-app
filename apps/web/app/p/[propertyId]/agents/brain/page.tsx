@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getMembershipForProperty } from "@/lib/auth/session";
 import { resolvePropertyBrain } from "@/lib/brain/client";
 import { listBrainPages } from "@/lib/brain/browse";
+import { loadBrainOverview } from "@/lib/brain/overview";
 import { BrainBrowser } from "@/components/brain/brain-browser";
 
 /**
@@ -21,6 +22,7 @@ export default async function BrainPage({
 
   const binding = await resolvePropertyBrain(propertyId);
   const initialPages = binding ? await listBrainPages(binding) : null;
+  const overview = await loadBrainOverview(propertyId, initialPages);
 
   return (
     <BrainBrowser
@@ -28,6 +30,8 @@ export default async function BrainPage({
       configured={Boolean(binding)}
       source={binding?.source ?? null}
       initialPages={initialPages}
+      overview={overview}
+      isOwner={membership.role === "owner"}
       canCurate={membership.role === "owner" || membership.role === "manager"}
       canArchive={membership.role === "owner"}
     />

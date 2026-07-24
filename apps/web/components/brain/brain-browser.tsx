@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Brain, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
-import type { BrainPageSummary } from "@/lib/brain/shared";
+import type { BrainOverview as BrainOverviewData, BrainPageSummary } from "@/lib/brain/shared";
 import { BrainPageDetail } from "./brain-page-detail";
+import { BrainOverview } from "./brain-overview";
 
 type SearchHit = {
   slug: string;
@@ -32,6 +32,8 @@ export function BrainBrowser({
   configured,
   source,
   initialPages,
+  overview,
+  isOwner,
   canCurate,
   canArchive,
 }: {
@@ -39,6 +41,8 @@ export function BrainBrowser({
   configured: boolean;
   source: string | null;
   initialPages: BrainPageSummary[] | null;
+  overview: BrainOverviewData;
+  isOwner: boolean;
   canCurate: boolean;
   canArchive: boolean;
 }) {
@@ -114,12 +118,24 @@ export function BrainBrowser({
 
   if (!configured) {
     return (
-      <div className="flex h-full items-center justify-center px-6">
-        <EmptyState bare icon={Brain} title="No brain provisioned yet">
-          This property doesn&apos;t have a knowledge brain binding. Once one
-          is provisioned, everything the property learns — meeting summaries,
-          guest details, captured evidence — becomes browsable here.
-        </EmptyState>
+      <div className="flex h-full min-h-0 flex-col">
+        <header className="flex flex-wrap items-center gap-3 border-b border-border/60 px-6 py-4">
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold tracking-tight">Brain</h1>
+            <p className="truncate text-xs text-muted-foreground">
+              Everything this property has learned — and where each fact came
+              from
+            </p>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <BrainOverview
+            propertyId={propertyId}
+            overview={overview}
+            isOwner={isOwner}
+            onSelectSlug={setSelectedSlug}
+          />
+        </div>
       </div>
     );
   }
@@ -234,12 +250,12 @@ export function BrainBrowser({
               }}
             />
           ) : (
-            <div className="flex h-full items-center justify-center px-6">
-              <EmptyState bare icon={Brain} title="Select a page">
-                Pick a page from the index, or search — every answer a bot
-                gives from the brain traces back to what you see here.
-              </EmptyState>
-            </div>
+            <BrainOverview
+              propertyId={propertyId}
+              overview={overview}
+              isOwner={isOwner}
+              onSelectSlug={setSelectedSlug}
+            />
           )}
         </div>
       </div>
