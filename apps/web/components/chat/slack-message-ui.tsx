@@ -35,7 +35,6 @@ import {
   Attachment as DefaultAttachment,
   Avatar as DefaultAvatar,
   ErrorBadge,
-  getGroupStyles,
   isDateSeparatorMessage,
   isIntroMessage,
   MessageListContext,
@@ -78,65 +77,24 @@ import { SlackMessageActions } from "@/components/chat/slack-message-actions";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
 import { SlackReplyIndicator } from "@/components/chat/slack-reply-indicator";
 import { useUserProfilePanel } from "@/components/chat/user-profile-panel/context";
+import {
+  CLUSTER_TIME_GAP_MS,
+  slackGroupStyles,
+  type ClusterRole,
+} from "@/lib/chat/message-grouping";
 import { useTimeFormat } from "@/lib/preferences/time-format-context";
 
-type ClusterRole = "top" | "middle" | "bottom" | "single";
-
 /**
- * Slack breaks message clusters when consecutive same-author messages are more
- * than ~2 min apart. Exported so `channel-view.tsx` can pass the same value to
- * `<MessageList maxTimeBetweenGroupedMessages>` — Stream's internal
- * groupStyles drives the `.str-chat__li--middle/--bottom` classes that
- * `stream-chat-overrides.css` keys off (with `!important`), so the
- * `<MessageList>` prop and our custom recomputation must agree on the gap.
+ * Clustering rules live in `lib/chat/message-grouping.ts` (pure + unit
+ * tested). `CLUSTER_TIME_GAP_MS` and `slackGroupStyles` are re-exported here
+ * because `channel-view.tsx` / `slack-thread.tsx` hand them to
+ * `<MessageList maxTimeBetweenGroupedMessages groupStyles>`, and this file
+ * resolves each row's own role with the SAME function — the
+ * `.str-chat__li--middle/--bottom` classes `stream-chat-overrides.css` keys
+ * off (with `!important`) and the avatar/metadata decision below must not
+ * disagree.
  */
-export const CLUSTER_TIME_GAP_MS = 2 * 60 * 1000;
-
-function messageCreatedAtMs(msg: unknown): number | null {
-  if (!msg || typeof msg !== "object") return null;
-  const createdAt = (msg as { created_at?: unknown }).created_at;
-  if (createdAt == null) return null;
-  const d =
-    createdAt instanceof Date
-      ? createdAt
-      : typeof createdAt === "string"
-        ? new Date(createdAt)
-        : new Date(String(createdAt));
-  const t = d.getTime();
-  return Number.isNaN(t) ? null : t;
-}
-
-/**
- * Demote the cluster role when the time gap to a same-author neighbor exceeds
- * the threshold, so a re-engaged user gets a fresh avatar/header row.
- */
-function demoteClusterRoleByTimeGap(
-  role: ClusterRole,
-  self: unknown,
-  prev: unknown,
-  next: unknown,
-): ClusterRole {
-  const selfMs = messageCreatedAtMs(self);
-  if (selfMs == null) return role;
-
-  let result = role;
-
-  if (result === "middle" || result === "bottom") {
-    const prevMs = messageCreatedAtMs(prev);
-    if (prevMs != null && selfMs - prevMs > CLUSTER_TIME_GAP_MS) {
-      result = result === "middle" ? "top" : "single";
-    }
-  }
-
-  if (result === "top" || result === "middle") {
-    const nextMs = messageCreatedAtMs(next);
-    if (nextMs != null && nextMs - selfMs > CLUSTER_TIME_GAP_MS) {
-      result = result === "top" ? "single" : "bottom";
-    }
-  }
-
-  return result;
-}
+export { CLUSTER_TIME_GAP_MS, slackGroupStyles };
 
 /** Short clock for Slack-style gutter (continuation rows). The `hour12` flag
  *  is driven by the user's per-profile preference; default is 24-hour. */
@@ -177,20 +135,6 @@ function neighborRenderedMessage(
   return undefined;
 }
 
-/**
- * Stream's getGroupStyles treats any message with reactions as a cluster
- * breaker — both the reacted message and its successor get forced into
- * `single`/`top`/`bottom`, growing an avatar. Slack's grouping ignores
- * reactions entirely; reactions sit under the reacted message without
- * splitting the cluster. Strip `reaction_groups` before handing the message
- * to getGroupStyles so the algorithm can't see the reaction signal — every
- * other rule (author change, attachments, type, edited) still applies.
- */
-function withoutReactions(msg: unknown): unknown {
-  if (!msg || typeof msg !== "object") return msg;
-  return { ...(msg as Record<string, unknown>), reaction_groups: undefined };
-}
-
 function resolveClusterRole(
   messageId: string,
   processedMessages: unknown[] | undefined,
@@ -223,19 +167,15 @@ function resolveClusterRole(
 
   let role: ClusterRole = "single";
 
-  // The `groupStyles` prop from Stream's MessageList is computed against
-  // un-stripped messages, so it carries the reaction-as-cluster-breaker bug.
-  // Always recompute locally with reactions stripped.
+  // Recompute locally with the SAME function `<MessageList groupStyles>`
+  // gets, so this row's avatar/metadata decision cannot disagree with the
+  // `str-chat__li--*` class the CSS overrides key off.
   if (self) {
-    const style = getGroupStyles(
-      withoutReactions(self) as never,
-      withoutReactions(prev) as never,
-      withoutReactions(next) as never,
+    const style = slackGroupStyles(
+      self,
+      prev,
+      next,
       false,
-      // Tell Stream's helper to break clusters at the same gap the
-      // `<MessageList maxTimeBetweenGroupedMessages>` prop uses, so our
-      // custom recomputation can't disagree with the li-class CSS overrides.
-      // `demoteClusterRoleByTimeGap` below stays as a safety net.
       CLUSTER_TIME_GAP_MS,
     );
     if (
@@ -248,9 +188,7 @@ function resolveClusterRole(
     }
   }
 
-  if (!self) return role;
-
-  return demoteClusterRoleByTimeGap(role, self, prev, next);
+  return role;
 }
 
 type MessageUIWithContextProps = MessageContextValue;

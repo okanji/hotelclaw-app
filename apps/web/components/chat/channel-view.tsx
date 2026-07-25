@@ -17,13 +17,14 @@ import type {
 import { ChannelHeader } from "./channel-header";
 import { ChannelTabs } from "./channel-tabs";
 import { ChannelInfoPanel } from "./info-panel/info-panel";
+import { ArtifactAutoOpen } from "./artifact-auto-open";
 import { ArtifactSidePanel } from "./artifact-side-panel";
 import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
 import { AiThinkingIndicator } from "./ai-thinking-indicator";
 import { MessageJumper } from "./search/message-jumper";
 import { slackRenderText } from "./slack-render-text";
-import { CLUSTER_TIME_GAP_MS } from "./slack-message-ui";
+import { CLUSTER_TIME_GAP_MS, slackGroupStyles } from "./slack-message-ui";
 
 type Props = {
   channelId: string;
@@ -143,7 +144,6 @@ export function ChannelView({
             {/* Group consecutive rows from the same user (`noGroupByUser` unset).
                 Stream marks cluster segments as top / middle / bottom; globals.css + SlackMessageUI
                 flip avatar/metadata visibility so only the first row matches Slack (like Slack desktop).
-                Note: rows with attachments are always `single` — upstream getGroupStyles() behavior.
 
                 showAvatar is set but Stream's `<Message>` does not forward it; SlackMessageUI defaults to true. */}
             <ChannelHeader />
@@ -152,15 +152,20 @@ export function ChannelView({
               showAvatar
               disableDateSeparator={false}
               renderText={slackRenderText}
+              // Slack grouping rules, not Stream's: attachments and reactions
+              // do NOT break a cluster (upstream getGroupStyles forces any
+              // message with an attachment to `single`, which split one agent
+              // turn's artifact cards into one avatar row each), and messages
+              // sharing an `eve_turn` marker stay in one cluster however long
+              // the turn ran. `slack-message-ui.tsx` recomputes each row's
+              // role with this same function so the two layers can't drift.
+              groupStyles={slackGroupStyles as never}
               // Break the cluster when same-author messages are more than
-              // ~2 min apart. Drives Stream's internal groupStyles, which
-              // sets the `str-chat__li--middle/--bottom` classes the CSS
-              // overrides in `stream-chat-overrides.css` key off (with
+              // ~2 min apart. Sets the `str-chat__li--middle/--bottom` classes
+              // the CSS overrides in `stream-chat-overrides.css` key off (with
               // `!important`) to hide avatars/metadata on continuations.
               // Without this, a stale double-text would still be hidden under
-              // the previous one regardless of how long ago that was — the
-              // custom `clusterRole` in `slack-message-ui.tsx` recomputes
-              // with the same constant so the two layers can't drift.
+              // the previous one regardless of how long ago that was.
               maxTimeBetweenGroupedMessages={CLUSTER_TIME_GAP_MS}
             />
             {/* DB-driven "AI is thinking" row — spans the WHOLE eve turn
@@ -174,6 +179,9 @@ export function ChannelView({
           <SlackThread />
           <ChannelInfoPanel propertyId={propertyId} />
           <ArtifactSidePanel propertyId={propertyId} />
+          {/* Pops the panel open on the first record the AI starts writing in
+              this turn, so the live edit is visible without clicking. */}
+          <ArtifactAutoOpen />
           <MessageJumper messageId={messageId} />
         </Channel>
       </ChatView>

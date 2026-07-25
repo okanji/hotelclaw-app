@@ -22,10 +22,20 @@ const Body = z.object({
   documentId: z.string().uuid().optional(),
   title: z.string().min(1).max(200).optional(),
   parentId: z.string().uuid().nullish(),
-  html: z.string().min(1).max(120_000),
+  html: z.string().min(1).max(120_000).optional(),
   mode: z.enum(["replace", "append"]).default("replace"),
   /** Real requester (chat sender) — recorded as the doc creator. */
   actorUserId: z.string().uuid().optional(),
+  /**
+   * Create the empty document row and return its id WITHOUT writing a body.
+   *
+   * Lets `create_document` post its artifact card with a real document_id
+   * before the content write starts, so the chat panel can open on the live
+   * room and the viewer watches the doc being written. Without this the id
+   * only exists once the write has finished — there is nothing left to
+   * watch. Requires `title`; ignores `html`.
+   */
+  reserveOnly: z.boolean().default(false),
 });
 
 export async function POST(request: NextRequest) {
@@ -84,6 +94,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     documentId = created.id;
+  }
+
+  if (input.reserveOnly) {
+    return NextResponse.json({
+      ok: true,
+      documentId,
+      title: input.title ?? null,
+      bodyTextLength: 0,
+      url: `/p/${input.propertyId}/documents/${documentId}`,
+    });
+  }
+
+  if (!input.html) {
+    return NextResponse.json(
+      { error: "html is required unless reserveOnly is set" },
+      { status: 400 },
+    );
   }
 
   const result = await writeDocumentBody({

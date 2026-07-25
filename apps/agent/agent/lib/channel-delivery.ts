@@ -119,6 +119,7 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
         text: "⚠️ AI reply failed — the agent turn completed without producing a reply. Check the runtime logs.",
         user_id: botId,
         ai_generated: true,
+        ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
         ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
       } as unknown as Parameters<typeof channel.sendMessage>[0])
       .catch((e) => console.error("[channel-delivery] empty-turn notice failed", e));
@@ -163,6 +164,12 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
         text: chunkText,
         user_id: botId,
         ai_generated: true,
+        // Turn marker — the chat client groups every message sharing an
+        // `eve_turn` into ONE reply cluster (one avatar/name/timestamp),
+        // however long the turn ran. Artifact cards posted mid-turn by the
+        // write tools carry the same nonce, so a turn that wrote five docs
+        // reads as one reply with five cards, not five separate replies.
+        ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
         ...(isRoot && attachments ? { attachments } : {}),
         ...(isRoot
           ? parentId
@@ -194,6 +201,8 @@ export async function deliverFailure(
       text: `⚠️ ${headline}AI reply failed — eve session error: ${reason.slice(0, 300)}. Check the runtime logs.`,
       user_id: botUserId(),
       ai_generated: true,
+      // Group the failure notice with whatever the turn already posted.
+      ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
       ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
     } as unknown as Parameters<typeof channel.sendMessage>[0])
     .catch((e) => console.error("[channel-delivery] failure notice failed", e));

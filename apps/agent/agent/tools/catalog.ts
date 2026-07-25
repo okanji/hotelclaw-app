@@ -51,6 +51,13 @@ export default defineDynamic({
       const channelAttr = ctx.session.auth.current?.attributes?.channelId;
       const sessionChannelId =
         typeof channelAttr === "string" && channelAttr ? channelAttr : null;
+      // Identifies THIS session's channel_bot_sessions row, so in-turn Stream
+      // posts (artifact cards, form cards) can read the live `turn_nonce` and
+      // stamp it as `eve_turn`. The chat client groups every message sharing
+      // an `eve_turn` into ONE reply cluster (avatar + name + timestamp once),
+      // however long the turn ran — see `slackGroupStyles` in
+      // apps/web/components/chat/slack-message-ui.tsx.
+      const eveSessionId = ctx.session.id;
       const grants = new Set(config.tools);
       const resourceIds = config.resources.documentIds;
 
@@ -574,8 +581,41 @@ export default defineDynamic({
             content_html: z.string().min(20).max(100_000),
           }),
           async execute({ title, content_html }, toolCtx) {
-            // Live artifact card FIRST (deterministic id per tool call —
-            // Stream upserts on id, so step replays can't duplicate it).
+            // Reserve the document row BEFORE the card + body write, so the
+            // card carries a real document_id: the chat panel auto-opens on
+            // the live Liveblocks room and the viewer watches the body being
+            // written. (Creating and writing in one call meant the id only
+            // existed once there was nothing left to watch.)
+            const reserved = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/write`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                body: JSON.stringify({
+                  propertyId,
+                  title,
+                  actorUserId: userId,
+                  reserveOnly: true,
+                }),
+                signal: AbortSignal.timeout(20_000),
+              },
+            ).catch(() => null);
+            if (!reserved?.ok) {
+              const detail = reserved
+                ? ((await reserved.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Document create failed (${reserved?.status ?? "unreachable"}).` };
+            }
+            const reservedBody = (await reserved.json()) as {
+              documentId: string;
+              url: string;
+            };
+
+            // Live artifact card (deterministic id per tool call — Stream
+            // upserts on id, so step replays can't duplicate it).
             const cardId = `eve-artifact-${toolCtx.callId}`;
             const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
             const streamSecret = process.env.STREAM_API_SECRET;
@@ -583,9 +623,8 @@ export default defineDynamic({
             if (apiKey && streamSecret && sessionChannelId) {
               const { data: chatRow } = await serviceClient()
                 .from("channel_bot_sessions")
-                .select("channel_type")
-                .eq("channel_id", sessionChannelId)
-                .eq("thread_key", "_root")
+                .select("channel_type, turn_nonce")
+                .eq("eve_session_id", eveSessionId)
                 .maybeSingle();
               const server = StreamChat.getInstance(apiKey, streamSecret, {
                 timeout: 15_000,
@@ -600,12 +639,17 @@ export default defineDynamic({
                   text: "",
                   user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
                   ai_generated: true,
+                  // Groups this card with the rest of the turn (see eveSessionId).
+                  eve_turn: chatRow?.turn_nonce ?? undefined,
                   attachments: [
                     {
                       type: "app_artifact",
                       kind: "document",
                       status: "writing",
+                      action: "created",
                       title,
+                      document_id: reservedBody.documentId,
+                      href: reservedBody.url,
                       property_id: propertyId,
                     },
                   ],
@@ -623,10 +667,9 @@ export default defineDynamic({
                 },
                 body: JSON.stringify({
                   propertyId,
-                  title,
+                  documentId: reservedBody.documentId,
                   html: content_html,
                   mode: "replace",
-                  actorUserId: userId,
                 }),
                 signal: AbortSignal.timeout(55_000),
               },
@@ -713,9 +756,8 @@ export default defineDynamic({
             if (apiKey && streamSecret && sessionChannelId) {
               const { data: chatRow } = await supabase
                 .from("channel_bot_sessions")
-                .select("channel_type")
-                .eq("channel_id", sessionChannelId)
-                .eq("thread_key", "_root")
+                .select("channel_type, turn_nonce")
+                .eq("eve_session_id", eveSessionId)
                 .maybeSingle();
               const server = StreamChat.getInstance(apiKey, streamSecret, {
                 timeout: 15_000,
@@ -730,6 +772,8 @@ export default defineDynamic({
                   text: "",
                   user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
                   ai_generated: true,
+                  // Groups this card with the rest of the turn (see eveSessionId).
+                  eve_turn: chatRow?.turn_nonce ?? undefined,
                   attachments: [
                     {
                       type: "app_artifact",
@@ -1992,9 +2036,8 @@ export default defineDynamic({
             if (apiKey && streamSecret && sessionChannelId) {
               const { data: chatRow } = await supabase
                 .from("channel_bot_sessions")
-                .select("channel_type")
-                .eq("channel_id", sessionChannelId)
-                .eq("thread_key", "_root")
+                .select("channel_type, turn_nonce")
+                .eq("eve_session_id", eveSessionId)
                 .maybeSingle();
               const server = StreamChat.getInstance(apiKey, streamSecret, {
                 timeout: 15_000,
@@ -2006,6 +2049,8 @@ export default defineDynamic({
                   text: "",
                   user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
                   ai_generated: true,
+                  // Groups this card with the rest of the turn (see eveSessionId).
+                  eve_turn: chatRow?.turn_nonce ?? undefined,
                   attachments: [
                     {
                       type: "app_artifact",
@@ -2231,9 +2276,8 @@ export default defineDynamic({
             if (!apiKey || !streamSecret) return { error: "Chat credentials missing." };
             const { data: chatRow } = await supabase
               .from("channel_bot_sessions")
-              .select("channel_type")
-              .eq("channel_id", sessionChannelId)
-              .eq("thread_key", "_root")
+              .select("channel_type, turn_nonce")
+              .eq("eve_session_id", eveSessionId)
               .maybeSingle();
             const server = StreamChat.getInstance(apiKey, streamSecret, { timeout: 15_000 });
             const fieldTotal = Array.isArray(
@@ -2247,6 +2291,8 @@ export default defineDynamic({
                 text: message ?? "",
                 user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
                 ai_generated: true,
+                // Groups this card with the rest of the turn (see eveSessionId).
+                eve_turn: chatRow?.turn_nonce ?? undefined,
                 attachments: [
                   {
                     type: "form",

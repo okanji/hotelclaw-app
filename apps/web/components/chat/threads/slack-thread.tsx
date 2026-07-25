@@ -14,6 +14,7 @@ import type { ThreadState } from "stream-chat";
 import { cn } from "@/lib/utils";
 import { SlackComposer } from "../slack-composer";
 import { slackRenderText } from "../slack-render-text";
+import { CLUSTER_TIME_GAP_MS, slackGroupStyles } from "../slack-message-ui";
 
 /**
  * Slack-styled `<Thread>` replacement. Mirrors Stream's own `<Thread>` —
@@ -144,6 +145,12 @@ export function SlackThread({
           renderText={slackRenderText}
           showAvatar
           disableDateSeparator={false}
+          // Same Slack grouping rules as the main channel list (attachments
+          // and reactions don't break a cluster; one agent turn = one
+          // cluster). Bot replies over Stream's ~5KB limit land here as
+          // continuation chunks, so they must group like the channel.
+          groupStyles={slackGroupStyles as never}
+          maxTimeBetweenGroupedMessages={CLUSTER_TIME_GAP_MS}
           {...(threadInstance
             ? {
                 loadMore: threadInstance.loadPrevPage,

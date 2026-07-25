@@ -14,6 +14,7 @@ export default defineConfig({
       "lib/onboarding/**/*.test.ts",
       "lib/brain/**/*.test.ts",
       "lib/agents/__tests__/**/*.test.ts",
+      "lib/chat/__tests__/**/*.test.ts",
       "lib/stream/__tests__/**/*.test.ts",
       "lib/documents/__tests__/**/*.test.ts",
     ],

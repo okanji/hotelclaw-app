@@ -8,7 +8,7 @@ be green before ANY bump of these. No bump without green.
 | eve | 0.24.6 | npm `eve` | apps/agent (AI SDK v7 tree isolated there; see root CLAUDE.md) |
 | ai (eve side) | 7.0.31 | npm | apps/agent only — apps/web stays on ai@6 |
 | ai (web side) | 6.0.184 | npm | do not collapse the two |
-| gbrain | 0.42.65.0 (pinned `1f319e6d5aff7674d8f48f289768ff75911a9ea8`, bumped 2026-07-24) | github:garrytan/gbrain | Pin chosen for `/admin/api/rescope-client` (69bc37f7) — the op that makes REMOTE tenant provisioning possible (see infra/railway-brain-serve/README.md; pin moves in FOUR places in step: serve Dockerfile, brain-maintenance MAINTENANCE_SCRIPT env var, infra maintenance Dockerfile, local `cd ~ && bun add`). Bump gate ran green before AND after (11/11) + scripts/brain-provision-http-test.mjs (13/13). GOTCHA at this version: CLI connectEngine issues dozens of sequential config reads (loadConfigWithEngine alone ~10s from this ~300ms-RTT machine) → `sources list` trips its 10s connect timeout; provisioning no longer depends on the CLI (HTTP transport is primary), and the v2 full-table-prewarm patch in infra/gbrain-local-patches/ fixes interactive CLI use when applied. Bump gate: `node --env-file=apps/web/.env.local tests/gbrain-integration.test.mjs` must be green. |
+| gbrain | 0.42.65.0 (pinned `1f319e6d5aff7674d8f48f289768ff75911a9ea8`, bumped 2026-07-24) | github:garrytan/gbrain | Pin chosen for `/admin/api/rescope-client` (69bc37f7) — the op that makes REMOTE tenant provisioning possible (see infra/railway-brain-serve/README.md; pin moves in FOUR places in step: serve Dockerfile, brain-maintenance MAINTENANCE_SCRIPT env var, infra maintenance Dockerfile, local `cd ~ && bun add`). Bump gate ran green before AND after (11/11) + scripts/brain-provision-http-test.mjs (13/13). GOTCHA at this version: CLI connectEngine issues dozens of sequential config reads (loadConfigWithEngine alone ~10s from this ~300ms-RTT machine) → `sources list` trips its 10s connect timeout; provisioning no longer depends on the CLI (HTTP transport is primary), and the v2 full-table-prewarm patch in infra/gbrain-local-patches/ (APPLIED 2026-07-25) restores interactive CLI use. Bump gate: `node --env-file=apps/web/.env.local tests/gbrain-integration.test.mjs` must be green. |
 | bun | 1.3.14 | npm `bun` | required by gbrain (engines: bun ≥ 1.3.10) |
 | Node | 24.18.0 (.nvmrc) | nvm | required by eve |
 
@@ -43,13 +43,15 @@ a future batch loader can collapse this") — search issues ~68, and as of
 0.42.65 CLI STARTUP itself issues dozens (loadConfigWithEngine ~10s from
 this ~300ms-RTT machine → `sources list` trips its 10s connect timeout).
 LOCAL PATCH on the installed gbrain (src/core/postgres-engine.ts, marked
-"HOTELCLAW LOCAL PATCH"): v1 (currently applied) = 30s-TTL per-key memo —
-fixes repeated reads, NOT cold start; v2 (canonical block in
-infra/gbrain-local-patches/config-cache-v2-block.ts.txt, apply manually) =
-full-table prewarm, one round trip per TTL window, fixes both. Disable
-with GBRAIN_CONFIG_CACHE_TTL_MS=0. THE PATCH IS LOST ON gbrain
-REINSTALL/BUMP — re-check whether upstream shipped the batch loader, else
-re-apply, then re-run the bump gate. App provisioning no longer depends on
+"HOTELCLAW LOCAL PATCH v2"): **v2 is APPLIED (2026-07-25)** = full-table
+prewarm, one round trip per TTL window. Measured effect:
+loadConfigWithEngine 10.1s → 0.62s cold / 0.41s warm; `gbrain sources
+list` now ~8s (was >10s = timeout), search ~2.5s. (v1, the superseded
+per-key memo, fixed repeated reads but NOT cold start.) Disable with
+GBRAIN_CONFIG_CACHE_TTL_MS=0. THE PATCH IS LOST ON gbrain REINSTALL/BUMP —
+re-apply from infra/gbrain-local-patches/config-cache-v2-block.ts.txt (or
+re-check whether upstream shipped the batch loader), then re-run the bump
+gate. App provisioning no longer depends on
 the CLI (lib/brain/provision.ts is HTTP-first), so the patch only matters
 for interactive CLI use + manual ops.
 
