@@ -61,10 +61,18 @@ export function parseAgentConfig(raw: unknown): AgentConfig {
 }
 
 /** Model tier → Anthropic model id. Mirrors CHATBOT_TIER_MODELS so the two
- * builders describe cost the same way. */
+ * builders describe cost the same way.
+ *
+ * `advanced` runs Opus 5 ($5/$25 per MTok). Note it thinks by DEFAULT, which
+ * would make turns slower than the Sonnet 4.6 it replaced — apps/agent/agent.ts
+ * pins `effort: "medium"` to buy the intelligence back without the latency
+ * (Anthropic's guidance: Opus 5 at low/medium often beats prior models at
+ * xhigh). `standard` must stay on a model that accepts neither `effort` nor
+ * adaptive thinking — Haiku 4.5 errors on both, so the settings middleware is
+ * applied to the advanced tier only. */
 export const AGENT_TIER_MODELS: Record<AgentConfig["modelTier"], string> = {
   standard: "claude-haiku-4-5-20251001",
-  advanced: "claude-sonnet-4-6",
+  advanced: "claude-opus-5",
 };
 
 /**

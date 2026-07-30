@@ -30,10 +30,124 @@ export type DeliveryRow = {
   delivered_nonce: string | null;
   kind: "chat" | "job";
   job_headline: string | null;
+  pending_approval: unknown;
 };
 
 const ROW_COLUMNS =
-  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline";
+  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval";
+
+/** One entry of `pending_approval.requests` as stamped by the eve channel's
+ *  `input.requested` handler. */
+export type PendingRequest = {
+  toolName?: string;
+  prompt?: string | null;
+  requestId?: string | null;
+  display?: string | null;
+  allowFreeform?: boolean;
+  options?: Array<{ id: string; label: string; description: string | null }>;
+};
+
+/**
+ * The agent asking the USER something, as opposed to a tool-approval park.
+ *
+ * eve routes both through `input.requested`; `display` is the discriminator
+ * ("confirmation" = approval, "text"/"select" = question). A question with no
+ * `prompt` has nothing to render, so it doesn't count.
+ */
+export function pendingQuestions(row: DeliveryRow): PendingRequest[] {
+  const approval = row.pending_approval as { requests?: unknown } | null;
+  const requests = Array.isArray(approval?.requests)
+    ? (approval.requests as PendingRequest[])
+    : [];
+  return requests.filter(
+    (r) => r.display !== "confirmation" && typeof r.prompt === "string" && r.prompt.trim(),
+  );
+}
+
+/**
+ * Human labels for the "AI is thinking" progress line, keyed by tool name.
+ *
+ * Only the verbs worth spelling out — anything unmapped falls back to the
+ * de-underscored tool name, so a new catalog tool degrades to something
+ * readable ("search chat messages…") instead of nothing.
+ */
+const TOOL_ACTIVITY: Record<string, string> = {
+  read_document: "Reading",
+  list_documents: "Looking through documents",
+  search_documents: "Searching documents",
+  create_document: "Writing a new document",
+  update_document: "Writing",
+  archive_document: "Archiving a document",
+  restore_document_revision: "Restoring a document",
+  read_sheet: "Reading a spreadsheet",
+  update_sheet_cells: "Updating a spreadsheet",
+  brain_search: "Searching the knowledge brain",
+  brain_think: "Thinking it through with the brain",
+  brain_get: "Reading from the knowledge brain",
+  brain_capture: "Saving to the knowledge brain",
+  search_tasks: "Searching tasks",
+  list_open_tasks: "Checking open tasks",
+  update_task: "Updating a task",
+  create_task: "Creating a task",
+  create_project: "Creating a project",
+  delete_task: "Deleting a task",
+  escalate_task: "Escalating a task",
+  render_ui: "Putting together a summary",
+  search_chat_messages: "Searching the channel history",
+  start_background_job: "Starting a background job",
+  list_bookings: "Checking bookings",
+  create_booking: "Making a booking",
+  update_booking_status: "Updating a booking",
+  check_availability: "Checking availability",
+  list_meetings: "Checking the calendar",
+  schedule_meeting: "Scheduling a meeting",
+  update_meeting: "Updating a meeting",
+  cancel_meeting: "Cancelling a meeting",
+  list_forms: "Checking forms",
+  create_form: "Building a form",
+  get_form_response_summaries: "Reading form responses",
+  get_org_chart: "Checking the org chart",
+  list_workflows: "Checking workflows",
+  trigger_workflow: "Running a workflow",
+  send_notification: "Sending a notification",
+  post_to_channel: "Posting to another channel",
+  guest_conversation_insights: "Reviewing guest conversations",
+  get_insight_brief: "Reading the insights brief",
+  get_weekly_report: "Reading the weekly report",
+  list_handovers: "Checking handovers",
+  ask_question: "Working out what to ask",
+};
+
+/**
+ * One progress label for a batch of tool calls. Repeats of the same tool
+ * collapse with a count ("Reading 5 documents"), a mixed batch reports the
+ * first — the point is a moving sign of life, not an audit trail.
+ */
+export function activityLabel(toolNames: string[]): string | null {
+  const names = toolNames.filter(Boolean);
+  if (names.length === 0) return null;
+  const first = names[0];
+  const base =
+    TOOL_ACTIVITY[first] ?? first.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  const sameTool = names.every((n) => n === first);
+  if (sameTool && names.length > 1) return `${base} ×${names.length}…`;
+  return `${base}…`;
+}
+
+/** Render a parked question as chat text: the prompt, plus its options as a
+ *  numbered list the user can answer by number or by label. */
+function renderQuestion(request: PendingRequest): string {
+  const prompt = (request.prompt ?? "").trim();
+  const options = request.options ?? [];
+  if (options.length === 0) return prompt;
+  const lines = options.map(
+    (o, i) => `${i + 1}. **${o.label}**${o.description ? ` — ${o.description}` : ""}`,
+  );
+  const hint = request.allowFreeform
+    ? "_Reply with a number, or answer in your own words._"
+    : "_Reply with a number or the option name._";
+  return [prompt, "", ...lines, "", hint].join("\n");
+}
 
 /** Resolve the session row for an eve session id. Retries briefly: the web
  * glue upserts the row right after the 202, but the first runtime event can
@@ -107,11 +221,44 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // thinking row watches the DB turn claim instead (spans the whole turn).
 
   const rawText = (row.reply_candidate ?? "").trim();
-  const text =
+  const replyText =
     rawText && row.kind === "job" && row.job_headline
       ? `✅ **${row.job_headline}** — finished:\n\n${rawText}`
       : rawText;
+
+  // render_ui spec was validated + link-rewritten by the tool runtime-side;
+  // revalidate defensively before attaching (same discipline the web glue
+  // applied).
+  let attachments: Array<{ type: string; spec: unknown }> | undefined;
+  if (row.ui_spec) {
+    const validated = validateChatUiSpec(row.ui_spec);
+    if (validated.ok) attachments = [{ type: "ai_ui", spec: validated.spec }];
+  }
+
+  // A turn that parks on a question produces NO message text — the question
+  // lives in the park payload. Append it below whatever text the turn did
+  // produce: the prod failure had the model post a "I have a few quick
+  // questions!" preamble and then lose the questions themselves.
+  const questions = pendingQuestions(row).map(renderQuestion);
+  const text = [replyText, ...questions].filter(Boolean).join("\n\n");
+
   if (!text) {
+    if (attachments) {
+      // UI-only turn: the model answered with a render_ui card and no prose.
+      // Post the card rather than claiming the turn produced nothing.
+      await channel
+        .sendMessage({
+          id: row.turn_nonce ? `eve-${row.turn_nonce}` : undefined,
+          text: "",
+          user_id: botId,
+          ai_generated: true,
+          attachments,
+          ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
+          ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
+        } as unknown as Parameters<typeof channel.sendMessage>[0])
+        .catch((e) => console.error("[channel-delivery] ui-only post failed", e));
+      return;
+    }
     // Fail-loud contract: an empty turn is a bug, never silence.
     await channel
       .sendMessage({
@@ -124,15 +271,6 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
       } as unknown as Parameters<typeof channel.sendMessage>[0])
       .catch((e) => console.error("[channel-delivery] empty-turn notice failed", e));
     return;
-  }
-
-  // render_ui spec was validated + link-rewritten by the tool runtime-side;
-  // revalidate defensively before attaching (same discipline the web glue
-  // applied).
-  let attachments: Array<{ type: string; spec: unknown }> | undefined;
-  if (row.ui_spec) {
-    const validated = validateChatUiSpec(row.ui_spec);
-    if (validated.ok) attachments = [{ type: "ai_ui", spec: validated.spec }];
   }
 
   // Stream SILENTLY DISCARDS messages past its text limit (~5KB): the API

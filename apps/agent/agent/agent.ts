@@ -1,9 +1,45 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { defineAgent } from "eve";
 import { defineDynamic } from "eve/tools";
+import { defaultSettingsMiddleware, wrapLanguageModel } from "ai";
 import { resolveSessionAgent } from "./lib/agent-config";
 import { resolvePodContext } from "./lib/pods";
-import { AGENT_TIER_MODELS } from "@hotelclaw/agent-config";
+import { AGENT_TIER_MODELS, type AgentConfig } from "@hotelclaw/agent-config";
+
+/**
+ * Per-call settings for the advanced tier. eve owns the generateText call, so
+ * providerOptions can't be passed at the call site — bake them into the model
+ * with the AI SDK's settings middleware instead.
+ *
+ * `effort: "medium"` is the point of the exercise: Opus 5 thinks by default,
+ * which alone would make every turn slower than the Sonnet 4.6 it replaced.
+ * Medium keeps turn latency near the old baseline while still buying the
+ * intelligence (sweep low/medium/high against real turns before changing it).
+ */
+const ADVANCED_SETTINGS = defaultSettingsMiddleware({
+  settings: {
+    providerOptions: {
+      anthropic: {
+        effort: "medium",
+        // Explicit rather than implicit: adaptive is Opus 5's default, and
+        // "omitted" keeps the model's reasoning out of the transcript (the
+        // chat's progress line reports tool activity instead).
+        thinking: { type: "adaptive", display: "omitted" },
+      },
+    },
+  },
+});
+
+/**
+ * Resolve a tier to a model. ONLY the advanced tier gets ADVANCED_SETTINGS:
+ * `effort` and adaptive thinking are rejected by Haiku 4.5, so applying them
+ * to the standard tier would 400 every standard-tier session.
+ */
+function tierModel(tier: AgentConfig["modelTier"]) {
+  const model = anthropic(AGENT_TIER_MODELS[tier]);
+  if (tier !== "advanced") return model;
+  return wrapLanguageModel({ model, middleware: ADVANCED_SETTINGS });
+}
 
 // Direct provider (no AI Gateway): reads ANTHROPIC_API_KEY from the
 // environment, same credential the rest of the app's AI uses. The model is
@@ -22,9 +58,9 @@ export default defineAgent({
       // and prompt caching is unaffected.
       "step.started": async (_event, ctx) => {
         const pod = await resolvePodContext(ctx);
-        if (pod?.bot) return anthropic(AGENT_TIER_MODELS[pod.bot.modelTier]);
+        if (pod?.bot) return tierModel(pod.bot.modelTier);
         const resolved = await resolveSessionAgent(ctx);
-        if (resolved) return anthropic(AGENT_TIER_MODELS[resolved.config.modelTier]);
+        if (resolved) return tierModel(resolved.config.modelTier);
         return null;
       },
     },

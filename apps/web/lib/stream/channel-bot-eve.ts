@@ -72,6 +72,59 @@ export type QueuedChannelMessage = {
   activationReason: ActivationReason;
 };
 
+/** eve's `InputResponse` (runtime/input/types): answer to one parked request. */
+type EveInputResponse = { requestId: string; optionId?: string; text?: string };
+
+/**
+ * Turn a chat reply into eve `InputResponse`s for a session parked on a
+ * question.
+ *
+ * Only QUESTION parks are answered — tool-approval parks (`display:
+ * "confirmation"`) belong to the fleet Approvals inbox, which has its own
+ * decision path. A park we can't address (no `requestId`) yields nothing and
+ * the caller falls back to resuming with a plain message, which is what
+ * happened before this existed and does still resume the session.
+ */
+export function buildInputResponses(
+  pendingApproval: unknown,
+  replyText: string,
+): EveInputResponse[] {
+  const requests = (pendingApproval as { requests?: unknown } | null)?.requests;
+  if (!Array.isArray(requests)) return [];
+  const answer = replyText.trim();
+  if (!answer) return [];
+
+  return requests.flatMap((raw): EveInputResponse[] => {
+    const r = raw as {
+      requestId?: unknown;
+      display?: unknown;
+      prompt?: unknown;
+      options?: Array<{ id?: unknown; label?: unknown }>;
+    };
+    if (r.display === "confirmation") return [];
+    if (typeof r.requestId !== "string" || !r.requestId) return [];
+    if (typeof r.prompt !== "string" || !r.prompt.trim()) return [];
+
+    const options = Array.isArray(r.options) ? r.options : [];
+    const normalized = answer.toLowerCase();
+    // Accept the option's own id, its label, or its 1-based position — the
+    // three things deliverReply's rendering invites the user to type.
+    const matched = options.find((o, i) => {
+      const id = typeof o.id === "string" ? o.id.toLowerCase() : null;
+      const label = typeof o.label === "string" ? o.label.toLowerCase() : null;
+      return (
+        (id && id === normalized) ||
+        (label && label === normalized) ||
+        answer === String(i + 1)
+      );
+    });
+    if (matched && typeof matched.id === "string") {
+      return [{ requestId: r.requestId, optionId: matched.id }];
+    }
+    return [{ requestId: r.requestId, text: answer }];
+  });
+}
+
 /**
  * Atomically claim the (channel, thread) turn slot — the Postgres CLAIM
  * that replaces the Redis TTL lock (eve docs: "keep your own per-session
@@ -176,7 +229,9 @@ export async function runChannelBotEveTurn(ctx: {
 
     const { data: existing } = await service
       .from("channel_bot_sessions")
-      .select("id, eve_session_id, eve_continuation_token, last_turn_at, runtime_tag")
+      .select(
+        "id, eve_session_id, eve_continuation_token, last_turn_at, runtime_tag, pending_approval",
+      )
       .eq("channel_id", ctx.streamChannelId)
       .eq("thread_key", threadKey)
       .maybeSingle();
@@ -314,12 +369,22 @@ export async function runChannelBotEveTurn(ctx: {
     let sendResponse: Response | null = null;
     let sendResponseWasResume = false;
     if (sessionId && existing?.eve_continuation_token) {
+      // If the session is parked on a QUESTION (eve ask_question — see
+      // channel-delivery.ts), address the answer to that request rather than
+      // relying on the model to re-derive it from a plain message. Eve's
+      // HandleMessageRequestBody accepts inputResponses alongside message, so
+      // the turn still carries its nonce marker + activation context.
+      const inputResponses = buildInputResponses(
+        existing.pending_approval,
+        ctx.triggerMessage.text,
+      );
       sendResponse = await fetch(`${eveOrigin()}/eve/v1/session/${sessionId}`, {
         method: "POST",
         headers,
         body: JSON.stringify({
           continuationToken: existing.eve_continuation_token,
           message: turnMessage,
+          ...(inputResponses.length > 0 ? { inputResponses } : {}),
         }),
         signal: AbortSignal.timeout(15_000),
       }).catch(() => null);

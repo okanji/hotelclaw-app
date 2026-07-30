@@ -3,6 +3,7 @@ import { localDev, type AuthFn } from "eve/channels/auth";
 import { createServerClient } from "@supabase/ssr";
 import { serviceClient } from "../lib/supabase";
 import {
+  activityLabel,
   deliverFailure,
   deliverReply,
   drainQueueOrIdle,
@@ -223,6 +224,32 @@ function channelBotSession(ctx: HandlerCtx): boolean {
 export default eveChannel({
   auth: authChain,
   events: {
+    // ── Progress line ────────────────────────────────────────────────────
+    // turn_activity drives the chat's thinking row (0095). Written on the
+    // events that already fire a handful of times per turn — NOT on
+    // message.appended, which would cost a workflow step per token.
+    "turn.started": async (_data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce) return;
+      await updateSessionRow(row.id, { turn_activity: "Thinking" });
+    },
+
+    "actions.requested": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const actions = Array.isArray((data as { actions?: unknown[] }).actions)
+        ? ((data as { actions: Array<Record<string, unknown>> }).actions)
+        : [];
+      const toolNames = actions
+        .filter((a) => a.kind === "tool-call")
+        .map((a) => (typeof a.toolName === "string" ? a.toolName : ""));
+      const label = activityLabel(toolNames);
+      if (!label) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce) return;
+      await updateSessionRow(row.id, { turn_activity: label });
+    },
+
     // Last completed assistant message of the turn wins — the same
     // semantics consumeTurnStream implemented web-side. One retry covers
     // the tiny race between session creation and the web glue's row upsert.
@@ -250,17 +277,47 @@ export default eveChannel({
       await updateSessionRow(row.id, { ui_spec: spec });
     },
 
-    // Approval park: stamp the payload so the fleet inbox (realtime on this
-    // table) lights up exactly as before.
+    // Input park — TWO shapes share this event (eve's InputRequest:
+    // {action, prompt, requestId, display?, options?, allowFreeform?}):
+    //
+    //   display "confirmation" → a TOOL APPROVAL, routed to the fleet
+    //     Approvals inbox, which reads `r.action` via parsePendingRequests.
+    //   display "text"/"select" → the agent ASKING THE USER A QUESTION
+    //     (eve's ask_question). The question is `prompt` — it never appears
+    //     as message text, so the turn parks with an empty reply_candidate.
+    //
+    // This handler originally mapped `r.action` only, which threw the
+    // question away: session.waiting then found no text and posted the
+    // fail-loud ⚠️ instead of the question (prod, 2026-07-28). Keep the
+    // action projection for the inbox and carry the question fields too —
+    // deliverReply renders them.
     "input.requested": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
       const requests = Array.isArray((data as { requests?: unknown[] }).requests)
         ? ((data as { requests: Array<Record<string, unknown>> }).requests).map((r) => {
             const action = (r.action ?? {}) as Record<string, unknown>;
+            const options = Array.isArray(r.options)
+              ? (r.options as Array<Record<string, unknown>>)
+                  .map((o) => ({
+                    id: typeof o.id === "string" ? o.id : "",
+                    label: typeof o.label === "string" ? o.label : "",
+                    description:
+                      typeof o.description === "string" ? o.description : null,
+                  }))
+                  .filter((o) => o.id && o.label)
+              : [];
             return {
+              // Shape the fleet Approvals inbox reads — do not rename.
               toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
               input: action.input ?? null,
               callId: typeof action.callId === "string" ? action.callId : null,
+              // Question fields: what the user actually needs to see, and
+              // what the answer must be addressed to on resume.
+              prompt: typeof r.prompt === "string" ? r.prompt : null,
+              requestId: typeof r.requestId === "string" ? r.requestId : null,
+              display: typeof r.display === "string" ? r.display : null,
+              allowFreeform: r.allowFreeform === true,
+              options,
             };
           })
         : [];
@@ -297,6 +354,9 @@ export default eveChannel({
           last_turn_at: new Date().toISOString(),
         });
       }
+      // The turn is over — drop the progress line so the indicator doesn't
+      // sit on a stale "Reading…" after the reply lands.
+      await updateSessionRow(row.id, { turn_activity: null });
       if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
         await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
         await deliverReply(row);
@@ -320,7 +380,12 @@ export default eveChannel({
           `${(data as { code?: string }).code ?? "unknown"}: ${(data as { message?: string }).message ?? ""}`,
         );
       }
+      // Separate write from the turn_state reset on purpose: turn_activity is
+      // cosmetic, turn_state releases the turn slot. Merging them would let a
+      // failed activity write (e.g. 0095 not yet applied) leave the slot
+      // claimed until the 10-minute stale-claim recovery.
       await updateSessionRow(row.id, { turn_state: "idle" });
+      await updateSessionRow(row.id, { turn_activity: null });
     },
   },
 });

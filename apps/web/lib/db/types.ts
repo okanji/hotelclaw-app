@@ -2519,6 +2519,9 @@ export interface Database {
           turn_started_at: string | null;
           kind: "chat" | "job";
           job_headline: string | null;
+          // Progress line for the chat thinking row (0095) — short human
+          // label the runtime advances per tool batch, null between turns.
+          turn_activity: string | null;
           last_turn_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2542,6 +2545,7 @@ export interface Database {
           turn_started_at?: string | null;
           kind?: "chat" | "job";
           job_headline?: string | null;
+          turn_activity?: string | null;
           last_turn_at?: string | null;
         };
         Update: Partial<{
@@ -2559,6 +2563,7 @@ export interface Database {
           turn_started_at: string | null;
           kind: "chat" | "job";
           job_headline: string | null;
+          turn_activity: string | null;
           last_turn_at: string | null;
         }>;
         Relationships: [];

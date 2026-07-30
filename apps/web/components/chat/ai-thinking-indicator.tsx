@@ -30,6 +30,7 @@ export function AiThinkingIndicator({
   streamChannelId: string;
 }) {
   const [thinking, setThinking] = useState(false);
+  const [activity, setActivity] = useState<string | null>(null);
   const [longRunning, setLongRunning] = useState(false);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
   const anchorRef = useRef<HTMLSpanElement | null>(null);
@@ -38,18 +39,26 @@ export function AiThinkingIndicator({
     const supabase = createClient();
     let cancelled = false;
 
-    const applyRow = (row: { thread_key?: string; turn_state?: string } | null) => {
+    const applyRow = (
+      row: { thread_key?: string; turn_state?: string; turn_activity?: string | null } | null,
+    ) => {
       // Root conversation only: thread turns deliver into their thread and
       // job rows (`job:<uuid>`) run detached for minutes by design.
       if (!row || row.thread_key !== "_root") return;
       setThinking(row.turn_state === "running");
+      // What the runtime is actually doing this step (migration 0095);
+      // null between steps, which falls back to the generic copy below.
+      setActivity(row.turn_activity?.trim() || null);
       // Every edge (turn start OR end) restarts the long-running clock.
       setLongRunning(false);
     };
 
     supabase
       .from("channel_bot_sessions")
-      .select("thread_key, turn_state")
+      // turn_activity is selected explicitly rather than with "*" so a
+      // pre-0095 database fails this one query loudly instead of silently
+      // dropping the column.
+      .select("thread_key, turn_state, turn_activity")
       .eq("channel_id", streamChannelId)
       .eq("thread_key", "_root")
       .maybeSingle()
@@ -70,7 +79,13 @@ export function AiThinkingIndicator({
           filter: `channel_id=eq.${streamChannelId}`,
         },
         (payload) => {
-          applyRow(payload.new as { thread_key?: string; turn_state?: string });
+          applyRow(
+            payload.new as {
+              thread_key?: string;
+              turn_state?: string;
+              turn_activity?: string | null;
+            },
+          );
         },
       )
       .subscribe();
@@ -147,7 +162,7 @@ export function AiThinkingIndicator({
                   (task/doc panels): small spinner + muted "Thinking…". */}
               <span className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                {longRunning ? "Still working on it…" : "Thinking…"}
+                {activity ?? (longRunning ? "Still working on it…" : "Thinking…")}
               </span>
             </div>
           </div>,
