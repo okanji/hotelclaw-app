@@ -27,73 +27,131 @@ const SELECT = {
 };
 
 describe("buildInputResponses", () => {
+  it("flags a bare decision as fully consuming the message", () => {
+    // Then the caller sends ONLY the input response — echoing "2" back as a
+    // user message made the model answer "not sure what 2 refers to".
+    expect(buildInputResponses({ requests: [APPROVAL] }, "@hotelclaw 2").consumedAnswer).toBe(true);
+    expect(buildInputResponses({ requests: [APPROVAL] }, "yes").consumedAnswer).toBe(true);
+    // Extra content means the text still carries intent — forward it.
+    expect(
+      buildInputResponses({ requests: [APPROVAL] }, "no, reword it first").consumedAnswer,
+    ).toBe(false);
+    expect(buildInputResponses({ requests: [QUESTION] }, "two bars").consumedAnswer).toBe(false);
+  });
+
   it("addresses a free-text answer to the parked request", () => {
-    expect(buildInputResponses({ requests: [QUESTION] }, "  A bar and a spa  ")).toEqual([
+    expect(buildInputResponses({ requests: [QUESTION] }, "  A bar and a spa  ").responses).toEqual([
       { requestId: "req_1", text: "A bar and a spa" },
     ]);
   });
 
   it("resolves an option picked by its 1-based number", () => {
-    expect(buildInputResponses({ requests: [SELECT] }, "2")).toEqual([
+    expect(buildInputResponses({ requests: [SELECT] }, "2").responses).toEqual([
       { requestId: "req_2", optionId: "opt_full" },
     ]);
   });
 
   it("resolves an option picked by label, case-insensitively", () => {
-    expect(buildInputResponses({ requests: [SELECT] }, "full write-up")).toEqual([
+    expect(buildInputResponses({ requests: [SELECT] }, "full write-up").responses).toEqual([
       { requestId: "req_2", optionId: "opt_full" },
     ]);
   });
 
   it("resolves an option picked by its raw id", () => {
-    expect(buildInputResponses({ requests: [SELECT] }, "opt_short")).toEqual([
+    expect(buildInputResponses({ requests: [SELECT] }, "opt_short").responses).toEqual([
       { requestId: "req_2", optionId: "opt_short" },
     ]);
   });
 
   it("falls back to free text when the answer matches no option", () => {
-    expect(buildInputResponses({ requests: [SELECT] }, "neither, do both")).toEqual([
+    expect(buildInputResponses({ requests: [SELECT] }, "neither, do both").responses).toEqual([
       { requestId: "req_2", text: "neither, do both" },
     ]);
   });
 
-  // Tool approvals are the fleet Approvals inbox's business — answering them
-  // from chat would approve a tool call the user never saw.
-  it("ignores tool-approval parks", () => {
-    const approval = {
-      requestId: "req_3",
-      display: "confirmation",
-      prompt: "Archive this document?",
-      options: [
-        { id: "approve", label: "Approve" },
-        { id: "deny", label: "Deny" },
-      ],
-    };
-    expect(buildInputResponses({ requests: [approval] }, "approve")).toEqual([]);
+  // Tool approvals ARE answered from chat: the fleet Approvals inbox reads
+  // bot_chat_sessions (pod bots), so a channel-bot approval has no other
+  // decision path — the channel is the surface that must resolve it.
+  const APPROVAL = {
+    requestId: "req_3",
+    display: "confirmation",
+    prompt: "Archive this document?",
+    options: [
+      { id: "approve", label: "Approve" },
+      { id: "deny", label: "Deny" },
+    ],
+  };
+
+  it("resolves an approval decided by option label", () => {
+    expect(buildInputResponses({ requests: [APPROVAL] }, "Approve").responses).toEqual([
+      { requestId: "req_3", optionId: "approve" },
+    ]);
   });
 
-  it("answers only the question in a mixed park", () => {
-    const approval = { requestId: "req_a", display: "confirmation", prompt: "Delete?" };
-    expect(buildInputResponses({ requests: [approval, QUESTION] }, "two bars")).toEqual([
-      { requestId: "req_1", text: "two bars" },
+  it("resolves a denial", () => {
+    expect(buildInputResponses({ requests: [APPROVAL] }, "deny").responses).toEqual([
+      { requestId: "req_3", optionId: "deny" },
+    ]);
+  });
+
+  // The trigger text is the RAW channel message, so an answer typed in a
+  // channel arrives mention-prefixed. Matching without stripping it fell
+  // through to freeform text and the bot re-asked the same approval (caught
+  // live, 2026-07-31).
+  it("strips a leading @mention before matching", () => {
+    expect(buildInputResponses({ requests: [APPROVAL] }, "@hotelclaw 2").responses).toEqual([
+      { requestId: "req_3", optionId: "deny" },
+    ]);
+    expect(buildInputResponses({ requests: [SELECT] }, "@hotelclaw 1").responses).toEqual([
+      { requestId: "req_2", optionId: "opt_short" },
+    ]);
+  });
+
+  it("accepts natural yes/no on a two-option approval", () => {
+    for (const yes of ["yes", "Yes please", "approve", "go ahead", "ok"]) {
+      expect(buildInputResponses({ requests: [APPROVAL] }, yes).responses).toEqual([
+        { requestId: "req_3", optionId: "approve" },
+      ]);
+    }
+    for (const no of ["no", "nope", "deny", "cancel", "don't"]) {
+      expect(buildInputResponses({ requests: [APPROVAL] }, no).responses).toEqual([
+        { requestId: "req_3", optionId: "deny" },
+      ]);
+    }
+  });
+
+  // Natural-language matching is approval-only: on a content question,
+  // "no" is an answer, not a decision.
+  it("does not apply yes/no matching to questions", () => {
+    expect(buildInputResponses({ requests: [SELECT] }, "no").responses).toEqual([
+      { requestId: "req_2", text: "no" },
+    ]);
+  });
+
+  it("answers every parked request in a mixed park", () => {
+    expect(buildInputResponses({ requests: [APPROVAL, QUESTION] }, "1").responses).toEqual([
+      { requestId: "req_3", optionId: "approve" },
+      { requestId: "req_1", text: "1" },
     ]);
   });
 
   // Anything unaddressable yields nothing, and the caller resumes with a
   // plain message — the pre-existing behavior, which does still resume.
   it("yields nothing when there is no park, no requestId, or no prompt", () => {
-    expect(buildInputResponses(null, "hello")).toEqual([]);
-    expect(buildInputResponses({}, "hello")).toEqual([]);
-    expect(buildInputResponses({ requests: [] }, "hello")).toEqual([]);
+    expect(buildInputResponses(null, "hello").responses).toEqual([]);
+    expect(buildInputResponses({}, "hello").responses).toEqual([]);
+    expect(buildInputResponses({ requests: [] }, "hello").responses).toEqual([]);
     expect(
-      buildInputResponses({ requests: [{ display: "text", prompt: "Q?" }] }, "hi"),
+      buildInputResponses({ requests: [{ display: "text", prompt: "Q?" }] }, "hi")
+        .responses,
     ).toEqual([]);
     expect(
-      buildInputResponses({ requests: [{ requestId: "r", display: "text" }] }, "hi"),
+      buildInputResponses({ requests: [{ requestId: "r", display: "text" }] }, "hi")
+        .responses,
     ).toEqual([]);
   });
 
   it("yields nothing for an empty reply", () => {
-    expect(buildInputResponses({ requests: [QUESTION] }, "   ")).toEqual([]);
+    expect(buildInputResponses({ requests: [QUESTION] }, "   ").responses).toEqual([]);
   });
 });

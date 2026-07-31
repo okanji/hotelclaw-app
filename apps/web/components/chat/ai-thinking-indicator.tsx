@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -31,6 +31,10 @@ export function AiThinkingIndicator({
 }) {
   const [thinking, setThinking] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
+  // Steps of the CURRENT turn, oldest first (migration 0096). The last entry
+  // is the live one; earlier ones stay visible so the user can see the path
+  // taken rather than just the current stop.
+  const [steps, setSteps] = useState<string[]>([]);
   const [longRunning, setLongRunning] = useState(false);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
   const anchorRef = useRef<HTMLSpanElement | null>(null);
@@ -45,7 +49,11 @@ export function AiThinkingIndicator({
       // Root conversation only: thread turns deliver into their thread and
       // job rows (`job:<uuid>`) run detached for minutes by design.
       if (!row || row.thread_key !== "_root") return;
-      setThinking(row.turn_state === "running");
+      const running = row.turn_state === "running";
+      // A new turn starts from an empty feed; the delivered reply keeps the
+      // finished turn's steps via its own `eve_steps` field.
+      if (!running) setSteps([]);
+      setThinking(running);
       // What the runtime is actually doing this step (migration 0095);
       // null between steps, which falls back to the generic copy below.
       setActivity(row.turn_activity?.trim() || null);
@@ -66,9 +74,28 @@ export function AiThinkingIndicator({
         if (!cancelled && data) applyRow(data);
       });
 
+    const pushStep = (label: unknown) => {
+      if (typeof label !== "string" || !label.trim()) return;
+      setSteps((prev) => (prev.at(-1) === label ? prev : [...prev, label]));
+    };
+
     const channel = supabase
       .channel(
         `ai-thinking:${streamChannelId}:${Math.random().toString(36).slice(2)}`,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "channel_bot_activity",
+          filter: `channel_id=eq.${streamChannelId}`,
+        },
+        (payload) => {
+          const inserted = payload.new as { thread_key?: string; label?: string };
+          if (inserted.thread_key !== "_root") return;
+          pushStep(inserted.label);
+        },
       )
       .on(
         "postgres_changes",
@@ -158,8 +185,20 @@ export function AiThinkingIndicator({
               <span className="text-[15px] font-bold leading-[22px]">
                 Hotelclaw
               </span>
-              {/* Same treatment as every other AI surface's busy state
-                  (task/doc panels): small spinner + muted "Thinking…". */}
+              {/* Activity feed: the steps already taken, muted and dimmed,
+                  with the live one spinning at the bottom. Shows the path
+                  taken rather than only the current stop — a long turn stops
+                  looking like a hang. Capped so a 20-tool turn can't push the
+                  conversation off screen. */}
+              {steps.slice(0, -1).slice(-4).map((step, i) => (
+                <span
+                  key={`${step}-${i}`}
+                  className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground/60"
+                >
+                  <Check className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{step}</span>
+                </span>
+              ))}
               <span className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
                 {activity ?? (longRunning ? "Still working on it…" : "Thinking…")}

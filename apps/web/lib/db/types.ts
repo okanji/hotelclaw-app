@@ -2568,6 +2568,28 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      channel_bot_activity: {
+        Row: {
+          id: string;
+          property_id: string;
+          channel_id: string;
+          thread_key: string;
+          // channel_bot_sessions.turn_nonce this step belongs to (0096).
+          turn_nonce: string;
+          label: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          channel_id: string;
+          thread_key?: string;
+          turn_nonce: string;
+          label: string;
+        };
+        Update: Partial<{ label: string }>;
+        Relationships: [];
+      };
       channel_bot_queue: {
         Row: {
           id: string;

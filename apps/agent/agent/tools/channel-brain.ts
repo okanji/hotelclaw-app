@@ -9,6 +9,7 @@ import { CHANNEL_BOT_SLUG } from "../lib/agent-config";
 import { tenantCallerOrNull } from "../lib/tenant";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
 import { callBrainToolDirect } from "../lib/gbrain-http";
+import { resolveBrainSources } from "../lib/brain-citations";
 
 // Shared-brain tools for the DEFAULT CHANNEL BOT sessions (virtual agent
 // `hotelclaw` — lib/agent-config.ts). The full read ladder (search → get/
@@ -35,6 +36,9 @@ export default defineDynamic({
       const binding = await resolvePropertyBrainBinding(caller.propertyId);
       if (!binding) return null;
       const brainMcpUrl = binding.url;
+      // Plain string capture (never the `caller` object) — the eve build
+      // transform lifts executes and can only serialize plain values.
+      const brainPropertyId = caller.propertyId;
       const brainCred = { clientId: binding.clientId, clientSecret: binding.clientSecret };
 
       return {
@@ -46,9 +50,13 @@ export default defineDynamic({
               query,
               limit,
             });
-            return result.ok
-              ? { results: result.content }
-              : { unavailable: true, reason: result.reason };
+            if (!result.ok) return { unavailable: true, reason: result.reason };
+            // Mirrored app documents come back as `documents/<uuid>` slugs.
+            // Resolve them so the model cites titles, not raw UUIDs.
+            const sources = await resolveBrainSources(brainPropertyId, result.content);
+            return sources.length > 0
+              ? { results: result.content, sources }
+              : { results: result.content };
           },
         }),
         brain_think: defineTool({
@@ -62,9 +70,11 @@ export default defineDynamic({
               { question },
               { timeoutMs: 60_000 },
             );
-            return result.ok
-              ? { answer: result.content }
-              : { unavailable: true, reason: result.reason };
+            if (!result.ok) return { unavailable: true, reason: result.reason };
+            const sources = await resolveBrainSources(brainPropertyId, result.content);
+            return sources.length > 0
+              ? { answer: result.content, sources }
+              : { answer: result.content };
           },
         }),
         brain_get: defineTool({
@@ -83,7 +93,10 @@ export default defineDynamic({
                   (result.content as { markdown?: string } | null)?.markdown ??
                   "");
             if (!page) return { found: false, slug };
-            return { found: true, slug, markdown: page.slice(0, 20_000) };
+            const sources = await resolveBrainSources(brainPropertyId, slug);
+            return sources.length > 0
+              ? { found: true, slug, markdown: page.slice(0, 20_000), sources }
+              : { found: true, slug, markdown: page.slice(0, 20_000) };
           },
         }),
         brain_list: defineTool({

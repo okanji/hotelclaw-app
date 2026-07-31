@@ -79,29 +79,44 @@ type EveInputResponse = { requestId: string; optionId?: string; text?: string };
  * Turn a chat reply into eve `InputResponse`s for a session parked on a
  * question.
  *
- * Only QUESTION parks are answered — tool-approval parks (`display:
- * "confirmation"`) belong to the fleet Approvals inbox, which has its own
- * decision path. A park we can't address (no `requestId`) yields nothing and
- * the caller falls back to resuming with a plain message, which is what
- * happened before this existed and does still resume the session.
+ * Answers BOTH shapes eve routes through `input.requested`:
+ *  - questions (display text/select) — the model asking the user something;
+ *  - APPROVALS (display "confirmation") — a gated tool awaiting a decision.
+ *
+ * Approvals used to be skipped here on the assumption the fleet Approvals
+ * inbox owned them, but that inbox reads `bot_chat_sessions` (pod bots only) —
+ * a channel-bot approval had no decision path at all. The channel is the
+ * surface, so the channel answers it.
+ *
+ * A park we can't address (no `requestId`) yields nothing and the caller falls
+ * back to resuming with a plain message, which does still resume the session.
  */
 export function buildInputResponses(
   pendingApproval: unknown,
   replyText: string,
-): EveInputResponse[] {
+): { responses: EveInputResponse[]; consumedAnswer: boolean } {
   const requests = (pendingApproval as { requests?: unknown } | null)?.requests;
-  if (!Array.isArray(requests)) return [];
-  const answer = replyText.trim();
-  if (!answer) return [];
+  if (!Array.isArray(requests)) return { responses: [], consumedAnswer: false };
+  // Strip leading @mentions: the trigger text is the RAW message, so a user
+  // answering "2" in a channel actually sends "@hotelclaw 2". Matching the
+  // un-stripped string silently fell through to freeform text, which a
+  // confirmation park can't act on — the bot just re-asked.
+  const answer = replyText.replace(/^(?:@\S+\s+)+/, "").trim();
+  if (!answer) return { responses: [], consumedAnswer: false };
+  // True when the message is NOTHING BUT the decision ("2", "yes", "deny").
+  // Then the raw text is noise to forward — the model already learns the
+  // outcome through the input channel, and echoing a bare "2" as a user
+  // message made it reply "not sure what 2 refers to".
+  const BARE_DECISION = /^(y|n|yes|no|yep|nope|ok|okay|sure|approve|approved|deny|denied|cancel|confirm|\d{1,2})$/i;
+  let consumedAnswer = BARE_DECISION.test(answer);
 
-  return requests.flatMap((raw): EveInputResponse[] => {
+  const responses = requests.flatMap((raw): EveInputResponse[] => {
     const r = raw as {
       requestId?: unknown;
       display?: unknown;
       prompt?: unknown;
       options?: Array<{ id?: unknown; label?: unknown }>;
     };
-    if (r.display === "confirmation") return [];
     if (typeof r.requestId !== "string" || !r.requestId) return [];
     if (typeof r.prompt !== "string" || !r.prompt.trim()) return [];
 
@@ -109,7 +124,7 @@ export function buildInputResponses(
     const normalized = answer.toLowerCase();
     // Accept the option's own id, its label, or its 1-based position — the
     // three things deliverReply's rendering invites the user to type.
-    const matched = options.find((o, i) => {
+    let matched = options.find((o, i) => {
       const id = typeof o.id === "string" ? o.id.toLowerCase() : null;
       const label = typeof o.label === "string" ? o.label.toLowerCase() : null;
       return (
@@ -118,11 +133,33 @@ export function buildInputResponses(
         answer === String(i + 1)
       );
     });
+    // Approvals get natural language too: nobody types an option id to say no.
+    // Restricted to two-option confirmations, where yes/no is unambiguous.
+    if (!matched && r.display === "confirmation" && options.length === 2) {
+      const AFFIRM = /^(y|yes|yep|yeah|ok|okay|sure|approve|approved|go ahead|do it|confirm)\b/;
+      const DENY = /^(n|no|nope|deny|denied|cancel|stop|don'?t|do not|abort|skip)\b/;
+      const wanted = AFFIRM.test(normalized)
+        ? /^(yes|approve|confirm|allow|ok)/
+        : DENY.test(normalized)
+          ? /^(no|deny|cancel|reject|decline)/
+          : null;
+      if (wanted) {
+        matched = options.find((o) => {
+          const id = typeof o.id === "string" ? o.id.toLowerCase() : "";
+          const label = typeof o.label === "string" ? o.label.toLowerCase() : "";
+          return wanted.test(id) || wanted.test(label);
+        });
+      }
+    }
     if (matched && typeof matched.id === "string") {
       return [{ requestId: r.requestId, optionId: matched.id }];
     }
+    // Freeform: the text IS the answer, so it is not "just a decision".
+    consumedAnswer = false;
     return [{ requestId: r.requestId, text: answer }];
   });
+
+  return { responses, consumedAnswer: consumedAnswer && responses.length > 0 };
 }
 
 /**
@@ -374,7 +411,7 @@ export async function runChannelBotEveTurn(ctx: {
       // relying on the model to re-derive it from a plain message. Eve's
       // HandleMessageRequestBody accepts inputResponses alongside message, so
       // the turn still carries its nonce marker + activation context.
-      const inputResponses = buildInputResponses(
+      const { responses: inputResponses, consumedAnswer } = buildInputResponses(
         existing.pending_approval,
         ctx.triggerMessage.text,
       );
@@ -383,7 +420,10 @@ export async function runChannelBotEveTurn(ctx: {
         headers,
         body: JSON.stringify({
           continuationToken: existing.eve_continuation_token,
-          message: turnMessage,
+          // A bare decision ("2" / "yes") is delivered ONLY as the input
+          // response; forwarding it as a message too made the model treat it
+          // as a fresh, contextless user turn.
+          ...(consumedAnswer ? {} : { message: turnMessage }),
           ...(inputResponses.length > 0 ? { inputResponses } : {}),
         }),
         signal: AbortSignal.timeout(15_000),

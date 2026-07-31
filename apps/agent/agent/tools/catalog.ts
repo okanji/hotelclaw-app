@@ -1796,6 +1796,11 @@ export default defineDynamic({
 
       if (grants.has("cancel_meeting")) {
         tools.cancel_meeting = defineTool({
+          // Approval-gated: the SYSTEM parks this call and the channel shows an
+          // action preview before it runs (channel-delivery.ts). Proportional
+          // friction — outward-facing or hard-to-undo actions only; creating a
+          // task or a doc stays unblocked.
+          approval: always(),
           description:
             "Cancel (delete) an UPCOMING meeting from the calendar. Confirm with the requester before calling — this removes the meeting for everyone. Meetings that already happened can't be cancelled.",
           inputSchema: z.object({
@@ -1894,6 +1899,11 @@ export default defineDynamic({
 
       if (grants.has("update_booking_status")) {
         tools.update_booking_status = defineTool({
+          // Approval-gated: the SYSTEM parks this call and the channel shows an
+          // action preview before it runs (channel-delivery.ts). Proportional
+          // friction — outward-facing or hard-to-undo actions only; creating a
+          // task or a doc stays unblocked.
+          approval: always(),
           description:
             "Move a booking through its lifecycle by reference (BKG-XXXXXX): pending→confirmed/cancelled, confirmed→seated/completed/no_show/cancelled, seated→completed. Get references from list_bookings. Cancelling emits the booking.cancelled workflow event.",
           inputSchema: z.object({
@@ -2313,6 +2323,11 @@ export default defineDynamic({
 
       if (grants.has("send_notification")) {
         tools.send_notification = defineTool({
+          // Approval-gated: the SYSTEM parks this call and the channel shows an
+          // action preview before it runs (channel-delivery.ts). Proportional
+          // friction — outward-facing or hard-to-undo actions only; creating a
+          // task or a doc stays unblocked.
+          approval: always(),
           description:
             "Send an in-app notification to a named person or a whole team (fuzzy name match; on no match you get valid names back). Use for 'remind X to…', 'let the kitchen team know…'. The notification shows who asked for it.",
           inputSchema: z.object({
@@ -2404,6 +2419,11 @@ export default defineDynamic({
 
       if (grants.has("post_to_channel")) {
         tools.post_to_channel = defineTool({
+          // Approval-gated: the SYSTEM parks this call and the channel shows an
+          // action preview before it runs (channel-delivery.ts). Proportional
+          // friction — outward-facing or hard-to-undo actions only; creating a
+          // task or a doc stays unblocked.
+          approval: always(),
           description:
             "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — find it via search_chat_messages results or ask the requester. Only this property's channels are allowed.",
           inputSchema: z.object({

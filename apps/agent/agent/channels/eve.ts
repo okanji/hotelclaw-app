@@ -4,6 +4,8 @@ import { createServerClient } from "@supabase/ssr";
 import { serviceClient } from "../lib/supabase";
 import {
   activityLabel,
+  recordActivity,
+  setLiveActivity,
   deliverFailure,
   deliverReply,
   drainQueueOrIdle,
@@ -232,7 +234,7 @@ export default eveChannel({
       if (!channelBotSession(ctx as HandlerCtx)) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce) return;
-      await updateSessionRow(row.id, { turn_activity: "Thinking" });
+      await recordActivity(row, "Thinking");
     },
 
     "actions.requested": async (data, _channel, ctx) => {
@@ -247,7 +249,7 @@ export default eveChannel({
       if (!label) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce) return;
-      await updateSessionRow(row.id, { turn_activity: label });
+      await recordActivity(row, label);
     },
 
     // Last completed assistant message of the turn wins — the same
@@ -262,18 +264,29 @@ export default eveChannel({
       await updateSessionRow(row.id, { reply_candidate: text });
     },
 
-    // render_ui returns the validated spec in its tool RESULT (ai_ui_spec)
-    // — capture it for the delivery post.
+    // Two jobs:
+    //  1. render_ui returns the validated spec in its tool RESULT
+    //     (ai_ui_spec) — capture it for the delivery post.
+    //  2. Retire the progress label. The tool has FINISHED; what follows is
+    //     the model generating, which can run for minutes (prod 2026-07-30:
+    //     120s between a document read and the write, all of it generation).
+    //     Leaving the tool's label up made that read as "Searching the
+    //     knowledge brain…" for two minutes — blaming the brain for time it
+    //     didn't spend. A neutral label is honest; the next actions.requested
+    //     overwrites it with the real next step.
     "action.result": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+
+      await setLiveActivity(row, "Working on it");
+
       const result = data.result as
         | { toolName?: string; output?: { ai_ui_spec?: unknown } }
         | undefined;
       if (result?.toolName !== "render_ui") return;
       const spec = result.output?.ai_ui_spec;
       if (!spec) return;
-      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
-      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
       await updateSessionRow(row.id, { ui_spec: spec });
     },
 

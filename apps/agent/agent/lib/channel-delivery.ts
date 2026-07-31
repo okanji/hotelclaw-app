@@ -40,6 +40,8 @@ const ROW_COLUMNS =
  *  `input.requested` handler. */
 export type PendingRequest = {
   toolName?: string;
+  /** The gated tool's arguments — the payload an action preview must show. */
+  input?: unknown;
   prompt?: string | null;
   requestId?: string | null;
   display?: string | null;
@@ -59,9 +61,36 @@ export function pendingQuestions(row: DeliveryRow): PendingRequest[] {
   const requests = Array.isArray(approval?.requests)
     ? (approval.requests as PendingRequest[])
     : [];
-  return requests.filter(
-    (r) => r.display !== "confirmation" && typeof r.prompt === "string" && r.prompt.trim(),
-  );
+  return requests.filter((r) => typeof r.prompt === "string" && r.prompt.trim());
+}
+
+/**
+ * Readable one-line summary of what a gated tool is about to do, from its
+ * arguments. This is the "action preview" half — the research consensus is
+ * that a confirmation which doesn't show the actual payload isn't a
+ * confirmation, it's a speed bump ("show the actual preview of the outcome").
+ *
+ * Deliberately shallow: pick the human-meaningful fields, cap the rest. The
+ * model's own `prompt` carries the intent; this carries the specifics.
+ */
+function previewArgs(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const entries = Object.entries(input as Record<string, unknown>)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .slice(0, 6)
+    .map(([k, v]) => {
+      const text =
+        typeof v === "string"
+          ? v
+          : Array.isArray(v)
+            ? `${v.length} item${v.length === 1 ? "" : "s"}`
+            : typeof v === "object"
+              ? "…"
+              : String(v);
+      const trimmed = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+      return `• ${k.replace(/_/g, " ")}: ${trimmed}`;
+    });
+  return entries.join("\n");
 }
 
 /**
@@ -84,6 +113,7 @@ const TOOL_ACTIVITY: Record<string, string> = {
   brain_search: "Searching the knowledge brain",
   brain_think: "Thinking it through with the brain",
   brain_get: "Reading from the knowledge brain",
+  brain_list: "Browsing the knowledge brain",
   brain_capture: "Saving to the knowledge brain",
   search_tasks: "Searching tasks",
   list_open_tasks: "Checking open tasks",
@@ -105,7 +135,10 @@ const TOOL_ACTIVITY: Record<string, string> = {
   cancel_meeting: "Cancelling a meeting",
   list_forms: "Checking forms",
   create_form: "Building a form",
+  set_form_status: "Publishing a form",
+  share_form_to_channel: "Sharing a form",
   get_form_response_summaries: "Reading form responses",
+  read_resource: "Reading an attached document",
   get_org_chart: "Checking the org chart",
   list_workflows: "Checking workflows",
   trigger_workflow: "Running a workflow",
@@ -116,7 +149,82 @@ const TOOL_ACTIVITY: Record<string, string> = {
   get_weekly_report: "Reading the weekly report",
   list_handovers: "Checking handovers",
   ask_question: "Working out what to ask",
+  load_skill: "Loading a skill",
 };
+
+/**
+ * Append one step to the turn's activity feed (migration 0096) AND set it as
+ * the current label. The feed is what the chat shows as a timestamped list
+ * while the turn runs and keeps as an expandable disclosure afterwards; the
+ * label is the single-line "right now" state the indicator already reads.
+ *
+ * INSERT, never read-modify-write: handlers run as durable workflow steps and
+ * parallel tool batches would race an array append.
+ */
+export async function recordActivity(
+  row: DeliveryRow,
+  label: string,
+): Promise<void> {
+  await setLiveActivity(row, label);
+  if (!row.turn_nonce) return;
+
+  // Collapse consecutive repeats. Parallel tool batches legitimately emit the
+  // same label twice in a row ("Reading…" for two read_document batches);
+  // as a permanent record that just reads as stutter.
+  const { data: last } = await serviceClient()
+    .from("channel_bot_activity")
+    .select("label")
+    .eq("channel_id", row.channel_id)
+    .eq("thread_key", row.thread_key)
+    .eq("turn_nonce", row.turn_nonce)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (last?.label === label) return;
+
+  const { error } = await serviceClient().from("channel_bot_activity").insert({
+    property_id: row.property_id,
+    channel_id: row.channel_id,
+    thread_key: row.thread_key,
+    turn_nonce: row.turn_nonce,
+    label,
+  });
+  if (error) {
+    // Cosmetic surface — never let it break a turn.
+    console.error("[channel-delivery] activity insert failed", error.message);
+  }
+}
+
+/**
+ * Set the live "right now" label WITHOUT appending to the feed.
+ *
+ * For states that are real progress but not a step worth recording — chiefly
+ * "Working on it" between a tool returning and the model's next move, which
+ * fires once per tool RESULT and would otherwise fill the permanent record
+ * with stutter.
+ */
+export async function setLiveActivity(
+  row: DeliveryRow,
+  label: string,
+): Promise<void> {
+  await updateSessionRow(row.id, { turn_activity: label });
+}
+
+/** The turn's steps, oldest first, for stamping onto the delivered message. */
+export async function turnActivitySteps(
+  row: DeliveryRow,
+): Promise<Array<{ label: string; at: string }>> {
+  if (!row.turn_nonce) return [];
+  const { data } = await serviceClient()
+    .from("channel_bot_activity")
+    .select("label, created_at")
+    .eq("channel_id", row.channel_id)
+    .eq("thread_key", row.thread_key)
+    .eq("turn_nonce", row.turn_nonce)
+    .order("created_at", { ascending: true })
+    .limit(40);
+  return (data ?? []).map((r) => ({ label: r.label, at: r.created_at }));
+}
 
 /**
  * One progress label for a batch of tool calls. Repeats of the same tool
@@ -134,19 +242,46 @@ export function activityLabel(toolNames: string[]): string | null {
   return `${base}…`;
 }
 
-/** Render a parked question as chat text: the prompt, plus its options as a
- *  numbered list the user can answer by number or by label. */
+/**
+ * Render a parked request as chat text.
+ *
+ * Two shapes, one surface:
+ *  - question (display text/select) — the prompt plus numbered options.
+ *  - APPROVAL (display "confirmation") — an action preview: what the bot is
+ *    about to do, with the actual arguments, then Approve/Deny.
+ *
+ * Approvals used to be filtered out here on the assumption the fleet
+ * Approvals inbox would show them — but that inbox reads `bot_chat_sessions`
+ * (pod bots only), so a channel-bot approval had NO surface at all and the
+ * turn fell through to the ⚠️. The gated tools (archive_document,
+ * delete_task) were therefore un-approvable from chat.
+ */
 function renderQuestion(request: PendingRequest): string {
   const prompt = (request.prompt ?? "").trim();
   const options = request.options ?? [];
-  if (options.length === 0) return prompt;
+  const isApproval = request.display === "confirmation";
+
+  const head = isApproval
+    ? [
+        `⚠️ **Approval needed** — I'm about to run \`${request.toolName ?? "an action"}\`.`,
+        "",
+        prompt,
+        previewArgs(request.input) ? `\n${previewArgs(request.input)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : prompt;
+
+  if (options.length === 0) return head;
   const lines = options.map(
     (o, i) => `${i + 1}. **${o.label}**${o.description ? ` — ${o.description}` : ""}`,
   );
-  const hint = request.allowFreeform
-    ? "_Reply with a number, or answer in your own words._"
-    : "_Reply with a number or the option name._";
-  return [prompt, "", ...lines, "", hint].join("\n");
+  const hint = isApproval
+    ? "_Reply with a number or the option name to decide. Nothing happens until you do._"
+    : request.allowFreeform
+      ? "_Reply with a number, or answer in your own words._"
+      : "_Reply with a number or the option name._";
+  return [head, "", ...lines, "", hint].join("\n");
 }
 
 /** Resolve the session row for an eve session id. Retries briefly: the web
@@ -242,6 +377,11 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   const questions = pendingQuestions(row).map(renderQuestion);
   const text = [replyText, ...questions].filter(Boolean).join("\n\n");
 
+  // Activity feed (0096) travels WITH the reply as a custom field, so the
+  // record of what the bot did outlives the transient thinking row and can be
+  // opened later. Progressive disclosure: the client renders it collapsed.
+  const steps = await turnActivitySteps(row);
+
   if (!text) {
     if (attachments) {
       // UI-only turn: the model answered with a render_ui card and no prose.
@@ -308,6 +448,8 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
         // write tools carry the same nonce, so a turn that wrote five docs
         // reads as one reply with five cards, not five separate replies.
         ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
+        // Steps behind this reply, root chunk only (see `steps`).
+        ...(isRoot && steps.length > 0 ? { eve_steps: steps } : {}),
         ...(isRoot && attachments ? { attachments } : {}),
         ...(isRoot
           ? parentId

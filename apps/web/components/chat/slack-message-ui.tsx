@@ -72,6 +72,11 @@ import {
   messageHasSingleAttachment,
   messageTextHasEmojisOnly,
 } from "stream-chat-react";
+import {
+  AiStepsDisclosure,
+  isAiSteps,
+  type AiStep,
+} from "@/components/chat/ai-steps-disclosure";
 import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
 import { SlackMessageActions } from "@/components/chat/slack-message-actions";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
@@ -480,6 +485,13 @@ const SlackMessageUIWithContext = ({
                   ) : (
                     <MessageText message={message} renderText={renderText} />
                   )}
+                  {/* What the bot did to produce this reply, collapsed.
+                      `eve_steps` is stamped by the runtime at delivery. */}
+                  {isAiSteps((message as unknown as { eve_steps?: unknown }).eve_steps) ? (
+                    <AiStepsDisclosure
+                      steps={(message as unknown as { eve_steps: AiStep[] }).eve_steps}
+                    />
+                  ) : null}
                 </div>
                 <div className="str-chat__message-reactions-host">
                   {hasReactions ? (

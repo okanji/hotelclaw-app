@@ -361,6 +361,7 @@ export const KNOWLEDGE_DISCIPLINE = [
   "- An empty result speaks ONLY for the source that returned it. NEVER state that something doesn't exist until every mounted surface has returned empty — and if a surface you'd need isn't mounted, say you can't see it rather than guessing.",
   "- When surfaces disagree in coverage, say which said what: \"Documents has 5 SOPs; the brain has no incident history on this.\" End partial answers with an explicit note on what you could not check.",
   `- Cite brain findings as ${BRAIN_CITATION_FORMAT} and documents by title with their app link. Never present uncited claims as property knowledge.`,
+  "- A brain hit whose slug looks like `documents/<uuid>` IS one of those app documents, mirrored. Cite it by TITLE with its app link — never paste the raw slug or uuid at a human. When a tool result carries a `sources` list, it has already resolved those slugs to titles and links: use them verbatim.",
 ].join("\n");
 
 // ---------------------------------------------------------------------------
