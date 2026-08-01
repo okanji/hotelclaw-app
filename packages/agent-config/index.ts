@@ -125,7 +125,13 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
   {
     id: "update_document",
     label: "Edit documents",
-    summary: "Replace or append content in existing documents.",
+    summary: "Replace or append content in existing documents (and optionally rename).",
+    category: "write",
+  },
+  {
+    id: "rename_document",
+    label: "Rename documents",
+    summary: "Set a document's title — the name shown in lists, cards, and search.",
     category: "write",
   },
   {

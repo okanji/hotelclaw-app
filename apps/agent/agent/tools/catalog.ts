@@ -730,16 +730,22 @@ export default defineDynamic({
       if (grants.has("update_document")) {
         tools.update_document = defineTool({
           description:
-            "Write CONTENT into an existing document — replace the whole body or append sections. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. This REPLACES/extends what's there — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
+            "Write CONTENT into an existing document — replace the whole body or append sections, and optionally rename it. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. Pass new_title to also set the record's title in the same call (e.g. an 'Untitled' doc you're filling with a titled SOP — set new_title to the SOP's name). This REPLACES/extends the body — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
           inputSchema: z.object({
             document_id: z.string().uuid(),
             content_html: z.string().min(10).max(100_000),
+            new_title: z
+              .string()
+              .min(1)
+              .max(200)
+              .optional()
+              .describe("Also rename the record to this title."),
             mode: z
               .enum(["replace", "append"])
               .default("replace")
               .describe("replace = new body; append = add to the end"),
           }),
-          async execute({ document_id, content_html, mode }, toolCtx) {
+          async execute({ document_id, content_html, new_title, mode }, toolCtx) {
             const supabase = serviceClient();
             const { data: docRow } = await supabase
               .from("documents")
@@ -748,6 +754,7 @@ export default defineDynamic({
               .eq("property_id", propertyId)
               .maybeSingle();
             if (!docRow) return { error: "Document not found in this property." };
+            const cardTitle = new_title ?? docRow.title;
 
             const cardId = `eve-artifact-${toolCtx.callId}`;
             const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
@@ -780,7 +787,7 @@ export default defineDynamic({
                       kind: "document",
                       status: "writing",
                       action: mode === "append" ? "appending" : "rewriting",
-                      title: docRow.title,
+                      title: cardTitle,
                       document_id,
                       href: `/p/${propertyId}/documents/${document_id}`,
                       property_id: propertyId,
@@ -803,6 +810,8 @@ export default defineDynamic({
                   documentId: document_id,
                   html: content_html,
                   mode,
+                  ...(new_title ? { title: new_title } : {}),
+                  ...(userId ? { actorUserId: userId } : {}),
                 }),
                 signal: AbortSignal.timeout(55_000),
               },
@@ -854,6 +863,64 @@ export default defineDynamic({
               updated: true,
               document_id: body.documentId,
               characters: body.bodyTextLength,
+              title: body.title,
+              link: body.url,
+            };
+          },
+        });
+      }
+
+      if (grants.has("rename_document")) {
+        tools.rename_document = defineTool({
+          description:
+            "Rename a document — set the record's title (the name shown in lists, artifact cards, and search). This does NOT touch the body: use it when a doc's content is fine but its title is wrong or 'Untitled'. A doc whose body already has a real <h1> just needs its title set to that heading. Get the id from list_documents/search_documents. For renaming AND rewriting in one go, pass new_title to update_document instead.",
+          inputSchema: z.object({
+            document_id: z.string().uuid(),
+            new_title: z.string().min(1).max(200),
+          }),
+          async execute({ document_id, new_title }) {
+            const supabase = serviceClient();
+            const { data: docRow } = await supabase
+              .from("documents")
+              .select("title")
+              .eq("id", document_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!docRow) return { error: "Document not found in this property." };
+
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/documents/write`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                body: JSON.stringify({
+                  propertyId,
+                  documentId: document_id,
+                  title: new_title,
+                  ...(userId ? { actorUserId: userId } : {}),
+                }),
+                signal: AbortSignal.timeout(20_000),
+              },
+            ).catch(() => null);
+            if (!response?.ok) {
+              const detail = response
+                ? ((await response.json().catch(() => null)) as { error?: string } | null)
+                : null;
+              return { error: detail?.error ?? `Rename failed (${response?.status ?? "unreachable"}).` };
+            }
+            const body = (await response.json()) as {
+              documentId: string;
+              title: string | null;
+              url: string;
+            };
+            return {
+              renamed: true,
+              document_id: body.documentId,
+              from: docRow.title,
+              to: body.title,
               link: body.url,
             };
           },

@@ -1,7 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeDocumentBody } from "@/lib/documents/write-body";
+import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 
 /**
  * INTERNAL document write endpoint — the eve runtime's path into document
@@ -106,22 +107,66 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (!input.html) {
+  // RENAME: on the UPDATE path an explicit title updates the record's title
+  // (the doc body's <h1> is separate — the bot writes that in `html`, but the
+  // record title is what surfaces in lists, artifact cards, and search). On
+  // the create path the title was already set in the insert above; renaming
+  // only applies when the caller passed an existing documentId.
+  const isUpdate = Boolean(input.documentId);
+  const renaming = isUpdate && Boolean(input.title);
+  if (renaming) {
+    const supabase = createServiceClient();
+    const { data: renamed, error } = await supabase
+      .from("documents")
+      .update({
+        title: input.title!,
+        ...(input.actorUserId ? { last_edited_by: input.actorUserId } : {}),
+      })
+      .eq("id", documentId)
+      // Tenancy: the row must belong to the caller's property (a title-only
+      // rename skips writeDocumentBody's own propertyId re-check).
+      .eq("property_id", input.propertyId)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!renamed) {
+      return NextResponse.json(
+        { error: "document not found in this property" },
+        { status: 404 },
+      );
+    }
+  }
+
+  // Body write is optional — a title-only rename carries no html.
+  let bodyTextLength = 0;
+  if (input.html) {
+    const result = await writeDocumentBody({
+      propertyId: input.propertyId,
+      documentId,
+      html: input.html,
+      mode: input.mode,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 422 });
+    }
+    bodyTextLength = result.bodyTextLength;
+  } else if (!renaming) {
     return NextResponse.json(
-      { error: "html is required unless reserveOnly is set" },
+      { error: "provide html, a title to rename, or reserveOnly" },
       { status: 400 },
     );
   }
 
-  const result = await writeDocumentBody({
-    propertyId: input.propertyId,
-    documentId,
-    html: input.html,
-    mode: input.mode,
-  });
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 422 });
+  // A rename changes the doc's brain page (title is part of it) but touches
+  // no Liveblocks doc, so the snapshot webhook that re-mirrors body edits
+  // never fires — trigger the re-mirror explicitly. Fail-soft; the nightly
+  // cron reconciles regardless. (Body-only writes keep their webhook path.)
+  if (renaming) {
+    after(() => syncDocumentToBrain(documentId).catch(() => {}));
   }
+
   let title = input.title ?? null;
   if (!title) {
     const supabase = createServiceClient();
@@ -136,7 +181,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     documentId,
     title,
-    bodyTextLength: result.bodyTextLength,
+    bodyTextLength,
     url: `/p/${input.propertyId}/documents/${documentId}`,
   });
 }

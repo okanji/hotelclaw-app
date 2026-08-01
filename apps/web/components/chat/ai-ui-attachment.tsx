@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 /**
  * Renders the bot's `ai_ui` attachment — a json-render spec over the
@@ -47,61 +48,87 @@ const { registry } = defineRegistry(chatUiCatalog, {
     DataTable: ({ props }) => {
       const router = useRouter();
       return (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        // A rendered table is a distinct embedded object in the message
+        // stream, so the card framing is warranted — kept light: soft radius,
+        // opacity-based border, no shadow (house separation ladder).
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
           {props.title ? (
-            <div className="border-b border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium">
-              {props.title}
+            <div className="flex items-baseline justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-2.5">
+              <span className="text-sm font-semibold tracking-tight text-foreground">
+                {props.title}
+              </span>
+              {props.rows.length > 1 ? (
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {props.rows.length}
+                </span>
+              ) : null}
             </div>
           ) : null}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {props.columns.map((c, i) => (
-                    <TableHead
-                      key={i}
-                      className="text-xs text-muted-foreground"
-                    >
-                      {c}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {props.rows.map((row, ri) => {
-                  const href = props.rowHrefs?.[ri] ?? null;
-                  return (
-                    <TableRow
-                      key={ri}
-                      className={
-                        href ? "cursor-pointer hover:bg-muted/40" : undefined
-                      }
-                      onClick={href ? () => router.push(href) : undefined}
-                    >
-                      {props.columns.map((_, ci) => (
-                        <TableCell key={ci} className="tabular-nums">
-                          {href && ci === 0 ? (
-                            // A real anchor on the first cell keeps the row
-                            // keyboard-focusable / cmd-clickable; the row
-                            // onClick covers the rest of the surface.
-                            <Link
-                              href={href}
-                              className="font-medium hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {row[ci] ?? ""}
-                            </Link>
-                          ) : (
-                            (row[ci] ?? "")
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          {/* Base Table already provides the w-full overflow-x-auto container. */}
+          <Table>
+            <TableHeader>
+              {/* Lighter divider than the base border-b (opacity-based). */}
+              <TableRow className="border-border/50 hover:bg-transparent">
+                {props.columns.map((c, i) => (
+                  <TableHead
+                    key={i}
+                    className="h-9 px-4 text-xs font-medium text-muted-foreground"
+                  >
+                    {c}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.rows.map((row, ri) => {
+                const href = props.rowHrefs?.[ri] ?? null;
+                return (
+                  <TableRow
+                    key={ri}
+                    className={cn(
+                      "group border-border/50",
+                      // Hover highlight only when the row navigates (base
+                      // TableRow hovers unconditionally — suppress it otherwise).
+                      href ? "cursor-pointer hover:bg-muted/50" : "hover:bg-transparent",
+                    )}
+                    onClick={href ? () => router.push(href) : undefined}
+                  >
+                    {props.columns.map((_, ci) => (
+                      <TableCell
+                        key={ci}
+                        className={cn(
+                          "px-4 py-2.5",
+                          // First column = the row's label (proportional
+                          // figures); trailing columns are metadata/numbers
+                          // and get muted + tabular-nums.
+                          ci === 0
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground tabular-nums",
+                        )}
+                      >
+                        {href && ci === 0 ? (
+                          // A real anchor on the first cell keeps the row
+                          // keyboard-focusable / cmd-clickable; the row
+                          // onClick covers the rest of the surface. No link
+                          // color — the row hover + underline is the
+                          // affordance (house style, not a blue web link).
+                          <Link
+                            href={href}
+                            className="text-foreground underline-offset-2 group-hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {row[ci] ?? ""}
+                          </Link>
+                        ) : (
+                          (row[ci] ?? "")
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       );
     },
@@ -143,19 +170,21 @@ const { registry } = defineRegistry(chatUiCatalog, {
       return props.href ? (
         <Link
           href={props.href}
-          className="block rounded-lg border border-border bg-card p-3 transition-colors hover:border-border hover:bg-muted/40"
+          className="block rounded-xl border border-border/70 bg-card p-3.5 transition-colors hover:border-border hover:bg-muted/40"
         >
           {body}
         </Link>
       ) : (
-        <div className="rounded-lg border border-border bg-card p-3">{body}</div>
+        <div className="rounded-xl border border-border/70 bg-card p-3.5">
+          {body}
+        </div>
       );
     },
     StatRow: ({ children }) => {
       const count = Children.count(children);
       const cols = count <= 2 ? 2 : count === 3 ? 3 : 4;
       return (
-        <StatGroup cols={cols} className="rounded-lg border border-border bg-card p-3">
+        <StatGroup cols={cols} className="rounded-xl border border-border/70 bg-card p-3.5">
           {children}
         </StatGroup>
       );
@@ -177,7 +206,12 @@ export function AiUiAttachment({
   );
   if (!validated.ok) return null;
   return (
-    <div className="my-1.5 max-w-2xl">
+    // max-w-4xl (not 2xl): DataTable cells are whitespace-nowrap, so a
+    // multi-column table's natural width easily tops 672px and the Status
+    // column gets clipped by the table's overflow-x-auto. 896px clears the
+    // common cases while staying a readable measure for text-y cards; wider
+    // tables still fall back to horizontal scroll.
+    <div className="my-1.5 w-full max-w-4xl">
       {/* Renderer's element wrapper calls the state/visibility hooks even
           for static specs, so the provider stack is required. Display-only:
           no handlers, empty initial state. */}
