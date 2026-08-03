@@ -8,12 +8,28 @@ import { SheetEditor } from "@/components/spreadsheet/sheet-editor";
 import { Button } from "@/components/ui/button";
 import { useArtifactPanel } from "./artifact-panel-context";
 
-const MIN_WIDTH = 380;
-const DEFAULT_WIDTH = () =>
-  Math.min(Math.round(window.innerWidth * 0.46), 820);
-const EXPANDED_WIDTH = () =>
-  Math.min(Math.round(window.innerWidth * 0.72), 1200);
-const maxWidth = () => Math.round(window.innerWidth * 0.85);
+// The panel's own floor, and — more importantly — the conversation's floor.
+// The chat stays the PRIMARY pane: it never shrinks below CHAT_FLOOR, and by
+// default the panel takes less than half so the AI's replies stay wide.
+const MIN_WIDTH = 360;
+const CHAT_FLOOR = 560;
+
+// The DEFAULT width is pure CSS, relative to the panel's flex PARENT (the chat
+// split area) — NOT window.innerWidth. Measuring against the whole window let
+// the panel eat the conversation (a 46vw panel counted the rail + channel
+// sidebar, leaving the chat at ~half the *content* area). As CSS `min()`:
+// ≤42% of the split, capped at 720px, but never so wide the conversation drops
+// below CHAT_FLOOR — floored at MIN_WIDTH. The conversation stays primary with
+// zero JS, so no measurement/effect is needed until the user resizes.
+const DEFAULT_CSS_WIDTH = `max(${MIN_WIDTH}px, min(42%, calc(100% - ${CHAT_FLOOR}px), 720px))`;
+
+// Drag/expand produce explicit px widths; clamp them the same way (relative to
+// the measured chat container, keeping the conversation ≥ CHAT_FLOOR).
+function clampWidth(desired: number, containerW: number): number {
+  const maxByFloor = Math.max(MIN_WIDTH, containerW - CHAT_FLOOR);
+  return Math.max(MIN_WIDTH, Math.min(desired, maxByFloor));
+}
+const expandedWidth = (c: number) => clampWidth(Math.min(Math.round(c * 0.64), 1040), c);
 
 /**
  * The chat's split-screen artifact view — a TRUE LAYOUT split, like
@@ -28,9 +44,23 @@ const maxWidth = () => Math.round(window.innerWidth * 0.85);
  */
 export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
   const { target, close } = useArtifactPanel();
+  const asideRef = useRef<HTMLElement>(null);
+  // px override; null = the CSS default (DEFAULT_CSS_WIDTH), which is relative
+  // to the parent so the split needs no measurement and the conversation stays
+  // primary. A number is only stored once the user drags or expands.
   const [width, setWidth] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef<{ x: number; width: number } | null>(null);
+
+  // Chat split area width — read from the ref only inside handlers (never
+  // during render), so drag/expand clamps stay relative to the chat pane.
+  const containerW = useCallback(
+    () =>
+      asideRef.current?.parentElement?.clientWidth ??
+      (typeof window !== "undefined" ? window.innerWidth : 1200),
+    [],
+  );
 
   useEffect(() => {
     if (!target) return;
@@ -44,42 +74,51 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
   const onHandlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
+      // Start from the CURRENT rendered width (CSS default or px) so the first
+      // drag pixel doesn't jump.
       dragStart.current = {
         x: e.clientX,
-        width: width ?? DEFAULT_WIDTH(),
+        width: asideRef.current?.clientWidth ?? MIN_WIDTH,
       };
       setDragging(true);
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [width],
+    [],
   );
   const onHandlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!dragStart.current) return;
       // Panel sits at the right edge — dragging the handle LEFT widens it.
       const next = dragStart.current.width + (dragStart.current.x - e.clientX);
-      setWidth(Math.min(Math.max(next, MIN_WIDTH), maxWidth()));
+      setWidth(clampWidth(next, containerW()));
     },
-    [],
+    [containerW],
   );
   const onHandlePointerUp = useCallback(() => {
     dragStart.current = null;
     setDragging(false);
   }, []);
 
+  const toggleExpand = useCallback(() => {
+    if (expanded) {
+      setExpanded(false);
+      setWidth(null); // back to the CSS default
+    } else {
+      setExpanded(true);
+      setWidth(expandedWidth(containerW()));
+    }
+  }, [expanded, containerW]);
+
   if (!target) return null;
 
   const fullHref = `/p/${propertyId}/documents/${target.documentId}`;
   const typeLabel = target.kind === "sheet" ? "Spreadsheet" : "Document";
-  const currentWidth =
-    width ?? (typeof window !== "undefined" ? DEFAULT_WIDTH() : 720);
-  const isExpanded =
-    typeof window !== "undefined" && currentWidth >= EXPANDED_WIDTH() - 40;
 
   return (
     <aside
+      ref={asideRef}
       className="relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background"
-      style={{ width: currentWidth }}
+      style={{ width: width != null ? width : DEFAULT_CSS_WIDTH }}
     >
       {/* Drag-to-resize handle on the panel's left edge. Wider hit area than
           the visible line; pointer capture keeps the drag alive when the
@@ -108,12 +147,10 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
         <Button
           size="icon-sm"
           variant="ghost"
-          onClick={() =>
-            setWidth(isExpanded ? DEFAULT_WIDTH() : EXPANDED_WIDTH())
-          }
-          aria-label={isExpanded ? "Shrink panel" : "Expand panel"}
+          onClick={toggleExpand}
+          aria-label={expanded ? "Shrink panel" : "Expand panel"}
         >
-          {isExpanded ? (
+          {expanded ? (
             <Minimize2 data-slot="icon" />
           ) : (
             <Maximize2 data-slot="icon" />

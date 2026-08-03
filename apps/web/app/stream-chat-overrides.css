@@ -626,6 +626,17 @@
 }
 
 /*
+ * The AI's rendered-UI cards (`render_ui` → AiUiAttachment) own their own link
+ * colors — the DataTable row link is `text-foreground`, Cards inherit their
+ * text color — so neutralize Stream's global chat link-blue
+ * (`--str-chat__text-link`, #005fff) inside them. Without this, table titles
+ * and card links render as web-blue links instead of house foreground.
+ */
+.str-chat .ai-ui-attachment a {
+  color: inherit !important;
+}
+
+/*
  * Markdown tables — Stream's renderer parses GFM tables into real <table>
  * markup (see rehype-sanitize-table-br.ts) but ships zero styling, so cells
  * collapsed into one unreadable run of text. The bot now prefers the

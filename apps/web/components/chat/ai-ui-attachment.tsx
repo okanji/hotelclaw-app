@@ -211,7 +211,7 @@ export function AiUiAttachment({
     // column gets clipped by the table's overflow-x-auto. 896px clears the
     // common cases while staying a readable measure for text-y cards; wider
     // tables still fall back to horizontal scroll.
-    <div className="my-1.5 w-full max-w-4xl">
+    <div className="ai-ui-attachment my-1.5 w-full max-w-4xl">
       {/* Renderer's element wrapper calls the state/visibility hooks even
           for static specs, so the provider stack is required. Display-only:
           no handlers, empty initial state. */}
