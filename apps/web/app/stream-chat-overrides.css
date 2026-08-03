@@ -626,6 +626,29 @@
 }
 
 /*
+ * Message width. Stream's bubble is `justify-self: flex-start` → shrink-to-fit,
+ * so a long AI reply (prose, or prose + a render_ui table) cramped into a
+ * ~700px column with the rest of the pane empty and wide tables clipped. Let
+ * the bubble fill the message column so replies use the width they have; the
+ * text keeps a readable max measure (~72rem) so prose doesn't run edge-to-edge
+ * on wide monitors, and short messages stay visually short (the bubble is
+ * transparent and the text is left-aligned, so a stretched-but-empty bubble
+ * looks identical). Attachments (cards, images, the ai_ui table) keep their
+ * own max-widths and left-align within the wider bubble.
+ */
+.str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble {
+  justify-self: stretch !important;
+  width: 100% !important;
+  min-width: 0;
+}
+.str-chat__slack-message-main
+  .str-chat__message-inner
+  .str-chat__message-bubble
+  .str-chat__message-text {
+  max-width: 72rem;
+}
+
+/*
  * The AI's rendered-UI cards (`render_ui` → AiUiAttachment) own their own link
  * colors — the DataTable row link is `text-foreground`, Cards inherit their
  * text color — so neutralize Stream's global chat link-blue
