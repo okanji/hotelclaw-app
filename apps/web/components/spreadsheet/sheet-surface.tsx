@@ -702,7 +702,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
     }
     return map;
   }, [others]);
-  const myColor = self ? colorFor(self.connectionId) : "hsl(220 90% 56%)";
+  const myColor = self ? colorFor(self.connectionId) : "var(--series-1)";
 
   // ── Index lookups ─────────────────────────────────────────────────────────
   const colIndex = useCallback((id: string) => colIds.indexOf(id), [colIds]);
@@ -1799,7 +1799,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
           return mergeSpans.has(encodeCellId(tlCol, tlRow));
         })()}
       />
-      <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/60 px-4 py-1.5">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background/60 px-4 py-1.5">
         {/* Convenience wrappers for the per-header dropdown's "Insert
             column/row" actions. The main button mirrors "Insert column
             right" / "Insert row below" anchored on the currently-selected
@@ -1928,7 +1928,7 @@ export function SheetSurface({ documentId }: { documentId?: string } = {}) {
             type="button"
             onClick={zoomReset}
             title="Reset zoom (Cmd+0)"
-            className="w-12 select-none rounded px-1 text-center text-sm tabular-nums text-muted-foreground hover:bg-muted"
+            className="w-12 select-none rounded-md px-1 text-center text-sm tabular-nums text-muted-foreground transition-colors hover:bg-accent"
           >
             {Math.round(zoom * 100)}%
           </button>
@@ -2447,15 +2447,17 @@ function applyReplacement(
   return raw.replace(re, replacement);
 }
 
+/** Per-collaborator cursor/selection colors — the shared `--series-*` ramp
+ *  (globals.css), so presence sits in the same hue family as the charts. */
 const PALETTE = [
-  "hsl(220 90% 56%)",
-  "hsl(160 80% 38%)",
-  "hsl(280 70% 55%)",
-  "hsl(20 85% 55%)",
-  "hsl(340 80% 55%)",
-  "hsl(45 90% 50%)",
-  "hsl(190 80% 45%)",
-  "hsl(120 50% 40%)",
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+  "var(--series-7)",
+  "var(--series-8)",
 ];
 
 function colorFor(connectionId: number): string {
@@ -2508,7 +2510,7 @@ function InsertColumnSplitButton({
               size="sm"
               variant="ghost"
               aria-label="Column insertion options"
-              className="h-7 w-5 rounded-l-none border-l border-border/60 px-0"
+              className="h-7 w-5 rounded-l-none border-l border-border px-0"
             />
           }
         >
@@ -2768,7 +2770,7 @@ function DataToolsButton({
                 onClick={() => onDeleteConditionalRule(r.id)}
               >
                 <span
-                  className="size-3 shrink-0 rounded-sm border border-border/60"
+                  className="size-3 shrink-0 rounded-sm shadow-ring"
                   style={{
                     background: r.format.bgColor ?? "transparent",
                   }}
@@ -2776,7 +2778,7 @@ function DataToolsButton({
                 <span className="truncate font-mono text-xs">
                   {describeCondition(r)}
                 </span>
-                <span className="ml-auto text-[10px] text-muted-foreground">
+                <span className="ml-auto text-xs text-faint-foreground">
                   Click to delete
                 </span>
               </DropdownMenuItem>
@@ -3061,7 +3063,7 @@ function InsertRowSplitButton({
               size="sm"
               variant="ghost"
               aria-label="Row insertion options"
-              className="h-7 w-5 rounded-l-none border-l border-border/60 px-0"
+              className="h-7 w-5 rounded-l-none border-l border-border px-0"
             />
           }
         >

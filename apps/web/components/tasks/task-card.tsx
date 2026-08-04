@@ -102,7 +102,10 @@ function AssigneeSlot({
     return (
       <span
         aria-label="Unassigned"
-        className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/60"
+        // The dashed ring here is a GLYPH standing in for an avatar, not a
+        // "dashed grey box" container — it is the only dashed stroke left in
+        // this surface and it earns its place by reading as an empty slot.
+        className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground"
       >
         <UserRound className="size-3" strokeWidth={1.75} />
       </span>
@@ -116,7 +119,7 @@ function AssigneeSlot({
       title={`Assigned to ${name}`}
     >
       {info?.avatar ? <AvatarImage src={info.avatar} alt={name} /> : null}
-      <AvatarFallback className="bg-muted text-[0.625rem] font-medium text-foreground">
+      <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
         {initials(name)}
       </AvatarFallback>
     </Avatar>
@@ -159,7 +162,7 @@ function CardCreatedAt({ iso, now }: { iso: string | undefined; now: number }) {
 const CARD_BASE = cn(
   // Roomy padding (Linear sits ~12px) so the ID row, title, priority, and
   // created-date each have their own breathing room.
-  "relative rounded-md border border-border/70 bg-card p-3 shadow-xs",
+  "relative rounded-md bg-card p-3 shadow-ring",
   // Offscreen cards skip paint entirely (content-visibility). On a full
   // board the columns are thousands of px tall; painting all of it into
   // Chrome's composited scroller textures is what pushed macOS GPU
@@ -207,7 +210,7 @@ export function TaskCardOverlay({
     <div
       className={cn(
         CARD_BASE,
-        "w-full cursor-grabbing shadow-lg ring-1 ring-black/10 dark:ring-white/10",
+        "w-full cursor-grabbing shadow-overlay",
       )}
     >
       <CardHeader task={task} assignee={assignee} />
@@ -231,7 +234,7 @@ function CardHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 leading-4">
-      <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground tabular-nums tracking-tight">
+      <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground tabular-nums">
         {taskShortId(task.id)}
         <WorkflowProvenanceBadge source={task.source} appearance="glyph" />
       </span>
@@ -328,8 +331,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({
         // Resting cursor is the default arrow (Linear-style). Only switch to
         // the grabbing hand once the pointer is actively pressed/dragging.
         "active:cursor-grabbing",
-        "hover:border-foreground/15",
-        "focus-visible:ring-2 focus-visible:ring-ring",
+        "focus-visible:shadow-focus",
         isDragging && "opacity-40",
         lockedByOther && "cursor-default ring-2 ring-info/50",
       )}
@@ -338,7 +340,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({
         // Sits inside the card (not overlapping its top edge): CARD_BASE's
         // content-visibility implies paint containment, which clips children
         // to the card bounds.
-        <div className="absolute top-1.5 left-2 rounded-full bg-blue-600 px-2 py-0.5 text-[0.625rem] font-medium text-white shadow-sm">
+        <div className="absolute top-1.5 left-2 rounded-md bg-info px-2 py-0.5 text-xs font-medium text-background">
           {draggedByName} is moving this…
         </div>
       ) : null}

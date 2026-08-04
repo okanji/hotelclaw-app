@@ -98,7 +98,7 @@ export function BrainPageDetail({
       <header className="flex flex-col gap-2">
         <Eyebrow>{page.type}</Eyebrow>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="min-w-0 text-2xl font-semibold tracking-tight text-balance">
+          <h2 className="min-w-0 text-2xl font-semibold text-balance">
             {page.title}
           </h2>
           {canCurate ? (
@@ -133,7 +133,7 @@ export function BrainPageDetail({
           {page.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground"
+              className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
             >
               {tag}
             </span>
@@ -142,7 +142,7 @@ export function BrainPageDetail({
       </header>
 
       {page.content_flag ? (
-        <p className="mt-5 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
+        <p className="mt-5 rounded-md bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
           The brain flagged this page&apos;s content ({page.content_flag.reason})
           — treat it with care: {page.content_flag.detail}
         </p>
@@ -171,7 +171,7 @@ export function BrainPageDetail({
         {page.timeline.length === 0 ? (
           <p className="text-sm text-muted-foreground">No entries yet.</p>
         ) : (
-          <ul role="list" className="flex flex-col divide-y divide-border/60">
+          <ul role="list" className="flex flex-col divide-y divide-border">
             {page.timeline.map((entry) => (
               <TimelineRow
                 key={`${entry.id}-${entry.date}-${entry.summary.slice(0, 40)}`}

@@ -84,7 +84,7 @@ export function TaskAiPanel({
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-border/60 bg-muted/10 p-3">
+    <section className="mt-3 rounded-md bg-muted p-3">
       <header className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Sparkles className="size-4" />
@@ -105,9 +105,9 @@ export function TaskAiPanel({
             <div
               key={i}
               className={cn(
-                "rounded-md px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                "rounded-md px-3 py-2 text-sm leading-5 whitespace-pre-wrap",
                 t.role === "user"
-                  ? "bg-background border border-border/60 text-foreground"
+                  ? "bg-card text-foreground shadow-ring"
                   : "bg-foreground/[0.04] text-foreground",
               )}
             >
@@ -115,7 +115,7 @@ export function TaskAiPanel({
             </div>
           ))}
           {busy ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-faint-foreground">
               <Loader2 className="size-3.5 animate-spin" />
               Thinking…
             </div>
@@ -149,7 +149,7 @@ export function TaskAiPanel({
           {busy ? "…" : "Ask"}
         </Button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-2 text-xs text-faint-foreground">
         Answers come from a Claude-backed assistant with access to this task,
         its sub-tasks, and related tasks. Powered by the Hotelclaw bot runtime.
       </p>

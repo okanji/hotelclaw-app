@@ -145,7 +145,7 @@ export function AgentEditor({
           A tool the agent isn&apos;t granted doesn&apos;t exist for it.
           Write-capable tools are marked.
         </p>
-        <ul role="list" className="flex flex-col divide-y divide-border/60 rounded-lg border border-border">
+        <ul role="list" className="flex flex-col divide-y divide-border">
           {AGENT_TOOL_CATALOG.map((tool) => {
             const granted = config.tools.includes(tool.id);
             return (
@@ -161,7 +161,7 @@ export function AgentEditor({
                   <span className="flex items-center gap-2 text-sm font-medium">
                     {tool.label}
                     {tool.category === "write" ? (
-                      <span className="rounded-full border border-warning/40 px-1.5 py-px text-[10px] text-warning">
+                      <span className="rounded-md bg-warning/10 px-1.5 py-px text-xs text-warning">
                         writes
                       </span>
                     ) : null}
@@ -184,7 +184,7 @@ export function AgentEditor({
           to reach for one.
         </p>
         {config.skills.length > 0 ? (
-          <ul role="list" className="flex flex-col divide-y divide-border/60 rounded-lg border border-border">
+          <ul role="list" className="flex flex-col divide-y divide-border">
             {config.skills.map((skill, index) => (
               <li key={skill.id} className="flex items-center gap-3 px-4 py-3">
                 <button

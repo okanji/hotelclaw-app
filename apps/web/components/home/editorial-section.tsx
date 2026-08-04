@@ -1,9 +1,7 @@
 "use client";
 
-import { Fragment } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Separator } from "@/components/ui/separator";
 import {
   Eye,
   EyeOff,
@@ -26,11 +24,12 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * A Home dashboard section in the editorial language of the Docs "Directory":
- * an uppercase kicker + heading over a hairline rule, then content laid out
- * with whitespace and dividers — not cards. The whole section is a dnd-kit
- * sortable item; the drag grip and hide control sit in the heading and reveal
- * on hover, so the layout stays calm at rest but is fully rearrangeable.
+ * A Home dashboard section: a sentence-case 12px label over a 16px/600
+ * heading, then content laid out with whitespace and hairline row dividers —
+ * not cards, and (per notion-spec §1) no rule under the heading. The whole
+ * section is a dnd-kit sortable item; the drag grip and hide control sit in
+ * the heading and reveal on hover, so the layout stays calm at rest but is
+ * fully rearrangeable.
  */
 export function EditorialSection({
   id,
@@ -70,21 +69,21 @@ export function EditorialSection({
         isDragging && "opacity-60",
       )}
     >
-      <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1.5">
           <button
             ref={setActivatorNodeRef}
             type="button"
             aria-label={`Drag ${title}`}
-            className="-ml-6 cursor-grab touch-none text-muted-foreground/30 opacity-0 transition-opacity group-hover/section:opacity-100 hover:text-muted-foreground/70 active:cursor-grabbing"
+            className="-ml-6 cursor-grab touch-none text-faint-foreground opacity-0 transition-opacity group-hover/section:opacity-100 hover:text-muted-foreground active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
             <GripVertical className="size-4" />
           </button>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Eyebrow tone="brand">{kicker}</Eyebrow>
-            <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+          <div className="flex min-w-0 flex-col gap-2">
+            <Eyebrow>{kicker}</Eyebrow>
+            <h2 className="truncate text-base leading-6 font-semibold text-foreground">
               {title}
             </h2>
           </div>
@@ -142,7 +141,7 @@ export function CustomizeMenu({
       />
       <DropdownMenuContent align="end" sideOffset={6} className="w-52">
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
+          <DropdownMenuLabel>
             Sections
           </DropdownMenuLabel>
           {items.map((w) => (
@@ -161,7 +160,7 @@ export function CustomizeMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
+              <DropdownMenuLabel>
                 Presets
               </DropdownMenuLabel>
               {presets.map((preset) => (
@@ -198,11 +197,9 @@ export function HiddenTray({
 }) {
   if (hidden.length === 0) return null;
   return (
-    <div className="mt-14 border-t border-border/60 pt-6">
-      <p className="mb-3 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        Hidden
-      </p>
-      <div className="flex flex-wrap gap-2">
+    <div className="mt-14 border-t border-border pt-6">
+      <Eyebrow className="mb-3">Hidden</Eyebrow>
+      <div className="flex flex-wrap gap-1.5">
         {hidden.map((id) => {
           const def = items.find((w) => w.id === id);
           if (!def) return null;
@@ -210,10 +207,10 @@ export function HiddenTray({
             <Button
               key={id}
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => onRestore(id)}
               title={`Show ${def.title}`}
-              className="gap-2 rounded-full border-dashed border-border/70 bg-muted/30 px-3 font-normal tracking-tight text-muted-foreground hover:border-foreground/25"
+              className="gap-2 bg-muted px-3 font-normal text-muted-foreground"
             >
               <Eye className="size-3.5" />
               {def.title}
@@ -233,50 +230,49 @@ export type StatItem = {
   tone?: "rose" | "emerald";
 };
 
-/** Inline stat one-liner for WIDGET INTERNALS — value + label pairs with
- *  hairline separators. Three stat tiers now exist; pick by altitude:
+/** Inline stat one-liner for WIDGET INTERNALS — value + label pairs separated
+ *  by whitespace (no vertical rules: notion-spec §1). Three stat tiers now
+ *  exist; pick by altitude:
  *  `ui/stat-card` = page-headline row (Claude-dashboard cards),
  *  `ui/stat` (StatGroup) = section-level stacked columns,
  *  this = the compact in-widget one-liner. */
 export function Stats({ items }: { items: StatItem[] }) {
   return (
-    <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-sm tracking-tight text-muted-foreground">
-      {items.map((s, i) => (
-        <Fragment key={s.label}>
-          {i > 0 ? (
-            <Separator orientation="vertical" className="h-3.5" />
-          ) : null}
-          <div className="flex items-baseline gap-1.5">
-            <dd
-              className={cn(
-                "text-base font-semibold tracking-tight tabular-nums text-foreground",
-                s.tone === "rose" && Number(s.value) > 0 && "text-destructive",
-              )}
-            >
-              {s.value}
-            </dd>
-            <dt className="text-muted-foreground/80">{s.label}</dt>
-          </div>
-        </Fragment>
+    <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-sm text-muted-foreground">
+      {items.map((s) => (
+        <div key={s.label} className="flex items-baseline gap-1.5">
+          <dd
+            className={cn(
+              "text-base font-semibold tabular-nums text-foreground",
+              s.tone === "rose" && Number(s.value) > 0 && "text-destructive",
+            )}
+          >
+            {s.value}
+          </dd>
+          <dt className="text-faint-foreground">{s.label}</dt>
+        </div>
       ))}
     </dl>
   );
 }
 
-/** A hairline-divided list — the editorial row container used across widgets. */
+/** A hairline-divided list — the editorial row container used across widgets.
+ *  The 1px warm `--border` ring at full strength IS the divider; never stack
+ *  an opacity modifier on it. */
 export function DividerList({ children }: { children: React.ReactNode }) {
   return (
     <ul
       role="list"
-      className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+      className="-mx-2 flex flex-col divide-y divide-border border-t border-border"
     >
       {children}
     </ul>
   );
 }
 
-/** Shared row padding/feel for divider-list rows. */
-export const ROW_CLASS = "flex items-center gap-3 px-1 py-2.5";
+/** Shared row metrics for divider-list rows — the 34px / 6px Notion row. */
+export const ROW_CLASS =
+  "flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5";
 
 export function WidgetEmpty({ children }: { children: React.ReactNode }) {
   return (

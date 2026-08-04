@@ -92,15 +92,15 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
       <header className="flex flex-col gap-3">
         <Link
           href={`/p/${propertyId}/projects`}
-          className="flex w-fit items-center gap-1.5 text-sm tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+          className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
           Projects
         </Link>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-[2.5rem] leading-[3rem] font-bold text-foreground">
           Archive
         </h1>
-        <p className="max-w-[56ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
+        <p className="max-w-[56ch] text-base leading-6 text-pretty text-muted-foreground">
           Archived projects and teams. Restore one to bring it back, or delete
           it permanently. Tasks and documents are kept — they&apos;re only
           unlinked from a deleted project or space.
@@ -112,7 +112,7 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
       {isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
           <p className="text-sm text-muted-foreground">
             Nothing archived. Archived projects and teams show up here.
           </p>
@@ -165,16 +165,16 @@ function Section({
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Icon className="size-4 text-muted-foreground" strokeWidth={1.75} />
-        <h2 className="text-sm font-medium tracking-tight text-foreground">
+        <h2 className="text-sm font-medium text-foreground">
           {title}
         </h2>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-xs text-faint-foreground tabular-nums">
           {items.length}
         </span>
       </div>
       <ul
         role="list"
-        className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+        className="flex flex-col divide-y divide-border border-t border-border"
       >
         {items.map((item) => (
           <li
@@ -194,7 +194,7 @@ function Section({
                 aria-hidden="true"
               />
             )}
-            <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">
               {item.name || "Untitled"}
             </span>
             {item.archived_at ? (

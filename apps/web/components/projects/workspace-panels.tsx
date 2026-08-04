@@ -45,16 +45,16 @@ const STATUS_COLUMNS: { id: TaskStatus; label: string }[] = [
 ];
 
 const STATUS_BAR: Record<TaskStatus, string | null> = {
-  done: "bg-emerald-500/90",
-  in_progress: "bg-amber-500/90",
-  blocked: "bg-rose-500/80",
+  done: "bg-success/90",
+  in_progress: "bg-warning/90",
+  blocked: "bg-destructive/80",
   todo: null,
 };
 
 const STATUS_TALLY: Partial<Record<TaskStatus, string>> = {
-  in_progress: "text-amber-600 dark:text-amber-400",
-  done: "text-emerald-600 dark:text-emerald-400",
-  blocked: "text-rose-600 dark:text-rose-400",
+  in_progress: "text-warning",
+  done: "text-success",
+  blocked: "text-destructive",
 };
 
 /* ── Overview: progress over the scoped tasks ─────────────────────────────── */
@@ -79,7 +79,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
 
   if (total === 0) {
     return (
-      <p className="text-base leading-relaxed tracking-tight text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         No issues yet — progress will appear here as work is added.
       </p>
     );
@@ -90,7 +90,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-base tracking-tight text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           <span className="tabular-nums text-foreground">{counts.done}</span>
           {" of "}
           <span className="tabular-nums text-foreground">{total}</span>
@@ -98,7 +98,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
           {counts.in_progress > 0 ? (
             <>
               {" · "}
-              <span className="tabular-nums text-amber-600 dark:text-amber-400">
+              <span className="tabular-nums text-warning">
                 {counts.in_progress}
               </span>
               {" in progress"}
@@ -128,7 +128,7 @@ export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
         {STATUS_COLUMNS.map((s) =>
           counts[s.id] > 0 ? (
             <div key={s.id} className="flex items-center gap-1">
-              <StatusIcon status={s.id} className="size-3 text-muted-foreground/70" />
+              <StatusIcon status={s.id} className="size-3 text-muted-foreground" />
               <dt className="sr-only">{s.label}</dt>
               <dd className="text-sm tabular-nums text-muted-foreground">
                 <span className={STATUS_TALLY[s.id] ?? "text-foreground"}>
@@ -169,7 +169,7 @@ export function ProjectProgressList({
 }) {
   if (projects.length === 0) {
     return (
-      <p className="py-2 text-base leading-relaxed text-muted-foreground">
+      <p className="py-2 text-sm text-muted-foreground">
         No projects yet — link one from a project&apos;s{" "}
         <span className="text-foreground">Spaces</span> picker.
       </p>
@@ -180,10 +180,10 @@ export function ProjectProgressList({
       {projects.map((p) => {
         const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
         return (
-          <li key={p.id} className="group/row border-t border-border/40 first:border-0">
+          <li key={p.id} className="group/row border-t border-border first:border-0">
             <Link
               href={`/p/${propertyId}/projects/${p.id}`}
-              className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
+              className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
             >
               <span
                 className={cn(
@@ -192,14 +192,14 @@ export function ProjectProgressList({
                 )}
                 aria-hidden="true"
               />
-              <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {p.name || "Untitled project"}
               </span>
               <div className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
                 <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                   {p.total > 0 ? (
                     <div
-                      className="h-full rounded-full bg-emerald-500/90 transition-[width]"
+                      className="h-full rounded-full bg-success/90 transition-[width]"
                       style={{ width: `${pct}%` }}
                     />
                   ) : null}
@@ -310,12 +310,12 @@ export function ActivityFeed({
         return (
           <li key={e.id} className="flex items-start gap-2.5">
             <Icon
-              className="mt-[0.3125rem] size-3.5 shrink-0 text-muted-foreground/60"
+              className="mt-[0.3125rem] size-3.5 shrink-0 text-muted-foreground"
               strokeWidth={1.5}
             />
-            <p className="min-w-0 flex-1 text-base leading-relaxed tracking-tight text-muted-foreground">
+            <p className="min-w-0 flex-1 text-base leading-6 text-muted-foreground">
               {text}
-              <span className="text-muted-foreground/55"> · {timeAgo(e.at)}</span>
+              <span className="text-muted-foreground"> · {timeAgo(e.at)}</span>
             </p>
           </li>
         );
@@ -353,13 +353,13 @@ export function TasksPanel({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm tracking-tight text-muted-foreground tabular-nums">
+        <span className="text-sm text-muted-foreground tabular-nums">
           {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
         </span>
         <AddPicker label="Add tasks" candidates={candidates} onAdd={onAdd} />
       </div>
       {tasks.length === 0 ? (
-        <p className="py-4 text-base leading-relaxed text-muted-foreground">
+        <p className="py-4 text-sm text-muted-foreground">
           No tasks yet — use <span className="font-medium">Add tasks</span> to
           pull work in.
         </p>
@@ -370,24 +370,24 @@ export function TasksPanel({
               <section key={col.id}>
                 <div className="mb-2 flex items-center gap-2">
                   <StatusIcon status={col.id} className="size-3.5" />
-                  <h3 className="text-sm font-medium tracking-tight text-foreground">
+                  <h3 className="text-sm font-medium text-foreground">
                     {col.label}
                   </h3>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-xs text-faint-foreground tabular-nums">
                     {byStatus[col.id].length}
                   </span>
                 </div>
                 <ul
                   role="list"
-                  className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+                  className="flex flex-col divide-y divide-border border-t border-border"
                 >
                   {byStatus[col.id].map((t) => (
                     <li key={t.id} className="group/row relative">
                       <Link
                         href={`/p/${propertyId}/tasks/${t.id}`}
-                        className="flex items-center gap-3 rounded-md px-1 py-3 pr-8 transition-colors hover:bg-muted"
+                        className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 pr-8 transition-colors hover:bg-accent"
                       >
-                        <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                           {t.title || "Untitled task"}
                         </span>
                       </Link>
@@ -433,10 +433,10 @@ export function DocsPanel({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm tracking-tight text-muted-foreground tabular-nums">
+        <span className="text-sm text-muted-foreground tabular-nums">
           {docs.length} {docs.length === 1 ? "document" : "documents"}
           {pinnedIds && pinCount > 0 ? (
-            <span className="text-muted-foreground/70">
+            <span className="text-muted-foreground">
               {" "}
               · {pinCount} pinned
             </span>
@@ -445,14 +445,14 @@ export function DocsPanel({
         <AddPicker label="Add docs" candidates={candidates} onAdd={onAdd} />
       </div>
       {docs.length === 0 ? (
-        <p className="py-4 text-base leading-relaxed text-muted-foreground">
+        <p className="py-4 text-sm text-muted-foreground">
           No documents yet — use <span className="font-medium">Add docs</span> to
           link pages here.
         </p>
       ) : (
         <ul
           role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+          className="flex flex-col divide-y divide-border border-t border-border"
         >
           {docs.map((d) => {
             const isPinned = pinnedIds?.has(d.id) ?? false;
@@ -466,18 +466,18 @@ export function DocsPanel({
                     e.preventDefault();
                     openDocument(d.id);
                   }}
-                  className="flex items-center gap-3 rounded-md px-1 py-3 pr-16 transition-colors hover:bg-muted"
+                  className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 pr-16 transition-colors hover:bg-accent"
                 >
                   <FileText
                     strokeWidth={1.5}
                     className="size-4 shrink-0 text-muted-foreground"
                   />
-                  <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {d.title || "Untitled"}
                   </span>
                   {isPinned ? (
                     <Pin
-                      className="size-3 shrink-0 text-muted-foreground/60"
+                      className="size-3 shrink-0 text-muted-foreground"
                       strokeWidth={1.5}
                     />
                   ) : null}
@@ -492,7 +492,7 @@ export function DocsPanel({
                       onClick={() =>
                         isPinned ? onUnpin(d.id) : onPin(d.id)
                       }
-                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-40"
+                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-40"
                     >
                       {isPinned ? (
                         <PinOff className="size-3.5" />
@@ -529,7 +529,7 @@ export function Remove({
       title="Remove from space"
       onClick={onClick}
       className={cn(
-        "flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive",
+        "flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive",
         !inline &&
           "absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 transition-opacity group-hover/row:opacity-100",
       )}
@@ -573,7 +573,7 @@ export function AddPicker({
         </div>
         <ul className="mt-1.5 max-h-56 overflow-y-auto">
           {filtered.length === 0 ? (
-            <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+            <li className="px-2 py-3 text-center text-xs text-faint-foreground">
               Nothing to add
             </li>
           ) : (
@@ -582,7 +582,7 @@ export function AddPicker({
                 <button
                   type="button"
                   onClick={() => onAdd(c.id)}
-                  className="w-full truncate rounded-md px-2 py-1.5 text-left text-sm tracking-tight transition-colors hover:bg-muted"
+                  className="w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 >
                   {c.title || "Untitled"}
                 </button>

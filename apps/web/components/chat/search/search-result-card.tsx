@@ -63,7 +63,7 @@ export function SearchResultCard({ propertyId, message, channelId, query }: Prop
       <button
         type="button"
         onClick={jump}
-        className="group flex w-full gap-3 rounded-md border bg-card p-3 text-left transition hover:border-primary/50 hover:bg-muted/40"
+        className="group flex w-full gap-3 rounded-md bg-background p-3 text-left transition-colors hover:bg-accent"
       >
         <Avatar className="size-9 shrink-0">
           <AvatarImage src={message.user?.image as string | undefined} />

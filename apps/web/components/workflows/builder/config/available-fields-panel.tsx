@@ -43,7 +43,7 @@ export function AvailableFieldsPanel({
       open={open}
       onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
       className={cn(
-        "rounded-lg border border-border/60 bg-muted/[0.04]",
+        "rounded-lg bg-muted/[0.04]",
         className,
       )}
     >
@@ -54,12 +54,12 @@ export function AvailableFieldsPanel({
           aria-hidden
         />
       </summary>
-      <div className="space-y-3 border-t border-border/60 px-3 py-3">
+      <div className="space-y-3 border-t border-border px-3 py-3">
         {(mode === "condition" || mode === "both") && (
           <p className="text-xs leading-relaxed text-muted-foreground">
             Most people won’t need this — the builders above handle it for you. When editing a
             condition by hand, reference a field like:{" "}
-            <code className="rounded bg-muted/60 px-1 font-mono text-xs">
+            <code className="rounded-md bg-muted px-1 font-mono text-xs">
               {`{ "var": "trigger.new.priority" }`}
             </code>
           </p>
@@ -69,11 +69,11 @@ export function AvailableFieldsPanel({
             In <span className="font-medium text-foreground/80">text fields</span>, prefer the{" "}
             <span className="font-medium text-foreground/80">Insert data</span> button. To type a
             reference by hand, wrap the path:{" "}
-            <code className="rounded bg-muted/60 px-1 font-mono text-xs">
+            <code className="rounded-md bg-muted px-1 font-mono text-xs">
               {`{{trigger.new.priority}}`}
             </code>{" "}
             or step output{" "}
-            <code className="rounded bg-muted/60 px-1 font-mono text-xs">
+            <code className="rounded-md bg-muted px-1 font-mono text-xs">
               {`{{steps.my_step.output.label}}`}
             </code>
           </p>
@@ -81,7 +81,7 @@ export function AvailableFieldsPanel({
         <div className="max-h-[220px] space-y-3 overflow-y-auto">
           {grouped.map(({ group, items }) => (
             <div key={group}>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="mb-1.5 text-xs font-medium text-faint-foreground">
                 {group}
               </p>
               <ul className="space-y-1">
@@ -97,7 +97,7 @@ export function AvailableFieldsPanel({
                   return (
                     <li
                       key={item.path}
-                      className="flex items-start justify-between gap-2 rounded-md px-1 py-0.5 hover:bg-muted/40"
+                      className="flex items-start justify-between gap-2 rounded-md px-1 py-0.5 hover:bg-accent"
                     >
                       <div className="min-w-0">
                         <p className="text-sm text-foreground/90">{item.label}</p>
@@ -107,7 +107,7 @@ export function AvailableFieldsPanel({
                       </div>
                       <button
                         type="button"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent"
                         title="Copy path"
                         onClick={() => copyText(copyValue)}
                       >

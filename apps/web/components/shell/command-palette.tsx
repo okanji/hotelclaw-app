@@ -29,6 +29,45 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { useOpenChannel } from "@/lib/chat/use-open-channel";
+import { cn } from "@/lib/utils";
+
+/**
+ * Palette chrome, per docs/notion-spec.md §4/§5.
+ *
+ * The overlay recipe: 10px radius + the one three-layer elevation whose LAST
+ * layer is the 1px warm ring — so the panel carries no `border` and no
+ * `ring-*` utility (stacking either double-rings it).
+ */
+const PALETTE_PANEL = "rounded-overlay p-0 ring-0 shadow-overlay";
+
+/**
+ * The input row is 44px, chrome-free, and divided from the results by a single
+ * 1px warm ring — not by a boxed form control. `CommandInput` renders an
+ * `InputGroup` we can't reach through props, so it is retuned by data-slot
+ * from the `<Command>` wrapper.
+ */
+const PALETTE_INPUT_ROW = [
+  "[&_[data-slot=command-input-wrapper]]:border-b",
+  "[&_[data-slot=command-input-wrapper]]:border-border",
+  "[&_[data-slot=command-input-wrapper]]:p-0",
+  "[&_[data-slot=input-group]]:h-11!",
+  "[&_[data-slot=input-group]]:rounded-none!",
+  "[&_[data-slot=input-group]]:border-0!",
+  "[&_[data-slot=input-group]]:bg-transparent!",
+  "[&_[data-slot=input-group]]:ring-0!",
+  "[&_[data-slot=input-group]]:px-1!",
+].join(" ");
+
+/** Group heading: 12px/12px weight 500 faint, sentence case, no tracking. */
+const PALETTE_GROUP =
+  "**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:leading-3 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-faint-foreground";
+
+/** Result row: 28px tall, 6px radius, 14px label, warm fill on selection. */
+const PALETTE_ITEM =
+  "h-7 rounded-md px-2 py-0 text-sm data-selected:bg-accent";
+
+/** Right-aligned meta on a result row — 12px weight 400 faint. */
+const PALETTE_META = "ml-auto shrink-0 text-xs font-normal text-faint-foreground";
 
 type Member = {
   id: string;
@@ -217,24 +256,28 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
       onOpenChange={setOpen}
       title="Search"
       description="Search channels, people, tasks, and messages"
+      className={PALETTE_PANEL}
     >
       {/* This shadcn build of CommandDialog doesn't wrap children in
           <Command> itself, so cmdk's internal context isn't provided to
           its subcomponents. Wrap explicitly. `shouldFilter={false}` because
           we already do all the filtering server-side per group. */}
-      <Command shouldFilter={false}>
+      <Command
+        shouldFilter={false}
+        className={cn("rounded-overlay p-0", PALETTE_INPUT_ROW)}
+      >
         <CommandInput
           placeholder="Search channels, people, tasks, messages…"
           value={query}
           onValueChange={setQuery}
         />
-        <CommandList>
-          <CommandEmpty>
+        <CommandList className="p-1">
+          <CommandEmpty className="py-6 text-center text-sm text-faint-foreground">
             {hasQuery ? "No results." : "Start typing to search."}
           </CommandEmpty>
 
         {teamChannels.length > 0 ? (
-          <CommandGroup heading="Channels">
+          <CommandGroup heading="Channels" className={PALETTE_GROUP}>
             {teamChannels.map((c) => {
               const data = c.data as
                 | { name?: string; is_private?: boolean }
@@ -245,9 +288,10 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                   key={c.cid}
                   value={`channel-${c.cid}-${data?.name ?? c.id}`}
                   onSelect={() => goChannel(c.type, c.id ?? "")}
+                  className={PALETTE_ITEM}
                 >
-                  <Icon className="size-4 text-muted-foreground" />
-                  <span>{data?.name ?? c.id}</span>
+                  <Icon className="size-4 text-faint-foreground" />
+                  <span className="truncate">{data?.name ?? c.id}</span>
                 </CommandItem>
               );
             })}
@@ -255,36 +299,38 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
         ) : null}
 
         {dmChannels.length > 0 ? (
-          <CommandGroup heading="Direct messages">
+          <CommandGroup heading="Direct messages" className={PALETTE_GROUP}>
             {dmChannels.map((c) => (
               <CommandItem
                 key={c.cid}
                 value={`dm-${c.cid}-${dmTitle(c, me)}`}
                 onSelect={() => goChannel(c.type, c.id ?? "")}
+                className={PALETTE_ITEM}
               >
                 <DmIcon channel={c} currentUserId={me} />
-                <span>{dmTitle(c, me)}</span>
+                <span className="truncate">{dmTitle(c, me)}</span>
               </CommandItem>
             ))}
           </CommandGroup>
         ) : null}
 
         {filteredPeople.length > 0 ? (
-          <CommandGroup heading="People">
+          <CommandGroup heading="People" className={PALETTE_GROUP}>
             {filteredPeople.map((m) => (
               <CommandItem
                 key={m.id}
                 value={`person-${m.id}-${m.name ?? m.id}`}
                 onSelect={() => openOrCreateDm(m.id)}
+                className={PALETTE_ITEM}
               >
-                <Avatar className="size-5 outline-1 -outline-offset-1 outline-black/5">
+                <Avatar className="size-5">
                   <AvatarImage src={m.avatarUrl ?? undefined} />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-xs">
                     {initialsOf(m.name ?? m.id)}
                   </AvatarFallback>
                 </Avatar>
-                <span>{m.name ?? m.id}</span>
-                <span className="ml-auto text-xs text-muted-foreground capitalize">
+                <span className="truncate">{m.name ?? m.id}</span>
+                <span className={cn(PALETTE_META, "capitalize")}>
                   {m.role}
                 </span>
               </CommandItem>
@@ -293,16 +339,17 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
         ) : null}
 
         {filteredTasks.length > 0 ? (
-          <CommandGroup heading="Tasks">
+          <CommandGroup heading="Tasks" className={PALETTE_GROUP}>
             {filteredTasks.map((t) => (
               <CommandItem
                 key={t.id}
                 value={`task-${t.id}-${t.title}`}
                 onSelect={() => go(`/p/${propertyId}/tasks/${t.id}`)}
+                className={PALETTE_ITEM}
               >
-                <ListChecks className="size-4 text-muted-foreground" />
+                <ListChecks className="size-4 text-faint-foreground" />
                 <span className="truncate">{t.title}</span>
-                <span className="ml-auto text-xs text-muted-foreground capitalize">
+                <span className={cn(PALETTE_META, "capitalize")}>
                   {t.status.replace("_", " ")}
                 </span>
               </CommandItem>
@@ -311,7 +358,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
         ) : null}
 
         {messageHits.length > 0 ? (
-          <CommandGroup heading="Messages">
+          <CommandGroup heading="Messages" className={PALETTE_GROUP}>
             {messageHits.map(({ message, channelId }) => (
               <CommandItem
                 key={message.id}
@@ -323,13 +370,15 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                     });
                   }
                 }}
+                // Two-line result — the only row that outgrows the 28px pitch.
+                className={cn(PALETTE_ITEM, "h-auto items-start py-1.5")}
               >
-                <MessageSquareText className="size-4 text-muted-foreground" />
+                <MessageSquareText className="mt-0.5 size-4 text-faint-foreground" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm">
+                  <div className="truncate text-sm text-foreground">
                     {message.text || "(attachment)"}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-faint-foreground">
                     {message.user?.name ?? message.user?.id ?? "Someone"}
                   </div>
                 </div>
@@ -339,15 +388,16 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
         ) : null}
 
         {hasQuery ? (
-          <CommandGroup>
+          <CommandGroup className={PALETTE_GROUP}>
             <CommandItem
               value={`see-all-results-${trimmed}`}
               onSelect={() =>
                 go(`/p/${propertyId}/search?q=${encodeURIComponent(trimmed)}`)
               }
+              className={PALETTE_ITEM}
             >
-              <Search className="size-4 text-muted-foreground" />
-              <span>
+              <Search className="size-4 text-faint-foreground" />
+              <span className="truncate">
                 See all results for{" "}
                 <span className="font-medium text-foreground">
                   &ldquo;{trimmed}&rdquo;
@@ -401,12 +451,12 @@ function DmIcon({
     .map((m) => m.user)
     .find((u) => u && u.id !== currentUserId);
   if (!other) {
-    return <UserIcon className="size-4 text-muted-foreground" />;
+    return <UserIcon className="size-4 text-faint-foreground" />;
   }
   return (
-    <Avatar className="size-5 outline-1 -outline-offset-1 outline-black/5">
+    <Avatar className="size-5">
       <AvatarImage src={other.image as string | undefined} />
-      <AvatarFallback className="text-[10px]">
+      <AvatarFallback className="text-xs">
         {initialsOf(other.name ?? other.id)}
       </AvatarFallback>
     </Avatar>

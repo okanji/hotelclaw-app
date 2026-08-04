@@ -61,13 +61,13 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
           {runs.length > 0 ? (
             <ul
               role="list"
-              className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60"
+              className="divide-y divide-border"
             >
               {runs.map((r) => (
                 <li key={r.id}>
                   <Link
                     href={`/p/${propertyId}/workflows/${r.workflow_id}/runs/${r.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent"
                   >
                     <StatusBadge tone={STATUS_TONES[r.status] ?? "neutral"} dot={false}>
                       {r.status}
@@ -76,7 +76,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                       {r.workflow_name}
                     </span>
                     {r.is_dry_run ? (
-                      <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                      <Badge variant="outline" className="border-border text-muted-foreground">
                         test
                       </Badge>
                     ) : null}
@@ -94,7 +94,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
+            <div className="rounded-lg bg-muted p-12 text-center">
               <History className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-sm text-muted-foreground">
                 No runs yet across any workflow. Enable a workflow and trigger it

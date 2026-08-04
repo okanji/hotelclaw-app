@@ -48,7 +48,7 @@ export function TaskScopeChips({ task }: { task: Task }) {
 
 function Chip({ color, label }: { color: EntityColor; label: string }) {
   return (
-    <span className="flex max-w-[8rem] items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5 text-xs tracking-tight text-muted-foreground">
+    <span className="flex max-w-[8rem] items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs text-faint-foreground">
       <span className={cn("size-1.5 shrink-0 rounded-full", DOT[color])} />
       <span className="truncate">{label}</span>
     </span>

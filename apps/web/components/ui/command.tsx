@@ -25,7 +25,8 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+        // The palette floats → the 10px overlay radius.
+        "flex size-full flex-col overflow-hidden rounded-overlay bg-popover p-1 text-popover-foreground",
         className
       )}
       {...props}
@@ -55,7 +56,7 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+          "top-1/3 translate-y-0 overflow-hidden rounded-overlay p-0",
           className
         )}
         showCloseButton={showCloseButton}
@@ -72,7 +73,8 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+      {/* 6px control radius, warm fill instead of a gray stroke. */}
+      <InputGroup className="h-8! rounded-md! border-transparent! bg-accent shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
@@ -126,7 +128,8 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground",
+        // Group heading = the 12px/12px w500 faint section label.
+        "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-1.5 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-xs/[1] **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-faint-foreground",
         className
       )}
       {...props}
@@ -141,7 +144,7 @@ function CommandSeparator({
   return (
     <CommandPrimitive.Separator
       data-slot="command-separator"
-      className={cn("-mx-1 h-px bg-border", className)}
+      className={cn("-mx-1 my-1 h-px bg-border", className)}
       {...props}
     />
   )
@@ -156,7 +159,9 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+        // Menu row: 28px tall, 6px radius, 3px 6px padding, 14px/16.8px w400.
+        // Selection is a warm fill only — no label color flip.
+        "group/command-item relative flex min-h-7 cursor-default items-center gap-2 rounded-md px-1.5 py-[3px] text-sm/[1.2] outline-hidden transition-colors select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -175,7 +180,8 @@ function CommandShortcut({
     <span
       data-slot="command-shortcut"
       className={cn(
-        "ml-auto text-xs tracking-widest text-muted-foreground group-data-selected/command-item:text-foreground",
+        // Shortcut hint: 12px w400 faint, letter-spacing normal.
+        "ml-auto text-xs font-normal text-faint-foreground",
         className
       )}
       {...props}

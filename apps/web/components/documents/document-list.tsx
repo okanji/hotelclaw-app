@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { DocumentListSkeleton } from "./document-list-skeleton";
 import { DocumentRow } from "./document-row";
+import { EmptyState } from "@/components/ui/empty-state";
 import { documentsQueryOptions } from "@/lib/query/section-queries";
 
 /**
@@ -22,7 +23,7 @@ export function DocumentList({ propertyId }: { propertyId: string }) {
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
         Could not load documents
         {error instanceof Error ? `: ${error.message}` : "."}
       </div>
@@ -32,20 +33,12 @@ export function DocumentList({ propertyId }: { propertyId: string }) {
   const list = docs ?? [];
   if (list.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
-        <FileText
-          strokeWidth={1.5}
-          className="size-7 text-muted-foreground/50"
-        />
-        <p className="text-sm text-pretty text-muted-foreground">
-          No documents yet.
-        </p>
-      </div>
+      <EmptyState icon={FileText} title="No documents yet" />
     );
   }
 
   return (
-    <ul role="list" className="flex flex-col gap-0.5">
+    <ul role="list" className="flex flex-col gap-px">
       {list.map((d) => (
         <DocumentRow
           key={d.id}

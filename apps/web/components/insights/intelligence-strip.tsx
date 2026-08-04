@@ -44,7 +44,7 @@ export function IntelligenceUpdated({
   const { data } = useQuery(insightsBriefQueryOptions(propertyId, scope));
   if (!data?.brief) return null;
   return (
-    <span className="text-xs text-muted-foreground tabular-nums">
+    <span className="text-xs text-faint-foreground tabular-nums">
       updated {relativeShort(data.brief.generated_at)}
     </span>
   );
@@ -167,11 +167,11 @@ function InsightCardRow({
           ? "text-success"
           : "text-muted-foreground";
   return (
-    <article className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5">
+    <article className="flex items-start gap-3 rounded-md bg-card p-4 shadow-ring">
       <Icon className={cn("mt-0.5 size-4 shrink-0", iconTone)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 text-base font-semibold tracking-tight text-pretty text-foreground">
+          <h3 className="min-w-0 text-base leading-6 font-semibold text-pretty text-foreground">
             {card.headline}
           </h3>
           {card.spark !== "none" ? (
@@ -204,7 +204,7 @@ function InsightCardRow({
             <blockquote className="text-sm leading-relaxed text-pretty text-muted-foreground italic">
               “{card.evidence.quote}”
             </blockquote>
-            <figcaption className="mt-0.5 text-xs text-muted-foreground/70">
+            <figcaption className="mt-0.5 text-xs text-faint-foreground">
               {card.evidence.source}
             </figcaption>
           </figure>
@@ -220,7 +220,7 @@ function InsightCardRow({
         ) : null}
         {card.basis && card.basis.length > 0 ? (
           <details className="group/basis mt-0.5">
-            <summary className="w-fit cursor-pointer list-none text-xs text-muted-foreground/70 hover:text-muted-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="w-fit cursor-pointer list-none text-xs text-faint-foreground hover:text-muted-foreground [&::-webkit-details-marker]:hidden">
               From {card.basis.length} deterministic signal
               {card.basis.length === 1 ? "" : "s"}
             </summary>
@@ -228,7 +228,7 @@ function InsightCardRow({
               {card.basis.map((b, i) => (
                 <li
                   key={i}
-                  className="text-xs leading-relaxed text-muted-foreground/80"
+                  className="text-xs leading-relaxed text-muted-foreground"
                 >
                   · {b}
                 </li>

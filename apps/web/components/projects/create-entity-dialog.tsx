@@ -105,17 +105,17 @@ export function CreateEntityDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-medium tracking-tight">
+          <DialogTitle className="flex items-center gap-2 text-base font-medium">
             <Icon className="size-4 text-muted-foreground" />
             {copy.title}
           </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             {copy.description}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border/70 text-base">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-base">
             {icon.trim() || <Icon className="size-4 text-muted-foreground" />}
           </span>
           <Input
@@ -135,7 +135,7 @@ export function CreateEntityDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <span className="text-xs/[1] font-medium text-faint-foreground">
             Color
           </span>
           <div className="flex items-center gap-2">
@@ -146,9 +146,8 @@ export function CreateEntityDialog({
                 aria-label={c}
                 onClick={() => setColor(c)}
                 className={cn(
-                  "flex size-7 items-center justify-center rounded-full transition-transform hover:scale-110",
-                  color === c &&
-                    "ring-2 ring-foreground/40 ring-offset-2 ring-offset-background",
+                  "flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent",
+                  color === c && "bg-accent-pressed shadow-focus",
                 )}
               >
                 <span className={cn("size-4 rounded-full", SWATCH[c])} />
@@ -158,7 +157,7 @@ export function CreateEntityDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <span className="text-xs/[1] font-medium text-faint-foreground">
             Icon (optional)
           </span>
           <Input

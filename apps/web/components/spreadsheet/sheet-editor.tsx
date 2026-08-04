@@ -141,15 +141,15 @@ function SheetInner({
   if (!ready && !showTimeoutSkeleton) return <SheetSkeleton />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-background">
-      <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/20 px-6 py-1.5">
+    <div className="flex h-full min-h-0 flex-col bg-card">
+      <div className="flex h-11 shrink-0 items-center px-6">
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}
           currentTitle={initialTitle}
         />
       </div>
-      <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-muted/40 px-6 py-2">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-2">
         <SheetTitleBar
           documentId={documentId}
           initialTitle={initialTitle}
@@ -159,7 +159,7 @@ function SheetInner({
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
-            className="hidden text-sm text-muted-foreground tabular-nums sm:block"
+            className="hidden text-sm text-faint-foreground tabular-nums sm:block"
           />
           <DocumentRoomAvatarStack max={5} size={28} />
         </div>

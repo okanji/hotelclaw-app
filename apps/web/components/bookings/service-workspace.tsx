@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseServiceSchedule } from "@/lib/bookings/schema";
@@ -78,54 +79,51 @@ export function ServiceWorkspace({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-            {service.emoji ? `${service.emoji} ` : ""}
-            {service.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {kindNoun}
-            {schedule.priceLabel ? ` · ${schedule.priceLabel}` : ""}
-            {!service.active ? " · paused" : ""}
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {propertySlug && service.public_bookable ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // Events get their own Luma-style landing page; everything
-                // else shares the property wizard.
-                const url = isEvent
-                  ? `${window.location.origin}/book/${propertySlug}/event/${service.id}`
-                  : `${window.location.origin}/book/${propertySlug}`;
-                window.open(url, "_blank", "noopener,noreferrer");
-              }}
-            >
-              <ExternalLink data-slot="icon" />
-              {isEvent ? "Ticket page" : "Public page"}
+      {/* Same masthead tier as every other index page (`ui/section-header`
+          size="page" — 40/48 weight 700, no rule). */}
+      <SectionHeader
+        size="page"
+        className="mb-10 flex-wrap gap-y-3"
+        title={`${service.emoji ? `${service.emoji} ` : ""}${service.name}`}
+        description={`${kindNoun}${
+          schedule.priceLabel ? ` · ${schedule.priceLabel}` : ""
+        }${!service.active ? " · paused" : ""}`}
+        actions={
+          <>
+            {propertySlug && service.public_bookable ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // Events get their own Luma-style landing page; everything
+                  // else shares the property wizard.
+                  const url = isEvent
+                    ? `${window.location.origin}/book/${propertySlug}/event/${service.id}`
+                    : `${window.location.origin}/book/${propertySlug}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+              >
+                <ExternalLink data-slot="icon" />
+                {isEvent ? "Ticket page" : "Public page"}
+              </Button>
+            ) : null}
+            {isEvent ? (
+              <Button variant="outline" size="sm" onClick={() => setPageDialogOpen(true)}>
+                <Palette data-slot="icon" />
+                Customize page
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={onEditService}>
+              <Pencil data-slot="icon" />
+              Edit service
             </Button>
-          ) : null}
-          {isEvent ? (
-            <Button variant="outline" size="sm" onClick={() => setPageDialogOpen(true)}>
-              <Palette data-slot="icon" />
-              Customize page
+            <Button size="sm" onClick={onNewBooking}>
+              <Plus data-slot="icon" />
+              {isEvent ? "Sell tickets" : "New booking"}
             </Button>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={onEditService}>
-            <Pencil data-slot="icon" />
-            Edit service
-          </Button>
-          <Button size="sm" onClick={onNewBooking}>
-            <Plus data-slot="icon" />
-            {isEvent ? "Sell tickets" : "New booking"}
-          </Button>
-        </div>
-      </header>
-
-      <hr className="border-border" />
+          </>
+        }
+      />
 
       {isEvent ? (
         <TicketingView bookings={scoped} schedule={schedule} />
@@ -180,7 +178,7 @@ function DayNav({ day, onChange }: { day: string; onChange: (d: string) => void 
       <button
         type="button"
         onClick={() => onChange(todayKey())}
-        className="min-w-44 text-center text-sm font-medium hover:text-foreground"
+        className="h-7 min-w-44 rounded-md px-2 text-center text-sm font-medium transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
       >
         {day === todayKey() ? `Today — ${label}` : label}
       </button>
@@ -217,7 +215,7 @@ function ScopedAgenda({
 
   if (dayBookings.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+      <p className="py-10 text-center text-sm text-muted-foreground">
         Nothing booked this day.
       </p>
     );
@@ -255,7 +253,7 @@ function ScopedAgenda({
           );
         })}
       </div>
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
         {dayBookings
           .filter((b) => statusFilter === "all" || b.status === statusFilter)
           .map((booking) => (
@@ -390,11 +388,11 @@ function TicketingView({
         </div>
       ) : null}
 
-      {/* Sales + door pulse */}
-      <div className="space-y-2 rounded-lg border border-border p-4">
+      {/* Sales + door pulse — a warm well, not a bordered card. */}
+      <div className="space-y-2 rounded-md bg-muted px-4 py-3.5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-sm">
-            <span className="text-2xl font-semibold tracking-tight tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums">
               {sold}
             </span>
             <span className="text-muted-foreground"> / {capacity} tickets</span>
@@ -424,23 +422,23 @@ function TicketingView({
       {/* Door list — alphabetical, searchable, one-tap check-in. */}
       <div className="space-y-2">
         <div className="relative">
-          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-faint-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a name or reference…"
-            className="h-9 pl-8"
+            className="pl-7"
             aria-label="Search the door list"
           />
         </div>
         {visible.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-sm text-muted-foreground">
             {dayBookings.length === 0
               ? "No tickets reserved for this date yet."
               : "Nobody matches that search."}
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
+          <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
             {visible.map((b) => (
               <DoorRow key={b.id} booking={b} />
             ))}
@@ -469,7 +467,8 @@ function DoorRow({ booking }: { booking: BookingListItem }) {
   return (
     <li
       className={cn(
-        "flex items-center gap-3 px-4 py-3",
+        // Same 34px/6px data row as the agenda and every other list surface.
+        "flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
         terminal && "opacity-60",
       )}
     >
@@ -481,7 +480,7 @@ function DoorRow({ booking }: { booking: BookingListItem }) {
             · {booking.party_size} ticket{booking.party_size === 1 ? "" : "s"}
           </span>
         </p>
-        <p className="truncate font-mono text-xs text-muted-foreground">
+        <p className="truncate font-mono text-xs text-faint-foreground">
           {booking.reference}
           {booking.guest_phone ? ` · ${booking.guest_phone}` : ""}
         </p>

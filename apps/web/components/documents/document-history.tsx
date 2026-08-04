@@ -39,7 +39,7 @@ export function DocumentHistory({ editor }: { editor: Editor | null }) {
           <button
             {...props}
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/15 px-2.5 py-1 text-xs text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
             title="Version history"
           >
             <History className="size-3.5" />
@@ -51,7 +51,7 @@ export function DocumentHistory({ editor }: { editor: Editor | null }) {
         side="right"
         className="w-full gap-0 p-0 sm:max-w-3xl"
       >
-        <SheetHeader className="border-b border-border/60">
+        <SheetHeader className="border-b border-border">
           <SheetTitle>Version history</SheetTitle>
         </SheetHeader>
         {open && editor ? (
@@ -104,7 +104,7 @@ function HistoryContents({
 
   return (
     <div className="flex min-h-0 flex-1">
-      <aside className="w-56 shrink-0 overflow-y-auto border-r border-border/60 p-2">
+      <aside className="w-56 shrink-0 overflow-y-auto border-r border-border p-2">
         <HistoryVersionSummaryList>
           {versions.map((version) => (
             <HistoryVersionSummary

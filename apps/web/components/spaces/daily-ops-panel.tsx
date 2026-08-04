@@ -280,7 +280,7 @@ export function DailyOpsPanel({
   return (
     <div className="flex flex-col gap-5">
       {dueToday.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-md bg-muted px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
               <p className="text-sm font-medium text-foreground">
@@ -315,7 +315,7 @@ export function DailyOpsPanel({
       ) : null}
 
       {ratingOpen && !signedOff ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
+        <div className="flex flex-col gap-3 rounded-md bg-muted p-4">
           <p className="text-sm font-medium text-foreground">
             How did the day go?
           </p>
@@ -326,10 +326,10 @@ export function DailyOpsPanel({
                 type="button"
                 onClick={() => setRating(rating === n ? null : n)}
                 className={cn(
-                  "size-8 rounded-full border text-xs font-medium tabular-nums transition-colors",
+                  "size-8 rounded-md text-xs font-medium tabular-nums transition-colors",
                   rating === n
-                    ? "border-foreground/40 bg-foreground text-background"
-                    : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground",
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-accent",
                 )}
               >
                 {n}
@@ -375,7 +375,7 @@ export function DailyOpsPanel({
         return (
           <div
             key={routine.id}
-            className="flex flex-col gap-2 rounded-xl border border-border/60 p-4"
+            className="flex flex-col gap-2 rounded-md bg-muted p-4"
           >
             <div className="flex items-center justify-between gap-3">
               <h4 className="text-sm font-medium text-foreground">
@@ -395,7 +395,7 @@ export function DailyOpsPanel({
                         refresh();
                       })
                     }
-                    className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] font-medium text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400"
+                    className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning transition-colors hover:bg-warning/20"
                   >
                     Review suggested
                   </button>
@@ -409,7 +409,7 @@ export function DailyOpsPanel({
                   className={cn(
                     "text-xs tabular-nums",
                     done.size === routine.items.length
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-success"
                       : "text-muted-foreground",
                   )}
                 >
@@ -437,10 +437,10 @@ export function DailyOpsPanel({
               </div>
             </div>
             {isManagement && (feedbackByRoutine.get(routine.id)?.length ?? 0) > 0 ? (
-              <ul className="flex flex-col gap-0.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+              <ul className="flex flex-col gap-0.5 rounded-md bg-warning/10 px-3 py-2">
                 {feedbackByRoutine.get(routine.id)!.slice(0, 4).map((f) => (
-                  <li key={f.id} className="text-xs text-muted-foreground">
-                    <Flag className="mr-1.5 inline size-3 text-amber-500" />
+                  <li key={f.id} className="text-xs text-faint-foreground">
+                    <Flag className="mr-1.5 inline size-3 text-warning" />
                     {f.note}
                   </li>
                 ))}
@@ -449,7 +449,7 @@ export function DailyOpsPanel({
             <ul className="flex flex-col gap-1">
               {routine.items.map((item) => (
                 <li key={item.id}>
-                  <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-muted/40">
+                  <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-accent">
                     <Checkbox
                       checked={done.has(item.id)}
                       disabled={pending}
@@ -546,7 +546,7 @@ function NewRoutineForm({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-4">
+    <div className="flex flex-col gap-3 rounded-md bg-muted p-4">
       <Input
         autoFocus
         value={name}
@@ -573,10 +573,10 @@ function NewRoutineForm({
               )
             }
             className={cn(
-              "rounded-full border px-2.5 py-1 text-xs transition-colors",
+              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               days.includes(day)
-                ? "border-foreground/30 bg-muted text-foreground"
-                : "border-border/60 text-muted-foreground hover:text-foreground",
+                ? "bg-accent-pressed text-foreground"
+                : "text-muted-foreground hover:bg-accent",
             )}
           >
             {label}
@@ -649,7 +649,7 @@ function RoutineFlagButton({
         title="Flag something about this routine"
         aria-label="Flag this routine"
         onClick={() => setOpen(true)}
-        className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
+        className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
       >
         <Flag className="size-3.5" />
       </button>
@@ -763,12 +763,12 @@ export function TeamScoreboard({
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-xl border border-border/60 px-4 py-3"
+          className="rounded-md bg-muted px-4 py-3"
         >
-          <p className="text-lg font-semibold tracking-tight text-foreground tabular-nums">
+          <p className="text-2xl leading-8 font-semibold text-foreground tabular-nums">
             {stat.value}
           </p>
-          <p className="text-xs text-muted-foreground">{stat.label}</p>
+          <p className="text-xs text-faint-foreground">{stat.label}</p>
         </div>
       ))}
     </div>

@@ -225,7 +225,7 @@ export function MyTasks({
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header>
         <p className="text-sm text-muted-foreground">{dateLine}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-balance">
+        <h1 className="mt-1 text-[2.5rem] leading-[3rem] font-bold text-balance">
           {greeting}
           {firstName ? `, ${firstName.split(" ")[0]}` : ""}
         </h1>
@@ -241,11 +241,11 @@ export function MyTasks({
 
       {/* Since your last shift — the existing brief, same payload as Home. */}
       <section className="mt-8">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-foreground">
           <Sparkles className="size-4 shrink-0 text-muted-foreground" />
           Since your last shift
         </h2>
-        <div className="mt-2 rounded-xl border border-border/70 p-4">
+        <div className="mt-2 rounded-md bg-muted p-4">
           <ShiftBriefWidget propertyId={propertyId} />
         </div>
       </section>
@@ -262,8 +262,8 @@ export function MyTasks({
           <div className="mt-10 flex flex-col gap-10">
             {blocked.length > 0 ? (
               <section>
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-warning">
-                  <AlertTriangle className="size-4 shrink-0" />
+                <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-foreground">
+                  <AlertTriangle className="size-4 shrink-0 text-warning" />
                   Blocked — needs unsticking
                 </h2>
                 <div className="mt-2 flex flex-col">
@@ -276,9 +276,9 @@ export function MyTasks({
 
             {overdue.length > 0 ? (
               <section>
-                <h2 className="flex items-baseline gap-2 text-sm font-semibold text-destructive">
+                <h2 className="flex items-baseline gap-2 text-base leading-6 font-semibold text-foreground">
                   Overdue
-                  <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                  <span className="text-xs font-normal tabular-nums text-destructive">
                     {overdue.length}
                   </span>
                 </h2>
@@ -317,7 +317,7 @@ export function MyTasks({
 
             {recentMentions.length > 0 ? (
               <section>
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+                <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-foreground">
                   <AtSign className="size-4 shrink-0 text-muted-foreground" />
                   Replies owed
                   <Link
@@ -327,7 +327,7 @@ export function MyTasks({
                     All mentions
                   </Link>
                 </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-xs text-faint-foreground">
                   Where you were @-mentioned this week.
                 </p>
                 <ul className="mt-2 space-y-2" role="list">
@@ -340,13 +340,13 @@ export function MyTasks({
 
             {delegated.length > 0 ? (
               <section>
-                <h2 className="flex items-baseline gap-2 text-sm font-semibold">
+                <h2 className="flex items-baseline gap-2 text-base leading-6 font-semibold text-foreground">
                   Waiting on others
                   <span className="text-xs font-normal tabular-nums text-muted-foreground">
                     {delegated.length}
                   </span>
                 </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-xs text-faint-foreground">
                   Tasks you created and handed off — still open.
                 </p>
                 <div className="mt-2 flex flex-col">
@@ -378,7 +378,7 @@ export function MyTasks({
 
           <PortalDragOverlay>
             {draggingTask ? (
-              <div className="w-fit max-w-xs truncate rounded-md bg-background px-3 py-1.5 text-sm font-medium shadow-md ring-1 ring-black/5">
+              <div className="w-fit max-w-xs truncate rounded-overlay bg-popover px-3 py-1.5 text-sm font-medium shadow-overlay">
                 {draggingTask.title}
               </div>
             ) : null}
@@ -414,11 +414,11 @@ function DroppableBucket({
     <section
       ref={setNodeRef}
       className={cn(
-        "-mx-3 rounded-lg px-3 py-1 transition-colors",
-        isOver && "bg-primary/5 ring-1 ring-primary/30",
+        "-mx-3 rounded-md px-3 py-1 transition-colors",
+        isOver && "bg-accent-pressed ring-1 ring-ring",
       )}
     >
-      <h2 className="flex items-baseline gap-2 text-sm font-semibold">
+      <h2 className="flex items-baseline gap-2 text-base leading-6 font-semibold text-foreground">
         {bucket.label}
         <span className="text-xs font-normal tabular-nums text-muted-foreground">
           {tasks.length}
@@ -431,7 +431,7 @@ function DroppableBucket({
       </h2>
       <div className="mt-2 flex flex-col">
         {tasks.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border/70 px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-md bg-muted px-3 py-2 text-xs text-faint-foreground">
             Drop a task here
           </div>
         ) : (
@@ -453,17 +453,22 @@ function Stat({
   emphasize?: boolean;
   amber?: boolean;
 }) {
+  // Same stacked shape as `ui/stat` — 12px/12px w500 faint label ABOVE a 24px
+  // tabular value. (Local rather than `ui/stat` only because this strip colors
+  // the value when a count needs attention.)
   return (
-    <div>
+    <div className="min-w-0">
+      <p className="truncate text-xs leading-3 font-medium text-faint-foreground">
+        {label}
+      </p>
       <p
         className={cn(
-          "text-xl font-semibold tracking-tight tabular-nums",
+          "mt-1.5 text-2xl font-semibold tabular-nums text-foreground",
           emphasize && (amber ? "text-warning" : "text-destructive"),
         )}
       >
         {value}
       </p>
-      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -526,7 +531,7 @@ function TaskRow({
       ref={setNodeRef}
       className={cn(
         "group -mx-2 flex items-center gap-2.5 rounded-md px-2 py-1.5",
-        "hover:bg-muted/50",
+        "hover:bg-accent",
         justDone && "opacity-40",
         isDragging && "opacity-40",
       )}
@@ -537,21 +542,21 @@ function TaskRow({
           {...attributes}
           {...listeners}
           aria-label={`Reschedule "${task.title}" by dragging`}
-          className="-ml-1 cursor-grab touch-none rounded p-0.5 text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:text-foreground active:cursor-grabbing"
+          className="-ml-1 cursor-grab touch-none rounded-md p-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" />
         </button>
       ) : null}
 
       {readOnly ? (
-        <CircleDashed className="size-4 shrink-0 text-muted-foreground/50" />
+        <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
       ) : (
         <button
           type="button"
           aria-label={`Mark "${task.title}" done`}
           disabled={busy || justDone}
           onClick={() => setStatus("done")}
-          className="group/check relative flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 transition-colors hover:border-success disabled:pointer-events-none"
+          className="group/check relative flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 transition-colors disabled:pointer-events-none"
         >
           <span
             className="pointer-events-none absolute top-1/2 left-1/2 size-[max(100%,2rem)] -translate-1/2"
@@ -584,14 +589,14 @@ function TaskRow({
       </Link>
 
       {assigneeName ? (
-        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+        <span className="flex shrink-0 items-center gap-1 text-xs text-faint-foreground">
           <ArrowRight className="size-3" />
           {assigneeName}
         </span>
       ) : null}
 
       {task.project_name ? (
-        <span className="hidden max-w-32 shrink-0 truncate text-xs text-muted-foreground sm:inline">
+        <span className="hidden max-w-32 shrink-0 truncate text-xs text-faint-foreground sm:inline">
           {task.project_name}
         </span>
       ) : null}
@@ -627,7 +632,7 @@ function TaskRow({
           Start
         </Button>
       ) : (
-        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100" />
+        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
       )}
     </div>
   );

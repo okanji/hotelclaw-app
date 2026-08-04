@@ -161,8 +161,8 @@ export function WeekGrid({
             key={d.toDateString()}
             className={cn(
               "flex flex-1 flex-col gap-1 border-r border-border px-1.5 py-1.5",
-              isWeekend(d) && "bg-muted/30",
-              isSameDay(d, new Date()) && "bg-primary/4",
+              isWeekend(d) && "bg-muted",
+              isSameDay(d, new Date()) && "bg-accent",
             )}
           >
             <DayHeader date={d} />
@@ -176,7 +176,7 @@ export function WeekGrid({
                   onEditEvent={onEditEvent}
                   onMutated={onMutated}
                   triggerClassName={cn(
-                    "truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-xs font-medium",
+                    "truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-xs font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
                     eventTint(ev),
                   )}
                 >
@@ -216,10 +216,12 @@ function DayHeader({ date }: { date: Date }) {
   const today = isSameDay(date, new Date());
   return (
     <div className="flex items-baseline justify-between">
+      {/* Sentence case, no tracking — the uppercase tracked weekday was the
+          loudest "template" tell on the grid (notion-spec §3). */}
       <span
         className={cn(
-          "text-xs font-medium uppercase tracking-wide",
-          today ? "text-primary" : "text-muted-foreground",
+          "text-xs leading-3 font-medium",
+          today ? "text-foreground" : "text-faint-foreground",
         )}
       >
         {date.toLocaleDateString(undefined, { weekday: "short" })}
@@ -246,7 +248,7 @@ function HourAxis() {
           {/* Label sits centered on the hour rule, Google Calendar style,
               rather than floating below it. */}
           {h > 0 ? (
-            <div className="absolute inset-x-0 top-0 -translate-y-1/2 pr-2 text-right text-[10px] font-medium tabular-nums text-muted-foreground/80">
+            <div className="absolute inset-x-0 top-0 -translate-y-1/2 pr-2 text-right text-xs leading-3 font-medium tabular-nums text-faint-foreground">
               {formatHourLabel(h)}
             </div>
           ) : null}
@@ -399,9 +401,9 @@ function DayColumn({
       }}
       className={cn(
         "relative flex-1 border-r border-border",
-        isWeekend(day) && "bg-muted/30",
-        isSameDay(day, new Date()) && "bg-primary/4",
-        droppable.isOver && "bg-primary/10",
+        isWeekend(day) && "bg-muted",
+        isSameDay(day, new Date()) && "bg-accent",
+        droppable.isOver && "bg-accent-pressed",
       )}
       style={{ height: HOUR_HEIGHT_PX * 24 }}
       onPointerDown={handlePointerDown}
@@ -412,11 +414,11 @@ function DayColumn({
       {Array.from({ length: 24 }, (_, h) => (
         <div key={h}>
           <div
-            className="absolute inset-x-0 border-t border-border/60"
+            className="absolute inset-x-0 border-t border-border"
             style={{ top: h * HOUR_HEIGHT_PX }}
           />
           <div
-            className="absolute inset-x-0 border-t border-dashed border-border/30"
+            className="absolute inset-x-0 border-t border-dashed border-border"
             style={{ top: h * HOUR_HEIGHT_PX + HOUR_HEIGHT_PX / 2 }}
           />
         </div>
@@ -476,7 +478,7 @@ function DayColumn({
       {/* Drag-to-create slot preview */}
       {drag ? (
         <div
-          className="pointer-events-none absolute inset-x-1 rounded-md border border-primary/60 bg-primary/15"
+          className="pointer-events-none absolute inset-x-1 rounded-md bg-accent-pressed"
           style={{
             top: (drag.startMin / 60) * HOUR_HEIGHT_PX,
             height:
@@ -489,14 +491,14 @@ function DayColumn({
           occupy if released here, snapped to the 15-minute grid. */}
       {taskDrop ? (
         <div
-          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs shadow-sm ring-1 ring-inset", EVENT_VISUALS.task.block)}
+          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs", EVENT_VISUALS.task.block)}
           style={{
             top: (taskDrop.startMin / 60) * HOUR_HEIGHT_PX,
             height: HOUR_HEIGHT_PX,
           }}
         >
           <div className="truncate font-medium">{taskDrop.title}</div>
-          <div className="truncate text-xs tabular-nums opacity-70">
+          <div className="truncate text-xs tabular-nums opacity-75">
             {formatMinutesLabel(day, taskDrop.startMin)} –{" "}
             {formatMinutesLabel(day, taskDrop.startMin + 60)}
           </div>
@@ -538,7 +540,7 @@ function EventPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-event-block
-        className={cn(triggerClassName, open && "ring-2 ring-foreground/40")}
+        className={cn(triggerClassName, open && "ring-2 ring-ring")}
         // Open lifts the block clear of its shingled neighbours.
         style={open ? { ...triggerStyle, zIndex: 40 } : triggerStyle}
       >
@@ -608,7 +610,9 @@ function PositionedEvent({
       onEditEvent={onEditEvent}
       onMutated={onMutated}
       triggerClassName={cn(
-        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs shadow-xs ring-1 ring-inset transition-shadow hover:shadow-md dark:shadow-none dark:hover:shadow-none",
+        // Fill + accent edge only. Blocks are resting surfaces, so they get
+        // no shadow and no stroke — hover is a fill shift (notion-spec §5/§6).
+        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
         eventTint(event),
       )}
       triggerStyle={{
@@ -667,8 +671,8 @@ function ClusterTile({
       <PopoverTrigger
         data-event-block
         className={cn(
-          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border/70 bg-card text-center text-foreground shadow-sm ring-1 ring-inset ring-border transition-colors hover:border-foreground/30 hover:bg-accent",
-          open && "ring-2 ring-foreground/40",
+          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md bg-card text-center text-foreground shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
+          open && "ring-2 ring-ring",
         )}
         style={{
           top,
@@ -678,12 +682,12 @@ function ClusterTile({
           zIndex: open ? 40 : 6,
         }}
       >
-        <span className="flex items-center gap-1 text-xs font-semibold leading-none">
+        <span className="flex items-center gap-1 text-xs leading-none font-medium">
           <Layers className="size-3 opacity-70" />
           {count}
         </span>
         {!compact ? (
-          <span className="text-xs font-medium uppercase tracking-wide leading-none text-muted-foreground">
+          <span className="text-xs leading-none font-medium text-faint-foreground">
             events
           </span>
         ) : null}
@@ -763,7 +767,7 @@ function ClusterCard({
       <div className={cn("flex flex-col gap-1", selected && "hidden")}>
         <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
           <span className="text-sm font-medium">{events.length} events</span>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-xs tabular-nums text-faint-foreground">
             {formatTimeRange(start, end)}
           </span>
         </div>
@@ -773,7 +777,7 @@ function ClusterCard({
               key={`${ev.source}:${ev.id}`}
               type="button"
               onClick={() => setSelected(ev)}
-              className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-accent"
+              className="flex min-h-7 items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
             >
               <span
                 className={cn(
@@ -785,10 +789,10 @@ function ClusterCard({
                 }
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium">
+                <span className="block truncate text-sm font-medium">
                   {ev.title}
                 </span>
-                <span className="block text-xs tabular-nums text-muted-foreground">
+                <span className="block text-xs tabular-nums text-faint-foreground">
                   {formatTimeRange(new Date(ev.start), new Date(ev.end))}
                 </span>
               </span>
@@ -802,7 +806,7 @@ function ClusterCard({
           <button
             type="button"
             onClick={() => setSelected(null)}
-            className="flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
           >
             <ChevronLeft className="size-3.5" />
             All {events.length} events
@@ -879,7 +883,7 @@ function FreeBusyLanes({
               return (
                 <div
                   key={`${slot.start_at}-${idx}`}
-                  className="absolute inset-x-0 rounded-sm"
+                  className="absolute inset-x-0 rounded-full"
                   style={{
                     top,
                     height,

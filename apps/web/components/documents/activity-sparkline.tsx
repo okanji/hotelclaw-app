@@ -51,7 +51,7 @@ export function ActivitySparkline({
       viewBox={`0 0 ${width} ${height}`}
       width={width}
       height={height}
-      className={cn("block shrink-0 text-primary/80", className)}
+      className={cn("block shrink-0 text-muted-foreground", className)}
       aria-hidden="true"
     >
       <defs>

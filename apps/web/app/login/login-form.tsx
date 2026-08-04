@@ -122,11 +122,11 @@ export function LoginForm({ next }: { next: string | null }) {
   if (signupNeedsConfirm) {
     return (
       <div className="space-y-6">
-        <span className="flex size-11 items-center justify-center rounded-xl bg-muted">
+        <span className="flex size-11 items-center justify-center rounded-md bg-muted">
           <Mail className="size-5 text-muted-foreground" />
         </span>
         <div className="space-y-2">
-          <h1 className="font-serif text-3xl font-medium tracking-tight text-balance">
+          <h1 className="text-2xl font-semibold text-balance">
             Check your inbox
           </h1>
           <p className="text-sm text-muted-foreground text-pretty">
@@ -154,7 +154,7 @@ export function LoginForm({ next }: { next: string | null }) {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="font-serif text-3xl font-medium tracking-tight text-balance">
+        <h1 className="text-2xl font-semibold text-balance">
           {mode === "signin" ? "Welcome back" : "Create your account"}
         </h1>
         <p className="text-sm text-muted-foreground text-pretty">
@@ -181,7 +181,7 @@ export function LoginForm({ next }: { next: string | null }) {
             />
           </div>
           {invitePreview.length > 0 ? (
-            <div className="rounded-md border bg-muted/40 p-3">
+            <div className="rounded-md border bg-muted p-3">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium">
                 <Mail className="size-3.5" />
                 You've been invited to:

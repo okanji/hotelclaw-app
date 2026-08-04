@@ -280,11 +280,9 @@ function Prompt({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Search className="size-5" />
-      </div>
-      <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="max-w-sm text-xs text-muted-foreground">{body}</p>
+      <Search className="size-5 text-faint-foreground" aria-hidden />
+      <h2 className="text-sm font-medium">{title}</h2>
+      <p className="max-w-sm text-sm text-pretty text-muted-foreground">{body}</p>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );
@@ -292,7 +290,7 @@ function Prompt({
 
 function SkeletonCard() {
   return (
-    <div className="flex gap-3 rounded-md border bg-card p-3">
+    <div className="flex gap-3 rounded-md bg-background p-3">
       <Skeleton className="size-9 shrink-0 rounded-full" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-3 w-1/3" />

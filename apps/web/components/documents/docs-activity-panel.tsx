@@ -15,7 +15,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { EmptyState as HouseEmptyState } from "@/components/ui/empty-state";
 import {
   Sheet,
   SheetContent,
@@ -201,10 +202,10 @@ function DocsActivityPanelContent({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <SheetHeader className="gap-1.5 border-b border-border/60 p-5 pr-14">
+      <SheetHeader className="gap-1.5 border-b border-border p-5 pr-14">
         <div className="flex items-center gap-2">
           <span
-            className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary"
+            className="flex size-6 items-center justify-center rounded-md bg-muted text-muted-foreground"
             aria-hidden="true"
           >
             <Radio className="size-3.5" />
@@ -212,7 +213,7 @@ function DocsActivityPanelContent({
           <SheetTitle className="flex-1">Activity</SheetTitle>
           {liveDocs.length > 0 ? (
             <Badge variant="secondary" className="tabular-nums">
-              <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-primary" />
+              <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-success" />
               {liveDocs.length} live
             </Badge>
           ) : null}
@@ -232,10 +233,9 @@ function DocsActivityPanelContent({
 
           {liveDocs.length > 0 ? (
             <Section title="Live now" count={liveDocs.length}>
-              <ul role="list" className="flex flex-col">
-                {liveDocs.map((doc, index) => (
+              <ul role="list" className="flex flex-col gap-px">
+                {liveDocs.map((doc) => (
                   <li key={doc.id}>
-                    {index > 0 ? <Separator className="bg-border/50" /> : null}
                     <LiveDocRow
                       doc={doc}
                       propertyId={propertyId}
@@ -251,10 +251,9 @@ function DocsActivityPanelContent({
             {recentActivity.length === 0 ? (
               <EmptyState />
             ) : (
-              <ul role="list" className="flex flex-col">
-                {recentActivity.map((item, index) => (
+              <ul role="list" className="flex flex-col gap-px">
+                {recentActivity.map((item) => (
                   <li key={item.id}>
-                    {index > 0 ? <Separator className="bg-border/50" /> : null}
                     <ActivityRow
                       item={item}
                       propertyId={propertyId}
@@ -288,11 +287,9 @@ function Section({
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {title}
-        </h3>
+        <Eyebrow>{title}</Eyebrow>
         {typeof count === "number" ? (
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-faint-foreground tabular-nums">
             {count}
           </span>
         ) : null}
@@ -312,20 +309,22 @@ function StatsCard({
   pulse: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 p-4">
+    <div className="flex items-center justify-between gap-4 rounded-md bg-muted p-4">
+      {/* Stacked stat: 12px/12px w500 faint label ABOVE the 24px tabular
+          value — the house order (`ui/stat`, `ui/stat-card`). */}
       <div className="min-w-0">
-        <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-          {total}
-        </p>
-        <p className="mt-0.5 text-xs whitespace-nowrap text-muted-foreground">
+        <p className="text-xs leading-3 font-medium whitespace-nowrap text-faint-foreground">
           events · last {SPARKLINE_DAYS} days
+        </p>
+        <p className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">
+          {total}
         </p>
       </div>
       <ActivitySparkline
         values={sparkline}
         size="lg"
         pulseLast={pulse}
-        className="text-primary"
+        className="text-muted-foreground"
       />
     </div>
   );
@@ -344,22 +343,22 @@ function LiveDocRow({
     <Link
       href={documentHref(propertyId, doc.id)}
       onClick={(e) => onOpen(e, doc.id)}
-      className="group flex items-center gap-3 rounded-md px-1 py-2.5 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 rounded-md px-1.5 py-2 outline-none transition-colors hover:bg-accent focus-visible:shadow-focus"
     >
       <span
-        className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+        className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
         aria-hidden="true"
       >
         <span className="relative flex size-2">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60" />
-          <span className="relative inline-flex size-2 rounded-full bg-primary" />
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/60" />
+          <span className="relative inline-flex size-2 rounded-full bg-success" />
         </span>
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
+        <p className="truncate text-sm font-medium text-foreground">
           {doc.title}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs text-faint-foreground">
           {doc.viewers.length === 1
             ? `${doc.viewers[0].name} is here`
             : `${doc.viewers.length} people are here`}
@@ -382,7 +381,7 @@ function LiveDocRow({
           </Avatar>
         ))}
         {doc.viewers.length > 4 ? (
-          <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium text-muted-foreground tabular-nums">
+          <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full bg-secondary text-xs font-medium text-muted-foreground tabular-nums">
             +{doc.viewers.length - 4}
           </span>
         ) : null}
@@ -412,7 +411,7 @@ function ActivityRow({
           {renderLabel(item, title)}
         </p>
       </div>
-      <span className="shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">
+      <span className="shrink-0 pt-0.5 text-xs text-faint-foreground tabular-nums">
         {relativeTime(item.at)}
       </span>
     </div>
@@ -423,7 +422,7 @@ function ActivityRow({
       <Link
         href={documentHref(propertyId, item.documentId)}
         onClick={(e) => onOpen(e, item.documentId!)}
-        className="block rounded-md outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="block rounded-md outline-none transition-colors hover:bg-accent focus-visible:shadow-focus"
       >
         {content}
       </Link>
@@ -445,7 +444,7 @@ function ActivityIcon({ kind }: { kind: DocActivityItem["kind"] }) {
 
   return (
     <span
-      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+      className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
       aria-hidden="true"
     >
       <Icon className="size-3.5" />
@@ -509,18 +508,9 @@ function renderLabel(item: DocActivityItem, title: string): React.ReactNode {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border/60 px-4 py-8 text-center">
-      <span
-        className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground"
-        aria-hidden="true"
-      >
-        <Radio className="size-4" />
-      </span>
-      <p className="text-sm font-medium text-foreground">No recent activity</p>
-      <p className="max-w-[32ch] text-xs text-pretty text-muted-foreground">
-        Edits, pins, and board changes from the last week will show up here.
-      </p>
-    </div>
+    <HouseEmptyState icon={Radio} title="No recent activity">
+      Edits, pins, and board changes from the last week will show up here.
+    </HouseEmptyState>
   );
 }
 

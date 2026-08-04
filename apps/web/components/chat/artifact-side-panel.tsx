@@ -158,7 +158,7 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
         </Button>
         <Link
           href={fullHref}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
           title="Open full page"
         >
           <ExternalLink className="size-4" />

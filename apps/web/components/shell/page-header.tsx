@@ -2,23 +2,27 @@ import { cn } from "@/lib/utils";
 import { Breadcrumbs, type BreadcrumbItem } from "./breadcrumbs";
 
 /**
- * Top bar inside the inset card — sits flush against the inset's rounded top
- * corners, divides the chrome from page content with a 1px hairline.
+ * The app topbar. Notion's is **44px tall and completely transparent** — no
+ * fill, no bottom border, no shadow (docs/notion-spec.md §4). Page content
+ * separates from it by whitespace alone, so the chrome disappears and the
+ * content column is the only thing with weight.
  *
- * Linear-style: 44px tall, page title (or a breadcrumb trail) on the left,
- * action area on the right. Pass `breadcrumbs` for nested pages (task
- * detail, document detail, etc.) so users always have a one-click path back
- * to the section root.
+ * Left: page title (14px/500 primary ink) or a breadcrumb trail for nested
+ * pages. `meta` is the quiet status slot beside it ("Edited 2y ago") at 14px
+ * faint. Right: ghost icon actions.
  */
 export function PageHeader({
   title,
   icon,
+  meta,
   breadcrumbs,
   actions,
   className,
 }: {
   title?: React.ReactNode;
   icon?: React.ReactNode;
+  /** Quiet status text beside the title — 14px faint, never competes. */
+  meta?: React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
   className?: string;
@@ -26,7 +30,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-4",
+        "flex h-11 shrink-0 items-center justify-between gap-2 px-4",
         className,
       )}
     >
@@ -36,7 +40,7 @@ export function PageHeader({
         ) : (
           <>
             {icon ? (
-              <span className="flex size-5 shrink-0 items-center justify-center text-muted-foreground [&_svg]:size-4">
+              <span className="flex size-5 shrink-0 items-center justify-center text-faint-foreground [&_svg]:size-4">
                 {icon}
               </span>
             ) : null}
@@ -45,9 +49,14 @@ export function PageHeader({
             </h1>
           </>
         )}
+        {meta ? (
+          <span className="hidden shrink-0 truncate text-sm text-faint-foreground sm:inline">
+            {meta}
+          </span>
+        ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 items-center gap-1">{actions}</div>
+        <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
       ) : null}
     </header>
   );

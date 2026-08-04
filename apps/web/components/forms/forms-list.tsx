@@ -208,7 +208,7 @@ function FormCard({
   }
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
+    <div className="group relative flex flex-col gap-3 rounded-lg bg-background p-4 transition-colors hover:bg-accent">
       <Link href={href} className="absolute inset-0" aria-label={form.title} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
@@ -296,10 +296,8 @@ function EmptyState({
   onGenerate: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border py-16 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-        <ClipboardList className="size-6 text-muted-foreground" />
-      </span>
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <ClipboardList className="size-5 text-faint-foreground" aria-hidden />
       <div>
         <p className="text-sm font-medium">No forms yet</p>
         <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">

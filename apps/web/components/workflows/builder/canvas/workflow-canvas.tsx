@@ -226,7 +226,7 @@ function CanvasInner({
     <div
       ref={wrapperRef}
       className={cn(
-        "relative size-full min-h-[480px] overflow-hidden rounded-lg border border-border/60 bg-sidebar",
+        "relative size-full min-h-[480px] overflow-hidden rounded-lg bg-sidebar",
       )}
     >
       <WfNodeProvider value={ctx}>
@@ -251,7 +251,7 @@ function CanvasInner({
               affordances read as intentional rather than broken. */}
           {hasSteps && (
             <Panel position="top-left" className="m-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/90 px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+              <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 <Maximize className="size-3" aria-hidden />
                 Overview — edit steps in the Steps view
               </span>
@@ -264,7 +264,7 @@ function CanvasInner({
               type="button"
               onClick={onAutoLayout}
               title="Auto-layout"
-              className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs text-muted-foreground hover:bg-accent"
             >
               <LayoutGrid className="size-3" aria-hidden /> Auto-layout
             </button>
@@ -272,7 +272,7 @@ function CanvasInner({
               type="button"
               onClick={onFitView}
               title="Fit view"
-              className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs text-muted-foreground hover:bg-accent"
             >
               <Maximize className="size-3" aria-hidden /> Fit
             </button>
@@ -319,7 +319,7 @@ function CanvasInner({
           {/* MiniMap for navigation in larger workflows */}
           <MiniMap
             position="bottom-right"
-            className="!m-3 !rounded-md !border !border-border/60 !bg-card"
+            className="!m-3 !rounded-overlay !bg-popover shadow-overlay"
             nodeColor={(n) => {
               const surface = (n.data as { surface?: string } | undefined)?.surface;
               if (surface === "ai") return "var(--primary)";

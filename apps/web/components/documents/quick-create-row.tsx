@@ -280,9 +280,9 @@ export function QuickCreateRow({
               t.id === "generate" ? "Generate a document with AI" : `Create ${t.label.toLowerCase()}`
             }
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors",
-              "hover:border-foreground/20 hover:bg-muted/20",
-              "focus-visible:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              "flex min-w-0 items-center gap-3 rounded-md bg-card p-3 text-left shadow-ring transition-colors",
+              "hover:bg-accent",
+              "focus-visible:outline-none focus-visible:shadow-focus",
               "disabled:cursor-not-allowed disabled:opacity-60",
             )}
           >
@@ -294,8 +294,10 @@ export function QuickCreateRow({
               )}
             </TintIcon>
             <div className="min-w-0">
-              <div className="font-medium text-foreground">{t.label}</div>
-              <div className="truncate text-sm text-muted-foreground">
+              <div className="text-sm font-medium text-foreground">
+                {t.label}
+              </div>
+              <div className="truncate text-xs text-faint-foreground">
                 {t.sub}
               </div>
             </div>

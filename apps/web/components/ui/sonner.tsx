@@ -32,13 +32,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          // A toast floats: no stroke, the 10px overlay radius, and the one
+          // elevation recipe (its last layer IS the 1px warm ring).
+          "--normal-border": "transparent",
+          "--border-radius": "var(--radius-overlay)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          // `!` is required: sonner ships its own unlayered
+          // `[data-sonner-toast][data-styled=true]` rules, which otherwise beat
+          // Tailwind's layered utilities regardless of specificity.
+          toast: "cn-toast shadow-overlay! text-sm!",
         },
       }}
       {...props}

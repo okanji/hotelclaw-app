@@ -96,7 +96,7 @@ export function ChannelSettingsDialog({
 
         {confirmingDelete ? (
           <div className="space-y-4">
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <div className="rounded-md bg-destructive/10 p-3 text-sm">
               <p className="font-medium text-destructive">
                 Delete #{data?.name ?? channel.id}?
               </p>

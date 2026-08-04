@@ -158,8 +158,8 @@ function ActionCard({
   return (
     <div
       className={cn(
-        "rounded-lg border p-4 transition-colors",
-        action.enabled ? "border-border bg-background" : "border-border/60 bg-muted/20",
+        "rounded-md p-4 transition-colors",
+        action.enabled ? "bg-background" : "bg-muted",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -175,9 +175,9 @@ function ActionCard({
       </div>
 
       {action.enabled ? (
-        <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+        <div className="mt-3 space-y-3 border-t border-border pt-3">
           {knowledgeWarning ? (
-            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+            <div className="flex items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               <span>{knowledgeWarning}</span>
             </div>

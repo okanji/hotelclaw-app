@@ -12,14 +12,13 @@ const RAIL_STORAGE_KEY = "workspace:rail-collapsed";
  * secondary tier so metadata reads as chrome, not body.
  */
 export const ws = {
-  text: "text-base leading-relaxed tracking-tight",
-  title:
-    "text-3xl font-semibold tracking-tight text-foreground",
-  section: "text-sm font-medium tracking-tight text-muted-foreground",
-  body: "text-base tracking-tight text-foreground",
-  muted: "text-base leading-relaxed tracking-tight text-muted-foreground",
-  railLabel: "text-sm tracking-tight text-muted-foreground",
-  railValue: "text-sm tracking-tight text-foreground",
+  text: "text-base leading-6",
+  title: "text-[2.5rem] leading-[3rem] font-bold text-foreground",
+  section: "text-base leading-6 font-semibold text-foreground",
+  body: "text-base text-foreground",
+  muted: "text-sm text-muted-foreground",
+  railLabel: "text-sm text-faint-foreground",
+  railValue: "text-sm text-foreground",
 } as const;
 
 export type WorkspaceTab = {
@@ -106,22 +105,15 @@ export function WorkspaceShell({
                 type="button"
                 onClick={() => setActive(t.id)}
                 className={cn(
-                  "flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium tracking-tight transition-colors",
+                  "flex h-7 items-center gap-1 rounded-md px-2.5 text-sm font-medium transition-colors",
                   t.id === current?.id
-                    ? "bg-muted/80 text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    ? "bg-accent-pressed text-foreground"
+                    : "text-secondary-ink hover:bg-accent",
                 )}
               >
                 {t.label}
                 {typeof t.count === "number" && t.count > 0 ? (
-                  <span
-                    className={cn(
-                      "rounded px-1 text-xs tabular-nums",
-                      t.id === current?.id
-                        ? "text-muted-foreground"
-                        : "text-muted-foreground/80",
-                    )}
-                  >
+                  <span className="px-1 text-xs tabular-nums text-faint-foreground">
                     {t.count}
                   </span>
                 ) : null}
@@ -145,7 +137,7 @@ export function WorkspaceShell({
         </div>
 
         {rightRail && !railCollapsed ? (
-          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/40 px-6 pt-12 pb-20 md:flex">
+          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-12 pb-20 md:flex">
             {rightRail}
           </aside>
         ) : null}
@@ -175,7 +167,7 @@ function WorkspaceHeaderActions({
           aria-label={railCollapsed ? "Expand panel" : "Collapse panel"}
           aria-expanded={!railCollapsed}
           title={railCollapsed ? "Expand panel" : "Collapse panel"}
-          className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
+          className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent md:flex"
         >
           {railCollapsed ? (
             <PanelRightOpen className="size-4" />
@@ -198,7 +190,7 @@ export function RailRow({
 }) {
   return (
     <div className="flex items-start gap-3 py-1.5">
-      <span className="w-20 shrink-0 pt-1 text-sm tracking-tight text-muted-foreground">
+      <span className="w-20 shrink-0 pt-1 text-sm text-muted-foreground">
         {label}
       </span>
       <div className="min-w-0 flex-1">{children}</div>
@@ -218,8 +210,8 @@ export function RailSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-5 border-t border-border/60 pt-4 first:mt-0 first:border-0 first:pt-0">
-      <span className="mb-2.5 block text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+    <div className="mt-5 border-t border-border pt-4 first:mt-0 first:border-0 first:pt-0">
+      <span className="mb-2.5 block text-xs/[1] font-medium text-faint-foreground">
         {label}
       </span>
       <div className="flex flex-col gap-0.5">{children}</div>
@@ -243,7 +235,7 @@ export function RailProgress({ done, total }: { done: number; total: number }) {
       <div className="flex h-1 overflow-hidden rounded-full bg-muted">
         {total > 0 ? (
           <div
-            className="h-full bg-emerald-500/90 transition-[width]"
+            className="h-full bg-success/90 transition-[width]"
             style={{ width: `${pct}%` }}
           />
         ) : null}
@@ -257,7 +249,7 @@ export function RailDate({ value }: { value: string | null }) {
   if (!value)
     return <span className="text-sm text-muted-foreground">—</span>;
   return (
-    <span className="text-sm tracking-tight text-foreground tabular-nums">
+    <span className="text-sm text-foreground tabular-nums">
       {new Date(value).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
@@ -273,7 +265,7 @@ export function RailDate({ value }: { value: string | null }) {
  * and links so every property value reads the same.
  */
 export const railValueClass =
-  "flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-sm tracking-tight text-foreground hover:bg-muted/80";
+  "flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm text-foreground hover:bg-accent";
 
 /**
  * A collapsible, titled group in the properties rail — the Linear pattern of
@@ -293,18 +285,18 @@ export function RailGroup({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="border-t border-border/40 py-3.5 first:border-0 first:pt-0">
+    <section className="border-t border-border py-3.5 first:border-0 first:pt-0">
       <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="group/grp -ml-1 flex flex-1 items-center gap-0.5 rounded px-1 py-0.5 text-left text-sm font-medium tracking-tight text-foreground hover:bg-muted/80"
+          className="group/grp -ml-1 flex flex-1 items-center gap-0.5 rounded-md px-1 py-0.5 text-left text-sm font-medium text-foreground hover:bg-accent"
         >
           {label}
           <ChevronDown
             className={cn(
-              "size-3 shrink-0 text-muted-foreground/50 transition-transform",
+              "size-3 shrink-0 text-muted-foreground transition-transform",
               !open && "-rotate-90",
             )}
           />
@@ -330,7 +322,7 @@ export function PropertyRow({
 }) {
   return (
     <div className="flex min-h-7 items-start gap-2">
-      <span className="w-21 shrink-0 pt-1 text-sm tracking-tight text-muted-foreground">
+      <span className="w-21 shrink-0 pt-1 text-sm text-muted-foreground">
         {label}
       </span>
       <div className="flex min-w-0 flex-1 items-center">{children}</div>
@@ -341,7 +333,7 @@ export function PropertyRow({
 /** Stacked icon slot above the workspace title (Linear project header). */
 export function WorkspaceIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-3 flex size-10 shrink-0 items-center justify-center text-[1.625rem] leading-none">
+    <div className="mb-3 flex size-10 shrink-0 items-center justify-center text-2xl leading-none">
       {children}
     </div>
   );
@@ -386,7 +378,7 @@ export function MetadataItem({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1.5 text-base tracking-tight">
+    <div className="flex min-w-0 items-center gap-1.5 text-base">
       <span className="shrink-0 text-muted-foreground">{label}</span>
       <div className="min-w-0 text-foreground">{children}</div>
     </div>
@@ -403,7 +395,7 @@ export function RailStats({
     <dl className="flex flex-col gap-2">
       {stats.map((s) => (
         <div key={s.label} className="flex items-center justify-between gap-3">
-          <dt className="text-sm tracking-tight text-muted-foreground">
+          <dt className="text-sm text-muted-foreground">
             {s.label}
           </dt>
           <dd className="text-sm font-medium tabular-nums text-foreground">

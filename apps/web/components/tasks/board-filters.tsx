@@ -386,7 +386,7 @@ function MemberAvatar({ member }: { member: PropertyMember }) {
       {member.avatarUrl ? (
         <AvatarImage src={member.avatarUrl} alt={member.name ?? "Member"} />
       ) : null}
-      <AvatarFallback className="bg-muted text-[0.5625rem]">
+      <AvatarFallback className="bg-muted text-xs">
         {initials(member.name ?? "?")}
       </AvatarFallback>
     </Avatar>
@@ -711,10 +711,10 @@ function FacetControl({
     >
       <span
         className={cn(
-          "inline-flex h-7 items-center rounded-full border text-xs transition-colors",
+          "inline-flex h-7 items-center rounded-md text-xs font-medium transition-colors",
           selected.length > 0
-            ? "border-primary/40 bg-primary/10 text-foreground"
-            : "border-dashed border-border text-muted-foreground",
+            ? "bg-accent-pressed text-foreground"
+            : "text-faint-foreground hover:bg-accent",
         )}
       >
         <PopoverTrigger
@@ -722,7 +722,7 @@ function FacetControl({
             <button
               type="button"
               aria-label={`${meta.label} filter`}
-              className="inline-flex h-7 items-center gap-1.5 rounded-full pr-2 pl-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md pr-2 pl-2.5 focus-visible:outline-none focus-visible:shadow-focus"
             />
           }
         >
@@ -742,7 +742,7 @@ function FacetControl({
             type="button"
             onClick={clear}
             aria-label={`Clear ${meta.label} filter`}
-            className="mr-1 inline-flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+            className="mr-1 inline-flex size-4 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
           >
             <X className="size-3" />
           </button>
@@ -794,9 +794,9 @@ export function FilterMenu({
             aria-label="Add filter"
             title="Add filter"
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors",
-              "hover:bg-foreground/[0.06] hover:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-faint-foreground transition-colors",
+              "hover:bg-accent",
+              "focus-visible:outline-none focus-visible:shadow-focus",
               "aria-expanded:bg-foreground/[0.06] aria-expanded:text-foreground",
               "data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground",
             )}
@@ -925,7 +925,7 @@ export function ActiveFilterBar({
           onChange(clearFacets(filters));
           onResolveAdded();
         }}
-        className="ml-0.5 inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+        className="ml-0.5 inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent"
       >
         <Plus aria-hidden className="size-3 rotate-45" />
         Clear all

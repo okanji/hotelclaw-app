@@ -103,7 +103,7 @@ export function ShareFormDialog({
                   "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
                   selected === c.id
                     ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50",
+                    : "hover:bg-accent",
                 )}
               >
                 <Hash className="size-3.5 text-muted-foreground" />

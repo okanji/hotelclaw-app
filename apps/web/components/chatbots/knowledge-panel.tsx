@@ -192,7 +192,7 @@ export function KnowledgePanel({
           Train and test a question in the console.
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border">
           {sources.map((source) => (
             <SourceRow key={source.id} source={source} />
           ))}
@@ -246,7 +246,7 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="min-w-0 flex-1 rounded text-left transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-0 flex-1 rounded-md text-left transition-colors hover:opacity-80 focus:outline-none focus-visible:shadow-focus"
       >
         <p className="truncate text-sm">{source.title}</p>
         <p className="truncate text-xs text-muted-foreground">
@@ -426,7 +426,7 @@ function SourceDetailDialog({
                 {source.last_trained_at ? "Last trained snapshot" : "Snapshot"}
               </Label>
               {source.content ? (
-                <div className="max-h-72 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-muted/40 p-3 text-sm">
+                <div className="max-h-72 overflow-y-auto whitespace-pre-line rounded-md bg-muted p-3 text-sm">
                   {source.content}
                 </div>
               ) : (

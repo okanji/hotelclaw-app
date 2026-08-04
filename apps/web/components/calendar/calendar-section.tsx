@@ -160,7 +160,7 @@ export function CalendarSection({ propertyId }: { propertyId: string }) {
                     <span
                       aria-hidden
                       className={cn(
-                        "size-3 shrink-0 rounded-[3px] ring-1 ring-border",
+                        "size-2.5 shrink-0 rounded-full",
                         hidden && "opacity-30",
                       )}
                       style={{
@@ -185,7 +185,7 @@ export function CalendarSection({ propertyId }: { propertyId: string }) {
             {connections.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
+                className="flex items-center gap-2 rounded-md bg-sidebar-accent px-2 py-1.5"
               >
                 {c.last_sync_error ? (
                   <CircleAlert className="size-4 shrink-0 text-warning" />
@@ -193,10 +193,10 @@ export function CalendarSection({ propertyId }: { propertyId: string }) {
                   <CheckCircle2 className="size-4 shrink-0 text-success" />
                 )}
                 <div className="flex-1 truncate">
-                  <div className="truncate text-xs font-medium">
+                  <div className="truncate text-sm font-medium text-secondary-ink">
                     {c.account_email}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-faint-foreground">
                     {PROVIDER_LABEL[c.provider]}
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export function CalendarSection({ propertyId }: { propertyId: string }) {
                       <button
                         type="button"
                         aria-label="Connection options"
-                        className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        className="rounded-md p-1 text-faint-foreground transition-colors hover:bg-accent-pressed hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none"
                       >
                         <MoreHorizontal className="size-3.5" />
                       </button>

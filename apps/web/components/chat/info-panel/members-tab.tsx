@@ -141,7 +141,7 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
             return (
               <li
                 key={user.id}
-                className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
               >
                 <div className="relative">
                   <Avatar className="size-7 outline-1 -outline-offset-1 outline-black/5">
@@ -166,7 +166,7 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
                   ) : null}
                 </div>
                 {m.role && m.role !== "member" ? (
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <span className="text-xs font-medium text-faint-foreground">
                     {m.role}
                   </span>
                 ) : null}
@@ -315,7 +315,7 @@ function AddMemberDialog({
                     onClick={() => add(m)}
                     disabled={busy}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition hover:bg-muted",
+                      "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition hover:bg-accent",
                     )}
                   >
                     <Avatar className="size-8 outline-1 -outline-offset-1 outline-black/5">

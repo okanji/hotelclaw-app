@@ -54,18 +54,18 @@ export function PinnedTab() {
           ? new Date(msg.created_at).toLocaleString()
           : "";
         return (
-          <li key={msg.id} className="rounded-md border bg-card p-2">
+          <li key={msg.id} className="rounded-md bg-muted p-2">
             <div className="flex items-start gap-2">
               <Avatar className="size-6">
                 <AvatarImage src={msg.user?.image as string | undefined} />
-                <AvatarFallback className="text-[10px]">
+                <AvatarFallback className="text-xs">
                   {initials || "?"}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold">{name}</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {when}
                   </span>
                 </div>

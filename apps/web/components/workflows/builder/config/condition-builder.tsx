@@ -198,10 +198,10 @@ export function ConditionBuilder({
 
   if (advanced) {
     return (
-      <div className="space-y-4 rounded-xl border border-border/70 bg-muted/15 p-4">
+      <div className="space-y-4 rounded-md bg-muted p-4">
         <div className="flex items-start gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-            <Wand2 className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+            <Wand2 className="size-4 text-warning" aria-hidden />
           </div>
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium text-foreground">Custom condition</p>
@@ -211,7 +211,7 @@ export function ConditionBuilder({
             </p>
           </div>
         </div>
-        <p className="rounded-lg border border-border/60 bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground/90">
+        <p className="rounded-lg bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground/90">
           {explainCondition(value)}
         </p>
         <Button type="button" variant="outline" size="sm" onClick={rebuildFromScratch}>
@@ -271,7 +271,7 @@ export function ConditionBuilder({
             variant="outline"
             size="sm"
             onClick={addClause}
-            className="flex-1 border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            className="flex-1 text-muted-foreground hover:text-foreground"
           >
             <Plus className="size-3.5" aria-hidden />
             Add condition
@@ -282,7 +282,7 @@ export function ConditionBuilder({
             size="sm"
             onClick={addGroup}
             title="Add a nested group with its own And/Or — e.g. urgent AND (todo OR blocked)"
-            className="border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <Plus className="size-3.5" aria-hidden />
             Add group
@@ -341,7 +341,7 @@ function BranchPathsPanel({
 }) {
   if (!hasClauses) {
     return (
-      <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-3 py-4 text-center">
+      <div className="rounded-lg bg-muted px-3 py-4 text-center">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Add a condition above first — then you can set what runs on{" "}
           <span className="font-medium text-foreground/80">Then</span> vs{" "}
@@ -379,8 +379,8 @@ function BranchDecisionCard({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
-        <span className="mt-0.5 shrink-0 rounded-md bg-foreground/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-foreground/70">
+      <div className="flex items-start gap-2.5 rounded-lg bg-muted px-3 py-2.5">
+        <span className="mt-0.5 shrink-0 rounded-md bg-foreground/10 px-2 py-0.5 text-xs font-medium text-foreground/70">
           If
         </span>
         <p className="min-w-0 flex-1 text-sm leading-relaxed text-foreground">
@@ -440,13 +440,13 @@ function BranchPathNestedPanel({
     <div
       className={cn(
         "relative ml-2 space-y-2 border-l-2 py-1 pl-4",
-        isTrue ? "border-emerald-500/50" : "border-rose-500/50",
+        isTrue ? "border-success/50" : "border-destructive/50",
       )}
     >
       <p
         className={cn(
-          "text-xs font-semibold uppercase tracking-wide",
-          isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          "text-xs font-medium",
+          isTrue ? "text-success" : "text-destructive",
         )}
       >
         {label} path
@@ -464,7 +464,7 @@ function BranchPathNestedPanel({
           onClick={() => onConfigure(pathKey)}
           className={cn(
             "text-xs font-medium underline-offset-2 hover:underline",
-            isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+            isTrue ? "text-success" : "text-destructive",
           )}
         >
           {path.isEmpty ? "Add step on canvas" : "View on canvas"}
@@ -508,8 +508,8 @@ function DecisionPreview({
         : "Always continues (no filter)";
 
     return (
-      <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="rounded-lg bg-muted px-3 py-2.5">
+        <p className="text-xs font-medium text-faint-foreground">
           {title}
         </p>
         <p
@@ -527,8 +527,8 @@ function DecisionPreview({
   if (!readsAs) return null;
 
   return (
-    <div className="rounded-xl border border-primary/15 bg-primary/[0.04] px-3.5 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-md bg-primary/10 px-3.5 py-3">
+      <p className="text-xs font-medium text-faint-foreground">
         Summary
       </p>
       <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{readsAs}</p>
@@ -559,15 +559,15 @@ function PathChip({
       <span
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          isTrue ? "bg-emerald-500" : "bg-rose-500",
+          isTrue ? "bg-success" : "bg-destructive",
         )}
         aria-hidden
       />
       <div className="min-w-0 flex-1 text-left">
         <p
           className={cn(
-            "text-xs font-semibold uppercase tracking-wide",
-            isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+            "text-xs font-medium",
+            isTrue ? "text-success" : "text-destructive",
           )}
         >
           {label}
@@ -586,7 +586,7 @@ function PathChip({
           "size-3.5 shrink-0 transition-transform",
           interactive && "opacity-70 group-hover:translate-x-0.5 group-hover:opacity-100",
           !interactive && "opacity-50",
-          isTrue ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          isTrue ? "text-success" : "text-destructive",
         )}
         aria-hidden
       />
@@ -594,21 +594,17 @@ function PathChip({
   );
 
   const className = cn(
-    "group flex w-full items-center gap-2 rounded-lg border px-2.5 py-2.5 text-left transition-colors",
-    isTrue
-      ? "border-emerald-500/25 bg-emerald-500/[0.06]"
-      : "border-rose-500/25 bg-rose-500/[0.06]",
+    "group flex w-full items-center gap-2 rounded-md px-2.5 py-2.5 text-left transition-colors",
+    isTrue ? "bg-success/10" : "bg-destructive/10",
     active &&
       (isTrue
-        ? "ring-2 ring-emerald-500/35 border-emerald-500/50 bg-emerald-500/10"
-        : "ring-2 ring-rose-500/35 border-rose-500/50 bg-rose-500/10"),
+        ? "bg-success/15 ring-1 ring-success/40"
+        : "bg-destructive/15 ring-1 ring-destructive/40"),
     interactive &&
-      "cursor-pointer hover:border-opacity-60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "cursor-pointer focus-visible:outline-none focus-visible:shadow-focus",
     interactive &&
       !active &&
-      (isTrue
-        ? "hover:bg-emerald-500/10 hover:border-emerald-500/40"
-        : "hover:bg-rose-500/10 hover:border-rose-500/40"),
+      (isTrue ? "hover:bg-success/15" : "hover:bg-destructive/15"),
   );
 
   if (interactive) {
@@ -671,9 +667,9 @@ function GroupCard({
   ...handlers
 }: { group: Extract<CondNode, { kind: "group" }>; path: number[] } & NodeHandlers) {
   return (
-    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2.5">
+    <div className="space-y-2 rounded-lg bg-muted p-2.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
+        <div className="inline-flex rounded-md bg-background p-0.5 text-xs">
           {(["all", "any"] as const).map((opt) => (
             <button
               key={opt}
@@ -681,7 +677,7 @@ function GroupCard({
               onClick={() => handlers.onSetGroupCombine(path, opt)}
               aria-pressed={group.combine === opt}
               className={cn(
-                "rounded px-2 py-0.5 font-medium transition-colors",
+                "rounded-md px-2 py-0.5 font-medium transition-colors",
                 group.combine === opt
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -712,7 +708,7 @@ function GroupCard({
         variant="outline"
         size="sm"
         onClick={() => handlers.onAdd(path, emptyClause())}
-        className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        className="w-full text-muted-foreground hover:text-foreground"
       >
         <Plus className="size-3.5" aria-hidden />
         Add condition to group
@@ -731,14 +727,14 @@ function CombineBar({
   onChange: (combine: "all" | "any") => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2">
       <p className="text-sm text-muted-foreground">
         {combine === "all" ? "All conditions must match" : "Any condition can match"}
       </p>
       <div
         role="group"
         aria-label="How conditions combine"
-        className="inline-flex shrink-0 rounded-lg border border-input bg-muted/30 p-0.5"
+        className="inline-flex shrink-0 rounded-lg bg-muted p-0.5"
       >
         {(["all", "any"] as const).map((opt) => (
           <button
@@ -749,7 +745,7 @@ function CombineBar({
             className={cn(
               "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               combine === opt
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -767,9 +763,9 @@ function LogicConnector({ combine }: { combine: "all" | "any" }) {
       <span className="h-4 w-px bg-border" />
       <span
         className={cn(
-          "rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
+          "rounded-md px-2.5 py-0.5 text-xs font-medium",
           combine === "all"
-            ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+            ? "bg-info/10 text-info"
             : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
         )}
       >
@@ -805,7 +801,7 @@ function EmptyConditions({
         variant="outline"
         size="sm"
         onClick={onAdd}
-        className="w-full border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        className="w-full text-muted-foreground hover:text-foreground"
       >
         <Plus className="size-3.5" aria-hidden />
         Add filter (optional)
@@ -821,7 +817,7 @@ function EmptyConditions({
         : "Add a condition to make this step selective.";
 
   return (
-    <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-3 py-4 text-center">
+    <div className="rounded-lg bg-muted px-3 py-4 text-center">
       <p className="text-sm text-muted-foreground">{hint}</p>
       <Button type="button" variant="outline" size="sm" onClick={onAdd} className="mt-3">
         <Plus className="size-3.5" aria-hidden />
@@ -883,17 +879,17 @@ function ClauseCard({
       className={cn(
         "group relative",
         embedded
-          ? "rounded-lg border border-border/50 bg-muted/20 py-2.5 pr-2 pl-3"
-          : "rounded-xl border border-border/70 bg-card/50 shadow-sm",
+          ? "rounded-lg bg-muted py-2.5 pr-2 pl-3"
+          : "rounded-md bg-card",
       )}
     >
       <div
         className={cn(
           "flex items-center justify-between gap-2",
-          embedded ? "mb-2" : "border-b border-border/40 px-3 py-2",
+          embedded ? "mb-2" : "border-b border-border px-3 py-2",
         )}
       >
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs font-medium text-faint-foreground">
           {embedded ? `Also when` : `Condition ${index + 1}`}
         </span>
         <button
@@ -994,7 +990,7 @@ function FieldBlock({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
+      <span className="text-xs font-medium text-faint-foreground">
         {label}
       </span>
       {children}
@@ -1016,7 +1012,7 @@ function ValueInput({
   className?: string;
 }) {
   const base =
-    "h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring";
+    "h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:shadow-focus";
 
   if (clause.op === "is_any_of" && options?.length) {
     const selected = new Set(clause.values.filter((v) => v.trim() !== ""));
@@ -1036,10 +1032,10 @@ function ValueInput({
                 onChange({ values: options.filter((o) => next.has(o)) });
               }}
               className={cn(
-                "rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors",
+                "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
                 on
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-input bg-background text-muted-foreground hover:text-foreground",
+                  ? "bg-accent-pressed text-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent",
               )}
             >
               {humanizeOption(opt)}

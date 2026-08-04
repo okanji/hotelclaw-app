@@ -264,7 +264,9 @@ function Sparkline({ encoded }: { encoded: string }) {
     .split(",")
     .map(Number)
     .filter((n) => Number.isFinite(n));
-  const color = parts[2] ?? "#0ea5e9";
+  // Default sparkline stroke off the shared `--series-*` ramp; an explicit
+  // per-cell color may still be encoded in the formula.
+  const color = parts[2] ?? "var(--series-7)";
   if (nums.length === 0) return <span />;
   const w = 100;
   const h = 20;
@@ -327,7 +329,7 @@ function Sparkline({ encoded }: { encoded: string }) {
               y={positive ? 0 : h / 2}
               width={barW}
               height={h / 2}
-              fill={positive ? "#16a34a" : "#dc2626"}
+              fill={positive ? "var(--success)" : "var(--destructive)"}
             />
           );
         })}

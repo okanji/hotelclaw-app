@@ -127,12 +127,16 @@ export function BookingsSection({ propertyId }: { propertyId: string }) {
                     render={<Link href={`${base}?service=${s.id}`} />}
                     isActive={onList && focusedService === s.id}
                     tooltip={s.name}
-                    className={!s.active ? "opacity-60" : undefined}
+                    // A paused service is de-emphasised by INK, not opacity —
+                    // the same faint rung the Chat sidebar spends on its
+                    // Archived/Settings rows. `opacity-60` faded the emoji and
+                    // the hover fill with it, which read as a broken row.
+                    className={!s.active ? "text-faint-foreground" : undefined}
                   >
-                    <span aria-hidden className="text-sm leading-none">
+                    <span aria-hidden="true">
                       {s.emoji || SERVICE_KIND_META[s.kind].emoji}
                     </span>
-                    <span>{s.name}</span>
+                    <span className="truncate">{s.name}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

@@ -3,43 +3,45 @@
 /* Chat canvas color (dark). Stream's `--str-chat__background-core-app` is the
    variable behind `.str-chat__chat-view`, `.str-chat__message-list`, and
    `.str-chat__virtual-list` (all `background: var(--str-chat__background-core-app)`).
-   Loaded after Stream's CSS so source-order beats the `.str-chat` default. */
+   Loaded after Stream's CSS so source-order beats the `.str-chat` default.
+   Matches the dark CONTENT plane (--card, #191919): the chat column is
+   content, and globals.css no longer hardcodes a separate inset color. */
 .str-chat.str-chat__theme-dark {
-  --str-chat__background-core-app: #1b1a16;
+  --str-chat__background-core-app: #191919;
 }
 
 /* Slack reaction row — mirrors Slack desktop pills; tuned to Stream theme classes
    from StreamProvider (`str-chat__theme-dark` / `str-chat__theme-light`, next-themes). */
 .str-chat.str-chat__theme-dark {
-  --slack-reaction-pill-bg: rgba(248, 248, 248, 0.059);
-  --slack-reaction-pill-bg-hover: rgba(248, 248, 248, 0.1);
-  --slack-reaction-pill-text: rgba(255, 255, 255, 0.92);
+  --slack-reaction-pill-bg: rgba(240, 239, 237, 0.055);
+  --slack-reaction-pill-bg-hover: rgba(240, 239, 237, 0.09);
+  --slack-reaction-pill-text: rgba(240, 239, 237, 0.92);
   --slack-reaction-pill-own-bg: rgba(29, 155, 209, 0.33);
   --slack-reaction-pill-own-bg-hover: rgba(29, 155, 209, 0.42);
   --slack-add-reaction-icon: #ababad;
 
-  /* Full-row hover fill — a ~2.6% white lift over the #1b1a16 chat canvas,
+  /* Full-row hover fill — a ~2.6% white lift over the #191919 chat canvas,
      matching Slack desktop's dark row hover. */
-  --slack-row-hover-bg: #1F2124;
+  --slack-row-hover-bg: #232221;
 
   /* Message typography — aligned to Slack desktop inspect (15px name/body, 12px time) */
   --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --slack-msg-display-name-size: 15px;
-  --slack-msg-display-name-weight: 900;
-  --slack-msg-display-name-color: #f8f8f8;
+  --slack-msg-display-name-weight: 600;
+  --slack-msg-display-name-color: #f0efed;
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
-  --slack-msg-body-color: #CBCCCD;
+  --slack-msg-body-color: #bcbab6;
   /* Slack desktop computes ~22px (1.46668 × 15px). Nudged up by 1px to give
      the body a touch more vertical breathing room. */
   --slack-msg-body-line-height: 24px;
   --slack-msg-timestamp-size: 12px;
-  --slack-msg-timestamp-color: rgba(209, 210, 211, 0.72);
+  --slack-msg-timestamp-color: rgba(240, 239, 237, 0.52);
 
   --slack-image-card-bg: rgba(255, 255, 255, 0.055);
   --slack-image-card-border: rgba(255, 255, 255, 0.1);
-  --slack-image-card-muted: rgba(209, 210, 211, 0.78);
+  --slack-image-card-muted: rgba(240, 239, 237, 0.6);
   --slack-image-card-hover: rgba(255, 255, 255, 0.08);
   --slack-image-toolbar-bg: rgba(34, 37, 41, 0.88);
   --slack-image-toolbar-border: rgba(255, 255, 255, 0.1);
@@ -47,7 +49,7 @@
   --slack-image-toolbar-icon-hover-bg: rgba(255, 255, 255, 0.1);
   --slack-image-alt-badge-bg: rgba(34, 37, 41, 0.88);
   --slack-image-alt-badge-border: rgba(255, 255, 255, 0.12);
-  --slack-image-alt-badge-text: #f8f8f8;
+  --slack-image-alt-badge-text: #f0efed;
 
   /* @mention pills — Slack-like tint, no stroke */
   --slack-mention-user-bg: rgba(105, 183, 255, 0.12);
@@ -57,10 +59,10 @@
 
   /* Date pill fill — explicit Linear-style solid chip color (overrides the
      elevation-0 plane match so the pill reads as a distinct surface). */
-  --slack-date-pill-bg: #1b1a16;
+  --slack-date-pill-bg: #191919;
 
   /* Placeholder avatar chip (~Slack #E8E8E8 @ low alpha) */
-  --str-chat__avatar-bg-placeholder: rgba(232, 232, 232, 0.082);
+  --str-chat__avatar-bg-placeholder: rgba(240, 239, 237, 0.08);
 }
 
 /* Slack message gutter — fixed avatar column + horizontal gap (matches Slack inspect).
@@ -87,42 +89,42 @@
 }
 
 .str-chat.str-chat__theme-light {
-  --slack-reaction-pill-bg: rgba(29, 31, 36, 0.06);
-  --slack-reaction-pill-bg-hover: rgba(29, 31, 36, 0.09);
-  --slack-reaction-pill-text: rgba(29, 31, 36, 0.92);
+  --slack-reaction-pill-bg: rgba(33, 27, 23, 0.06);
+  --slack-reaction-pill-bg-hover: rgba(33, 27, 23, 0.09);
+  --slack-reaction-pill-text: rgba(33, 27, 23, 0.92);
   --slack-reaction-pill-own-bg: rgba(18, 100, 163, 0.14);
   --slack-reaction-pill-own-bg-hover: rgba(18, 100, 163, 0.22);
-  --slack-add-reaction-icon: #616365;
+  --slack-add-reaction-icon: #7d7a75;
 
   /* Full-row hover fill — a faint dark tint over the white chat canvas,
      matching Slack desktop's light row hover. */
-  --slack-row-hover-bg: rgba(29, 31, 36, 0.04);
+  --slack-row-hover-bg: rgba(33, 27, 23, 0.04);
 
   --slack-chat-font-family: var(--font-lato), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --slack-msg-display-name-size: 15px;
-  --slack-msg-display-name-weight: 900;
-  --slack-msg-display-name-color: #1d1c1d;
+  --slack-msg-display-name-weight: 600;
+  --slack-msg-display-name-color: #2c2c2b;
   --slack-msg-body-size: 15px;
   --slack-msg-body-weight: 400;
-  --slack-msg-body-color: #1d1c1d;
+  --slack-msg-body-color: #2c2c2b;
   /* Slack desktop computes ~22px (1.46668 × 15px). Nudged up by 1px to give
      the body a touch more vertical breathing room. */
   --slack-msg-body-line-height: 23px;
   --slack-msg-timestamp-size: 12px;
-  --slack-msg-timestamp-color: #616061;
+  --slack-msg-timestamp-color: #7d7a75;
 
-  --slack-image-card-bg: rgba(29, 31, 36, 0.045);
-  --slack-image-card-border: rgba(29, 31, 36, 0.12);
-  --slack-image-card-muted: #616365;
-  --slack-image-card-hover: rgba(29, 31, 36, 0.07);
+  --slack-image-card-bg: rgba(33, 27, 23, 0.045);
+  --slack-image-card-border: rgba(33, 27, 23, 0.12);
+  --slack-image-card-muted: #7d7a75;
+  --slack-image-card-hover: rgba(33, 27, 23, 0.07);
   --slack-image-toolbar-bg: rgba(255, 255, 255, 0.94);
-  --slack-image-toolbar-border: rgba(29, 31, 36, 0.1);
+  --slack-image-toolbar-border: rgba(33, 27, 23, 0.1);
   --slack-image-toolbar-icon: rgba(61, 60, 61, 0.95);
-  --slack-image-toolbar-icon-hover-bg: rgba(29, 31, 36, 0.08);
+  --slack-image-toolbar-icon-hover-bg: rgba(33, 27, 23, 0.08);
   --slack-image-alt-badge-bg: rgba(255, 255, 255, 0.94);
-  --slack-image-alt-badge-border: rgba(29, 31, 36, 0.12);
-  --slack-image-alt-badge-text: #1d1c1d;
+  --slack-image-alt-badge-border: rgba(33, 27, 23, 0.12);
+  --slack-image-alt-badge-text: #2c2c2b;
 
   --slack-mention-user-bg: rgba(18, 100, 163, 0.08);
   --slack-mention-user-text: #1264a3;
@@ -131,28 +133,24 @@
 
   --slack-date-pill-bg: var(--str-chat__background-core-elevation-0);
 
-  --str-chat__avatar-bg-placeholder: rgba(29, 31, 36, 0.06);
+  --str-chat__avatar-bg-placeholder: rgba(33, 27, 23, 0.06);
 }
 
 /* Quick emoji picker (Stream .str-chat__reaction-selector) — anchored via DialogAnchor */
 .str-chat.str-chat__theme-dark .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
-  background: color-mix(in srgb, var(--str-chat__background-core-elevation-2) 100%, #1a1d21);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 12px 32px rgba(0, 0, 0, 0.45);
+  background: var(--popover);
+  border: 0;
+  box-shadow: var(--overlay-shadow);
 }
 
 .str-chat.str-chat__theme-light .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
-  background: var(--str-chat__background-core-elevation-2);
-  border: 1px solid rgba(29, 31, 36, 0.1);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.06),
-    0 10px 28px rgba(0, 0, 0, 0.14);
+  background: var(--popover);
+  border: 0;
+  box-shadow: var(--overlay-shadow);
 }
 
 .str-chat .str-chat__reaction-selector:not(:has(.str-chat__reaction-selector-extended-list)) {
-  border-radius: var(--str-chat__radius-lg, 8px);
+  border-radius: var(--radius-overlay);
   padding-block: var(--str-chat__spacing-xs, 6px);
   padding-inline: var(--str-chat__spacing-sm, 8px);
   gap: var(--str-chat__spacing-xxs, 4px);
@@ -369,9 +367,9 @@
   padding: 2px 4px;
   margin: 0;
   background: var(--str-chat__background-core-elevation-1);
-  border: 1px solid var(--str-chat__border-core-subtle);
-  border-radius: var(--str-chat__radius-max);
-  box-shadow: var(--str-chat__box-shadow-1);
+  border: 0;
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--overlay-shadow);
   --str-chat__message-options-border-radius: var(--str-chat__radius-sm);
 }
 
@@ -534,12 +532,11 @@
 /* Slack-matched type scale (scoped to Slack message column; StreamProvider themes supply vars). */
 .str-chat__slack-message-main {
   font-family: var(--slack-chat-font-family);
-  /* Reset the global Inter-tuned `-0.011em` tracking inside the message
-     column. Slack desktop itself uses `letter-spacing: normal` on Lato; the
-     small positive value here is a visual compensation for the metric drift
-     between Google Fonts Lato (what next/font ships) and Slack's custom
-     "Slack-Lato" build, which renders a hair more open at the same tracking. */
-  letter-spacing: 0.008em;
+  /* `normal`, like Slack desktop. This used to carry `0.008em` purely to
+     cancel the app-wide `-0.011em` on <html>; that global tracking is gone
+     (notion-spec §3 — letter-spacing is normal everywhere), so the
+     compensation would now over-track the column. */
+  letter-spacing: normal;
   font-feature-settings: normal;
 }
 
@@ -677,9 +674,9 @@
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text th,
@@ -693,12 +690,12 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted-foreground);
-  background: color-mix(in oklab, var(--muted) 30%, transparent);
+  background: var(--muted);
   border-bottom: 1px solid var(--border);
 }
 
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble .str-chat__message-text tr + tr td {
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  border-top: 1px solid var(--border);
 }
 
 /*
@@ -1036,7 +1033,7 @@
 
 .str-chat .str-chat__slack-message-image-card__frame {
   /* Slack renders the thumbnail flush — no surrounding frame, just rounded corners. */
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   border: 0;
   padding: 0;
@@ -1115,12 +1112,12 @@
   left: 10px;
   z-index: 2;
   font-family: var(--slack-chat-font-family);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--slack-image-alt-badge-bg);
   color: var(--slack-image-alt-badge-text);
   border: 1px solid var(--slack-image-alt-badge-border);
@@ -1138,7 +1135,7 @@
 }
 
 .str-chat .str-chat__slack-message-image-card__frame .str-chat__modal-gallery__image {
-  border-radius: 8px;
+  border-radius: var(--radius);
   width: 100%;
   max-width: 100%;
 }
@@ -1335,23 +1332,24 @@
   justify-content: center;
   gap: 5px;
   max-width: min(100% - 1.5rem, 420px);
-  /* Match elevation-0 (base plane) + border so it reads as outline, not a lifted grey fill. */
-  padding-block: 6px;
-  padding-inline-start: 16px;
+  /* Notion normalization: a 6px chip carrying the warm RING as its last
+     shadow layer, not a capsule with a visible 1px stroke (notion-spec
+     §1/§4). `rounded-full` is for avatars, dots and progress tracks only. */
+  padding-block: 5px;
+  padding-inline-start: 12px;
   padding-inline-end: 9px;
   margin: 0;
-  border-radius: 9999px;
-  border: 1px solid
-    color-mix(in srgb, var(--str-chat__border-core-subtle, rgba(134, 134, 134, 0.6)) 92%, transparent);
+  border-radius: var(--radius);
+  border: none;
+  box-shadow: var(--ring-shadow);
   background: var(--slack-date-pill-bg, var(--str-chat__background-core-elevation-0));
   color: var(--str-chat__chat-text, var(--slack-msg-body-color, #d1d2d3));
   font-family: var(--slack-chat-font-family, system-ui, sans-serif);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
   outline: none;
-  box-shadow: none;
 }
 
 .str-chat .str-chat__slack-date-separator__pill:hover {
@@ -1395,7 +1393,7 @@
 .str-chat__message-input,
 .str-chat__message-composer {
   border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius) !important;
   background: transparent !important;
   box-shadow: none !important;
 }

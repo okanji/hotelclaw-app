@@ -147,10 +147,10 @@ function BoardsDnd({
 
 export function DragGhost({ title }: { title: string }) {
   return (
-    <div className="flex h-12 w-56 items-center gap-2.5 rounded-lg border border-border bg-card px-3 shadow-lg ring-1 ring-foreground/10 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
+    <div className="flex h-11 w-56 items-center gap-2.5 rounded-overlay bg-popover px-3 shadow-overlay">
       <FileText
         strokeWidth={1.5}
-        className="size-4 shrink-0 text-muted-foreground"
+        className="size-4 shrink-0 text-faint-foreground"
       />
       <span className="truncate text-sm font-medium">{title}</span>
     </div>

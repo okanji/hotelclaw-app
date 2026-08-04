@@ -81,7 +81,7 @@ export function OrgDiagram({
         <div className="min-w-max py-2">
           <div className="flex flex-col items-center">
             {/* Root — the property + its leadership. */}
-            <div className="w-48 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-center">
+            <div className="w-48 rounded-md bg-muted px-3 py-2.5 text-center">
               <p className="truncate text-sm font-semibold text-foreground">
                 {propertyName}
               </p>
@@ -90,13 +90,13 @@ export function OrgDiagram({
                   {leadership.slice(0, 3).map((p) => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
+                      className="flex items-center justify-center gap-1.5 text-xs text-faint-foreground"
                     >
                       <Avatar size="sm" className="size-4">
                         {p.avatarUrl ? (
                           <AvatarImage src={p.avatarUrl} alt={p.name ?? ""} />
                         ) : null}
-                        <AvatarFallback className="text-[0.5rem]">
+                        <AvatarFallback className="text-xs">
                           {initials(p.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -245,7 +245,7 @@ function DiagramNode({
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "group relative rounded-lg border border-border bg-background px-3 py-2.5",
+          "group relative rounded-md bg-background px-3 py-2.5 shadow-ring",
           NODE,
         )}
       >
@@ -283,19 +283,19 @@ function DiagramNode({
               {lead.avatarUrl ? (
                 <AvatarImage src={lead.avatarUrl} alt={lead.name ?? ""} />
               ) : null}
-              <AvatarFallback className="text-[0.5rem]">
+              <AvatarFallback className="text-xs">
                 {initials(lead.name)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-xs text-foreground">{lead.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-xs text-faint-foreground">
                 {lead.title ?? "Team lead"}
               </p>
             </div>
           </div>
         ) : (
-          <p className="mt-1.5 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-faint-foreground">
             {isManagement ? "No head yet — assign one" : "No head yet"}
           </p>
         )}
@@ -378,7 +378,7 @@ function PersonNode({
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "group relative flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2",
+          "group relative flex items-center gap-2 rounded-md bg-background px-2.5 py-2 shadow-ring",
           NODE,
         )}
       >
@@ -386,7 +386,7 @@ function PersonNode({
           {person.avatarUrl ? (
             <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
           ) : null}
-          <AvatarFallback className="text-[0.625rem]">
+          <AvatarFallback className="text-xs">
             {initials(person.name)}
           </AvatarFallback>
         </Avatar>
@@ -394,7 +394,7 @@ function PersonNode({
           <p className="truncate text-sm font-medium text-foreground">
             {person.name ?? "Member"}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-xs text-faint-foreground">
             {person.title ?? person.role}
           </p>
         </div>
@@ -445,7 +445,7 @@ function AddPlaceholder({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "flex h-16 flex-col items-center justify-center gap-1 rounded-md text-xs text-faint-foreground transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
         NODE,
       )}
     >

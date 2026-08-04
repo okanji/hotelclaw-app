@@ -45,7 +45,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { TintIcon, tintAt, type TintTone } from "@/components/ui/tint-card";
 import { useShellSection, type ShellSection } from "./shell-section-context";
 import { useNotifications } from "./use-notifications";
 import { UserMenu } from "./user-menu";
@@ -53,36 +52,37 @@ import { RailOrgSwitcher } from "./rail-org-switcher";
 import type { Membership } from "@/lib/auth/session";
 
 /**
- * Slack-style nav button: a stacked icon-tile + label. The whole button is the
- * `group`; only the inner tile carries the active/hover surface (a soft
- * translucent-white square, never a high-contrast fill), so the label stays
- * legible and the lift reads on the aubergine gradient. The tile holds the
- * corner badges. Label weight never changes between states — only its color.
+ * Nav button: a stacked icon-tile + label. The whole button is the `group`;
+ * only the inner tile carries the active/hover surface, so the label stays
+ * legible. The tile holds the corner badges. Label weight never changes
+ * between states — only its color.
+ *
+ * The rail runs under a scoped `dark` class with `--sidebar` pinned to
+ * `--rail`, so every surface below is expressed in SIDEBAR TOKENS (warm
+ * white-alpha on warm near-black) rather than hardcoded zinc/black alphas:
+ * hover fill = `--sidebar-accent` (5.5% white), ink = `--sidebar-foreground`,
+ * active ink = `--sidebar-accent-foreground`.
  */
 const railItemClass =
-  "group/item flex w-full flex-col items-center gap-1.5 rounded-xl py-2 outline-hidden";
-// Light-first: neutral icons/wash on the white rail, with `dark:` restoring the
-// always-dark look (white icons, translucent-white wash).
+  "group/item flex w-full flex-col items-center gap-1 rounded-md py-1.5 outline-hidden";
 const railTileClass =
-  "relative flex size-9 items-center justify-center rounded-xl transition-colors " +
-  "text-zinc-700 group-hover/item:bg-black/[0.08] group-hover/item:text-zinc-900 " +
-  "data-current:bg-black/10 data-current:text-zinc-900 " +
-  "group-focus-visible/item:ring-2 group-focus-visible/item:ring-black/15 " +
-  "dark:text-white/85 dark:group-hover/item:bg-white/15 dark:group-hover/item:text-white " +
-  "dark:data-current:bg-white/20 dark:data-current:text-white " +
-  "dark:group-focus-visible/item:ring-white/40";
+  "relative flex size-8 items-center justify-center rounded-md text-sidebar-foreground transition-colors " +
+  "group-hover/item:bg-sidebar-accent group-hover/item:text-sidebar-accent-foreground " +
+  "data-current:bg-sidebar-accent data-current:text-sidebar-accent-foreground " +
+  "group-focus-visible/item:shadow-focus";
 const railLabelClass =
-  "block w-full truncate text-center text-[10px] font-semibold leading-none tracking-tight transition-colors";
-// Active vs inactive label color, both themes — applied via cn() in the markup.
-const railLabelActiveClass = "text-zinc-900 dark:text-white";
+  "block w-full truncate text-center text-xs leading-none font-medium transition-colors";
+// Active vs inactive label color — applied via cn() in the markup.
+const railLabelActiveClass = "text-sidebar-accent-foreground";
 const railLabelIdleClass =
-  "text-zinc-600 group-hover/item:text-zinc-900 dark:text-white/85 dark:group-hover/item:text-white";
+  "text-sidebar-foreground/70 group-hover/item:text-sidebar-accent-foreground";
 
-/** Translucent circular utility button used by the rail footer (collapse). */
+/** Quiet utility button used by the rail footer (collapse). Fill on hover
+ *  only — no resting chrome (notion-spec §6). */
 const railFooterButtonClass =
-  "flex size-7 items-center justify-center rounded-full outline-hidden transition-colors " +
-  "bg-black/5 text-zinc-600 hover:bg-black/10 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-black/15 " +
-  "dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20 dark:hover:text-white dark:focus-visible:ring-white/40";
+  "flex size-7 items-center justify-center rounded-md outline-hidden transition-colors " +
+  "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground " +
+  "focus-visible:shadow-focus";
 
 /**
  * Back-office surfaces that live under the rail's "More" overflow rather than as
@@ -106,18 +106,6 @@ const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
   bookings: "Reservations and availability",
   meetings: "Video calls and recordings",
 };
-/** Icon-plate tints for the More menu, following the app-wide domain tones
- *  (bookings=coral, meetings=sage, chatbots/AI=lavender); unmapped sections
- *  fall back to the stable rotation. */
-const MORE_TONES: Partial<Record<ShellSection, TintTone>> = {
-  dms: "blue",
-  workflows: "honey",
-  chatbots: "lavender",
-  agents: "lavender",
-  bookings: "coral",
-  meetings: "sage",
-};
-
 type RailItem = {
   section: ShellSection;
   label: string;
@@ -503,24 +491,20 @@ export function AppRail({
   return (
     <TooltipProvider delay={0}>
       <aside
-        // ClickUp-style floating rail: a thin near-black rounded card with
-        // margin on all sides, detached from the sidebar+content card to its
-        // right. The scoped `dark` class flips the token set for this
-        // subtree only, so the rail gets the dark-mode icon treatment
-        // (translucent-white washes) even in light mode; the inline style
-        // then pins the subtree's --sidebar to the neutral-black --rail
-        // token (inline so it beats the unlayered `.dark` token block), so
-        // the surface AND every sidebar-token consumer inside (badge ring
-        // cutouts) read ClickUp-black rather than the warm dark sidebar.
-        // Slack-style icon + label stack — labels are always visible.
-        // m-2 + pt-2 keeps the org tile on the same absolute line it sat on
-        // when the rail was flush with pt-4, so it still aligns with the
-        // property switcher across the gap.
-        className="dark m-2 flex w-(--rail-width) shrink-0 flex-col items-center rounded-xl bg-sidebar px-1 pt-2 pb-3"
+        // A FLUSH near-black rail pinned to the screen edge — no margin, no
+        // radius, no detached-card look (notion-spec §1: the shell is planes
+        // separated by fill, not floating cards). The scoped `dark` class
+        // flips the token set for this subtree only, so the rail gets the
+        // dark-plane treatment (warm white-alpha washes) even in light mode;
+        // the inline style then pins the subtree's --sidebar to the warm
+        // near-black --rail token (inline so it beats the unlayered `.dark`
+        // token block), so the surface AND every sidebar-token consumer
+        // inside (hover fills, badge ring cutouts) read off the rail.
+        className="dark flex w-(--rail-width) shrink-0 flex-col items-center bg-sidebar px-1 pt-2 pb-3"
         style={{ "--sidebar": "var(--rail)" } as React.CSSProperties}
         aria-label="Sections"
       >
-        <div className="mt-0.5 mb-4 flex justify-center">
+        <div className="mb-3 flex justify-center">
           {/* Org mark — the current property's colored-initial tile, doubling
               as a workspace switcher (switch org / add org). */}
           <RailOrgSwitcher
@@ -557,22 +541,23 @@ export function AppRail({
                       <Icon className="size-[18px]" strokeWidth={1.75} />
                       {showBadge ? (
                         // Lavender count badge punched onto the icon's
-                        // top-right corner (unseen notifications). The ring in
-                        // the rail bg gives the cutout look.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-[#cba4e6] px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-sidebar duration-200">
+                        // top-right corner (unseen notifications). `ring-sidebar`
+                        // resolves to the rail surface, giving the cutout look;
+                        // the ink is that same surface so it reads on the tint.
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-brand-accent px-1 text-xs leading-none font-medium text-sidebar tabular-nums ring-2 ring-sidebar duration-200">
                           {unseenCount > 9 ? "9+" : unseenCount}
                         </span>
                       ) : null}
                       {showFailingDot ? (
                         <span
                           aria-hidden="true"
-                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-sidebar"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-warning ring-2 ring-sidebar"
                         />
                       ) : null}
                       {showPendingBookings ? (
                         // Same cutout treatment as the activity count,
                         // amber: bookings waiting on a staff yes.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] leading-none font-semibold text-[#1c0f1c] tabular-nums ring-2 ring-sidebar duration-200">
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-warning px-1 text-xs leading-none font-medium text-sidebar tabular-nums ring-2 ring-sidebar duration-200">
                           {pendingBookings > 9 ? "9+" : pendingBookings}
                         </span>
                       ) : null}
@@ -602,14 +587,14 @@ export function AppRail({
                       {...(moreActive ? { "data-current": "" } : {})}
                       className={cn(
                         railTileClass,
-                        "group-data-[popup-open]/item:bg-black/[0.07] group-data-[popup-open]/item:text-zinc-900 dark:group-data-[popup-open]/item:bg-white/15 dark:group-data-[popup-open]/item:text-white",
+                        "group-data-[popup-open]/item:bg-sidebar-accent group-data-[popup-open]/item:text-sidebar-accent-foreground",
                       )}
                     >
                       <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
                       {moreAlert && !moreActive ? (
                         <span
                           aria-hidden="true"
-                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-amber-400 ring-2 ring-sidebar"
+                          className="absolute -top-0.5 -right-0.5 z-10 size-2 rounded-full bg-warning ring-2 ring-sidebar"
                         />
                       ) : null}
                     </span>
@@ -620,7 +605,7 @@ export function AppRail({
                           ? railLabelActiveClass
                           : cn(
                               railLabelIdleClass,
-                              "group-data-[popup-open]/item:text-zinc-900 dark:group-data-[popup-open]/item:text-white",
+                              "group-data-[popup-open]/item:text-sidebar-accent-foreground",
                             ),
                       )}
                     >
@@ -631,56 +616,48 @@ export function AppRail({
                     side="right"
                     align="end"
                     sideOffset={8}
-                    className="w-72"
+                    className="w-60"
                   >
-                    <p className="px-2 pt-1.5 pb-1 text-sm font-semibold text-foreground">
+                    {/* Section label: 12px/12px weight 500 faint, sentence
+                        case, no tracking (notion-spec §3). */}
+                    <p className="px-1.5 pt-1 pb-1.5 text-xs leading-3 font-medium text-faint-foreground">
                       More
                     </p>
-                    {moreItems.map((item, index) => {
+                    {moreItems.map((item) => {
                       const Icon = item.icon;
                       const isActive = section === item.section;
-                      const failing =
-                        item.section === "workflows" && failingWorkflows > 0;
-                      const pending =
-                        item.section === "bookings" && pendingBookings > 0;
-                      const approvals =
-                        item.section === "agents" && pendingApprovals > 0;
+                      // A single count per row, rendered as a quiet tabular
+                      // number at the right edge — no colored pill, no plate.
+                      const count =
+                        item.section === "workflows"
+                          ? failingWorkflows
+                          : item.section === "bookings"
+                            ? pendingBookings
+                            : item.section === "agents"
+                              ? pendingApprovals
+                              : 0;
                       return (
                         <DropdownMenuItem
                           key={item.section}
                           onClick={() => handleClick(item)}
                           aria-current={isActive ? "page" : undefined}
-                          className={cn(
-                            "gap-3 px-2 py-2",
-                            isActive && "bg-accent/60",
-                          )}
+                          // The description is a hover hint now: Notion menu
+                          // rows are one line of 14px text, never a stack.
+                          title={MORE_DESCRIPTIONS[item.section]}
+                          className={cn(isActive && "bg-accent")}
                         >
-                          <TintIcon tone={MORE_TONES[item.section] ?? tintAt(index)}>
-                            <Icon strokeWidth={1.75} />
-                          </TintIcon>
-                          <span className="flex min-w-0 flex-col gap-0.5">
-                            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                              {item.label}
-                              {failing ? (
-                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-semibold text-amber-600 tabular-nums dark:text-amber-400">
-                                  {failingWorkflows} failing
-                                </span>
-                              ) : null}
-                              {pending ? (
-                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-semibold text-amber-600 tabular-nums dark:text-amber-400">
-                                  {pendingBookings} pending
-                                </span>
-                              ) : null}
-                              {approvals ? (
-                                <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[10px] font-semibold text-amber-600 tabular-nums dark:text-amber-400">
-                                  {pendingApprovals} awaiting approval
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {MORE_DESCRIPTIONS[item.section]}
-                            </span>
+                          <Icon
+                            strokeWidth={1.75}
+                            className="text-faint-foreground"
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.label}
                           </span>
+                          {count > 0 ? (
+                            <span className="ml-auto shrink-0 text-xs font-medium text-warning tabular-nums">
+                              {count}
+                            </span>
+                          ) : null}
                         </DropdownMenuItem>
                       );
                     })}
@@ -712,10 +689,9 @@ export function AppRail({
             />
             <TooltipContent side="right">
               {sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
-              <kbd
-                data-slot="kbd"
-                className="ml-1 rounded bg-background/15 px-1 font-sans text-[0.625rem] text-background/80"
-              >
+              {/* Shortcut hint: 12px weight 400 faint, no chrome
+                  (notion-spec §3). */}
+              <kbd className="ml-1.5 font-sans text-xs font-normal opacity-60">
                 ⌘\
               </kbd>
             </TooltipContent>

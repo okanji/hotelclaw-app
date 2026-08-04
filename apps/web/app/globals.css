@@ -10,11 +10,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+ * TOKEN LAYER — Notion-derived. The contract is docs/notion-spec.md (measured
+ * off app.notion.com, not guessed) and DESIGN.md describes how to spend these.
+ *
+ * Five rules the values below encode:
+ *   1. Surfaces separate by a ~2% FILL delta plus a 7% WARM ring — never a
+ *      visible gray stroke.
+ *   2. Every grey is warm/brown-tinted. Neutral cold grey is what makes a UI
+ *      read as a stock component library.
+ *   3. Labels are sentence case, weight 500, letter-spacing NORMAL.
+ *   4. Two radii: 6px for things you click, 10px for things that float.
+ *   5. Elevation belongs to floating overlays only. Resting cards get none.
+ * ------------------------------------------------------------------------ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Inter Variable is injected on <html> as --font-sans-inter via next/font (see layout.tsx).
-     Linear uses Inter with a few OpenType features enabled — see the `html` base rule below. */
+  /* Inter Variable is injected on <html> as --font-sans-inter via next/font (see layout.tsx). */
   --font-sans: var(--font-sans-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
@@ -35,15 +48,25 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
-  /* Outline of the joined shell card (sidebar + content pane). Deliberately
-     darker than the app-wide --border so the floating card reads as a defined
-     surface, without over-darkening every input/divider that uses --border. */
+  /* DEPRECATED alias of --border, and as of 2026-08-04 it has ZERO call
+     sites — the shell's three planes sit flush and separate by fill delta +
+     the sidebar's inset edge shadow (notion-spec §1). Kept only so any
+     stale `border-shell-border` keeps compiling. Do not use in new code. */
   --color-shell-border: var(--shell-border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  /* Pressed/selected rung of the same warm hover fill (accent = hover). */
+  --color-accent-pressed: var(--accent-pressed);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+  /* Ink ramp beyond foreground/muted-foreground:
+       --secondary-ink   sidebar + nav row labels (14px/500)
+       --faint-foreground section labels, captions, shortcut hints (12px)
+     Section labels used to reuse --muted-foreground; they now have their own,
+     lighter rung so a caption never reads as body text. */
+  --color-secondary-ink: var(--secondary-ink);
+  --color-faint-foreground: var(--faint-foreground);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -52,11 +75,12 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  /* Contrast ramp ported from the rail/aside prototype — used for the aside's
-     item rows, group labels, counts, dividers and the resize handle. */
-  --color-contrast-high: var(--foreground);
-  --color-contrast-medium: var(--muted-foreground);
-  --color-contrast-low: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  /* Tooltip is a constant dark slab on BOTH planes (Notion never inverts it
+     with the theme) — do not swap this for bg-foreground. */
+  --color-tooltip-bg: var(--tooltip-bg);
+  --color-tooltip-foreground: var(--tooltip-foreground);
+  /* Ink for text sitting on a --tint-* cover fill (CoverCard glyphs). */
+  --color-cover-ink: var(--cover-ink);
   /* Semantic status ramp — the ONE source for success/warning/info states
      (badges, dots, meters). Never re-pick emerald/amber/blue shades inline. */
   --color-success: var(--success);
@@ -65,18 +89,25 @@
   /* Brand lavender/aubergine accents (property tile, chat underline). */
   --color-brand: var(--brand);
   --color-brand-accent: var(--brand-accent);
-  /* Vivid pink notification/count badges (rail + sidebar rows) — the one
-     "look at me" color in shell chrome, same in both themes. */
+  /* Notification/count badges (rail + sidebar rows) — the one "look at me"
+     color in shell chrome, same in both themes. */
   --color-notification: var(--notification);
-  /* Red brand accent — eyebrows, active tab underlines, hairline accent rules,
-     small markers/dots. NOT for buttons (primary stays warm ink); this is a
-     highlight used sparingly, the way Claude's own surfaces use coral. */
+  /* Red brand accent — hairline accent rules, small markers/dots. NOT for
+     buttons and NOT for eyebrows any more (see DESIGN.md: labels are faint,
+     sentence case, uncolored). Used sparingly. */
   --color-accent-red: var(--accent-red);
+  /* Document annotation marks (comment threads) + AI diff marks. */
+  --color-annotation-mark: var(--annotation-mark);
+  --color-annotation-mark-active: var(--annotation-mark-active);
+  --color-annotation-underline: var(--annotation-underline);
+  --color-diff-insert-bg: var(--diff-insert-bg);
+  --color-diff-insert-ink: var(--diff-insert-ink);
+  --color-diff-delete-bg: var(--diff-delete-bg);
+  --color-diff-delete-ink: var(--diff-delete-ink);
   /* Brand tint card palette (lavender / blue / sage / coral / honey) — the
-     colored card surfaces on Home + Insights, same family as the Claude/
-     Anthropic brand panels. Theme-adaptive: soft pastels on the light plane,
-     deep muted fills on charcoal. Pair `bg-tint-<hue>` with the matching
-     `text-tint-<hue>-ink` so text always has contrast on the fill. */
+     colored card surfaces on Home + Insights. Theme-adaptive: soft warm
+     washes on the light plane, deep muted fills on charcoal. Pair
+     `bg-tint-<hue>` with the matching `text-tint-<hue>-ink`. */
   --color-tint-lavender: var(--tint-lavender);
   --color-tint-lavender-ink: var(--tint-lavender-ink);
   --color-tint-blue: var(--tint-blue);
@@ -90,7 +121,7 @@
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
-     Use `bg-guest-bg text-guest-ink` etc. — never re-type the hex values. */
+     OUT OF SCOPE for the Notion normalization — do not touch. */
   --color-guest-bg: var(--guest-bg);
   --color-guest-card: var(--guest-card);
   --color-guest-ink: var(--guest-ink);
@@ -106,111 +137,186 @@
   --color-guest-accent-ink: var(--guest-accent-ink);
   --color-guest-danger: var(--guest-danger);
   /* Serif is the guest world's display voice (wizard questions, event titles).
-     Pinned to Tailwind's default stack so `font-serif` is deliberate, not a
-     fallback accident. */
+     The app shell has NO serif voice. */
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+
+  /* --- Radius: exactly two rungs -----------------------------------------
+     6px  (--radius)         anything you click: buttons, inputs, rows,
+                             menu items, cards, chips, badges, wells.
+     10px (--radius-overlay) anything that FLOATS: popover, dropdown, dialog,
+                             sheet, command palette, toast, drag overlay.
+     `rounded-sm|md|lg|4xl` all collapse onto 6px so the ~640 existing call
+     sites land on the scale with no file edits. `rounded-full` still means
+     avatars/dots/progress tracks. */
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-4xl: var(--radius);
+  --radius-overlay: 0.625rem;
+  /* FROZEN at their pre-normalization computed values. `rounded-xl/2xl/3xl`
+     survive ONLY because the out-of-scope guest world consumes them
+     (components/public-booking/*, components/guest-chat/*, app/book/*).
+     App-shell surfaces must use --radius or --radius-overlay instead —
+     never these. Do not re-point them; convert app call sites. */
+  --radius-xl: 0.7rem;
+  --radius-2xl: 0.9rem;
+  --radius-3xl: 1.1rem;
+
+  /* --- Elevation: one recipe, applied only to floating things ------------
+     The 1px warm ring is the LAST shadow layer, not a `border` and not a
+     `ring-*` utility — stacking both double-rings. Overlays are
+     `rounded-overlay shadow-overlay` with border: none. */
+  --shadow-overlay: var(--overlay-shadow);
+  --shadow-tooltip: var(--tooltip-shadow);
+  /* A bare 1px warm ring for resting surfaces that genuinely need a boundary
+     (cards, wells, inputs) — replaces `border border-border`. */
+  --shadow-ring: var(--ring-shadow);
+  /* Focus: 1px Notion blue, inset + outer. NOT a 3px offset halo.
+     Use as `focus-visible:shadow-focus`. */
+  --shadow-focus: var(--focus-shadow);
+
+  /* Hover is a background change and it is near-instant. Bare
+     `transition-colors` / `transition-[background-color]` now resolve to
+     20ms ease-in everywhere with no file edits (notion-spec §6). */
+  --default-transition-duration: 20ms;
+  --default-transition-timing-function: ease-in;
 }
 
-/*
- * Linear-inspired shell:
- *   - --background is the OUTER surface (dark) on which the sidebar sits.
- *   - --card / SidebarInset is the floating inner container, slightly lighter
- *     than the outer surface, separated by a 1px ring at --border.
- *   - --sidebar matches --background so the sidebar reads as the outer shell.
- *   - Borders are opacity-based on white for dark / black for light so they
- *     stay subtle on either inner or outer surface.
- */
+/* ---------------------------------------------------------------------------
+ * LIGHT PLANE
+ *   --card / --popover  = the CONTENT canvas: pure white.
+ *   --background / --sidebar = CHROME: #f9f8f7, only ~2% off white. That 2%
+ *     delta plus the warm ring is the entire separation mechanism.
+ * ------------------------------------------------------------------------ */
 :root {
-  /*
-   * Light-mode parallel to the dark palette. Warm-neutral family (oklch hue
-   * ~106 — the Anthropic/Notion ivory world, same family as the guest
-   * `--guest-*` palette): warm ivory `#faf9f5` outer shell + sidebar, pure
-   * white inset card as the highlight plane, warm ink text. Hairlines are
-   * warm-tinted translucent blacks so they sit naturally on the ivory.
-   */
-  --background: #faf9f5;
-  --foreground: oklch(0.24 0.004 106);
+  --background: #f9f8f7;
+  --foreground: #2c2c2b;
   --card: #ffffff;
-  --card-foreground: oklch(0.24 0.004 106);
+  --card-foreground: #2c2c2b;
   --popover: #ffffff;
-  --popover-foreground: oklch(0.24 0.004 106);
-  --primary: oklch(0.27 0.006 106);
-  --primary-foreground: oklch(0.985 0.003 106);
-  --secondary: oklch(0.966 0.005 106);
-  --secondary-foreground: oklch(0.27 0.006 106);
-  --muted: oklch(0.966 0.005 106);
-  --muted-foreground: oklch(0.5 0.012 106);
-  --accent: oklch(0.3 0.03 106 / 6%);
-  --accent-foreground: oklch(0.27 0.006 106);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.3 0.03 106 / 10%);
-  /* Same warm-ink hue as --border, just a heavier alpha — an on-palette
-     darker grey for the shell card outline, not a cold solid stroke. */
-  --shell-border: oklch(0.3 0.03 106 / 18%);
-  --input: oklch(0.3 0.03 106 / 12%);
-  --ring: oklch(0.71 0.012 106);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.5rem;
-  /* Width of the icon rail (first sidebar). */
-  --rail-width: 3.25rem;
-  /* The floating icon rail's surface — a true neutral near-black,
-     deliberately outside the warm-ivory family so the rail reads as chrome,
-     not content. Same in both themes; AppRail pins its local --sidebar to
-     this so every sidebar-token consumer inside it (badge ring cutouts,
-     washes) matches. */
-  --rail: oklch(0.1 0 0);
-  /* The secondary sidebar is its own detached light-gray rounded card
-     floating on the WHITE shell canvas (the outer container uses bg-card)
-     beside the white content card — deliberately neutral, not warm-ivory,
-     so the chrome-vs-content split reads. */
-  --sidebar: #f5f5f5;
-  /* Notification pink — count badges in shell chrome. */
-  --notification: oklch(0.62 0.22 354);
-  --sidebar-foreground: oklch(0.27 0.006 106);
-  --sidebar-primary: oklch(0.27 0.006 106);
-  --sidebar-primary-foreground: oklch(0.985 0.003 106);
-  --sidebar-accent: oklch(0.3 0.03 106 / 7%);
-  --sidebar-accent-foreground: oklch(0.24 0.004 106);
-  --sidebar-border: oklch(0.3 0.03 106 / 10%);
-  --sidebar-ring: oklch(0.71 0.012 106);
-  /* Apple-Mail-style blue used as the universal "doc / nav item" icon accent
-     across the sidebar AND the docs home page. Slightly darker on light mode
-     for contrast against the off-white surface, lighter on dark. */
-  --icon-accent: oklch(0.58 0.172 248);
-  /* Semantic status colors (emerald-600 / amber-600 / blue-600 families). */
-  --success: oklch(0.596 0.145 163.225);
-  --warning: oklch(0.666 0.179 58.318);
-  --info: oklch(0.546 0.245 262.881);
+  --popover-foreground: #2c2c2b;
+  --primary: #2c2c2b;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f0ee;
+  --secondary-foreground: #2c2c2b;
+  /* Wells are TRANSLUCENT warm-black so the same `bg-muted` composites
+     correctly on both the white content plane and the #f9f8f7 chrome plane. */
+  --muted: rgb(33 27 23 / 4%);
+  /* Ink ramp: primary → secondary → tertiary → faint. */
+  --secondary-ink: #5f5e59;
+  --muted-foreground: #7d7a75;
+  --faint-foreground: #a19e99;
+  /* Hover / pressed fill. ONE value for both the app and the sidebar — the
+     same gesture must not have two alphas. */
+  --accent: rgb(33 27 23 / 5%);
+  --accent-pressed: rgb(33 27 23 / 8%);
+  /* Hover must NOT flip the label color, so accent-foreground == foreground. */
+  --accent-foreground: #2c2c2b;
+  --destructive: oklch(0.55 0.17 28);
+  /* THE signature warm ring. Divider, hairline, input edge, card boundary. */
+  --border: rgb(42 28 0 / 7%);
+  --shell-border: rgb(42 28 0 / 7%);
+  --input: rgb(42 28 0 / 7%);
+  /* Focus color (Notion blue). Spent as a 1px inset+outer box-shadow, not a
+     3px ring — see --focus-shadow. */
+  --ring: #2383e2;
+  /* Warm-tinted neutral ramp for charts (chroma 0 read as cold grey). */
+  --chart-1: oklch(0.87 0.004 106);
+  --chart-2: oklch(0.556 0.006 106);
+  --chart-3: oklch(0.439 0.006 106);
+  --chart-4: oklch(0.371 0.006 106);
+  --chart-5: oklch(0.269 0.006 106);
+  /* CATEGORICAL series ramp — the one source for "colour by series/person"
+     (document chart blocks, spreadsheet charts, spreadsheet presence
+     cursors). --chart-* above is a monochrome value ramp and cannot carry
+     eight categories; before this existed each of those three surfaces
+     hardcoded its OWN palette (tailwind-500 hexes / raw hsl), which is a
+     house-rule violation and read cold against the warm planes. Chroma is
+     pulled back and every hue is warm-shifted so a chart sits in the same
+     family as the rest of the UI. Consume as `var(--series-N)`. */
+  --series-1: oklch(0.62 0.13 250);
+  --series-2: oklch(0.62 0.11 162);
+  --series-3: oklch(0.63 0.13 305);
+  --series-4: oklch(0.68 0.13 55);
+  --series-5: oklch(0.62 0.13 15);
+  --series-6: oklch(0.74 0.12 85);
+  --series-7: oklch(0.65 0.10 210);
+  --series-8: oklch(0.60 0.10 140);
+  --radius: 0.375rem;
+  /* Width of the icon rail (first sidebar). Sized so a 12px label ("Calendar",
+     "Activity") fits without ellipsis: 60px - 8px of px-1 padding = 52px of
+     row. It was 52px with 11px labels, which broke the spec's 12px floor
+     (notion-spec §3 — nothing goes below 12px). */
+  --rail-width: 3.75rem;
+  /* The icon rail's surface — warm near-black chrome, same in both themes.
+     AppRail pins its local --sidebar to this so every sidebar-token consumer
+     inside it (badge ring cutouts, washes) matches. */
+  --rail: #211f1b;
+  /* Sidebar and chrome are the SAME plane as --background (Notion's sidebar
+     is not a separate card). */
+  --sidebar: #f9f8f7;
+  --sidebar-foreground: #5f5e59;
+  --sidebar-primary: #2c2c2b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(33 27 23 / 5%);
+  /* The active/hover row is the only sidebar row that gets primary ink. */
+  --sidebar-accent-foreground: #2c2c2b;
+  --sidebar-border: rgb(42 28 0 / 7%);
+  --sidebar-ring: #2383e2;
+  /* Tooltip: constant dark slab on both planes. */
+  --tooltip-bg: #2c2c2b;
+  --tooltip-foreground: #f0efed;
+  /* Ink on tint-card cover fills. */
+  --cover-ink: #1f1e1b;
+  /* Notification pink — count badges in shell chrome. Quieted. */
+  --notification: oklch(0.6 0.17 358);
+  /* Nav/doc icon accent — same blue family as the focus ring. */
+  --icon-accent: oklch(0.58 0.14 250);
+  /* Semantic status colors — desaturated one rung so they read as warm
+     accents on the quiet planes rather than saturated stock chips. */
+  --success: oklch(0.55 0.095 160);
+  --warning: oklch(0.62 0.115 62);
+  --info: oklch(0.58 0.14 250);
   /* Brand aubergine + lavender (Slack-heritage marks: switcher tile, rail
      badge, chat active-tab underline). */
   --brand: #4a154b;
   --brand-accent: #cba4e6;
-  /* Red brand accent + tint card palette (see @theme mapping above).
-     Light plane: deep terracotta-red accent, soft pastel card fills. */
-  --accent-red: oklch(0.55 0.16 36);
-  --tint-lavender: oklch(0.9 0.045 295);
-  --tint-lavender-ink: oklch(0.4 0.09 295);
-  --tint-blue: oklch(0.89 0.05 245);
-  --tint-blue-ink: oklch(0.42 0.1 250);
-  --tint-sage: oklch(0.9 0.04 158);
-  --tint-sage-ink: oklch(0.42 0.06 160);
-  --tint-coral: oklch(0.88 0.055 42);
-  --tint-coral-ink: oklch(0.45 0.13 40);
-  --tint-honey: oklch(0.92 0.05 82);
-  --tint-honey-ink: oklch(0.45 0.09 80);
+  /* Red brand accent — quieted terracotta, used as a hairline/marker only. */
+  --accent-red: oklch(0.55 0.13 38);
+  /* Tint card palette — warm washes, chroma pulled back from the old pastels. */
+  --tint-lavender: oklch(0.92 0.032 295);
+  --tint-lavender-ink: oklch(0.4 0.075 295);
+  --tint-blue: oklch(0.92 0.035 245);
+  --tint-blue-ink: oklch(0.42 0.085 250);
+  --tint-sage: oklch(0.92 0.03 158);
+  --tint-sage-ink: oklch(0.42 0.05 160);
+  --tint-coral: oklch(0.91 0.04 42);
+  --tint-coral-ink: oklch(0.45 0.105 40);
+  --tint-honey: oklch(0.94 0.038 82);
+  --tint-honey-ink: oklch(0.45 0.075 80);
+  /* Document annotation + AI diff marks (used by app/documents-editor.css). */
+  --annotation-mark: rgb(214 178 74 / 26%);
+  --annotation-mark-active: rgb(196 148 30 / 42%);
+  --annotation-underline: rgb(160 110 0 / 55%);
+  --diff-insert-bg: oklch(0.92 0.05 150);
+  --diff-insert-ink: oklch(0.42 0.09 152);
+  --diff-delete-bg: oklch(0.92 0.045 25);
+  --diff-delete-ink: oklch(0.46 0.12 27);
+
+  /* --- Elevation recipes (raw values; mapped in @theme inline above) ----- */
+  --overlay-shadow:
+    rgb(25 25 25 / 5%) 0 20px 24px 0, rgb(25 25 25 / 2.7%) 0 5px 8px 0,
+    rgb(42 28 0 / 7%) 0 0 0 1px;
+  --tooltip-shadow:
+    rgb(0 0 0 / 8%) 0 4px 12px -2px, rgb(255 255 255 / 5%) 0 0 0 1px inset;
+  --ring-shadow: 0 0 0 1px rgb(42 28 0 / 7%);
+  --focus-shadow: #2383e2 0 0 0 1px inset, #2383e2 0 0 0 1px;
+  /* The sidebar's right edge is a SHADOW, not a border (notion-spec §2). */
+  --sidebar-edge-shadow: inset -1px 0 0 #f0efed;
+
   /* Guest palette raw values (see @theme mapping above). Same in dark mode —
-     guest surfaces are their own warm-cream world and never theme-switch. */
+     guest surfaces are their own warm-cream world and never theme-switch.
+     OUT OF SCOPE — byte-identical to the pre-normalization values. */
   --guest-bg: #faf9f5;
   --guest-card: rgb(255 255 255 / 60%);
   --guest-ink: #1f1e1b;
@@ -227,79 +333,96 @@
   --guest-danger: #b3422a;
 }
 
+/* ---------------------------------------------------------------------------
+ * DARK PLANE
+ * Note the inversion of the light plane's relationship: in dark, CHROME is
+ * LIGHTER than content (#202020 chrome over a #191919 canvas). Measured off
+ * Notion; getting this backwards is what made our dark shell read muddy.
+ * Ink, fills and rings stay in the same warm family as light so a theme
+ * switch never shifts temperature.
+ * ------------------------------------------------------------------------ */
 .dark {
-  /*
-   * Warm charcoal palette (Claude-dashboard dark family). The darkest plane
-   * (#161512) is the outer surface + sidebar; the inset card sits slightly
-   * lighter so the seam reads with the existing 1px ring. Same warm hue
-   * (~106) as light mode so theme switches don't shift temperature.
-   */
-  --background: #161512;
-  --foreground: oklch(0.96 0.005 106);
-  --card: #181713;
-  --card-foreground: oklch(0.96 0.005 106);
-  --popover: #1e1d19;
-  --popover-foreground: oklch(0.96 0.005 106);
-  --primary: oklch(0.96 0.005 106);
-  --primary-foreground: #161512;
-  --secondary: oklch(0.24 0.006 106);
-  --secondary-foreground: oklch(0.96 0.005 106);
-  --muted: oklch(0.215 0.006 106);
-  --muted-foreground: oklch(0.62 0.01 106);
-  --accent: oklch(1 0 0 / 6%);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 5%);
-  /* Dark mode: the "darker outline" reads as a slightly stronger light edge
-     (you can't go darker than the near-black shell), keeping the card defined. */
-  --shell-border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.556 0.008 106);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: #161512;
-  --sidebar-foreground: oklch(0.93 0.005 106);
-  --sidebar-primary: oklch(0.96 0.005 106);
-  --sidebar-primary-foreground: #161512;
-  --sidebar-accent: oklch(1 0 0 / 8%);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 5%);
-  --sidebar-ring: oklch(0.556 0.008 106);
-  --icon-accent: oklch(0.73 0.138 245);
-  /* Brighter status rungs for dark surfaces (emerald-400 / amber-400 / blue-400). */
-  --success: oklch(0.765 0.177 163.223);
-  --warning: oklch(0.828 0.189 84.429);
-  --info: oklch(0.707 0.165 254.624);
+  --background: #202020;
+  --foreground: #f0efed;
+  --card: #191919;
+  --card-foreground: #f0efed;
+  --popover: #252525;
+  --popover-foreground: #f0efed;
+  --primary: #f0efed;
+  --primary-foreground: #191919;
+  --secondary: #2a2a29;
+  --secondary-foreground: #f0efed;
+  --muted: rgb(255 255 255 / 4.5%);
+  --secondary-ink: #bcbab6;
+  --muted-foreground: #9a9893;
+  --faint-foreground: #73716c;
+  --accent: rgb(255 255 255 / 5.5%);
+  --accent-pressed: rgb(255 255 255 / 9%);
+  --accent-foreground: #f0efed;
+  --destructive: oklch(0.68 0.15 25);
+  --border: rgb(255 255 255 / 7.5%);
+  --shell-border: rgb(255 255 255 / 7.5%);
+  --input: rgb(255 255 255 / 7.5%);
+  --ring: #2383e2;
+  --chart-1: oklch(0.87 0.004 106);
+  --chart-2: oklch(0.556 0.006 106);
+  --chart-3: oklch(0.439 0.006 106);
+  --chart-4: oklch(0.371 0.006 106);
+  --chart-5: oklch(0.269 0.006 106);
+  /* Categorical series ramp, lifted for the dark plane (same hues). */
+  --series-1: oklch(0.70 0.13 250);
+  --series-2: oklch(0.70 0.11 162);
+  --series-3: oklch(0.71 0.13 305);
+  --series-4: oklch(0.75 0.13 55);
+  --series-5: oklch(0.70 0.13 15);
+  --series-6: oklch(0.80 0.12 85);
+  --series-7: oklch(0.72 0.10 210);
+  --series-8: oklch(0.68 0.10 140);
+  --sidebar: #202020;
+  --sidebar-foreground: #bcbab6;
+  --sidebar-primary: #f0efed;
+  --sidebar-primary-foreground: #191919;
+  --sidebar-accent: rgb(255 255 255 / 5.5%);
+  --sidebar-accent-foreground: #f0efed;
+  --sidebar-border: rgb(255 255 255 / 7.5%);
+  --sidebar-ring: #2383e2;
+  --tooltip-bg: #2c2c2b;
+  --tooltip-foreground: #f0efed;
+  --cover-ink: #1f1e1b;
+  --notification: oklch(0.68 0.17 358);
+  --icon-accent: oklch(0.7 0.12 248);
+  --success: oklch(0.74 0.13 163);
+  --warning: oklch(0.8 0.13 84);
+  --info: oklch(0.7 0.12 250);
   --brand: #4a154b;
   --brand-accent: #cba4e6;
-  /* Dark plane: brighter coral accent that pops on charcoal, deep muted
-     colored card fills with light ink on top. */
-  --accent-red: oklch(0.7 0.15 40);
-  --tint-lavender: oklch(0.4 0.055 295);
-  --tint-lavender-ink: oklch(0.9 0.03 295);
-  --tint-blue: oklch(0.4 0.06 250);
-  --tint-blue-ink: oklch(0.9 0.035 250);
-  --tint-sage: oklch(0.4 0.045 160);
-  --tint-sage-ink: oklch(0.9 0.03 160);
-  --tint-coral: oklch(0.44 0.08 42);
-  --tint-coral-ink: oklch(0.92 0.03 42);
-  --tint-honey: oklch(0.44 0.055 80);
-  --tint-honey-ink: oklch(0.92 0.03 80);
-}
+  --accent-red: oklch(0.7 0.12 40);
+  --tint-lavender: oklch(0.4 0.045 295);
+  --tint-lavender-ink: oklch(0.9 0.028 295);
+  --tint-blue: oklch(0.4 0.05 250);
+  --tint-blue-ink: oklch(0.9 0.03 250);
+  --tint-sage: oklch(0.4 0.038 160);
+  --tint-sage-ink: oklch(0.9 0.028 160);
+  --tint-coral: oklch(0.44 0.065 42);
+  --tint-coral-ink: oklch(0.92 0.028 42);
+  --tint-honey: oklch(0.44 0.045 80);
+  --tint-honey-ink: oklch(0.92 0.028 80);
+  --annotation-mark: rgb(214 178 74 / 22%);
+  --annotation-mark-active: rgb(230 190 80 / 34%);
+  --annotation-underline: rgb(230 190 80 / 50%);
+  --diff-insert-bg: oklch(0.34 0.06 152);
+  --diff-insert-ink: oklch(0.86 0.09 150);
+  --diff-delete-bg: oklch(0.34 0.07 27);
+  --diff-delete-ink: oklch(0.86 0.08 25);
 
-/* Chat inset fill — kept distinct from --card so other card surfaces
-   (popovers, info panel, mention rows, etc.) keep their existing tone.
-   Stream Chat paints `--str-chat__background-core-app` on several inner
-   surfaces (`.str-chat__chat-view`, `.str-chat__message-list`,
-   `.str-chat__virtual-list`, etc.) AND its own CSS is imported AFTER
-   ours (see app/layout.tsx), so we override the variable in
-   `stream-chat-overrides.css` rather than here. The inset's own
-   background color stays in sync so the brief pre-mount state matches. */
-.dark [data-slot="sidebar-inset"] {
-  background-color: #1b1a16;
+  --overlay-shadow:
+    rgb(0 0 0 / 30%) 0 20px 24px 0, rgb(0 0 0 / 20%) 0 5px 8px 0,
+    rgb(255 255 255 / 7.5%) 0 0 0 1px;
+  --tooltip-shadow:
+    rgb(0 0 0 / 40%) 0 4px 12px -2px, rgb(255 255 255 / 6%) 0 0 0 1px inset;
+  --ring-shadow: 0 0 0 1px rgb(255 255 255 / 7.5%);
+  --focus-shadow: #2383e2 0 0 0 1px inset, #2383e2 0 0 0 1px;
+  --sidebar-edge-shadow: inset -1px 0 0 #2c2c2b;
 }
 
 @layer base {
@@ -311,11 +434,13 @@
   }
   html {
     @apply font-sans;
-    /* Linear-style Inter tuning: cv11 = single-storey `a`, ss03 = looped `l`,
-       cv02 = straight-leg `g`. Combined with -0.011em tracking this matches
-       Linear's UI text. */
+    /* Inter OpenType tuning: cv11 = single-storey `a`, ss03 = looped `l`,
+       cv02 = straight-leg `g`.
+       NOTE: there is deliberately NO `letter-spacing` here. Notion's
+       letter-spacing is `normal` everywhere (notion-spec §3) and the old
+       global `-0.011em` was a Linear signature. Do not reintroduce it, and
+       do not add `tracking-tight` / `tracking-[0.18em]` to app surfaces. */
     font-feature-settings: "cv11", "ss03", "cv02";
-    letter-spacing: -0.011em;
   }
 
   /* Slack-style slim scrollbars — standard properties ONLY (`scrollbar-width`
@@ -336,13 +461,13 @@
 }
 
 :root {
-  --scrollbar-thumb: oklch(0 0 0 / 18%);
-  --scrollbar-thumb-hover: oklch(0 0 0 / 30%);
+  --scrollbar-thumb: rgb(33 27 23 / 18%);
+  --scrollbar-thumb-hover: rgb(33 27 23 / 30%);
 }
 
 .dark {
-  --scrollbar-thumb: oklch(1 0 0 / 18%);
-  --scrollbar-thumb-hover: oklch(1 0 0 / 30%);
+  --scrollbar-thumb: rgb(255 255 255 / 18%);
+  --scrollbar-thumb-hover: rgb(255 255 255 / 30%);
 }
 
 /* Stream Chat theming overrides.
@@ -503,11 +628,12 @@
 
 /* Blockquote, inline code, and code blocks in rendered messages — Tailwind
    v4's base zeros their visual treatment; re-apply it so they read the way
-   the user typed them. */
+   the user typed them. Radii are on the 6px control rung and the code block's
+   boundary is the warm ring, not a stroke (notion-spec §1/§4). */
 .str-chat__message-text blockquote,
 .str-chat__slack-message-main blockquote {
   margin: 4px 0;
-  border-inline-start: 3px solid color-mix(in srgb, currentcolor 30%, transparent);
+  border-inline-start: 2px solid color-mix(in srgb, currentcolor 22%, transparent);
   padding-inline-start: 10px;
   color: color-mix(in srgb, currentcolor 80%, transparent);
 }
@@ -516,7 +642,7 @@
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.9em;
   background: color-mix(in srgb, currentcolor 8%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 1px 5px;
 }
 .str-chat__message-text pre,
@@ -524,8 +650,9 @@
   margin: 4px 0;
   padding: 8px 10px;
   background: color-mix(in srgb, currentcolor 6%, transparent);
-  border: 1px solid color-mix(in srgb, currentcolor 12%, transparent);
-  border-radius: 6px;
+  border: none;
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.9em;
   overflow-x: auto;

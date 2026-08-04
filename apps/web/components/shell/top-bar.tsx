@@ -47,9 +47,9 @@ import { BrandMark } from "./rail-logo";
 
 /**
  * The app top bar — brand mark + horizontal section tabs + account controls.
- * Replaces the vertical icon rail (2026-07-12 redesign, product-design
- * cheatsheet): 13px medium labels, 1.25px-stroke icons, selected tab is a
- * rounded `bg-selected` pill, hairline `border-b` under the bar.
+ * Replaces the vertical icon rail (2026-07-12 redesign). Notion-normalized
+ * 2026-08-04: 14px/500 secondary-ink labels, 6px radius, the active tab is
+ * the hover fill at rest with full ink (no pill, no ring, no bold).
  *
  * All the rail's routing behavior lives on: last-path resume per section,
  * pushState fast-paths for layout-internal hops (with the server-rendered
@@ -97,16 +97,16 @@ const CHATBOTS_ROUTE = /^\/p\/[^/]+\/chatbots(\/.*)?$/;
 const BOOKINGS_ROUTE = /^\/p\/[^/]+\/bookings(\/.*)?$/;
 const FORMS_ROUTE = /^\/p\/[^/]+\/forms(\/.*)?$/;
 
-/** Section tab — rounded-rect (not a pill), 13px medium label, 1.25-stroke
- *  icon. Idle labels stay near-default brightness (only the icon is subtle);
- *  the selected tab gets the `bg-selected` fill PLUS a hairline inset ring —
- *  both details straight from the reference. */
+/** Section tab — a 30px nav row laid out horizontally (notion-spec §4/§6):
+ *  14px/500 secondary ink at rest, 6px radius, hover is FILL ONLY, and the
+ *  active tab is that same fill at rest plus full ink. No pill, no ring, no
+ *  bold, no color flip on hover. */
 const tabClass =
-  "group/tab flex h-9 shrink-0 items-center gap-2 rounded-xl py-2 pr-3.5 pl-3 text-ui font-medium outline-hidden transition-colors " +
-  "text-foreground/80 hover:bg-accent hover:text-foreground " +
-  "data-current:bg-selected data-current:text-accent-foreground data-current:inset-ring data-current:inset-ring-border " +
-  "[&>svg]:text-muted-foreground hover:[&>svg]:text-foreground data-current:[&>svg]:text-accent-foreground " +
-  "focus-visible:ring-2 focus-visible:ring-ring/40";
+  "group/tab flex h-[30px] shrink-0 items-center gap-2 rounded-md px-2 text-sm font-medium outline-hidden transition-colors " +
+  "text-secondary-ink hover:bg-accent " +
+  "data-current:bg-accent data-current:text-foreground " +
+  "[&>svg]:text-faint-foreground data-current:[&>svg]:text-secondary-ink " +
+  "focus-visible:shadow-focus";
 
 type BarUser = {
   id: string;
@@ -409,14 +409,14 @@ export function AppTopBar({
               key={item.section}
               onClick={() => handleClick(item)}
               aria-current={isActive ? "page" : undefined}
-              className={cn("gap-2.5 px-2 py-2", isActive && "bg-selected")}
+              className={cn("gap-2.5 px-2 py-2", isActive && "bg-accent")}
             >
               <Icon
                 className="size-4 shrink-0 text-muted-foreground"
                 strokeWidth={1.25}
               />
               <span className="flex min-w-0 flex-col">
-                <span className="flex items-center gap-1.5 text-ui font-medium text-foreground">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                   {item.label}
                   {failing ? (
                     <StatusBadge tone="warning" dot={false} className="tabular-nums">
@@ -455,7 +455,7 @@ export function AppTopBar({
   return (
     <header
       className={cn(
-        "flex h-14 shrink-0 items-center gap-3 border-b border-border px-4",
+        "flex h-11 shrink-0 items-center gap-3 px-4",
         className,
       )}
     >
@@ -480,7 +480,7 @@ export function AppTopBar({
           aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
           aria-pressed={sidebarCollapsed}
           title={`${sidebarCollapsed ? "Open" : "Close"} sidebar (⌘\\)`}
-          className="rounded-full text-muted-foreground hover:bg-accent"
+          className="text-muted-foreground hover:bg-accent"
         >
           {sidebarCollapsed ? (
             <PanelLeftOpen className="size-4" strokeWidth={1.25} />

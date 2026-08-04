@@ -13,7 +13,7 @@ function humanizeLabel(token: string): string {
 
 function LabelChipSkeleton() {
   return (
-    <span className="inline-block h-7 w-20 animate-pulse rounded-lg bg-muted/80" />
+    <span className="inline-block h-7 w-20 animate-pulse rounded-lg bg-muted" />
   );
 }
 
@@ -71,7 +71,7 @@ export function LabelTriggerFilter({
 
       <div className="space-y-2">
         {!compact && (
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium text-faint-foreground">
             {loading ? "Loading labels…" : "Labels in this property"}
           </p>
         )}
@@ -96,10 +96,10 @@ export function LabelTriggerFilter({
                   aria-pressed={on}
                   onClick={() => toggle(label)}
                   className={cn(
-                    "rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors",
+                    "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
                     on
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-input bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                      ? "bg-accent-pressed text-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent",
                   )}
                 >
                   {humanizeLabel(label)}
@@ -143,7 +143,7 @@ export function LabelTriggerFilter({
           type="button"
           onClick={addCustom}
           disabled={!draft.trim()}
-          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-input bg-background px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md bg-background px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-40"
         >
           <Plus className="size-3.5" />
           Add

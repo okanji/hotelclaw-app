@@ -36,7 +36,7 @@ const CARD_SHELL: Record<
   { shell: string; pad: string; title: string; body: string; footer: string; snippetLines: number }
 > = {
   default: {
-    shell: "h-48 w-40 rounded-lg",
+    shell: "h-48 w-40 rounded-md",
     pad: "p-3",
     title: "pr-6 text-sm",
     body: "text-sm line-clamp-5",
@@ -113,30 +113,29 @@ export function DocPinCard({
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
         className={cn(
-          "flex flex-col overflow-hidden border border-border/80 bg-card text-left",
+          "flex flex-col overflow-hidden bg-card text-left shadow-ring transition-colors",
           s.shell,
           draggable
-            ? "cursor-grab active:cursor-grabbing group-hover/card:border-foreground/30 group-hover/card:bg-muted/40 group-hover/card:shadow-md group-hover/card:shadow-foreground/5 dark:group-hover/card:inset-ring-white/10"
-            : "hover:border-foreground/30 hover:bg-muted/40",
-          "dark:inset-ring dark:inset-ring-white/5",
+            ? "cursor-grab active:cursor-grabbing group-hover/card:bg-accent"
+            : "hover:bg-accent",
         )}
       >
         <div className={cn("flex-1 overflow-hidden", s.pad)}>
           <h3 className={cn("line-clamp-2 font-medium text-foreground", s.title)}>
             {doc.title || "Untitled"}
           </h3>
-          <div className={cn("bg-border/50", size === "compact" ? "my-1 h-px" : "my-2 h-px")} />
+          <div className={cn("bg-border", size === "compact" ? "my-1 h-px" : "my-2 h-px")} />
           {snippet ? (
             <p className={cn("whitespace-pre-line text-muted-foreground", s.body)}>
               {snippet}
             </p>
           ) : (
-            <p className={cn("text-muted-foreground/70", s.body)}>Empty</p>
+            <p className={cn("text-faint-foreground", s.body)}>Empty</p>
           )}
         </div>
         <div
           className={cn(
-            "flex items-center justify-between gap-1 border-t border-border/50",
+            "flex items-center justify-between gap-1 border-t border-border",
             s.footer,
           )}
         >
@@ -145,7 +144,7 @@ export function DocPinCard({
               className={cn("size-1 shrink-0 rounded-full", accentDotClass)}
               aria-hidden="true"
             />
-            <span className="truncate text-muted-foreground tabular-nums">
+            <span className="truncate text-faint-foreground tabular-nums">
               {doc.updated_at ? relativeTime(doc.updated_at) : "—"}
             </span>
           </span>
@@ -162,13 +161,13 @@ export function DocPinCard({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={handleUnpinClick}
         className={cn(
-          "absolute flex items-center justify-center rounded border border-border/60 bg-card/95 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm",
+          "absolute flex items-center justify-center rounded-md bg-card text-faint-foreground opacity-0 transition-colors",
           size === "compact"
             ? "top-1 right-1 size-5"
             : "top-1.5 right-1.5 size-6",
           "group-hover/card:opacity-100 focus-visible:opacity-100",
-          "hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive",
-          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring/60",
+          "hover:bg-destructive/10 hover:text-destructive",
+          "focus-visible:outline-none focus-visible:shadow-focus",
         )}
       >
         <X strokeWidth={2} className={size === "compact" ? "size-3" : "size-3.5"} />
@@ -195,35 +194,24 @@ export function AddPinTile({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex shrink-0 flex-col items-center justify-center border border-dashed text-center",
+        // No dashed box and no icon plate — the well IS the affordance
+        // (DESIGN.md "Primitives": EmptyState / never a dashed gray box).
+        "flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-md bg-muted text-center transition-colors",
         size === "compact"
-          ? "h-[7.5rem] w-[6.75rem] gap-1 rounded-md px-2"
-          : "h-48 w-40 gap-2 rounded-lg px-4",
+          ? "h-[7.5rem] w-[6.75rem] px-2"
+          : "h-48 w-40 px-4",
         disabled
-          ? "cursor-not-allowed border-border/30 text-muted-foreground/40"
-          : "border-border text-muted-foreground hover:border-foreground/25 hover:bg-muted/20 hover:text-foreground",
+          ? "cursor-not-allowed text-faint-foreground opacity-60"
+          : "text-muted-foreground hover:bg-accent-pressed",
+        "focus-visible:outline-none focus-visible:shadow-focus",
       )}
     >
-      <span
-        className={cn(
-          "flex items-center justify-center rounded-full bg-muted/60",
-          size === "compact" ? "size-6" : "size-8",
-        )}
+      <Plus
         aria-hidden="true"
-      >
-        <Plus
-          strokeWidth={1.75}
-          className={size === "compact" ? "size-3.5" : "size-4"}
-        />
-      </span>
-      <span
-        className={cn(
-          "font-medium",
-          size === "compact" ? "text-xs leading-tight" : "text-xs",
-        )}
-      >
-        {label}
-      </span>
+        strokeWidth={1.75}
+        className={size === "compact" ? "size-4" : "size-5"}
+      />
+      <span className="text-xs font-medium">{label}</span>
     </button>
   );
 }
@@ -297,7 +285,7 @@ export function DocumentPinPicker({
       />
       <PopoverContent align="start" sideOffset={8} className="w-80 p-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-faint-foreground" />
           <Input
             autoFocus
             value={q}
@@ -308,7 +296,7 @@ export function DocumentPinPicker({
         </div>
         <div className="mt-1.5 max-h-72 overflow-y-auto">
           {empty ? (
-            <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+            <p className="px-2 py-4 text-center text-sm text-muted-foreground">
               {needle
                 ? "No matches — try a different search"
                 : "No documents available to pin"}
@@ -343,10 +331,10 @@ function PinPickerGroupRow({
 }) {
   return (
     <div className="py-1">
-      <p className="px-2 py-1 text-xs font-medium tracking-tight text-muted-foreground">
+      <p className="px-1.5 py-1 text-xs leading-3 font-medium text-faint-foreground">
         {label}
         {hint ? (
-          <span className="ml-1 font-normal text-muted-foreground/70">
+          <span className="ml-1 font-normal">
             · {hint}
           </span>
         ) : null}
@@ -357,9 +345,9 @@ function PinPickerGroupRow({
             <button
               type="button"
               onClick={() => onPick(c.id)}
-              className="flex w-full items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-sm tracking-tight hover:bg-muted"
+              className="flex min-h-7 w-full items-center gap-2 truncate rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] transition-colors hover:bg-accent"
             >
-              <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+              <FileText className="size-3.5 shrink-0 text-faint-foreground" />
               {c.title || "Untitled"}
             </button>
           </li>

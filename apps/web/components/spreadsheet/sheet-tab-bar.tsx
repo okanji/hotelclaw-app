@@ -111,7 +111,7 @@ export function SheetTabBar({
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1 border-t border-border/60 bg-muted/30 px-2 py-1">
+    <div className="flex shrink-0 items-center gap-1 border-t border-border bg-background px-2 py-1">
       <Button
         type="button"
         size="icon"
@@ -203,10 +203,12 @@ function SheetTab({
       ref={sortable.setNodeRef}
       style={style}
       className={cn(
-        "group relative flex shrink-0 items-center gap-1 rounded-t-md border-x border-t border-transparent px-2 py-1 text-sm transition-colors",
+        // Tabs separate by fill, not by a bordered folder-tab outline
+        // (notion-spec §1). Active = full ink on the content plane.
+        "group relative flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors",
         active
-          ? "border-border/60 bg-background text-foreground shadow-[0_-1px_0_0_var(--background)]"
-          : "text-muted-foreground hover:bg-muted",
+          ? "bg-card text-foreground shadow-ring"
+          : "text-muted-foreground hover:bg-accent",
         sortable.isDragging && "opacity-50",
       )}
       onClick={() => !editing && onSelect(sheet.id)}
@@ -254,7 +256,7 @@ function SheetTab({
             <span
               key={i}
               title={v.name}
-              className="size-2 rounded-full ring-2 ring-background"
+              className="size-2 rounded-full ring-2 ring-card"
               style={{ background: v.color }}
             />
           ))}
@@ -265,7 +267,7 @@ function SheetTab({
           render={
             <button
               type="button"
-              className="ml-1 rounded p-0.5 opacity-50 hover:bg-muted hover:opacity-100"
+              className="ml-1 rounded-md p-0.5 opacity-50 transition-opacity hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
               aria-label="Sheet actions"
@@ -293,8 +295,8 @@ function SheetTab({
                 onClick={() => onSetColor(sheet.id, c)}
                 title={c ?? "None"}
                 className={cn(
-                  "size-5 rounded-sm border border-border/60 transition-shadow hover:ring-2 hover:ring-foreground/15",
-                  sheet.color === c && "ring-2 ring-foreground/40",
+                  "size-5 rounded-md shadow-ring",
+                  sheet.color === c && "shadow-focus",
                 )}
                 style={{ background: c ?? "transparent" }}
               />

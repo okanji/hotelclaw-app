@@ -268,7 +268,7 @@ export function SlackComposer({
   const canSend = (!isEditorEmpty || attachments.length > 0) && !sending;
 
   return (
-    <div className="group/composer mx-4 mb-4 mt-2 flex flex-col rounded-lg border border-black/10 bg-transparent transition-colors focus-within:border-black/20 dark:border-[oklch(1_0_0_/_0.13)] dark:focus-within:border-[oklch(1_0_0_/_0.22)]">
+    <div className="group/composer mx-4 mt-2 mb-4 flex flex-col rounded-md bg-transparent shadow-ring transition-[box-shadow] focus-within:shadow-focus">
       {/* Attachment preview chips */}
       {(attachments.length > 0 || uploads.length > 0) && (
         <div className="flex flex-wrap gap-2 border-b border-border px-3 py-2">
@@ -282,7 +282,7 @@ export function SlackComposer({
           {uploads.map((u) => (
             <div
               key={u.id}
-              className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
+              className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
             >
               <Skeleton className="size-3 rounded-sm bg-muted-foreground/40" />
               <span className="max-w-[140px] truncate">{u.name}</span>
@@ -449,7 +449,7 @@ export function SlackComposer({
                     size="icon-sm"
                     aria-label="Emoji"
                     title="Emoji"
-                    className="text-muted-foreground group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+                    className="text-muted-foreground hover:bg-accent"
                   >
                     <Smile />
                   </Button>
@@ -509,7 +509,7 @@ export function SlackComposer({
             className={cn(
               "disabled:opacity-100",
               canSend
-                ? "text-foreground hover:bg-black/5 dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+                ? "text-foreground hover:bg-accent"
                 : "text-muted-foreground/60 group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-muted-foreground",
             )}
           >
@@ -520,7 +520,7 @@ export function SlackComposer({
             variant="ghost"
             size="icon-sm"
             aria-label="Send options"
-            className="text-muted-foreground/60 group-focus-within/composer:text-foreground/65 hover:bg-black/5 hover:text-foreground dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+            className="text-muted-foreground group-focus-within/composer:text-foreground hover:bg-accent"
           >
             <ChevronDown />
           </Button>
@@ -548,7 +548,7 @@ function Divider() {
   return (
     <span
       aria-hidden="true"
-      className="mx-1 h-4 w-px shrink-0 bg-black/10 dark:bg-[oklch(1_0_0_/_0.12)]"
+      className="mx-1 h-4 w-px shrink-0 bg-border"
     />
   );
 }
@@ -579,8 +579,8 @@ function IconBtn({
       onClick={onClick}
       className={cn(
         active
-          ? "bg-black/10 text-foreground hover:bg-black/10 dark:bg-[oklch(1_0_0_/_0.1)] dark:hover:bg-[oklch(1_0_0_/_0.1)]"
-          : "text-muted-foreground hover:bg-black/5 hover:text-foreground group-focus-within/composer:text-foreground/65 dark:group-focus-within/composer:text-muted-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]",
+          ? "bg-accent-pressed text-foreground hover:bg-accent-pressed"
+          : "text-muted-foreground hover:bg-accent",
       )}
     >
       {children}
@@ -601,13 +601,13 @@ function AttachmentChip({
     (attachment.title as string | undefined) ??
     "attachment";
   return (
-    <div className="group relative inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs">
+    <div className="group relative inline-flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
       {isImage && attachment.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={attachment.thumb_url ?? attachment.image_url}
           alt=""
-          className="size-6 rounded object-cover"
+          className="size-6 rounded-md object-cover"
         />
       ) : (
         <FileText className="size-3.5 text-muted-foreground" />
@@ -617,7 +617,7 @@ function AttachmentChip({
         type="button"
         aria-label="Remove attachment"
         onClick={onRemove}
-        className="ml-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-[oklch(1_0_0_/_0.08)]"
+        className="ml-1 inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -684,8 +684,8 @@ function MentionList({
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                 i === index
-                  ? "bg-black/5 text-foreground dark:bg-[oklch(1_0_0_/_0.08)]"
-                  : "text-foreground/90",
+                  ? "bg-accent text-foreground"
+                  : "text-foreground",
               )}
             >
               {u.isBroadcast ? (
@@ -698,7 +698,7 @@ function MentionList({
                     src={typeof u.image === "string" ? u.image : undefined}
                     alt=""
                   />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-xs">
                     {initials || "?"}
                   </AvatarFallback>
                 </Avatar>

@@ -5,6 +5,7 @@ import { getMeetings } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
 import { Video } from "lucide-react";
 import { ImportTranscriptDialog } from "@/components/chat/meeting/import-transcript-dialog";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function MeetingsPage({
               <li key={m.id}>
                 <Link
                   href={`/p/${propertyId}/meetings/${m.id}`}
-                  className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50"
+                  className="block rounded-md bg-card p-4 shadow-ring transition-colors hover:bg-accent"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -110,25 +111,11 @@ function StatusPill({
   ended: boolean;
   hasSummary: boolean;
 }) {
-  if (!ended) {
-    return (
-      <span className="rounded-full bg-success/15 px-2 py-0.5 font-medium text-success">
-        Live
-      </span>
-    );
-  }
-  if (hasSummary) {
-    return (
-      <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 font-medium text-indigo-700 dark:text-indigo-300">
-        Summary ready
-      </span>
-    );
-  }
-  return (
-    <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
-      Processing…
-    </span>
-  );
+  // Domain states go through the house StatusBadge + the semantic ramp — no
+  // hand-rolled capsules and no re-picked indigo shades (DESIGN.md).
+  if (!ended) return <StatusBadge tone="success">Live</StatusBadge>;
+  if (hasSummary) return <StatusBadge tone="violet">Summary ready</StatusBadge>;
+  return <StatusBadge tone="neutral">Processing…</StatusBadge>;
 }
 
 function formatRelative(iso: string): string {

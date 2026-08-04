@@ -65,13 +65,13 @@ export function SheetContextMenu({
     <div
       ref={ref}
       role="menu"
-      className="fixed z-50 min-w-[200px] rounded-md border border-border/60 bg-popover py-1 shadow-lg ring-1 ring-foreground/5"
+      className="fixed z-50 min-w-[200px] rounded-overlay bg-popover p-1 shadow-overlay"
       style={{ left: safeX, top: safeY }}
     >
       {sections.map((section, si) => (
-        <div key={si} className={si > 0 ? "border-t border-border/40" : ""}>
+        <div key={si} className={si > 0 ? "-mx-1 mt-1 border-t border-border pt-1" : ""}>
           {section.label ? (
-            <div className="px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground">
+            <div className="px-1.5 py-1 text-xs leading-3 font-medium text-faint-foreground">
               {section.label}
             </div>
           ) : null}
@@ -86,17 +86,17 @@ export function SheetContextMenu({
                 onClose();
               }}
               className={
-                "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm " +
+                "flex min-h-7 w-full items-center justify-between rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] transition-colors " +
                 (item.disabled
-                  ? "cursor-not-allowed text-muted-foreground"
+                  ? "cursor-not-allowed text-faint-foreground"
                   : item.destructive
-                    ? "text-destructive hover:bg-muted"
-                    : "text-foreground hover:bg-muted")
+                    ? "text-destructive hover:bg-destructive/10"
+                    : "text-foreground hover:bg-accent")
               }
             >
               <span>{item.label}</span>
               {item.shortcut ? (
-                <kbd className="ml-3 font-mono text-[10px] text-muted-foreground">
+                <kbd className="ml-3 font-mono text-xs text-faint-foreground">
                   {item.shortcut}
                 </kbd>
               ) : null}

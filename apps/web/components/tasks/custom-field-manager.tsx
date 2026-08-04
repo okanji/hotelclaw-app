@@ -105,7 +105,7 @@ function ManagerDialog({
           </DialogDescription>
         </DialogHeader>
         {fields.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border/60 px-6 py-8 text-center text-sm text-muted-foreground">
+          <p className="px-6 py-8 text-center text-sm text-muted-foreground">
             No custom fields yet — add one from a task&rsquo;s sidebar.
           </p>
         ) : (
@@ -200,7 +200,7 @@ function FieldManagerRow({
   }
 
   return (
-    <li className="flex flex-col gap-1.5 rounded-lg border border-border/60 px-3 py-2">
+    <li className="flex flex-col gap-1.5 rounded-md bg-muted px-3 py-2">
       <div className="flex items-center gap-2">
         <Input
           value={name}
@@ -210,15 +210,15 @@ function FieldManagerRow({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           disabled={pending}
-          className="h-7 flex-1 border-transparent px-1.5 text-sm font-medium shadow-none hover:border-border focus-visible:border-border"
+          className="h-7 flex-1 border-transparent px-1.5 text-sm font-medium shadow-none focus-visible:border-border"
         />
-        <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs capitalize text-faint-foreground">
           {field.type}
         </span>
-        <span className="shrink-0 text-[11px] text-muted-foreground">
+        <span className="shrink-0 text-xs text-faint-foreground">
           {scopeLabel}
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {usageCount} {usageCount === 1 ? "task" : "tasks"}
         </span>
         <Button

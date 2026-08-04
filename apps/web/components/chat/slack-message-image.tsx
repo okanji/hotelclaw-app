@@ -126,9 +126,9 @@ export function SlackMessageImage(props: GalleryImageProps) {
           type="button"
           className={cn(
             "str-chat__slack-message-image-card__collapse-trigger",
-            "inline-flex size-[22px] shrink-0 items-center justify-center rounded",
+            "inline-flex size-[22px] shrink-0 items-center justify-center rounded-md",
             "text-[var(--slack-image-card-muted)] outline-none",
-            "hover:bg-[var(--slack-image-card-hover)] focus-visible:ring-2 focus-visible:ring-ring/50",
+            "hover:bg-[var(--slack-image-card-hover)] focus-visible:shadow-focus",
           )}
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse image preview" : "Expand image preview"}
@@ -193,25 +193,25 @@ export function SlackMessageImage(props: GalleryImageProps) {
                   align="end"
                   side="bottom"
                   sideOffset={8}
-                  className="z-[210] max-w-[min(18rem,calc(100vw-24px))] gap-3 p-3 text-sm leading-snug shadow-lg"
+                  className="z-[210] max-w-[min(18rem,calc(100vw-24px))] gap-3 p-3 text-sm leading-snug"
                 >
                   <dl className="grid gap-2">
                     <div>
-                      <dt className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                      <dt className="text-faint-foreground text-xs font-medium">
                         Name
                       </dt>
                       <dd className="mt-0.5 break-all font-medium break-words">{label}</dd>
                     </div>
                     {altLabel ? (
                       <div>
-                        <dt className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                        <dt className="text-faint-foreground text-xs font-medium">
                           Alt text
                         </dt>
                         <dd className="mt-0.5 break-words text-foreground">{altLabel}</dd>
                       </div>
                     ) : null}
                     <div>
-                      <dt className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                      <dt className="text-faint-foreground text-xs font-medium">
                         Link
                       </dt>
                       <dd className="mt-0.5 break-all break-words">
@@ -293,7 +293,7 @@ export function SlackMessageImage(props: GalleryImageProps) {
                   sideOffset={8}
                   className="z-[210] max-w-[min(20rem,calc(100vw-24px))] p-3 text-sm leading-snug"
                 >
-                  <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+                  <p className="text-faint-foreground text-xs font-medium">
                     Alt text
                   </p>
                   <p className="mt-1 break-words text-foreground">{altLabel}</p>

@@ -206,10 +206,8 @@ function TemplateCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors",
-        selected
-          ? "border-foreground/40 bg-muted/50"
-          : "border-border bg-card hover:border-foreground/20 hover:bg-muted/20",
+        "flex flex-col items-start gap-1.5 rounded-md p-3 text-left transition-colors",
+        selected ? "bg-accent-pressed" : "bg-muted hover:bg-accent",
       )}
     >
       <TintIcon tone={tone}>{emoji ?? icon ?? <Bot />}</TintIcon>

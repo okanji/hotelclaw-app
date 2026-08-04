@@ -34,11 +34,10 @@ export function MeetingButton({ channelId }: { channelId: string }) {
   if (isHere) {
     return (
       <Button
-        variant="outline"
+        variant="destructive"
         size="default"
         title="Leave meeting"
         aria-label="Leave meeting"
-        className="gap-1 border-destructive/40 bg-transparent px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive dark:bg-transparent"
         onClick={() => void leave()}
       >
         <PhoneOff className="size-4" />
@@ -48,13 +47,15 @@ export function MeetingButton({ channelId }: { channelId: string }) {
   }
 
   return (
-    <div className="inline-flex items-stretch">
+    // One warm ring around the pair — each half drops its own so the seam
+    // isn't a doubled stroke (notion-spec §5).
+    <div className="inline-flex items-stretch rounded-md shadow-ring">
       <Button
         variant="outline"
         size="default"
         title={videoReady ? "Start meeting" : "Video not ready"}
         aria-label="Start meeting"
-        className="gap-1 rounded-r-none border-r-0 bg-transparent px-2.5 dark:bg-transparent"
+        className="rounded-r-none shadow-none"
         disabled={!videoReady || stage === "preparing"}
         onClick={() => void start({ channelId })}
       >
@@ -69,9 +70,9 @@ export function MeetingButton({ channelId }: { channelId: string }) {
               variant="outline"
               size="icon"
               aria-label="Meeting options"
-              className="rounded-l-none bg-transparent px-1.5 dark:bg-transparent"
+              className="rounded-l-none shadow-none"
             >
-              <ChevronDown className="size-3.5 text-muted-foreground" />
+              <ChevronDown className="size-3.5 text-faint-foreground" />
             </Button>
           )}
         />

@@ -64,7 +64,7 @@ export type InsightSectionDef = {
   id: string;
   /** Which dashboard tab hosts this section. */
   tab: Exclude<InsightTab, "reports">;
-  /** Uppercase eyebrow above the title, editorial style. */
+  /** Sentence-case 12px label above the title. */
   kicker: string;
   /** Section heading. */
   title: string;

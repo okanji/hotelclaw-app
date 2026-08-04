@@ -59,7 +59,7 @@ export function AiStepTester({
   }
 
   return (
-    <div className="mt-3 rounded-md border border-border/60 bg-muted/20 p-2.5">
+    <div className="mt-3 rounded-md bg-muted p-2.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           Try this step with sample trigger data. Data from earlier steps isn’t
@@ -69,7 +69,7 @@ export function AiStepTester({
           type="button"
           onClick={() => void runTest()}
           disabled={running}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-background px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
         >
           {running ? (
             <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -86,11 +86,11 @@ export function AiStepTester({
       ) : null}
       {result ? (
         <div className="mt-2">
-          <div className="mb-1 flex items-center justify-between text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="mb-1 flex items-center justify-between text-xs font-medium text-faint-foreground">
             <span>Result</span>
             <span className="tabular-nums normal-case">{(result.ms / 1000).toFixed(1)}s</span>
           </div>
-          <pre className="max-h-48 overflow-auto rounded-sm bg-muted/40 p-2 font-mono text-xs whitespace-pre-wrap text-foreground">
+          <pre className="max-h-48 overflow-auto rounded-sm bg-muted p-2 font-mono text-xs whitespace-pre-wrap text-foreground">
             {formatOutput(result.output)}
           </pre>
         </div>

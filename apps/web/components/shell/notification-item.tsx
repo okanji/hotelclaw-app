@@ -41,15 +41,16 @@ type Props = {
 };
 
 /**
- * A single notification row in the Activity feed, replicating Slack's
- * Activity item anatomy: actor avatar (initials — payloads carry names, not
- * avatar URLs) → small type icon → kicker ("Channel mention in") → bordered
- * channel chip (#general) → timestamp, with a single-line truncated content
- * preview below. Rows render inside a per-date bordered card with hairline
- * dividers (see `ActivitySection`); the selected row gets Slack's accent
- * inset border. Actor-less types (briefings, invites, meeting notes) show
- * the type icon in the avatar slot instead. Each `type` value has its own
- * renderer below — when adding a new type server-side, plug it in here too.
+ * A single notification row in the Activity feed: actor avatar (initials —
+ * payloads carry names, not avatar URLs) → small type icon → kicker
+ * ("Channel mention in") → channel chip (#general) → timestamp, with a
+ * single-line truncated content preview below. The row is a 6px-radius list
+ * row that separates by fill only — hover is the warm 5% accent, selected is
+ * the 8% pressed rung, and there is no ring, border, or accent bar
+ * (docs/notion-spec.md §6). Actor-less types (briefings, invites, meeting
+ * notes) show the type icon in the avatar slot instead. Each `type` value has
+ * its own renderer below — when adding a new type server-side, plug it in
+ * here too.
  */
 export function NotificationItem({
   notification,
@@ -67,22 +68,19 @@ export function NotificationItem({
         onClick={() => onSelect(view.href)}
         aria-current={active ? "true" : undefined}
         className={cn(
-          "relative flex w-full items-start gap-2.5 p-3 text-left transition-colors",
-          active ? "bg-primary/5" : "hover:bg-muted/50",
+          // Selection is a FILL, not a ring: the old `inset-ring-2
+          // inset-ring-primary/50` drew a 2px ink box around the active row.
+          // docs/notion-spec.md §6 — active = hover fill at rest + full ink.
+          "relative flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left transition-[background-color] outline-none focus-visible:shadow-focus",
+          active ? "bg-accent-pressed" : "hover:bg-accent",
         )}
       >
-        {active ? (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 inset-ring-2 inset-ring-primary/50"
-          />
-        ) : null}
         <span
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold select-none",
+            "flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-xs font-medium select-none",
             view.actor
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground [&_svg]:size-4",
+              ? "text-foreground"
+              : "text-faint-foreground [&_svg]:size-4",
           )}
           aria-hidden="true"
         >
@@ -92,7 +90,7 @@ export function NotificationItem({
           <div className="flex items-center gap-1.5">
             {view.actor ? (
               <span
-                className="flex shrink-0 items-center text-muted-foreground [&_svg]:size-3.5"
+                className="flex shrink-0 items-center text-faint-foreground [&_svg]:size-3.5"
                 aria-hidden="true"
               >
                 {view.icon}
@@ -101,26 +99,27 @@ export function NotificationItem({
             <p
               className={cn(
                 "min-w-0 truncate text-sm leading-5 font-medium",
-                unseen ? "text-foreground" : "text-muted-foreground",
+                unseen ? "text-foreground" : "text-secondary-ink",
               )}
             >
               {view.kicker}
             </p>
             {view.channel ? (
+              // Chip separates by fill, never a stroke (§1).
               <span
                 className={cn(
-                  "inline-flex shrink-0 items-center rounded-md border border-border bg-muted/50 px-1.5 py-px text-xs font-medium",
-                  unseen ? "text-foreground/80" : "text-muted-foreground",
+                  "inline-flex shrink-0 items-center rounded-md bg-accent px-1.5 py-px text-xs font-medium",
+                  unseen ? "text-secondary-ink" : "text-faint-foreground",
                 )}
               >
                 {view.channel}
               </span>
             ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground/80 tabular-nums">
+            <span className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-faint-foreground tabular-nums">
               {relativeTime(notification.created_at)}
               {unseen ? (
                 <span
-                  className="size-1.5 rounded-full bg-primary"
+                  className="size-1.5 rounded-full bg-notification"
                   aria-label="Unread"
                 />
               ) : null}
@@ -130,7 +129,7 @@ export function NotificationItem({
             <p
               className={cn(
                 "mt-0.5 truncate text-sm",
-                unseen ? "text-foreground/70" : "text-muted-foreground",
+                unseen ? "text-secondary-ink" : "text-muted-foreground",
               )}
             >
               {view.preview}

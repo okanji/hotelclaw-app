@@ -77,8 +77,8 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
   archived: "Archived",
 };
 const STATUS_DOT: Record<ProjectStatus, string> = {
-  active: "bg-emerald-500",
-  planned: "bg-blue-500",
+  active: "bg-success",
+  planned: "bg-info",
   completed: "bg-violet-500",
   archived: "bg-muted-foreground/50",
 };
@@ -282,7 +282,7 @@ export function ProjectDetail({
   const breadcrumb = (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 text-sm tracking-tight"
+      className="flex min-w-0 items-center gap-1.5 text-sm"
     >
       <Link
         href={`/p/${propertyId}/projects`}
@@ -291,7 +291,7 @@ export function ProjectDetail({
         Projects
       </Link>
       <ChevronRight
-        className="size-3.5 shrink-0 text-muted-foreground/60"
+        className="size-3.5 shrink-0 text-muted-foreground"
         aria-hidden="true"
       />
       <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
@@ -317,7 +317,7 @@ export function ProjectDetail({
           </span>
         ) : (
           <span
-            className={cn("size-3 shrink-0 rounded-sm", DOT[project.color])}
+            className={cn("size-3 shrink-0 rounded-md", DOT[project.color])}
             aria-hidden="true"
           />
         )}
@@ -334,7 +334,7 @@ export function ProjectDetail({
           }}
           aria-label="Project name"
           className={cn(
-            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/45",
+            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
             ws.title,
           )}
           placeholder="Untitled project"
@@ -364,7 +364,7 @@ export function ProjectDetail({
         <MetadataItem label="Issues">
           <Link
             href={`/p/${propertyId}/tasks?project=${projectId}`}
-            className="inline-flex items-center gap-1 text-foreground transition-colors hover:text-foreground/80"
+            className="inline-flex items-center gap-1 text-foreground transition-colors hover:text-foreground"
           >
             <Layers className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
             <span className="tabular-nums">{tasks.length}</span>
@@ -423,11 +423,11 @@ export function ProjectDetail({
                 {linkedSpaces.map((s) => (
                   <li
                     key={s.id}
-                    className="border-t border-border/40 first:border-0"
+                    className="border-t border-border first:border-0"
                   >
                     <Link
                       href={`/p/${propertyId}/spaces/${s.id}`}
-                      className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
+                      className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
                     >
                       <span
                         className={cn(
@@ -436,7 +436,7 @@ export function ProjectDetail({
                         )}
                         aria-hidden="true"
                       />
-                      <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {s.name || "Untitled team"}
                       </span>
                     </Link>
@@ -458,14 +458,14 @@ export function ProjectDetail({
                 {docs.slice(0, 5).map((d) => (
                   <li
                     key={d.id}
-                    className="border-t border-border/40 first:border-0"
+                    className="border-t border-border first:border-0"
                   >
                     <Link
                       href={`/p/${propertyId}/documents/${d.id}`}
-                      className="flex items-center gap-3 rounded px-0.5 py-3 transition-colors hover:bg-muted/50"
+                      className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
                     >
                       <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {d.title || "Untitled"}
                       </span>
                     </Link>
@@ -620,7 +620,7 @@ function AvatarRow({
             title={p.name ?? undefined}
           >
             {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-            <AvatarFallback className="text-[0.5625rem]">
+            <AvatarFallback className="text-xs">
               {(p.name ?? "?").slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -658,7 +658,7 @@ function HealthValue({
   return (
     <span
       className={cn(
-        "flex items-center gap-1.5 tracking-tight text-foreground",
+        "flex items-center gap-1.5 text-foreground",
         inline ? "text-sm" : "px-1.5 py-1 text-sm",
       )}
     >
@@ -702,17 +702,17 @@ function Contributors({
   return (
     <ul
       role="list"
-      className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+      className="flex flex-col divide-y divide-border border-t border-border"
     >
       {people.map((p) => (
         <li key={p.id} className="flex items-center gap-3 px-1 py-3">
           <Avatar className="size-7">
             {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-            <AvatarFallback className="text-[0.625rem]">
+            <AvatarFallback className="text-xs">
               {(p.name ?? "?").slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
             {p.name ?? "Unnamed"}
           </span>
         </li>
@@ -772,7 +772,7 @@ function SpacesPicker({
         {linkedSpaces.map((s) => (
           <span
             key={s.id}
-            className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-sm tracking-tight text-foreground"
+            className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-sm text-foreground"
           >
             <span className={cn("size-1.5 rounded-full", DOT[s.color])} />
             {s.name}
@@ -783,7 +783,7 @@ function SpacesPicker({
             render={
               <button
                 type="button"
-                className="rounded-full border border-dashed border-border/70 px-2.5 py-1 text-sm tracking-tight text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+                className="rounded-md px-2.5 py-1 text-sm text-faint-foreground transition-colors hover:bg-accent"
               />
             }
           >
@@ -791,7 +791,7 @@ function SpacesPicker({
           </PopoverTrigger>
           <PopoverContent align="start" sideOffset={6} className="w-56 p-1.5">
             {allSpaces.length === 0 ? (
-              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+              <p className="px-2 py-3 text-center text-xs text-faint-foreground">
                 No spaces yet — create one in the sidebar.
               </p>
             ) : (
@@ -801,10 +801,10 @@ function SpacesPicker({
                     <button
                       type="button"
                       onClick={() => onToggle(s.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                     >
                       <span className={cn("size-2 rounded-full", DOT[s.color])} />
-                      <span className="min-w-0 flex-1 truncate tracking-tight">
+                      <span className="min-w-0 flex-1 truncate">
                         {s.name}
                       </span>
                       {linkedIds.has(s.id) ? (

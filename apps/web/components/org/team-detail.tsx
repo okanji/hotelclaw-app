@@ -104,7 +104,7 @@ export function TeamDetail({
           ) : (
             <span
               className={cn(
-                "mt-2 size-4 shrink-0 rounded",
+                "mt-2 size-4 shrink-0 rounded-md",
                 LABEL_DOT[team.color],
               )}
               aria-hidden="true"
@@ -112,7 +112,7 @@ export function TeamDetail({
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+              <h2 className="text-[2.5rem] leading-[3rem] font-bold text-foreground">
                 {team.name}
               </h2>
               {isManagement ? (
@@ -155,7 +155,7 @@ export function TeamDetail({
         </EmptyState>
       ) : (
         <>
-          <Eyebrow tone="brand" className="mt-8 mb-3">
+          <Eyebrow className="mt-8 mb-3">
             Reporting hierarchy
           </Eyebrow>
           <TreeScroller>
@@ -210,7 +210,7 @@ function PersonBranch({
   return (
     <li className={depth === 0 ? "flex flex-col items-center" : rail}>
       <div className="flex flex-col items-center">
-        <div className="group relative flex w-48 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2">
+        <div className="group relative flex w-48 items-center gap-2 rounded-md bg-background px-2.5 py-2 shadow-ring">
           <Avatar className="size-8 shrink-0">
             {person.avatarUrl ? (
               <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
@@ -221,7 +221,7 @@ function PersonBranch({
             <p className="truncate text-sm font-medium text-foreground">
               {person.name ?? "Member"}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-xs text-faint-foreground">
               {person.title ?? ROLE_LABEL[person.role] ?? person.role}
             </p>
           </div>

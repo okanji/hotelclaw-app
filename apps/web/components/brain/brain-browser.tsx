@@ -119,9 +119,9 @@ export function BrainBrowser({
   if (!configured) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <header className="flex flex-wrap items-center gap-3 border-b border-border/60 px-6 py-4">
+        <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
           <div className="min-w-0">
-            <h1 className="text-base font-semibold tracking-tight">Brain</h1>
+            <h1 className="text-base font-semibold">Brain</h1>
             <p className="truncate text-xs text-muted-foreground">
               Everything this property has learned — and where each fact came
               from
@@ -142,9 +142,9 @@ export function BrainBrowser({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/60 px-6 py-4">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
         <div className="min-w-0">
-          <h1 className="text-base font-semibold tracking-tight">Brain</h1>
+          <h1 className="text-base font-semibold">Brain</h1>
           <p className="truncate text-xs text-muted-foreground">
             Everything this property has learned — and where each fact came
             from
@@ -163,7 +163,7 @@ export function BrainBrowser({
       <div className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div
           className={cn(
-            "flex min-h-0 flex-col border-border/60 lg:border-r",
+            "flex min-h-0 flex-col border-border lg:border-r",
             selectedSlug && "max-lg:hidden",
           )}
         >
@@ -212,7 +212,7 @@ export function BrainBrowser({
                               "flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors",
                               selectedSlug === page.slug
                                 ? "bg-muted text-foreground"
-                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                : "text-muted-foreground hover:bg-accent",
                             )}
                           >
                             <span className="truncate text-sm font-medium">
@@ -231,7 +231,7 @@ export function BrainBrowser({
             )}
           </div>
 
-          <p className="border-t border-border/60 px-5 py-2.5 text-xs text-muted-foreground tabular-nums">
+          <p className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground tabular-nums">
             {pagesQuery.data?.length ?? 0} pages
           </p>
         </div>
@@ -306,7 +306,7 @@ function SearchResults({
               "flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors",
               selectedSlug === hit.slug
                 ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                : "text-muted-foreground hover:bg-accent",
             )}
           >
             <span className="truncate text-sm font-medium">{hit.title}</span>

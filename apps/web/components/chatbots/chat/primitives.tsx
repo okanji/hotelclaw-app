@@ -11,14 +11,17 @@ import { cn } from "@/lib/utils";
  */
 
 export function ChatBubble({
-  side,
   tone = "outline",
   compact = false,
   preWrap = true,
   className,
   children,
 }: {
-  /** Which bottom corner gets the notch — start = incoming, end = outgoing. */
+  /**
+   * start = incoming, end = outgoing. Kept in the API (every call site passes
+   * it) but purely semantic now — the Notion radius scale has one clickable
+   * rung, so there is no corner notch to drive.
+   */
   side: "start" | "end";
   tone?: "solid" | "outline" | "soft" | "staff";
   /** Playground-density bubble (smaller radius, text-xs). */
@@ -33,18 +36,13 @@ export function ChatBubble({
       className={cn(
         "leading-relaxed",
         preWrap && "whitespace-pre-wrap",
-        compact
-          ? "rounded-xl px-2.5 py-1.5 text-xs"
-          : "rounded-2xl px-3 py-2 text-sm",
-        side === "end"
-          ? compact
-            ? "rounded-br-sm"
-            : "rounded-br-md"
-          : compact
-            ? "rounded-bl-sm"
-            : "rounded-bl-md",
+        // One radius rung (6px). The old build notched the bottom corner to
+        // fake a speech tail off a 12/16px base — with the two-rung scale
+        // there is no delta left to notch with, so `side` now only drives
+        // alignment at the call site.
+        compact ? "rounded-md px-2.5 py-1.5 text-xs" : "rounded-md px-3 py-2 text-sm",
         tone === "solid" && "bg-foreground text-background",
-        tone === "outline" && "border border-border/60 bg-background",
+        tone === "outline" && "bg-background shadow-ring",
         tone === "soft" && "bg-foreground/5",
         tone === "staff" && "bg-info/10 text-foreground",
         className,
@@ -65,7 +63,7 @@ export function ToolCallChip({
   return (
     <span
       title={input !== undefined ? JSON.stringify(input, null, 2) : undefined}
-      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-xs text-muted-foreground"
+      className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
     >
       <Wrench className="size-3 shrink-0" />
       {name}

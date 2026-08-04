@@ -75,19 +75,19 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
   // Shared surface + hover treatment. Individual regions light up on hover so
   // the card reads as tappable without a heavy button.
   const rowClass =
-    "flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50";
+    "flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-muted";
 
   // Non-interactive fallback: no panel target and no href.
   if (!canOpen && !attachment.href) {
     return (
-      <div className="my-1 flex w-full max-w-md items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5">
+      <div className="my-1 flex w-full max-w-md items-center gap-3 rounded-md bg-background px-3 py-2.5">
         {body}
       </div>
     );
   }
 
   return (
-    <div className="group my-1 flex w-full max-w-md items-stretch overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/20">
+    <div className="group my-1 flex w-full max-w-md items-stretch overflow-hidden rounded-md bg-background transition-colors hover:bg-accent">
       {canOpen ? (
         <button
           type="button"
@@ -113,7 +113,7 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
           href={attachment.href}
           onClick={(e) => e.stopPropagation()}
           title="Open full page"
-          className="flex shrink-0 items-center border-l border-border px-3 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground focus-visible:outline-none"
+          className="flex shrink-0 items-center border-l border-border px-3 text-muted-foreground/70 transition-colors hover:bg-accent focus-visible:bg-muted focus-visible:text-foreground focus-visible:outline-none"
         >
           <ExternalLink className="size-4" />
           <span className="sr-only">Open full page</span>

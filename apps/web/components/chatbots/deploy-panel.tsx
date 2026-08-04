@@ -83,7 +83,7 @@ export function DeployPanel({
   }
 
   return (
-    <section className="space-y-4 rounded-lg border border-border p-4">
+    <section className="space-y-4 rounded-lg p-4 shadow-ring">
       <div>
         <p className="text-sm font-medium">Share with guests</p>
         <p className="text-xs text-muted-foreground">
@@ -139,7 +139,7 @@ export function DeployPanel({
         </div>
 
         <div className="flex flex-col items-center gap-2">
-          <div ref={qrRef} className="rounded-lg border border-border bg-white p-3">
+          <div ref={qrRef} className="rounded-lg bg-white p-3">
             <QRCode value={guestUrl} size={132} />
           </div>
           <Button variant="ghost" size="sm" onClick={downloadQr}>
@@ -215,7 +215,7 @@ function ChannelDeploySection({
   }
 
   return (
-    <div className="space-y-3 border-t border-border/60 pt-4">
+    <div className="space-y-3 border-t border-border pt-4">
       <div>
         <p className="text-sm font-medium">Deploy into staff channels</p>
         <p className="text-xs text-muted-foreground">
@@ -288,7 +288,7 @@ function EmbedSection({
   }
 
   return (
-    <div className="space-y-3 border-t border-border/60 pt-4">
+    <div className="space-y-3 border-t border-border pt-4">
       <div>
         <p className="text-sm font-medium">Embed on your website</p>
         <p className="text-xs text-muted-foreground">
@@ -359,7 +359,7 @@ function TwilioSection({
   }
 
   return (
-    <div className="space-y-3 border-t border-border/60 pt-4">
+    <div className="space-y-3 border-t border-border pt-4">
       <div>
         <p className="text-sm font-medium">WhatsApp / SMS (via Twilio)</p>
         <p className="text-xs text-muted-foreground">

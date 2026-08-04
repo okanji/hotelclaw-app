@@ -32,7 +32,7 @@ export function AttentionWidget({ propertyId }: { propertyId: string }) {
       <AttentionList propertyId={propertyId} items={items.slice(0, 6)} />
       <Link
         href={`/p/${propertyId}/home/insights`}
-        className="self-start text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        className="self-start text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
       >
         {items.length > 6 ? `All ${items.length} in Insights →` : "Open Insights →"}
       </Link>

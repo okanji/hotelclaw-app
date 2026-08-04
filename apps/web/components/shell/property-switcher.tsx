@@ -82,25 +82,30 @@ export function PropertySwitcher({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<SidebarMenuButton size="lg" className="h-9 w-fit max-w-full" />}
+            render={
+              <SidebarMenuButton className="h-[30px] w-fit max-w-full" />
+            }
           >
             {/* Org name + chevron only — the property's logo lives in the rail
-                now (RailOrgSwitcher). */}
-            <span className="min-w-0 truncate text-sm font-semibold text-sidebar-accent-foreground">
+                now (RailOrgSwitcher). Weight 500 primary ink at 14px: this is
+                a UI row, not a display title (notion-spec §3). */}
+            <span className="min-w-0 truncate text-sm font-medium text-sidebar-accent-foreground">
               {current?.property.name ?? "Property"}
             </span>
-            <ChevronsUpDown className="size-3.5! shrink-0 text-muted-foreground" />
+            <ChevronsUpDown className="size-3.5! shrink-0 text-faint-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"
             align="start"
             sideOffset={6}
-            className="min-w-72 p-1.5"
+            className="min-w-72 p-1"
           >
             <PendingInvitesSection />
 
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {/* Section label: 12px/12px weight 500 faint, sentence case, no
+                  tracking (notion-spec §3). */}
+              <DropdownMenuLabel className="px-1.5 pt-1 pb-1.5 text-xs leading-3 font-medium text-faint-foreground">
                 Properties
               </DropdownMenuLabel>
               {memberships.map((m) => {
@@ -112,29 +117,25 @@ export function PropertySwitcher({
                     // Switching property lands on its Home — the app's universal
                     // default surface.
                     onClick={() => router.push(`/p/${m.property_id}/home`)}
-                    className={cn(
-                      "gap-2.5 px-2 py-2",
-                      isActive && "bg-accent/60",
-                    )}
+                    // One quiet line: 20px tile, 14px name, faint role suffix.
+                    className={cn("gap-2", isActive && "bg-accent")}
                   >
                     <span
                       className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase",
+                        "flex size-5 shrink-0 items-center justify-center rounded-md text-xs font-medium uppercase",
                         tint,
                       )}
                     >
                       {propertyInitial(m.property.name)}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-foreground">
-                        {m.property.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground capitalize">
-                        {m.role}
-                      </div>
-                    </div>
+                    <span className="min-w-0 flex-1 truncate">
+                      {m.property.name}
+                    </span>
+                    <span className="shrink-0 text-xs text-faint-foreground capitalize">
+                      {m.role}
+                    </span>
                     {isActive ? (
-                      <Check className="size-4 shrink-0 text-primary" />
+                      <Check className="size-3.5 shrink-0 text-faint-foreground" />
                     ) : null}
                   </DropdownMenuItem>
                 );
@@ -146,34 +147,34 @@ export function PropertySwitcher({
             <DropdownMenuGroup>
               <DropdownMenuItem
                 onClick={() => setMembersOpen(true)}
-                className="gap-2.5 px-2 py-1.5"
+                className="gap-2"
               >
-                <Users className="size-4 text-muted-foreground" />
+                <Users className="size-4 text-faint-foreground" />
                 People
               </DropdownMenuItem>
               {canInvite ? (
                 <>
                   <DropdownMenuItem
                     onClick={() => setInviteOpen(true)}
-                    className="gap-2.5 px-2 py-1.5"
+                    className="gap-2"
                   >
-                    <UserPlus className="size-4 text-muted-foreground" />
+                    <UserPlus className="size-4 text-faint-foreground" />
                     Invite people
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setInvitesOpen(true)}
-                    className="gap-2.5 px-2 py-1.5"
+                    className="gap-2"
                   >
-                    <MailCheck className="size-4 text-muted-foreground" />
+                    <MailCheck className="size-4 text-faint-foreground" />
                     Manage invites
                   </DropdownMenuItem>
                 </>
               ) : null}
               <DropdownMenuItem
                 onClick={() => router.push("/onboarding?add=1")}
-                className="gap-2.5 px-2 py-1.5"
+                className="gap-2"
               >
-                <Plus className="size-4 text-muted-foreground" />
+                <Plus className="size-4 text-faint-foreground" />
                 Add property
               </DropdownMenuItem>
             </DropdownMenuGroup>

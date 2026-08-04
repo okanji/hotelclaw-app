@@ -235,7 +235,7 @@ export function AiCopilot({
       ) : null}
 
       {transcript.length > 0 && (
-        <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/60 bg-card/60 p-3">
+        <div className="max-h-72 space-y-2 overflow-y-auto rounded-md bg-muted p-3">
           {transcript.map((t, i) => (
             <TranscriptRow
               key={i}
@@ -255,7 +255,7 @@ export function AiCopilot({
       <form onSubmit={handleSubmit}>
         <InputGroup
           className={cn(
-            "overflow-hidden border-border/80 bg-card shadow-sm",
+            "overflow-hidden border-border bg-card",
             busy && "opacity-80",
           )}
         >
@@ -315,12 +315,12 @@ export function AiCopilotLoadingPanel({ phase }: { phase: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="rounded-xl border border-primary/25 bg-linear-to-br from-primary/10 via-card to-card px-4 py-3 shadow-sm"
+      className="rounded-md bg-muted px-4 py-3"
     >
       <div className="flex items-start gap-3">
         <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
           <Sparkles className="size-4 text-primary animate-pulse" aria-hidden />
-          <span className="absolute inset-0 rounded-full border border-primary/30 animate-ping opacity-40" />
+          <span className="absolute inset-0 animate-ping rounded-full ring-1 ring-primary/30 opacity-40" />
         </span>
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm font-medium text-foreground">Building workflow with AI</p>
@@ -351,7 +351,7 @@ function TranscriptRow({
 }) {
   if (turn.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-foreground">
+      <div className="ml-auto max-w-[85%] rounded-md bg-background px-3 py-2 text-sm text-foreground">
         {turn.content}
       </div>
     );
@@ -365,7 +365,7 @@ function TranscriptRow({
     );
   }
   return (
-    <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-foreground">
+    <div className="rounded-md bg-muted px-3 py-2 text-sm text-foreground">
       <div className="flex items-start gap-2">
         <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden />
         <span className="whitespace-pre-wrap">{turn.content}</span>
@@ -377,7 +377,7 @@ function TranscriptRow({
               key={s}
               size="sm"
               onClick={() => onPickSuggestion(s)}
-              className="bg-background font-medium text-foreground hover:bg-secondary"
+              className="bg-background font-medium text-foreground hover:bg-accent"
             >
               {s}
             </Chip>

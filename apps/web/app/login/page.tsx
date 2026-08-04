@@ -46,13 +46,13 @@ export default async function LoginPage({
           <span className="flex size-9 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
             <ConciergeBell className="size-5 text-brand-accent" />
           </span>
-          <span className="font-serif text-lg font-medium tracking-tight">
+          <span className="text-base font-semibold">
             Hotelclaw
           </span>
         </div>
 
         <div className="relative max-w-md">
-          <h2 className="font-serif text-4xl font-medium tracking-tight text-balance xl:text-5xl">
+          <h2 className="text-4xl font-semibold text-balance xl:text-5xl">
             Run the floor, not the software.
           </h2>
           <p className="mt-4 text-base text-pretty text-white/70">
@@ -83,7 +83,7 @@ export default async function LoginPage({
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary">
             <ConciergeBell className="size-4.5 text-primary-foreground" />
           </span>
-          <span className="font-serif text-base font-medium tracking-tight">
+          <span className="text-base font-semibold">
             Hotelclaw
           </span>
         </div>

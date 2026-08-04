@@ -18,6 +18,13 @@ export const LABEL_DOT: Record<EntityColor, string> = {
   violet: "bg-violet-500",
 };
 
+/**
+ * Entity chips (labels, projects, teams) are the ONE place the app spends a
+ * saturated hue — they are user-chosen identity, not chrome. Notion's own tag
+ * chips are the same shape: a soft ~15% wash with dark ink, no stroke.
+ * `EntityColor` is the sanctioned palette (DESIGN.md § Entity colors); every
+ * other coloured thing in this feature surface uses the semantic status ramp.
+ */
 export const LABEL_CHIP: Record<EntityColor, string> = {
   slate: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
   blue: "bg-blue-500/15 text-blue-700 dark:text-blue-300",

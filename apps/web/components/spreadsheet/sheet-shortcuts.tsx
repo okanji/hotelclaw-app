@@ -57,7 +57,7 @@ export function SheetShortcutsModal({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-label="Keyboard shortcuts"
-        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-lg border border-border/60 bg-background p-4 shadow-xl"
+        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-overlay bg-popover p-4 shadow-overlay"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -76,7 +76,7 @@ export function SheetShortcutsModal({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           {SHORTCUTS.map((section) => (
             <section key={section.section}>
-              <h3 className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <h3 className="mb-2 text-xs leading-3 font-medium text-faint-foreground">
                 {section.section}
               </h3>
               <ul className="space-y-1.5">
@@ -86,7 +86,7 @@ export function SheetShortcutsModal({ onClose }: { onClose: () => void }) {
                     className="flex items-baseline justify-between gap-3 text-sm"
                   >
                     <span className="text-muted-foreground">{desc}</span>
-                    <kbd className="rounded border border-border/60 bg-muted px-1.5 py-0.5 font-mono text-xs">
+                    <kbd className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-faint-foreground">
                       {keys}
                     </kbd>
                   </li>

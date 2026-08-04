@@ -354,8 +354,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         className={cn(
           "rich-editor-content block min-h-[24px] w-full whitespace-pre-wrap break-words text-base leading-[1.45] text-foreground outline-none focus:outline-none focus-visible:outline-none",
           "[&_a]:text-primary [&_a]:underline",
-          "[&_code]:rounded [&_code]:bg-[oklch(1_0_0_/_0.08)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-sm",
-          "[&_pre]:my-1 [&_pre]:rounded-md [&_pre]:border [&_pre]:border-[oklch(1_0_0_/_0.12)] [&_pre]:bg-[oklch(1_0_0_/_0.05)] [&_pre]:px-2.5 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:whitespace-pre-wrap [&_pre_code]:bg-transparent [&_pre_code]:p-0",
+          "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-sm",
+          "[&_pre]:my-1 [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:px-2.5 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:whitespace-pre-wrap [&_pre_code]:bg-transparent [&_pre_code]:p-0",
           "[&_blockquote]:my-0 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground",
           className,
         )}

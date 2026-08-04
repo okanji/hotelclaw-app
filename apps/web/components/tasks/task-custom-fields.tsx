@@ -135,7 +135,7 @@ function FieldRow({
       <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
         <Icon className="size-3.5" />
       </span>
-      <span className="w-[38%] min-w-0 shrink-0 truncate text-xs text-muted-foreground">
+      <span className="w-[38%] min-w-0 shrink-0 truncate text-xs text-faint-foreground">
         {field.name}
       </span>
       <div className="min-w-0 flex-1">
@@ -178,8 +178,8 @@ function FieldValueEditor({
               type="button"
               disabled={disabled}
               className={cn(
-                "flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left text-sm transition-colors hover:bg-muted",
-                current ? "text-foreground" : "text-muted-foreground/60",
+                "flex w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-left text-sm transition-colors hover:bg-accent",
+                current ? "text-foreground" : "text-muted-foreground",
               )}
             />
           }
@@ -215,7 +215,7 @@ function FieldValueEditor({
         value={typeof value === "string" ? value : ""}
         disabled={disabled}
         onChange={(e) => onSave(e.target.value ? e.target.value : null)}
-        className="w-full rounded bg-transparent px-1.5 py-0.5 text-sm text-foreground outline-none hover:bg-muted [color-scheme:light] dark:[color-scheme:dark]"
+        className="w-full rounded-md bg-transparent px-1.5 py-0.5 text-sm text-foreground outline-none hover:bg-accent [color-scheme:light] dark:[color-scheme:dark]"
       />
     );
   }
@@ -253,7 +253,7 @@ function FieldValueEditor({
         if (e.key === "Enter") e.currentTarget.blur();
         if (e.key === "Escape") setDraft(null);
       }}
-      className="w-full rounded bg-transparent px-1.5 py-0.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50 hover:bg-muted focus:bg-muted"
+      className="w-full rounded-md bg-transparent px-1.5 py-0.5 text-sm text-foreground outline-none placeholder:text-muted-foreground hover:bg-accent focus:bg-accent"
     />
   );
 }
@@ -333,7 +333,7 @@ function AddFieldPopover({
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent"
           />
         }
       >
@@ -367,10 +367,10 @@ function AddFieldPopover({
                   type="button"
                   onClick={() => setType(t)}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors",
+                    "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
                     type === t
-                      ? "border-foreground/30 bg-muted text-foreground"
-                      : "border-border/60 text-muted-foreground hover:text-foreground",
+                      ? "bg-accent-pressed text-foreground"
+                      : "text-muted-foreground hover:bg-accent",
                   )}
                 >
                   <Icon className="size-3" />
@@ -396,7 +396,7 @@ function AddFieldPopover({
           ) : null}
 
           {taskSpaceId ? (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <label className="flex items-center gap-2 text-xs text-faint-foreground">
               <Checkbox
                 checked={teamOnly}
                 onCheckedChange={(c) => setTeamOnly(c === true)}
@@ -406,7 +406,7 @@ function AddFieldPopover({
           ) : null}
 
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] font-medium text-muted-foreground">
+            <p className="text-xs/[1] font-medium text-faint-foreground">
               Suggestions
             </p>
             <div className="flex flex-wrap gap-1">
@@ -419,7 +419,7 @@ function AddFieldPopover({
                     setType(sug.type);
                     setOptionsText(sug.options ?? "");
                   }}
-                  className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                  className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent-pressed hover:text-foreground"
                 >
                   {sug.name}
                 </button>

@@ -108,10 +108,8 @@ export function GenerateDocumentDialog({
             <Sparkles strokeWidth={1.5} />
           </TintIcon>
           <div className="flex flex-col gap-1">
-            <DialogTitle className="tracking-tight">
-              Generate a document
-            </DialogTitle>
-            <DialogDescription className="tracking-tight text-pretty">
+            <DialogTitle>Generate a document</DialogTitle>
+            <DialogDescription className="text-pretty">
               Describe what you need — we&apos;ll draft it for you to review and
               edit.
             </DialogDescription>
@@ -136,7 +134,7 @@ export function GenerateDocumentDialog({
           />
 
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium tracking-tight text-muted-foreground">
+            <p className="text-xs leading-3 font-medium text-faint-foreground">
               Not sure where to start?
             </p>
             <ul role="list" className="flex flex-wrap gap-1.5">
@@ -146,10 +144,10 @@ export function GenerateDocumentDialog({
                     type="button"
                     disabled={busy}
                     onClick={() => setPrompt(ex)}
-                    className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-transparent py-1.5 pr-2.5 pl-3 text-xs tracking-tight text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:pointer-events-none disabled:opacity-60"
+                    className="group inline-flex h-7 items-center gap-1.5 rounded-md bg-muted px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent-pressed focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-60"
                   >
                     {ex}
-                    <ArrowUpRight className="size-3 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+                    <ArrowUpRight className="size-3 shrink-0 text-faint-foreground" />
                   </button>
                 </li>
               ))}
@@ -158,7 +156,7 @@ export function GenerateDocumentDialog({
         </div>
 
         <DialogFooter className="sm:items-center sm:justify-between">
-          <p className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+          <p className="hidden items-center gap-1.5 text-xs text-faint-foreground sm:flex">
             <KbdGroup>
               <Kbd>⌘</Kbd>
               <Kbd>⏎</Kbd>

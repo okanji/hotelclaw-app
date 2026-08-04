@@ -139,7 +139,7 @@ export function SheetFormatToolbar({
   const fmt = activeFormat ?? {};
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border/60 bg-background/60 px-3 py-1.5">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-background/60 px-3 py-1.5">
       <ToggleButton
         title={
           painterActive
@@ -434,7 +434,7 @@ function BordersButton({
                 setStyle(s.id);
               }}
               className={cn(
-                "rounded border border-border/60 px-1.5 py-1 text-xs hover:bg-muted",
+                "rounded-md bg-muted px-1.5 py-1 text-xs transition-colors hover:bg-accent-pressed",
                 style === s.id && "bg-muted text-foreground",
               )}
             >
@@ -457,8 +457,8 @@ function BordersButton({
               }}
               title={c}
               className={cn(
-                "size-5 rounded-sm border border-border/60 hover:ring-2 hover:ring-foreground/15",
-                color === c && "ring-2 ring-foreground/40",
+                "size-5 rounded-md shadow-ring",
+                color === c && "shadow-focus",
               )}
               style={{ background: c }}
             />
@@ -684,7 +684,7 @@ function ColorButton({
             className="size-7"
           >
             <span
-              className="block size-3.5 rounded-sm border border-border/60"
+              className="block size-3.5 rounded-sm shadow-ring"
               style={{
                 background:
                   current ??
@@ -712,8 +712,8 @@ function ColorButton({
               }
               title={c}
               className={cn(
-                "size-5 rounded-sm border border-border/60 transition-shadow hover:ring-2 hover:ring-foreground/15",
-                current === c && "ring-2 ring-foreground/40",
+                "size-5 rounded-md shadow-ring",
+                current === c && "shadow-focus",
               )}
               style={{ background: c }}
             />
@@ -808,7 +808,7 @@ function NumberFormatButton({
               type="button"
               onClick={() => onPatch({ decimals: d })}
               className={cn(
-                "h-6 w-6 rounded text-xs hover:bg-muted",
+                "h-6 w-6 rounded-md text-xs transition-colors hover:bg-accent",
                 decimals === d && "bg-muted text-foreground",
               )}
             >

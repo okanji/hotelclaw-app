@@ -108,7 +108,7 @@ export function ImportTranscriptDialog({ propertyId }: { propertyId: string }) {
               maxLength={200}
               disabled={busy}
             />
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent">
               <Upload className="size-4" />
               Pick a .txt / .vtt / .md file — or paste below
               <input

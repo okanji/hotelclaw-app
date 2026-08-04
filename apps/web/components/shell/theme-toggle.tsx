@@ -26,7 +26,7 @@ export function ThemeToggle() {
       <DropdownMenuSubTrigger>
         <Icon className="size-4" />
         Theme
-        <span className="ml-auto text-xs text-muted-foreground capitalize">
+        <span className="ml-auto text-xs font-normal text-faint-foreground capitalize">
           {current}
         </span>
       </DropdownMenuSubTrigger>
@@ -35,21 +35,21 @@ export function ThemeToggle() {
           <Sun className="size-4" />
           Light
           {current === "light" ? (
-            <Check className="ml-auto size-4 text-muted-foreground" />
+            <Check className="ml-auto size-4 text-faint-foreground" />
           ) : null}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("dark")}>
           <Moon className="size-4" />
           Dark
           {current === "dark" ? (
-            <Check className="ml-auto size-4 text-muted-foreground" />
+            <Check className="ml-auto size-4 text-faint-foreground" />
           ) : null}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
           <Laptop className="size-4" />
           System
           {current === "system" ? (
-            <Check className="ml-auto size-4 text-muted-foreground" />
+            <Check className="ml-auto size-4 text-faint-foreground" />
           ) : null}
         </DropdownMenuItem>
       </DropdownMenuSubContent>

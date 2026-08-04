@@ -160,11 +160,9 @@ export function CreateDocumentDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md gap-0 p-0 sm:max-w-md">
-        <DialogHeader className="border-b border-border/70 px-4 py-3">
-          <DialogTitle className="text-base font-medium tracking-tight">
-            New {parentId ? "sub-page" : "document"}
-          </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
+        <DialogHeader className="border-b border-border px-4 py-3">
+          <DialogTitle>New {parentId ? "sub-page" : "document"}</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             Pick a type to get started.
           </DialogDescription>
         </DialogHeader>
@@ -181,9 +179,9 @@ export function CreateDocumentDialog({
                 onClick={() => void handlePick(kind.id)}
                 aria-label={`Create ${kind.title.toLowerCase()}`}
                 className={cn(
-                  "group relative flex flex-col items-start gap-3 rounded-md border border-border/70 bg-card p-4 text-left shadow-xs transition-all",
-                  "hover:border-foreground/15 hover:shadow-sm",
-                  "focus-visible:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                  "group relative flex flex-col items-start gap-3 rounded-md bg-muted p-3 text-left transition-colors",
+                  "hover:bg-accent-pressed",
+                  "focus-visible:outline-none focus-visible:shadow-focus",
                   "disabled:cursor-not-allowed disabled:opacity-60",
                 )}
               >
@@ -198,14 +196,14 @@ export function CreateDocumentDialog({
                   <Kbd aria-hidden>{kind.shortcut.toUpperCase()}</Kbd>
                 </div>
                 <div className="flex w-full flex-col gap-1">
-                  <p className="text-sm font-semibold tracking-tight text-foreground">
+                  <p className="text-sm font-medium text-foreground">
                     {kind.title}
                   </p>
-                  <p className="line-clamp-3 text-xs leading-relaxed tracking-tight text-muted-foreground">
+                  <p className="line-clamp-3 text-xs leading-4 text-muted-foreground">
                     {kind.description}
                   </p>
                 </div>
-                <span className="text-xs tracking-tight text-muted-foreground/70">
+                <span className="text-xs text-faint-foreground">
                   {kind.hint}
                 </span>
               </button>
@@ -213,7 +211,7 @@ export function CreateDocumentDialog({
           })}
         </div>
 
-        <div className="border-t border-border/70 px-4 py-2.5 text-xs tracking-tight text-muted-foreground">
+        <div className="border-t border-border px-4 py-2.5 text-xs text-faint-foreground">
           Tip: press <Kbd>D</Kbd> or <Kbd>S</Kbd> to pick without leaving the
           keyboard.
         </div>

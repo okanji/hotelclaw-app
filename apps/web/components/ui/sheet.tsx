@@ -28,7 +28,8 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs",
+        // Plain low-alpha scrim — no backdrop blur (notion-spec §5/§6).
+        "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className
       )}
       {...props}
@@ -36,14 +37,30 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   )
 }
 
+/**
+ * Width cap for left/right sheets. `sm` is the historical default (384px) and
+ * is what every existing call site gets. The prop exists so a wider panel can
+ * be asked for by name instead of fighting the `data-[side=*]:sm:max-w-*`
+ * variant stack from a `className` (which tailwind-merge cannot dedupe).
+ */
+const sheetSideWidth = {
+  sm: "data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+  md: "data-[side=left]:sm:max-w-md data-[side=right]:sm:max-w-md",
+  lg: "data-[side=left]:sm:max-w-lg data-[side=right]:sm:max-w-lg",
+  xl: "data-[side=left]:sm:max-w-2xl data-[side=right]:sm:max-w-2xl",
+  full: "data-[side=left]:w-full data-[side=right]:w-full",
+} as const
+
 function SheetContent({
   className,
   children,
   side = "right",
+  size = "sm",
   showCloseButton = true,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
+  size?: keyof typeof sheetSideWidth
   showCloseButton?: boolean
 }) {
   return (
@@ -53,7 +70,11 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+          // Notion overlay language: the panel edge is the 1px warm ring that
+          // ships as the last layer of `shadow-overlay` — no `border-*` on any
+          // side. Entrance is an 8px slide (was 40px, a stock-library swoop).
+          "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-overlay transition duration-150 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-2 data-[side=bottom]:data-starting-style:translate-y-2 data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-2 data-[side=left]:data-starting-style:-translate-x-2 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-2 data-[side=right]:data-starting-style:translate-x-2 data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-2 data-[side=top]:data-starting-style:-translate-y-2",
+          sheetSideWidth[size],
           className
         )}
         {...props}
@@ -105,7 +126,8 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
     <SheetPrimitive.Title
       data-slot="sheet-title"
       className={cn(
-        "font-heading text-base font-medium text-foreground",
+        // 16px / weight 600, one type voice (no separate heading family).
+        "text-base font-semibold text-foreground",
         className
       )}
       {...props}

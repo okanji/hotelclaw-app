@@ -32,7 +32,7 @@ export function MiniMonth({
   return (
     <div className="px-2 pb-2">
       <div className="flex items-center justify-between px-1 py-1.5">
-        <span className="text-xs font-medium text-sidebar-foreground/80">
+        <span className="text-xs leading-3 font-medium text-faint-foreground">
           {cursor.toLocaleDateString(undefined, {
             month: "long",
             year: "numeric",
@@ -46,7 +46,7 @@ export function MiniMonth({
               next.setMonth(next.getMonth() - 1);
               setCursor(next);
             }}
-            className="rounded-sm p-1 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="rounded-md p-1 text-faint-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none"
             aria-label="Previous month"
           >
             <ChevronLeft className="size-3" />
@@ -58,7 +58,7 @@ export function MiniMonth({
               next.setMonth(next.getMonth() + 1);
               setCursor(next);
             }}
-            className="rounded-sm p-1 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="rounded-md p-1 text-faint-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none"
             aria-label="Next month"
           >
             <ChevronRight className="size-3" />
@@ -66,7 +66,7 @@ export function MiniMonth({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-sidebar-foreground/50">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-faint-foreground">
         {WEEKDAY_LABELS.map((d) => (
           <span key={d} className="py-1">
             {d[0]}
@@ -85,15 +85,12 @@ export function MiniMonth({
               type="button"
               onClick={() => onChange(d)}
               className={cn(
-                "flex h-7 items-center justify-center rounded-md text-xs transition-colors",
-                !inMonth && "text-sidebar-foreground/30",
-                inMonth && !selected && "text-sidebar-foreground/80",
-                selected &&
-                  "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
-                !selected &&
-                  isToday &&
-                  "ring-1 ring-inset ring-sidebar-accent",
-                !selected && "hover:bg-sidebar-accent/60",
+                "flex h-7 items-center justify-center rounded-md text-xs tabular-nums transition-colors focus-visible:shadow-focus focus-visible:outline-none",
+                !inMonth && "text-faint-foreground",
+                inMonth && !selected && "text-secondary-ink",
+                selected && "bg-accent-pressed font-medium text-foreground",
+                !selected && isToday && "font-medium text-foreground",
+                !selected && "hover:bg-accent",
               )}
             >
               {d.getDate()}

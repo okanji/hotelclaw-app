@@ -156,7 +156,7 @@ function TestRunDialogBody({
           spellCheck={false}
           aria-invalid={parseError !== null}
           aria-describedby={parseError ? "test-run-payload-error" : undefined}
-          className="w-full resize-y rounded-md border border-border bg-muted/30 p-2.5 font-mono text-xs leading-relaxed text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full resize-y rounded-md bg-muted p-2.5 font-mono text-xs leading-relaxed text-foreground focus-visible:outline-none focus-visible:shadow-focus"
         />
         {parseError ? (
           <p id="test-run-payload-error" className="text-xs text-destructive">
@@ -168,7 +168,7 @@ function TestRunDialogBody({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted"
+            className="rounded-md bg-background px-2.5 py-1 text-xs hover:bg-accent"
           >
             Cancel
           </button>

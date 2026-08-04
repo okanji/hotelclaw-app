@@ -92,7 +92,7 @@ function ThreadCardContent() {
 
   return (
     <article className="flex w-full flex-col px-8 py-6">
-      <header className="mb-3 flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+      <header className="mb-3 flex items-center gap-1.5 text-xs font-medium text-faint-foreground">
         <Icon className="size-3" />
         <span className="font-semibold">{channelName}</span>
         {replyCount > 0 ? (

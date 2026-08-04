@@ -146,7 +146,7 @@ export function InsightsView({
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-6xl px-8 pt-12 pb-24 sm:px-14 sm:pt-14">
+        <div className="mx-auto w-full max-w-6xl px-8 pt-12 pb-24 sm:px-14 sm:pt-16">
           <SectionHeader
             size="page"
             className="flex-wrap gap-y-3"
@@ -272,7 +272,7 @@ function TabEmpty({
   hasHidden: boolean;
 }) {
   return (
-    <div className="col-span-full flex flex-col items-start gap-3 rounded-xl border border-dashed border-border/70 px-6 py-10">
+    <div className="col-span-full flex flex-col items-start gap-3 rounded-md bg-muted px-6 py-10">
       <p className="text-sm text-muted-foreground">
         {hasHidden
           ? "Every section in this view is hidden."
@@ -291,16 +291,16 @@ function TabEmpty({
   );
 }
 
-/** Editorial placeholder while the first metrics load — mirrors the section
- *  rhythm (kicker line, heading, hairline, content block) so the page doesn't
- *  reflow when data lands. */
+/** Placeholder while the first metrics load — mirrors the section rhythm
+ *  (label line, heading, content block) so the page doesn't reflow when data
+ *  lands. */
 function InsightsSkeleton() {
   return (
     <>
       {[0, 1].map((i) => (
         <section key={i} className={cn("min-w-0", i === 0 && "@4xl:col-span-2")}>
-          <div className="mb-6 flex flex-col gap-2 border-b border-border pb-3">
-            <Skeleton className="h-2.5 w-16" />
+          <div className="mb-4 flex flex-col gap-2">
+            <Skeleton className="h-3 w-16" />
             <Skeleton className="h-6 w-32" />
           </div>
           <Skeleton className={i === 0 ? "h-48 w-full" : "h-32 w-full"} />
@@ -310,9 +310,10 @@ function InsightsSkeleton() {
   );
 }
 
-/* ── Shared editorial primitives for insight views ────────────────────────── */
+/* ── Shared section primitive for insight views ───────────────────────────── */
 
-/** Static (non-sortable) editorial section — kicker + heading + hairline.
+/** Static (non-sortable) section — 12px sentence-case label + 16px/600
+ *  heading, separated by whitespace rather than a rule (notion-spec §1).
  *  `wide` spans both columns of the @4xl two-column grid. */
 export function InsightSection({
   kicker,
@@ -329,10 +330,10 @@ export function InsightSection({
 }) {
   return (
     <section className={cn("min-w-0", wide && "@4xl:col-span-2")}>
-      <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <Eyebrow tone="brand">{kicker}</Eyebrow>
-          <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-2">
+          <Eyebrow>{kicker}</Eyebrow>
+          <h2 className="truncate text-base leading-6 font-semibold text-foreground">
             {title}
           </h2>
         </div>

@@ -53,19 +53,19 @@ export function WorkloadBody({ metrics }: { metrics: InsightsMetrics }) {
           <>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-rose-500" />
+                <span className="size-2 rounded-full bg-destructive" />
                 Overdue
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-amber-500" />
+                <span className="size-2 rounded-full bg-warning" />
                 Urgent
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-foreground/30" />
+                <span className="size-2 rounded-full bg-faint-foreground" />
                 Other open
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-[2px] w-4 rounded-full bg-emerald-500" />
+                <span className="h-[2px] w-4 rounded-full bg-success" />
                 Completed/week
               </span>
             </div>
@@ -94,10 +94,10 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
     .toUpperCase();
 
   return (
-    <li className="flex items-center gap-3 px-1 py-3">
+    <li className="flex items-center gap-3 px-2 py-2.5">
       <Avatar className="size-7 shrink-0">
         {row.avatarUrl ? <AvatarImage src={row.avatarUrl} alt="" /> : null}
-        <AvatarFallback className="text-[0.625rem]">{initials}</AvatarFallback>
+        <AvatarFallback className="text-xs">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-baseline justify-between gap-3">
@@ -107,13 +107,13 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
             {row.open} open
             {row.blocked > 0 ? (
-              <span className="text-rose-500"> · {row.blocked} blocked</span>
+              <span className="text-destructive"> · {row.blocked} blocked</span>
             ) : null}
             {row.overdue > 0 ? (
-              <span className="text-rose-500"> · {row.overdue} overdue</span>
+              <span className="text-destructive"> · {row.overdue} overdue</span>
             ) : null}
             {row.urgent > 0 ? (
-              <span className="text-amber-500"> · {row.urgent} urgent</span>
+              <span className="text-warning"> · {row.urgent} urgent</span>
             ) : null}
             {row.meetingHours > 0 ? (
               <span> · {row.meetingHours}h meetings</span>
@@ -130,14 +130,14 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
             style={{ width: `${Math.max(widthPct, 2)}%` }}
           >
             <div
-              className="h-full bg-rose-500"
+              className="h-full bg-destructive"
               style={{ width: `${overduePct}%` }}
             />
             <div
-              className="h-full bg-amber-500"
+              className="h-full bg-warning"
               style={{ width: `${Math.max(0, urgentPct - overduePct)}%` }}
             />
-            <div className="h-full flex-1 bg-foreground/30" />
+            <div className="h-full flex-1 bg-faint-foreground" />
           </div>
         </div>
       </div>

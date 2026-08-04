@@ -50,7 +50,9 @@ export function PresenceCursors() {
     <div ref={ref} className="pointer-events-none absolute inset-0 z-30">
       {others.map((o) => {
         if (!o.presence?.cursor) return null;
-        const color = o.info?.color ?? "#7c3aed";
+        // Fallback presence color off the shared categorical ramp — never a
+        // hardcoded hex (DESIGN.md house rules).
+        const color = o.info?.color ?? "var(--series-3)";
         return (
           <div
             key={o.connectionId}

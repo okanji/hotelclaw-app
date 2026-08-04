@@ -59,15 +59,12 @@ export function DocumentThreadIndicator({ thread }: { thread: ThreadData }) {
         // Speech-bubble shape: circular avatar with a tail clipped via a
         // pseudo-element underneath.
         "size-9 rounded-full rounded-bl-sm",
-        // `bg-card` is ~indistinguishable from the page in dark mode
-        // (--card #131414 vs --background #121213). `bg-popover` is the
-        // genuinely elevated surface (#1a1b1c), and a brighter edge in dark
-        // mode keeps the bubble shape legible where `--border` (5% white)
-        // washes out. Light mode is unchanged — both tokens are #fff there.
-        "border border-border bg-popover shadow-sm transition-all",
-        "dark:border-white/15",
-        "hover:scale-105 hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        // The bubble genuinely floats in the gutter, so it takes the one
+        // house elevation recipe (which carries its own 1px warm ring —
+        // hence no border). `bg-popover` is the elevated surface on both
+        // planes.
+        "bg-popover shadow-overlay",
+        "focus-visible:outline-none focus-visible:shadow-focus",
       )}
     >
       {firstUserId ? (

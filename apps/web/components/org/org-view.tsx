@@ -214,7 +214,7 @@ function OrgBody({
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span className="text-lg font-semibold tabular-nums text-foreground">
+      <span className="text-2xl leading-8 font-semibold tabular-nums text-foreground">
         {value}
       </span>
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -351,13 +351,13 @@ function TeamNode({
 
   return (
     <li>
-      <div className="group flex items-center gap-2 rounded-md py-1.5 pr-1.5 pl-1.5 hover:bg-muted/50">
+      <div className="group flex items-center gap-2 rounded-md py-1.5 pr-1.5 pl-1.5 hover:bg-accent">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Collapse" : "Expand"}
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+            "flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none",
             !hasDetail && "invisible",
           )}
         >
@@ -389,12 +389,12 @@ function TeamNode({
         </button>
 
         {lead ? (
-          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-faint-foreground">
             <Avatar size="sm" className="size-4">
               {lead.avatarUrl ? (
                 <AvatarImage src={lead.avatarUrl} alt={lead.name ?? ""} />
               ) : null}
-              <AvatarFallback className="text-[0.5rem]">
+              <AvatarFallback className="text-xs">
                 {initials(lead.name)}
               </AvatarFallback>
             </Avatar>
@@ -473,7 +473,7 @@ function MemberRow({
         {person.avatarUrl ? (
           <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
         ) : null}
-        <AvatarFallback className="text-[0.5rem]">
+        <AvatarFallback className="text-xs">
           {initials(person.name)}
         </AvatarFallback>
       </Avatar>
@@ -481,12 +481,12 @@ function MemberRow({
         {person.name ?? "Member"}
       </span>
       {person.title ? (
-        <span className="min-w-0 truncate text-xs text-muted-foreground">
+        <span className="min-w-0 truncate text-xs text-faint-foreground">
           {person.title}
         </span>
       ) : null}
       {isLead ? (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs/[1] font-medium text-faint-foreground">
           Head
         </span>
       ) : null}
@@ -632,7 +632,7 @@ function PersonRow({
           <p className="truncate text-sm font-medium text-foreground">
             {person.name ?? "Member"}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-xs text-faint-foreground">
             {ROLE_LABEL[person.role] ?? person.role}
             {!isManagement && person.title ? ` · ${person.title}` : ""}
             {!isManagement && teamName(person.primaryTeamId)
@@ -640,7 +640,7 @@ function PersonRow({
               : ""}
           </p>
           {person.email ? (
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-xs text-faint-foreground">
               {person.email}
             </p>
           ) : null}
@@ -692,7 +692,7 @@ function PersonRow({
           </NativeSelect>
         </div>
       ) : person.managerId ? (
-        <p className="pl-11 text-xs text-muted-foreground sm:pl-0">
+        <p className="pl-11 text-xs text-faint-foreground sm:pl-0">
           Reports to{" "}
           <span className="text-foreground">
             {personName(person.managerId) ?? "—"}

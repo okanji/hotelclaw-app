@@ -7,9 +7,9 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Chip } from "@/components/ui/chip";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
@@ -133,24 +133,27 @@ function EditorialLayout({
 }) {
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-10">
+      {/* Masthead and content separate by WHITESPACE — the full-width rule
+          that used to sit between them is gone (notion-spec §1). */}
+      <header className="mb-14 flex flex-col gap-10">
         <div className="flex items-center justify-end gap-6">
           <DocsActivitySheet propertyId={propertyId} />
         </div>
         <div className="flex flex-col gap-5">
-          <h1 className="font-serif text-5xl font-medium tracking-tight text-foreground sm:text-6xl">
+          <h1 className="text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
             Directory
           </h1>
-          <p className="max-w-[52ch] text-base leading-relaxed tracking-tight text-pretty text-muted-foreground">
+          <p className="max-w-[52ch] text-base leading-6 text-pretty text-muted-foreground">
             A quiet shelf for everything your team is writing. Pin the
             essentials, follow the recent edits, or browse the full library
             below.
           </p>
-          <dl className="flex flex-wrap items-center gap-x-6 gap-y-1.5 pt-3 text-sm tracking-tight text-muted-foreground">
+          {/* Whitespace-separated stat one-liner — the same shape the Home
+              widgets use. The vertical hairlines that used to sit between the
+              columns are gone (DESIGN.md: stats never get rules). */}
+          <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 pt-3 text-sm text-muted-foreground">
             <Stat label="In the library" value={docsCount} />
-            <Separator orientation="vertical" className="h-3.5" />
             <Stat label="On boards" value={boardsCount} />
-            <Separator orientation="vertical" className="h-3.5" />
             <Stat label="Edits this week" value={editsThisWeek} />
           </dl>
         </div>
@@ -159,8 +162,6 @@ function EditorialLayout({
           <QuickCreateRow propertyId={propertyId} onGenerate={onGenerate} />
         </div>
       </header>
-
-      <hr className="my-12 border-border" />
 
       <div className="mb-12 max-w-xl">
         <DocumentSearch propertyId={propertyId} />
@@ -193,13 +194,13 @@ function EditorialLayout({
           </section>
         ) : null}
 
-        <UnpinZone id="unpin-zone:editorial" className="rounded-lg">
+        <UnpinZone id="unpin-zone:editorial" className="rounded-md">
           <section>
             <EditorialHeading
               kicker="The library"
               right={
                 hasDocs ? (
-                  <span className="text-xs tracking-tight text-muted-foreground tabular-nums">
+                  <span className="text-xs text-faint-foreground tabular-nums">
                     {docsCount}{" "}
                     {docsCount === 1 ? "document" : "documents"}
                   </span>
@@ -208,7 +209,7 @@ function EditorialLayout({
             >
               All documents
             </EditorialHeading>
-            <p className="mb-6 max-w-[60ch] text-sm leading-relaxed tracking-tight text-pretty text-muted-foreground">
+            <p className="mb-6 max-w-[60ch] text-sm text-pretty text-muted-foreground">
               Grouped by when each document was last touched. Drag a row
               onto a board above to pin it for your team — drop it back here
               to take it off the board.
@@ -241,9 +242,9 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
         {Array.from({ length: 2 }).map((_, gi) => (
           <section key={gi}>
             <Skeleton className="mb-3 h-3 w-24" />
-            <ul className="flex flex-col divide-y divide-border/40 border-t border-border/40">
+            <ul className="flex flex-col gap-px">
               {Array.from({ length: 4 }).map((_, i) => (
-                <li key={i} className="flex items-center gap-3 px-2 py-3">
+                <li key={i} className="flex h-[34px] items-center gap-3 px-2">
                   <Skeleton className="size-4 shrink-0 rounded-sm" />
                   <Skeleton className="h-4 flex-1" />
                   <Skeleton className="ml-auto h-3 w-16" />
@@ -257,7 +258,7 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
   }
   if (isError) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
         Could not load documents
         {error instanceof Error ? `: ${error.message}` : "."}
       </div>
@@ -267,15 +268,7 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
   const docs = data ?? [];
   if (docs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 px-6 py-12 text-center">
-        <FileText
-          strokeWidth={1.5}
-          className="size-7 text-muted-foreground/50"
-        />
-        <p className="text-sm text-pretty text-muted-foreground">
-          No documents yet.
-        </p>
-      </div>
+      <EmptyState icon={FileText} title="No documents yet" />
     );
   }
 
@@ -333,9 +326,7 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
         </div>
       ) : null}
       {shown.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 px-6 py-8 text-center text-sm text-muted-foreground">
-          No documents in this team yet.
-        </p>
+        <EmptyState title="No documents in this team yet" />
       ) : (
         <GroupedList propertyId={propertyId} docs={shown} draggable />
       )}
@@ -397,18 +388,13 @@ function GroupedList({
     <div className="flex flex-col gap-10">
       {groups.map((g) => (
         <section key={g.bucket}>
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              {BUCKET_LABELS[g.bucket]}
-            </h3>
-            <span className="text-xs tracking-tight text-muted-foreground/70 tabular-nums">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <Eyebrow>{BUCKET_LABELS[g.bucket]}</Eyebrow>
+            <span className="text-xs text-faint-foreground tabular-nums">
               {g.items.length}
             </span>
           </div>
-          <ul
-            role="list"
-            className="flex flex-col divide-y divide-border/40 border-t border-border/40"
-          >
+          <ul role="list" className="flex flex-col gap-px">
             {g.items.map((d) => (
               <TimelineRow
                 key={d.id}
@@ -474,7 +460,7 @@ function TimelineRow({
         onClick={handleClick}
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
-        className="flex items-center gap-3 px-2 py-2.5"
+        className="flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
       >
         {draggable ? (
           // Drag handle: only the grip starts a drag, so grabbing the row's
@@ -488,28 +474,28 @@ function TimelineRow({
               e.stopPropagation();
             }}
             aria-label="Drag to pin to a board"
-            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-muted-foreground/30 hover:text-muted-foreground/60 active:cursor-grabbing"
+            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-faint-foreground active:cursor-grabbing"
           >
             <GripVertical aria-hidden className="size-4" />
           </span>
         ) : (
           <FileText
             strokeWidth={1.5}
-            className="size-4 shrink-0 text-muted-foreground"
+            className="size-4 shrink-0 text-faint-foreground"
             aria-hidden="true"
           />
         )}
-        <span className="min-w-0 flex-1 truncate text-sm font-medium tracking-tight text-foreground">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
           {doc.title || "Untitled"}
         </span>
         {editorName ? (
-          <span className="hidden truncate text-xs tracking-tight text-muted-foreground sm:inline">
+          <span className="hidden truncate text-xs text-faint-foreground sm:inline">
             {editorName}
           </span>
         ) : null}
         <span className="flex shrink-0 items-center gap-2">
           <DocumentViewerAvatarStack users={viewers} size={18} />
-          <span className="text-xs tracking-tight text-muted-foreground tabular-nums">
+          <span className="text-xs text-faint-foreground tabular-nums">
             {formatRelativeShort(doc.updated_at)}
           </span>
         </span>
@@ -532,10 +518,10 @@ function EditorialHeading({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex items-end justify-between gap-3 border-b border-border pb-3">
-      <div className="flex flex-col gap-1">
-        <Eyebrow tone="brand">{kicker}</Eyebrow>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+    <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-2">
+        <Eyebrow>{kicker}</Eyebrow>
+        <h2 className="text-base leading-6 font-semibold text-foreground">
           {children}
         </h2>
       </div>
@@ -544,11 +530,15 @@ function EditorialHeading({
   );
 }
 
+/** Value-then-faint-label, identical to the Home widgets' `Stats` one-liner
+ *  (components/home/editorial-section.tsx) — one stat voice across the app. */
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <dt className="text-muted-foreground/80">{label}</dt>
-      <dd className="font-medium tabular-nums text-foreground">{value}</dd>
+      <dd className="text-base font-semibold tabular-nums text-foreground">
+        {value}
+      </dd>
+      <dt className="text-faint-foreground">{label}</dt>
     </div>
   );
 }
@@ -568,8 +558,8 @@ function UnpinZone({
       ref={setNodeRef}
       className={cn(
         className,
-        "transition-shadow",
-        isOver && "ring-2 ring-foreground/15",
+        "transition-colors",
+        isOver && "bg-accent",
       )}
     >
       {children}

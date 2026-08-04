@@ -17,10 +17,10 @@
     ui-sans-serif,
     system-ui,
     sans-serif;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   white-space: nowrap;
 }
 
@@ -31,7 +31,7 @@
  * an <h1>. */
 .tiptap .is-empty[data-placeholder]::before {
   content: attr(data-placeholder);
-  color: var(--muted-foreground);
+  color: var(--faint-foreground);
   float: left;
   height: 0;
   pointer-events: none;
@@ -39,12 +39,14 @@
 
 /* Title row: the first top-level node is always rendered title-sized,
  * regardless of whether the user keeps it as an <h1> or downgrades it to a
- * paragraph. This matches the Notion-style "first line is the title" model. */
+ * paragraph. This matches the Notion-style "first line is the title" model.
+ * 40px/48px weight 700, letter-spacing normal — the measured Notion page
+ * title (docs/notion-spec.md §3). */
 .tiptap > :first-child {
-  font-size: 1.875rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.015em;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 3rem;
+  letter-spacing: normal;
   margin-top: 0;
   margin-bottom: 1.25rem;
 }
@@ -57,78 +59,50 @@
  * (which uses its own `--lb-accent-*` tokens that don't track our `.dark`
  * class) was too dim in dark mode.
  *
- * Yellow highlight reads as "annotation" in both modes the way it does in
- * Google Docs / Notion — and being theme-independent it stays legible
- * regardless of how the page background changes. */
+ * The wash reads as "annotation" the way it does in Google Docs / Notion.
+ * Both planes come from the `--annotation-*` tokens so the hue stays in the
+ * warm family and the values live in one place. */
 .tiptap .lb-tiptap-thread-mark {
-  background-color: rgb(250 204 21 / 0.32); /* tailwind yellow-400 @ 32% */
+  background-color: var(--annotation-mark);
   border-radius: 2px;
   padding: 0 1px;
-  text-decoration: underline 1.5px rgb(202 138 4 / 0.7); /* yellow-600 */
+  text-decoration: underline 1.5px var(--annotation-underline);
   text-underline-offset: 3px;
 }
 
 .dark .tiptap .lb-tiptap-thread-mark {
-  /* Dark amber wash with the doc's foreground text preserved on top — the
-   * default LB rule sets `color: var(--lb-foreground)` which doesn't track
-   * our `.dark` class, so the text would otherwise stay dark and become
-   * unreadable inside the highlight. Override both. */
-  background-color: rgb(120 84 0 / 0.42);
+  /* The default LB rule sets `color: var(--lb-foreground)` which doesn't
+   * track our `.dark` class, so the text would otherwise stay dark and
+   * become unreadable inside the highlight. Override it. */
   color: var(--foreground);
-  text-decoration-color: rgb(250 204 21 / 0.9);
 }
 
 /* Active / selected thread mark — when the thread is open / hovered. */
 .tiptap .lb-tiptap-thread-mark-selected,
 .tiptap .lb-tiptap-thread-mark[data-state="active"] {
-  background-color: rgb(250 204 21 / 0.5);
+  background-color: var(--annotation-mark-active);
 }
 
 .dark .tiptap .lb-tiptap-thread-mark-selected,
 .dark .tiptap .lb-tiptap-thread-mark[data-state="active"] {
-  background-color: rgb(160 110 0 / 0.55);
   color: var(--foreground);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Floating composer + thread visual polish.
  *
- * Liveblocks's defaults are fine, but a touch dated against a 2026 Tiptap-
- * style editor: too-tight radii, generic shadows, default 14px body type
- * with snug line-height. Overrides below modernize the chrome without
- * changing any behavior — the LB tokens already track our `.dark` ancestor
- * (we import `@liveblocks/react-ui/styles/dark/attributes.css` in the
- * documents layout). */
+ * These are floating overlays, so they take the ONE house elevation recipe:
+ * `--overlay-shadow` (soft far + tight near + the 1px warm ring as the LAST
+ * layer) at the 10px overlay radius. No border, no outline — the ring is
+ * part of the shadow, per docs/notion-spec.md §5. */
 
 .lb-tiptap-floating-composer,
 .lb-tiptap-floating-threads-thread {
-  border-radius: 14px;
-  background: var(--background);
-  /* `outline` instead of `border` so the rounded corners get a consistent
-   * 1px ring on all four sides. Some Liveblocks internals were painting
-   * inset shadows over part of the bordered edge — outline sits OUTSIDE the
-   * box so nothing inside can hide it. Combined with overflow:hidden the
-   * card stays a clean rounded rect. */
-  outline: 1px solid var(--border);
-  outline-offset: -1px;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 24px rgb(0 0 0 / 0.07),
-    0 20px 48px -16px rgb(0 0 0 / 0.10);
-  backdrop-filter: saturate(140%) blur(8px);
+  border-radius: var(--radius-overlay);
+  background: var(--popover);
+  outline: none;
+  box-shadow: var(--overlay-shadow);
   overflow: hidden;
-}
-
-.dark .lb-tiptap-floating-composer,
-.dark .lb-tiptap-floating-threads-thread {
-  background: color-mix(in oklab, var(--card) 92%, transparent);
-  /* Slightly lifted white outline reads better against the dark page than
-   * `--border` at 80% which faded out. Mirrors shadcn's `inset-ring-white/5`
-   * convention. */
-  outline-color: rgb(255 255 255 / 0.10);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.04),
-    0 8px 28px rgb(0 0 0 / 0.45);
 }
 
 /* Liveblocks portals its floating popovers (new-comment composer, thread
@@ -153,30 +127,30 @@
 
 /* Composer body: roomier padding, modern type rhythm. The thread's reply
  * composer ("Reply to thread...") inherits this, so the placeholder font
- * stays in line with the comment body. 13px reads as secondary chrome. */
+ * stays in line with the comment body. 14px is the UI default. */
 .lb-tiptap-floating-composer .lb-composer-editor,
 .lb-tiptap-floating-threads-thread .lb-composer-editor {
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
 .lb-tiptap-floating-composer .lb-composer-editor[data-placeholder]:empty::before {
-  color: var(--muted-foreground);
+  color: var(--faint-foreground);
 }
 
 /* Composer action row: tighter gap, primary submit button. */
 .lb-tiptap-floating-composer .lb-composer-actions {
   padding: 8px 10px;
   gap: 6px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  border-top: 1px solid var(--border);
 }
 
 .lb-tiptap-floating-composer .lb-button[data-variant="primary"] {
   background: var(--primary);
   color: var(--primary-foreground);
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: var(--radius);
+  font-weight: 500;
   transition: filter 120ms ease;
 }
 .lb-tiptap-floating-composer .lb-button[data-variant="primary"]:where(:enabled:hover) {
@@ -202,13 +176,13 @@
 }
 
 .lb-tiptap-floating-threads-thread .lb-comment-author {
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .lb-tiptap-floating-threads-thread .lb-comment-date {
-  font-size: 11px;
-  color: var(--muted-foreground);
+  font-size: 12px;
+  color: var(--faint-foreground);
 }
 
 .lb-tiptap-floating-threads-thread .lb-comment-body {
@@ -219,18 +193,17 @@
 
 /* Subtle separator between stacked threads in the floating popover. */
 .lb-tiptap-floating-threads-thread + .lb-tiptap-floating-threads-thread {
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  border-top: 1px solid var(--border);
 }
 
 /* Resolve / delete / more buttons on a comment row: ghost style. */
 .lb-tiptap-floating-threads-thread .lb-button[data-variant="ghost"] {
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--muted-foreground);
 }
 .lb-tiptap-floating-threads-thread
   .lb-button[data-variant="ghost"]:where(:enabled:hover) {
   background: var(--accent);
-  color: var(--accent-foreground);
 }
 
 /* AnchoredThreads gutter: the parent is `pointer-events-none` so empty gutter
@@ -277,10 +250,11 @@
   color: currentColor;
 }
 
+/* Hover is a FILL change only — never a label/icon color flip
+ * (docs/notion-spec.md §6). Full ink is reserved for the active state below. */
 .documents-toolbar
   .lb-button:where(:enabled:hover, [data-highlighted]:not([data-highlighted="false"])) {
   background: var(--accent);
-  color: var(--accent-foreground);
 }
 
 .documents-toolbar
@@ -324,7 +298,7 @@
 }
 
 .tiptap .sub-page-node.ProseMirror-selectednode > button {
-  outline: 2px solid var(--ring);
+  outline: 1px solid var(--ring);
   outline-offset: 1px;
 }
 
@@ -347,26 +321,17 @@
 }
 
 /* 2. Match the floating-composer card treatment so the AI toolbar reads as
- *    part of the same editor chrome family. */
+ *    part of the same editor chrome family — the one house overlay recipe. */
 .lb-tiptap-ai-toolbar {
-  border-radius: 14px;
-  outline: 1px solid var(--border);
-  outline-offset: -1px;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 24px rgb(0 0 0 / 0.07),
-    0 20px 48px -16px rgb(0 0 0 / 0.1);
-}
-.dark .lb-tiptap-ai-toolbar {
-  outline-color: rgb(255 255 255 / 0.1);
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.04),
-    0 8px 28px rgb(0 0 0 / 0.45);
+  border-radius: var(--radius-overlay);
+  outline: none;
+  box-shadow: var(--overlay-shadow);
 }
 
-/* 3. Tint the doc text the AI is currently acting on. */
+/* 3. Tint the doc text the AI is currently acting on. `--ring` is the Notion
+ *    blue, so this reads as a text selection rather than a gray smudge. */
 .lb-tiptap-active-selection {
-  background-color: color-mix(in oklab, var(--primary) 18%, transparent);
+  background-color: color-mix(in oklab, var(--ring) 18%, transparent);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -379,8 +344,8 @@
  * read as a tinted line, which is why we box-decoration-break so multi-line
  * spans stay continuous. */
 .tiptap .ai-insert {
-  background-color: color-mix(in oklab, #16a34a 16%, transparent);
-  color: color-mix(in oklab, #14532d 88%, var(--foreground));
+  background-color: var(--diff-insert-bg);
+  color: var(--diff-insert-ink);
   text-decoration: none;
   border-radius: 2px;
   box-decoration-break: clone;
@@ -388,21 +353,12 @@
   padding: 0 1px;
 }
 .tiptap .ai-delete {
-  background-color: color-mix(in oklab, #dc2626 14%, transparent);
-  color: color-mix(in oklab, #7f1d1d 80%, var(--muted-foreground));
+  background-color: var(--diff-delete-bg);
+  color: var(--diff-delete-ink);
   text-decoration: line-through;
-  text-decoration-color: color-mix(in oklab, #dc2626 70%, transparent);
+  text-decoration-color: var(--diff-delete-ink);
   border-radius: 2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   padding: 0 1px;
-}
-.dark .tiptap .ai-insert {
-  background-color: color-mix(in oklab, #22c55e 24%, transparent);
-  color: color-mix(in oklab, #bbf7d0 90%, var(--foreground));
-}
-.dark .tiptap .ai-delete {
-  background-color: color-mix(in oklab, #ef4444 22%, transparent);
-  color: color-mix(in oklab, #fecaca 70%, var(--muted-foreground));
-  text-decoration-color: color-mix(in oklab, #ef4444 75%, transparent);
 }

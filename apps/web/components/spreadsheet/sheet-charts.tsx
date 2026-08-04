@@ -40,15 +40,17 @@ import { GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChartType } from "@/liveblocks.config";
 
+/** Shared categorical series ramp (globals.css `--series-*`) — the same one
+ *  the document chart block and the presence cursors use. */
 const COLORS = [
-  "hsl(220 90% 56%)",
-  "hsl(160 80% 38%)",
-  "hsl(280 70% 55%)",
-  "hsl(20 85% 55%)",
-  "hsl(340 80% 55%)",
-  "hsl(45 90% 50%)",
-  "hsl(190 80% 45%)",
-  "hsl(120 50% 40%)",
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+  "var(--series-7)",
+  "var(--series-8)",
 ];
 
 export type ChartSpec = {
@@ -190,7 +192,7 @@ function FloatingChart({
             onUpdate(chart.id, { type: e.target.value as ChartType })
           }
           onMouseDown={(e) => e.stopPropagation()}
-          className="rounded border border-border/60 bg-background px-1 py-0.5 text-xs"
+          className="rounded-md bg-muted px-1 py-0.5 text-xs shadow-ring"
           title="Chart type"
         >
           <option value="column">Column</option>

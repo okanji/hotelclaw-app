@@ -61,10 +61,10 @@ function CardBody({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 transition-shadow",
+        "flex flex-col gap-3 rounded-md bg-card p-3 shadow-ring transition-colors",
         dragging
-          ? "shadow-lg ring-1 ring-border"
-          : "hover:border-border hover:shadow-sm",
+          ? "shadow-overlay"
+          : " ",
       )}
     >
       <div className="flex items-center gap-2">
@@ -79,7 +79,7 @@ function CardBody({
             aria-hidden="true"
           />
         )}
-        <span className="min-w-0 flex-1 truncate text-sm font-medium tracking-tight text-foreground">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
           {project.name || "Untitled project"}
         </span>
         <span
@@ -135,7 +135,7 @@ function DraggableCard({
       ref={setNodeRef}
       href={`/p/${propertyId}/projects/${project.id}`}
       className={cn(
-        "block touch-none rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "block touch-none rounded-md outline-none focus-visible:shadow-focus",
         isDragging && "opacity-40",
       )}
       {...attributes}
@@ -172,7 +172,7 @@ function Column({
           className={cn("size-2 shrink-0 rounded-full", meta.dot)}
           aria-hidden="true"
         />
-        <h2 className="text-sm font-medium tracking-tight text-foreground">
+        <h2 className="text-sm font-medium text-foreground">
           {meta.label}
         </h2>
         <CountBadge>{projects.length}</CountBadge>
@@ -180,12 +180,12 @@ function Column({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 rounded-xl p-1.5 transition-colors",
-          isOver ? "bg-muted/60 ring-1 ring-border" : "bg-muted/20",
+          "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1.5 transition-colors",
+          isOver ? "bg-accent-pressed ring-1 ring-ring" : "bg-muted",
         )}
       >
         {projects.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/50 py-8 text-xs text-muted-foreground/70">
+          <div className="flex flex-1 items-center justify-center py-8 text-xs text-faint-foreground">
             No projects
           </div>
         ) : (

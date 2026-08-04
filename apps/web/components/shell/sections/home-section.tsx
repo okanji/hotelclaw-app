@@ -86,7 +86,7 @@ export function HomeSection({ propertyId }: { propertyId: string }) {
         <SidebarGroupLabel>Favorites</SidebarGroupLabel>
         <SidebarGroupContent>
           {favorites.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-pretty text-sidebar-foreground/60">
+            <p className="px-2 py-1.5 text-xs text-pretty text-faint-foreground">
               Star a document to keep it here.
             </p>
           ) : (

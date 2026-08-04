@@ -322,7 +322,9 @@ export function CalendarRoom({
         absolute positioning resolved against a wider ancestor and its
         closed state peeked back into the viewport as a stray strip. */}
     <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-x-clip">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
+      {/* Topbar: transparent, no fill, no bottom rule — the grid's own
+          all-day band is the first line on the page (notion-spec §4). */}
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3 px-4">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -334,7 +336,7 @@ export function CalendarRoom({
           <div className="flex">
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               onClick={() => shiftFocus(-1)}
               aria-label="Previous"
             >
@@ -342,14 +344,14 @@ export function CalendarRoom({
             </Button>
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               onClick={() => shiftFocus(1)}
               aria-label="Next"
             >
               <ChevronRight className="size-4" />
             </Button>
           </div>
-          <h1 className="text-base font-semibold tracking-tight tabular-nums">
+          <h1 className="text-base leading-6 font-semibold tabular-nums">
             {formatRange(view, focusDate)}
           </h1>
         </div>
@@ -411,10 +413,10 @@ export function CalendarRoom({
         </div>
         {/* Right rail — unscheduled tasks fill the column, team availability
             stays pinned at the bottom instead of being pushed off-screen by
-            a long task list. The wrapper owns the border/background (and
+            a long task list. The wrapper owns the single dividing rule (and
             hides itself when both panels render null) so an empty panel
             never leaves an unstyled gap in the column. */}
-        <div className="hidden min-h-0 shrink-0 flex-col border-l border-border bg-muted/20 lg:has-[aside]:flex">
+        <div className="hidden min-h-0 shrink-0 flex-col border-l border-border lg:has-[aside]:flex">
           <TaskScheduleRail propertyId={propertyId} />
           <TeamOverlayPanel
             propertyId={propertyId}

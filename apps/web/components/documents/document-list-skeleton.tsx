@@ -16,11 +16,11 @@ export function DocumentListSkeleton() {
           <Skeleton className="h-7 w-40" />
           <Skeleton className="h-4 w-72" />
         </div>
-        <Skeleton className="h-9 w-36 rounded-md" />
+        <Skeleton className="h-8 w-36 rounded-md" />
       </header>
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="flex flex-col gap-px">
         {Array.from({ length: 8 }).map((_, i) => (
-          <li key={i} className="flex items-center gap-3 px-4 py-3">
+          <li key={i} className="flex h-[34px] items-center gap-3 px-2">
             <Skeleton className="size-4 shrink-0 rounded-sm" />
             <Skeleton className="h-4 w-[55%]" />
             <Skeleton className="ml-auto h-3 w-16" />

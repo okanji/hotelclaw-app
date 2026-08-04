@@ -84,7 +84,7 @@ export function CustomActionsPanel({
       </div>
 
       {actions.length > 0 ? (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border">
           {actions.map((a) => (
             <li key={a.id} className="flex items-center gap-3 px-4 py-3">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
@@ -268,7 +268,7 @@ function CustomActionDialog({
         <div className="space-y-5">
           {/* 1 — General */}
           <section className="space-y-3">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-xs font-medium text-faint-foreground">
               1 · General
             </p>
             <div className="space-y-2">
@@ -294,7 +294,7 @@ function CustomActionDialog({
 
           {/* 2 — Request */}
           <section className="space-y-3">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-xs font-medium text-faint-foreground">
               2 · Request
             </p>
             <div className="flex gap-2">
@@ -393,7 +393,7 @@ function CustomActionDialog({
 
           {/* 3 — Parameters */}
           <section className="space-y-2">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-xs font-medium text-faint-foreground">
               3 · Parameters the bot collects
             </p>
             {params.map((p, i) => (
@@ -469,8 +469,8 @@ function CustomActionDialog({
           </section>
 
           {/* 4 — Test */}
-          <section className="space-y-2 rounded-lg border border-border p-3">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <section className="space-y-2 rounded-lg p-3 shadow-ring">
+            <p className="text-xs font-medium text-faint-foreground">
               4 · Test request
             </p>
             {params.filter((p) => p.name).length > 0 ? (
@@ -495,7 +495,7 @@ function CustomActionDialog({
               {testing ? "Calling…" : "Send test request"}
             </Button>
             {testResult ? (
-              <pre className="max-h-48 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+              <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                 {testResult}
               </pre>
             ) : null}
@@ -503,7 +503,7 @@ function CustomActionDialog({
 
           {/* 5 — Data access */}
           <section className="space-y-2">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-xs font-medium text-faint-foreground">
               5 · Data access
             </p>
             <Label htmlFor="ca-allowlist" className="text-xs">

@@ -28,7 +28,7 @@ type PriorityChipProps = {
   /** Stop the parent's drag listeners from hijacking the click. */
   stopDrag?: boolean;
   /**
-   * `chip` (default) wraps the glyph in a rounded bordered pill — used when
+   * `chip` (default) wraps the glyph in a rounded-md bordered pill — used when
    * the priority needs its own affordance (e.g. detail panel buttons).
    * `bare` renders just the glyph with a hit-area, matching Linear's
    * kanban-card priority indicator that sits inline with other metadata.
@@ -74,20 +74,20 @@ export function PriorityChip({
             disabled={pending}
             className={cn(
               isBare
-                ? "inline-flex size-5 items-center justify-center rounded-sm border-0 bg-transparent p-0 shadow-none"
+                ? "inline-flex size-5 items-center justify-center rounded-md border-0 bg-transparent p-0 shadow-none"
                 : isNone
                   ? // Ring + dashes live in the SVG — no extra chrome on the button.
                     "inline-flex size-5 items-center justify-center rounded-full border-0 bg-transparent p-0 shadow-none"
-                  : "inline-flex h-5 w-6 items-center justify-center rounded-full border border-border/60 bg-transparent",
+                  : "inline-flex h-5 w-6 items-center justify-center rounded-md",
               "text-muted-foreground transition-colors",
               !isNone && !isBare &&
-                "hover:border-border hover:bg-foreground/5 hover:text-foreground",
-              isBare && "hover:bg-foreground/8 hover:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "hover:bg-accent",
+              isBare && "hover:bg-accent",
+              "focus-visible:outline-none focus-visible:shadow-focus",
               !isNone && !isBare && "aria-expanded:border-border aria-expanded:bg-foreground/5",
               !isNone && !isBare && "data-popup-open:border-border data-popup-open:bg-foreground/5",
               isBare && "aria-expanded:bg-foreground/8 data-popup-open:bg-foreground/8",
-              isNone && !isBare && "hover:text-foreground/90",
+              isNone && !isBare && "hover:text-foreground",
               "disabled:opacity-50",
               className,
             )}
@@ -116,7 +116,7 @@ export function PriorityChip({
               <span
                 className={cn(
                   "flex-1 text-sm",
-                  selected ? "text-foreground" : "text-foreground/90",
+                  selected ? "text-foreground" : "text-foreground",
                 )}
               >
                 {item.label}
@@ -140,7 +140,7 @@ export function PriorityChip({
 
 function PriorityMenuHeader() {
   return (
-    <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+    <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-faint-foreground">
       <span>Set priority to&hellip;</span>
       <ShortcutBadge value="P" variant="key" />
     </div>
@@ -158,7 +158,7 @@ function ShortcutBadge({
     return (
       <kbd
         aria-hidden
-        className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted/60 px-1 font-sans text-xs font-medium text-muted-foreground"
+        className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted px-1 font-sans text-xs/[1] font-medium text-faint-foreground"
       >
         {value}
       </kbd>

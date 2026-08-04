@@ -127,7 +127,7 @@ export function AgentsList({
           )}
           {podBots.length > 0 ? (
             <div className="mt-14">
-              <Eyebrow tone="brand">Pod bots</Eyebrow>
+              <Eyebrow>Pod bots</Eyebrow>
               <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
                 The operated fleet bots serving this property — address them
                 with @name in any channel. Configuration and sessions live in
@@ -138,7 +138,7 @@ export function AgentsList({
                   <li key={bot.id}>
                     <Link
                       href={`${base}/fleet/${bot.id}`}
-                      className="flex flex-col gap-2 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40"
+                      className="flex flex-col gap-2 rounded-md bg-background p-4 transition-colors hover:bg-accent"
                     >
                       <div className="flex items-center gap-3">
                         <TintIcon tone="lavender" className="text-base">
@@ -170,7 +170,7 @@ export function AgentsList({
             </div>
           ) : null}
           <div className="mt-14">
-            <Eyebrow tone="brand">Built-in AI</Eyebrow>
+            <Eyebrow>Built-in AI</Eyebrow>
             <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
               The assistants that ship with the app. They can&apos;t be edited,
               but what each one reads and does is documented below.
@@ -219,7 +219,7 @@ function AgentCard({
   const config = parseAgentConfig(agent.config);
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
+    <div className="group relative flex flex-col gap-3 rounded-md bg-background p-4 transition-colors hover:bg-accent">
       <Link href={href} className="absolute inset-0" aria-label={agent.name} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
@@ -288,7 +288,7 @@ function BuiltinGrid({ className }: { className?: string }) {
         {BUILTIN_AGENTS.map((bot) => (
           <li
             key={bot.id}
-            className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/30 p-4"
+            className="flex flex-col gap-2 rounded-md bg-background p-4"
           >
             <div className="flex items-center gap-3">
               <TintIcon tone="lavender" className="text-base">
@@ -308,7 +308,7 @@ function BuiltinGrid({ className }: { className?: string }) {
               {bot.tools.map((tool) => (
                 <span
                   key={tool}
-                  className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground"
+                  className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                 >
                   {tool}
                 </span>

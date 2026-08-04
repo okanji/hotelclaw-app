@@ -140,14 +140,14 @@ export function OrgProposals({
   return (
     <div className="flex flex-col gap-3">
       {proposals.length > 0 ? (
-        <div className="flex flex-col gap-1.5 rounded-xl border border-border/60 bg-muted/10 p-4">
+        <div className="flex flex-col gap-1.5 rounded-md bg-muted p-4">
           <p className="text-sm font-medium text-foreground">
             Proposed changes
             <span className="ml-2 text-xs font-normal text-muted-foreground">
               {isOwner ? "your approval applies them" : "waiting for an owner"}
             </span>
           </p>
-          <ul className="flex flex-col divide-y divide-border/40">
+          <ul className="flex flex-col divide-y divide-border">
             {proposals.map((p) => (
               <li key={p.id} className="flex items-center gap-3 py-2">
                 <GitPullRequestArrow className="size-4 shrink-0 text-muted-foreground" />
@@ -155,7 +155,7 @@ export function OrgProposals({
                   <p className="truncate text-sm text-foreground">
                     {describe(p)}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-faint-foreground">
                     Proposed by {personName(p.created_by)}
                     {p.note ? ` — ${p.note}` : ""}
                   </p>
@@ -176,7 +176,7 @@ export function OrgProposals({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="h-7 text-xs text-muted-foreground"
+                      className="h-7 text-xs text-faint-foreground"
                       disabled={pending}
                       onClick={() => decide(p.id, false)}
                     >

@@ -61,7 +61,7 @@ export function ActivityFeed({
             </Eyebrow>
             <ul
               role="list"
-              className="flex flex-col divide-y divide-border/40"
+              className="flex flex-col divide-y divide-border"
             >
               {group.items.map((n) => (
                 <FeedRow
@@ -99,7 +99,7 @@ function FeedRow({
       <button
         type="button"
         onClick={onSelect}
-        className="group/row flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
+        className="group/row flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent"
       >
         <span
           className={cn(
@@ -116,7 +116,7 @@ function FeedRow({
           <div className="flex items-baseline gap-3">
             <p
               className={cn(
-                "min-w-0 flex-1 text-sm leading-5 tracking-tight [&_strong]:text-foreground",
+                "min-w-0 flex-1 text-sm leading-5 [&_strong]:text-foreground",
                 unseen ? "text-foreground" : "text-foreground/70",
               )}
             >
@@ -146,7 +146,7 @@ function FeedRow({
             </p>
           ) : null}
           {v.channel ? (
-            <span className="mt-1.5 inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-px text-xs font-medium text-foreground/70">
+            <span className="mt-1.5 inline-flex items-center rounded-md bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground">
               {v.channel}
             </span>
           ) : null}

@@ -94,16 +94,14 @@ export function DashboardFilterMenu({
         {projects.length > 0 ? (
           <DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-              Projects
-            </DropdownMenuLabel>
+            <DropdownMenuLabel>Projects</DropdownMenuLabel>
             {projects.map((p) => (
               <DropdownMenuItem
                 key={p.id}
                 onClick={() => onChange({ kind: "project", id: p.id })}
                 className="gap-2"
               >
-                <span className={cn("size-2 rounded", DOT[p.color])} />
+                <span className={cn("size-2 rounded-sm", DOT[p.color])} />
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 {value.kind === "project" && value.id === p.id ? (
                   <Check className="size-3.5" />
@@ -115,9 +113,7 @@ export function DashboardFilterMenu({
         {spaces.length > 0 ? (
           <DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-              Teams
-            </DropdownMenuLabel>
+            <DropdownMenuLabel>Teams</DropdownMenuLabel>
             {spaces.map((t) => (
               <DropdownMenuItem
                 key={t.id}

@@ -61,23 +61,23 @@ export function ActivityWidget({
             <button
               type="button"
               onClick={() => handleSelect(n, v.href)}
-              className="flex w-full items-start gap-3 rounded-md px-1 py-2.5 text-left transition-colors hover:bg-muted"
+              className="flex w-full items-start gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
             >
               <span
                 className={cn(
                   "mt-0.5 flex shrink-0 items-center",
-                  unseen ? "text-primary" : "text-muted-foreground",
+                  unseen ? "text-foreground" : "text-faint-foreground",
                 )}
                 aria-hidden="true"
               >
                 {v.icon}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm leading-snug tracking-tight text-foreground">
+                <p className="truncate text-sm leading-snug text-foreground">
                   {v.lead}
                 </p>
                 {v.sub ? (
-                  <p className="mt-0.5 truncate text-xs tracking-tight text-muted-foreground">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {v.sub}
                   </p>
                 ) : null}
@@ -85,11 +85,11 @@ export function ActivityWidget({
               <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
                 {unseen ? (
                   <span
-                    className="size-1.5 rounded-full bg-primary"
+                    className="size-1.5 rounded-full bg-foreground"
                     aria-label="Unread"
                   />
                 ) : null}
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs text-faint-foreground tabular-nums">
                   {relativeShort(n.created_at)}
                 </span>
               </div>

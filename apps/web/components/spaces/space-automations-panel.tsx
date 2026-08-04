@@ -85,16 +85,16 @@ export function SpaceAutomationsPanel({
       {isPending ? (
         <p className="text-sm text-muted-foreground">Checking automations…</p>
       ) : workflows.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 px-6 py-8 text-center text-sm text-muted-foreground">
+        <p className="px-6 py-8 text-center text-sm text-muted-foreground">
           No automations reference this team yet.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border/40 rounded-xl border border-border/60">
+        <ul className="flex flex-col divide-y divide-border rounded-md bg-muted">
           {workflows.map((w) => (
             <li key={w.id}>
               <Link
                 href={`/p/${propertyId}/workflows/${w.id}`}
-                className="group flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40"
+                className="group flex items-center gap-3 px-4 min-h-[34px] py-1.5 text-sm transition-colors hover:bg-accent"
               >
                 <Workflow className="size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate font-medium text-foreground">
@@ -103,8 +103,8 @@ export function SpaceAutomationsPanel({
                 <span
                   className={
                     w.enabled
-                      ? "text-xs text-emerald-600 dark:text-emerald-400"
-                      : "text-xs text-muted-foreground"
+                      ? "text-xs text-success"
+                      : "text-xs text-faint-foreground"
                   }
                 >
                   {w.enabled ? "On" : "Off"}

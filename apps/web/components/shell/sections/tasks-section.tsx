@@ -117,7 +117,7 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
                       <span aria-hidden="true">{p.icon}</span>
                     ) : (
                       <span
-                        className={cn("size-2 rounded-[3px]", DOT[p.color])}
+                        className={cn("size-2 rounded-xs", DOT[p.color])}
                         aria-hidden="true"
                       />
                     )}

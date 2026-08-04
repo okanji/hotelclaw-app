@@ -45,7 +45,7 @@ function ActiveHuddleWidget({ onLeave }: { onLeave: () => void }) {
     <aside
       role="region"
       aria-label="Active huddle"
-      className="pointer-events-auto fixed bottom-4 left-[calc(var(--sidebar-width)+12px)] z-40 flex w-[280px] flex-col gap-2 rounded-lg border border-border bg-card/95 p-3 shadow-lg backdrop-blur-sm"
+      className="pointer-events-auto fixed bottom-4 left-[calc(var(--sidebar-width)+12px)] z-40 flex w-[280px] flex-col gap-2 rounded-overlay bg-popover p-3 shadow-overlay"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -53,7 +53,7 @@ function ActiveHuddleWidget({ onLeave }: { onLeave: () => void }) {
             aria-hidden="true"
             className="size-2 shrink-0 animate-pulse rounded-full bg-success"
           />
-          <span className="truncate text-sm font-semibold">
+          <span className="truncate text-sm font-medium">
             Huddle · {participants.length}{" "}
             {participants.length === 1 ? "person" : "people"}
           </span>

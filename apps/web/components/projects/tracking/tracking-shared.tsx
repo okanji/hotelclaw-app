@@ -45,7 +45,7 @@ export function TeamChips({ teams }: { teams: ProjectTeam[] | undefined }) {
       {shown.map((t) => (
         <span
           key={t.id}
-          className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border/50 px-1.5 py-px text-[11px] tracking-tight text-muted-foreground"
+          className="inline-flex min-w-0 items-center gap-1 rounded-md bg-muted px-1.5 py-px text-xs text-faint-foreground"
         >
           <span
             className={cn("size-1.5 shrink-0 rounded-full", COLOR_DOT[t.color])}
@@ -55,7 +55,7 @@ export function TeamChips({ teams }: { teams: ProjectTeam[] | undefined }) {
         </span>
       ))}
       {teams.length > shown.length ? (
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           +{teams.length - shown.length}
         </span>
       ) : null}
@@ -86,16 +86,16 @@ export const PROJECT_STATUS_META: Record<
 > = {
   planned: {
     label: "Planned",
-    dot: "bg-blue-500",
-    text: "text-blue-600 dark:text-blue-400",
-    soft: "bg-blue-500/10",
+    dot: "bg-info",
+    text: "text-info",
+    soft: "bg-info/10",
     tone: "info",
   },
   active: {
     label: "Active",
-    dot: "bg-emerald-500",
-    text: "text-emerald-600 dark:text-emerald-400",
-    soft: "bg-emerald-500/10",
+    dot: "bg-success",
+    text: "text-success",
+    soft: "bg-success/10",
     tone: "success",
   },
   completed: {
@@ -128,10 +128,10 @@ export const HEALTH_META: Record<
   { label: string; dot: string; text: string }
 > = {
   none: { label: "No date", dot: "bg-muted-foreground/40", text: "text-muted-foreground" },
-  on_track: { label: "On track", dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" },
-  at_risk: { label: "At risk", dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" },
-  overdue: { label: "Overdue", dot: "bg-rose-500", text: "text-rose-600 dark:text-rose-400" },
-  done: { label: "Done", dot: "bg-violet-500", text: "text-violet-600 dark:text-violet-400" },
+  on_track: { label: "On track", dot: "bg-success", text: "text-success" },
+  at_risk: { label: "At risk", dot: "bg-warning", text: "text-warning" },
+  overdue: { label: "Overdue", dot: "bg-destructive", text: "text-destructive" },
+  done: { label: "Done", dot: "bg-violet-500", text: "text-violet-600 dark:text-violet-400" }, // violet is the one state colour with no token
 };
 
 /**
@@ -186,7 +186,7 @@ export function ContributorStack({
   const byId = new Map(members.map((m) => [m.id, m]));
   const people = ids.map((id) => byId.get(id)).filter((m): m is ProjectMember => !!m);
   if (people.length === 0) {
-    return <span className="text-xs text-muted-foreground">—</span>;
+    return <span className="text-xs text-faint-foreground">—</span>;
   }
   const shown = people.slice(0, max);
   const extra = people.length - shown.length;
@@ -200,7 +200,7 @@ export function ContributorStack({
             title={p.name ?? undefined}
           >
             {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-            <AvatarFallback className="text-[0.5625rem]">
+            <AvatarFallback className="text-xs">
               {initials(p.name)}
             </AvatarFallback>
           </Avatar>
@@ -230,7 +230,7 @@ export function ProgressBar({
     <div className={cn("h-1.5 overflow-hidden rounded-full bg-muted", className)}>
       {total > 0 ? (
         <div
-          className="h-full rounded-full bg-emerald-500 transition-[width]"
+          className="h-full rounded-full bg-success transition-[width]"
           style={{ width: `${pct}%` }}
         />
       ) : null}

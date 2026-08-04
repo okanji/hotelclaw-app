@@ -154,22 +154,22 @@ export function KanbanColumn({
     return (
       <section
         className={cn(
-          "flex h-full w-11 shrink-0 flex-col items-center rounded-lg bg-muted/30 py-3 dark:bg-muted/15",
-          isDropTarget && "bg-muted/60 ring-1 ring-primary/40",
+          "flex h-full w-11 shrink-0 flex-col items-center rounded-md bg-muted py-3",
+          isDropTarget && "bg-accent-pressed ring-1 ring-ring",
         )}
       >
         <button
           type="button"
           onClick={() => onToggleCollapse(column.id)}
           aria-label={`Expand ${column.label} column`}
-          className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+          className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent"
         >
           <ChevronRight className="size-3.5" />
         </button>
         <div className="mt-3 flex flex-col items-center gap-2">
           <StatusIcon status={column.id} />
           <span
-            className="text-xs font-medium tracking-tight text-foreground [writing-mode:vertical-rl]"
+            className="text-xs font-medium text-foreground [writing-mode:vertical-rl]"
             style={{ textOrientation: "mixed" }}
           >
             {column.label}
@@ -185,19 +185,19 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "group/column flex h-full w-72 shrink-0 flex-col rounded-lg bg-muted/30 dark:bg-muted/15",
+        "group/column flex h-full w-72 shrink-0 flex-col rounded-md bg-muted",
         "transition-colors",
-        isDropTarget && "bg-muted/60 ring-1 ring-primary/40",
+        isDropTarget && "bg-accent-pressed ring-1 ring-ring",
       )}
     >
       <header className="flex h-10 shrink-0 items-center gap-2 px-3">
         <StatusIcon status={column.id} />
-        <h3 className="text-sm font-medium tracking-tight text-foreground">
+        <h3 className="text-sm font-medium text-foreground">
           {column.label}
         </h3>
         <span
           className={cn(
-            "text-xs tabular-nums tracking-tight",
+            "text-xs tabular-nums",
             overWip
               ? "font-medium text-warning"
               : "text-muted-foreground",
@@ -210,7 +210,7 @@ export function KanbanColumn({
         >
           {taskIds.length}
           {column.wipLimit != null ? (
-            <span className="text-muted-foreground/50">/{column.wipLimit}</span>
+            <span className="text-muted-foreground">/{column.wipLimit}</span>
           ) : null}
         </span>
 
@@ -222,7 +222,7 @@ export function KanbanColumn({
                   size="icon"
                   variant="ghost"
                   aria-label={`${column.label} column options`}
-                  className="size-6 text-muted-foreground hover:bg-foreground/8 hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:bg-accent"
                 />
               }
             >
@@ -248,7 +248,7 @@ export function KanbanColumn({
             variant="ghost"
             aria-label={`Add task to ${column.label}`}
             onClick={() => setAdding(true)}
-            className="size-6 text-muted-foreground hover:bg-foreground/8 hover:text-foreground"
+            className="size-6 text-muted-foreground hover:bg-accent"
           >
             <Plus className="size-3.5" />
           </Button>
@@ -311,15 +311,15 @@ export function KanbanColumn({
             type="button"
             ref={sentinelRef}
             onClick={() => setVisibleCount((c) => c + COLUMN_PAGE)}
-            className="block w-full rounded-md py-2 text-center text-xs text-muted-foreground/70 hover:text-foreground"
+            className="block w-full rounded-md py-2 text-center text-xs text-muted-foreground hover:text-foreground"
           >
             {taskIds.length - visibleIds.length} more…
           </button>
         ) : null}
 
         {empty && !adding && isDropTarget ? (
-          <div className="mt-2 flex items-center justify-center rounded-md border border-dashed border-primary/40 px-3 py-5 text-center">
-            <p className="text-xs text-muted-foreground">Drop here</p>
+          <div className="mt-2 flex items-center justify-center rounded-md bg-accent px-3 py-5 text-center">
+            <p className="text-xs text-faint-foreground">Drop here</p>
           </div>
         ) : null}
 
@@ -333,10 +333,10 @@ export function KanbanColumn({
             aria-label={`Add task to ${column.label}`}
             className={cn(
               "mt-0.5 flex h-9 w-full items-center justify-center rounded-md",
-              "border border-border/60 bg-transparent",
-              "text-muted-foreground/70 transition-colors",
-              "hover:border-border hover:bg-foreground/5 hover:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "bg-accent",
+              "text-muted-foreground transition-colors",
+              "hover:bg-accent",
+              "focus-visible:outline-none focus-visible:shadow-focus",
             )}
           >
             <Plus className="size-4" />

@@ -200,9 +200,9 @@ function Pane({
 }) {
   const [showInstructions, setShowInstructions] = useState(false);
   return (
-    <div className="flex min-h-[320px] flex-col rounded-lg border border-border">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-2">
-        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+    <div className="flex min-h-[320px] flex-col rounded-lg shadow-ring">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
+        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
           {pane.label}
         </span>
         <NativeSelect

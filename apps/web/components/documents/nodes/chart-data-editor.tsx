@@ -66,10 +66,10 @@ export function ChartDataEditor({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border bg-background">
+    <div className="overflow-x-auto rounded-md bg-muted">
       <table className="w-full border-collapse text-xs">
         <thead>
-          <tr className="bg-muted/40">
+          <tr className="bg-muted">
             {data.headers.map((h, i) => (
               <th
                 key={i}
@@ -86,7 +86,7 @@ export function ChartDataEditor({
                     <button
                       type="button"
                       onClick={() => removeColumn(i)}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
                       aria-label="Remove column"
                     >
                       <Trash2 className="size-3" />
@@ -95,11 +95,11 @@ export function ChartDataEditor({
                 </div>
               </th>
             ))}
-            <th className="w-8 border-b border-border bg-muted/40 px-1">
+            <th className="w-8 border-b border-border bg-muted px-1">
               <button
                 type="button"
                 onClick={addColumn}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="Add column"
               >
                 <Plus className="size-3.5" />
@@ -109,7 +109,7 @@ export function ChartDataEditor({
         </thead>
         <tbody>
           {data.rows.map((row, ri) => (
-            <tr key={ri} className="hover:bg-muted/20">
+            <tr key={ri} className="hover:bg-accent">
               {row.map((cell, ci) => (
                 <td
                   key={ci}
@@ -127,7 +127,7 @@ export function ChartDataEditor({
                 <button
                   type="button"
                   onClick={() => removeRow(ri)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
                   aria-label="Remove row"
                   disabled={data.rows.length <= 1}
                 >
@@ -141,7 +141,7 @@ export function ChartDataEditor({
               <button
                 type="button"
                 onClick={addRow}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Plus className="size-3.5" /> Add row
               </button>

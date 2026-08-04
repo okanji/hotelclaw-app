@@ -222,8 +222,8 @@ export function HomeView({
           }
         />
         {viewAsUser ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-sm">
-            <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-warning/10 px-3.5 py-2 text-sm">
+            <Eye className="size-4 shrink-0 text-warning" />
             <span className="text-foreground">
               Viewing as <strong>{viewAsUser.name}</strong> ({ROLE_LABEL[viewAsUser.role]})
             </span>
@@ -234,7 +234,7 @@ export function HomeView({
             <button
               type="button"
               onClick={() => setViewAsUser(null)}
-              className="ml-auto text-xs font-medium text-foreground underline-offset-2 hover:underline"
+              className="ml-auto text-sm font-medium text-foreground underline-offset-2 hover:underline"
             >
               Exit
             </button>
@@ -257,9 +257,9 @@ export function HomeView({
 
       {showHero && hero ? (
         <section className="mb-16 min-w-0">
-          <div className="mb-6 flex flex-col gap-1.5 border-b border-border pb-3">
-            <Eyebrow tone="brand">{hero.kicker}</Eyebrow>
-            <h2 className="text-lg font-medium text-accent-foreground">
+          <div className="mb-4 flex flex-col gap-2">
+            <Eyebrow>{hero.kicker}</Eyebrow>
+            <h2 className="text-base leading-6 font-semibold text-foreground">
               {hero.title}
             </h2>
           </div>
@@ -268,7 +268,7 @@ export function HomeView({
       ) : null}
 
       {gridIds.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-md bg-muted py-16 text-center">
           <p className="text-sm text-muted-foreground">
             {showHero
               ? "Everything else is hidden — bring a section back from the tray below."
@@ -357,7 +357,7 @@ type HomeStat = {
 /** Small amber corner chip for stats that are waiting on a human. */
 function AttentionPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-lg bg-warning/10 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-warning">
+    <span className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-warning">
       {children}
     </span>
   );
@@ -507,9 +507,7 @@ function ViewAsMenu({
       />
       <DropdownMenuContent align="end" sideOffset={6} className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-            Preview a role&apos;s Home
-          </DropdownMenuLabel>
+          <DropdownMenuLabel>Preview a role&apos;s Home</DropdownMenuLabel>
           {(["owner", "manager", "staff"] as const).map((r) => (
             <DropdownMenuItem
               key={r}
@@ -532,9 +530,7 @@ function ViewAsMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs tracking-wide text-muted-foreground uppercase">
-                View as a person
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>View as a person</DropdownMenuLabel>
               {members.slice(0, 20).map((m) => (
                 <DropdownMenuItem
                   key={m.id}

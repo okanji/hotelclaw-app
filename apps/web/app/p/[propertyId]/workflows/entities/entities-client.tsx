@@ -51,12 +51,12 @@ export function EntitiesClient({
       </header>
 
       {types.length > 0 ? (
-        <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
+        <ul className="divide-y divide-border rounded-md shadow-ring">
           {types.map((t) => (
             <li key={t.id}>
               <Link
                 href={`/p/${propertyId}/workflows/entities/${t.name}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-accent"
               >
                 <Database
                   className="size-4 text-muted-foreground"
@@ -166,7 +166,7 @@ function CreateTypeDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-      <div className="w-full max-w-[520px] rounded-lg border border-border bg-card p-5 shadow-lg">
+      <div className="w-full max-w-[520px] rounded-overlay bg-card p-5 shadow-overlay">
         <header className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">New entity type</h2>
           <Button
@@ -182,7 +182,7 @@ function CreateTypeDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <label className="mb-1 block text-xs font-medium text-faint-foreground">
               Display name
             </label>
             <input
@@ -190,11 +190,11 @@ function CreateTypeDialog({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Room"
-              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <label className="mb-1 block text-xs font-medium text-faint-foreground">
               Machine name (snake_case)
             </label>
             <input
@@ -202,11 +202,11 @@ function CreateTypeDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="room"
-              className="w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm"
+              className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 font-mono text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <label className="mb-1 block text-xs font-medium text-faint-foreground">
               Fields
             </label>
             <ul className="flex flex-col gap-1.5">
@@ -217,7 +217,7 @@ function CreateTypeDialog({
                     value={f.name}
                     onChange={(e) => updateField(i, { name: e.target.value })}
                     placeholder="number"
-                    className="flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs"
+                    className="flex-1 rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1 font-mono text-xs"
                   />
                   <NativeSelect
                     aria-label="Field type"
@@ -258,7 +258,7 @@ function CreateTypeDialog({
             <button
               type="button"
               onClick={addField}
-              className="mt-2 inline-flex items-center gap-1 rounded text-xs text-muted-foreground hover:text-foreground"
+              className="mt-2 inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground hover:text-foreground"
             >
               <Plus className="size-3" /> Add field
             </button>

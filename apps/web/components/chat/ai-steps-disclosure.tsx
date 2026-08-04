@@ -50,7 +50,7 @@ export function AiStepsDisclosure({ steps }: { steps: AiStep[] }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1 rounded text-xs text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+        className="inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
       >
         <ChevronRight
           data-slot="icon"

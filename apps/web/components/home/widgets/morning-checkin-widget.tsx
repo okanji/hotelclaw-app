@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { createClient } from "@/lib/supabase/client";
 import type { WidgetProps } from "../dashboard-registry";
 
@@ -165,9 +166,9 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
 
   if (step === "idle" || step === "done") {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-col items-start gap-3 rounded-md bg-card p-4 shadow-ring">
         <div className="flex items-center gap-2.5">
-          <Sunrise className="size-5 text-amber-500" strokeWidth={1.5} />
+          <Sunrise className="size-5 text-warning" strokeWidth={1.5} />
           <p className="text-sm font-medium text-foreground">
             {step === "done"
               ? "Morning brief shared — see you tomorrow."
@@ -191,7 +192,7 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
           {approvalsCount > 0 ? (
             <Link
               href={`/p/${propertyId}/agents/fleet/approvals`}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 underline-offset-2 hover:underline dark:text-amber-400"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-warning underline-offset-2 hover:underline"
             >
               <BadgeCheck className="size-3.5" />
               {approvalsCount} approval{approvalsCount === 1 ? "" : "s"} waiting
@@ -205,7 +206,7 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
 
   if (step === 3) {
     return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-col gap-3 rounded-md bg-card p-4 shadow-ring">
         <p className="text-sm font-medium text-foreground">
           Here&rsquo;s your brief — edit anything, then share it.
         </p>
@@ -217,19 +218,19 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
           className="text-sm leading-relaxed"
         />
         <div className="flex flex-wrap items-center gap-2">
-          <select
+          <NativeSelect
             value={channelId}
             onChange={(e) => setChannelId(e.target.value)}
             disabled={busy}
             aria-label="Channel"
-            className="h-8 rounded-md border border-border bg-transparent px-2 text-xs text-foreground"
+            wrapperClassName="w-auto"
           >
             {channels.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <Button type="button" size="sm" onClick={() => void publish()} disabled={busy || !channelId}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
             Share brief
@@ -337,10 +338,10 @@ function QuestionCard({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+    <div className="flex flex-col gap-3 rounded-md bg-card p-4 shadow-ring">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-foreground">{prompt}</p>
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
           {step + 1} / 3
         </span>
       </div>
@@ -366,10 +367,10 @@ function QuestionCard({
             onClick={toggleMic}
             aria-label={listening ? "Stop dictating" : "Dictate your answer"}
             className={cn(
-              "absolute right-2 top-2 rounded-full p-1.5 transition-colors",
+              "absolute right-2 top-2 rounded-md p-1.5 transition-colors",
               listening
-                ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-destructive/10 text-destructive"
+                : "text-muted-foreground hover:bg-accent",
             )}
           >
             {listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
@@ -390,9 +391,7 @@ function QuestionCard({
           )}
         </Button>
         {listening ? (
-          <span className="text-xs text-red-600 dark:text-red-400">
-            Listening…
-          </span>
+          <span className="text-xs text-destructive">Listening…</span>
         ) : null}
       </div>
     </div>

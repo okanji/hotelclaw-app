@@ -62,9 +62,12 @@ export function DeleteAccountDialog({ email, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
-            <p className="font-medium text-destructive">What happens</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+          {/* A well, not a card: the destructive tint at 5% is the whole
+              boundary — no stroke, no shadow (DESIGN.md separation ladder).
+              It sits one rung below the confirm button's 10% fill. */}
+          <div className="rounded-md bg-destructive/5 p-3">
+            <p className="text-sm font-medium text-destructive">What happens</p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
               <li>
                 Properties you solely own are archived — remaining members
                 lose access.
@@ -77,10 +80,13 @@ export function DeleteAccountDialog({ email, open, onOpenChange }: Props) {
             </ul>
           </div>
           <div className="space-y-2">
+            {/* One text run inside the label: `Label` is a flex row, so
+                loose siblings would each pick up its 8px gap. */}
             <Label htmlFor="delete-account-confirm">
-              Type{" "}
-              <span className="font-mono text-foreground">{email}</span> to
-              confirm
+              <span>
+                Type <span className="font-mono text-foreground">{email}</span>{" "}
+                to confirm
+              </span>
             </Label>
             <Input
               id="delete-account-confirm"

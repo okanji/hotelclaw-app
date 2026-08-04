@@ -102,8 +102,8 @@ export function StaleSopsBody({ propertyId }: { propertyId: string }) {
                   href={`/p/${propertyId}/documents/${doc.documentId}`}
                   className={`${ROW_CLASS} group`}
                 >
-                  <FileClock className="size-4 shrink-0 text-amber-500" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:underline">
+                  <FileClock className="size-4 shrink-0 text-warning" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
                     {doc.title}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -175,15 +175,15 @@ export function WorkflowRunsBody({ propertyId }: { propertyId: string }) {
                     href={`/p/${propertyId}/workflows/${w.workflowId}`}
                     className={`${ROW_CLASS} group`}
                   >
-                    <OctagonX className="size-4 shrink-0 text-rose-500" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:underline">
+                    <OctagonX className="size-4 shrink-0 text-destructive" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
                       {w.name}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-rose-500">
+                    <span className="shrink-0 text-xs tabular-nums text-destructive">
                       {w.failures} failure{w.failures === 1 ? "" : "s"}
                     </span>
                     {w.lastError ? (
-                      <span className="hidden max-w-56 shrink-0 truncate text-xs text-muted-foreground sm:inline">
+                      <span className="hidden max-w-56 shrink-0 truncate text-xs text-faint-foreground sm:inline">
                         {w.lastError}
                       </span>
                     ) : null}

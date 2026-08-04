@@ -13,6 +13,13 @@ import { tasksQueryOptions } from "@/lib/query/section-queries";
 import { WidgetEmpty } from "../editorial-section";
 import { Stat, StatGroup } from "@/components/ui/stat";
 import { applyTaskFilter, useDashboardFilter } from "../dashboard-filter";
+import {
+  AXIS_TICK,
+  COLOR,
+  TOOLTIP_CONTENT_STYLE,
+  TOOLTIP_CURSOR,
+  TOOLTIP_LABEL_STYLE,
+} from "@/components/insights/chart-style";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 6;
@@ -75,40 +82,27 @@ export function PropertyPulseWidget({ propertyId }: { propertyId: string }) {
           >
             <defs>
               <linearGradient id="pulse-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="var(--color-emerald-500)"
-                  stopOpacity={0.25}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="var(--color-emerald-500)"
-                  stopOpacity={0}
-                />
+                <stop offset="0%" stopColor={COLOR.done} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={COLOR.done} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
+              tick={AXIS_TICK}
               interval="preserveStartEnd"
             />
             <Tooltip
-              cursor={{ stroke: "var(--color-border)" }}
-              contentStyle={{
-                borderRadius: "0.5rem",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-popover)",
-                fontSize: "0.75rem",
-              }}
-              labelStyle={{ color: "var(--color-muted-foreground)" }}
+              cursor={TOOLTIP_CURSOR}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
             />
             <Area
               type="monotone"
               dataKey="done"
               name="Completed"
-              stroke="var(--color-emerald-500)"
+              stroke={COLOR.done}
               strokeWidth={2}
               fill="url(#pulse-fill)"
             />

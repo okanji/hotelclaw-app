@@ -49,16 +49,16 @@ export function ScopeStatStrip({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <p
-        className="text-xs tracking-tight text-muted-foreground"
+        className="text-xs text-muted-foreground"
         title={data.paceReasons.join(" · ") || undefined}
       >
         {parts.map((p, i) => (
           <span key={i}>
-            {i > 0 ? <span className="text-muted-foreground/50"> · </span> : null}
+            {i > 0 ? <span className="text-faint-foreground"> · </span> : null}
             <span
               className={cn(
-                p.tone === "rose" && "text-rose-500",
-                p.tone === "amber" && "text-amber-600 dark:text-amber-500",
+                p.tone === "rose" && "text-destructive",
+                p.tone === "amber" && "text-warning",
               )}
             >
               {p.text}
@@ -71,8 +71,8 @@ export function ScopeStatStrip({
           className={cn(
             "h-full rounded-full",
             data.pace && data.pace !== "on_pace"
-              ? "bg-amber-500"
-              : "bg-emerald-500",
+              ? "bg-warning"
+              : "bg-success",
           )}
           style={{ width: `${data.completionPct}%` }}
         />

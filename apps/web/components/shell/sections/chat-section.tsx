@@ -88,7 +88,7 @@ export function ChatSection({
                   size="sm"
                   onClick={() => setArchivedOpen(true)}
                   tooltip="Archived channels"
-                  className="text-sidebar-foreground/55"
+                  className="text-faint-foreground"
                 >
                   <Archive />
                   <span>Archived</span>
@@ -99,7 +99,7 @@ export function ChatSection({
                   size="sm"
                   onClick={() => setSettingsOpen(true)}
                   tooltip="Channel settings"
-                  className="text-sidebar-foreground/55"
+                  className="text-faint-foreground"
                 >
                   <Settings2 />
                   <span>Settings</span>

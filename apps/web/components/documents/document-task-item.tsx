@@ -39,7 +39,7 @@ function TaskItemView({
         checked={checked}
         disabled={!editor.isEditable}
         onChange={(e) => updateAttributes({ checked: e.target.checked })}
-        className="mt-[5px] size-4 cursor-pointer rounded border-input accent-primary"
+        className="mt-[5px] size-4 cursor-pointer rounded-md accent-ring"
       />
       <NodeViewContent className="flex-1 [&_p]:my-0" />
     </NodeViewWrapper>

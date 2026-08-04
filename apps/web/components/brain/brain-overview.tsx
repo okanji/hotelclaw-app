@@ -73,14 +73,14 @@ export function BrainOverview({
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col gap-8 overflow-y-auto p-6">
       {/* Status + health */}
-      <section className="rounded-xl border border-border/60 bg-card p-5">
+      <section className="rounded-md bg-card p-5">
         <div className="flex flex-wrap items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
             <Brain className="size-5 text-muted-foreground" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold tracking-tight">
+              <h2 className="text-base font-semibold">
                 Knowledge brain
               </h2>
               <StatusBadge tone={statusTone}>{KIND_LABEL[status.kind]}</StatusBadge>
@@ -190,7 +190,7 @@ export function BrainOverview({
                     <span className="tabular-nums text-muted-foreground">{count}</span>
                   </li>
                 ))}
-                <li className="mt-1 flex items-center justify-between gap-3 border-t border-border/60 pt-2 text-sm font-medium">
+                <li className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-2 text-sm font-medium">
                   <span>Total pages</span>
                   <span className="tabular-nums">{knowledge.total}</span>
                 </li>
@@ -211,7 +211,7 @@ export function BrainOverview({
                       onClick={() => onSelectSlug(page.slug)}
                       className={cn(
                         "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
-                        "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                        "text-muted-foreground hover:bg-accent",
                       )}
                     >
                       <FileText className="size-3.5 shrink-0 text-muted-foreground/70" />

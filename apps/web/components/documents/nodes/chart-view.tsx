@@ -23,15 +23,17 @@ import { cn } from "@/lib/utils";
 import type { ChartType, ChartData } from "@/lib/documents/nodes/chart";
 import { ChartDataEditor } from "./chart-data-editor";
 
+/** Categorical series colors — the shared `--series-*` ramp from globals.css,
+ *  never re-picked tailwind hexes (DESIGN.md house rules). */
 const PIE_COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+  "var(--series-7)",
+  "var(--series-8)",
 ];
 
 const TYPE_OPTIONS: { type: ChartType; label: string; Icon: typeof BarChart3 }[] = [
@@ -72,9 +74,9 @@ export function ChartView({ node, updateAttributes, editor }: NodeViewProps) {
     <NodeViewWrapper data-type="chart" className="chart my-2">
       <div
         contentEditable={false}
-        className="overflow-hidden rounded-lg border border-border bg-muted/20"
+        className="overflow-hidden rounded-md bg-muted"
       >
-        <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3 py-1.5">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
           <input
             value={title}
             placeholder="Untitled chart"
@@ -91,7 +93,7 @@ export function ChartView({ node, updateAttributes, editor }: NodeViewProps) {
                 disabled={!editable}
                 title={label}
                 className={cn(
-                  "flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent",
                   type === t && "bg-muted text-foreground",
                 )}
               >
@@ -104,7 +106,7 @@ export function ChartView({ node, updateAttributes, editor }: NodeViewProps) {
                 onClick={() => setEditing((s) => !s)}
                 title={editing ? "View" : "Edit data"}
                 className={cn(
-                  "ml-1 flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "ml-1 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent",
                   editing && "bg-muted text-foreground",
                 )}
               >

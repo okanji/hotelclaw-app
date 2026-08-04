@@ -1,15 +1,17 @@
 import { cn } from "@/lib/utils"
 
 /**
- * The house stat strip — divider-separated metrics, not cards. Whitespace
- * and the big-number/small-label contrast do the separating; a hairline
- * divider appears between columns only where the grid needs it.
+ * The house stat strip — whitespace-separated metrics, not cards and NOT
+ * rule-separated. The vertical hairlines between columns are gone
+ * (notion-spec §1: surfaces separate by fill and space, never by a gray
+ * stroke); the gutters stay, so the rhythm is unchanged.
  *
  * Rules baked in (so every dashboard stops re-deciding them):
- *   - labels never wrap (`truncate`), values use `tabular-nums`
+ *   - label is the 12px/12px weight-500 FAINT section-label rung, sentence
+ *     case, letter-spacing normal; the value is 24px weight 600 tabular-nums
+ *   - labels never wrap (`truncate`)
  *   - no icons inside stats — plain label + value (+ optional delta)
- *   - dividers are opacity-based and reset correctly when the column
- *     count collapses on small screens
+ *   - no card chrome: no fill, no ring, no shadow
  *
  * Usage:
  *   <StatGroup cols={4}>
@@ -31,16 +33,16 @@ function StatGroup({
     <dl
       data-slot="stat-group"
       className={cn(
+        // Whitespace only — the column gutters do the separating. The 2-col
+        // mobile gutter is shared, then re-derived at `sm` for the real
+        // column count so the first column of each row stays flush.
         "grid grid-cols-2 gap-y-6",
-        // Vertical hairlines between columns, per column-count. Items not in
-        // the first column get a left divider; the 2-col mobile pattern is
-        // shared, then re-derived at `sm` for the real column count.
-        "*:border-border/60 *:[&:nth-child(2n)]:border-l *:[&:nth-child(2n)]:pl-6",
+        "*:[&:nth-child(2n)]:pl-6",
         cols === 2 && "sm:grid-cols-2",
         cols === 3 &&
-          "sm:grid-cols-3 sm:*:[&:nth-child(2n)]:border-l-0 sm:*:[&:nth-child(2n)]:pl-0 sm:*:not-[&:nth-child(3n+1)]:border-l sm:*:not-[&:nth-child(3n+1)]:pl-6",
+          "sm:grid-cols-3 sm:*:[&:nth-child(2n)]:pl-0 sm:*:not-[&:nth-child(3n+1)]:pl-6",
         cols === 4 &&
-          "sm:grid-cols-4 sm:*:[&:nth-child(2n)]:border-l-0 sm:*:[&:nth-child(2n)]:pl-0 sm:*:not-[&:nth-child(4n+1)]:border-l sm:*:not-[&:nth-child(4n+1)]:pl-6",
+          "sm:grid-cols-4 sm:*:[&:nth-child(2n)]:pl-0 sm:*:not-[&:nth-child(4n+1)]:pl-6",
         className
       )}
     >
@@ -66,15 +68,17 @@ function Stat({
 }) {
   return (
     <div data-slot="stat" className={cn("min-w-0", className)}>
-      <dt className="truncate text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+      <dt className="truncate text-xs leading-3 font-medium text-faint-foreground">
+        {label}
+      </dt>
+      <dd className="mt-1.5 text-2xl font-semibold text-foreground tabular-nums">
         {value}
       </dd>
       {delta ? (
         <dd
           className={cn(
-            "mt-0.5 truncate text-xs tabular-nums",
-            tone === "neutral" && "text-muted-foreground",
+            "mt-1 truncate text-xs tabular-nums",
+            tone === "neutral" && "text-faint-foreground",
             tone === "success" && "text-success",
             tone === "warning" && "text-warning",
             tone === "danger" && "text-destructive"

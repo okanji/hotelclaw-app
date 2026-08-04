@@ -491,14 +491,15 @@ function EditorInner({
   if (!showContent) return <EditorSkeleton />;
 
   return (
-    // Light mode: match the chat canvas, which is white (Stream paints
-    // `--str-chat__background-core-app` → `chrome-0` → `#ffffff`). Dark mode
-    // keeps `--background` as before.
-    <div className="relative flex h-full min-h-0 flex-col bg-white dark:bg-background">
+    // A document is CONTENT, so it sits on the content plane (`--card`:
+    // #ffffff light / #191919 dark) rather than the chrome plane — the ~2%
+    // delta between the two is what separates the doc from the shell
+    // (docs/notion-spec.md §2).
+    <div className="relative flex h-full min-h-0 flex-col bg-card">
       {/* Top row: breadcrumbs (left) + document metadata (right). Keeping
           "Edited by" / History / presence up here lets the formatting toolbar
           below stay a single slim band. */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-muted/20 px-6 py-1.5">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6">
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}
@@ -516,7 +517,7 @@ function EditorInner({
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
-            className="hidden text-xs text-muted-foreground tabular-nums md:block"
+            className="hidden text-sm text-faint-foreground tabular-nums md:block"
           />
           <DocumentLabels propertyId={propertyId} documentId={documentId} />
           <DocumentLinkedTasks
@@ -528,7 +529,7 @@ function EditorInner({
           <DocumentRoomAvatarStack max={5} size={24} />
         </div>
       </div>
-      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border/60 bg-muted/40 px-6 py-1">
+      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1">
         {/* Default Liveblocks toolbar content, rebuilt so the AI section uses
             OUR "Explain" (→ bottom dock) instead of the built-in one that runs
             through the inline edit pipeline. */}

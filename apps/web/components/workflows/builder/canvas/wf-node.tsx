@@ -103,7 +103,7 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
       <AiNode
         handles={{ target: false, source: false }}
         className={cn(
-          "w-full transition-all",
+          "w-full transition-colors",
           selected && "ring-2 ring-primary",
           data.unaccepted && "ring-2 ring-[var(--chart-2)]/70",
           isTrigger && "border-l-2 border-l-primary",
@@ -134,12 +134,12 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
        * Handle, which xyflow places at the row's right edge automatically. */}
       <ul
         role="list"
-        className="mt-2 flex flex-col overflow-hidden rounded-md border border-border/60 bg-card/40 text-xs"
+        className="mt-2 flex flex-col overflow-hidden rounded-md bg-muted text-xs"
       >
         {outputs.map((out) => (
           <li
             key={out.id}
-            className="relative flex items-center justify-between border-b border-border/40 px-3 last:border-b-0"
+            className="relative flex items-center justify-between border-b border-border px-3 last:border-b-0"
             style={{ height: ROW_PX }}
           >
             <span className="truncate text-muted-foreground">{out.label}</span>
@@ -164,7 +164,7 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
           <button
             type="button"
             onClick={() => ctx.onEdit(id)}
-            className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent"
             aria-label={isTrigger ? "Edit trigger" : "Edit step"}
           >
             <Pencil className="size-3.5" />

@@ -38,8 +38,10 @@ export function RailOrgSwitcher({
         aria-label={`${name} — switch organization`}
         title={name}
         className={cn(
-          "flex size-10 items-center justify-center rounded-xl text-sm font-semibold uppercase outline-hidden transition-transform",
-          "hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-black/15 dark:focus-visible:ring-white/40",
+          // 6px control radius, no lift on hover (notion-spec §4/§6) — the
+          // tile's own tint is the affordance.
+          "flex size-8 items-center justify-center rounded-md text-sm font-medium uppercase outline-hidden",
+          "focus-visible:shadow-focus",
           propertyTileTint(currentPropertyId),
         )}
       >
@@ -49,10 +51,12 @@ export function RailOrgSwitcher({
         side="right"
         align="start"
         sideOffset={8}
-        className="min-w-64 p-1.5"
+        className="min-w-64 p-1"
       >
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          {/* Section label: 12px/12px weight 500 faint, sentence case, no
+              tracking (notion-spec §3). */}
+          <DropdownMenuLabel className="px-1.5 pt-1 pb-1.5 text-xs leading-3 font-medium text-faint-foreground">
             Organizations
           </DropdownMenuLabel>
           {memberships.map((m) => {
@@ -61,26 +65,26 @@ export function RailOrgSwitcher({
               <DropdownMenuItem
                 key={m.property_id}
                 onClick={() => router.push(`/p/${m.property_id}/home`)}
-                className={cn("gap-2.5 px-2 py-2", isActive && "bg-accent/60")}
+                // One quiet line per org — the role reads as a faint suffix
+                // rather than a second line, so rows stay on the 28px pitch.
+                className={cn("gap-2", isActive && "bg-accent")}
               >
                 <span
                   className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase",
+                    "flex size-5 shrink-0 items-center justify-center rounded-md text-xs font-medium uppercase",
                     propertyTileTint(m.property_id),
                   )}
                 >
                   {propertyInitial(m.property.name)}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-foreground">
-                    {m.property.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground capitalize">
-                    {m.role}
-                  </div>
-                </div>
+                <span className="min-w-0 flex-1 truncate">
+                  {m.property.name}
+                </span>
+                <span className="shrink-0 text-xs text-faint-foreground capitalize">
+                  {m.role}
+                </span>
                 {isActive ? (
-                  <Check className="size-4 shrink-0 text-primary" />
+                  <Check className="size-3.5 shrink-0 text-faint-foreground" />
                 ) : null}
               </DropdownMenuItem>
             );
@@ -89,9 +93,9 @@ export function RailOrgSwitcher({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => router.push("/onboarding?add=1")}
-          className="gap-2.5 px-2 py-1.5"
+          className="gap-2"
         >
-          <Plus className="size-4 text-muted-foreground" />
+          <Plus className="size-4 text-faint-foreground" />
           Add organization
         </DropdownMenuItem>
       </DropdownMenuContent>

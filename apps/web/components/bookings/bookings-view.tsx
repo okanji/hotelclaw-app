@@ -45,6 +45,7 @@ import { setBookingStatus, deleteService } from "./actions";
 import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeader } from "@/components/ui/section-header";
 
 export type ServiceListItem = {
   id: string;
@@ -283,7 +284,7 @@ export function BookingsView({
 
   if (workspaceService) {
     return (
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
         <ServiceWorkspace
           propertyId={propertyId}
           propertySlug={propertySlug}
@@ -299,52 +300,50 @@ export function BookingsView({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
-      {/* Compact working-tool header — this page is the property's booking
-          engine, not an editorial index; height goes to the views. */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Bookings
-          </h1>
-          <p className="truncate text-sm text-muted-foreground">
-            Tables, tickets, rentals — chatbots and walk-ins book against the
-            same live availability.
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {propertySlug ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                window.open(
-                  `${window.location.origin}/book/${propertySlug}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                );
-              }}
-            >
-              <ExternalLink data-slot="icon" />
-              Public page
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      {/* Masthead — the same page tier every other index uses (`ui/section-header`
+          size="page": 40/48 weight 700, no rule under it; header and content
+          separate by whitespace, docs/notion-spec.md §1/§3). */}
+      <SectionHeader
+        size="page"
+        className="mb-14 flex-wrap gap-y-3"
+        title="Bookings"
+        description="Tables, tickets, rentals — chatbots and walk-ins book against the same live availability."
+        actions={
+          <>
+            {propertySlug ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  window.open(
+                    `${window.location.origin}/book/${propertySlug}`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+              >
+                <ExternalLink data-slot="icon" />
+                Public page
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={() => setEditingService("new")}>
+              <Plus data-slot="icon" />
+              New service
             </Button>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={() => setEditingService("new")}>
-            <Plus data-slot="icon" />
-            New service
-          </Button>
-          <Button size="sm" onClick={() => setBookingOpen(true)} disabled={services.length === 0}>
-            <Plus data-slot="icon" />
-            New booking
-          </Button>
-        </div>
-      </header>
-
-      <hr className="my-6 border-border" />
+            <Button size="sm" onClick={() => setBookingOpen(true)} disabled={services.length === 0}>
+              <Plus data-slot="icon" />
+              New booking
+            </Button>
+          </>
+        }
+      />
 
       {/* Services */}
-      <section className={cn("space-y-3", view !== "services" && "hidden")}>
-        <p className="text-sm font-medium">Services</p>
+      <section className={cn("space-y-4", view !== "services" && "hidden")}>
+        <h2 className="text-base leading-6 font-semibold text-foreground">
+          Services
+        </h2>
         {services.length === 0 ? (
           <EmptyState
             icon={CalendarCheck}
@@ -375,14 +374,16 @@ export function BookingsView({
       </section>
 
       {/* Pending — every unconfirmed future booking, the work-to-zero list. */}
-      <section className={cn("space-y-3", view !== "pending" && "hidden")}>
-        <p className="text-sm font-medium">Waiting on a yes</p>
+      <section className={cn("space-y-4", view !== "pending" && "hidden")}>
+        <h2 className="text-base leading-6 font-semibold text-foreground">
+          Waiting on a yes
+        </h2>
         {pendingBookings.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-sm text-muted-foreground">
             Nothing pending — every booking is confirmed.
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
+          <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
             {pendingBookings.map((booking) => (
               <BookingRow
                 key={booking.id}
@@ -458,7 +459,7 @@ export function BookingsView({
             <button
               type="button"
               onClick={() => setDay(todayKey())}
-              className="min-w-44 text-center text-sm font-medium hover:text-foreground"
+              className="h-7 min-w-44 rounded-md px-2 text-center text-sm font-medium transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
             >
               {day === todayKey() ? `Today — ${dayLabel}` : dayLabel}
             </button>
@@ -533,11 +534,11 @@ export function BookingsView({
               </div>
             ) : null}
             {dayBookings.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+              <p className="py-10 text-center text-sm text-muted-foreground">
                 No bookings this day.
               </p>
             ) : (
-              <ul className="divide-y divide-border rounded-lg border border-border">
+              <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
                 {dayBookings
                   .filter((b) => statusFilter === "all" || b.status === statusFilter)
                   .map((booking) => (
@@ -595,7 +596,7 @@ export function BookingsView({
               </p>
             </>
           ) : (
-            <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-muted-foreground">
               Create a service first.
             </p>
           )
@@ -740,9 +741,11 @@ export function BookingRow({
   return (
     <li
       className={cn(
-        // Status carried as a left accent (the Fresha/resOS color block,
-        // dialed down to a 2px rule so the list stays calm).
-        "flex items-center gap-3 border-l-2 px-4 py-3",
+        // The house 34px/6px data row (same metrics as the documents library,
+        // home widgets and the insights lists) — status is carried as a 2px
+        // left accent, the row's only line. Hover is fill, nothing else
+        // (notion-spec §4/§6).
+        "flex min-h-[34px] items-center gap-3 rounded-md border-l-2 px-2 py-1.5 transition-colors hover:bg-accent",
         BOOKING_STATUS_UI[booking.status].accent,
         terminal && "opacity-60",
       )}
@@ -756,9 +759,9 @@ export function BookingRow({
         {time}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">
+        <p className="truncate text-sm font-medium">
           {booking.guest_name}
-          <span className="text-muted-foreground">
+          <span className="font-normal text-muted-foreground">
             {" "}
             ·{" "}
             {service?.kind === "event"
@@ -767,7 +770,7 @@ export function BookingRow({
             {booking.guest_phone ? ` · ${booking.guest_phone}` : ""}
           </span>
         </p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-xs text-faint-foreground">
           {service ? `${service.emoji || ""} ${service.name}`.trim() : "Service"} ·{" "}
           {booking.reference}
           {booking.source === "chatbot" ? " · via chatbot" : booking.source === "web" ? " · booked online" : ""}

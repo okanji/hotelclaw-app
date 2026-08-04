@@ -3,17 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { calendarEventsQueryOptions } from "@/lib/calendar/query-options";
 import type { CalendarEvent } from "@/lib/calendar/types";
-import { WidgetEmpty } from "../editorial-section";
+import { ROW_CLASS, WidgetEmpty } from "../editorial-section";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const SOURCE_DOT: Record<CalendarEvent["source"], string> = {
   meeting: "bg-violet-500",
-  task: "bg-blue-500",
-  external: "bg-muted-foreground/50",
-  booking: "bg-emerald-500",
+  task: "bg-info",
+  external: "bg-faint-foreground",
+  booking: "bg-success",
 };
 
 /** The current user's schedule: today first, then the next few days. Range is
@@ -78,20 +79,16 @@ function Group({
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        {label}
-      </p>
+      <Eyebrow className="mb-2">{label}</Eyebrow>
       {events.length === 0 && emptyText ? (
-        <p className="text-sm tracking-tight text-muted-foreground">
-          {emptyText}
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
         <ul
           role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+          className="-mx-2 flex flex-col divide-y divide-border border-t border-border"
         >
           {events.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 px-1 py-2.5">
+            <li key={e.id} className={ROW_CLASS}>
               <span
                 className={cn(
                   "size-1.5 shrink-0 rounded-full",
@@ -99,14 +96,14 @@ function Group({
                 )}
                 aria-hidden="true"
               />
-              <span className="w-16 shrink-0 text-xs tracking-tight text-muted-foreground tabular-nums">
+              <span className="w-16 shrink-0 text-xs text-faint-foreground tabular-nums">
                 {e.all_day ? "All day" : formatTime(e.start)}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {e.title || "Untitled"}
               </span>
               {withDate ? (
-                <span className="shrink-0 text-xs tracking-tight text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-xs text-faint-foreground tabular-nums">
                   {formatDay(e.start)}
                 </span>
               ) : null}

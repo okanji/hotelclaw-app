@@ -98,14 +98,14 @@ export function MembersDialog({
         </DialogHeader>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint-foreground" />
           <Input
             name="member-search"
             aria-label="Search people"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by name or email…"
-            className="h-9 pl-9"
+            className="pl-8"
           />
         </div>
 
@@ -116,7 +116,7 @@ export function MembersDialog({
         ) : (
           <ul
             role="list"
-            className="max-h-80 divide-y divide-border/50 overflow-y-auto"
+            className="max-h-80 divide-y divide-border overflow-y-auto"
           >
             {filtered.map((m) => (
               <MemberRow
@@ -199,11 +199,11 @@ function MemberRow({
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium tracking-tight text-foreground">
+        <p className="truncate text-sm font-medium text-foreground">
           {member.name ?? "Unnamed"}
         </p>
         {member.email ? (
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-xs text-faint-foreground">
             {member.email}
           </p>
         ) : null}
@@ -214,7 +214,7 @@ function MemberRow({
             type="button"
             size="sm"
             variant="destructive"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2"
             disabled={pending}
             onClick={remove}
           >
@@ -224,7 +224,7 @@ function MemberRow({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2"
             disabled={pending}
             onClick={() => setConfirming(false)}
           >
@@ -241,7 +241,7 @@ function MemberRow({
                     type="button"
                     aria-label={`Change role for ${member.name ?? "member"}`}
                     disabled={pending}
-                    className="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="shrink-0 rounded-md outline-none focus-visible:shadow-focus"
                   />
                 }
               >
@@ -293,7 +293,7 @@ function MemberRow({
 
 function MemberSkeletons() {
   return (
-    <ul role="list" className="divide-y divide-border/50">
+    <ul role="list" className="divide-y divide-border">
       {[0, 1, 2].map((i) => (
         <li key={i} className="flex items-center gap-3 py-2.5">
           <Skeleton className="size-9 shrink-0 rounded-full" />
@@ -301,7 +301,7 @@ function MemberSkeletons() {
             <Skeleton className="h-3.5 w-32" />
             <Skeleton className="h-3 w-44" />
           </div>
-          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-5 w-16 rounded-md" />
         </li>
       ))}
     </ul>

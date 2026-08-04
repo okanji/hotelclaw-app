@@ -66,7 +66,7 @@ function PreviewView({
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between px-4 py-3">
         <div>
-          <h2 className="text-lg font-semibold">Ready to join?</h2>
+          <h2 className="text-base font-semibold">Ready to join?</h2>
           <p className="text-sm text-white/60">
             Your meeting will be recorded and transcribed.
           </p>
@@ -84,7 +84,7 @@ function PreviewView({
 
       <div className="flex flex-1 items-center justify-center px-6 pb-6">
         <div className="flex w-full max-w-2xl flex-col items-center gap-4">
-          <div className="aspect-video w-full overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
+          <div className="aspect-video w-full overflow-hidden rounded-md bg-black ring-1 ring-white/10">
             <VideoPreview />
           </div>
           <div className="flex items-center gap-2">
@@ -99,9 +99,11 @@ function PreviewView({
             >
               Cancel
             </Button>
+            {/* The one primary on this screen. Token-driven, not a
+                hand-picked emerald. */}
             <Button
               onClick={onJoin}
-              className="bg-emerald-600 px-6 text-white hover:bg-emerald-500"
+              className="bg-success px-6 text-white hover:bg-success/90"
             >
               Join meeting
             </Button>
@@ -127,10 +129,10 @@ function InCallView({ onLeave }: { onLeave: () => void }) {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
             <span
               aria-hidden="true"
-              className="size-1.5 animate-pulse rounded-full bg-emerald-400"
+              className="size-1.5 animate-pulse rounded-full bg-success"
             />
             Live
           </span>
@@ -176,7 +178,7 @@ function TranscriptionPill() {
   }, [isTranscribing]);
   if (!isTranscribing) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-300">
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-info/15 px-2 py-0.5 text-xs font-medium text-info">
       <Sparkles className="size-3" />
       Transcribing
     </span>

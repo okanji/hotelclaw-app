@@ -190,8 +190,8 @@ export function TaskCreatePage({
             disabled={pending}
             className={cn(
               "w-full resize-none border-0 bg-transparent p-0",
-              "text-xl font-semibold leading-[1.35] tracking-tight text-foreground",
-              "placeholder:text-muted-foreground/60 focus-visible:outline-none",
+              "text-2xl leading-8 font-semibold text-foreground",
+              "placeholder:text-muted-foreground focus-visible:outline-none",
             )}
           />
 
@@ -210,14 +210,14 @@ export function TaskCreatePage({
             rows={3}
             className={cn(
               "mt-3 w-full resize-none border-0 bg-transparent p-0",
-              "text-sm leading-relaxed text-foreground",
-              "placeholder:text-muted-foreground/70 focus-visible:outline-none",
+              "text-base leading-6 text-foreground",
+              "placeholder:text-muted-foreground focus-visible:outline-none",
             )}
           />
 
           {/* Property strip — every field a task can carry, filled up-front. */}
           <div className="mt-5 flex items-start gap-3 text-sm">
-            <span className="w-20 shrink-0 pt-1 text-xs text-muted-foreground">
+            <span className="w-20 shrink-0 pt-1 text-xs text-faint-foreground">
               Properties
             </span>
             <div className="flex min-w-0 flex-wrap items-center gap-1">
@@ -226,7 +226,7 @@ export function TaskCreatePage({
                   render={
                     <button
                       type="button"
-                      className={cn(CHIP_BASE, "text-foreground/90")}
+                      className={cn(CHIP_BASE, "text-foreground")}
                     >
                       <ChipIcon>
                         <StatusIcon status={status} className="size-3.5" />
@@ -247,7 +247,7 @@ export function TaskCreatePage({
                         CHIP_BASE,
                         priorityMuted
                           ? "text-muted-foreground"
-                          : "text-foreground/90",
+                          : "text-foreground",
                       )}
                     >
                       <ChipIcon>
@@ -272,7 +272,7 @@ export function TaskCreatePage({
                       className={cn(
                         CHIP_BASE,
                         assigneeId
-                          ? "text-foreground/90"
+                          ? "text-foreground"
                           : "text-muted-foreground",
                       )}
                     >
@@ -285,7 +285,7 @@ export function TaskCreatePage({
                                 alt={assignee.name}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-muted text-[0.5rem]">
+                            <AvatarFallback className="bg-muted text-xs">
                               {initials(assignee.name)}
                             </AvatarFallback>
                           </Avatar>
@@ -313,7 +313,7 @@ export function TaskCreatePage({
                       type="button"
                       className={cn(
                         CHIP_BASE,
-                        dueAt ? "text-foreground/90" : "text-muted-foreground",
+                        dueAt ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
                       <ChipIcon>
@@ -340,7 +340,7 @@ export function TaskCreatePage({
                         type="button"
                         className={cn(
                           CHIP_BASE,
-                          teamId ? "text-foreground/90" : "text-muted-foreground",
+                          teamId ? "text-foreground" : "text-muted-foreground",
                         )}
                       >
                         <span className="truncate">
@@ -364,7 +364,7 @@ export function TaskCreatePage({
                       >
                         <span className="truncate">{t.name}</span>
                         {t.id === myPrimaryTeamId ? (
-                          <span className="ml-auto text-xs text-muted-foreground">
+                          <span className="ml-auto text-xs text-faint-foreground">
                             your team
                           </span>
                         ) : null}
@@ -376,7 +376,7 @@ export function TaskCreatePage({
             </div>
           </div>
 
-          <div className="mt-10 flex items-center gap-2 border-t border-border/60 pt-6">
+          <div className="mt-10 flex items-center gap-2 border-t border-border pt-6">
             <Button type="submit" disabled={pending || !title.trim()}>
               {pending ? "Creating…" : "Create task"}
             </Button>
@@ -388,7 +388,7 @@ export function TaskCreatePage({
             >
               Cancel
             </Button>
-            <span className="ml-auto text-xs text-muted-foreground">
+            <span className="ml-auto text-xs text-faint-foreground">
               <kbd className="font-sans">⌘</kbd>
               <kbd className="font-sans">Enter</kbd> to create
             </span>

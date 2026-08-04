@@ -96,9 +96,9 @@ export function CatchUpBanner({
   }
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/20 px-3.5 py-2.5">
+    <div className="rounded-md bg-muted px-3.5 py-2.5">
       <div className="flex items-start gap-2.5">
-        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-foreground/50" />
+        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-relaxed text-pretty text-foreground">
             {summary}
@@ -153,7 +153,7 @@ export function CatchUpBanner({
             </button>
           </div>
           {expanded ? (
-            <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/40 pt-2">
+            <ul className="mt-2 flex flex-col gap-0.5 border-t border-border pt-2">
               {payload.highlights.map((h) => (
                 <li key={`${h.taskId}-${h.what}`}>
                   <Link

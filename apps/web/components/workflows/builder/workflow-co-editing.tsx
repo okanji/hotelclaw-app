@@ -209,14 +209,14 @@ export function WorkflowCoEditing({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+      <div className="inline-flex rounded-md bg-background p-0.5">
         <button
           type="button"
           onClick={() => undo()}
           disabled={!canUndo}
           title="Undo (⌘Z)"
           aria-label="Undo"
-          className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
         >
           <Undo2 className="size-3.5" />
         </button>
@@ -226,7 +226,7 @@ export function WorkflowCoEditing({
           disabled={!canRedo}
           title="Redo (⌘⇧Z)"
           aria-label="Redo"
-          className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
         >
           <Redo2 className="size-3.5" />
         </button>
@@ -250,14 +250,14 @@ export function WorkflowCoEditing({
           <span
             key={connectionId}
             title={`${name} · ${where}`}
-            className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-[10px] font-medium text-foreground"
+            className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-xs font-medium text-foreground"
           >
             {initials(name) || "?"}
           </span>
         );
       })}
           {others.length > 5 ? (
-            <span className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground">
+            <span className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium text-muted-foreground">
               +{others.length - 5}
             </span>
           ) : null}

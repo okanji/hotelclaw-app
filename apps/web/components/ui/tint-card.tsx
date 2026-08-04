@@ -45,19 +45,21 @@ function TintCard({
   className,
   ...props
 }: React.ComponentProps<"div"> & {
-  tone?: TintTone
-  /** Adds hover lift + cursor affordance for clickable tiles. */
+  /** Cursor + a faint fill shift on hover. No lift, no shadow. */
   interactive?: boolean
+  tone?: TintTone
 }) {
   return (
     <div
       data-slot="tint-card"
       data-tone={tone}
       className={cn(
-        "rounded-xl p-4",
+        "rounded-md p-4",
         tintTone[tone],
+        // notion-spec §5/§6: resting surfaces never carry elevation and
+        // hover never lifts. The affordance is a fill shift, nothing else.
         interactive &&
-          "cursor-pointer transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-sm",
+          "cursor-pointer transition-[filter] hover:brightness-[0.97] dark:hover:brightness-[1.08]",
         className
       )}
       {...props}
@@ -67,10 +69,10 @@ function TintCard({
 
 /**
  * The tinted icon plate — the ONLY place brand tint appears on a neutral card
- * (the Home quick-access language: `border-border bg-card` tile, colour lives
- * in this small chip, never the card fill). Drop a lucide icon inside; sizing
- * is handled here. Pair with a `font-medium` title + `text-sm
- * text-muted-foreground` sub line.
+ * (the Home quick-access language: a `bg-card` tile whose colour lives in this
+ * small 28px chip, never in the card fill). Drop a lucide icon inside; sizing
+ * is handled here (16px glyph, 6px radius). Pair with a `font-medium` title +
+ * a `text-sm text-muted-foreground` sub line.
  */
 function TintIcon({
   tone = "lavender",
@@ -82,7 +84,7 @@ function TintIcon({
       data-slot="tint-icon"
       data-tone={tone}
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-lg [&_svg]:size-[1.15rem] [&_svg]:shrink-0",
+        "flex size-8 shrink-0 items-center justify-center rounded-md [&_svg]:size-4 [&_svg]:shrink-0",
         tintTone[tone],
         className
       )}

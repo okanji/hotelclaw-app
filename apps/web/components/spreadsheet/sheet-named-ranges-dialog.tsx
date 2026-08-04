@@ -70,7 +70,7 @@ export function SheetNamedRangesPanel({
       {ranges.length === 0 ? (
         <p className="mb-2 text-xs text-muted-foreground">
           No named ranges yet. Use them in formulas like{" "}
-          <code className="rounded bg-muted px-1 text-xs">=SUM(Revenue)</code>.
+          <code className="rounded-md bg-muted px-1 text-xs">=SUM(Revenue)</code>.
         </p>
       ) : (
         <ul className="mb-2 max-h-64 overflow-y-auto">
@@ -99,8 +99,8 @@ export function SheetNamedRangesPanel({
           ))}
         </ul>
       )}
-      <div className="rounded-md border border-border/60 p-2">
-        <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+      <div className="rounded-md bg-muted p-2">
+        <div className="mb-1 text-xs leading-3 font-medium text-faint-foreground">
           Add named range
         </div>
         <input
@@ -114,7 +114,7 @@ export function SheetNamedRangesPanel({
             }
           }}
           placeholder="Name (e.g. Revenue)"
-          className="mb-1 w-full rounded-md border border-border/60 bg-background px-2 py-1 text-sm outline-none focus:border-foreground/30"
+          className="mb-1 w-full rounded-md bg-card px-2 py-1 text-sm shadow-ring outline-none focus-visible:shadow-focus"
         />
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs text-muted-foreground">

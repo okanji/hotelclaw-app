@@ -98,8 +98,8 @@ export function VersionHistoryDialog({
                 <li
                   key={v.id}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-md border px-3 py-2",
-                    v.is_current ? "border-primary/40 bg-primary/[0.04]" : "border-border/60",
+                    "flex items-center justify-between gap-3 rounded-md px-3 py-2",
+                    v.is_current ? "bg-accent-pressed" : "bg-muted",
                   )}
                 >
                   <div className="min-w-0">

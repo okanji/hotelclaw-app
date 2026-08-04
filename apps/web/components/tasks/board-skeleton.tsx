@@ -6,7 +6,7 @@ const CARDS_PER_COLUMN = [3, 2, 1, 2];
 
 function CardSkeleton() {
   return (
-    <div className="rounded-md border border-border/70 bg-card p-2 shadow-xs">
+    <div className="rounded-md bg-card p-2 shadow-ring">
       {/* Header — task id (left), assignee (right) */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-2.5 w-10" />
@@ -41,7 +41,7 @@ export function TasksBoardSkeleton() {
       {/* Header — mirrors PageHeader (h-11, border-b, px-4). */}
       <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
-          <Skeleton className="size-4 rounded-sm" />
+          <Skeleton className="size-4 rounded-md" />
           <Skeleton className="h-3.5 w-16" />
         </div>
         <Skeleton className="h-7 w-24 rounded-md" />
@@ -50,9 +50,9 @@ export function TasksBoardSkeleton() {
       {/* Toolbar — status pills on the left, labeled view buttons + search +
           filter/sort icons on the right. */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-3">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-14 rounded-full" />
-        <Skeleton className="h-6 w-16 rounded-full" />
+        <Skeleton className="h-6 w-16 rounded-md" />
+        <Skeleton className="h-6 w-14 rounded-md" />
+        <Skeleton className="h-6 w-16 rounded-md" />
         <div className="ml-auto flex items-center gap-1">
           <div className="flex items-center gap-0.5">
             <Skeleton className="h-7 w-14 rounded-md" />
@@ -69,7 +69,7 @@ export function TasksBoardSkeleton() {
         {COLUMNS.map((column, i) => (
           <section
             key={column.id}
-            className="flex w-72 shrink-0 flex-col rounded-lg bg-muted/30 dark:bg-muted/15"
+            className="flex w-72 shrink-0 flex-col rounded-md bg-muted"
           >
             <header className="flex h-10 items-center gap-2 px-3">
               <Skeleton className="size-4 rounded-full" />

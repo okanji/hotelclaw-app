@@ -448,7 +448,7 @@ export const SlackDateSeparator = React.memo(function SlackDateSeparator({
           </DialogHeader>
           <input
             type="date"
-            className="border-input bg-background text-foreground focus-visible:ring-ring h-9 w-full rounded-md border px-2 text-sm shadow-xs outline-none focus-visible:ring-2"
+            className="bg-background text-foreground focus-visible:shadow-focus h-9 w-full rounded-md px-2 text-sm outline-none"
             value={pickedDate}
             onChange={(e) => setPickedDate(e.target.value)}
             disabled={pickDateJumpLoading}

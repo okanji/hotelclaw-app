@@ -69,7 +69,7 @@ export function SheetFindReplace({
   }, [query, matches.length, activeMatchIndex]);
 
   return (
-    <div className="absolute right-4 top-4 z-10 flex w-80 flex-col gap-1.5 rounded-lg border border-border/60 bg-popover p-2 shadow-lg ring-1 ring-foreground/5">
+    <div className="absolute right-4 top-4 z-10 flex w-80 flex-col gap-1.5 rounded-overlay bg-popover p-2 shadow-overlay">
       <div className="flex items-center gap-1">
         <input
           ref={findInputRef}
@@ -87,7 +87,7 @@ export function SheetFindReplace({
             }
           }}
           placeholder="Find"
-          className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-2 py-1 text-sm outline-none focus:border-foreground/30"
+          className="flex-1 min-w-0 rounded-md bg-muted px-2 py-1 text-sm outline-none shadow-ring focus-visible:shadow-focus"
         />
         <Button
           type="button"
@@ -95,7 +95,7 @@ export function SheetFindReplace({
           variant="ghost"
           title="Match case"
           onClick={onToggleCase}
-          className={cn("size-7", caseSensitive && "bg-muted text-foreground")}
+          className={cn("size-7", caseSensitive && "bg-accent-pressed text-foreground")}
         >
           <CaseSensitive className="size-4" />
         </Button>
@@ -105,7 +105,7 @@ export function SheetFindReplace({
           variant="ghost"
           title="Regex"
           onClick={onToggleRegex}
-          className={cn("size-7", useRegex && "bg-muted text-foreground")}
+          className={cn("size-7", useRegex && "bg-accent-pressed text-foreground")}
         >
           <Regex className="size-4" />
         </Button>
@@ -154,7 +154,7 @@ export function SheetFindReplace({
             value={replacement}
             onChange={(e) => onChangeReplacement(e.target.value)}
             placeholder="Replace with"
-            className="flex-1 min-w-0 rounded-md border border-border/60 bg-background px-2 py-1 text-sm outline-none focus:border-foreground/30"
+            className="flex-1 min-w-0 rounded-md bg-muted px-2 py-1 text-sm outline-none shadow-ring focus-visible:shadow-focus"
           />
           <Button
             type="button"

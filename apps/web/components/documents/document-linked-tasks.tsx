@@ -120,10 +120,8 @@ export function DocumentLinkedTasks({
             type="button"
             title="Linked tasks"
             className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium tracking-tight transition-colors",
-              count > 0
-                ? "text-foreground hover:bg-muted"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors hover:bg-accent",
+              count > 0 ? "text-foreground" : "text-muted-foreground",
             )}
           />
         }
@@ -132,14 +130,14 @@ export function DocumentLinkedTasks({
         <span className="tabular-nums">{count > 0 ? count : "Link"}</span>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-72 p-0">
-        <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-          <span className="text-xs font-medium tracking-tight text-foreground">
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <span className="text-xs leading-3 font-medium text-faint-foreground">
             Linked tasks
           </span>
           <button
             type="button"
             onClick={() => setAdding((v) => !v)}
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
           >
             <Plus className="size-3.5" />
             Add
@@ -147,9 +145,9 @@ export function DocumentLinkedTasks({
         </div>
 
         {adding ? (
-          <div className="border-b border-border/60 p-2">
+          <div className="border-b border-border p-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-faint-foreground" />
               <Input
                 autoFocus
                 value={query}
@@ -160,7 +158,7 @@ export function DocumentLinkedTasks({
             </div>
             <ul className="mt-1.5 max-h-56 overflow-y-auto">
               {candidates.length === 0 ? (
-                <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+                <li className="px-2 py-3 text-center text-sm text-muted-foreground">
                   No matching tasks
                 </li>
               ) : (
@@ -170,13 +168,13 @@ export function DocumentLinkedTasks({
                       type="button"
                       disabled={busy}
                       onClick={() => void handleLink(t.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-60"
+                      className="flex w-full items-center gap-2 min-h-7 rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] transition-colors hover:bg-accent disabled:opacity-60"
                     >
                       <StatusIcon
                         status={t.status as TaskStatus}
                         className="size-3.5 shrink-0"
                       />
-                      <span className="min-w-0 flex-1 truncate tracking-tight">
+                      <span className="min-w-0 flex-1 truncate">
                         {t.title || "Untitled task"}
                       </span>
                     </button>
@@ -189,7 +187,7 @@ export function DocumentLinkedTasks({
 
         <div className="max-h-64 overflow-y-auto p-1.5">
           {count === 0 ? (
-            <p className="px-2 py-6 text-center text-xs text-pretty text-muted-foreground">
+            <p className="px-2 py-6 text-center text-sm text-pretty text-muted-foreground">
               No tasks linked yet. Use{" "}
               <span className="font-medium text-foreground">Add</span> to connect
               this doc to work.
@@ -200,13 +198,13 @@ export function DocumentLinkedTasks({
                 <li key={t.linkId} className="group/row flex items-center gap-1">
                   <Link
                     href={`/p/${propertyId}/tasks/${t.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+                    className="flex min-w-0 flex-1 items-center gap-2 min-h-7 rounded-md px-1.5 py-[3px] text-sm/[1.2] transition-colors hover:bg-accent"
                   >
                     <StatusIcon
                       status={t.status as TaskStatus}
                       className="size-3.5 shrink-0"
                     />
-                    <span className="min-w-0 flex-1 truncate tracking-tight text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-foreground">
                       {t.title || "Untitled task"}
                     </span>
                   </Link>

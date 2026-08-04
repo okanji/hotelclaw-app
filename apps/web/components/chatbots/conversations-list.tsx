@@ -77,12 +77,12 @@ export function ConversationsTab({
   }
 
   return (
-    <ul className="divide-y divide-border rounded-lg border border-border">
+    <ul className="divide-y divide-border">
       {conversations.map((c) => (
         <li key={c.id}>
           <Link
             href={`/p/${propertyId}/chatbots/${chatbotId}/conversations/${c.id}`}
-            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm">

@@ -68,12 +68,12 @@ export function WorkflowRunsList({
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
           {runs.length > 0 ? (
-            <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
+            <ul className="divide-y divide-border">
               {runs.map((r) => (
                 <li key={r.id}>
                   <Link
                     href={`/p/${propertyId}/workflows/${workflowId}/runs/${r.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent"
                   >
                     <StatusBadge tone={STATUS_TONES[r.status] ?? "neutral"} dot={false}>
                       {r.status}
@@ -82,7 +82,7 @@ export function WorkflowRunsList({
                       {r.trigger_kind ?? "manual"}
                     </span>
                     {r.is_dry_run ? (
-                      <Badge variant="outline" className="border-border/60 text-muted-foreground">
+                      <Badge variant="outline" className="border-border text-muted-foreground">
                         test
                       </Badge>
                     ) : null}
@@ -97,7 +97,7 @@ export function WorkflowRunsList({
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
+            <div className="rounded-lg bg-muted p-12 text-center">
               <History className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-sm text-muted-foreground">
                 No runs yet. Once it’s turned on, this workflow runs automatically

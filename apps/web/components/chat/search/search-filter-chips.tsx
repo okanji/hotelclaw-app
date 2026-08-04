@@ -131,7 +131,7 @@ function ChipShell({
   return (
     <Badge
       variant="secondary"
-      className="h-7 gap-1 rounded-full px-2 text-xs font-normal"
+      className="h-7 gap-1 px-2 text-xs font-normal"
     >
       {icon}
       <span className="max-w-[200px] truncate">{children}</span>
@@ -139,7 +139,7 @@ function ChipShell({
         type="button"
         onClick={onRemove}
         aria-label="Remove filter"
-        className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-muted-foreground hover:bg-muted-foreground/15 hover:text-foreground"
+        className="ml-0.5 inline-flex size-4 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -268,7 +268,7 @@ function AddFilterPopover({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1 rounded-full border-dashed px-2 text-xs"
+            className="h-7 gap-1 px-2 text-xs"
           />
         }
       >
@@ -361,7 +361,7 @@ function FilterMenuItem({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent"
       >
         <span className="text-muted-foreground">{icon}</span>
         <span className="flex-1">{label}</span>
@@ -439,7 +439,7 @@ function FromPicker({
               <button
                 type="button"
                 onClick={() => onPick(m.id)}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
               >
                 <UserIcon className="size-4 text-muted-foreground" />
                 <span className="flex-1 truncate">{m.name ?? m.id}</span>
@@ -500,7 +500,7 @@ function InPicker({ onPick }: { onPick: (channelId: string) => void }) {
                 <button
                   type="button"
                   onClick={() => c.id && onPick(c.id)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                 >
                   <Icon className="size-4 text-muted-foreground" />
                   <span className="truncate">{label}</span>

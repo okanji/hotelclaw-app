@@ -16,7 +16,6 @@ import {
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { CountBadge } from "@/components/ui/count-badge";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { Button } from "@/components/ui/button";
@@ -56,9 +55,25 @@ type Props = {
 /* -------------------------------------------------------------------------- */
 
 const MS_PER_HOUR = 3_600_000;
-const ROW_HEIGHT = 60;
+/** Data lane — the house 34px row, same as list-view and every other table. */
+const ROW_HEIGHT = 34;
+/** Chrome band — the house 30px, used by the sticky day header and its spacer. */
+const HEADER_HEIGHT = 30;
+/** The summary lane at the foot of the grid rides the data rhythm. */
+const TOTALS_HEIGHT = 34;
 const DAY_WIDTH = 84;
 const LABEL_WIDTH = 264;
+
+/**
+ * The three hairlines this grid is allowed. They are inset SHADOWS, not
+ * borders: a sticky band must not grow by 1px when it gains an edge, and the
+ * warm ring is a shadow layer everywhere else in the app (see the sidebar's
+ * `--sidebar-edge-shadow`). Everything else — cell strokes, an outer frame,
+ * per-column rules — is gone; fill delta does that work.
+ */
+const EDGE_RIGHT = "shadow-[inset_-1px_0_0_var(--border)]";
+const EDGE_BOTTOM = "shadow-[inset_0_-1px_0_var(--border)]";
+const EDGE_TOP = "shadow-[inset_0_1px_0_var(--border)]";
 
 type DayRange = 7 | 14 | 28;
 const DAY_RANGES: { id: DayRange; label: string }[] = [
@@ -170,44 +185,56 @@ function bucketFor(hours: number, capacity: number): Heat {
   return "over";
 }
 
+/**
+ * The ONE load ramp for meter fills — semantic tokens at full strength, with
+ * the under-40% rung as the same success hue at reduced alpha rather than a
+ * second, lighter green. `UtilizationChart` mirrors these thresholds with the
+ * same tokens as `var()` fills (SVG can't take utility classes) — keep the
+ * two in step.
+ */
+function loadClass(pct: number) {
+  if (pct > 1.05) return "bg-destructive";
+  if (pct > 0.9) return "bg-warning";
+  if (pct > 0.4) return "bg-success";
+  return "bg-success/60";
+}
+
 const EMPTY_MEMBERS: never[] = [];
 
 /**
- * Heat palette — matches the task-card tonal vocabulary: a card-like
- * surface tinted by saturation level, with a single hairline border at ~25%
- * opacity, a soft micro-shadow, and a darker hover state. Empty cells stay
- * close to `bg-card` so they read as quiet placeholders, not gridlines.
+ * Heat palette — saturation carried ENTIRELY by a low-alpha wash of the
+ * semantic status token plus full-strength status ink. No strokes: the cell
+ * separates from its neighbours by fill, like every other surface in the app,
+ * and hover deepens that fill rather than lighting up a border. The alpha
+ * ramp (10 → 18 → 18 → 22) is the only thing encoding load, so it has to read
+ * on both planes — which is why it composites over the card instead of
+ * picking per-plane shades.
  */
-const HEAT_CLASS: Record<Heat, { bg: string; border: string; text: string; hover: string }> = {
+const HEAT_CLASS: Record<Heat, { bg: string; text: string; hover: string }> = {
   empty: {
-    bg: "bg-card/60 dark:bg-card/40",
-    border: "border-border/50",
-    text: "text-muted-foreground/55",
-    hover: "hover:border-border",
+    bg: "bg-transparent",
+    text: "text-faint-foreground",
+    hover: "hover:bg-accent",
   },
   low: {
-    bg: "bg-emerald-100/70 dark:bg-emerald-500/12",
-    border: "border-emerald-400/30 dark:border-emerald-500/25",
-    text: "text-emerald-800 dark:text-emerald-200",
-    hover: "hover:border-emerald-500/50",
+    bg: "bg-success/10",
+    text: "text-success",
+    hover: "hover:bg-success/16",
   },
   ok: {
-    bg: "bg-emerald-200/75 dark:bg-emerald-500/22",
-    border: "border-emerald-500/35 dark:border-emerald-500/35",
-    text: "text-emerald-900 dark:text-emerald-100",
-    hover: "hover:border-emerald-500/60",
+    bg: "bg-success/18",
+    text: "text-success",
+    hover: "hover:bg-success/26",
   },
   high: {
-    bg: "bg-amber-200/75 dark:bg-amber-500/22",
-    border: "border-amber-500/35 dark:border-amber-500/35",
-    text: "text-amber-900 dark:text-amber-100",
-    hover: "hover:border-amber-500/60",
+    bg: "bg-warning/18",
+    text: "text-warning",
+    hover: "hover:bg-warning/26",
   },
   over: {
-    bg: "bg-red-200/80 dark:bg-red-500/25",
-    border: "border-red-500/40 dark:border-red-500/40",
-    text: "text-red-900 dark:text-red-100",
-    hover: "hover:border-red-500/70",
+    bg: "bg-destructive/22",
+    text: "text-destructive",
+    hover: "hover:bg-destructive/30",
   },
 };
 
@@ -380,8 +407,10 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Main column ------------------------------------------------- */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Sub-toolbar */}
-          <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-4 py-2">
+          {/* Sub-toolbar — 36px chrome band, matching BoardToolbar directly
+              above it. No bottom stroke: two rules 36px apart is a frame, and
+              the muted well under the KPI ribbon already ends this block. */}
+          <div className="flex h-9 shrink-0 items-center gap-2 px-3">
             <div className="flex items-center gap-0.5">
               <Button
                 size="sm"
@@ -395,7 +424,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2 text-xs font-medium tracking-tight"
+                className="h-7 px-2 text-xs font-medium"
                 onClick={goToday}
               >
                 Today
@@ -411,7 +440,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
               </Button>
             </div>
 
-            <span className="ml-1 text-sm font-medium tracking-tight text-foreground">
+            <span className="ml-1 text-sm font-medium text-foreground">
               {headerLabel}
             </span>
 
@@ -453,7 +482,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 gap-1.5 px-2 text-xs font-medium tracking-tight"
+                className="h-7 gap-1.5 px-2 text-xs font-medium"
                 onClick={() => setShowPanel(true)}
                 aria-label="Open inbox"
                 title="Open inbox"
@@ -467,8 +496,9 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
             </div>
           </div>
 
-          {/* KPI ribbon */}
-          <div className="grid shrink-0 grid-cols-4 gap-2.5 border-b border-border/70 bg-card/40 px-4 py-3 dark:bg-muted/10">
+          {/* KPI ribbon — tiles on the chrome plane; the well below is the
+              boundary, so no rule here either. */}
+          <div className="grid shrink-0 grid-cols-4 gap-2 px-3 pt-1 pb-3">
             <Kpi
               icon={<TrendingUp className="size-3.5" />}
               label="Team utilization"
@@ -518,11 +548,17 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
 
           {/* Heatmap grid — sits in a soft well, mirroring the kanban
               columns. Cells float on top as tinted mini-cards. */}
-          <div className="flex min-h-0 flex-1 overflow-auto bg-muted/30 dark:bg-muted/15">
+          <div className="flex min-h-0 flex-1 overflow-auto bg-muted">
             <div className="flex min-w-full">
-              {/* Left labels (sticky) */}
+              {/* Left labels (sticky). The white plane against the muted well
+                  is most of the separation; the inset right edge is the one
+                  vertical hairline, so the sticky column stays crisp while
+                  tinted cells scroll under it. */}
               <div
-                className="sticky left-0 z-20 shrink-0 border-r border-border/70 bg-card/95 backdrop-blur"
+                className={cn(
+                  "sticky left-0 z-20 shrink-0 bg-card",
+                  EDGE_RIGHT,
+                )}
                 style={{ width: LABEL_WIDTH }}
               >
                 <DayHeaderSpacer />
@@ -539,7 +575,6 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
                       <MemberLabel
                         key={row.assigneeId}
                         name={name}
-                        role={member?.role ?? null}
                         avatarUrl={avatar}
                         totalHours={row.total}
                         capacityHours={range * capacity}
@@ -549,11 +584,14 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
                 )}
                 {/* Totals row label */}
                 <div
-                  className="flex items-center gap-2 border-t border-border/70 bg-card/95 px-3 backdrop-blur"
-                  style={{ height: ROW_HEIGHT * 0.7 }}
+                  className={cn(
+                    "flex items-center gap-3 bg-card px-3",
+                    EDGE_TOP,
+                  )}
+                  style={{ height: TOTALS_HEIGHT }}
                 >
-                  <Users className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium tracking-tight text-foreground">
+                  <Users className="size-4 shrink-0 text-faint-foreground" />
+                  <span className="text-xs/[1] font-medium text-faint-foreground">
                     Daily team total
                   </span>
                 </div>
@@ -599,7 +637,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
                   ) : null}
 
                   {sortedRows.length === 0 ? (
-                    <EmptyRowsGrid days={days} />
+                    <EmptyRowsGrid />
                   ) : (
                     sortedRows.map((row) => (
                       <div
@@ -626,8 +664,8 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
 
                   {/* Day totals row */}
                   <div
-                    className="relative flex border-t border-border/70 bg-card/95 backdrop-blur"
-                    style={{ height: ROW_HEIGHT * 0.7 }}
+                    className={cn("relative flex bg-card", EDGE_TOP)}
+                    style={{ height: TOTALS_HEIGHT }}
                   >
                     {days.map((d, i) => {
                       const total = matrix.dayTotals[i] ?? 0;
@@ -639,21 +677,12 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
                           className="relative flex flex-col items-center justify-center gap-1"
                           style={{ width: DAY_WIDTH }}
                         >
-                          <span className="text-xs font-medium tabular-nums tracking-tight text-foreground">
+                          <span className="text-xs/[1] font-medium tabular-nums text-secondary-ink">
                             {formatHours(total)}
                           </span>
-                          <div className="h-1 w-12 overflow-hidden rounded-full bg-muted/60">
+                          <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
                             <div
-                              className={cn(
-                                "h-full rounded-full",
-                                pct > 1.05
-                                  ? "bg-red-500/80"
-                                  : pct > 0.9
-                                    ? "bg-amber-500/80"
-                                    : pct > 0.4
-                                      ? "bg-emerald-500/80"
-                                      : "bg-emerald-400/60",
-                              )}
+                              className={cn("h-full rounded-full", loadClass(pct))}
                               style={{
                                 width: `${Math.min(100, Math.round(pct * 100))}%`,
                               }}
@@ -705,7 +734,7 @@ function Kpi({
   chart?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-md border border-border/70 bg-card p-3 shadow-xs transition-colors hover:border-foreground/15">
+    <div className="flex min-w-0 items-center gap-3 rounded-md bg-card p-3 shadow-ring transition-colors">
       <div
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-md",
@@ -718,13 +747,13 @@ function Kpi({
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium tracking-tight text-muted-foreground uppercase">
+        <p className="truncate text-xs/[1] font-medium text-faint-foreground">
           {label}
         </p>
-        <p className="text-base leading-tight font-semibold tabular-nums tracking-tight text-foreground">
+        <p className="mt-1 text-2xl leading-8 font-semibold tabular-nums text-foreground">
           {value}
         </p>
-        <p className="truncate text-xs tracking-tight text-muted-foreground">
+        <p className="truncate text-xs text-faint-foreground">
           {hint}
         </p>
       </div>
@@ -768,14 +797,17 @@ function UtilizationChart({
         const ratio = capacityPerDay > 0 ? (dayTotals[i] ?? 0) / capacityPerDay : 0;
         const clamped = Math.min(1.2, ratio);
         const h = Math.max(1, clamped * (height - 2));
+        // Load ramp off the semantic tokens — never re-picked amber/emerald
+        // shades (DESIGN.md). The under-loaded rung is the same success hue
+        // at reduced alpha rather than a second, lighter green.
         const fill =
           ratio > 1.05
             ? "var(--destructive)"
             : ratio > 0.9
-              ? "rgb(245 158 11)" // amber-500
+              ? "var(--warning)"
               : ratio > 0.4
-                ? "rgb(16 185 129)" // emerald-500
-                : "rgb(110 231 183)"; // emerald-300
+                ? "var(--success)"
+                : "color-mix(in srgb, var(--success) 45%, transparent)";
         return (
           <rect
             key={i}
@@ -795,146 +827,119 @@ function UtilizationChart({
 
 function DayHeaderSpacer() {
   return (
-    <div className="sticky top-0 z-10 h-12 border-b border-border/70 bg-card/95 backdrop-blur" />
+    <div
+      className={cn("sticky top-0 z-10 bg-card", EDGE_BOTTOM)}
+      style={{ height: HEADER_HEIGHT }}
+    />
   );
 }
 
+/**
+ * One 30px chrome band, not a stacked month rail + day rail. The month is
+ * folded into the first column of each month ("Sep 1" instead of "1"), which
+ * is how compact calendars carry it — and the toolbar's range label already
+ * names both months of the window. That took the header from 48px of
+ * two-tier chrome with three strokes down to one band with one hairline.
+ */
 function DayHeader({ days, today }: { days: Date[]; today: Date }) {
-  // Group consecutive days under their month label.
-  const months: { label: string; start: number; span: number }[] = [];
-  for (let i = 0; i < days.length; i++) {
-    const d = days[i]!;
-    const label = d.toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
-    });
-    const last = months[months.length - 1];
-    if (last && last.label === label) last.span += 1;
-    else months.push({ label, start: i, span: 1 });
-  }
-
   return (
-    <div className="sticky top-0 z-10 h-12 border-b border-border/70 bg-card/95 backdrop-blur">
-      <div className="relative h-5 border-b border-border/40">
-        {months.map((m) => (
-          <span
-            key={m.start}
-            className="absolute top-0 truncate px-2 text-xs font-semibold tracking-wide text-foreground"
+    <div
+      className={cn("sticky top-0 z-10 bg-card", EDGE_BOTTOM)}
+      style={{ height: HEADER_HEIGHT }}
+    >
+      {days.map((d, i) => {
+        const isToday = sameDay(d, today);
+        const weekend = isWeekend(d);
+        const startsMonth = i === 0 || d.getDate() === 1;
+        return (
+          <div
+            key={i}
+            className={cn(
+              "absolute top-0 flex items-center justify-center gap-1 text-xs/[1] font-medium",
+              "text-faint-foreground",
+              weekend && "opacity-70",
+              isToday && "text-foreground",
+            )}
             style={{
-              left: m.start * DAY_WIDTH,
-              width: m.span * DAY_WIDTH,
-              lineHeight: "20px",
+              left: i * DAY_WIDTH,
+              width: DAY_WIDTH,
+              height: HEADER_HEIGHT,
             }}
           >
-            {m.label}
-          </span>
-        ))}
-      </div>
-      <div className="relative h-7">
-        {days.map((d, i) => {
-          const isToday = sameDay(d, today);
-          const weekend = isWeekend(d);
-          return (
-            <div
-              key={i}
+            <span>
+              {d.toLocaleDateString(undefined, { weekday: "short" })}
+            </span>
+            <span
               className={cn(
-                "absolute top-0 flex h-7 flex-col items-center justify-center gap-0.5 text-[10px]",
-                weekend ? "text-muted-foreground/60" : "text-muted-foreground",
-                isToday && "text-primary",
+                "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 tabular-nums",
+                isToday && "bg-primary text-primary-foreground",
               )}
-              style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
             >
-              <span className="leading-none">
-                {d.toLocaleDateString(undefined, { weekday: "short" })}
-              </span>
-              <span
-                className={cn(
-                  "grid size-5 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday && "bg-primary text-primary-foreground",
-                )}
-              >
-                {d.getDate()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+              {startsMonth
+                ? d.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })
+                : d.getDate()}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
+/**
+ * One person, one 34px data row — avatar, 14px/500 name, right-aligned
+ * total. The inline meter bar that used to sit under the name is gone: the
+ * lane to the right of this label IS the meter, and the total already carries
+ * the number, so the bar was a third encoding of the same fact stacked inside
+ * a 60px row that matched nothing else in the app.
+ */
 function MemberLabel({
   name,
-  role,
   avatarUrl,
   totalHours,
   capacityHours,
 }: {
   name: string;
-  role: string | null;
   avatarUrl: string | null;
   totalHours: number;
   capacityHours: number;
 }) {
   const pct = capacityHours > 0 ? totalHours / capacityHours : 0;
-  const barClass =
-    pct > 1.05
-      ? "bg-red-500"
-      : pct > 0.9
-        ? "bg-amber-500"
-        : pct > 0.4
-          ? "bg-emerald-500"
-          : "bg-emerald-400/70";
   const totalClass =
     pct > 1.05
-      ? "text-red-600 dark:text-red-400"
+      ? "text-destructive"
       : pct > 0.9
-        ? "text-amber-700 dark:text-amber-400"
-        : "text-foreground";
+        ? "text-warning"
+        : "text-muted-foreground";
   return (
     <div
-      className="flex items-center gap-2.5 px-3"
+      className="flex items-center gap-3 px-3"
       style={{ height: ROW_HEIGHT }}
     >
-      <Avatar className="size-8 shrink-0">
+      <Avatar className="size-6 shrink-0">
         {avatarUrl ? <AvatarImage src={avatarUrl} alt={name} /> : null}
-        <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
+        <AvatarFallback className="bg-muted text-xs font-medium text-secondary-ink">
           {initials(name)}
         </AvatarFallback>
       </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium tracking-tight text-foreground">
-          {name}
-        </p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn("h-full rounded-full transition-[width]", barClass)}
-              style={{ width: `${Math.min(100, Math.round(pct * 100))}%` }}
-            />
-          </div>
-          <span
-            className={cn(
-              "shrink-0 text-xs font-medium tabular-nums tracking-tight",
-              totalClass,
-            )}
-          >
-            {formatHours(totalHours)}
-            <span className="font-normal text-muted-foreground">
-              {" / "}
-              {formatHours(capacityHours)}
-            </span>
-          </span>
-        </div>
-      </div>
-      {role ? (
-        <Badge
-          variant="outline"
-          className="hidden rounded-full text-muted-foreground xl:inline-flex"
-        >
-          {role}
-        </Badge>
-      ) : null}
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-secondary-ink">
+        {name}
+      </span>
+      <span
+        className={cn(
+          "shrink-0 text-xs font-medium tabular-nums",
+          totalClass,
+        )}
+      >
+        {formatHours(totalHours)}
+        <span className="font-normal text-faint-foreground">
+          {" / "}
+          {formatHours(capacityHours)}
+        </span>
+      </span>
     </div>
   );
 }
@@ -951,10 +956,9 @@ function DayCell({
   date: Date;
 }) {
   const tone = HEAT_CLASS[heat];
-  const pct = capacity > 0 ? Math.min(1, hours / capacity) : 0;
   return (
     <div
-      className="relative flex items-center justify-center px-1.5 py-1.5"
+      className="relative flex items-center justify-center px-1 py-0.5"
       style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
     >
       <Tooltip>
@@ -962,11 +966,10 @@ function DayCell({
           render={
             <div
               className={cn(
-                // Mirror task-card surface: rounded-md, hairline border,
-                // tiny shadow, gentle hover. Tinted body conveys load.
-                "relative flex h-full w-full cursor-default items-center justify-center rounded-md border bg-card shadow-xs transition-colors",
+                // Fill-only cell: 6px, no stroke, no elevation. The tint IS
+                // the datum.
+                "relative flex h-full w-full cursor-default items-center justify-center rounded-md transition-colors",
                 tone.bg,
-                tone.border,
                 tone.hover,
               )}
             />
@@ -974,30 +977,12 @@ function DayCell({
         >
           <span
             className={cn(
-              "relative z-[1] text-sm font-medium tabular-nums tracking-tight",
+              "relative z-[1] text-sm font-medium tabular-nums",
               tone.text,
             )}
           >
             {heat === "empty" ? "" : formatHours(hours)}
           </span>
-          {/* Saturation underline — kept inside the card surface, like a
-              progress meter rather than a separate stroke. */}
-          {heat !== "empty" ? (
-            <span
-              aria-hidden
-              className={cn(
-                "absolute bottom-[5px] left-1/2 h-[2px] -translate-x-1/2 rounded-full",
-                heat === "over"
-                  ? "bg-red-500/80"
-                  : heat === "high"
-                    ? "bg-amber-500/80"
-                    : heat === "ok"
-                      ? "bg-emerald-500/80"
-                      : "bg-emerald-400/70",
-              )}
-              style={{ width: `${Math.round(pct * 60) + 18}%` }}
-            />
-          ) : null}
         </TooltipTrigger>
         <TooltipContent>
           {date.toLocaleDateString(undefined, {
@@ -1019,30 +1004,22 @@ function DayCell({
 function EmptyMembersLabel() {
   return (
     <div
-      className="flex items-center gap-2 px-3 text-xs tracking-tight text-muted-foreground"
+      className="flex items-center gap-3 px-3 text-xs/[1] font-medium text-faint-foreground"
       style={{ height: ROW_HEIGHT }}
     >
-      <UserMinus className="size-3.5" />
+      <UserMinus className="size-4 shrink-0" />
       No members yet
     </div>
   );
 }
 
-function EmptyRowsGrid({ days }: { days: Date[] }) {
-  return (
-    <div
-      className="relative flex border-b border-border/40"
-      style={{ height: ROW_HEIGHT }}
-    >
-      {days.map((_, i) => (
-        <div
-          key={i}
-          className="border-r border-border/20 last:border-r-0"
-          style={{ width: DAY_WIDTH }}
-        />
-      ))}
-    </div>
-  );
+/**
+ * The empty lane opposite "No members yet". It used to draw a full column of
+ * vertical rules — an entire empty grid frame for zero data. It is now just
+ * the height, so the well reads as empty.
+ */
+function EmptyRowsGrid() {
+  return <div aria-hidden style={{ height: ROW_HEIGHT }} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1083,9 +1060,11 @@ function SidePanel({
         side="right"
         className="flex w-[360px] flex-col gap-0 bg-card p-0 sm:max-w-[360px]"
       >
-        <SheetHeader className="shrink-0 border-b border-border/70 px-4 py-3">
+        {/* Title + tab strip are ONE header block, so only the boundary
+            against the scrolled list gets a hairline. */}
+        <SheetHeader className="shrink-0 px-4 pt-3 pb-2">
           <div className="flex items-center gap-2">
-            <SheetTitle className="text-sm font-medium tracking-tight">
+            <SheetTitle className="text-sm font-medium">
               Inbox
             </SheetTitle>
             {totalCount > 0 ? <CountBadge>{totalCount}</CountBadge> : null}
@@ -1097,7 +1076,7 @@ function SidePanel({
       <TabNav
         variant="pill"
         aria-label="Inbox sections"
-        className="shrink-0 border-b border-border/70 px-2 py-1.5"
+        className="shrink-0 border-b border-border px-2 py-1.5"
       >
         <PanelTabButton
           active={tab === "unscheduled"}
@@ -1124,7 +1103,7 @@ function SidePanel({
 
       <div className="flex-1 overflow-y-auto p-2">
         {list.length === 0 ? (
-          <div className="flex h-32 items-center justify-center px-4 text-center text-xs tracking-tight text-muted-foreground">
+          <div className="flex h-32 items-center justify-center px-4 text-center text-xs text-faint-foreground">
             {tab === "unscheduled" && "Every task has a scheduled window."}
             {tab === "unassigned" && "Every task has an owner."}
             {tab === "overdue" && "Nothing past due — keep it up."}
@@ -1141,9 +1120,8 @@ function SidePanel({
                     type="button"
                     onClick={() => openTask(t.id)}
                     className={cn(
-                      "group relative flex w-full flex-col items-start gap-2 rounded-md border border-border/70 bg-card p-3 text-left shadow-xs transition-colors",
-                      "hover:border-foreground/15",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "group relative flex w-full flex-col items-start gap-2 rounded-md bg-card p-3 text-left shadow-ring transition-colors",
+                      "focus-visible:outline-none focus-visible:shadow-focus",
                     )}
                   >
                     <div className="flex w-full items-start gap-2">
@@ -1151,18 +1129,18 @@ function SidePanel({
                         aria-hidden
                         className={cn(
                           "mt-1 size-2 shrink-0 rounded-full ring-2 ring-card",
-                          t.priority === "urgent" && "bg-red-500",
-                          t.priority === "high" && "bg-amber-500",
-                          t.priority === "medium" && "bg-blue-500",
-                          t.priority === "low" && "bg-zinc-400",
+                          t.priority === "urgent" && "bg-destructive",
+                          t.priority === "high" && "bg-warning",
+                          t.priority === "medium" && "bg-info",
+                          t.priority === "low" && "bg-muted-foreground",
                           t.priority === "none" && "bg-muted-foreground/40",
                         )}
                       />
-                      <span className="line-clamp-2 flex-1 text-sm leading-4.5 font-medium tracking-tight text-foreground">
+                      <span className="line-clamp-2 flex-1 text-sm leading-4.5 font-medium text-foreground">
                         {t.title}
                       </span>
                     </div>
-                    <div className="flex w-full items-center gap-2 pl-3.5 text-xs tracking-tight text-muted-foreground">
+                    <div className="flex w-full items-center gap-2 pl-3.5 text-xs text-faint-foreground">
                       {t.assignee_id ? (
                         <span className="inline-flex min-w-0 items-center gap-1">
                           <Avatar className="size-4">
@@ -1172,7 +1150,7 @@ function SidePanel({
                                 alt={assignees[t.assignee_id]?.name ?? ""}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-muted text-[0.5rem] font-medium text-foreground">
+                            <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
                               {initials(assignees[t.assignee_id]?.name ?? "??")}
                             </AvatarFallback>
                           </Avatar>
@@ -1190,7 +1168,7 @@ function SidePanel({
                         <span
                           className={cn(
                             "ml-auto inline-flex shrink-0 items-center gap-1",
-                            overdue && "text-red-600 dark:text-red-400",
+                            overdue && "text-destructive",
                           )}
                         >
                           <CalendarClock className="size-3" />
@@ -1230,7 +1208,7 @@ function PanelTabButton({
     <TabNavItem
       active={active}
       onClick={onClick}
-      className="h-7 flex-1 justify-center rounded-md tracking-tight"
+      className="h-7 flex-1 justify-center rounded-md"
     >
       {icon}
       <span>{label}</span>
@@ -1265,9 +1243,9 @@ function SelectChip({
           <button
             type="button"
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md border border-border/70 bg-card px-2 text-xs font-medium tracking-tight text-foreground shadow-xs transition-colors",
-              "hover:border-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "aria-expanded:border-foreground/15 data-popup-open:border-foreground/15",
+              "inline-flex h-7 items-center gap-1 rounded-md bg-accent px-2 text-xs font-medium text-foreground transition-colors",
+              "focus-visible:outline-none focus-visible:shadow-focus",
+              "aria-expanded:bg-accent-pressed data-popup-open:bg-accent-pressed",
             )}
           >
             {label}
@@ -1285,10 +1263,10 @@ function SelectChip({
                   type="button"
                   onClick={() => onChange(opt.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm tracking-tight",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                     selected
                       ? "bg-foreground/[0.06] text-foreground"
-                      : "text-foreground/90 hover:bg-foreground/[0.05]",
+                      : "text-foreground hover:bg-accent",
                   )}
                 >
                   <span className="flex-1">{opt.label}</span>

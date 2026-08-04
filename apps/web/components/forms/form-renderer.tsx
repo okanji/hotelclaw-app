@@ -325,7 +325,7 @@ function WizardRenderer({
           <p className="text-xs font-medium text-muted-foreground">
             {index + 1} of {fields.length}
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-balance">
+          <h2 className="mt-2 text-2xl font-semibold text-balance">
             {field.label}
             {field.required && field.type !== "section" ? (
               <span className="text-destructive"> *</span>
@@ -501,8 +501,8 @@ export function FormFieldInput({
             onChange={(e) => onChange(e.target.value || null)}
             disabled={disabled || optionsLoading}
             className={cn(
-              "w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent pr-9 shadow-xs transition-colors outline-none",
-              "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20",
+              "w-full cursor-pointer appearance-none rounded-lg bg-transparent pr-9 transition-colors outline-none shadow-ring",
+              "focus-visible:shadow-focus",
               "disabled:pointer-events-none disabled:opacity-50",
               large ? "h-11 px-3.5 text-base" : "h-8 px-2.5 text-sm",
               empty && "text-muted-foreground",
@@ -581,7 +581,7 @@ export function FormFieldInput({
                 className={cn(
                   large ? "size-7" : "size-5",
                   n <= current
-                    ? "fill-amber-400 stroke-amber-400"
+                    ? "fill-warning stroke-warning"
                     : "stroke-muted-foreground/50",
                 )}
               />
@@ -693,11 +693,9 @@ function FileDropzone({
           if (e.dataTransfer.files.length > 0) void uploadFiles(e.dataTransfer.files);
         }}
         className={cn(
-          "flex w-full items-center justify-center rounded-lg border border-dashed text-center transition-colors",
+          "flex w-full items-center justify-center rounded-md text-center transition-colors",
           large ? "px-4 py-8" : "px-3 py-5",
-          dragOver
-            ? "border-primary bg-primary/5"
-            : "border-input hover:border-muted-foreground/40",
+          dragOver ? "bg-accent-pressed" : "bg-muted hover:bg-accent",
           !canUpload && "cursor-not-allowed opacity-60",
           canUpload && "cursor-pointer",
         )}
@@ -735,7 +733,7 @@ function FileDropzone({
           {value.map((file, i) => (
             <li
               key={`${file.url}-${i}`}
-              className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-sm"
+              className="flex items-center gap-2 rounded-md bg-muted px-2.5 py-1.5 text-sm"
             >
               <FileText className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate">{file.name}</span>
@@ -749,7 +747,7 @@ function FileDropzone({
                   type="button"
                   aria-label={`Remove ${file.name}`}
                   onClick={() => removeAt(i)}
-                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -798,11 +796,11 @@ function ChoiceChips({
             onClick={() => onToggle(opt.id)}
             aria-pressed={active}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
               large && "px-4 py-2 text-base",
               active
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-accent",
             )}
           >
             {active ? <Check className={cn("size-3.5", large && "size-4")} /> : null}

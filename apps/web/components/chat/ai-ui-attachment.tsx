@@ -51,10 +51,10 @@ const { registry } = defineRegistry(chatUiCatalog, {
         // A rendered table is a distinct embedded object in the message
         // stream, so the card framing is warranted — kept light: soft radius,
         // opacity-based border, no shadow (house separation ladder).
-        <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <div className="overflow-hidden rounded-md bg-background">
           {props.title ? (
-            <div className="flex items-baseline justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-2.5">
-              <span className="text-sm font-semibold tracking-tight text-foreground">
+            <div className="flex items-baseline justify-between gap-3 border-b border-border bg-muted px-4 py-2.5">
+              <span className="text-sm font-medium text-foreground">
                 {props.title}
               </span>
               {props.rows.length > 1 ? (
@@ -68,7 +68,7 @@ const { registry } = defineRegistry(chatUiCatalog, {
           <Table>
             <TableHeader>
               {/* Lighter divider than the base border-b (opacity-based). */}
-              <TableRow className="border-border/50 hover:bg-transparent">
+              <TableRow className="border-border hover:bg-transparent">
                 {props.columns.map((c, i) => (
                   <TableHead
                     key={i}
@@ -86,10 +86,10 @@ const { registry } = defineRegistry(chatUiCatalog, {
                   <TableRow
                     key={ri}
                     className={cn(
-                      "group border-border/50",
+                      "group border-border",
                       // Hover highlight only when the row navigates (base
                       // TableRow hovers unconditionally — suppress it otherwise).
-                      href ? "cursor-pointer hover:bg-muted/50" : "hover:bg-transparent",
+                      href ? "cursor-pointer hover:bg-accent" : "hover:bg-transparent",
                     )}
                     onClick={href ? () => router.push(href) : undefined}
                   >
@@ -170,12 +170,12 @@ const { registry } = defineRegistry(chatUiCatalog, {
       return props.href ? (
         <Link
           href={props.href}
-          className="block rounded-xl border border-border/70 bg-card p-3.5 transition-colors hover:border-border hover:bg-muted/40"
+          className="block rounded-md bg-background p-3.5 transition-colors hover:bg-accent"
         >
           {body}
         </Link>
       ) : (
-        <div className="rounded-xl border border-border/70 bg-card p-3.5">
+        <div className="rounded-md bg-background p-3.5">
           {body}
         </div>
       );
@@ -184,7 +184,7 @@ const { registry } = defineRegistry(chatUiCatalog, {
       const count = Children.count(children);
       const cols = count <= 2 ? 2 : count === 3 ? 3 : 4;
       return (
-        <StatGroup cols={cols} className="rounded-xl border border-border/70 bg-card p-3.5">
+        <StatGroup cols={cols} className="rounded-md bg-background p-3.5">
           {children}
         </StatGroup>
       );

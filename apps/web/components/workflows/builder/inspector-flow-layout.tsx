@@ -30,10 +30,7 @@ export function FlowNode({
       <div className="flex w-7 shrink-0 flex-col items-center">
         <span
           className={cn(
-            "flex size-7 items-center justify-center rounded-full border bg-background text-xs font-semibold tabular-nums",
-            step === "+"
-              ? "border-dashed border-border font-medium text-muted-foreground"
-              : "border-border text-muted-foreground",
+            "flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums text-muted-foreground",
           )}
         >
           {step}
@@ -41,7 +38,7 @@ export function FlowNode({
         {!isLast && <FlowLine />}
       </div>
       <div className={cn("min-w-0 flex-1", !isLast && "pb-6")}>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="mb-2 text-xs font-medium text-faint-foreground">
           {title}
         </p>
         {children}
@@ -67,11 +64,11 @@ export function InspectorFlowRail({ steps }: { steps: FlowStep[] }) {
 /** Collapsed-by-default footer — identifier, field paths, raw JSON. Not a numbered rail step. */
 export function InspectorAdvancedCollapse({ children }: { children: ReactNode }) {
   return (
-    <details className="mt-6 rounded-lg border border-border/50 bg-muted/[0.03]">
+    <details className="mt-6 rounded-lg bg-muted/[0.03]">
       <summary className="cursor-pointer list-none px-3 py-2.5 text-sm font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
         Advanced
       </summary>
-      <div className="space-y-4 border-t border-border/50 px-3 py-3">{children}</div>
+      <div className="space-y-4 border-t border-border px-3 py-3">{children}</div>
     </details>
   );
 }

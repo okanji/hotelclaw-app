@@ -27,8 +27,9 @@ import { PanelLeftIcon } from "lucide-react"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
+// notion-spec §4: 270px panel, 8px inner padding (⇒ 254px-wide rows).
+const SIDEBAR_WIDTH = "270px"
+const SIDEBAR_WIDTH_MOBILE = "270px"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -236,7 +237,9 @@ function Sidebar({
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : variant === "inset"
               ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              : // notion-spec §2: the panel edge is an INSET SHADOW, not a
+                // border — a stroke there is the loudest shell tell.
+                "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:shadow-(--sidebar-edge-shadow) group-data-[side=right]:shadow-[inset_1px_0_0_var(--border)]",
           className
         )}
         {...props}
@@ -244,7 +247,10 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          // The `floating` variant genuinely floats, so it takes the ONE
+          // overlay recipe (10px + three-layer shadow whose last layer IS the
+          // warm ring) — never `shadow-sm` + a separate `ring-1`.
+          className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-overlay group-data-[variant=floating]:shadow-overlay"
         >
           {children}
         </div>
@@ -309,11 +315,10 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        // Linear-style: the inset is a card floating above --sidebar (the outer
-        // shell). m-2 + ring-1 ring-border + rounded gives the container-in-
-        // container look. bg-card is slightly lighter than --sidebar so the
-        // separation reads without a heavy border.
-        "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:bg-card md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:ring-1 md:peer-data-[variant=inset]:ring-border md:peer-data-[variant=inset]:overflow-hidden",
+        // The inset content pane separates from the sidebar by FILL alone —
+        // `bg-card` (white / #191919) against the `--sidebar` chrome plane.
+        // No ring, no stroke; the radius drops to the 10px floating rung.
+        "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:bg-card md:peer-data-[variant=inset]:rounded-overlay md:peer-data-[variant=inset]:overflow-hidden",
         className
       )}
       {...props}
@@ -329,7 +334,10 @@ function SidebarInput({
     <Input
       data-slot="sidebar-input"
       data-sidebar="input"
-      className={cn("h-8 w-full bg-background shadow-none", className)}
+      // Sits on the sidebar row grid (30px). The old `shadow-none` erased the
+      // input's warm ring AND its focus shadow — Input carries both as
+      // box-shadows now, so the override has to go.
+      className={cn("h-[30px] w-full", className)}
       {...props}
     />
   )
@@ -390,8 +398,9 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
+      // Groups separate by WHITESPACE, not by a hairline rule (notion-spec §1).
       className={cn(
-        "relative flex w-full min-w-0 flex-col border-b border-sidebar-border/60 px-2 py-1.5 last:border-b-0",
+        "relative flex w-full min-w-0 flex-col px-2 py-2",
         className,
       )}
       {...props}
@@ -409,7 +418,10 @@ function SidebarGroupLabel({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex shrink-0 items-center gap-1 px-3 py-1.5 text-xs font-medium text-sidebar-foreground/55 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:opacity-70",
+          // The measured Notion section label: 12px/12px weight 500, FAINT,
+          // sentence case, letter-spacing normal — and aligned to the row
+          // inset (8px), not indented past it.
+          "flex shrink-0 items-center gap-1 px-2 py-1 text-xs leading-3 font-medium text-faint-foreground outline-hidden transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:shadow-focus [&>svg]:size-3.5 [&>svg]:shrink-0",
           className
         ),
       },
@@ -433,7 +445,7 @@ function SidebarGroupAction({
     props: mergeProps<"button">(
       {
         className: cn(
-          "absolute top-1.5 right-2 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground/60 ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-3.5 [&>svg]:shrink-0",
+          "absolute top-1 right-2 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-faint-foreground outline-hidden transition-transform group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent focus-visible:shadow-focus md:after:hidden [&>svg]:size-3.5 [&>svg]:shrink-0",
           className
         ),
       },
@@ -466,7 +478,8 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="sidebar-menu"
       data-sidebar="menu"
-      className={cn("flex w-full min-w-0 flex-col gap-0", className)}
+      // 1px vertical gap ⇒ the measured 31px row pitch on a 30px row.
+      className={cn("flex w-full min-w-0 flex-col gap-px", className)}
       {...props}
     />
   )
@@ -483,21 +496,25 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   )
 }
 
-// Linear-style nav row — matches task-detail sidebar rows: 14px label,
-// 14px muted icons, tight gap, subtle hover/active washes.
+// The Notion nav row (notion-spec §3/§4/§6): 30px tall, 6px radius, 8px
+// inset, 14px label at weight 500 in SECONDARY ink, 14px icon at 8px gap.
+// Hover is the warm 5% fill and NOTHING else — no label color flip, no
+// border, no shadow. The active row is that same fill at rest plus full ink
+// (no accent bar, no bold, no colored background).
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-left text-sm font-normal text-sidebar-foreground ring-sidebar-ring outline-hidden transition-colors group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:text-sidebar-foreground [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/70 data-active:[&_svg]:text-sidebar-foreground/80 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-medium text-sidebar-foreground outline-hidden transition-colors group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-faint-foreground data-active:[&_svg]:text-sidebar-accent-foreground [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
-        default: "hover:bg-sidebar-accent hover:text-sidebar-foreground",
-        outline:
-          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+        default: "",
+        // The old `shadow-[0_0_0_1px_hsl(var(--sidebar-border))]` silently
+        // resolved to nothing — our tokens are not HSL triplets.
+        outline: "bg-background shadow-ring hover:bg-sidebar-accent",
       },
       size: {
-        default: "min-h-7",
-        sm: "min-h-7 text-xs",
-        lg: "min-h-9 text-sm group-data-[collapsible=icon]:p-0!",
+        default: "min-h-[30px]",
+        sm: "min-h-7",
+        lg: "min-h-9 group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {
@@ -575,7 +592,10 @@ function SidebarMenuAction({
     props: mergeProps<"button">(
       {
         className: cn(
-          "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+          // Row affordance (notion-spec §6): appears on hover, right-aligned.
+          // Its own hover is the warm fill; focus is the 1px Notion-blue
+          // shadow, never a 2px offset halo.
+          "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-faint-foreground outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:shadow-focus md:after:hidden [&>svg]:size-3.5 [&>svg]:shrink-0",
           showOnHover &&
             "pointer-events-none opacity-0 transition-opacity group-focus-within/menu-item:pointer-events-auto group-focus-within/menu-item:opacity-100 group-hover/menu-item:pointer-events-auto group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-accent-foreground aria-expanded:pointer-events-auto aria-expanded:opacity-100 data-open:pointer-events-auto data-open:opacity-100",
           className
@@ -624,7 +644,11 @@ function SidebarMenuSkeleton({
     <div
       data-slot="sidebar-menu-skeleton"
       data-sidebar="menu-skeleton"
-      className={cn("flex min-h-7 items-center gap-2 rounded-md px-2 py-1.5", className)}
+      // Matches the real row it stands in for: 30px, 6px radius, 8px inset.
+      className={cn(
+        "flex min-h-[30px] items-center gap-2 rounded-md px-2",
+        className
+      )}
       {...props}
     >
       {showIcon && (
@@ -651,8 +675,11 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="sidebar-menu-sub"
       data-sidebar="menu-sub"
+      // Nesting reads from the INDENT, not a guide rule (notion-spec §1) —
+      // the old `border-l` was a visible gray stroke down the panel. Sub rows
+      // keep the 1px gap so the 31px pitch carries into the sub-tree.
       className={cn(
-        "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
+        "mx-3.5 flex min-w-0 flex-col gap-px px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
         className
       )}
       {...props}
@@ -690,7 +717,11 @@ function SidebarMenuSubButton({
     props: mergeProps<"a">(
       {
         className: cn(
-          "flex min-h-7 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs data-active:bg-sidebar-accent data-active:text-sidebar-foreground [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-sidebar-foreground/70 data-active:[&>svg]:text-sidebar-foreground/80",
+          // Same row contract as the top-level menu button: 30px, 6px radius,
+          // 14px weight 500 in secondary ink, warm hover fill only, full ink
+          // when active. 12px is a LABEL size, never a row size — so the `sm`
+          // variant is a shorter row, not smaller type.
+          "flex min-h-[30px] items-center gap-2 overflow-hidden rounded-md px-2 text-sm font-medium text-sidebar-foreground outline-hidden transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=sm]:min-h-7 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-faint-foreground data-active:[&>svg]:text-sidebar-accent-foreground",
           className
         ),
       },

@@ -116,15 +116,15 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
   );
 
   return (
-    <div className="flex flex-col gap-5 rounded-lg border border-border p-4">
+    <div className="flex flex-col gap-5 rounded-lg p-4 shadow-ring">
       <section className="flex flex-col gap-1.5">
-        <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        <h3 className="text-xs font-medium text-faint-foreground">
           Endpoint
         </h3>
         <button
           type="button"
           onClick={() => copy(endpoint, "Endpoint URL")}
-          className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
           title="Copy"
         >
           <span className="truncate">{endpoint}</span>
@@ -139,14 +139,14 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
       </section>
 
       {freshToken ? (
-        <section className="flex flex-col gap-1.5 rounded-md border border-success/40 bg-success/5 p-3">
+        <section className="flex flex-col gap-1.5 rounded-md bg-success/10 p-3">
           <p className="text-xs font-medium text-foreground">
             Key created — copy it now, it won&apos;t be shown again.
           </p>
           <button
             type="button"
             onClick={() => copy(freshToken, "Key")}
-            className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
           >
             <span className="truncate">{freshToken}</span>
             <Copy className="size-3.5 shrink-0 text-muted-foreground" />
@@ -155,11 +155,11 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
       ) : null}
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+        <h3 className="text-xs font-medium text-faint-foreground">
           Keys
         </h3>
         {actionKeys.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border/40">
+          <ul className="flex flex-col divide-y divide-border">
             {actionKeys.map((t) => (
               <li key={t.id} className="flex items-center gap-3 py-2">
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -170,7 +170,7 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
                     {(t.allowed_tools ?? []).map((tool) => (
                       <span
                         key={tool}
-                        className="rounded-full border border-border/60 px-1.5 py-px font-mono text-[10px] text-muted-foreground"
+                        className="rounded-md px-1.5 py-px font-mono text-xs text-muted-foreground bg-muted"
                       >
                         {tool}
                       </span>
@@ -225,7 +225,7 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
               aria-label="Key name"
               onChange={(e) => setName(e.target.value)}
               placeholder="Key name (e.g. Zapier)"
-              className="h-8 flex-1 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-8 flex-1 rounded-md bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:shadow-focus shadow-ring"
             />
             <Button
               type="submit"

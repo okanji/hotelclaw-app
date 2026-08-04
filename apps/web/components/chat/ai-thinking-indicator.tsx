@@ -182,7 +182,18 @@ export function AiThinkingIndicator({
               <div className="str-chat__avatar-initials">H</div>
             </div>
             <div className="flex min-w-0 flex-col">
-              <span className="text-[15px] font-bold leading-[22px]">
+              {/* The chat column is the Slack-mirror world with its own local
+                  scale (app/stream-chat-overrides.css). This row sits INSIDE
+                  the message list and must line up with real message headers
+                  exactly, so it reads the same `--slack-msg-display-name-*`
+                  tokens they do rather than re-typing 15px/22px. */}
+              <span
+                className="leading-[22px]"
+                style={{
+                  fontSize: "var(--slack-msg-display-name-size)",
+                  fontWeight: "var(--slack-msg-display-name-weight)",
+                }}
+              >
                 Hotelclaw
               </span>
               {/* Activity feed: the steps already taken, muted and dimmed,

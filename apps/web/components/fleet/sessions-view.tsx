@@ -50,7 +50,7 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
           through the actions API and its session will appear here.
         </EmptyState>
       ) : (
-        <ul role="list" className="flex flex-col divide-y divide-border/40">
+        <ul role="list" className="flex flex-col divide-y divide-border">
           {sessions.map((session) => (
             <SessionRow
               key={session.id}
@@ -85,7 +85,7 @@ function SessionRow({
   const status = SESSION_STATUS_UI[session.status];
   const content = (
     <>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/50 text-sm">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm">
         {isWorkflow ? (
           <Workflow className="size-4 text-muted-foreground" />
         ) : (
@@ -133,7 +133,7 @@ function SessionRow({
       <Link
         href={href}
         replace
-        className="flex items-center gap-3 rounded-md py-3 transition-colors hover:bg-muted/40"
+        className="flex items-center gap-3 rounded-md py-3 transition-colors hover:bg-accent"
       >
         {content}
       </Link>

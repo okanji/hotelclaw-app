@@ -161,11 +161,11 @@ export function EditProfileDialog({
             list.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-5">
-          <div className="flex items-center gap-4">
-            <Avatar className="size-16">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-12">
               <AvatarImage src={avatarUrl ?? undefined} alt="" />
-              <AvatarFallback className="text-base">
+              <AvatarFallback className="text-sm">
                 {initials || "?"}
               </AvatarFallback>
             </Avatar>
@@ -173,7 +173,6 @@ export function EditProfileDialog({
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading || busy}
@@ -184,7 +183,6 @@ export function EditProfileDialog({
                 {avatarUrl ? (
                   <Button
                     type="button"
-                    size="sm"
                     variant="ghost"
                     onClick={onRemoveAvatar}
                     disabled={uploading || busy}
@@ -193,7 +191,8 @@ export function EditProfileDialog({
                   </Button>
                 ) : null}
               </div>
-              <p className="text-xs text-muted-foreground">
+              {/* Caption rung — 12px faint, never muted body ink. */}
+              <p className="text-xs text-faint-foreground">
                 PNG, JPEG, WebP, or GIF. Max 2 MB.
               </p>
             </div>
@@ -222,9 +221,13 @@ export function EditProfileDialog({
               disabled={busy}
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Email</Label>
-            <p className="font-mono text-xs text-muted-foreground">{email}</p>
+          {/* Read-only field: 12px/12px w500 faint section label over the
+              value at the 14px UI default (notion-spec §3). */}
+          <div className="space-y-1.5">
+            <Label className="text-xs/[1] font-medium text-faint-foreground">
+              Email
+            </Label>
+            <p className="text-sm text-muted-foreground">{email}</p>
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
@@ -238,7 +241,6 @@ export function EditProfileDialog({
             </Button>
             <Button
               type="submit"
-              size="lg"
               disabled={busy || uploading || !fullName.trim()}
             >
               {busy ? "Saving…" : "Save"}

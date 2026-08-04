@@ -35,7 +35,7 @@ export function ToggleView({ node, updateAttributes }: NodeViewProps) {
         type="button"
         contentEditable={false}
         onClick={() => updateAttributes({ open: !open })}
-        className="mt-1.5 flex size-5 select-none items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="mt-1.5 flex size-5 select-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
         aria-label={open ? "Collapse" : "Expand"}
       >
         <ChevronRight

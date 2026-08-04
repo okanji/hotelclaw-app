@@ -84,7 +84,7 @@ export function DocumentSearch({ propertyId }: { propertyId: string }) {
       <div className="relative">
         <Search
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint-foreground"
         />
         <Input
           type="search"
@@ -99,7 +99,7 @@ export function DocumentSearch({ propertyId }: { propertyId: string }) {
             type="button"
             onClick={() => setRaw("")}
             aria-label="Clear search"
-            className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-0.5 text-faint-foreground transition-colors hover:bg-accent"
           >
             <X className="size-4" />
           </button>
@@ -111,7 +111,7 @@ export function DocumentSearch({ propertyId }: { propertyId: string }) {
           role="listbox"
           aria-label="Search results"
           className={cn(
-            "flex flex-col overflow-hidden rounded-lg border border-border bg-card",
+            "flex flex-col overflow-hidden rounded-overlay bg-popover shadow-overlay",
             isFetching && "opacity-80",
           )}
         >
@@ -130,9 +130,7 @@ export function DocumentSearch({ propertyId }: { propertyId: string }) {
                   key={hit.id}
                   role="option"
                   aria-selected={false}
-                  className={cn(
-                    i > 0 && "border-t border-border/60",
-                  )}
+                  className={cn(i > 0 && "border-t border-border")}
                 >
                   <Link
                     href={documentHref(propertyId, hit.id)}
@@ -142,11 +140,11 @@ export function DocumentSearch({ propertyId }: { propertyId: string }) {
                       openDocument(hit.id);
                     }}
                     onMouseEnter={() => prewarm(hit.id)}
-                    className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-muted/50"
+                    className="flex items-start gap-2.5 px-3 py-2.5 transition-colors hover:bg-accent"
                   >
                     <FileText
                       strokeWidth={1.5}
-                      className="size-4 shrink-0 translate-y-0.5 text-muted-foreground"
+                      className="size-4 shrink-0 translate-y-0.5 text-faint-foreground"
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">
@@ -179,7 +177,7 @@ function highlight(text: string, tokens: string[]): React.ReactNode {
   const parts = text.split(pattern);
   return parts.map((part, i) =>
     pattern.test(part) ? (
-      <mark key={i} className="bg-amber-200/60 text-foreground dark:bg-amber-400/30">
+      <mark key={i} className="bg-annotation-mark text-foreground">
         {part}
       </mark>
     ) : (

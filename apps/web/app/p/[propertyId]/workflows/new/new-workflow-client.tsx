@@ -230,10 +230,10 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
     return (
       <div className="mx-auto max-w-[760px] pb-16">
         <header className="mb-6 text-center">
-          <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-primary/10">
+          <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-md bg-primary/10">
             <Sparkles className="size-5 text-primary" aria-hidden />
           </span>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold text-foreground">
             Describe what you want
           </h1>
           <p className="mx-auto mt-2 max-w-[520px] text-sm leading-relaxed text-muted-foreground">
@@ -300,7 +300,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
                       onClick={() => setPendingPrompt(ex.prompt)}
                       disabled={busy}
                       className={cn(
-                        "group flex h-full flex-col gap-2 rounded-xl border border-border/60 bg-card p-3.5 text-left transition-colors hover:border-border hover:bg-muted/30",
+                        "group flex h-full flex-col gap-2 rounded-md bg-card p-3.5 text-left shadow-ring transition-colors hover:bg-accent",
                         busy && "pointer-events-none opacity-50",
                       )}
                     >
@@ -344,7 +344,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-semibold text-foreground hover:border-border/60 focus:border-border focus:outline-none"
+            className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 text-base font-semibold text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:shadow-focus"
           />
         </div>
         <Button

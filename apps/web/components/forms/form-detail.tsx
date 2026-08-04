@@ -169,11 +169,11 @@ export function FormDetail({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={`/p/${propertyId}/forms`}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
           aria-label="Back to forms"
         >
           <ArrowLeft className="size-4" />
@@ -189,7 +189,7 @@ export function FormDetail({
           }}
           disabled={!canEdit}
           aria-label="Form title"
-          className="min-w-0 flex-1 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground disabled:pointer-events-none"
+          className="min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none placeholder:text-muted-foreground disabled:pointer-events-none"
           placeholder="Untitled form"
         />
         <FormStatusBadge status={status} />
@@ -408,7 +408,7 @@ function SplitPanesBuilder({
       {canEdit ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Fields</h2>
+            <h2 className="text-sm font-medium">Fields</h2>
             <div className="flex gap-2">
               <AddFieldMenu onAdd={addField} />
               <AiEditPopover shared={shared} />
@@ -420,7 +420,7 @@ function SplitPanesBuilder({
           </div>
 
           {schema.fields.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
               No fields yet — add one to get started.
             </div>
           ) : (
@@ -453,7 +453,7 @@ function SplitPanesBuilder({
               </SortableContext>
               <PortalDragOverlay>
                 {activeField ? (
-                  <div className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium shadow-md">
+                  <div className="rounded-overlay bg-popover px-3 py-2 text-sm font-medium shadow-overlay">
                     {activeField.label}
                   </div>
                 ) : null}
@@ -464,8 +464,8 @@ function SplitPanesBuilder({
       ) : null}
 
       <div className={cn("flex flex-col gap-3", !canEdit && "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-xl")}>
-        <h2 className="text-sm font-semibold">Preview</h2>
-        <div className="rounded-lg border border-border bg-background p-5">
+        <h2 className="text-sm font-medium">Preview</h2>
+        <div className="rounded-lg bg-background p-5">
           {schema.fields.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               The form preview appears here as you add fields.
@@ -531,7 +531,7 @@ function SortableFieldRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "rounded-lg border border-border bg-background",
+        "rounded-lg bg-background",
         isDragging && "opacity-50",
         selected && "border-ring",
       )}
@@ -554,7 +554,7 @@ function SortableFieldRow({
           {...listeners}
           onClick={(e) => e.stopPropagation()}
           aria-label="Reorder field"
-          className="cursor-grab touch-none rounded p-0.5 text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+          className="cursor-grab touch-none rounded-md p-0.5 text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
@@ -885,7 +885,7 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
   const responses = data ?? [];
   if (responses.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border p-12 text-center">
+      <div className="rounded-md p-12 text-center">
         <p className="text-sm font-medium">No responses yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {form.status === "published"
@@ -924,10 +924,10 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
 
       <SummaryStrip fields={fields} responses={responses} />
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-lg shadow-ring">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border bg-muted text-left text-xs text-muted-foreground">
               {hasMore ? <th className="w-8 px-2 py-2" /> : null}
               <th className="px-3 py-2 font-medium">Respondent</th>
               {visible.map((f) => (
@@ -982,7 +982,7 @@ function ResponseRows({
               type="button"
               onClick={onToggle}
               aria-label={expanded ? "Collapse row" : "Expand row"}
-              className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
             >
               <ChevronRight
                 className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
@@ -1003,7 +1003,7 @@ function ResponseRows({
         </td>
       </tr>
       {expanded ? (
-        <tr className="border-b border-border bg-muted/30 last:border-0">
+        <tr className="border-b border-border bg-muted last:border-0">
           <td colSpan={colSpan} className="px-4 py-3">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
               {allFields.map((f) => (
@@ -1120,11 +1120,11 @@ function SummaryStrip({
       {summaries.map((s) => (
         <div
           key={s.field.id}
-          className="w-56 shrink-0 rounded-lg border border-border bg-background p-3"
+          className="w-56 shrink-0 rounded-lg bg-background p-3"
         >
           <p className="truncate text-xs font-medium">{s.field.label}</p>
           {s.kind === "rating" ? (
-            <p className="mt-2 text-2xl font-semibold tracking-tight">
+            <p className="mt-2 text-2xl font-semibold">
               {s.avg.toFixed(1)}
               <span className="text-sm font-normal text-muted-foreground">
                 /{s.field.maxRating ?? 5} avg · {s.count}

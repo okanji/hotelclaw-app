@@ -64,7 +64,7 @@ export function BrainView({
 
       <section className="flex flex-col gap-4">
         <Eyebrow>Knowledge brain</Eyebrow>
-        <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+        <div className="flex flex-col gap-3 rounded-lg p-4 shadow-ring">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={healthUi.tone}>{healthUi.label}</StatusBadge>
             {health?.engine ? (

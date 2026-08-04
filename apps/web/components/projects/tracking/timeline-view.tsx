@@ -24,8 +24,8 @@ const MS_PER_DAY = 86_400_000;
 
 /** Fill + text classes for a milestone diamond, keyed to project status. */
 const DIAMOND_TONE: Record<ProjectStatus, string> = {
-  planned: "fill-blue-500 text-blue-500",
-  active: "fill-emerald-500 text-emerald-500",
+  planned: "fill-info text-info",
+  active: "fill-success text-success",
   completed: "fill-violet-500 text-violet-500",
   archived: "fill-muted-foreground text-muted-foreground",
 };
@@ -174,9 +174,9 @@ export function ProjectsTimelineView({
             year: "numeric",
           })}
         </h2>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 text-xs text-faint-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <span className="block h-1.5 w-4 rounded-full bg-emerald-500/70" />
+            <span className="block h-1.5 w-4 rounded-full bg-success/70" />
             Range
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -190,14 +190,14 @@ export function ProjectsTimelineView({
       <div className="flex min-h-0 flex-1 overflow-auto">
         {/* Left label column */}
         <div
-          className="sticky left-0 z-20 shrink-0 border-r border-border bg-background/95 backdrop-blur"
+          className="sticky left-0 z-20 shrink-0 border-r border-border bg-card"
           style={{ width: LABEL_WIDTH }}
         >
           {/* Header spacer to match the day-header row */}
-          <div className="sticky top-0 z-10 h-12 border-b border-border bg-background/95" />
+          <div className="sticky top-0 z-10 h-12 border-b border-border bg-card" />
           {placed.length === 0 ? (
             <div
-              className="flex items-center px-3 text-xs text-muted-foreground/70"
+              className="flex items-center px-3 text-xs text-faint-foreground"
               style={{ height: ROW_HEIGHT }}
             >
               {anyDated ? "Nothing in this window" : "No dated projects"}
@@ -243,7 +243,7 @@ export function ProjectsTimelineView({
                 <div
                   key={i}
                   aria-hidden
-                  className="pointer-events-none absolute top-0 bg-muted/40"
+                  className="pointer-events-none absolute top-0 bg-muted"
                   style={{
                     left: i * DAY_WIDTH,
                     width: DAY_WIDTH,
@@ -256,7 +256,7 @@ export function ProjectsTimelineView({
             {todayOffset >= 0 && todayOffset < VISIBLE_DAYS ? (
               <div
                 aria-hidden
-                className="pointer-events-none absolute top-0 z-10 w-px bg-red-500/60"
+                className="pointer-events-none absolute top-0 z-10 w-px bg-destructive/60"
                 style={{
                   left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2,
                   height: "100%",
@@ -289,8 +289,8 @@ export function ProjectsTimelineView({
 
       {/* Unscheduled projects — no dates, plotted nowhere on the axis. */}
       {unscheduled.length > 0 ? (
-        <div className="shrink-0 border-t border-border bg-muted/20 px-4 py-3">
-          <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground/70 uppercase">
+        <div className="shrink-0 border-t border-border bg-muted px-4 py-3">
+          <p className="mb-2 text-xs/[1] font-medium text-faint-foreground">
             Unscheduled — {unscheduled.length}{" "}
             {unscheduled.length === 1 ? "project" : "projects"}
           </p>
@@ -299,7 +299,7 @@ export function ProjectsTimelineView({
               <Link
                 key={p.id}
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent-pressed"
               >
                 <span
                   className={cn(
@@ -341,12 +341,12 @@ function DayHeader({
   }
 
   return (
-    <div className="sticky top-0 z-10 h-12 border-b border-border bg-background/95 backdrop-blur">
-      <div className="relative h-5 border-b border-border/40">
+    <div className="sticky top-0 z-10 h-12 border-b border-border bg-card">
+      <div className="relative h-5 border-b border-border">
         {months.map((m) => (
           <span
             key={m.start}
-            className="absolute top-0 truncate px-2 text-xs font-semibold tracking-wide text-foreground"
+            className="absolute top-0 truncate px-2 text-xs/[1] font-medium text-faint-foreground"
             style={{
               left: m.start * DAY_WIDTH,
               width: m.span * DAY_WIDTH,
@@ -365,11 +365,11 @@ function DayHeader({
             <div
               key={i}
               className={cn(
-                "absolute top-0 flex h-7 flex-col items-center justify-center text-[10px]",
+                "absolute top-0 flex h-7 flex-col items-center justify-center text-xs",
                 isWeekend
-                  ? "text-muted-foreground/60"
+                  ? "text-muted-foreground"
                   : "text-muted-foreground",
-                isToday && "text-red-600 dark:text-red-400",
+                isToday && "text-destructive",
               )}
               style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
             >
@@ -379,7 +379,7 @@ function DayHeader({
               <span
                 className={cn(
                   "mt-0.5 grid size-5 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday && "bg-red-500 text-white",
+                  isToday && "bg-destructive text-white",
                 )}
               >
                 {d.getDate()}
@@ -406,7 +406,7 @@ function ProjectLabel({
   return (
     <Link
       href={`/p/${propertyId}/projects/${project.id}`}
-      className="flex items-center gap-2.5 border-b border-border/40 px-3 transition-colors hover:bg-muted/40"
+      className="flex items-center gap-2.5 border-b border-border px-3 transition-colors hover:bg-accent"
       style={{ height: ROW_HEIGHT }}
     >
       <span
@@ -417,7 +417,7 @@ function ProjectLabel({
         <span className="truncate text-sm text-foreground">
           {project.name || "Untitled project"}
         </span>
-        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
+        <span className="flex items-center gap-1.5 text-xs text-faint-foreground tabular-nums">
           <span className={meta.text}>{meta.label}</span>
           <span aria-hidden>·</span>
           <span>{pct}%</span>
@@ -447,7 +447,7 @@ function TimelineRow({
 
   return (
     <div
-      className="relative border-b border-border/40"
+      className="relative border-b border-border"
       style={{ height: ROW_HEIGHT }}
     >
       {item.kind === "bar" ? (
@@ -462,7 +462,9 @@ function TimelineRow({
               href={href}
               title={`${project.name || "Untitled project"} — ${meta.label} · ${pct}%`}
               className={cn(
-                "group absolute top-1/2 flex -translate-y-1/2 items-center overflow-hidden rounded-md shadow-sm ring-1 ring-inset ring-black/5 transition-all hover:ring-2 hover:ring-foreground/20",
+                // Hover is a fill-strength change, never the blue FOCUS ring — that
+                // shadow belongs to focus alone (notion-spec §6).
+                "group absolute top-1/2 flex -translate-y-1/2 items-center overflow-hidden rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:shadow-focus",
                 // Tinted track keyed to status.
                 meta.soft,
               )}
@@ -497,7 +499,7 @@ function TimelineRow({
         <Link
           href={href}
           title={`${project.name || "Untitled project"} — ${meta.label}`}
-          className="absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center hover:scale-110"
+          className="absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center"
           style={{ left: item.day * DAY_WIDTH + DAY_WIDTH / 2 }}
           aria-label={`${project.name || "Untitled project"} date marker`}
         >

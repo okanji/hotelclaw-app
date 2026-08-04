@@ -104,9 +104,9 @@ export function TriageDial({ propertyId }: { propertyId: string }) {
         }
       />
       <PopoverContent align="end" sideOffset={6} className="w-80 p-0">
-        <div className="border-b border-border/60 p-3">
-          <Eyebrow tone="brand">New-task suggestions</Eyebrow>
-          <p className="mt-1 text-xs leading-relaxed text-pretty text-muted-foreground">
+        <div className="border-b border-border p-3">
+          <Eyebrow>New-task suggestions</Eyebrow>
+          <p className="mt-1 text-xs leading-4 text-pretty text-faint-foreground">
             Bare tasks get team, assignee, and priority suggestions with
             reasoning. Turn on auto-apply once a field has earned your trust —
             applied values stay badged on the task.
@@ -117,7 +117,7 @@ export function TriageDial({ propertyId }: { propertyId: string }) {
           <div className="flex flex-col gap-3 p-3">
             {FIELDS.map((field) => (
               <div key={field} className="flex flex-col gap-2">
-                <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
+                <div className="h-3.5 w-16 animate-pulse rounded-md bg-muted" />
                 <div className="h-1 w-full animate-pulse rounded-full bg-muted" />
               </div>
             ))}
@@ -139,7 +139,7 @@ export function TriageDial({ propertyId }: { propertyId: string }) {
         )}
 
         {!isPending && !canEdit ? (
-          <p className="border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">
+          <p className="border-t border-border px-3 py-2 text-xs text-faint-foreground">
             Only owners can change autonomy.
           </p>
         ) : null}
@@ -200,7 +200,7 @@ function FieldRow({
     <div
       className={cn(
         "flex items-start justify-between gap-3 px-3 py-3",
-        !first && "border-t border-border/60",
+        !first && "border-t border-border",
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -212,7 +212,7 @@ function FieldRow({
             <span className="text-sm tabular-nums text-muted-foreground">
               <span className="font-semibold text-foreground">{rate}%</span>{" "}
               accepted
-              <span className="text-muted-foreground/70">
+              <span className="text-muted-foreground">
                 {" "}
                 · {reviewed} reviewed
               </span>

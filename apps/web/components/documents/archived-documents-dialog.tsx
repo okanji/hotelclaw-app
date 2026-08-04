@@ -90,9 +90,9 @@ export function ArchivedDocumentsDialog({
             </p>
           ) : documents === null ? (
             <div className="space-y-2 py-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-[34px] w-full" />
+              <Skeleton className="h-[34px] w-full" />
+              <Skeleton className="h-[34px] w-full" />
             </div>
           ) : documents.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
@@ -100,15 +100,15 @@ export function ArchivedDocumentsDialog({
             </p>
           ) : (
             <ScrollArea className="max-h-80 pr-3">
-              <ul className="divide-y">
+              <ul className="flex flex-col gap-px">
                 {documents.map((d) => (
                   <li
                     key={d.id}
-                    className="flex items-center justify-between gap-3 py-3"
+                    className="flex min-h-[34px] items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{d.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-faint-foreground">
                         Archived {formatArchivedAt(d.archivedAt)}
                       </p>
                     </div>

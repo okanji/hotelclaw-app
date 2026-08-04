@@ -153,18 +153,18 @@ function DetailsHeader({
       <div className="flex min-w-0 items-start gap-3">
         <span
           aria-hidden
-          className="mt-1.5 size-3.5 shrink-0 rounded-[4px]"
+          className="mt-1.5 size-3 shrink-0 rounded-full"
           style={{ backgroundColor: eventSwatch(event) }}
         />
         <div className="min-w-0">
-          <TitleEl className="text-lg font-semibold tracking-tight text-balance">
+          <TitleEl className="text-base leading-6 font-semibold text-balance">
             {event.title}
           </TitleEl>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {formatWhen(event)}
           </p>
           {subtitle ? (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-sm text-faint-foreground">{subtitle}</p>
           ) : null}
         </div>
       </div>
@@ -349,13 +349,13 @@ export function MeetingDetails({
 
         {event.location ? (
           <DetailRow icon={<MapPin />}>
-            <p className="text-foreground/90">{event.location}</p>
+            <p className="text-foreground">{event.location}</p>
           </DetailRow>
         ) : null}
 
         {event.description ? (
           <DetailRow icon={<AlignLeft />}>
-            <p className="whitespace-pre-wrap text-pretty text-foreground/80">
+            <p className="whitespace-pre-wrap text-pretty text-muted-foreground">
               {event.description}
             </p>
           </DetailRow>
@@ -367,7 +367,7 @@ export function MeetingDetails({
               {event.attendees.length}{" "}
               {event.attendees.length === 1 ? "guest" : "guests"}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-faint-foreground">
               {accepted} yes
               {awaiting > 0 ? `, ${awaiting} awaiting` : ""}
             </p>
@@ -387,18 +387,18 @@ export function MeetingDetails({
                         {(a.name ?? "?").slice(0, 1).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="min-w-0 flex-1 truncate text-foreground/90">
+                    <span className="min-w-0 flex-1 truncate text-foreground">
                       {a.name ?? "Unnamed"}
                       {a.user_id === currentUserId ? " (you)" : ""}
                     </span>
                     {isOrganizer(a) ? (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-faint-foreground">
                         Organizer
                       </span>
                     ) : (
                       <span
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 text-xs font-medium",
+                          "inline-flex items-center gap-1 rounded-md py-0.5 pr-2 pl-1.5 text-xs font-medium",
                           meta.className,
                         )}
                       >
@@ -415,7 +415,8 @@ export function MeetingDetails({
       </div>
 
       {me && !iAmOrganizer ? (
-        <div className="-mx-4 -mb-4 flex items-center justify-between gap-3 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+        // Action bars separate by whitespace, not by a filled, ruled tray.
+        <div className="flex items-center justify-between gap-3">
           <span className="text-sm text-muted-foreground">Going?</span>
           <div className="flex gap-1.5">
             {(
@@ -434,7 +435,7 @@ export function MeetingDetails({
                 onClick={() => rsvp(value)}
                 className={cn(
                   myResponse === value &&
-                    "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+                    "bg-accent-pressed text-foreground shadow-none",
                 )}
               >
                 {label}
@@ -497,7 +498,7 @@ export function TaskDetails({
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
                 priorityMeta.badgeClass,
               )}
             >
@@ -511,7 +512,7 @@ export function TaskDetails({
 
         {event.due_at ? (
           <DetailRow icon={<CalendarClock />}>
-            <p className="text-foreground/90">
+            <p className="text-foreground">
               Due{" "}
               {new Date(event.due_at).toLocaleDateString(undefined, {
                 weekday: "short",
@@ -524,7 +525,7 @@ export function TaskDetails({
 
         {event.description ? (
           <DetailRow icon={<AlignLeft />}>
-            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-foreground/80">
+            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-muted-foreground">
               {event.description}
             </p>
           </DetailRow>
@@ -538,7 +539,7 @@ export function TaskDetails({
         </DetailRow>
       </div>
 
-      <div className="-mx-4 -mb-4 flex items-center justify-end gap-2 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+      <div className="flex items-center justify-end gap-2">
         <Button
           type="button"
           variant="outline"
@@ -595,7 +596,7 @@ export function BookingDetails({
       <div className="space-y-3">
         <DetailRow icon={<Users />}>
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-foreground/90">
+            <p className="text-foreground">
               {event.guest_name} · party of {event.party_size}
             </p>
             <StatusBadge tone={badge.tone} dot={false}>
@@ -603,12 +604,12 @@ export function BookingDetails({
             </StatusBadge>
           </div>
           {event.guest_phone ? (
-            <p className="text-xs text-muted-foreground">{event.guest_phone}</p>
+            <p className="text-xs text-faint-foreground">{event.guest_phone}</p>
           ) : null}
         </DetailRow>
 
         <DetailRow icon={<CircleDashed />}>
-          <p className="text-foreground/90">{event.reference}</p>
+          <p className="text-foreground">{event.reference}</p>
           <p className="text-xs text-muted-foreground">
             {event.booking_source === "chatbot"
               ? "Booked by a guest via chatbot"
@@ -619,8 +620,8 @@ export function BookingDetails({
         </DetailRow>
       </div>
 
-      <div className="-mx-4 -mb-4 flex items-center justify-between gap-3 rounded-b-xl border-t bg-muted/50 px-4 py-3">
-        <p className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-faint-foreground">
           Confirm, cancel, or complete from Bookings.
         </p>
         <Button
@@ -657,13 +658,13 @@ export function ExternalDetails({ event }: { event: ExternalEvent }) {
       <div className="space-y-3">
         {event.location ? (
           <DetailRow icon={<MapPin />}>
-            <p className="text-foreground/90">{event.location}</p>
+            <p className="text-foreground">{event.location}</p>
           </DetailRow>
         ) : null}
 
         {event.description ? (
           <DetailRow icon={<AlignLeft />}>
-            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-foreground/80">
+            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-muted-foreground">
               {event.description}
             </p>
           </DetailRow>
@@ -671,14 +672,14 @@ export function ExternalDetails({ event }: { event: ExternalEvent }) {
 
         {event.organizer_email ? (
           <DetailRow icon={<Users />}>
-            <p className="text-foreground/90">{event.organizer_email}</p>
-            <p className="text-xs text-muted-foreground">Organizer</p>
+            <p className="text-foreground">{event.organizer_email}</p>
+            <p className="text-xs text-faint-foreground">Organizer</p>
           </DetailRow>
         ) : null}
       </div>
 
-      <div className="-mx-4 -mb-4 flex items-center justify-between gap-3 rounded-b-xl border-t bg-muted/50 px-4 py-3">
-        <p className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-faint-foreground">
           Editing happens in {providerName} Calendar.
         </p>
         {event.html_link ? (

@@ -14,18 +14,20 @@ import { cn } from "@/lib/utils"
  * pickers inside dialogs stay compact text cards (that's the reference
  * pattern too — the platform's template dialog has no covers).
  *
- * Tints are decorative and deliberately NOT theme-switched (the platform
- * keeps the same pastels on dark) — the ink glyph is legible on all six.
- * This map is the single source of cover tints; extend it here, never
- * inline a cover color.
+ * Tints now come from the shared warm low-chroma `--tint-*` family (the same
+ * palette `TintCard` spends), so covers are theme-adaptive and carry their
+ * own matching ink — no hardcoded hex, no separate pastel ramp to keep in
+ * sync. This map is the single source of cover tints; extend it here, never
+ * inline a cover color. The KEYS are stored in call-site maps — never rename
+ * them, only re-point them.
  */
 const COVER_TINTS = {
-  blue: "bg-[#7fa5e3]",
-  coral: "bg-[#dd8a66]",
-  cream: "bg-[#efe9de]",
-  sage: "bg-[#b9cec5]",
-  violet: "bg-[#b5aad4]",
-  amber: "bg-[#e3c980]",
+  blue: "bg-tint-blue text-tint-blue-ink",
+  coral: "bg-tint-coral text-tint-coral-ink",
+  cream: "bg-secondary text-cover-ink",
+  sage: "bg-tint-sage text-tint-sage-ink",
+  violet: "bg-tint-lavender text-tint-lavender-ink",
+  amber: "bg-tint-honey text-tint-honey-ink",
 } as const
 
 type CoverTint = keyof typeof COVER_TINTS
@@ -65,7 +67,7 @@ function CoverCard({
       <div
         aria-hidden="true"
         className={cn(
-          "flex h-24 shrink-0 items-center justify-center text-[#1f1e1b]",
+          "flex h-24 shrink-0 items-center justify-center",
           "[&_svg]:size-8 [&_svg]:stroke-[1.5]",
           COVER_TINTS[tint]
         )}
@@ -80,7 +82,7 @@ function CoverCard({
           {titleMeta}
         </div>
         {description ? (
-          <p className="line-clamp-3 text-xs leading-relaxed text-pretty text-muted-foreground">
+          <p className="line-clamp-3 text-sm text-pretty text-muted-foreground">
             {description}
           </p>
         ) : null}
@@ -89,7 +91,7 @@ function CoverCard({
             {tags.map((t) => (
               <span
                 key={t}
-                className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
+                className="rounded-md bg-accent px-1.5 py-0.5 text-xs font-medium text-faint-foreground"
               >
                 {t}
               </span>
@@ -106,9 +108,11 @@ function CoverCard({
     props: mergeProps<"div">(
       {
         className: cn(
-          "group/cover-card flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left outline-none",
+          "group/cover-card flex flex-col overflow-hidden rounded-md bg-card text-left shadow-ring outline-none",
           // Interactive affordances only when rendered as a link/button.
-          "[&:is(a,button)]:cursor-pointer [&:is(a,button)]:transition-colors [&:is(a,button)]:hover:bg-muted/40 [&:is(a,button)]:focus-visible:ring-2 [&:is(a,button)]:focus-visible:ring-ring/50",
+          // Fill-only hover (opaque surface ⇒ `bg-secondary`, not the
+          // translucent `bg-accent`), no border shift, no shadow, no lift.
+          "[&:is(a,button)]:cursor-pointer [&:is(a,button)]:transition-colors [&:is(a,button)]:hover:bg-accent [&:is(a,button)]:focus-visible:shadow-focus",
           className
         ),
         children: body,

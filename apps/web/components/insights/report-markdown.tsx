@@ -8,18 +8,21 @@ import ReactMarkdown from "react-markdown";
  * paragraphs, lists, bold) is styled explicitly via descendant selectors.
  * Width is capped at a comfortable reading measure regardless of how wide
  * the section is.
+ *
+ * This is PROSE, so it sits on the 16px/24px body rung (notion-spec §3) —
+ * not the 14px UI rung. Headings separate by space, never by a rule.
  */
 export function ReportMarkdown({ children }: { children: string }) {
   return (
     <div
       className={[
-        "max-w-[65ch] text-sm leading-relaxed text-foreground",
-        "[&_h2]:mt-6 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-border/40 [&_h2]:pb-1.5 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2:first-child]:mt-0",
-        "[&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold",
+        "max-w-[65ch] text-base leading-6 text-foreground",
+        "[&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:leading-6 [&_h2]:font-semibold [&_h2:first-child]:mt-0",
+        "[&_h3]:mt-5 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold",
         "[&_p]:my-2 [&_p]:text-pretty",
         "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1",
         "[&_strong]:font-semibold",
-        "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono",
+        "[&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-sm",
       ].join(" ")}
     >
       <ReactMarkdown>{children}</ReactMarkdown>

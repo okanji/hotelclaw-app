@@ -188,18 +188,18 @@ function Column({
             color ? DOT[color] : "bg-muted-foreground/40",
           )}
         />
-        <h3 className="text-sm font-medium tracking-tight text-foreground">
+        <h3 className="text-sm font-medium text-foreground">
           {label}
         </h3>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-xs text-faint-foreground tabular-nums">
           {tasks.length}
         </span>
       </div>
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 rounded-lg p-1.5 transition-colors",
-          isOver ? "bg-muted/60 ring-1 ring-inset ring-foreground/10" : "bg-muted/20",
+          "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1.5 transition-colors",
+          isOver ? "bg-accent-pressed ring-1 ring-ring" : "bg-muted",
         )}
       >
         {tasks.map((t) => (

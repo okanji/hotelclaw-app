@@ -501,10 +501,10 @@ export function useTaskDetailMutations(
                 type="button"
                 onClick={() => setRelationKind(kind)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                   relationKind === kind
-                    ? "border-foreground/30 bg-muted text-foreground"
-                    : "border-border/60 text-muted-foreground hover:text-foreground",
+                    ? "bg-accent-pressed text-foreground"
+                    : "text-muted-foreground hover:bg-accent",
                 )}
               >
                 {label}
@@ -517,7 +517,7 @@ export function useTaskDetailMutations(
             onChange={(e) => setRelatedSearch(e.target.value)}
             autoFocus
           />
-          <div className="max-h-56 overflow-y-auto rounded-md border border-border/60">
+          <div className="max-h-56 overflow-y-auto rounded-md bg-muted">
             {relatedCandidates.length === 0 ? (
               <p className="px-3 py-4 text-center text-sm text-muted-foreground">
                 No tasks to link
@@ -527,7 +527,7 @@ export function useTaskDetailMutations(
                 <button
                   key={t.id}
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-foreground/[0.06]"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
                   onClick={() => commitRelation(t.id)}
                 >
                   <StatusIcon status={t.status} className="size-3.5" />
@@ -544,7 +544,7 @@ export function useTaskDetailMutations(
           <DialogHeader>
             <DialogTitle>Link document</DialogTitle>
           </DialogHeader>
-          <div className="max-h-56 overflow-y-auto rounded-md border border-border/60">
+          <div className="max-h-56 overflow-y-auto rounded-md bg-muted">
             {documentCandidates.length === 0 ? (
               <p className="px-3 py-4 text-center text-sm text-muted-foreground">
                 {documents.length === 0
@@ -556,7 +556,7 @@ export function useTaskDetailMutations(
                 <button
                   key={doc.id}
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-foreground/[0.06]"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
                   onClick={() => commitDocument(doc.id)}
                 >
                   <FileText className="size-3.5 shrink-0 text-muted-foreground" />
@@ -608,9 +608,9 @@ export function useTaskDetailMutations(
               {meta.descriptionRevisions.map((rev) => (
                 <div
                   key={rev.id}
-                  className="rounded-md border border-border/60 p-3 text-sm"
+                  className="rounded-md bg-muted p-3 text-sm"
                 >
-                  <p className="mb-1 text-xs text-muted-foreground">
+                  <p className="mb-1 text-xs text-faint-foreground">
                     {formatRelative(rev.createdAt)}
                   </p>
                   <p className="whitespace-pre-wrap text-foreground">

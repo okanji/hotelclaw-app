@@ -30,6 +30,7 @@ import {
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { scopeKey, type InsightScope } from "@/lib/insights/scope";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 /**
  * Follow + alerts entry point in the Insights header. The popover sets the
@@ -98,9 +99,7 @@ export function InsightsFollowButton({
           }
         />
         <PopoverContent align="end" sideOffset={6} className="w-64 p-3">
-          <p className="mb-2 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            Email this lens
-          </p>
+          <Eyebrow className="mb-2">Email this lens</Eyebrow>
           <div className="flex flex-col gap-1">
             {(
               [
@@ -118,8 +117,8 @@ export function InsightsFollowButton({
                   disabled={setCadence.isPending}
                   onClick={() => setCadence.mutate(value)}
                   className={cn(
-                    "flex flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                    active && "bg-muted",
+                    "flex flex-col items-start rounded-md px-2.5 py-1.5 text-left transition-colors outline-none hover:bg-accent focus-visible:shadow-focus",
+                    active && "bg-accent-pressed",
                   )}
                 >
                   <span className="text-sm font-medium text-foreground">
@@ -286,10 +285,10 @@ function InsightsSubscriptionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-base font-medium tracking-tight">
+          <DialogTitle>
             Emails &amp; alerts
           </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Digests render the same brief you see on this page; alert rules
             check the same deterministic numbers, once a day, and fire when a
             threshold is newly crossed.
@@ -297,7 +296,7 @@ function InsightsSubscriptionsDialog({
         </DialogHeader>
 
         {prefs?.unsubscribedAt ? (
-          <div className="flex items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
+          <div className="flex items-center justify-between rounded-md bg-warning/10 px-3 py-2">
             <p className="text-sm text-foreground">
               You unsubscribed from all Hotelclaw emails.
             </p>
@@ -314,18 +313,16 @@ function InsightsSubscriptionsDialog({
 
         <div className="flex flex-col gap-5">
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              Followed lenses
-            </h3>
+            <Eyebrow>Followed lenses</Eyebrow>
             {follows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nothing followed yet — use the Follow button on any lens.
               </p>
             ) : (
-              <ul className="flex flex-col divide-y divide-border/40">
+              <ul className="flex flex-col divide-y divide-border">
                 {follows.map((f) => (
-                  <li key={f.id} className="flex items-center gap-3 py-1.5">
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                  <li key={f.id} className="flex min-h-[34px] items-center gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {lensLabel(f.scope)}
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -346,14 +343,12 @@ function InsightsSubscriptionsDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              Alert rules
-            </h3>
+            <Eyebrow>Alert rules</Eyebrow>
             {rules.length > 0 ? (
-              <ul className="flex flex-col divide-y divide-border/40">
+              <ul className="flex flex-col divide-y divide-border">
                 {rules.map((r) => (
-                  <li key={r.id} className="flex items-center gap-3 py-1.5">
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                  <li key={r.id} className="flex min-h-[34px] items-center gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {METRIC_LABEL[r.metric]}
                       {r.threshold !== null ? ` > ${r.threshold}` : ""}
                       <span className="text-muted-foreground">
@@ -365,10 +360,10 @@ function InsightsSubscriptionsDialog({
                       type="button"
                       onClick={() => void toggleRule(r)}
                       className={cn(
-                        "rounded-full border px-2 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        "rounded-md px-2 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:shadow-focus",
                         r.enabled
-                          ? "border-success/40 text-success"
-                          : "border-border text-muted-foreground",
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground",
                       )}
                     >
                       {r.enabled ? "On" : "Off"}
@@ -425,7 +420,7 @@ function InsightsSubscriptionsDialog({
                     max={999}
                     value={newThreshold}
                     onChange={(e) => setNewThreshold(Number(e.target.value))}
-                    className="h-8 w-16 rounded-md border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="h-7 w-16 rounded-md bg-transparent px-2 text-sm text-foreground shadow-ring outline-none transition-[background-color,box-shadow] focus-visible:shadow-focus dark:bg-muted"
                   />
                 </label>
               ) : null}
@@ -447,9 +442,7 @@ function InsightsSubscriptionsDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              Email switches
-            </h3>
+            <Eyebrow>Email switches</Eyebrow>
             <div className="flex flex-col gap-1.5">
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input

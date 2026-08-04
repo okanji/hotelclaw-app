@@ -77,7 +77,7 @@ export function ScheduleTriggerConfig({
                         "h-8 w-10 rounded-md border text-sm font-medium transition-colors",
                         on
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-input text-muted-foreground hover:bg-muted",
+                          : "border-input text-muted-foreground hover:bg-accent",
                       )}
                     >
                       {d}
@@ -150,7 +150,7 @@ export function ScheduleTriggerConfig({
               />
               <Hint>
                 Advanced: standard 5-field cron, e.g.{" "}
-                <code className="rounded bg-muted px-1 py-0.5 text-xs">0 9 * * 1</code>{" "}
+                <code className="rounded-md bg-muted px-1 py-0.5 text-xs">0 9 * * 1</code>{" "}
                 for Mondays at 9:00.
               </Hint>
             </Field>
@@ -173,7 +173,7 @@ export function ScheduleTriggerConfig({
 
           {/* Plain-English preview */}
           {parsed.freq !== "custom" ? (
-            <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground/85">
+            <p className="rounded-md bg-muted px-3 py-2 text-sm text-foreground/85">
               Runs {describeSchedule(parsed)}{" "}
               <span className="text-muted-foreground">({timezone.replace(/_/g, " ")})</span>.
             </p>

@@ -66,7 +66,7 @@ export function SpaceMembersPanel({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm tracking-tight text-muted-foreground tabular-nums">
+        <span className="text-sm text-muted-foreground tabular-nums">
           {roster.length} {roster.length === 1 ? "member" : "members"}
         </span>
         <Popover>
@@ -89,7 +89,7 @@ export function SpaceMembersPanel({
             </div>
             <ul className="mt-1.5 max-h-56 overflow-y-auto">
               {candidates.length === 0 ? (
-                <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+                <li className="px-2 py-3 text-center text-xs text-faint-foreground">
                   Everyone&apos;s already here
                 </li>
               ) : (
@@ -98,17 +98,17 @@ export function SpaceMembersPanel({
                     <button
                       type="button"
                       onClick={() => void add(p.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                     >
                       <Avatar className="size-6">
                         {p.avatarUrl ? (
                           <AvatarImage src={p.avatarUrl} alt="" />
                         ) : null}
-                        <AvatarFallback className="text-[0.5625rem]">
+                        <AvatarFallback className="text-xs">
                           {initials(p.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="min-w-0 flex-1 truncate tracking-tight">
+                      <span className="min-w-0 flex-1 truncate">
                         {p.name ?? "Unnamed"}
                       </span>
                     </button>
@@ -127,7 +127,7 @@ export function SpaceMembersPanel({
       ) : (
         <ul
           role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+          className="flex flex-col divide-y divide-border border-t border-border"
         >
           {roster.map((p) => (
             <li
@@ -136,14 +136,14 @@ export function SpaceMembersPanel({
             >
               <Avatar className="size-7">
                 {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-                <AvatarFallback className="text-[0.625rem]">
+                <AvatarFallback className="text-xs">
                   {initials(p.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {p.name ?? "Unnamed"}
               </span>
-              <span className="shrink-0 text-xs tracking-tight text-muted-foreground capitalize">
+              <span className="shrink-0 text-xs text-faint-foreground capitalize">
                 {p.role}
               </span>
               <Button

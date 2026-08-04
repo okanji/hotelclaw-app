@@ -173,7 +173,7 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
           </p>
         ) : shown.length === 0 ? (
           <div className="px-8 pt-10 sm:px-14">
-            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-16 text-center">
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <p className="text-sm text-muted-foreground">
                 {spaceName
                   ? `No projects involve ${spaceName} yet.`

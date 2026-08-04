@@ -61,7 +61,7 @@ export function MonthGrid({
         {cells.slice(0, 7).map((d) => (
           <div
             key={d.toDateString()}
-            className="px-2 py-1.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            className="px-2 py-1.5 text-right text-xs leading-3 font-medium text-faint-foreground"
           >
             {d.toLocaleDateString(undefined, { weekday: "short" })}
           </div>
@@ -83,10 +83,10 @@ export function MonthGrid({
             key={cell.toISOString()}
             onClick={() => onSelectDay(cell)}
             className={cn(
-              "flex min-h-24 cursor-pointer flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent/30",
-              !inMonth && "bg-muted/30 text-muted-foreground",
-              inMonth && isWeekend && "bg-muted/15",
-              isToday && "bg-primary/4",
+              "flex min-h-24 cursor-pointer flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent",
+              !inMonth && "bg-muted text-faint-foreground",
+              inMonth && isWeekend && "bg-muted",
+              isToday && "bg-accent",
             )}
           >
             <button
@@ -100,8 +100,8 @@ export function MonthGrid({
                 onSelectDay(cell);
               }}
               className={cn(
-                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
-                isToday && "bg-primary text-primary-foreground font-medium",
+                "ml-auto inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums focus-visible:shadow-focus focus-visible:outline-none",
+                isToday && "bg-primary font-medium text-primary-foreground",
               )}
             >
               {cell.getDate()}
@@ -116,7 +116,7 @@ export function MonthGrid({
                     onSelectEvent(ev);
                   }}
                   className={cn(
-                    "truncate rounded-sm px-1 py-0.5 text-left text-xs leading-tight focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    "truncate rounded-md px-1 py-0.5 text-left text-xs leading-tight transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
                     eventChipClass(ev),
                   )}
                 >
@@ -124,7 +124,7 @@ export function MonthGrid({
                 </button>
               ))}
               {overflow > 0 ? (
-                <span className="text-xs text-muted-foreground">
+                <span className="px-1 text-xs text-faint-foreground">
                   +{overflow} more
                 </span>
               ) : null}

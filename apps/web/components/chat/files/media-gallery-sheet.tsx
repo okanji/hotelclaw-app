@@ -123,7 +123,7 @@ function GalleryThumb({ hit }: { hit: FileHit }) {
     return (
       <div
         aria-label={label}
-        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground"
+        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground"
       >
         {hit.attachment.type === "video" ? "Video" : "Image"}
       </div>
@@ -136,7 +136,7 @@ function GalleryThumb({ hit }: { hit: FileHit }) {
       rel="noopener noreferrer"
       aria-label={label}
       className={cn(
-        "block aspect-square w-full overflow-hidden rounded-md ring-1 ring-foreground/10",
+        "block aspect-square w-full overflow-hidden rounded-md shadow-ring",
         "transition hover:ring-foreground/30",
       )}
     >

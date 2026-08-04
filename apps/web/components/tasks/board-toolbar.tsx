@@ -155,7 +155,7 @@ export function BoardToolbar({
       <div className="ml-auto flex items-center gap-1">
         {/* Visible / total hint — only when filters are actively narrowing. */}
         {(activeFilterCount > 0 || filters.search.length > 0) && total > 0 ? (
-          <span className="mr-1 hidden text-xs text-muted-foreground tabular-nums sm:inline">
+          <span className="mr-1 hidden text-xs text-faint-foreground tabular-nums sm:inline">
             {visible} of {total}
           </span>
         ) : null}
@@ -217,10 +217,10 @@ export function BoardToolbar({
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             className={cn(
-              "h-7 w-44 rounded-md border border-border/60 bg-transparent pr-7 pl-7 text-xs",
-              "placeholder:text-muted-foreground/70",
-              "transition-colors hover:border-border",
-              "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
+              "h-7 w-44 rounded-md bg-accent pr-7 pl-7 text-xs shadow-none",
+              "placeholder:text-faint-foreground",
+              "transition-colors",
+              "focus-visible:shadow-focus focus-visible:outline-none",
               "[&::-webkit-search-cancel-button]:hidden",
             )}
           />
@@ -229,14 +229,14 @@ export function BoardToolbar({
               type="button"
               aria-label="Clear search"
               onClick={() => onChange({ ...filters, search: "" })}
-              className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-accent"
             >
               <X className="size-3.5" />
             </button>
           ) : (
             <kbd
               aria-hidden
-              className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded border border-border/60 bg-muted/40 px-1 font-sans text-[0.625rem] text-muted-foreground"
+              className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md px-1 font-sans text-xs text-faint-foreground"
             >
               /
             </kbd>
@@ -334,7 +334,7 @@ function SortMenu({
               >
                 <span className="flex-1">{SORT_LABELS[key]}</span>
                 {selected && filters.sortKeys.length > 1 ? (
-                  <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                  <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-faint-foreground">
                     {index + 1}
                   </span>
                 ) : null}
@@ -359,8 +359,8 @@ function PopoverSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-border/60 py-1.5 last:border-b-0">
-      <div className="px-2.5 pt-0.5 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="border-b border-border py-1.5 last:border-b-0">
+      <div className="px-2.5 pt-0.5 pb-1 text-xs/[1] font-medium text-faint-foreground">
         {label}
       </div>
       <div className="flex flex-col gap-px px-1">{children}</div>
@@ -383,8 +383,8 @@ function PopoverRow({
       onClick={onClick}
       className={cn(
         "flex h-7 items-center gap-2 rounded-md px-1.5 text-left text-sm transition-colors",
-        "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none",
-        selected ? "text-foreground" : "text-foreground/90",
+        "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
+        selected ? "text-foreground" : "text-secondary-ink",
       )}
     >
       {children}
@@ -399,8 +399,8 @@ function PopoverRow({
 
 const TOOLBAR_ICON_BUTTON = cn(
   "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors",
-  "hover:bg-foreground/[0.06] hover:text-foreground",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-  "aria-expanded:bg-foreground/[0.06] aria-expanded:text-foreground",
-  "data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground",
+  "hover:bg-accent",
+  "focus-visible:outline-none focus-visible:shadow-focus",
+  "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
+  "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
 );

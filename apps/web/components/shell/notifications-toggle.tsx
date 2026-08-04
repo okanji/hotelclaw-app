@@ -30,10 +30,16 @@ export function NotificationsToggle() {
     });
   }
 
+  // Same row shape as its ThemeToggle / TimeFormatToggle neighbours in the
+  // account menu: a noun label with the current state as a right-aligned
+  // 12px faint hint, rather than a verb that restates the action.
   return (
     <DropdownMenuItem onClick={toggle}>
       {enabled ? <Bell className="size-4" /> : <BellOff className="size-4" />}
-      {enabled ? "Disable notifications" : "Enable notifications"}
+      Notifications
+      <span className="ml-auto text-xs font-normal text-faint-foreground">
+        {enabled ? "On" : "Off"}
+      </span>
     </DropdownMenuItem>
   );
 }

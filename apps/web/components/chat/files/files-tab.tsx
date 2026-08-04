@@ -117,7 +117,7 @@ export function FilesTab() {
             [0, 1, 2, 3].map((i) => (
               <li
                 key={i}
-                className="flex items-center gap-3 border-b border-border/60 px-1 py-2.5 last:border-0"
+                className="flex items-center gap-3 border-b border-border px-1 py-2.5 last:border-0"
               >
                 <Skeleton className="size-10 shrink-0 rounded-md" />
                 <div className="flex-1 space-y-1.5">
@@ -141,7 +141,7 @@ export function FilesTab() {
             type="button"
             onClick={() => docs.fetchNextPage()}
             disabled={docs.isFetchingNextPage}
-            className="mt-2 self-center rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-foreground/[0.04] disabled:opacity-50"
+            className="mt-2 self-center rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"
           >
             {docs.isFetchingNextPage ? "Loading…" : "Load more"}
           </button>
@@ -160,7 +160,7 @@ function MediaThumb({ hit }: { hit: FileHit }) {
     return (
       <div
         aria-label={label}
-        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground"
+        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground"
       >
         {hit.attachment.type === "video" ? "Video" : "Image"}
       </div>
@@ -172,7 +172,7 @@ function MediaThumb({ hit }: { hit: FileHit }) {
       src={url}
       alt={label}
       loading="lazy"
-      className="aspect-square w-full rounded-md object-cover ring-1 ring-foreground/10"
+      className="aspect-square w-full rounded-md object-cover shadow-ring"
     />
   );
 }
@@ -186,16 +186,16 @@ function DocRow({ hit }: { hit: FileHit }) {
   const glyph = glyphFor(a);
 
   return (
-    <li className="group/file-row relative flex items-center gap-3 border-b border-border/60 px-1 py-2.5 last:border-0 hover:bg-foreground/[0.04]">
+    <li className="group/file-row relative flex items-center gap-3 border-b border-border px-1 py-2.5 last:border-0 hover:bg-accent">
       <span
         aria-hidden
-        className="grid size-10 shrink-0 place-items-center rounded-md text-[10px] font-semibold"
+        className="grid size-10 shrink-0 place-items-center rounded-md text-xs font-semibold"
         style={{ background: glyph.bg, color: glyph.fg }}
       >
         {glyph.label}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
+        <span className="block truncate text-sm font-medium text-foreground">
           {name}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ function DocRow({ hit }: { hit: FileHit }) {
       {/* Hover-revealed actions, Slack-style. */}
       <span
         className={cn(
-          "absolute top-1/2 right-2 hidden -translate-y-1/2 items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-0.5 shadow-sm",
+          "absolute top-1/2 right-2 hidden -translate-y-1/2 items-center gap-1 rounded-md bg-popover px-1.5 py-0.5",
           "group-hover/file-row:flex group-focus-within/file-row:flex",
         )}
       >
@@ -216,7 +216,7 @@ function DocRow({ hit }: { hit: FileHit }) {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-foreground hover:bg-foreground/[0.06]"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-foreground hover:bg-accent"
             aria-label="Preview file"
           >
             <Eye className="size-3.5" />
@@ -225,7 +225,7 @@ function DocRow({ hit }: { hit: FileHit }) {
         ) : null}
         <button
           type="button"
-          className="inline-flex size-7 items-center justify-center rounded text-foreground hover:bg-foreground/[0.06]"
+          className="inline-flex size-7 items-center justify-center rounded-md text-foreground hover:bg-accent"
           aria-label="Share file"
           onClick={() => {
             if (url) void navigator.clipboard?.writeText(url);
@@ -235,7 +235,7 @@ function DocRow({ hit }: { hit: FileHit }) {
         </button>
         <button
           type="button"
-          className="inline-flex size-7 items-center justify-center rounded text-foreground hover:bg-foreground/[0.06]"
+          className="inline-flex size-7 items-center justify-center rounded-md text-foreground hover:bg-accent"
           aria-label="More actions"
         >
           <MoreVertical className="size-3.5" />

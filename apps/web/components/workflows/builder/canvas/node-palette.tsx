@@ -50,7 +50,7 @@ export function NodePalette({
             placeholder="Add a step…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-7 w-full rounded-sm border-0 bg-secondary pl-7 pr-2 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+            className="h-7 w-full rounded-sm border-0 bg-secondary pl-7 pr-2 text-xs outline-none focus-visible:shadow-focus focus:ring-primary/40"
           />
         </div>
       </div>
@@ -62,7 +62,7 @@ export function NodePalette({
         )}
         {grouped.map(([surface, items]) => (
           <li key={surface} className="mb-1">
-            <div className="px-2 pt-1 pb-0.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <div className="px-2 pt-1 pb-0.5 text-xs font-medium text-faint-foreground">
               {surface}
             </div>
             <ul>
@@ -74,7 +74,7 @@ export function NodePalette({
                     draggable
                     onDragStart={(e) => onDragStart(s.id, e)}
                     className={cn(
-                      "group flex w-full cursor-grab items-center gap-2 rounded-sm px-2 py-1 text-left text-xs hover:bg-secondary",
+                      "group flex w-full cursor-grab items-center gap-2 rounded-sm px-2 py-1 text-left text-xs hover:bg-accent",
                       "active:cursor-grabbing",
                     )}
                     title={s.description}

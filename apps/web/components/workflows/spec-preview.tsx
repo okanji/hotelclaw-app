@@ -41,12 +41,12 @@ export function WorkflowSpecPreview({
   return (
     <div className={cn("flex flex-col", className)}>
       {/* Trigger — visually distinct from action steps: violet accent + kicker. */}
-      <div className="flex items-start gap-3 rounded-lg border border-violet-200/80 bg-violet-50/60 px-3.5 py-2.5 dark:border-violet-900/60 dark:bg-violet-950/30">
-        <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-violet-100 text-violet-600 dark:bg-violet-900/60 dark:text-violet-300">
+      <div className="flex items-start gap-3 rounded-md bg-muted px-3.5 py-2.5">
+        <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400">
           <Zap className="size-3.5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-violet-600 uppercase dark:text-violet-300">
+          <p className="text-xs font-medium text-faint-foreground">
             When
           </p>
           <p className="text-sm font-medium text-foreground">
@@ -67,7 +67,7 @@ export function WorkflowSpecPreview({
           <Fragment key={step.id}>
             <Connector depth={depth} label={edgeLabel} />
             <div
-              className="flex items-start gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-2.5"
+              className="flex items-start gap-3 rounded-md bg-muted px-3.5 py-2.5"
               style={{ marginLeft: depth * 20 }}
             >
               <span className="mt-0.5 shrink-0">
@@ -94,7 +94,7 @@ export function WorkflowSpecPreview({
       {rows.length === 0 ? (
         <>
           <Connector depth={0} label={null} />
-          <div className="rounded-lg border border-dashed border-border/70 px-3.5 py-2.5 text-xs text-muted-foreground">
+          <div className="rounded-lg px-3.5 py-2.5 text-xs text-muted-foreground shadow-ring">
             No steps yet.
           </div>
         </>
@@ -116,7 +116,7 @@ function Connector({ depth, label }: { depth: number; label: string | null }) {
     >
       <span className="h-full w-px bg-border" />
       {label ? (
-        <span className="rounded-full border border-border/70 bg-muted/60 px-1.5 py-px text-xs font-medium text-muted-foreground">
+        <span className="rounded-md bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground">
           {label}
         </span>
       ) : null}

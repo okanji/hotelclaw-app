@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { COLUMNS, PRIORITY_META, STATUS_IDS, type Task } from "./kanban";
+import { StatusIcon } from "./task-icons";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { TaskStatus } from "@/lib/db/types";
@@ -18,10 +19,19 @@ type Props = {
 };
 
 const DAY_WIDTH = 44; // px per day
-const ROW_HEIGHT = 36; // px per task row
+const ROW_HEIGHT = 34; // px per task lane — the house data-row rhythm
+const BAR_HEIGHT = 20; // px — leaves a 7px gutter above/below in a 34px lane
 const LABEL_WIDTH = 256; // px for the left label pane
 const VISIBLE_DAYS = 28; // four-week window
-const HINT_HEIGHT = 28; // px for the "No date" / "Off window" summary rows
+const HINT_HEIGHT = 30; // px chrome row for the "No date" / "Off window" rows
+/**
+ * Status band height. 32px is `h-8` — the exact height list-view uses for its
+ * status group header, so the three task views share one band.
+ */
+const GROUP_HEIGHT = 32;
+const AXIS_MONTH_HEIGHT = 20; // month strip
+const AXIS_DAY_HEIGHT = 30; // day-tick strip — chrome row
+const AXIS_HEIGHT = AXIS_MONTH_HEIGHT + AXIS_DAY_HEIGHT;
 const MS_PER_DAY = 86_400_000;
 
 function startOfDay(d: Date) {
@@ -178,9 +188,9 @@ export function TimelineView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Nav row */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-1">
+      {/* Nav row — 36px, matching the board toolbar directly above it. */}
+      <div className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
+        <div className="flex items-center gap-0.5">
           <Button
             size="sm"
             variant="ghost"
@@ -208,7 +218,7 @@ export function TimelineView({
             Today
           </Button>
         </div>
-        <h2 className="text-sm font-medium text-foreground">
+        <h2 className="truncate text-sm font-medium text-foreground">
           {windowStart.toLocaleDateString(undefined, {
             month: "short",
             day: "numeric",
@@ -220,13 +230,13 @@ export function TimelineView({
             year: "numeric",
           })}
         </h2>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="hidden items-center gap-3 text-xs text-faint-foreground lg:flex">
           <span className="inline-flex items-center gap-1.5">
-            <span className="block h-1.5 w-4 rounded-full bg-blue-500/70" />
+            <span className="block h-1.5 w-4 rounded-full bg-info" />
             Scheduled range
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <Diamond className="size-3 fill-amber-500 text-amber-500" />
+            <Diamond className="size-3 fill-warning text-warning" />
             Due date
           </span>
         </div>
@@ -236,11 +246,14 @@ export function TimelineView({
       <div className="flex min-h-0 flex-1 overflow-auto">
         {/* Left label column */}
         <div
-          className="sticky left-0 z-20 shrink-0 border-r border-border bg-background/95 backdrop-blur"
+          className="sticky left-0 z-20 shrink-0 border-r border-border bg-card"
           style={{ width: LABEL_WIDTH }}
         >
-          {/* Header spacer to match the day-header row */}
-          <div className="sticky top-0 z-10 h-12 border-b border-border bg-background/95" />
+          {/* Header spacer to match the date axis */}
+          <div
+            className="sticky top-0 z-10 border-b border-border bg-card"
+            style={{ height: AXIS_HEIGHT }}
+          />
 
           {visibleStatuses.map((status) => {
             const col = COLUMNS.find((c) => c.id === status)!;
@@ -251,24 +264,29 @@ export function TimelineView({
             const offWindow = before.length + after.length;
             return (
               <div key={status}>
-                {/* h-7 (not py-*) so the border-box height matches the right
-                    pane's h-7 spacer exactly — padding here made the left
-                    header 29px and drifted the panes 1px per status section. */}
-                <header className="flex h-7 items-center gap-2 border-b border-border bg-muted/30 px-3">
-                  <span className={cn("size-2 rounded-full", col.dotClass)} />
-                  <h3 className="text-xs font-semibold text-foreground">
+                {/* One group-header voice across list / kanban / timeline:
+                    StatusIcon + 14px/500 foreground label + faint count on a
+                    muted band. Height comes from GROUP_HEIGHT (not padding)
+                    so the border-box matches the right pane's spacer exactly
+                    — padding here drifted the panes 1px per status section. */}
+                <header
+                  className="flex items-center gap-2 border-b border-border bg-muted px-3"
+                  style={{ height: GROUP_HEIGHT }}
+                >
+                  <StatusIcon status={col.id} className="size-3.5" />
+                  <h3 className="truncate text-sm font-medium text-foreground">
                     {col.label}
                   </h3>
-                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                  <span className="ml-auto text-xs tabular-nums text-faint-foreground">
                     {rows.length + offRows.length + offWindow}
                   </span>
                 </header>
                 {rows.length === 0 && offRows.length === 0 && offWindow === 0 ? (
                   <div
-                    className="border-b border-border/40 px-3 text-xs text-muted-foreground/70"
-                    style={{ lineHeight: `${ROW_HEIGHT}px`, height: ROW_HEIGHT }}
+                    className="flex items-center border-b border-border px-3 text-xs text-faint-foreground"
+                    style={{ height: ROW_HEIGHT }}
                   >
-                    —
+                    Nothing scheduled
                   </div>
                 ) : (
                   rows.map(({ row }) => (
@@ -286,20 +304,20 @@ export function TimelineView({
                 )}
                 {offRows.length > 0 ? (
                   <div
-                    className="flex items-center border-b border-border/40 px-3"
+                    className="flex items-center border-b border-border px-3"
                     style={{ height: HINT_HEIGHT }}
                   >
-                    <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+                    <p className="text-xs text-faint-foreground">
                       No date — {offRows.length}
                     </p>
                   </div>
                 ) : null}
                 {offWindow > 0 ? (
                   <div
-                    className="flex items-center border-b border-border/40 px-3"
+                    className="flex items-center border-b border-border px-3"
                     style={{ height: HINT_HEIGHT }}
                   >
-                    <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+                    <p className="text-xs text-faint-foreground">
                       Off window — {offWindow}
                     </p>
                   </div>
@@ -311,13 +329,14 @@ export function TimelineView({
 
         {/* Right timeline */}
         <div className="relative shrink-0" style={{ width: VISIBLE_DAYS * DAY_WIDTH }}>
-          {/* Day header */}
+          {/* Date axis */}
           <DayHeader days={days} todayOffset={todayOffset} />
 
           {/* Body grid + bars */}
           <div className="relative">
             {/* Background day grid — drawn once for the whole body so column
-                lines stay continuous across status sections */}
+                lines stay continuous across status sections. `--border` is
+                already a 7% warm hairline; it is not thinned further. */}
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden
@@ -326,8 +345,6 @@ export function TimelineView({
                   "repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px " +
                   DAY_WIDTH +
                   "px)",
-                backgroundSize: `${DAY_WIDTH * 7}px 100%`,
-                opacity: 0.3,
               }}
             />
             {/* Weekend tint */}
@@ -336,7 +353,7 @@ export function TimelineView({
                 <div
                   key={i}
                   aria-hidden
-                  className="pointer-events-none absolute top-0 bg-muted/40"
+                  className="pointer-events-none absolute top-0 bg-muted"
                   style={{
                     left: i * DAY_WIDTH,
                     width: DAY_WIDTH,
@@ -345,11 +362,11 @@ export function TimelineView({
                 />
               ) : null,
             )}
-            {/* Today line */}
+            {/* Today line — a 1px hairline, not a bar */}
             {todayOffset >= 0 && todayOffset < VISIBLE_DAYS ? (
               <div
                 aria-hidden
-                className="pointer-events-none absolute top-0 z-10 w-px bg-red-500/60"
+                className="pointer-events-none absolute top-0 z-10 w-px bg-destructive"
                 style={{
                   left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2,
                   height: "100%",
@@ -367,11 +384,20 @@ export function TimelineView({
               const sectionRows = Math.max(rows.length, 0);
               return (
                 <div key={status}>
-                  {/* Status header spacer to match left pane height (28px) */}
-                  <div className="h-7 border-b border-border bg-muted/20" />
+                  {/* Status band spacer. `bg-card` under an inset `bg-muted`
+                      layer reproduces the left pane's band exactly — the
+                      muted token is translucent, so painting it straight onto
+                      the grid/weekend tint made the two halves of the same
+                      band read as different fills. */}
+                  <div
+                    className="relative border-b border-border bg-card"
+                    style={{ height: GROUP_HEIGHT }}
+                  >
+                    <div aria-hidden className="absolute inset-0 bg-muted" />
+                  </div>
                   {sectionRows === 0 && offRows.length === 0 && offWindow === 0 ? (
                     <div
-                      className="border-b border-border/40"
+                      className="border-b border-border"
                       style={{ height: ROW_HEIGHT }}
                     />
                   ) : (
@@ -385,17 +411,17 @@ export function TimelineView({
                   )}
                   {offRows.length > 0 ? (
                     <div
-                      className="flex items-center border-b border-border/40 px-3"
+                      className="flex items-center border-b border-border px-3"
                       style={{ height: HINT_HEIGHT }}
                     >
-                      <p className="text-[10px] text-muted-foreground/70">
+                      <p className="text-xs text-faint-foreground">
                         Add a due date to plot here
                       </p>
                     </div>
                   ) : null}
                   {offWindow > 0 ? (
                     <div
-                      className="relative flex items-center gap-2 border-b border-border/40 px-3"
+                      className="relative flex items-center gap-1 border-b border-border px-2"
                       style={{ height: HINT_HEIGHT }}
                     >
                       {before.length > 0 ? (
@@ -405,9 +431,9 @@ export function TimelineView({
                             const d = placedByStatus.nearest(before, "before");
                             if (d) setAnchor(startOfWeek(d));
                           }}
-                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
                         >
-                          <ChevronLeft className="size-3" />
+                          <ChevronLeft className="size-3.5" />
                           {before.length} earlier
                         </button>
                       ) : null}
@@ -418,10 +444,10 @@ export function TimelineView({
                             const d = placedByStatus.nearest(after, "after");
                             if (d) setAnchor(startOfWeek(d));
                           }}
-                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
                         >
                           {after.length} later
-                          <ChevronRight className="size-3" />
+                          <ChevronRight className="size-3.5" />
                         </button>
                       ) : null}
                     </div>
@@ -463,47 +489,50 @@ function DayHeader({
   }
 
   return (
-    <div className="sticky top-0 z-10 h-12 border-b border-border bg-background/95 backdrop-blur">
-      <div className="relative h-5 border-b border-border/40">
+    <div
+      className="sticky top-0 z-10 border-b border-border bg-card"
+      style={{ height: AXIS_HEIGHT }}
+    >
+      <div
+        className="relative border-b border-border"
+        style={{ height: AXIS_MONTH_HEIGHT }}
+      >
         {months.map((m) => (
           <span
             key={m.start}
-            className="absolute top-0 truncate px-2 text-xs font-semibold tracking-wide text-foreground"
+            className="absolute top-0 truncate px-2 text-xs font-medium text-faint-foreground"
             style={{
               left: m.start * DAY_WIDTH,
               width: m.span * DAY_WIDTH,
-              lineHeight: "20px",
+              lineHeight: `${AXIS_MONTH_HEIGHT}px`,
             }}
           >
             {m.label}
           </span>
         ))}
       </div>
-      <div className="relative h-7">
+      <div className="relative" style={{ height: AXIS_DAY_HEIGHT }}>
         {days.map((d, i) => {
           const isToday = i === todayOffset;
-          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
           return (
             <div
               key={i}
               className={cn(
-                "absolute top-0 flex h-7 flex-col items-center justify-center text-[10px]",
-                isWeekend ? "text-muted-foreground/60" : "text-muted-foreground",
-                isToday && "text-red-600 dark:text-red-400",
+                // 12px faint ticks on one line — the today column is marked
+                // by ink plus the hairline today-line, not a filled disc.
+                "absolute top-0 flex items-center justify-center gap-1 text-xs tabular-nums text-faint-foreground",
+                isToday && "font-medium text-destructive",
               )}
-              style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+              style={{
+                left: i * DAY_WIDTH,
+                width: DAY_WIDTH,
+                height: AXIS_DAY_HEIGHT,
+              }}
             >
-              <span className="leading-none">
+              <span>
                 {d.toLocaleDateString(undefined, { weekday: "narrow" })}
               </span>
-              <span
-                className={cn(
-                  "mt-0.5 grid size-5 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday && "bg-red-500 text-white",
-                )}
-              >
-                {d.getDate()}
-              </span>
+              <span>{d.getDate()}</span>
             </div>
           );
         })}
@@ -526,10 +555,10 @@ function RowLabel({
     <button
       type="button"
       onClick={() => open(task.id)}
-      className="flex w-full items-center gap-2 border-b border-border/40 px-3 text-left hover:bg-muted/40"
+      className="flex w-full items-center gap-3 border-b border-border px-3 py-1.5 text-left hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
       style={{ height: ROW_HEIGHT }}
     >
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
         {task.title}
       </span>
       {task.assignee_id ? (
@@ -537,7 +566,7 @@ function RowLabel({
           {assignee?.avatar ? (
             <AvatarImage src={assignee.avatar} alt={assignee.name} />
           ) : null}
-          <AvatarFallback className="bg-muted text-[9px] font-medium text-foreground">
+          <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
             {initials(assignee?.name ?? "??")}
           </AvatarFallback>
         </Avatar>
@@ -557,7 +586,7 @@ function TimelineRow({
   const priority = PRIORITY_META[item.task.priority];
   return (
     <div
-      className="relative border-b border-border/40"
+      className="relative border-b border-border"
       style={{ height: ROW_HEIGHT }}
     >
       {item.kind === "bar" ? (
@@ -566,19 +595,22 @@ function TimelineRow({
           title={`${item.task.title} — ${priority.label}`}
           onClick={() => open(item.task.id)}
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 truncate rounded-md px-2 text-left text-xs font-medium text-white shadow-sm hover:ring-2 hover:ring-white/30",
-            // Priority-tinted bar — stripe colors translated to bg.
-            item.task.priority === "urgent" && "bg-red-500",
-            item.task.priority === "high" && "bg-amber-500",
-            item.task.priority === "medium" && "bg-blue-500/85",
-            item.task.priority === "low" && "bg-zinc-500/85",
+            // Hover is a fill-strength change only — no ring, no lift, no
+            // border change. The blue focus shadow is the focus signal.
+            "absolute top-1/2 -translate-y-1/2 truncate rounded-md px-2 text-left text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus",
+            // Semantic ramp — priority is the only signal this view carries
+            // for a bar (the lanes are already grouped by status).
+            item.task.priority === "urgent" && "bg-destructive",
+            item.task.priority === "high" && "bg-warning",
+            item.task.priority === "medium" && "bg-info",
+            item.task.priority === "low" && "bg-muted-foreground",
             item.task.status === "done" && "opacity-60",
           )}
           style={{
             left: item.startDay * DAY_WIDTH + 2,
             width: Math.max((item.endDay - item.startDay + 1) * DAY_WIDTH - 4, DAY_WIDTH - 4),
-            height: ROW_HEIGHT - 14,
-            lineHeight: `${ROW_HEIGHT - 14}px`,
+            height: BAR_HEIGHT,
+            lineHeight: `${BAR_HEIGHT}px`,
           }}
         >
           {item.task.title}
@@ -588,17 +620,17 @@ function TimelineRow({
           type="button"
           title={`${item.task.title} — due`}
           onClick={() => open(item.task.id)}
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-110"
+          className="absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-md hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
           style={{ left: item.day * DAY_WIDTH + DAY_WIDTH / 2 }}
           aria-label={`${item.task.title}, due milestone`}
         >
           <Diamond
             className={cn(
               "size-4",
-              item.task.priority === "urgent" && "fill-red-500 text-red-500",
-              item.task.priority === "high" && "fill-amber-500 text-amber-500",
-              item.task.priority === "medium" && "fill-blue-500 text-blue-500",
-              item.task.priority === "low" && "fill-zinc-500 text-zinc-500",
+              item.task.priority === "urgent" && "fill-destructive text-destructive",
+              item.task.priority === "high" && "fill-warning text-warning",
+              item.task.priority === "medium" && "fill-info text-info",
+              item.task.priority === "low" && "fill-muted-foreground text-muted-foreground",
               item.task.status === "done" && "opacity-50",
             )}
           />

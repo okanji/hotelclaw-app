@@ -47,7 +47,7 @@ export function DocumentComposer(props: ComposerProps) {
  */
 export function PopoverHeader({ onClose }: { onClose: (() => void) | null }) {
   return (
-    <div className="flex items-center justify-end gap-2 border-b border-border bg-muted/40 px-2 py-1">
+    <div className="flex items-center justify-end gap-2 border-b border-border px-2 py-1">
       {onClose ? (
         <button
           type="button"
@@ -57,8 +57,8 @@ export function PopoverHeader({ onClose }: { onClose: (() => void) | null }) {
           className={cn(
             "inline-flex size-6 items-center justify-center rounded-md",
             "text-muted-foreground transition-colors",
-            "hover:bg-accent hover:text-accent-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "hover:bg-accent",
+            "focus-visible:outline-none focus-visible:shadow-focus",
           )}
         >
           <X className="size-3.5" />

@@ -49,15 +49,17 @@ export function UserMenu({ user }: { user: User }) {
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "flex size-10 items-center justify-center rounded-lg outline-hidden transition-colors",
-            // Always-dark rail — white-on-dark, independent of theme.
-            "text-white/70 hover:bg-white/10 hover:text-white",
-            "focus-visible:ring-2 focus-visible:ring-white/30",
+            "flex size-9 items-center justify-center rounded-md outline-none transition-[background-color]",
+            // The rail scopes `dark` + remaps --sidebar to --rail, so the
+            // sidebar tokens resolve to the rail's own warm dark plane —
+            // no hardcoded white alphas needed.
+            "text-sidebar-foreground hover:bg-sidebar-accent",
+            "focus-visible:shadow-focus",
           )}
           title={displayName}
           aria-label={`Account menu for ${displayName}`}
         >
-          <Avatar className="size-7">
+          <Avatar className="size-6">
             <AvatarImage src={user.avatarUrl ?? undefined} />
             <AvatarFallback className="text-xs">
               {initials || "?"}
@@ -66,7 +68,11 @@ export function UserMenu({ user }: { user: User }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="end" className="min-w-56">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+            {/* The account name is a heading, not a section label — 14px
+                primary ink, not the 12px faint rung menus use for groups. */}
+            <DropdownMenuLabel className="truncate text-sm font-medium text-foreground">
+              {displayName}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setProfileOpen(true)}>
               <UserCog className="size-4" />

@@ -40,10 +40,9 @@ function formatRelative(date: Date): string {
   return rtf.format(Math.round(day / 365), "year");
 }
 
-// Small square-rounded avatar in the reply indicator. Slack uses a *tighter*
-// corner radius here than on full-size message avatars — keeping the same 8px
-// as the 36px avatar looks too round at 24px. Hardcoded 3px instead of pulling
-// from --slack-avatar-radius.
+// Small square-rounded avatar in the reply indicator. Uses the 6px control
+// rung (`rounded-md`) like every other clickable surface — the old
+// `rounded-[5px]` was a one-off rung outside the two-value radius scale.
 function ParticipantAvatar({ user }: { user: UserResponse }) {
   const label = (user.name ?? user.id ?? "").trim();
   if (user.image) {
@@ -54,14 +53,14 @@ function ParticipantAvatar({ user }: { user: UserResponse }) {
         alt={label}
         width={24}
         height={24}
-        className="size-6 rounded-[5px] object-cover"
+        className="size-6 rounded-md object-cover"
       />
     );
   }
   return (
     <div
       aria-label={label || undefined}
-      className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-xs font-semibold text-muted-foreground"
+      className="flex size-6 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground"
     >
       {initialsFor(user.name, user.id)}
     </div>
@@ -70,7 +69,7 @@ function ParticipantAvatar({ user }: { user: UserResponse }) {
 
 function OverflowChip({ count }: { count: number }) {
   return (
-    <div className="flex size-6 items-center justify-center rounded-[5px] bg-muted text-xs font-semibold text-muted-foreground">
+    <div className="flex size-6 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground">
       +{count}
     </div>
   );
@@ -111,11 +110,12 @@ export function SlackReplyIndicator({
         // indicator stretches but doesn't span the full bubble). Chevron is
         // pushed to the trailing edge via `ml-auto`.
         "group/reply-indicator flex w-2/3 max-w-full items-center gap-2 rounded-md text-left",
-        "border border-transparent bg-transparent p-1",
-        "transition-colors duration-100",
-        "hover:border-border hover:bg-[var(--str-chat__background-core-surface-subtle,rgba(255,255,255,0.04))]",
-        "focus-visible:border-border focus-visible:bg-[var(--str-chat__background-core-surface-subtle,rgba(255,255,255,0.04))]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        "bg-transparent p-1",
+        // Hover is FILL ONLY, at the default 20ms (notion-spec §6). The old
+        // rule changed the border AND the background and used a raw rgba
+        // fallback for a Stream theme var — three violations in one line.
+        "transition-colors hover:bg-accent focus-visible:bg-accent",
+        "focus-visible:outline-none focus-visible:shadow-focus",
       )}
     >
       {visibleParticipants.length > 0 ? (

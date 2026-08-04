@@ -171,13 +171,13 @@ export function AiButton() {
         render={(triggerProps) => (
           <Button
             {...triggerProps}
-            variant="outline"
+            variant="ghost"
             size="default"
             title={
               botMember ? `AI replies: ${modeLabel}` : "Set up the AI assistant"
             }
             aria-label="AI assistant"
-            className="gap-1.5 bg-transparent px-2.5 dark:bg-transparent"
+            className="gap-1.5 px-2.5"
           >
             <Sparkles
               className={cn(
@@ -262,7 +262,7 @@ export function AiButton() {
         ) : (
           <>
             <div className="px-2 py-1.5">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <Sparkles className="size-3.5" />
                 {BOT_DISPLAY_NAME} AI
               </p>

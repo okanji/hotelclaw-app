@@ -225,7 +225,7 @@ export function ServiceDialog({
           </div>
 
           {/* Weekly hours */}
-          <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="space-y-2 rounded-md bg-muted p-3">
             <p className="text-sm font-medium">Weekly hours</p>
             <p className="text-xs text-muted-foreground">
               The booking window per day — the last start time is the end of
@@ -263,7 +263,7 @@ export function ServiceDialog({
                             },
                           })
                         }
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                        className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
                         aria-label={`${WEEKDAY_LABELS[day]} opens`}
                       />
                       <span className="text-xs text-muted-foreground">to</span>
@@ -278,7 +278,7 @@ export function ServiceDialog({
                             },
                           })
                         }
-                        className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                        className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
                         aria-label={`${WEEKDAY_LABELS[day]} last booking`}
                       />
                     </>
@@ -332,7 +332,7 @@ export function ServiceDialog({
 
           {/* Specific dates — one-off events and special hours. Overrides
               weekly for that date (an event = empty weekly + dated ranges). */}
-          <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="space-y-2 rounded-md bg-muted p-3">
             <p className="text-sm font-medium">
               {kind === "event" ? "Event dates" : "Special dates (optional)"}
             </p>
@@ -359,7 +359,7 @@ export function ServiceDialog({
                           },
                         })
                       }
-                      className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                      className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
                       aria-label={`${dateKey} opens`}
                     />
                     <span className="text-xs text-muted-foreground">to</span>
@@ -374,7 +374,7 @@ export function ServiceDialog({
                           },
                         })
                       }
-                      className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                      className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
                       aria-label={`${dateKey} last entry`}
                     />
                     <Button
@@ -397,7 +397,7 @@ export function ServiceDialog({
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
                 aria-label="Add a date"
               />
               <Button
@@ -502,7 +502,7 @@ export function ServiceDialog({
               type="checkbox"
               checked={publicBookable}
               onChange={(e) => setPublicBookable(e.target.checked)}
-              className="mt-0.5"
+              className="mt-0.5 accent-ring"
             />
             <span>
               Show on the public booking page
@@ -518,7 +518,7 @@ export function ServiceDialog({
               type="checkbox"
               checked={schedule.countPartySize}
               onChange={(e) => patchSchedule({ countPartySize: e.target.checked })}
-              className="mt-0.5"
+              className="mt-0.5 accent-ring"
             />
             <span>
               Party size consumes capacity
@@ -597,7 +597,7 @@ function NumberField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+      <Label>{label}</Label>
       <Input
         inputMode="numeric"
         value={String(value)}
@@ -605,7 +605,6 @@ function NumberField({
           const n = Number(e.target.value);
           if (Number.isFinite(n)) onChange(Math.max(0, Math.round(n)));
         }}
-        className="h-8 text-sm"
       />
     </div>
   );

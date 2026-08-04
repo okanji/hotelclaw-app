@@ -36,7 +36,7 @@ export const COLUMNS: {
   /** Soft WIP limit — column count badge turns amber over this. `null` = no limit. */
   wipLimit: number | null;
 }[] = [
-  { id: "todo", label: "To do", dotClass: "bg-zinc-400", wipLimit: null },
+  { id: "todo", label: "To do", dotClass: "bg-muted-foreground", wipLimit: null },
   { id: "in_progress", label: "In progress", dotClass: "bg-info", wipLimit: 5 },
   { id: "blocked", label: "Blocked", dotClass: "bg-warning", wipLimit: 3 },
   { id: "done", label: "Done", dotClass: "bg-success", wipLimit: null },
@@ -76,47 +76,47 @@ export const PRIORITY_META: Record<
   urgent: {
     label: "Urgent",
     rank: 3,
-    dotClass: "bg-red-500",
-    textClass: "text-red-600 dark:text-red-400",
-    barColorClass: "bg-red-500",
+    dotClass: "bg-destructive",
+    textClass: "text-destructive",
+    barColorClass: "bg-destructive",
     badgeClass:
-      "bg-red-500/10 text-red-600 ring-red-500/20 dark:text-red-400 dark:ring-red-500/30",
-    stripeClass: "before:bg-red-500",
+      "bg-destructive/10 text-destructive",
+    stripeClass: "before:bg-destructive",
     order: 0,
     shortcut: 1,
   },
   high: {
     label: "High",
     rank: 3,
-    dotClass: "bg-amber-500",
+    dotClass: "bg-warning",
     textClass: "text-foreground",
     barColorClass: "bg-foreground",
     badgeClass:
-      "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400 dark:ring-amber-500/30",
-    stripeClass: "before:bg-amber-500",
+      "bg-warning/10 text-warning",
+    stripeClass: "before:bg-warning",
     order: 1,
     shortcut: 2,
   },
   medium: {
     label: "Medium",
     rank: 2,
-    dotClass: "bg-blue-500",
+    dotClass: "bg-info",
     textClass: "text-foreground",
     barColorClass: "bg-foreground",
     badgeClass:
-      "bg-blue-500/10 text-blue-600 ring-blue-500/20 dark:text-blue-400 dark:ring-blue-500/30",
-    stripeClass: "before:bg-blue-500/70",
+      "bg-info/10 text-info",
+    stripeClass: "before:bg-info/70",
     order: 2,
     shortcut: 3,
   },
   low: {
     label: "Low",
     rank: 1,
-    dotClass: "bg-zinc-400",
+    dotClass: "bg-muted-foreground",
     textClass: "text-muted-foreground",
     barColorClass: "bg-foreground",
     badgeClass:
-      "bg-zinc-500/10 text-zinc-600 ring-zinc-500/15 dark:text-zinc-300 dark:ring-zinc-400/25",
+      "bg-muted text-muted-foreground",
     stripeClass: "before:bg-transparent",
     order: 3,
     shortcut: 4,
@@ -128,7 +128,7 @@ export const PRIORITY_META: Record<
     textClass: "text-muted-foreground",
     barColorClass: "bg-foreground/40",
     badgeClass:
-      "bg-transparent text-muted-foreground ring-border/60",
+      "bg-muted text-faint-foreground",
     stripeClass: "before:bg-transparent",
     order: 4,
     shortcut: 0,

@@ -339,7 +339,7 @@ export function EventDialog({
               type="checkbox"
               checked={allDay}
               onChange={(e) => setAllDay(e.target.checked)}
-              className="size-4 rounded border-input"
+              className="size-4 accent-ring"
             />
             All-day event
           </label>
@@ -388,7 +388,7 @@ export function EventDialog({
 
           <div className="space-y-2">
             <Label>Guests</Label>
-            <ul className="max-h-40 space-y-1 overflow-auto rounded-md border border-border p-2">
+            <ul role="list" className="max-h-40 space-y-px overflow-auto rounded-md bg-muted p-1">
               {(membersQuery.data ?? [])
                 .slice()
                 .sort((a, b) =>
@@ -406,10 +406,10 @@ export function EventDialog({
                         disabled={isOrganizer}
                         onClick={() => toggleAttendee(m.id)}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left text-sm transition-colors",
+                          "flex min-h-7 w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors focus-visible:shadow-focus focus-visible:outline-none",
                           on
-                            ? "bg-primary/10 text-primary"
-                            : "hover:bg-accent/50",
+                            ? "bg-accent-pressed text-foreground"
+                            : "text-muted-foreground hover:bg-accent",
                           isOrganizer && "cursor-default",
                         )}
                       >
@@ -424,7 +424,7 @@ export function EventDialog({
                           {isMe ? " (you)" : ""}
                         </span>
                         {isOrganizer ? (
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 text-xs text-faint-foreground">
                             Organizer
                           </span>
                         ) : null}
@@ -440,7 +440,7 @@ export function EventDialog({
               type="checkbox"
               checked={withVideoCall}
               onChange={(e) => setWithVideoCall(e.target.checked)}
-              className="size-4 rounded border-input"
+              className="size-4 accent-ring"
             />
             {withVideoCall ? (
               <Video className="size-4 text-primary" />
@@ -450,7 +450,7 @@ export function EventDialog({
             Add a Stream video call
           </label>
 
-          <DialogFooter className="-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end">
+          <DialogFooter>
             {editing ? (
               <Button
                 type="button"

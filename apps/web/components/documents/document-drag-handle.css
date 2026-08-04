@@ -19,8 +19,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  color: var(--muted-foreground);
+  border-radius: var(--radius);
+  color: var(--faint-foreground);
   background: transparent;
   cursor: grab;
   user-select: none;
@@ -28,7 +28,7 @@
   border: 0;
   padding: 0;
   z-index: 30;
-  transition: background-color 80ms ease, color 80ms ease;
+  transition: background-color 20ms ease-in;
 }
 
 /* ⋮⋮ glyph — two columns of three dots, drawn with letter-spacing. */
@@ -41,9 +41,9 @@
   transform: translateY(-1px);
 }
 
+/* Hover is a fill change only — the handle never flips ink (notion-spec §6). */
 .drag-handle:hover {
-  background: var(--muted);
-  color: var(--foreground);
+  background: var(--accent);
 }
 
 .drag-handle:active {
@@ -59,11 +59,12 @@
   pointer-events: none;
   user-select: none;
   opacity: 0.55;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--popover);
+  border-radius: var(--radius-overlay);
   padding: 4px 8px;
-  box-shadow: 0 6px 18px color-mix(in oklch, var(--foreground) 12%, transparent);
+  /* A drag overlay floats, so it takes the one house elevation recipe (the
+   * 1px warm ring is its last layer — hence no border). */
+  box-shadow: var(--overlay-shadow);
   z-index: 100;
   /* Cap height so a long block doesn't fill the viewport during drag. */
   max-height: 220px;
@@ -72,15 +73,15 @@
 
 /* ── Drop indicator (horizontal bar between blocks) ──────────────────────── */
 
+/* `--ring` is the Notion blue — the same colour Notion draws its block drop
+ * line in. A thin flat bar, no glow. */
 .block-drag-indicator {
   position: fixed;
   pointer-events: none;
-  height: 3px;
-  background: var(--primary);
-  border-radius: 2px;
+  height: 2px;
+  background: var(--ring);
+  border-radius: 1px;
   z-index: 99;
-  /* Match the slight pulse of a typical drop cursor. */
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 25%, transparent);
 }
 
 /* While a drag is in progress, use the grabbing cursor everywhere and
@@ -115,8 +116,8 @@ body.block-dragging .ProseMirror {
 }
 
 .ProseMirror table th {
-  background: color-mix(in oklch, var(--muted) 50%, transparent);
-  font-weight: 600;
+  background: var(--muted);
+  font-weight: 500;
   text-align: left;
 }
 
@@ -131,7 +132,7 @@ body.block-dragging .ProseMirror {
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  background: color-mix(in oklch, var(--ring) 12%, transparent);
   pointer-events: none;
   z-index: 2;
 }
@@ -144,7 +145,7 @@ body.block-dragging .ProseMirror {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: color-mix(in oklch, var(--primary) 60%, transparent);
+  background: color-mix(in oklch, var(--ring) 60%, transparent);
   pointer-events: none;
   z-index: 20;
 }
@@ -159,10 +160,10 @@ body.block-dragging .ProseMirror {
   background: #0d1117; /* matches github-dark theme's body */
   color: #c9d1d9;
   padding: 0.85rem 1rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
     monospace;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
   overflow-x: auto;
   margin: 0.75rem 0;

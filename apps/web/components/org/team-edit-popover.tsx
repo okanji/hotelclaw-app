@@ -78,7 +78,7 @@ export function TeamEditPopover({
       <PopoverContent align="end" className="w-64 p-3">
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-xs/[1] font-medium text-faint-foreground">
               Parent team
             </span>
             <NativeSelect
@@ -99,7 +99,7 @@ export function TeamEditPopover({
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-xs/[1] font-medium text-faint-foreground">
               Team lead
             </span>
             <NativeSelect

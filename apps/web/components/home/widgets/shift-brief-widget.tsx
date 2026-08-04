@@ -15,10 +15,11 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { createTask } from "@/components/tasks/actions";
 import { HandoverDialog } from "@/components/home/handover-dialog";
 import { AttentionList } from "@/components/insights/pulse-view";
-import { WidgetEmpty } from "../editorial-section";
+import { ROW_CLASS, WidgetEmpty } from "../editorial-section";
 import { shiftBriefQueryOptions } from "@/lib/query/insights-queries";
 import type {
   ShiftBriefActionItem,
@@ -131,9 +132,8 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       segmentRefs.current[segment] = el;
     },
     className: cn(
-      "flex flex-col gap-1.5 rounded-lg transition-all duration-300",
-      speakingSegment === segment &&
-        "bg-muted/50 px-3 py-2 ring-1 ring-border",
+      "flex flex-col gap-2 rounded-md",
+      speakingSegment === segment && "bg-muted px-3 py-2",
     ),
   });
 
@@ -165,7 +165,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       {summary ? (
         <div {...segmentProps("summary")}>
           <p className="flex max-w-[72ch] items-start gap-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
-            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-foreground/50" />
+            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
             <span>{summary}</span>
           </p>
         </div>
@@ -203,7 +203,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       {payload.unownedActionItems.length > 0 ? (
         <div {...segmentProps("unowned")}>
           <SubHeading>Commitments with no owner</SubHeading>
-          <ul className="flex flex-col divide-y divide-border/40">
+          <ul className="-mx-2 flex flex-col divide-y divide-border">
             {payload.unownedActionItems.map((item, i) => (
               <UnownedActionRow
                 key={`${item.meetingId}-${i}`}
@@ -218,7 +218,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
       {payload.spaceChanges.some(
         (s) => s.created + s.completed + s.blocked > 0,
       ) ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <SubHeading>Your teams</SubHeading>
           <ul className="flex flex-col gap-1">
             {payload.spaceChanges.map((s) => (
@@ -279,7 +279,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
         </Button>
         <Link
           href={`/p/${propertyId}/home/insights`}
-          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
           Open Insights →
         </Link>
@@ -295,11 +295,7 @@ export function ShiftBriefWidget({ propertyId }: { propertyId: string }) {
 }
 
 function SubHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-      {children}
-    </p>
-  );
+  return <Eyebrow>{children}</Eyebrow>;
 }
 
 function UnownedActionRow({
@@ -328,8 +324,8 @@ function UnownedActionRow({
   }
 
   return (
-    <li className="flex items-center gap-3 py-1.5">
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+    <li className={ROW_CLASS}>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
         {item.text}
         <span className="text-muted-foreground"> — {item.meetingTitle}</span>
       </span>

@@ -17,7 +17,7 @@ export function InboxSkeleton() {
           {Array.from({ length: 6 }).map((_, i) => (
             <li
               key={i}
-              className="flex gap-3 rounded-lg border border-border p-3"
+              className="flex gap-3 rounded-md bg-muted p-3"
             >
               <Skeleton className="size-9 shrink-0 rounded-lg" />
               <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">

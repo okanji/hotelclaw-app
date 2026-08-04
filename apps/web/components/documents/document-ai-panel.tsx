@@ -295,8 +295,8 @@ export const DocumentAiPanel = forwardRef<
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
       <div className="pointer-events-auto flex w-full max-w-2xl flex-col">
         {expanded && hasConversation ? (
-          <div className="mb-2 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-popover/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80">
-            <header className="flex items-center justify-between gap-2 border-b border-border/40 px-2 py-1.5">
+          <div className="mb-2 flex flex-col overflow-hidden rounded-overlay bg-popover shadow-overlay">
+            <header className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
               {/* Chat switcher */}
               <Popover open={chatsOpen} onOpenChange={setChatsOpen}>
                 <PopoverTrigger
@@ -304,11 +304,11 @@ export const DocumentAiPanel = forwardRef<
                     <button
                       {...props}
                       type="button"
-                      className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-foreground transition hover:bg-muted/50"
+                      className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                     >
-                      <Sparkles className="size-4 shrink-0 text-violet-500" />
+                      <Sparkles className="size-4 shrink-0 text-icon-accent" />
                       <span className="truncate">{activeTitle}</span>
-                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                      <ChevronDown className="size-3.5 shrink-0 text-faint-foreground" />
                     </button>
                   )}
                 />
@@ -321,41 +321,41 @@ export const DocumentAiPanel = forwardRef<
                   <button
                     type="button"
                     onClick={newChat}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+                    className="flex w-full items-center gap-2 rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] text-foreground transition-colors hover:bg-accent"
                   >
                     <MessageSquarePlus className="size-4" />
                     New chat
                   </button>
                   {chats.length > 0 ? (
-                    <div className="my-1 border-t border-border/50" />
+                    <div className="-mx-1 my-1 h-px bg-border" />
                   ) : null}
                   <div className="max-h-64 overflow-y-auto">
                     {chats.map((c) => (
                       <div
                         key={c.id}
                         className={cn(
-                          "group flex items-center gap-1 rounded-md pr-1 text-sm",
+                          "group flex items-center gap-1 rounded-md pr-1 text-sm transition-colors",
                           c.id === activeChatId
-                            ? "bg-accent/60"
-                            : "hover:bg-accent/40",
+                            ? "bg-accent-pressed"
+                            : "hover:bg-accent",
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => void selectChat(c.id)}
-                          className="flex min-w-0 flex-1 flex-col items-start px-2 py-1.5 text-left"
+                          className="flex min-w-0 flex-1 flex-col items-start px-1.5 py-[3px] text-left"
                         >
                           <span className="w-full truncate text-foreground">
                             {c.title ?? "Untitled chat"}
                           </span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-faint-foreground">
                             {formatWhen(c.updated_at)}
                           </span>
                         </button>
                         <button
                           type="button"
                           onClick={() => void deleteChat(c.id)}
-                          className="rounded p-1 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                          className="rounded-md p-1 text-faint-foreground opacity-0 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                           aria-label="Delete chat"
                           title="Delete chat"
                         >
@@ -371,7 +371,7 @@ export const DocumentAiPanel = forwardRef<
                 <button
                   type="button"
                   onClick={newChat}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
                   aria-label="New chat"
                   title="New chat"
                 >
@@ -380,7 +380,7 @@ export const DocumentAiPanel = forwardRef<
                 <button
                   type="button"
                   onClick={() => setExpanded(false)}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
                   aria-label="Collapse"
                   title="Collapse"
                 >
@@ -396,24 +396,24 @@ export const DocumentAiPanel = forwardRef<
                 <div
                   key={i}
                   className={cn(
-                    "rounded-md px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+                    "rounded-md px-3 py-2 text-sm leading-6 whitespace-pre-wrap",
                     t.role === "user"
-                      ? "ml-10 border border-border/60 bg-background text-foreground"
-                      : "mr-10 bg-foreground/[0.04] text-foreground",
+                      ? "ml-10 bg-accent text-foreground"
+                      : "mr-10 text-foreground",
                   )}
                 >
                   {t.content}
                   {t.role === "assistant" && t.edit ? (
-                    <div className="mt-2 flex items-center justify-between gap-1.5 border-t border-border/40 pt-2">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Sparkles className="size-3.5 text-violet-500" />
+                    <div className="mt-2 flex items-center justify-between gap-1.5 border-t border-border pt-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-faint-foreground">
+                        <Sparkles className="size-3.5 text-icon-accent" />
                         Changes highlighted in the doc — Accept or Reject above
                       </span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => applyEdit(t.edit!)}
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
                           title="Show these changes in the document again"
                         >
                           <CornerDownLeft className="size-3.5" />
@@ -422,7 +422,7 @@ export const DocumentAiPanel = forwardRef<
                         <button
                           type="button"
                           onClick={() => void copyEdit(t.edit!.html)}
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
                         >
                           <Copy className="size-3.5" />
                           Copy
@@ -433,7 +433,7 @@ export const DocumentAiPanel = forwardRef<
                 </div>
               ))}
               {busy ? (
-                <div className="mr-10 flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground">
+                <div className="mr-10 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground">
                   <Loader2 className="size-3.5 animate-spin" />
                   Thinking…
                 </div>
@@ -443,12 +443,12 @@ export const DocumentAiPanel = forwardRef<
         ) : null}
 
         <div
-          className="flex items-end gap-2 rounded-xl border border-border/60 bg-popover/95 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80"
+          className="flex items-end gap-2 rounded-overlay bg-popover p-2 shadow-overlay"
           onClick={() => {
             if (hasConversation && !expanded) setExpanded(true);
           }}
         >
-          <Sparkles className="ml-1 mb-1.5 size-4 shrink-0 text-muted-foreground" />
+          <Sparkles className="ml-1 mb-1.5 size-4 shrink-0 text-faint-foreground" />
           <textarea
             name="prompt"
             aria-label="Ask AI about this document"
@@ -465,7 +465,7 @@ export const DocumentAiPanel = forwardRef<
             }}
             placeholder="Ask AI to write, edit, or explain this document…"
             rows={1}
-            className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-faint-foreground focus:outline-none"
             disabled={busy}
           />
           <button
@@ -475,7 +475,7 @@ export const DocumentAiPanel = forwardRef<
               void send();
             }}
             disabled={busy || !input.trim()}
-            className="rounded-md bg-foreground p-1.5 text-background transition disabled:opacity-40"
+            className="rounded-md bg-primary p-1.5 text-primary-foreground transition-colors disabled:opacity-40"
             aria-label="Send"
           >
             {busy ? (

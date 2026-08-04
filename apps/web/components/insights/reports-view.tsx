@@ -106,7 +106,7 @@ export function ReportsView({ propertyId }: { propertyId: string }) {
           numbers these dashboards chart and writes the week up in a minute.
         </WidgetEmpty>
       ) : (
-        <div className="flex flex-col divide-y divide-border/40 border-t border-border/40">
+        <div className="-mx-2 flex flex-col divide-y divide-border border-t border-border">
           {reports.map((report, i) => (
             <ReportRow
               key={report.id}
@@ -138,7 +138,7 @@ function ReportRow({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 rounded-md px-1 py-2.5 text-left transition-colors hover:bg-muted/50"
+        className="flex min-h-[34px] w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
       >
         <FileText className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
@@ -150,12 +150,12 @@ function ReportRow({
             {report.anomalies.length === 1 ? "anomaly" : "anomalies"}
           </StatusBadge>
         ) : null}
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="shrink-0 text-xs text-faint-foreground">
           {open ? "Hide" : "Read"}
         </span>
       </button>
       {open ? (
-        <div className="px-1 pb-5">
+        <div className="px-2 pb-5">
           <ReportMarkdown>{report.summary_md}</ReportMarkdown>
         </div>
       ) : null}

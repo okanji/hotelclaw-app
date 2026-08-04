@@ -38,7 +38,10 @@ export function ConnectionStatus() {
       aria-live="polite"
       className={cn(
         "pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto w-fit",
-        "rounded-md bg-foreground/90 px-3 py-1.5 text-xs text-background shadow-md",
+        // Notion's tooltip slab: a CONSTANT dark chip on both planes (never
+        // bg-foreground, which inverts with the theme), 6px radius, 12px/400,
+        // 5px 8px padding, tooltip elevation. docs/notion-spec.md §5.
+        "rounded-md bg-tooltip-bg px-2 py-[5px] text-xs text-tooltip-foreground shadow-tooltip",
       )}
     >
       Reconnecting…

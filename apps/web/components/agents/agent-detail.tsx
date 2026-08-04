@@ -83,7 +83,7 @@ export function AgentDetail({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/60 px-6 py-4">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -96,7 +96,7 @@ export function AgentDetail({
           {config.avatarEmoji || "🤖"}
         </TintIcon>
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold tracking-tight">
+          <h1 className="truncate text-base font-semibold">
             {name}
           </h1>
           <p className="truncate text-xs text-muted-foreground">
@@ -130,10 +130,10 @@ export function AgentDetail({
             onConfigChange={patchConfig}
             documents={documents}
           />
-          <hr className="my-10 border-border/60" />
+          <hr className="my-10 border-border" />
           <ResolvedConfig config={config} status={status} brain={brain} />
         </div>
-        <div className="min-h-0 border-t border-border/60 lg:border-t-0 lg:border-l">
+        <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
           <AgentChat
             propertyId={agent.property_id}
             target={{ agentId: agent.id }}

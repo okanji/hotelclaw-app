@@ -22,7 +22,7 @@ export function StatusIcon({
       <svg
         aria-hidden
         viewBox="0 0 16 16"
-        className={cn(base, "text-muted-foreground/70", className)}
+        className={cn(base, "text-muted-foreground", className)}
       >
         <circle
           cx="8"
@@ -128,7 +128,7 @@ export function NoPriorityGlyph({
       <svg
         aria-hidden
         viewBox="0 0 16 16"
-        className={cn("size-5 shrink-0 text-muted-foreground/70", className)}
+        className={cn("size-5 shrink-0 text-muted-foreground", className)}
       >
         <circle
           cx="8"
@@ -211,7 +211,10 @@ export function PriorityBars({
         aria-label="Urgent priority"
         title="Urgent priority"
         className={cn(
-          "inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-sm bg-destructive text-[8px] font-semibold text-white",
+          // The "!" is drawn as a PICTOGRAM inside a 12px plate, sitting
+          // alongside the bar glyphs below — it is an icon path, not type, so
+          // the 12px text floor doesn't apply. `leading-none` keeps it centred.
+          "inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-md bg-destructive text-[8px] leading-none font-semibold text-white",
           className,
         )}
       >

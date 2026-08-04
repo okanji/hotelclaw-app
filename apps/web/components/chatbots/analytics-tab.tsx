@@ -80,7 +80,7 @@ export function AnalyticsTab({
       </div>
 
       {/* 14-day volume */}
-      <section className="rounded-lg border border-border p-4">
+      <section className="rounded-lg p-4 shadow-ring">
         <p className="mb-3 text-sm font-medium">Bot replies — last 14 days</p>
         {volume.length === 0 ? (
           <p className="text-xs text-muted-foreground">No traffic yet.</p>
@@ -100,7 +100,7 @@ export function AnalyticsTab({
 
       {/* Sentiment */}
       {sentimentTotal > 0 ? (
-        <section className="rounded-lg border border-border p-4">
+        <section className="rounded-lg p-4 shadow-ring">
           <p className="mb-3 text-sm font-medium">Guest sentiment</p>
           <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
             <span
@@ -124,7 +124,7 @@ export function AnalyticsTab({
       ) : null}
 
       {/* Topics */}
-      <section className="rounded-lg border border-border p-4">
+      <section className="rounded-lg p-4 shadow-ring">
         <p className="mb-1 text-sm font-medium">What guests ask about</p>
         <p className="mb-3 text-xs text-muted-foreground">
           Topics are labeled automatically once a conversation settles. A
@@ -136,7 +136,7 @@ export function AnalyticsTab({
             Nothing labeled yet — check back after a few conversations.
           </p>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className="divide-y divide-border">
             {topics.map((t) => {
               const negShare = t.count > 0 ? t.sentiment.negative / t.count : 0;
               return (
@@ -165,8 +165,8 @@ export function AnalyticsTab({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
+    <div className="rounded-lg p-3 shadow-ring">
+      <p className="text-2xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );

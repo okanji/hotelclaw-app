@@ -402,7 +402,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
           </SidebarGroupAction>
           <SidebarGroupContent>
             {!loaded ? null : roots.length === 0 ? (
-              <div className="px-2 py-1 text-xs text-muted-foreground">
+              <div className="px-2 py-1 text-xs text-faint-foreground">
                 No documents yet
               </div>
             ) : (
@@ -420,7 +420,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
                     size="sm"
                     onClick={() => setArchivedOpen(true)}
                     tooltip="Archived documents"
-                    className="text-sidebar-foreground/55 [&_svg]:!size-3.5 [&_svg]:!text-sidebar-foreground/55"
+                    className="text-faint-foreground [&_svg]:!size-3.5 [&_svg]:!text-faint-foreground"
                   >
                     <Archive />
                     <span>Archived</span>
@@ -439,7 +439,7 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
 
       <PortalDragOverlay dropAnimation={null}>
         {draggedDoc ? (
-          <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1 text-sm shadow-lg">
+          <div className="flex items-center gap-2 rounded-overlay bg-popover px-2.5 py-1.5 text-sm shadow-overlay">
             <FileText className="size-4 shrink-0 opacity-70" />
             <span className="truncate">
               {draggedDoc.title || "Untitled"}
@@ -510,7 +510,7 @@ function DocumentsHomeItem({
         isActive={isActive}
         tooltip="Home"
         className={cn(
-          isOver && "ring-2 ring-sidebar-ring ring-inset",
+          isOver && "bg-accent-pressed",
         )}
       >
         <Home />
@@ -565,7 +565,7 @@ function FormsSidebarGroup({
               render={<Link href={base} />}
               isActive={pathname === base}
               tooltip="All forms & responses"
-              className="text-sidebar-foreground/55 [&_svg]:!size-3.5 [&_svg]:!text-sidebar-foreground/55"
+              className="text-faint-foreground [&_svg]:!size-3.5 [&_svg]:!text-faint-foreground"
             >
               <LayoutList />
               <span>All forms</span>
@@ -634,7 +634,7 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
               e.stopPropagation();
               tree.toggle(doc.id);
             }}
-            className="absolute top-1.5 z-10 flex size-4 items-center justify-center rounded-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="absolute top-1.5 z-10 flex size-4 items-center justify-center rounded-md text-faint-foreground transition-colors hover:bg-sidebar-accent"
             style={{ left: depth * INDENT + 4 }}
           >
             <ChevronRight
@@ -659,7 +659,7 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
           tooltip={doc.title || "Untitled"}
           className={cn(
             "pr-14",
-            isDropTarget && "ring-2 ring-sidebar-ring ring-inset",
+            isDropTarget && "bg-accent-pressed",
           )}
           // Reserve the chevron column only when there's actually a chevron
           // (or we're nested). For top-level docs without sub-pages we leave

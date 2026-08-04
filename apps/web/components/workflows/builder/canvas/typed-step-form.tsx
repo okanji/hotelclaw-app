@@ -187,7 +187,7 @@ function FieldInput({
   /** id of the inline error message, for aria-describedby on the control. */
   describedBy?: string;
 }) {
-  const invalidInput = invalid && "border-destructive focus-visible:ring-destructive/30";
+  const invalidInput = invalid && "shadow-[0_0_0_1px_var(--destructive)]";
   switch (field.kind) {
     case "step-ref":
       return (
@@ -334,10 +334,10 @@ function EnumField({
               onClick={() => onChange(opt.value)}
               aria-pressed={selected}
               className={cn(
-                "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 selected
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-input bg-background text-muted-foreground hover:text-foreground",
+                  ? "bg-accent-pressed text-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent",
               )}
             >
               {opt.label}
@@ -359,10 +359,8 @@ function EnumField({
             onClick={() => onChange(opt.value)}
             aria-pressed={selected}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors",
-              selected
-                ? "border-primary bg-primary/[0.06]"
-                : "border-input bg-background hover:border-foreground/30",
+              "flex items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors",
+              selected ? "bg-accent-pressed" : "bg-muted hover:bg-accent",
             )}
           >
             <span
@@ -467,7 +465,7 @@ function KeyValueField({
   return (
     <div className="space-y-1.5">
       {entries.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           No fields yet.
         </p>
       )}
@@ -504,7 +502,7 @@ function KeyValueField({
       <button
         type="button"
         onClick={() => emit([...entries, ["", ""]])}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary"
+        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
       >
         <Plus className="size-3.5" /> Add field
       </button>
@@ -541,7 +539,7 @@ function StepRefListField({
   return (
     <div className="space-y-1.5">
       {items.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           No branches yet.
         </p>
       )}
@@ -573,7 +571,7 @@ function StepRefListField({
       <button
         type="button"
         onClick={() => onChange([...items, ""])}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary"
+        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
       >
         <Plus className="size-3.5" /> Add branch
       </button>
@@ -613,7 +611,7 @@ function StringListField({
   return (
     <div className="space-y-1.5">
       {items.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2.5 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           No items yet.
         </p>
       )}
@@ -638,7 +636,7 @@ function StringListField({
       <button
         type="button"
         onClick={add}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary"
+        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
       >
         <Plus className="size-3.5" /> Add item
       </button>

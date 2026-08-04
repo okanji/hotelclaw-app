@@ -350,7 +350,7 @@ export function SpaceDetail({
   const breadcrumb = (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 text-sm tracking-tight"
+      className="flex min-w-0 items-center gap-1.5 text-sm"
     >
       <Link
         href={`/p/${propertyId}/projects`}
@@ -359,7 +359,7 @@ export function SpaceDetail({
         Spaces
       </Link>
       <ChevronRight
-        className="size-3.5 shrink-0 text-muted-foreground/60"
+        className="size-3.5 shrink-0 text-muted-foreground"
         aria-hidden="true"
       />
       <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
@@ -388,11 +388,11 @@ export function SpaceDetail({
                 <button
                   type="button"
                   aria-label="Space color"
-                  className="shrink-0 rounded p-0.5 transition-colors hover:bg-muted/50"
+                  className="shrink-0 rounded-md p-0.5 transition-colors hover:bg-accent"
                 />
               }
             >
-              <span className={cn("block size-3 rounded-sm", DOT[space.color])} />
+              <span className={cn("block size-3 rounded-md", DOT[space.color])} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" sideOffset={6}>
               {COLORS.map((c) => (
@@ -401,7 +401,7 @@ export function SpaceDetail({
                   onClick={() => void recolor(c)}
                   className="gap-2 capitalize"
                 >
-                  <span className={cn("size-3 rounded-sm", DOT[c])} />
+                  <span className={cn("size-3 rounded-md", DOT[c])} />
                   <span className="flex-1">{c}</span>
                   {space.color === c ? <Check className="size-3.5" /> : null}
                 </DropdownMenuItem>
@@ -422,7 +422,7 @@ export function SpaceDetail({
           }}
           aria-label="Space name"
           className={cn(
-            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/45",
+            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
             ws.title,
           )}
           placeholder="Untitled team"
@@ -437,7 +437,7 @@ export function SpaceDetail({
       <Link
         href={`/p/${propertyId}/tasks?space=${spaceId}`}
         title={`${tasks.length} tasks`}
-        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm tracking-tight text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
       >
         <Layers className="size-3.5" strokeWidth={1.5} />
         <span className="tabular-nums">{tasks.length}</span>
@@ -457,7 +457,7 @@ export function SpaceDetail({
                     {p.avatarUrl ? (
                       <AvatarImage src={p.avatarUrl} alt="" />
                     ) : null}
-                    <AvatarFallback className="text-[0.5rem]">
+                    <AvatarFallback className="text-xs">
                       {(p.name ?? "?").slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -620,7 +620,7 @@ export function SpaceDetail({
                     {p.avatarUrl ? (
                       <AvatarImage src={p.avatarUrl} alt="" />
                     ) : null}
-                    <AvatarFallback className="text-[0.5rem]">
+                    <AvatarFallback className="text-xs">
                       {(p.name ?? "?").slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -648,7 +648,7 @@ export function SpaceDetail({
           </Link>
         </PropertyRow>
         <PropertyRow label="Documents">
-          <span className="px-1.5 py-0.5 text-sm tracking-tight text-foreground tabular-nums">
+          <span className="px-1.5 py-0.5 text-sm text-foreground tabular-nums">
             {docs.length}
           </span>
         </PropertyRow>
@@ -670,7 +670,7 @@ export function SpaceDetail({
               <Link
                 key={p.id}
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-sm tracking-tight text-foreground transition-colors hover:border-border hover:bg-muted/30"
+                className="flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-sm text-foreground transition-colors hover:bg-accent-pressed"
               >
                 <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
                 {p.name}
@@ -687,7 +687,7 @@ export function SpaceDetail({
             <button
               type="button"
               onClick={() => setActiveTab("activity")}
-              className="text-sm tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               See all
             </button>

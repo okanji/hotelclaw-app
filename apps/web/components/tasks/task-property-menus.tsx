@@ -31,7 +31,7 @@ export type PickerMember = {
  * task-create page and the detail inline strip. One source, no forks.
  */
 export const PROPERTY_CHIP_CLASS =
-  "inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-xs transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50";
+  "inline-flex max-w-[220px] items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus";
 
 /** Fixed-size leading icon slot for a property chip. */
 export function PropertyChipIcon({ children }: { children: ReactNode }) {
@@ -142,7 +142,7 @@ export function AssigneeMenuContent({
             {m.avatarUrl ? (
               <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} />
             ) : null}
-            <AvatarFallback className="bg-muted text-[0.5625rem]">
+            <AvatarFallback className="bg-muted text-xs">
               {initials(m.name ?? "?")}
             </AvatarFallback>
           </Avatar>
@@ -168,7 +168,7 @@ export function DueDatePopoverContent({
 }) {
   return (
     <PopoverContent align={align} className="w-56 p-3">
-      <label className="text-xs font-medium text-muted-foreground">
+      <label className="text-xs/[1] font-medium text-faint-foreground">
         {label}
       </label>
       <input
@@ -178,8 +178,8 @@ export function DueDatePopoverContent({
         value={toDateInputValue(dueAt)}
         onChange={(e) => onChange(dateInputToIso(e.target.value))}
         className={cn(
-          "mt-2 h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm max-sm:text-base",
-          "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
+          "mt-2 h-8 w-full rounded-md px-2 text-sm shadow-ring max-sm:text-base",
+          "focus-visible:shadow-focus focus-visible:outline-none",
         )}
       />
       {dueAt ? (

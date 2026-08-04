@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { channelsQueryOptions } from "@/lib/query/section-queries";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * "Draft my handover" — the AI gathers the shift window's activity
@@ -125,11 +126,11 @@ export function HandoverDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-medium tracking-tight">
+          <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="size-4" />
             Shift handover
           </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Drafted from this shift&apos;s actual activity — edit it, then
             publish it under your name.
           </DialogDescription>
@@ -143,14 +144,14 @@ export function HandoverDialog({
           </p>
         ) : (
           <div className="flex flex-col gap-3">
-            <textarea
+            <Textarea
               name="handoverDraft"
               aria-label="Handover draft"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={14}
               disabled={phase === "publishing"}
-              className="w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm max-sm:text-base leading-relaxed outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="resize-y px-3 py-2 font-mono leading-relaxed"
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Post to

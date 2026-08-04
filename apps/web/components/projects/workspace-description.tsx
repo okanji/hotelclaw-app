@@ -66,8 +66,8 @@ export function WorkspaceDescription({
       aria-label="Description"
       className={cn(
         "w-full resize-none border-0 bg-transparent p-0 outline-none",
-        "text-base leading-relaxed tracking-tight text-foreground/85",
-        "placeholder:text-muted-foreground/55",
+        "text-base leading-6 text-foreground",
+        "placeholder:text-muted-foreground",
         "focus-visible:outline-none",
       )}
     />

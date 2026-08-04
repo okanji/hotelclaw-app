@@ -10,10 +10,10 @@ import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 
 /**
  * Quick access to the main workspaces under the Home masthead. Neutral cards in
- * the house language (subtle border on `bg-card`, matching the KPI stat cards)
- * — colour lives only in the small tinted icon chip, never the fill, so the
- * whole page reads as one consistent console-style card system. Deep-links via
- * next/link.
+ * the house language — `bg-card` + the 1px warm ring, no stroke and no resting
+ * shadow, matching the KPI stat cards. Colour lives only in the small tinted
+ * icon chip, never the fill, so the whole page reads as one consistent card
+ * system. Deep-links via next/link.
  */
 type QuickTile = {
   label: string;
@@ -64,14 +64,16 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
           <Link
             key={t.label}
             href={t.href(base)}
-            className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-muted/20"
+            className="flex min-w-0 items-center gap-3 rounded-md bg-card p-3.5 shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus"
           >
             <TintIcon tone={t.tone}>
               <Icon />
             </TintIcon>
             <div className="min-w-0">
-              <div className="font-medium text-foreground">{t.label}</div>
-              <div className="truncate text-sm text-muted-foreground">
+              <div className="text-sm font-medium text-foreground">
+                {t.label}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
                 {t.sub}
               </div>
             </div>

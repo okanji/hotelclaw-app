@@ -34,7 +34,7 @@ const FRIENDLY_TYPE: Record<RefType, string> = {
 // stable DOM ref for caret-aware insertion.
 
 const FIELD_BASE =
-  "w-full rounded-lg border border-input bg-transparent px-3 text-sm transition-colors outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "w-full rounded-lg bg-transparent px-3 text-sm transition-colors outline-none placeholder:text-muted-foreground/70 focus-visible:shadow-focus dark:bg-input/30";
 
 /** A value that is exactly one `{{ref}}` and nothing else → its inner path. */
 function pureRefPath(value: string): string | null {
@@ -93,7 +93,7 @@ export function TemplateField({
   if (boundPath) {
     const cand = refs.find((r) => r.path === boundPath);
     return (
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-input bg-muted/20 py-1.5 pr-1.5 pl-2.5">
+      <div className="flex items-center justify-between gap-2 rounded-lg bg-muted py-1.5 pr-1.5 pl-2.5">
         <span className="flex min-w-0 items-center gap-2">
           <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
             <Database className="size-3.5 shrink-0" aria-hidden />
@@ -108,7 +108,7 @@ export function TemplateField({
         <span className="flex shrink-0 items-center gap-0.5">
           <InsertDataPopover refs={refs} onInsert={(p) => onChange(`{{${p}}}`)}>
             <PopoverTrigger
-              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
               title="Pick different data"
             >
               Change
@@ -121,7 +121,7 @@ export function TemplateField({
               requestAnimationFrame(() => elRef.current?.focus());
             }}
             aria-label="Clear data"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
           >
             <X className="size-4" aria-hidden />
           </button>
@@ -145,7 +145,7 @@ export function TemplateField({
             FIELD_BASE,
             "min-h-[72px] py-2",
             mono && "font-mono",
-            invalid && "border-destructive focus-visible:ring-destructive/30",
+            invalid && "shadow-[0_0_0_1px_var(--destructive)]",
           )}
         />
       ) : (
@@ -160,7 +160,7 @@ export function TemplateField({
             FIELD_BASE,
             "h-9",
             mono && "font-mono",
-            invalid && "border-destructive focus-visible:ring-destructive/30",
+            invalid && "shadow-[0_0_0_1px_var(--destructive)]",
           )}
         />
       )}
@@ -168,7 +168,7 @@ export function TemplateField({
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <InsertDataPopover refs={refs} onInsert={insertRef}>
           <PopoverTrigger
-            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
             title="Insert data from the trigger or an earlier step"
           >
             <Database className="size-3.5" aria-hidden /> Insert data
@@ -217,7 +217,7 @@ export function InsertDataPopover({
     >
       {children}
       <PopoverContent align="end" sideOffset={6} className="w-80 gap-0 p-0">
-        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
             autoFocus
@@ -235,7 +235,7 @@ export function InsertDataPopover({
           ) : (
             groups.map(({ group, items }) => (
               <div key={group} className="mb-1.5 last:mb-0">
-                <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="px-2 py-1 text-xs font-medium text-faint-foreground">
                   {group}
                 </p>
                 {items.map((r) => (
@@ -246,7 +246,7 @@ export function InsertDataPopover({
                       onInsert(r.path);
                       setOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-secondary"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
                   >
                     <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                       {r.label}
@@ -256,7 +256,7 @@ export function InsertDataPopover({
                         e.g. {r.sample}
                       </span>
                     ) : (
-                      <span className="text-xs tracking-wide text-muted-foreground/70">
+                      <span className="text-xs text-muted-foreground/70">
                         {FRIENDLY_TYPE[r.type]}
                       </span>
                     )}
@@ -290,7 +290,7 @@ function RefPreview({ value }: { value: string }) {
       {refs.map((r, i) => (
         <span
           key={`${r}-${i}`}
-          className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
+          className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
         >
           {humanizeRef(r)}
         </span>

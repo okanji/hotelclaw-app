@@ -90,7 +90,7 @@ export function DocumentShare({
           <button
             {...props}
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/15 px-2.5 py-1 text-xs text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
           >
             <Share2 className="size-3.5" />
             Share
@@ -99,13 +99,13 @@ export function DocumentShare({
       />
       <PopoverContent align="end" sideOffset={6} className="!w-[340px] !p-3">
         <header className="mb-3 flex items-center justify-between">
-          <div className="text-sm font-semibold text-foreground">
+          <div className="text-sm font-medium text-foreground">
             Share document
           </div>
           <button
             type="button"
             onClick={copyLink}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
             title="Copy link"
           >
             <Copy className="size-3.5" />
@@ -113,7 +113,7 @@ export function DocumentShare({
           </button>
         </header>
 
-        <div className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <div className="mb-3 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           <Lock className="size-3.5 shrink-0" />
           <span>
             Anyone in this property has access. External and per-doc sharing
@@ -121,7 +121,7 @@ export function DocumentShare({
           </span>
         </div>
 
-        <div className="mb-1 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="mb-1 px-1 text-xs leading-3 font-medium text-faint-foreground">
           People with access
         </div>
         <ul className="max-h-72 space-y-1 overflow-y-auto">
@@ -134,17 +134,17 @@ export function DocumentShare({
             return (
               <li
                 key={m.user_id}
-                className="flex items-center gap-2 rounded-md px-1.5 py-1"
+                className="flex min-h-[30px] items-center gap-2 rounded-md px-1.5 py-1"
               >
                 {m.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.avatar_url}
                     alt=""
-                    className="size-7 shrink-0 rounded-full object-cover"
+                    className="size-6 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
                     {initials}
                   </span>
                 )}
@@ -153,14 +153,14 @@ export function DocumentShare({
                     {m.full_name ?? "Member"}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs capitalize text-muted-foreground">
+                <span className="shrink-0 text-xs capitalize text-faint-foreground">
                   {m.role ?? "Member"}
                 </span>
               </li>
             );
           })}
           {(members ?? []).length === 0 ? (
-            <li className="px-1.5 py-2 text-xs text-muted-foreground">
+            <li className="px-1.5 py-2 text-sm text-muted-foreground">
               No members yet.
             </li>
           ) : null}

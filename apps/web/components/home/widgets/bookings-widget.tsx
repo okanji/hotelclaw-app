@@ -46,7 +46,7 @@ export function BookingsWidget({ propertyId }: { propertyId: string }) {
         ) : null}
       </StatGroup>
 
-      <ul className="flex flex-col gap-1">
+      <ul role="list" className="-mx-2 flex flex-col">
         {bookings.map((b) => {
           const time = new Intl.DateTimeFormat("en-US", {
             hour: "numeric",
@@ -57,12 +57,12 @@ export function BookingsWidget({ propertyId }: { propertyId: string }) {
             <li key={b.id}>
               <Link
                 href={`/p/${propertyId}/bookings${b.status === "pending" ? "?view=pending" : ""}`}
-                className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                className="group flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
               >
                 <span
                   className={cn(
                     "size-1.5 shrink-0 rounded-full",
-                    b.status === "pending" ? "bg-amber-500" : "bg-emerald-500",
+                    b.status === "pending" ? "bg-warning" : "bg-success",
                   )}
                   aria-hidden
                 />
@@ -83,7 +83,7 @@ export function BookingsWidget({ propertyId }: { propertyId: string }) {
       {pendingCount > 0 ? (
         <Link
           href={`/p/${propertyId}/bookings?view=pending`}
-          className="border-t border-border/60 pt-3 text-xs text-muted-foreground hover:text-foreground"
+          className="border-t border-border pt-3 text-sm text-muted-foreground hover:text-foreground"
         >
           {pendingCount} booking{pendingCount === 1 ? "" : "s"} waiting on a
           yes →

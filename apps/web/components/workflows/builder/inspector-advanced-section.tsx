@@ -82,14 +82,14 @@ export function InspectorAdvancedSection({
       ) : null}
 
       {rawJson ? (
-        <details className="rounded-lg border border-border/60 bg-muted/[0.04]">
+        <details className="rounded-lg bg-muted/[0.04]">
           <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2.5 text-sm text-muted-foreground select-none hover:text-foreground">
             <Braces className="size-3.5" aria-hidden />
             <span>Advanced settings</span>
           </summary>
-          <div className="space-y-2 border-t border-border/60 p-3">
+          <div className="space-y-2 border-t border-border p-3">
             {exprErrors.length > 0 ? (
-              <ul className="space-y-1 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-2">
+              <ul className="space-y-1 rounded-md bg-destructive/10 px-2.5 py-2">
                 {exprErrors.map((msg) => (
                   <li key={msg} className="text-xs leading-relaxed text-destructive">
                     {msg}

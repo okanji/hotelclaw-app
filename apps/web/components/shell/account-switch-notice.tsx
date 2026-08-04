@@ -24,7 +24,9 @@ export function AccountSwitchNotice() {
         decodeURIComponent(raw.slice("account_switched=".length)),
       ) as { from?: string; to?: string };
       if (!to) return;
-      toast.info(`You're now signed in as ${to}`, {
+      // Plain toast, not `toast.info`: a session swap is neutral information,
+      // not a status level — the quiet ladder gives it no status glyph.
+      toast(`You're now signed in as ${to}`, {
         description: from
           ? `This replaced your ${from} session — one browser holds one account at a time.`
           : undefined,

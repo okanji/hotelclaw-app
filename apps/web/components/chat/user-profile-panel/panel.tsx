@@ -164,7 +164,7 @@ function ProfileBody({
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="space-y-4 p-4">
-        <div className="overflow-hidden rounded-lg bg-muted ring-1 ring-border">
+        <div className="overflow-hidden rounded-md bg-muted shadow-ring">
           <Avatar className="size-full rounded-none">
             <AvatarImage
               src={data.avatarUrl ?? undefined}
@@ -177,7 +177,7 @@ function ProfileBody({
           </Avatar>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">{data.name ?? "Unknown"}</h2>
+          <h2 className="text-base font-semibold">{data.name ?? "Unknown"}</h2>
           {data.isSelf ? (
             <p className="mt-0.5 text-xs text-muted-foreground">You</p>
           ) : null}
@@ -234,7 +234,7 @@ function ProfileBody({
                       src={dmCounterpartImage(c, client?.user?.id)}
                       alt=""
                     />
-                    <AvatarFallback className="text-[10px]">
+                    <AvatarFallback className="text-xs">
                       {dmCounterpartInitials(c, client?.user?.id)}
                     </AvatarFallback>
                   </Avatar>
@@ -260,7 +260,7 @@ function Section({
 }) {
   return (
     <section className="border-t border-border px-4 py-4">
-      <h3 className="mb-2 text-sm font-semibold">{title}</h3>
+      <h3 className="mb-2 text-sm font-medium">{title}</h3>
       {children}
     </section>
   );

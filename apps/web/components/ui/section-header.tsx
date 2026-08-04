@@ -7,14 +7,16 @@ import { Eyebrow } from "@/components/ui/eyebrow"
  * hand-rolled ~70 times across list/index pages; new surfaces should
  * render it through this instead.
  *
- * Sizing follows the DESIGN.md type ramp:
+ * Sizing follows the measured Notion type ramp (docs/notion-spec.md §3):
  *
- *   `page`    — the masthead tier (Claude-dashboard editorial pattern):
- *               optional Eyebrow kicker, `font-serif text-4xl font-medium`
- *               display title, and a `text-base` lede capped at a readable
- *               measure. Use once per page, at the top.
- *   `section` — (default) `text-xl font-semibold tracking-tight`.
- *   `panel`   — panel/card-title tier, `text-base font-medium`.
+ *   `page`    — the H1 page title: `40px / 48px` weight **700**, sans,
+ *               letter-spacing normal. Use once per page, at the top.
+ *               (This used to be a `font-serif text-4xl` display title —
+ *               the app shell has no serif voice.)
+ *   `section` — (default) `16px / 24px` weight 600.
+ *   `panel`   — panel/card-title tier, `14px` weight 500.
+ *
+ * There is no rule, underline, or colored eyebrow on any tier.
  */
 function SectionHeader({
   title,
@@ -26,9 +28,12 @@ function SectionHeader({
   className,
 }: {
   title: React.ReactNode
-  /** Small uppercase kicker above the title (any tier). */
+  /** Small sentence-case section label above the title (any tier). */
   eyebrow?: React.ReactNode
-  /** `brand` renders the red accent eyebrow (Home/Insights mastheads). */
+  /**
+   * Kept for source compatibility. Notion has no colored labels, so `brand`
+   * now resolves to the same faint ink as `app` (see `ui/eyebrow`).
+   */
   eyebrowTone?: "app" | "brand"
   /** Context under the title: one line for section/panel, a lede for page. */
   description?: React.ReactNode
@@ -41,30 +46,28 @@ function SectionHeader({
     <header className={cn("flex items-start justify-between gap-4", className)}>
       <div className={cn("min-w-0", size === "page" && "flex flex-col gap-1.5")}>
         {eyebrow ? (
-          <Eyebrow tone={eyebrowTone} className="mb-1">
+          <Eyebrow tone={eyebrowTone} className="mb-1.5">
             {eyebrow}
           </Eyebrow>
         ) : null}
         {size === "page" ? (
-          <h1 className="font-serif text-4xl font-medium tracking-tight text-balance text-foreground">
+          <h1 className="text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
             {title}
           </h1>
         ) : size === "section" ? (
-          <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+          <h2 className="truncate text-base leading-6 font-semibold text-foreground">
             {title}
           </h2>
         ) : (
-          <h3 className="truncate text-base font-medium text-foreground">
+          <h3 className="truncate text-sm font-medium text-foreground">
             {title}
           </h3>
         )}
         {description ? (
           <p
             className={cn(
-              "text-pretty text-muted-foreground",
-              size === "page"
-                ? "mt-1 max-w-[52ch] text-base leading-relaxed tracking-tight"
-                : "mt-0.5 text-sm"
+              "text-sm text-pretty text-muted-foreground",
+              size === "page" ? "mt-1 max-w-[64ch]" : "mt-0.5"
             )}
           >
             {description}
@@ -76,7 +79,7 @@ function SectionHeader({
           className={cn(
             "flex shrink-0 flex-wrap items-center justify-end gap-2",
             // Masthead actions align with the title's optical center, not its cap top.
-            size === "page" && "mt-1.5"
+            size === "page" && "mt-2"
           )}
         >
           {actions}

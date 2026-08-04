@@ -319,7 +319,7 @@ export function BuilderShell({
     <div className="flex h-full min-h-0 flex-col">
       <header
         className={cn(
-          "flex shrink-0 flex-col items-stretch gap-2 border-b border-border/60 bg-background/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between",
+          "flex shrink-0 flex-col items-stretch gap-2 border-b border-border bg-background/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between",
           !isMap && "border-transparent bg-transparent",
         )}
       >
@@ -343,7 +343,7 @@ export function BuilderShell({
             <ClientSideSuspense
               fallback={
                 <div
-                  className="h-7 w-[60px] animate-pulse rounded-md border border-border bg-muted/40"
+                  className="h-7 w-[60px] animate-pulse rounded-md bg-muted"
                   aria-label="Connecting live editing…"
                   role="status"
                 />
@@ -356,7 +356,7 @@ export function BuilderShell({
               />
             </ClientSideSuspense>
           ) : null}
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+          <div className="inline-flex rounded-md bg-background p-0.5">
             {/* In co-edit mode undo/redo live in the co-editing layer
                 (Liveblocks history, per-user). Solo mode uses the local stack. */}
             {!enableCoEditing ? (
@@ -385,12 +385,12 @@ export function BuilderShell({
             type="button"
             onClick={() => setTestOpen(true)}
             title="Dry-run the saved workflow with sample trigger data — no side effects"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted"
+            className="inline-flex items-center gap-1.5 rounded-md bg-background px-2.5 py-1 text-xs hover:bg-accent"
           >
             <FlaskConical className="size-3.5" aria-hidden />
             Test
           </button>
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5 text-xs">
+          <div className="inline-flex rounded-md bg-background p-0.5 text-xs">
             <ViewTab
               icon={<List className="size-3" />}
               label="Steps"
@@ -433,7 +433,7 @@ export function BuilderShell({
             isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
           )}
         >
-          <div className="flex items-start justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+          <div className="flex items-start justify-between gap-3 rounded-md bg-destructive/10 px-3 py-2 text-sm">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
               <div>
@@ -615,7 +615,7 @@ function ViewTab({
       onClick={onClick}
       title={shortcut ? `${label} (${shortcut})` : label}
       className={cn(
-        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors",
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors",
         active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >
@@ -643,7 +643,7 @@ function IconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>
@@ -683,7 +683,7 @@ function SaveButton({
           ? "text-muted-foreground"
           : canPersist
             ? "bg-foreground text-background hover:opacity-90"
-            : "cursor-not-allowed border border-border text-muted-foreground opacity-70",
+            : "cursor-not-allowed text-muted-foreground opacity-70",
       )}
     >
       {!dirty && !saving ? (
@@ -696,7 +696,7 @@ function SaveButton({
 
 function SpecErrorBanner({ messages }: { messages: string[] }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+    <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
       <div className="min-w-0">
         <p className="font-medium text-foreground">This workflow can&apos;t be saved yet</p>
@@ -712,7 +712,7 @@ function SpecErrorBanner({ messages }: { messages: string[] }) {
 
 function WarningBanner({ messages }: { messages: string[] }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+    <div className="flex items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-sm">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <div className="min-w-0">
         <p className="font-medium text-foreground">Heads up — this still saves</p>
@@ -736,7 +736,7 @@ function AcceptBar({
   onReject: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-[var(--chart-2)]/40 bg-[var(--chart-2)]/10 px-3 py-2 text-sm">
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md bg-info/10 px-3 py-2 text-sm">
       <span className="font-medium text-foreground">
         AI added {count} {count === 1 ? "step" : "steps"}
       </span>
@@ -744,7 +744,7 @@ function AcceptBar({
         <button
           type="button"
           onClick={onReject}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted"
+          className="inline-flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs hover:bg-accent"
         >
           <X className="size-3" aria-hidden />
           Reject

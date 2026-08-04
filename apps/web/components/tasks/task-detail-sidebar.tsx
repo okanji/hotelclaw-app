@@ -151,7 +151,7 @@ export function TaskDetailSidebar({
     labelCatalog.find((l) => l.name.toLowerCase() === name.toLowerCase())
       ?.color ?? "slate";
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border/60">
+    <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border">
       <SidebarSection title="Properties" defaultOpen>
         <StatusPicker status={status} onSelect={onStatusChange} />
         <PriorityPicker priority={priority} onSelect={onPriorityChange} />
@@ -274,7 +274,7 @@ export function TaskDetailSidebar({
             <Star
               className={cn(
                 "size-3.5",
-                meta?.favorited && "fill-amber-400 text-amber-400",
+                meta?.favorited && "fill-warning text-warning",
               )}
             />
           }
@@ -345,7 +345,7 @@ function SidebarSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border/60 py-1.5">
+    <div className="border-b border-border py-1.5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -408,7 +408,7 @@ function SidebarActionRow({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-        "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none",
+        "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
         destructive
           ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
           : muted
@@ -432,7 +432,7 @@ function MetaChipRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/[0.06]">
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
         {icon}
       </span>
@@ -441,7 +441,7 @@ function MetaChipRow({
         type="button"
         aria-label={`Remove ${label}`}
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -459,7 +459,7 @@ function LinkRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/[0.06]">
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
       <a
         href={url}
@@ -474,7 +474,7 @@ function LinkRow({
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Open link"
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <ExternalLink className="size-3" />
       </a>
@@ -482,7 +482,7 @@ function LinkRow({
         type="button"
         aria-label="Remove link"
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -502,7 +502,7 @@ function DocumentRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/[0.06]">
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <FileText className="size-3.5 shrink-0 text-muted-foreground" />
       <Link
         href={`/p/${propertyId}/docs/${documentId}`}
@@ -514,7 +514,7 @@ function DocumentRow({
         type="button"
         aria-label="Unlink document"
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -532,7 +532,7 @@ function AttachmentRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/[0.06]">
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
       {url ? (
         <a
@@ -550,7 +550,7 @@ function AttachmentRow({
         type="button"
         aria-label="Remove attachment"
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -574,7 +574,7 @@ function RelatedTaskRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/[0.06]">
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <StatusIcon status={status} className="size-3.5 shrink-0" />
       <Link
         href={taskHref(propertyId, taskId)}
@@ -585,10 +585,10 @@ function RelatedTaskRow({
       {relation !== "related" ? (
         <span
           className={cn(
-            "shrink-0 rounded-full border px-1.5 py-px text-[10px] font-medium",
+            "shrink-0 rounded-md px-1.5 py-px text-xs font-medium",
             relation === "blocked_by"
-              ? "border-red-500/30 text-red-600 dark:text-red-400"
-              : "border-border text-muted-foreground",
+              ? "bg-destructive/10 text-destructive"
+              : "bg-muted text-muted-foreground",
           )}
         >
           {relation === "blocked_by" ? "Blocked by" : "Blocks"}
@@ -598,7 +598,7 @@ function RelatedTaskRow({
         type="button"
         aria-label="Remove relation"
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/[0.08]"
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
       >
         <X className="size-3" />
       </button>
@@ -621,7 +621,7 @@ function StatusPicker({
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
               icon={<StatusIcon status={status} className="size-3.5" />}
@@ -648,7 +648,7 @@ function PriorityPicker({
         render={
           <button
             type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
+            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
               icon={
@@ -690,7 +690,7 @@ function AssigneePicker({
         render={
           <button
             type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
+            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
               icon={
@@ -699,7 +699,7 @@ function AssigneePicker({
                     {assignee.avatar ? (
                       <AvatarImage src={assignee.avatar} alt={assignee.name} />
                     ) : null}
-                    <AvatarFallback className="bg-muted text-[0.5rem]">
+                    <AvatarFallback className="bg-muted text-xs">
                       {initials(assignee.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -731,7 +731,7 @@ function DueDatePicker({
         render={
           <button
             type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
+            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
               icon={<CalendarPlus className="size-3.5" />}
@@ -759,7 +759,7 @@ function MarkAsPicker({
         render={
           <button
             type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none"
+            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
               icon={<Flag className="size-3.5" />}
@@ -842,7 +842,7 @@ export function SubIssuesPanel({
             <li key={sub.id}>
               <Link
                 href={taskHref(propertyId, sub.id)}
-                className="flex items-center gap-2 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-foreground/[0.06]"
+                className="flex items-center gap-2 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-accent"
               >
                 <StatusIcon status={sub.status as TaskStatus} className="size-3.5" />
                 <span className="truncate">{sub.title}</span>
@@ -853,8 +853,9 @@ export function SubIssuesPanel({
       ) : null}
 
       {adding ? (
-        <div className="rounded-md border border-border/60 bg-muted/10 p-2">
+        <div className="rounded-md bg-muted p-2">
           <Input
+            bare
             autoFocus
             placeholder="Sub-issue title"
             value={title}
@@ -872,7 +873,7 @@ export function SubIssuesPanel({
             onBlur={() => {
               if (!title.trim()) onCancelAdd();
             }}
-            className="h-8 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
+            className="h-8 px-1 text-sm"
           />
           <div className="mt-2 flex justify-end gap-2">
             <Button
@@ -899,7 +900,7 @@ export function SubIssuesPanel({
         <button
           type="button"
           onClick={onStartAdd}
-          className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
         >
           <Plus className="size-3.5" />
           Add sub-issues
@@ -928,7 +929,7 @@ function TaskAutomationsSection({ propertyId }: { propertyId: string }) {
         <Link
           key={w.id}
           href={`/p/${propertyId}/workflows/${w.id}`}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground/90 transition-colors hover:bg-foreground/[0.06]"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-accent"
         >
           <span
             className={cn(
@@ -939,7 +940,7 @@ function TaskAutomationsSection({ propertyId }: { propertyId: string }) {
             aria-label={w.enabled ? "On" : "Off"}
           />
           <span className="min-w-0 truncate">{w.name}</span>
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+          <span className="ml-auto shrink-0 text-xs text-faint-foreground">
             {w.trigger_event_type?.replace("task.", "on ").replace(/_/g, " ")}
           </span>
         </Link>

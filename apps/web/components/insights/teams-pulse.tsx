@@ -155,7 +155,7 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border/60 px-6 py-8 text-center text-sm text-muted-foreground">
+      <p className="rounded-md bg-muted px-6 py-8 text-center text-sm text-muted-foreground">
         Nothing to compare yet — team pulse fills in once teams run daily ops.
       </p>
     );
@@ -165,23 +165,23 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border/60 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <th className="py-2 pr-3 font-medium">Team</th>
-            <th className="py-2 pr-3 font-medium">Day rating (14d)</th>
-            <th className="py-2 pr-3 font-medium">Routines done</th>
-            <th className="py-2 pr-3 font-medium">Days signed off</th>
-            <th className="py-2 font-medium">Tasks done</th>
+          <tr className="h-8 border-b border-border text-left text-xs leading-3 font-medium text-faint-foreground">
+            <th className="pr-3 font-medium">Team</th>
+            <th className="pr-3 font-medium">Day rating (14d)</th>
+            <th className="pr-3 font-medium">Routines done</th>
+            <th className="pr-3 font-medium">Days signed off</th>
+            <th className="font-medium">Tasks done</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border/40">
+        <tbody className="divide-y divide-border">
           {rows.map((row) => {
             const completion =
               row.totalRuns > 0
                 ? Math.round((row.completedRuns / row.totalRuns) * 100)
                 : null;
             return (
-              <tr key={row.spaceId} className="group">
-                <td className="py-2.5 pr-3">
+              <tr key={row.spaceId} className="group h-[34px] transition-colors hover:bg-accent">
+                <td className="pr-3">
                   <Link
                     href={`/p/${propertyId}/spaces/${row.spaceId}`}
                     className="flex min-w-0 items-center gap-1.5 font-medium text-foreground hover:underline"
@@ -192,7 +192,7 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                     <span className="truncate">{row.name}</span>
                   </Link>
                 </td>
-                <td className="py-2.5 pr-3 tabular-nums">
+                <td className="pr-3 tabular-nums">
                   {row.rating != null ? (
                     <span className="inline-flex items-center gap-1.5">
                       {row.rating}/10
@@ -201,8 +201,8 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                           className={cn(
                             "inline-flex items-center text-xs font-medium",
                             row.ratingDelta > 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-red-600 dark:text-red-400",
+                              ? "text-success"
+                              : "text-destructive",
                           )}
                           title="vs the previous 14 days"
                         >
@@ -216,18 +216,18 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                       ) : null}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground/50">—</span>
+                    <span className="text-faint-foreground">—</span>
                   )}
                 </td>
-                <td className="py-2.5 pr-3 tabular-nums text-muted-foreground">
+                <td className="pr-3 tabular-nums text-muted-foreground">
                   {completion != null
                     ? `${row.completedRuns}/${row.totalRuns} · ${completion}%`
                     : "—"}
                 </td>
-                <td className="py-2.5 pr-3 tabular-nums text-muted-foreground">
+                <td className="pr-3 tabular-nums text-muted-foreground">
                   {row.signedOffDays}
                 </td>
-                <td className="py-2.5 tabular-nums text-muted-foreground">
+                <td className="tabular-nums text-muted-foreground">
                   {row.tasksDone}
                 </td>
               </tr>

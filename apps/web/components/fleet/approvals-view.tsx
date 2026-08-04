@@ -115,7 +115,7 @@ function ApprovalCard({
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning/5 p-4">
+    <li className="flex flex-col gap-3 rounded-lg bg-warning/10 p-4">
       <div className="flex items-center gap-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-sm">
           {podBotEmoji(session.bot?.bot_id ?? "")}
@@ -145,7 +145,7 @@ function ApprovalCard({
             return (
               <div
                 key={index}
-                className="flex flex-col gap-1 rounded-md border border-border/60 bg-background px-3 py-2"
+                className="flex flex-col gap-1 rounded-md bg-background px-3 py-2"
               >
                 <div className="flex items-center gap-2">
                   <code className="font-mono text-xs font-medium">
@@ -158,7 +158,7 @@ function ApprovalCard({
                   ) : null}
                 </div>
                 {request.input != null ? (
-                  <pre className="max-h-32 overflow-auto rounded bg-muted/40 p-2 font-mono text-[11px] leading-snug">
+                  <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 font-mono text-xs leading-snug">
                     {JSON.stringify(request.input, null, 2)}
                   </pre>
                 ) : null}

@@ -103,8 +103,8 @@ export function TaskTriageSuggestions({
   const applied = suggestions.filter((s) => s.status === "auto_applied");
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-muted/30">
-      <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="overflow-hidden rounded-md bg-muted">
+      <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5 text-xs/[1] font-medium text-faint-foreground">
         <Sparkles className="size-3 shrink-0" />
         Suggested for this task
       </div>
@@ -115,7 +115,7 @@ export function TaskTriageSuggestions({
             key={s.id}
             className={cn(
               "flex items-start gap-2.5 px-3 py-2.5",
-              i > 0 && "border-t border-border/60",
+              i > 0 && "border-t border-border",
             )}
           >
             <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -162,18 +162,18 @@ export function TaskTriageSuggestions({
         {applied.length > 0 ? (
           <div
             className={cn(
-              "flex flex-col gap-1 bg-muted/40 px-3 py-2",
-              pending.length > 0 && "border-t border-border/60",
+              "flex flex-col gap-1 bg-muted px-3 py-2",
+              pending.length > 0 && "border-t border-border",
             )}
           >
             {applied.map((s) => (
               <div
                 key={s.id}
-                className="flex items-baseline gap-1.5 text-xs text-muted-foreground"
+                className="flex items-baseline gap-1.5 text-xs text-faint-foreground"
               >
                 <Check className="size-3 shrink-0 translate-y-0.5 text-success" />
                 <span>
-                  <span className="font-medium text-foreground/80">
+                  <span className="font-medium text-foreground">
                     {FIELD_LABEL[s.field]}
                   </span>{" "}
                   set automatically — {s.reasoning}

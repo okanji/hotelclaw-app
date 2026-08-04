@@ -11,8 +11,11 @@ import type { Membership } from "@/lib/auth/session";
  * Fixed width for the secondary sidebar — uniform across sections (Activity is
  * now filter nav, not a notification feed, so it no longer needs extra room).
  * The sidebar is collapsed/opened via the rail button, not drag-resizable.
+ *
+ * 270px is the measured Notion sidebar width (docs/notion-spec.md §4): 8px
+ * inner padding on each side leaves 254px-wide rows.
  */
-const STANDARD_WIDTH = 224;
+const STANDARD_WIDTH = 270;
 
 type User = {
   id: string;
@@ -51,11 +54,11 @@ export function LeftShell({
 
   return (
     // `data-sidebar-open` lets the main pane (a following sibling styled with
-    // `peer-data-[sidebar-open]:…`) square off its left corners only while the
-    // sidebar is attached to it.
-    // Transparent root: the white shell canvas shows through around the
-    // floating rail's margins (the mobile drawer's SheetContent paints its
-    // own bg-sidebar).
+    // `peer-data-[sidebar-open]:…`) react to the sidebar being attached.
+    // Transparent root: the rail and the sidebar each paint their own plane
+    // and sit flush against one another (no gutters, no rounded cards — see
+    // docs/notion-spec.md §1); the mobile drawer's SheetContent paints its
+    // own bg-sidebar.
     <div
       data-sidebar-open={showSidebar ? "" : undefined}
       className={cn("flex shrink-0 flex-col", className)}

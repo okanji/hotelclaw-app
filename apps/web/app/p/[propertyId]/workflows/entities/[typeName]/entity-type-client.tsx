@@ -74,9 +74,9 @@ export function EntityTypeClient({
       </header>
 
       {rows.length > 0 ? (
-        <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
+        <ul className="divide-y divide-border rounded-md shadow-ring">
           {rows.map((r) => (
-            <li key={r.id} className="px-4 py-2 hover:bg-muted/40">
+            <li key={r.id} className="px-4 py-2 hover:bg-accent">
               <div className="flex items-baseline gap-3">
                 <span className="text-sm font-medium text-foreground">
                   {primary ? String(r.data[primary] ?? "—") : r.id.slice(0, 8)}
@@ -90,7 +90,7 @@ export function EntityTypeClient({
                   k === primary ? null : (
                     <span
                       key={k}
-                      className="rounded bg-muted/40 px-1.5 py-0.5 font-mono"
+                      className="rounded-md bg-muted px-1.5 py-0.5 font-mono"
                     >
                       {k}: {valuePreview(v)}
                     </span>
@@ -101,7 +101,7 @@ export function EntityTypeClient({
           ))}
         </ul>
       ) : (
-        <div className="rounded-lg border border-border/60 bg-muted/15 p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
           No rows yet.
         </div>
       )}
@@ -177,7 +177,7 @@ function CreateEntityDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-      <div className="w-full max-w-[480px] rounded-lg border border-border bg-card p-5 shadow-lg">
+      <div className="w-full max-w-[480px] rounded-overlay bg-card p-5 shadow-overlay">
         <header className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">
             New {type.display_name.toLowerCase()}
@@ -186,7 +186,7 @@ function CreateEntityDialog({
             type="button"
             onClick={onCancel}
             aria-label="Close"
-            className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
           >
             <X className="size-3.5" />
           </button>
@@ -208,7 +208,7 @@ function CreateEntityDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs"
+            className="rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-3 py-1.5 text-xs"
           >
             Cancel
           </button>
@@ -238,7 +238,7 @@ function FieldInput({
   onChange: (name: string, value: unknown) => void;
 }) {
   const label = (
-    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <label className="mb-1 block text-xs font-medium text-faint-foreground">
       {field.name}
       {field.required ? <span className="ml-1 text-destructive">*</span> : null}
       {field.spec.description ? (
@@ -260,7 +260,7 @@ function FieldInput({
             onChange={(e) =>
               onChange(field.name, e.target.value === "" ? undefined : Number(e.target.value))
             }
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
           />
         </div>
       );
@@ -296,7 +296,7 @@ function FieldInput({
                   .filter(Boolean),
               )
             }
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
           />
         </div>
       );
@@ -309,7 +309,7 @@ function FieldInput({
             type="text"
             value={(value as string | undefined) ?? ""}
             onChange={(e) => onChange(field.name, e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
           />
         </div>
       );

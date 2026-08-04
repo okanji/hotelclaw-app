@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
 import { OutcomeBadge } from "@/components/chatbots/conversations-list";
 import type {
@@ -54,24 +55,16 @@ export default async function AllConversationsPage({
       <hr className="my-10 border-border" />
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <MessagesSquare className="size-6 text-muted-foreground" />
-          </span>
-          <div>
-            <p className="text-sm font-medium">No conversations yet</p>
-            <p className="mt-1 max-w-[40ch] text-sm text-pretty text-muted-foreground">
-              Publish a chatbot and share its QR code — guest chats land here.
-            </p>
-          </div>
-        </div>
+        <EmptyState icon={MessagesSquare} title="No conversations yet">
+          Publish a chatbot and share its QR code — guest chats land here.
+        </EmptyState>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border rounded-md shadow-ring">
           {rows.map((c) => (
             <li key={c.id}>
               <Link
                 href={`/p/${propertyId}/chatbots/${c.chatbot_id}/conversations/${c.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">
@@ -97,9 +90,7 @@ export default async function AllConversationsPage({
                   </p>
                 </div>
                 {(c.status as ChatbotConversationStatus) === "human" ? (
-                  <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                    With staff
-                  </Badge>
+                  <StatusBadge tone="info">With staff</StatusBadge>
                 ) : null}
                 <OutcomeBadge outcome={c.outcome as ChatbotConversationOutcome} />
               </Link>

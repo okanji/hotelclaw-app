@@ -96,7 +96,7 @@ export function EventPageDialog({
           <div className="flex items-start gap-4">
             <div
               aria-hidden
-              className="flex size-24 shrink-0 items-center justify-center rounded-2xl ring-1 ring-foreground/10 ring-inset"
+              className="flex size-24 shrink-0 items-center justify-center rounded-md shadow-ring"
               style={{ background: cover.css }}
             >
               <span className="text-4xl">
@@ -104,7 +104,7 @@ export function EventPageDialog({
               </span>
             </div>
             <div className="min-w-0 flex-1 space-y-2">
-              <Label className="text-xs">Cover art</Label>
+              <Label>Cover art</Label>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(EVENT_COVER_PRESETS).map(([id, preset]) => (
                   <button
@@ -115,7 +115,7 @@ export function EventPageDialog({
                     aria-pressed={page.coverStyle === id}
                     onClick={() => patch({ coverStyle: id })}
                     className={cn(
-                      "size-8 rounded-full border-2 ring-1 ring-foreground/15 ring-inset",
+                      "size-8 rounded-md border-2 shadow-ring",
                       page.coverStyle === id
                         ? "border-foreground"
                         : "border-transparent",
@@ -128,14 +128,13 @@ export function EventPageDialog({
                 value={page.coverEmoji}
                 onChange={(e) => patch({ coverEmoji: e.target.value.slice(0, 8) })}
                 placeholder={`Emoji — defaults to ${service.emoji || "🎉"}`}
-                className="h-8 text-sm"
               />
             </div>
           </div>
 
           {/* Accent */}
           <div className="space-y-2">
-            <Label className="text-xs">Accent — buttons and highlights</Label>
+            <Label>Accent — buttons and highlights</Label>
             <div className="flex flex-wrap gap-1.5">
               {ACCENTS.map((hex) => (
                 <button
@@ -145,7 +144,7 @@ export function EventPageDialog({
                   aria-pressed={page.accent === hex}
                   onClick={() => patch({ accent: hex })}
                   className={cn(
-                    "size-8 rounded-full border-2",
+                    "size-8 rounded-md border-2 shadow-ring",
                     page.accent === hex ? "border-foreground" : "border-transparent",
                   )}
                   style={{ backgroundColor: hex }}
@@ -155,38 +154,35 @@ export function EventPageDialog({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Tagline</Label>
+            <Label>Tagline</Label>
             <Input
               value={page.tagline}
               onChange={(e) => patch({ tagline: e.target.value.slice(0, 160) })}
               placeholder="One line that sells the night"
-              className="h-9 text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Location</Label>
+              <Label>Location</Label>
               <Input
                 value={page.location}
                 onChange={(e) => patch({ location: e.target.value.slice(0, 160) })}
                 placeholder="The beach deck"
-                className="h-9 text-sm"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Hosted by</Label>
+              <Label>Hosted by</Label>
               <Input
                 value={page.host}
                 onChange={(e) => patch({ host: e.target.value.slice(0, 80) })}
                 placeholder="Defaults to the property"
-                className="h-9 text-sm"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">About this event</Label>
+            <Label>About this event</Label>
             <Textarea
               value={page.about}
               onChange={(e) => patch({ about: e.target.value.slice(0, 4000) })}

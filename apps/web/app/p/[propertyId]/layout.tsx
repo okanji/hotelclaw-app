@@ -136,12 +136,14 @@ export default async function PropertyLayout({
                   }
                 >
                  <InsightsTabProvider>
-                  {/* Loop-style shell: three detached rounded cards on a
-                      white canvas — near-black icon rail (m-2, see AppRail),
-                      light-gray section sidebar, white content pane — each
-                      with its own hairline outline and an 8px gutter between.
-                      Below md: the rail/sidebar move into a drawer behind the
-                      MobileTopBar hamburger and the content goes full-bleed. */}
+                  {/* Notion shell: three FLUSH planes, no gutters and no
+                      strokes — warm near-black icon rail, `#f9f8f7` chrome
+                      sidebar (whose inset right-edge shadow is the only
+                      divider), pure-white content pane. Separation is fill
+                      delta + the warm ring, never a gray outline
+                      (docs/notion-spec.md §1). Below md the rail/sidebar move
+                      into a drawer behind the MobileTopBar hamburger and the
+                      content goes full-bleed. */}
                   <div className="flex h-svh w-full flex-col overflow-hidden bg-card">
                     <MobileTopBar
                       currentPropertyId={propertyId}
@@ -181,12 +183,15 @@ export default async function PropertyLayout({
                       // over the same bug; it broke position:fixed descendants
                       // and stopped working on Chrome 149 — don't bring it
                       // back.)
-                      // `peer-data-[sidebar-open]` (set by LeftShell): while the
-                      // section sidebar is attached it carries the card's left
-                      // edge (rounded-l, border-r-0), so this pane squares its
-                      // left corners and the two read as ONE card with a
-                      // hairline divider (this border-l).
-                      className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col rounded-2xl border border-shell-border bg-card peer-data-[sidebar-open]:rounded-l-none max-md:m-0 max-md:rounded-none max-md:border-0"
+                      // Notion normalization (2026-08-04): the pane is FLUSH,
+                      // not a detached rounded card. No margin gutters, no
+                      // radius, no `border-shell-border` stroke — the content
+                      // canvas is pure white and the only separation from the
+                      // chrome plane is the sidebar's own inset right-edge
+                      // shadow (`--sidebar-edge-shadow`) plus the ~2% fill
+                      // delta (notion-spec §1/§2). A visible gray stroke is
+                      // not on the separation ladder.
+                      className="relative flex min-w-0 flex-1 flex-col bg-card"
                     >
                       {/* Rectangular clip for the pane's content (see comment
                           above — the radius must not participate in clipping).

@@ -107,7 +107,7 @@ export function ProjectsTableView({
   return (
     <div className="h-full overflow-y-auto px-8 py-2 sm:px-14">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/60 bg-background py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background py-2 text-xs/[1] font-medium text-faint-foreground">
         {COLUMNS.map((col, i) => {
           const active = col.key !== null && sort.key === col.key;
           const inner = (
@@ -134,7 +134,7 @@ export function ProjectsTableView({
                   type="button"
                   onClick={() => toggleSort(col.key as SortKey)}
                   className={cn(
-                    "inline-flex max-w-full items-center rounded transition-colors hover:text-foreground",
+                    "inline-flex max-w-full items-center rounded-md transition-colors hover:text-foreground",
                     active && "text-foreground",
                   )}
                 >
@@ -149,7 +149,7 @@ export function ProjectsTableView({
       </div>
 
       {/* Rows */}
-      <ul role="list" className="divide-y divide-border/40">
+      <ul role="list" className="divide-y divide-border">
         {sorted.map((p) => {
           const status = PROJECT_STATUS_META[p.status];
           const health = HEALTH_META[projectHealth(p)];
@@ -158,7 +158,7 @@ export function ProjectsTableView({
             <li key={p.id} className="group/row">
               <Link
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-3 rounded-md py-2.5 text-sm tracking-tight transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                className="flex items-center gap-3 rounded-md min-h-[34px] py-1.5 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
               >
                 {/* Project */}
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">

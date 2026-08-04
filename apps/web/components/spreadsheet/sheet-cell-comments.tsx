@@ -181,7 +181,7 @@ export function CommentsSidebarButton({
               if (open.length === 0) return null;
               return (
                 <section key={sheetId}>
-                  <h3 className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                  <h3 className="mb-1 text-xs leading-3 font-medium text-faint-foreground">
                     {sheetTitles.get(sheetId) ?? `Sheet ${sheetId.slice(0, 6)}`}
                   </h3>
                   <div className="space-y-2">
@@ -194,7 +194,7 @@ export function CommentsSidebarButton({
                             onSwitchToCell(sheetId, t.metadata.cellId);
                           }
                         }}
-                        className="block w-full rounded-md text-left hover:bg-muted"
+                        className="block w-full rounded-md text-left transition-colors hover:bg-accent"
                       >
                         <Thread
                           thread={t}

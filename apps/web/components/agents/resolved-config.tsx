@@ -53,13 +53,13 @@ export function ResolvedConfig({
       </div>
 
       {paused ? (
-        <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
+        <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
           Paused — sessions resolve to fallback instructions with no tools
           until the agent is activated.
         </p>
       ) : null}
 
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2.5 rounded-lg border border-border p-4 text-sm">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2.5 rounded-lg p-4 text-sm shadow-ring">
         <dt className="text-xs text-muted-foreground">Model</dt>
         <dd className="flex flex-wrap items-center gap-2">
           <span>{TIER_LABELS[config.modelTier]}</span>
@@ -79,7 +79,7 @@ export function ResolvedConfig({
               {granted.map((tool) => (
                 <li
                   key={tool.id}
-                  className="rounded-full border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs text-muted-foreground"
+                  className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
                 >
                   {tool.id}
                   {tool.category === "write" ? (

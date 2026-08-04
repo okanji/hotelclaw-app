@@ -1,13 +1,18 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { Kbd } from "@/components/ui/kbd";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
 import { useCommandPalette } from "./command-palette-context";
 
 /**
  * Visible "Search" entry in the sidebar — opens the same palette the
- * Cmd+K shortcut opens. Shows the keyboard hint on the right.
+ * Cmd+K shortcut opens.
+ *
+ * It is a NAV ROW, not a form field: 30px tall, 6px radius, transparent at
+ * rest, warm hover fill, 14px/500 secondary ink with a faint icon and a 12px
+ * faint shortcut hint (docs/notion-spec.md §3/§4). The old recessed "well"
+ * — a lighter `bg-background` box with an inset ring and a shadowed Kbd —
+ * was the stock-library read this normalization removes.
  */
 export function SearchButton() {
   const { toggle } = useCommandPalette();
@@ -18,20 +23,17 @@ export function SearchButton() {
 
   return (
     <SidebarMenuItem>
-      {/* A recessed search *well* — reads as a field, not a nav row. Ring
-          (not a solid border) per form-control rules; matches the property
-          switcher's h-9 for a tidy header rhythm. */}
       <button
         type="button"
         onClick={toggle}
         aria-label="Search"
-        className="group flex h-9 w-full items-center gap-2 rounded-lg bg-background px-2.5 text-sm text-muted-foreground ring-1 ring-border/70 ring-inset transition-colors outline-hidden hover:bg-muted/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-[30px] w-full items-center gap-2 rounded-md px-2 text-left text-sm font-medium text-secondary-ink transition-[background-color] outline-none hover:bg-sidebar-accent focus-visible:shadow-focus"
       >
-        <Search className="size-4 shrink-0 opacity-80 transition-opacity group-hover:opacity-100" />
-        <span className="flex-1 text-left">Search</span>
-        <Kbd className="bg-background shadow-2xs ring-1 ring-border/70">
+        <Search className="size-4 shrink-0 text-faint-foreground" />
+        <span className="flex-1 truncate">Search</span>
+        <span className="shrink-0 text-xs font-normal text-faint-foreground">
           {shortcut}
-        </Kbd>
+        </span>
       </button>
     </SidebarMenuItem>
   );

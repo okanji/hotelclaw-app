@@ -252,7 +252,7 @@ export function AgentChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <TintIcon tone="lavender" className="text-sm">
           {avatarEmoji || "🤖"}
         </TintIcon>
@@ -287,7 +287,7 @@ export function AgentChat({
                       key={prompt}
                       type="button"
                       onClick={() => send(prompt)}
-                      className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                      className="rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent bg-muted"
                     >
                       {prompt}
                     </button>
@@ -300,7 +300,7 @@ export function AgentChat({
             {transcript.map((item, index) => (
               <li key={index}>
                 {item.kind === "user" ? (
-                  <div className="ml-8 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                  <div className="ml-8 rounded-lg bg-muted px-3 py-2 text-sm">
                     {item.text}
                   </div>
                 ) : (
@@ -310,7 +310,7 @@ export function AgentChat({
                         {item.toolCalls.map((call) => (
                           <details
                             key={call.callId}
-                            className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs"
+                            className="rounded-md bg-muted px-2.5 py-1.5 text-xs"
                           >
                             <summary className="flex cursor-pointer items-center gap-1.5 text-muted-foreground">
                               <Wrench className="size-3 shrink-0" />
@@ -324,7 +324,7 @@ export function AgentChat({
                                 {call.done ? "done" : "running…"}
                               </span>
                             </summary>
-                            <pre className="mt-2 max-h-48 overflow-auto rounded bg-background/80 p-2 font-mono text-[11px] leading-snug">
+                            <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-background/80 p-2 font-mono text-xs leading-snug">
                               {JSON.stringify(
                                 { input: call.input, output: call.output },
                                 null,
@@ -354,7 +354,7 @@ export function AgentChat({
       </div>
 
       <form
-        className="flex items-end gap-2 border-t border-border/60 p-3"
+        className="flex items-end gap-2 border-t border-border p-3"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);

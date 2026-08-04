@@ -240,7 +240,7 @@ export function TaskDetail({
               disabled={pending}
               className={cn(
                 "w-full resize-none border-0 bg-transparent p-0",
-                "text-xl font-semibold leading-[1.35] tracking-tight text-foreground",
+                "text-2xl leading-8 font-semibold text-foreground",
                 "focus-visible:outline-none",
               )}
             />
@@ -255,8 +255,9 @@ export function TaskDetail({
               rows={3}
               className={cn(
                 "mt-3 w-full resize-none border-0 bg-transparent p-0",
-                "text-sm leading-relaxed text-foreground",
-                "placeholder:text-muted-foreground/70",
+                // Reading content sits on the 16px/24px body rung
+                "text-base leading-6 text-foreground",
+                "placeholder:text-faint-foreground",
                 "focus-visible:outline-none",
               )}
             />
@@ -303,7 +304,7 @@ export function TaskDetail({
               onCancelAdd={() => setAddingSubIssue(false)}
             />
 
-            <section className="mt-10 border-t border-border/60 pt-6">
+            <section className="mt-10 border-t border-border pt-6">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-medium text-foreground">
                   Activity
@@ -313,15 +314,15 @@ export function TaskDetail({
 
               {task.createdAt ? (
                 <div className="mb-4 flex items-start gap-2.5 text-sm">
-                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[0.625rem] font-medium text-muted-foreground">
+                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs/[1] font-medium text-faint-foreground">
                     ·
                   </span>
                   <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground">
-                    <span className="text-foreground/90">Task created</span>
+                    <span className="text-foreground">Task created</span>
                     {creator ? (
                       <span>
                         by{" "}
-                        <span className="text-foreground/90">
+                        <span className="text-foreground">
                           {creator.name}
                         </span>
                       </span>
@@ -344,7 +345,7 @@ export function TaskDetail({
                 ))}
               </div>
 
-              <div className="mt-4 rounded-lg border border-border/60 bg-muted/15 p-1">
+              <div className="mt-4 rounded-md bg-muted p-1">
                 <Composer metadata={{ taskId: task.id }} />
               </div>
 
@@ -400,7 +401,7 @@ function IconGhostButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
     >
       {children}
     </button>

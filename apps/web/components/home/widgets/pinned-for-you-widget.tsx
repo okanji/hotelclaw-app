@@ -59,7 +59,7 @@ export function PinnedForYouWidget({ propertyId }: { propertyId: string }) {
             onMouseEnter={() => prewarm(d.id)}
             className={cn(
               ROW_CLASS,
-              "rounded-md pr-9 transition-colors hover:bg-muted",
+              "pr-9 transition-colors hover:bg-accent",
             )}
           >
             <Pin
@@ -67,10 +67,10 @@ export function PinnedForYouWidget({ propertyId }: { propertyId: string }) {
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
-            <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
               {d.title || "Untitled"}
             </span>
-            <span className="shrink-0 text-xs tracking-tight text-muted-foreground tabular-nums">
+            <span className="shrink-0 text-xs text-faint-foreground tabular-nums">
               {relativeShort(d.updated_at)}
             </span>
           </Link>
@@ -81,7 +81,7 @@ export function PinnedForYouWidget({ propertyId }: { propertyId: string }) {
             aria-label="Unpin"
             title="Unpin"
             onClick={() => togglePin(d.id)}
-            className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity hover:bg-background group-hover/pin:opacity-100"
+            className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover/pin:opacity-100"
           >
             <PinOff className="size-3.5" />
           </Button>

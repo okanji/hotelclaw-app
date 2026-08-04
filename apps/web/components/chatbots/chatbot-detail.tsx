@@ -167,11 +167,11 @@ export function ChatbotDetail({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-6 pt-8 pb-16 sm:px-10">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={`/p/${propertyId}/chatbots`}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
           aria-label="Back to chatbots"
         >
           <ArrowLeft className="size-4" />
@@ -186,7 +186,7 @@ export function ChatbotDetail({
             if (e.key === "Escape") setName(bot.name);
           }}
           aria-label="Chatbot name"
-          className="min-w-0 flex-1 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none placeholder:text-muted-foreground"
           placeholder="Untitled chatbot"
         />
         <ChatbotStatusBadge status={status} />
@@ -377,7 +377,7 @@ function SkillsIntro({ count }: { count: number }) {
   return (
     <section className="space-y-1">
       <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold tracking-tight">Skills</h2>
+        <h2 className="text-base font-semibold">Skills</h2>
         {count > 0 ? (
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
             {count} active
@@ -400,7 +400,7 @@ function SkillsIntro({ count }: { count: number }) {
 function ShareIntro({ status }: { status: ChatbotRow["status"] }) {
   return (
     <section className="space-y-1">
-      <h2 className="text-base font-semibold tracking-tight">
+      <h2 className="text-base font-semibold">
         Put this bot in front of guests
       </h2>
       <p className="max-w-[68ch] text-sm text-pretty text-muted-foreground">
@@ -583,7 +583,7 @@ function SettingsSection({
         </section>
       ) : null}
 
-      <section className="space-y-3 rounded-lg border border-border p-4">
+      <section className="space-y-3 rounded-lg p-4 shadow-ring">
         <p className="text-sm font-medium">Answer strictness</p>
         <label className="flex items-start gap-2 text-sm">
           <input
@@ -630,7 +630,7 @@ function SettingsSection({
         </div>
       </section>
 
-      <section className="space-y-3 rounded-lg border border-border p-4">
+      <section className="space-y-3 rounded-lg p-4 shadow-ring">
         <p className="text-sm font-medium">Limits</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">

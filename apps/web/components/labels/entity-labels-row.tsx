@@ -127,7 +127,7 @@ export function EntityLabelsRow({
           <span
             key={l.id}
             className={cn(
-              "group flex max-w-[200px] items-center gap-1 rounded-md border border-border/50 px-2 py-0.5 text-xs tracking-tight",
+              "group flex max-w-[200px] items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs",
               LABEL_CHIP[l.color],
             )}
           >
@@ -137,7 +137,7 @@ export function EntityLabelsRow({
               type="button"
               aria-label={`Remove ${l.name}`}
               onClick={() => void toggle(l)}
-              className="-mr-0.5 ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded text-current/60 opacity-0 transition-opacity hover:bg-foreground/10 hover:text-current group-hover:opacity-100"
+              className="-mr-0.5 ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-md text-current/60 opacity-0 transition-opacity hover:bg-accent hover:text-current group-hover:opacity-100"
             >
               <X className="size-3" />
             </button>
@@ -185,10 +185,10 @@ export function EntityLabelsRow({
                     <button
                       type="button"
                       onClick={() => void toggle(l)}
-                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                     >
                       <span className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[l.color])} />
-                      <span className="min-w-0 flex-1 truncate tracking-tight">
+                      <span className="min-w-0 flex-1 truncate">
                         {l.name}
                       </span>
                       {appliedIds.has(l.id) ? (
@@ -201,7 +201,7 @@ export function EntityLabelsRow({
                           <button
                             type="button"
                             aria-label={`Color for ${l.name}`}
-                            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/label:opacity-100"
+                            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover/label:opacity-100"
                           />
                         }
                       >
@@ -228,17 +228,17 @@ export function EntityLabelsRow({
                     <button
                       type="button"
                       onClick={() => void create()}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                     >
                       <Plus className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate tracking-tight">
+                      <span className="min-w-0 flex-1 truncate">
                         Create &ldquo;{query.trim()}&rdquo;
                       </span>
                     </button>
                   </li>
                 ) : null}
                 {filtered.length === 0 && !query.trim() ? (
-                  <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  <li className="px-2 py-3 text-center text-xs text-faint-foreground">
                     No labels yet — type to create one.
                   </li>
                 ) : null}

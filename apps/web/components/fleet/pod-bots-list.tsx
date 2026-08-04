@@ -60,7 +60,7 @@ export function PodBotsList({
             return (
               <div
                 key={bot.id}
-                className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40"
+                className="group relative flex flex-col gap-3 rounded-lg bg-background p-4 transition-colors hover:bg-accent"
               >
                 <Link
                   href={`${base}/${bot.id}`}

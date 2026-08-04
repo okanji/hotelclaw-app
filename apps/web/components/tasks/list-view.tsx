@@ -129,7 +129,7 @@ export function ListView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {/* Sticky table header — matches the row template below */}
-      <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-background/95 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase backdrop-blur">
+      <div className="sticky top-0 z-10 grid h-8 grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-card px-4 text-xs/[1] font-medium text-faint-foreground">
         <span />
         <span>Title</span>
         <span>Priority</span>
@@ -146,14 +146,14 @@ export function ListView({
         const isCollapsed = collapsed[status];
         return (
           <section key={status} className="border-b border-border last:border-0">
-            <header className="flex items-center gap-2 bg-muted/30 px-4 py-1.5">
+            <header className="flex h-8 items-center gap-2 bg-muted px-4">
               <button
                 type="button"
                 onClick={() =>
                   setCollapsed((p) => ({ ...p, [status]: !p[status] }))
                 }
                 aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${col.label}`}
-                className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="grid size-5 place-items-center rounded-md text-muted-foreground hover:bg-accent"
               >
                 {isCollapsed ? (
                   <ChevronRight className="size-3.5" />
@@ -162,16 +162,16 @@ export function ListView({
                 )}
               </button>
               <StatusIcon status={col.id} className="size-3.5" />
-              <h3 className="text-sm font-medium tracking-tight text-foreground">
+              <h3 className="text-sm font-medium text-foreground">
                 {col.label}
               </h3>
-              <span className="text-xs tabular-nums tracking-tight text-muted-foreground">
+              <span className="text-xs tabular-nums text-faint-foreground">
                 {rows.length}
               </span>
               <button
                 type="button"
                 onClick={() => onOpenFullCreate(status)}
-                className="ml-auto inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="ml-auto inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent"
               >
                 <Plus className="size-3" />
                 New
@@ -180,7 +180,7 @@ export function ListView({
 
             {!isCollapsed ? (
               rows.length === 0 ? (
-                <div className="px-6 py-4 text-xs text-muted-foreground">
+                <div className="px-6 py-4 text-xs text-faint-foreground">
                   No tasks in this status.
                 </div>
               ) : (
@@ -277,7 +277,7 @@ function BulkActionBar({
 
   return (
     <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center px-4">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-overlay bg-popover px-3 py-1.5 shadow-overlay">
         <span className="pr-1 text-xs font-medium tabular-nums text-foreground">
           {ids.length} selected
         </span>
@@ -344,7 +344,7 @@ function BulkActionBar({
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 text-xs text-muted-foreground"
+          className="h-7 text-xs text-faint-foreground"
           disabled={pending}
           onClick={onClear}
         >
@@ -424,9 +424,11 @@ function ListRow({
   return (
     <div
       className={cn(
-        "group grid grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border/40 px-4 py-2 text-sm",
-        "hover:bg-muted/40",
-        selected && "bg-muted/50",
+        // 34px row on the Notion rhythm; the only rule is the 1px warm
+        // divider between rows — no vertical rules, no per-row stroke.
+        "group grid min-h-[34px] grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border px-4 py-1 text-sm",
+        "hover:bg-accent",
+        selected && "bg-accent-pressed",
         pending && "opacity-60",
       )}
     >
@@ -454,14 +456,14 @@ function ListRow({
             aria-label={
               subtasksExpanded ? "Collapse sub-tasks" : "Expand sub-tasks"
             }
-            className="flex shrink-0 items-center gap-0.5 rounded px-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex shrink-0 items-center gap-0.5 rounded-md px-0.5 text-muted-foreground hover:bg-accent"
           >
             {subtasksExpanded ? (
               <ChevronDown className="size-3.5" />
             ) : (
               <ChevronRight className="size-3.5" />
             )}
-            <span className="text-[11px] tabular-nums">{subtaskCount}</span>
+            <span className="text-xs tabular-nums">{subtaskCount}</span>
           </button>
         ) : null}
         <Link
@@ -491,9 +493,9 @@ function ListRow({
           "inline-flex items-center gap-1.5 text-xs tabular-nums",
           due
             ? overdue
-              ? "text-red-600 dark:text-red-400"
+              ? "text-destructive"
               : "text-muted-foreground"
-            : "text-muted-foreground/50",
+            : "text-muted-foreground",
         )}
       >
         {due ? (
@@ -506,25 +508,25 @@ function ListRow({
         )}
       </span>
 
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span className="flex items-center gap-2 text-xs text-faint-foreground">
         {task.assignee_id ? (
           <>
             <Avatar size="sm" className="size-5">
               {assignee?.avatar ? (
                 <AvatarImage src={assignee.avatar} alt={assignee.name} />
               ) : null}
-              <AvatarFallback className="bg-muted text-[10px] font-medium text-foreground">
+              <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
                 {initials(assignee?.name ?? "??")}
               </AvatarFallback>
             </Avatar>
             <span className="truncate">{assignee?.name ?? "—"}</span>
           </>
         ) : (
-          <span className="text-muted-foreground/50">Unassigned</span>
+          <span className="text-faint-foreground">Unassigned</span>
         )}
       </span>
 
-      <span className="text-xs text-muted-foreground tabular-nums">
+      <span className="text-xs text-faint-foreground tabular-nums">
         {formatDate(task.updated_at, now)}
       </span>
 

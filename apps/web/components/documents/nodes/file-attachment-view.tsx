@@ -37,11 +37,11 @@ export function FileAttachmentView({ node }: NodeViewProps) {
       <div
         contentEditable={false}
         className={cn(
-          "flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3",
+          "flex flex-col gap-2 rounded-md bg-muted p-3",
         )}
       >
         <div className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
             <Icon className="size-5 text-muted-foreground" />
           </span>
           <div className="min-w-0 flex-1">
@@ -58,7 +58,7 @@ export function FileAttachmentView({ node }: NodeViewProps) {
               download={name}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
             >
               <Download className="size-3.5" />
               Download
@@ -69,7 +69,7 @@ export function FileAttachmentView({ node }: NodeViewProps) {
           <embed
             src={url}
             type="application/pdf"
-            className="h-96 w-full rounded-md border border-border bg-background"
+            className="h-96 w-full rounded-md bg-muted"
           />
         ) : null}
       </div>

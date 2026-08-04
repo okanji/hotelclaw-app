@@ -99,7 +99,7 @@ export function SpacePinnedResources({
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium tracking-tight text-muted-foreground">
+        <h3 className="text-xs/[1] font-medium text-faint-foreground">
           Resources
         </h3>
         {totalPinned > 0 ? (
@@ -113,8 +113,8 @@ export function SpacePinnedResources({
         className={cn(
           "rounded-md",
           pinnedCards.length === 0
-            ? "border border-dashed border-border px-3 py-2.5"
-            : "bg-muted/25 px-2 py-2 dark:bg-white/4",
+            ? "bg-muted px-3 py-2.5"
+            : "bg-muted px-2 py-2",
         )}
       >
         {pinnedCards.length === 0 && pinnedForms.length === 0 ? (
@@ -155,7 +155,7 @@ export function SpacePinnedResources({
         <button
           type="button"
           onClick={onViewAllDocs}
-          className="self-start text-sm tracking-tight text-muted-foreground hover:text-foreground"
+          className="self-start text-sm text-muted-foreground hover:text-foreground"
         >
           All documents in this space ({totalDocs})
         </button>
@@ -187,7 +187,7 @@ function FormPinCard({
     <div className="group relative w-32 shrink-0">
       <Link
         href={href}
-        className="flex h-full flex-col gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-2 transition-colors hover:border-border"
+        className="flex h-full flex-col gap-1.5 rounded-md bg-background px-2.5 py-2 shadow-ring transition-colors"
       >
         <span className="flex items-center gap-1.5">
           <span className={cn("size-1.5 rounded-full", accentDotClass)} />
@@ -196,7 +196,7 @@ function FormPinCard({
         <span className="line-clamp-2 text-xs leading-snug font-medium">
           {form.title}
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-faint-foreground">
           {form.status === "published" ? "Form · open" : `Form · ${form.status}`}
         </span>
       </Link>
@@ -205,7 +205,7 @@ function FormPinCard({
           type="button"
           aria-label="Unpin form"
           onClick={() => onUnpin(form.id)}
-          className="absolute top-1 right-1 hidden size-5 items-center justify-center rounded text-muted-foreground group-hover:flex hover:bg-muted hover:text-foreground"
+          className="absolute top-1 right-1 hidden size-5 items-center justify-center rounded-md text-muted-foreground group-hover:flex hover:bg-accent"
         >
           <X className="size-3" />
         </button>

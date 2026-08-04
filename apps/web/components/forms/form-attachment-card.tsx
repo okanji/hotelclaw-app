@@ -52,7 +52,7 @@ export function FormAttachmentCard({ attachment }: { attachment: FormAttachmentP
 
   return (
     <>
-      <div className="my-1 flex w-fit max-w-sm items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+      <div className="my-1 flex w-fit max-w-sm items-center gap-3 rounded-lg bg-background px-3 py-2.5">
         <TintIcon tone="honey">
           <ClipboardList />
         </TintIcon>
@@ -66,7 +66,7 @@ export function FormAttachmentCard({ attachment }: { attachment: FormAttachmentP
         <Button size="sm" variant={done ? "ghost" : "default"} onClick={openForm} className="shrink-0">
           {done ? (
             <>
-              <CheckCircle2 data-slot="icon" className="text-emerald-600" />
+              <CheckCircle2 data-slot="icon" className="text-success" />
               Done
             </>
           ) : (
@@ -85,7 +85,7 @@ export function FormAttachmentCard({ attachment }: { attachment: FormAttachmentP
           </DialogHeader>
           {done ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <CheckCircle2 className="size-8 text-emerald-600" />
+              <CheckCircle2 className="size-8 text-success" />
               <p className="text-sm font-medium">Response recorded</p>
               <p className="text-xs text-muted-foreground">Thanks — your answers are in.</p>
             </div>

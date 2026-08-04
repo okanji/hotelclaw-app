@@ -23,7 +23,8 @@ type User = {
 };
 
 /**
- * Mobile navigation (below `md:`): a slim top bar on the outer shell surface
+ * Mobile navigation (below `md:`): the 44px transparent top bar (the same
+ * height and chrome as the desktop `AppTopBar` — no fill, no bottom border)
  * with a hamburger that opens the full LeftShell (icon rail + section
  * sidebar) in a left drawer. Desktop never renders this — the rail and
  * sidebar sit inline there.
@@ -49,14 +50,19 @@ export function MobileTopBar({
   useEffect(() => setOpen(false), [pathname, section]);
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-1 px-2 md:hidden">
+    <header className="flex h-11 shrink-0 items-center gap-2 px-3 md:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           render={
-            <Button variant="ghost" size="icon" aria-label="Open navigation" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open navigation"
+              className="text-muted-foreground"
+            />
           }
         >
-          <Menu className="size-5" />
+          <Menu className="size-4" strokeWidth={1.25} />
         </SheetTrigger>
         <SheetContent
           side="left"
@@ -76,7 +82,9 @@ export function MobileTopBar({
           />
         </SheetContent>
       </Sheet>
-      <span className="min-w-0 truncate text-sm font-semibold text-sidebar-foreground">
+      {/* The property name is what you're reading, not a nav row: 14px/500
+          full ink (notion-spec §3), not the sidebar's secondary rung. */}
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">
         {propertyName}
       </span>
     </header>

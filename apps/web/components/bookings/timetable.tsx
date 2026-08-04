@@ -22,7 +22,7 @@ import { assignBookingResource, setBookingStatus } from "./actions";
  * The reservations timeline (the OpenTable/SevenRooms grid): rows = tables
  * (plus an Unassigned lane), x = time, blocks span the turn time. Capacity
  * services get greedy-packed lanes instead of table rows. Click a block for
- * status actions and table re-assignment; the rose rule marks "now".
+ * status actions and table re-assignment; the accent rule marks "now".
  * Mobile collapses to the Agenda list — the grid is a desktop tool.
  */
 
@@ -147,7 +147,7 @@ export function Timetable({
 
   if (!timeWindow) {
     return (
-      <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+      <p className="py-10 text-center text-sm text-muted-foreground">
         No bookings this day — the timetable draws itself once there are.
       </p>
     );
@@ -176,15 +176,17 @@ export function Timetable({
   }
 
   return (
-    <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
-      <div className="min-w-[640px]">
-        {/* Hour header */}
-        <div className="relative ml-24 h-7 border-b border-border/60">
+    <div className="hidden overflow-x-auto rounded-md shadow-ring md:block">
+      {/* Wider minimum than before: the resource column grew to hold a 14px
+          table name, and the blocks need room for a 14px guest name. */}
+      <div className="min-w-[720px]">
+        {/* Hour header — axis ticks are metadata, so they stay on 12px. */}
+        <div className="relative ml-28 h-7 border-b border-border">
           {ticks.map((t) => (
             <span
               key={t.label + t.left}
               style={{ left: `${t.left}%` }}
-              className="absolute top-1.5 -translate-x-1/2 text-xs text-muted-foreground tabular-nums"
+              className="absolute top-1.5 -translate-x-1/2 text-xs font-medium text-faint-foreground tabular-nums"
             >
               {t.label}
             </span>
@@ -195,29 +197,44 @@ export function Timetable({
           {rows.map((row) => (
             <div
               key={row.id}
-              className="flex items-stretch border-b border-border/40 last:border-b-0"
+              className="flex items-stretch border-b border-border last:border-b-0"
             >
-              <div className="w-24 shrink-0 border-r border-border/40 px-2 py-2">
-                <p className={cn("truncate text-xs font-medium", row.id === "unassigned" && "text-warning")}>
+              {/* A table/unit name is a row LABEL — the same 14px/500 rung as
+                  every other list row in the app. The seat count under it is
+                  the secondary annotation and stays 12px faint. */}
+              <div className="w-28 shrink-0 border-r border-border px-2 py-2">
+                <p
+                  className={cn(
+                    "truncate text-sm leading-tight font-medium",
+                    row.id === "unassigned" && "text-warning",
+                  )}
+                >
                   {row.label}
                 </p>
                 {row.sub ? (
-                  <p className="text-xs text-muted-foreground">{row.sub}</p>
+                  <p className="truncate text-xs leading-tight text-faint-foreground">
+                    {row.sub}
+                  </p>
                 ) : null}
               </div>
-              <div className="relative min-h-10 flex-1">
+              {/* Lanes grew from 40px to 48px: a block now carries a 14px name
+                  over a 12px annotation, which does not fit in 40. */}
+              <div className="relative min-h-12 flex-1">
                 {/* hour gridlines */}
                 {ticks.map((t) => (
                   <span
                     key={t.left}
                     style={{ left: `${t.left}%` }}
-                    className="absolute inset-y-0 border-l border-border/30"
+                    className="absolute inset-y-0 border-l border-border"
                   />
                 ))}
                 {nowPct > 0 && nowPct < 100 ? (
+                  // The now-rule: a true 1px hairline like every other line on
+                  // the grid — it separates itself by carrying the house accent,
+                  // not by being twice as thick.
                   <span
                     style={{ left: `${nowPct}%` }}
-                    className="absolute inset-y-0 z-10 border-l-2 border-rose-500/70 shadow-[0_0_6px_rgba(244,63,94,0.5)]"
+                    className="absolute inset-y-0 z-10 border-l border-accent-red"
                   />
                 ) : null}
                 {row.bookings.map((b) => {
@@ -236,16 +253,25 @@ export function Timetable({
                             style={{ left: `${left}%`, width: `${width}%` }}
                             title={`${b.guest_name} ×${b.party_size} · ${b.reference} · ${b.status}`}
                             className={cn(
-                              "absolute top-1.5 bottom-1.5 z-[5] overflow-hidden rounded-md border px-1.5 text-left text-xs leading-tight transition-transform hover:scale-y-105",
+                              // Tinted fill only — no stroke, no scale-lift
+                              // (notion-spec §5/§6). The status tint IS the
+                              // background, so hover can't be `hover:bg-accent`
+                              // on the block itself without erasing the status;
+                              // it's an inset warm-black overlay instead, which
+                              // is the same 5% fill gesture, layered.
+                              "group absolute top-1 bottom-1 z-[5] flex flex-col justify-center overflow-hidden rounded-md px-1.5 text-left focus-visible:shadow-focus focus-visible:outline-none",
                               STATUS_BLOCK[b.status],
                             )}
                           />
                         }
                       >
-                        <span className="block truncate font-semibold">
+                        <span className="pointer-events-none absolute inset-0 rounded-md transition-colors group-hover:bg-accent" />
+                        {/* The guest is the content: 14px/500, same rung as a
+                            list row. Party size + source are the annotation. */}
+                        <span className="relative block truncate text-sm leading-tight font-medium">
                           {b.guest_name}
                         </span>
-                        <span className="block truncate opacity-80">
+                        <span className="relative block truncate text-xs leading-tight opacity-80">
                           ×{b.party_size}
                           {b.source === "chatbot" ? " · bot" : b.source === "web" ? " · web" : ""}
                         </span>
@@ -292,12 +318,12 @@ export function Timetable({
               Meaningless for rentals (units, not covers). */}
           <div
             className={cn(
-              "flex items-stretch border-t border-border/60 bg-muted/20",
+              "flex items-stretch border-t border-border bg-muted",
               service.booking_mode === "rental" && "hidden",
             )}
           >
-            <div className="w-24 shrink-0 border-r border-border/40 px-2 py-1.5">
-              <p className="text-xs font-medium text-muted-foreground">
+            <div className="w-28 shrink-0 border-r border-border px-2 py-1.5">
+              <p className="text-xs leading-3 font-medium text-faint-foreground">
                 Covers / {maxCovers}
               </p>
             </div>
@@ -321,12 +347,12 @@ export function Timetable({
                     key={t.left}
                     style={{ left: `${t.left}%` }}
                     className={cn(
-                      "absolute top-1.5 -translate-x-1/2 rounded px-1 text-xs font-medium tabular-nums",
+                      "absolute top-1.5 -translate-x-1/2 rounded-md px-1 text-xs font-medium tabular-nums",
                       ratio >= 1
-                        ? "bg-destructive/15 text-destructive"
+                        ? "bg-destructive/12 text-destructive"
                         : ratio >= 0.8
-                          ? "bg-warning/15 text-warning"
-                          : "text-muted-foreground",
+                          ? "bg-warning/12 text-warning"
+                          : "text-faint-foreground",
                     )}
                   >
                     {covers}

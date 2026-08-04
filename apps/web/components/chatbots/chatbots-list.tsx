@@ -188,7 +188,7 @@ function ChatbotCard({
   }
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/40">
+    <div className="group relative flex flex-col gap-3 rounded-lg bg-background p-4 transition-colors hover:bg-accent">
       <Link href={href} className="absolute inset-0" aria-label={bot.name} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">

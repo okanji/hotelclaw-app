@@ -60,7 +60,7 @@ function TabButton({
         "relative inline-flex h-full items-center gap-1.5 rounded-md px-2 !text-sm !leading-none font-medium transition-colors",
         active
           ? "text-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          : "text-muted-foreground hover:bg-accent",
       )}
       aria-current={active ? "page" : undefined}
       {...rest}

@@ -128,7 +128,7 @@ export function TaskDetailInlineProperties({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button type="button" className={cn(CHIP_BASE, "text-foreground/90")}>
+              <button type="button" className={cn(CHIP_BASE, "text-foreground")}>
                 <ChipIcon><StatusIcon status={status} className="size-3.5" /></ChipIcon>
                 <span className="truncate">{statusLabel}</span>
               </button>
@@ -144,7 +144,7 @@ export function TaskDetailInlineProperties({
                 type="button"
                 className={cn(
                   CHIP_BASE,
-                  priorityMuted ? "text-muted-foreground" : "text-foreground/90",
+                  priorityMuted ? "text-muted-foreground" : "text-foreground",
                 )}
               >
                 <ChipIcon>
@@ -168,7 +168,7 @@ export function TaskDetailInlineProperties({
                 type="button"
                 className={cn(
                   CHIP_BASE,
-                  assigneeId ? "text-foreground/90" : "text-muted-foreground",
+                  assigneeId ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 <ChipIcon>
@@ -177,7 +177,7 @@ export function TaskDetailInlineProperties({
                       {assignee.avatar ? (
                         <AvatarImage src={assignee.avatar} alt={assignee.name} />
                       ) : null}
-                      <AvatarFallback className="bg-muted text-[0.5rem]">
+                      <AvatarFallback className="bg-muted text-xs">
                         {initials(assignee.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -203,7 +203,7 @@ export function TaskDetailInlineProperties({
                 type="button"
                 className={cn(
                   CHIP_BASE,
-                  dueAt ? "text-foreground/90" : "text-muted-foreground",
+                  dueAt ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 <ChipIcon><CalendarPlus className="size-3.5" /></ChipIcon>
@@ -312,7 +312,7 @@ export function TaskDetailInlineProperties({
             render={
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-faint-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <Plus className="size-3.5" />
                 {resourcesCount === 0
@@ -350,7 +350,7 @@ function PropertyRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="w-20 shrink-0 pt-1 text-xs text-muted-foreground">
+      <span className="w-20 shrink-0 pt-1 text-xs text-faint-foreground">
         {label}
       </span>
       <div className="flex min-w-0 flex-wrap items-center gap-1">
@@ -373,7 +373,7 @@ function RemovableChip({
     <span
       className={cn(
         CHIP_BASE,
-        "group cursor-default text-foreground/90 hover:bg-transparent",
+        "group cursor-default text-foreground hover:bg-transparent",
       )}
     >
       <ChipIcon>{icon}</ChipIcon>
@@ -382,7 +382,7 @@ function RemovableChip({
         type="button"
         aria-label={`Remove ${label}`}
         onClick={onRemove}
-        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.08] hover:text-foreground group-hover:opacity-100"
+        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
       >
         <X className="size-3" />
       </button>
@@ -423,7 +423,7 @@ function ResourceChip({
     <span
       className={cn(
         CHIP_BASE,
-        "group max-w-[260px] cursor-default text-foreground/90 hover:bg-transparent",
+        "group max-w-[260px] cursor-default text-foreground hover:bg-transparent",
       )}
     >
       {external ? (
@@ -444,7 +444,7 @@ function ResourceChip({
         type="button"
         aria-label={`Remove ${label}`}
         onClick={onRemove}
-        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.08] hover:text-foreground group-hover:opacity-100"
+        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
       >
         <X className="size-3" />
       </button>

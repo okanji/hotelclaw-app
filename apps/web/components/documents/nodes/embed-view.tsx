@@ -60,7 +60,7 @@ export function EmbedView({ node }: NodeViewProps) {
         kind === "figma" ||
         kind === "spotify" ||
         kind === "codepen" ? (
-          <div className="aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted/30">
+          <div className="aspect-video w-full overflow-hidden rounded-md bg-muted">
             <iframe
               src={embedUrl ?? url}
               className="h-full w-full"
@@ -81,11 +81,11 @@ export function EmbedView({ node }: NodeViewProps) {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-stretch gap-3 overflow-hidden rounded-lg border border-border bg-muted/20 transition hover:bg-muted/40"
+            className="flex items-stretch gap-3 overflow-hidden rounded-md bg-muted transition-colors hover:bg-accent-pressed"
           >
             <div className="min-w-0 flex-1 p-3">
               {siteName ? (
-                <div className="mb-0.5 text-xs uppercase tracking-wide text-muted-foreground">
+                <div className="mb-0.5 text-xs leading-3 font-medium text-faint-foreground">
                   {siteName}
                 </div>
               ) : null}

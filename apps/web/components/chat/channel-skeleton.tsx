@@ -125,7 +125,7 @@ export function ChannelSkeleton() {
 
       {/* Composer. */}
       <div className="shrink-0 px-5 pb-5">
-        <Skeleton className="h-17 w-full rounded-xl" />
+        <Skeleton className="h-17 w-full rounded-md" />
       </div>
     </div>
   );

@@ -15,77 +15,74 @@ import {
 import { cn } from "@/lib/utils";
 import type { Surface } from "@/lib/workflows/catalog/types";
 
-// Surface colour tokens for the workflow builder. The previous palette used
-// `bg-[var(--chart-N)]` + `text-white`, but the chart vars in this theme are
-// grayscale (chart-1 = oklch 0.87), so the badge ended up nearly invisible
-// in dark mode and the white icons disappeared against the light fills.
-//
-// The new palette uses tinted Tailwind utilities (`bg-<colour>-100 dark:bg-
-// <colour>-950/40 text-<colour>-700 dark:text-<colour>-300`) — those land
-// on a curated dark-mode tone that always has enough contrast against the
-// surrounding card without overpowering it.
+// Surface chips are MONOCHROME by design (Notion normalization, 2026-08-04).
+// The identity of a surface is carried by its ICON, not by a colour — a
+// twelve-way rainbow of `bg-<colour>-100 text-<colour>-700` chips was the
+// loudest "stock component library" tell in the builder. Every chip is now
+// the quiet warm well (`bg-muted`) with muted ink; `ai` keeps the single
+// blue icon accent because it marks the one non-deterministic step kind.
 
 const SURFACE_META: Record<
   Surface,
   { tone: string; icon: typeof Zap; label: string }
 > = {
   tasks: {
-    tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    tone: "bg-muted text-muted-foreground",
     icon: CheckSquare,
     label: "Tasks",
   },
   docs: {
-    tone: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    tone: "bg-muted text-muted-foreground",
     icon: FileText,
     label: "Docs",
   },
   chat: {
-    tone: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+    tone: "bg-muted text-muted-foreground",
     icon: MessageSquare,
     label: "Chat",
   },
   meetings: {
-    tone: "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+    tone: "bg-muted text-muted-foreground",
     icon: Video,
     label: "Meetings",
   },
   calendar: {
-    tone: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300",
+    tone: "bg-muted text-muted-foreground",
     icon: CalendarDays,
     label: "Calendar",
   },
   forms: {
-    tone: "bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300",
+    tone: "bg-muted text-muted-foreground",
     icon: ClipboardList,
     label: "Forms",
   },
   bookings: {
-    tone: "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+    tone: "bg-muted text-muted-foreground",
     icon: Ticket,
     label: "Bookings",
   },
   entities: {
-    tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300",
+    tone: "bg-muted text-muted-foreground",
     icon: Database,
     label: "Entities",
   },
   system: {
-    tone: "bg-foreground/[0.08] text-foreground/80",
+    tone: "bg-muted text-muted-foreground",
     icon: Zap,
     label: "System",
   },
   ai: {
-    tone: "bg-primary/15 text-primary dark:text-primary",
+    tone: "bg-muted text-icon-accent",
     icon: Sparkles,
     label: "AI",
   },
   control: {
-    tone: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+    tone: "bg-muted text-muted-foreground",
     icon: GitBranch,
     label: "Logic",
   },
   external: {
-    tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    tone: "bg-muted text-muted-foreground",
     icon: ExternalLink,
     label: "External",
   },
@@ -130,7 +127,7 @@ export function SurfaceLabelBadge({
   return (
     <span
       className={cn(
-        "inline-flex w-fit shrink-0 items-center rounded-md border border-transparent px-1.5 py-0.5 text-xs font-medium",
+        "inline-flex w-fit shrink-0 items-center rounded-md px-1.5 py-0.5 text-xs font-medium",
         meta.tone,
         className,
       )}

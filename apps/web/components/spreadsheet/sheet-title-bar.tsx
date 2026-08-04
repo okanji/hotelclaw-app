@@ -50,7 +50,7 @@ export function SheetTitleBar({
       onChange={(e) => setTitle(e.target.value)}
       placeholder="Untitled sheet"
       maxLength={TITLE_MAX_LENGTH}
-      className="w-72 max-w-full bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+      className="w-72 max-w-full bg-transparent text-base leading-6 font-semibold text-foreground outline-none placeholder:text-faint-foreground"
     />
   );
 }

@@ -126,7 +126,7 @@ export function ManageLabelsDialog({
         ) : (
           <ul
             role="list"
-            className="-mx-1 max-h-80 overflow-y-auto border-t border-border/40"
+            className="-mx-1 max-h-80 overflow-y-auto border-t border-border"
           >
             {labels.map((l) => (
               <LabelManagerRow key={l.id} label={l} onChanged={refresh} />
@@ -146,11 +146,11 @@ export function ManageLabelsFooter({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="border-t border-border/60 p-1">
+      <div className="border-t border-border p-1">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent"
         >
           <Settings2 className="size-3.5 shrink-0" />
           Manage labels…
@@ -202,7 +202,7 @@ function LabelManagerRow({
   }
 
   return (
-    <li className="group/label flex items-center gap-3 border-b border-border/40 px-1 py-2">
+    <li className="group/label flex items-center gap-3 border-b border-border px-1 py-2">
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -237,7 +237,7 @@ function LabelManagerRow({
           }
         }}
         aria-label="Label name"
-        className="min-w-0 flex-1 bg-transparent text-sm tracking-tight text-foreground outline-none"
+        className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
       />
       <button
         type="button"

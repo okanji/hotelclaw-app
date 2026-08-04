@@ -181,7 +181,7 @@ export function PanZoomCanvas({
         {children}
       </div>
 
-      <div className="absolute right-3 bottom-3 z-10 flex items-center gap-px rounded-lg border border-border/60 bg-card/90 p-0.5 shadow-sm backdrop-blur">
+      <div className="absolute right-3 bottom-3 z-10 flex items-center gap-px rounded-overlay bg-popover p-0.5 shadow-overlay">
         <ZoomButton label="Zoom out" onClick={() => zoomBy(1 / 1.2)}>
           <Minus className="size-3.5" />
         </ZoomButton>
@@ -189,7 +189,7 @@ export function PanZoomCanvas({
           type="button"
           onClick={fit}
           title="Reset zoom"
-          className="min-w-11 rounded-md px-1.5 py-1 text-xs font-medium tabular-nums text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="min-w-11 rounded-md px-1.5 py-1 text-xs font-medium tabular-nums text-muted-foreground hover:bg-accent"
         >
           {Math.round(t.z * 100)}%
         </button>
@@ -220,7 +220,7 @@ function ZoomButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
     >
       {children}
     </button>

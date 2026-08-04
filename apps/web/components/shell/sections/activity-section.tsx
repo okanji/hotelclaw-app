@@ -76,10 +76,12 @@ export function ActivitySection({
   return (
     <>
       <SidebarGroup>
-        <div className="flex items-center justify-between px-2 pt-1 pb-2">
-          <h2 className="text-base font-semibold tracking-tight text-foreground">
-            Activity
-          </h2>
+        {/* The rail already names the section, so this is a 12px/12px w500
+            faint group label like every other sidebar group — not a display
+            heading (notion-spec §3). The mark-all-read affordance sits
+            right-aligned in the same row. */}
+        <div className="flex items-center justify-between">
+          <SidebarGroupLabel>Activity</SidebarGroupLabel>
           {unseenCount > 0 ? (
             <Button
               type="button"
@@ -87,7 +89,7 @@ export function ActivitySection({
               size="icon-sm"
               title="Mark all read"
               onClick={markAllRead}
-              className="text-muted-foreground hover:bg-sidebar-accent"
+              className="text-faint-foreground hover:bg-sidebar-accent"
             >
               <CheckCheck className="size-4" />
             </Button>

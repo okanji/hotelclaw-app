@@ -103,9 +103,9 @@ export function TestConsole({
   }
 
   return (
-    <section className="flex h-[calc(100dvh-8rem)] max-h-[760px] flex-col rounded-lg border border-border bg-muted/10">
-      <header className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+    <section className="flex h-[calc(100dvh-8rem)] max-h-[760px] flex-col rounded-lg bg-muted">
+      <header className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
           <FlaskConical className="size-4" />
           Test your bot
         </div>
@@ -161,7 +161,7 @@ export function TestConsole({
                   size="xs"
                   onClick={() => void send(q)}
                   disabled={busy}
-                  className="rounded-full font-normal text-muted-foreground hover:text-foreground"
+                  className="font-normal text-muted-foreground hover:text-foreground"
                 >
                   {q}
                 </Button>
@@ -195,7 +195,7 @@ export function TestConsole({
         {busy ? <ThinkingRow /> : null}
       </div>
 
-      <div className="border-t border-border/60 p-2">
+      <div className="border-t border-border p-2">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -209,7 +209,7 @@ export function TestConsole({
             placeholder="Message as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm max-sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm max-sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-focus"
           />
           <Button
             type="button"

@@ -66,12 +66,13 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpa
 
   return (
     <div
-      className={cn(
-        "rounded-md border border-primary/40 bg-card p-2 shadow-xs",
-        "ring-1 ring-primary/15 dark:ring-primary/20",
-      )}
+      // Active composer: the ONE case where a resting surface earns a visible
+      // edge, because it is the focused thing on the board. Ring only — no
+      // stroke, no elevation.
+      className={cn("rounded-md bg-card p-2 shadow-focus")}
     >
       <Textarea
+        bare
         autoFocus
         name="quick-add-title"
         aria-label="New task title"
@@ -90,10 +91,10 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpa
         onBlur={submit}
         placeholder="Task title…"
         disabled={pending}
-        className="min-h-0 resize-none border-0 bg-transparent px-1 py-1 text-sm leading-[1.125rem] shadow-none focus-visible:ring-0"
+        className="min-h-0 resize-none px-1 py-1 text-sm leading-[1.125rem]"
       />
-      <div className="mt-1 flex items-center justify-between px-1 pb-0.5 text-xs text-muted-foreground">
-        <span className="tracking-tight">
+      <div className="mt-1 flex items-center justify-between px-1 pb-0.5 text-xs text-faint-foreground">
+        <span className="text-faint-foreground">
           <kbd className="font-sans">Enter</kbd> to add ·{" "}
           <kbd className="font-sans">Esc</kbd> to cancel
         </span>

@@ -45,8 +45,8 @@ export function SheetFormulaBar({
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-muted/30 px-3 py-1 text-sm">
-      <span className="w-14 shrink-0 truncate rounded border border-border/60 bg-background px-2 py-0.5 text-center font-mono text-xs text-muted-foreground">
+    <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 py-1 text-sm">
+      <span className="w-14 shrink-0 truncate rounded-md bg-muted px-2 py-0.5 text-center font-mono text-xs text-muted-foreground">
         {cellLabel || "—"}
       </span>
       <span className="select-none font-mono text-muted-foreground">fx</span>

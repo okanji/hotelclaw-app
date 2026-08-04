@@ -47,11 +47,11 @@ export function FormFill({
     <div className="flex h-full w-full justify-center overflow-y-auto px-6 py-12 sm:py-16">
       <div className="w-full max-w-2xl">
         <header className="flex flex-col items-start gap-5">
-          <div className="flex size-16 items-center justify-center rounded-2xl border border-border/60 bg-muted/60 text-4xl">
+          <div className="flex size-16 items-center justify-center rounded-md bg-muted text-4xl">
             {icon || <ClipboardList className="size-7 text-muted-foreground" />}
           </div>
           <div className="flex flex-col gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-balance">
+            <h1 className="text-2xl font-semibold text-balance">
               {title}
             </h1>
             {description ? (
@@ -64,8 +64,8 @@ export function FormFill({
 
         <div className="mt-10">
           {submitted ? (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-border/60 py-14 text-center">
-              <CheckCircle2 className="size-10 text-success" />
+            <div className="flex flex-col items-center gap-3 py-14 text-center">
+              <CheckCircle2 className="size-5 text-success" aria-hidden />
               <p className="text-sm font-medium">Response recorded</p>
               <p className="text-sm text-muted-foreground">
                 Thanks — your answers have been submitted.

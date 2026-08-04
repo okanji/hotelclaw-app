@@ -60,11 +60,11 @@ export function ChannelHeader() {
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-3">
       <div className="flex min-w-0 items-center gap-2">
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon-sm"
           title="Star channel"
           aria-label="Star channel"
-          className="bg-transparent text-muted-foreground hover:text-foreground dark:bg-transparent"
+          className="text-muted-foreground hover:text-foreground"
         >
           <Star className="size-[15px]" />
         </Button>
@@ -76,7 +76,7 @@ export function ChannelHeader() {
           ) : (
             <Hash className="size-[18px] text-foreground" strokeWidth={2.5} />
           )}
-          <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">
+          <h1 className="truncate text-base font-semibold text-foreground">
             {title}
           </h1>
           <PresenceDots channel={channel} currentUserId={client?.user?.id} />
@@ -100,11 +100,11 @@ export function ChannelHeader() {
         ) : null}
         {!isDm ? (
           <Button
-            variant="outline"
+            variant="ghost"
             size="default"
             onClick={toggle}
             title="Members"
-            className="gap-1.5 bg-transparent px-2.5 dark:bg-transparent"
+            className="gap-1.5 px-2.5"
           >
             <Users className="size-4 text-muted-foreground" />
             <span className="tabular-nums">{memberCount}</span>
@@ -113,20 +113,20 @@ export function ChannelHeader() {
         {channel.id ? <HuddleButton channelId={channel.id} /> : null}
         {channel.id ? <MeetingButton channelId={channel.id} /> : null}
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           title="Notifications"
           aria-label="Channel notifications"
-          className="bg-transparent dark:bg-transparent"
+         
         >
           <Bell />
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           title="Search in channel"
           aria-label="Search in channel"
-          className="bg-transparent dark:bg-transparent"
+         
           onClick={() => {
             if (!propertyId || !channel.id) return;
             router.push(

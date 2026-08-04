@@ -53,7 +53,7 @@ export function AboutTab({ propertyId }: { propertyId: string }) {
         />
         {data?.description ? (
           <div className="space-y-1 pt-2">
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium text-faint-foreground">
               Description
             </dt>
             <dd className="whitespace-pre-wrap text-sm">{data.description}</dd>
@@ -86,7 +86,7 @@ export function AboutTab({ propertyId }: { propertyId: string }) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+      <dt className="text-xs font-medium text-faint-foreground">
         {label}
       </dt>
       <dd className="truncate font-medium">{value}</dd>

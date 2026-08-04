@@ -56,19 +56,21 @@ export function SectionSidebar({
 
   return (
     <aside
-      // Left half of the ClickUp-style joined card: the sidebar connects
-      // flush to the content pane (which draws the shared seam via its own
-      // border-l) and carries the card's rounded left edge. Below md (the
-      // mobile drawer) it stays a flush full-height panel.
-      className="relative flex shrink-0 flex-col overflow-hidden border-shell-border bg-sidebar max-md:h-full max-md:border-l md:my-2 md:rounded-l-2xl md:border md:border-r-0"
-      style={{ width }}
+      // Notion's sidebar is a FLUSH plane, not a detached rounded card: it
+      // runs full height against the rail on its left and the content pane on
+      // its right, and its only separation is a 1px warm inset shadow on the
+      // right edge (docs/notion-spec.md §2 — "a shadow, not a border"). No
+      // margin, no radius, no stroke. Width arrives as a custom property so
+      // the mobile drawer can override it with `max-md:w-full`.
+      className="relative flex shrink-0 flex-col overflow-hidden bg-sidebar shadow-(--sidebar-edge-shadow) max-md:h-full max-md:w-full max-md:shadow-none md:w-(--section-sidebar-width)"
+      style={
+        { "--section-sidebar-width": `${width}px` } as React.CSSProperties
+      }
     >
       <div className="flex min-h-0 w-full flex-1 flex-col">
-      {/* pt-3 (not the default p-2): the sidebar sits flush at the shell top
-          while the rail and main pane are inset by m-2, so the extra 4px drops
-          the property switcher's center onto the page-header title line for a
-          continuous top bar across the seam. */}
-      <SidebarHeader className="pt-3">
+      {/* 8px inner padding is the sidebar's single horizontal rhythm — the
+          same inset the rows and group labels use (notion-spec §4). */}
+      <SidebarHeader className="gap-1 p-2">
         <PropertySwitcher
           currentPropertyId={currentPropertyId}
           memberships={memberships}

@@ -19,10 +19,10 @@ import { applyTaskFilter, useDashboardFilter } from "../dashboard-filter";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const STATUS_BAR: { id: TaskStatus; label: string; className: string }[] = [
-  { id: "todo", label: "To do", className: "bg-muted-foreground/40" },
-  { id: "in_progress", label: "In progress", className: "bg-blue-500" },
-  { id: "blocked", label: "Blocked", className: "bg-rose-500" },
-  { id: "done", label: "Done", className: "bg-emerald-500" },
+  { id: "todo", label: "To do", className: "bg-faint-foreground" },
+  { id: "in_progress", label: "In progress", className: "bg-info" },
+  { id: "blocked", label: "Blocked", className: "bg-destructive" },
+  { id: "done", label: "Done", className: "bg-success" },
 ];
 
 /** Personal task summary in editorial style: an inline stat row, a slim status
@@ -93,18 +93,18 @@ export function YourTasksWidget({
             <li key={t.id}>
               <Link
                 href={`/p/${propertyId}/tasks/${t.id}`}
-                className={cn(ROW_CLASS, "rounded-md transition-colors hover:bg-muted")}
+                className={cn(ROW_CLASS, "transition-colors hover:bg-accent")}
               >
                 <StatusIcon status={t.status} className="size-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm tracking-tight text-foreground">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                   {t.title || "Untitled task"}
                 </span>
                 {t.due_at ? (
                   <span
                     className={cn(
-                      "shrink-0 text-xs tracking-tight tabular-nums",
+                      "shrink-0 text-xs tabular-nums",
                       isOverdue(t.due_at)
-                        ? "text-rose-500"
+                        ? "text-destructive"
                         : "text-muted-foreground",
                     )}
                   >
@@ -146,7 +146,7 @@ function StatusBar({
           counts[s.id] > 0 ? (
             <span
               key={s.id}
-              className="flex items-center gap-1.5 text-xs tracking-tight text-muted-foreground"
+              className="flex items-center gap-1.5 text-xs text-faint-foreground"
             >
               <span className={cn("size-1.5 rounded-full", s.className)} />
               {s.label}

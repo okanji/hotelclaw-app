@@ -80,7 +80,7 @@ function PromptCard({
   return (
     <article className="group/prompt flex flex-col gap-1.5">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 text-sm font-semibold tracking-tight text-pretty text-foreground">
+        <h3 className="min-w-0 text-base leading-6 font-semibold text-pretty text-foreground">
           {card.prompt}
         </h3>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/prompt:opacity-100">
@@ -123,7 +123,7 @@ function PromptCard({
         </p>
       )}
       {card.generatedAt ? (
-        <p className="text-xs text-muted-foreground/70 tabular-nums">
+        <p className="text-xs text-faint-foreground tabular-nums">
           updated {relativeShort(card.generatedAt)} — re-answers when the
           numbers move
         </p>

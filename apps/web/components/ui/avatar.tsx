@@ -18,7 +18,10 @@ function Avatar({
       data-slot="avatar"
       data-size={size}
       className={cn(
-        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+        // The edge is the 1px warm RING, carried as an inset shadow on an
+        // empty pseudo-element (an inset shadow on the root would sit under
+        // the <img>). No border, no mix-blend stacking.
+        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:shadow-[inset_0_0_0_1px_var(--border)] data-[size=lg]:size-10 data-[size=sm]:size-6",
         className
       )}
       {...props}
@@ -48,7 +51,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-muted-foreground",
+        "flex size-full items-center justify-center rounded-full bg-accent text-muted-foreground",
         className
       )}
       {...props}
@@ -98,7 +101,7 @@ function AvatarGroupCount({
     <div
       data-slot="avatar-group-count"
       className={cn(
-        "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground ring-2 ring-background group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
+        "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm text-muted-foreground ring-2 ring-background group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
         className
       )}
       {...props}

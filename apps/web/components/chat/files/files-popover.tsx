@@ -111,7 +111,7 @@ export function FilesPopover({
                 ? [0, 1, 2].map((i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-3 border-b border-border/60 px-1 py-2 last:border-0"
+                      className="flex items-center gap-3 border-b border-border px-1 py-2 last:border-0"
                     >
                       <Skeleton className="size-10 shrink-0 rounded-md" />
                       <div className="flex-1 space-y-1">
@@ -138,7 +138,7 @@ function MediaThumb({ hit }: { hit: FileHit }) {
     return (
       <div
         aria-label={label}
-        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground"
+        className="flex aspect-square w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground"
       >
         {hit.attachment.type === "video" ? "Video" : "Image"}
       </div>
@@ -149,7 +149,7 @@ function MediaThumb({ hit }: { hit: FileHit }) {
     <img
       src={url}
       alt={label}
-      className="aspect-square w-full rounded-md object-cover ring-1 ring-foreground/10"
+      className="aspect-square w-full rounded-md object-cover shadow-ring"
       loading="lazy"
     />
   );
@@ -167,18 +167,18 @@ function DocRow({ hit }: { hit: FileHit }) {
     <span
       className={cn(
         "flex w-full items-center gap-3 px-1 py-2",
-        url ? "transition-colors hover:bg-foreground/[0.04]" : "",
+        url ? "transition-colors hover:bg-accent" : "",
       )}
     >
       <span
         aria-hidden
-        className="grid size-10 shrink-0 place-items-center rounded-md text-[10px] font-semibold"
+        className="grid size-10 shrink-0 place-items-center rounded-md text-xs font-semibold"
         style={{ background: glyph.bg, color: glyph.fg }}
       >
         {glyph.label}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
+        <span className="block truncate text-sm font-medium text-foreground">
           {name}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
@@ -190,13 +190,13 @@ function DocRow({ hit }: { hit: FileHit }) {
   );
 
   return (
-    <li className="border-b border-border/60 last:border-0">
+    <li className="border-b border-border last:border-0">
       {url ? (
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="block rounded-md focus-visible:outline-none focus-visible:shadow-focus"
         >
           {inner}
         </a>

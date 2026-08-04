@@ -105,7 +105,7 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
         </DialogHeader>
         {success ? (
           <div className="space-y-4">
-            <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3">
+            <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
               <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div className="text-sm">
                 {success.emailSent ? (
@@ -120,7 +120,7 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       They'll get an email from{" "}
-                      <code className="text-[10px]">
+                      <code className="text-xs">
                         Hotelclaw &lt;noreply@villa.dev&gt;
                       </code>
                       . Check spam if it doesn't arrive.
@@ -211,10 +211,10 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                       onClick={() => setRole(r.id)}
                       className={cn(
                         "rounded-lg border px-2.5 py-2 text-left transition-colors",
-                        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        "focus-visible:shadow-focus focus-visible:outline-none",
                         selected
                           ? "border-primary bg-primary/10"
-                          : "border-border hover:bg-muted/60",
+                          : "border-border hover:bg-accent",
                       )}
                     >
                       <span

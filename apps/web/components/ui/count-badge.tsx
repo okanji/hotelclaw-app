@@ -11,13 +11,16 @@ import { cn } from "@/lib/utils"
  * overlays on icons; soft tones (`neutral`, `warning-soft`) sit inline
  * beside labels. Positioning (absolute offsets, `ring-2 ring-sidebar`
  * against the surface) stays at the call site via `className`.
+ *
+ * This is the ONE badge that stays round — count bubbles are circles in
+ * Notion too. Everything else in the badge family is a 6px rect.
  */
 const countBadgeVariants = cva(
   "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-xs font-medium whitespace-nowrap tabular-nums",
   {
     variants: {
       tone: {
-        neutral: "bg-muted text-muted-foreground",
+        neutral: "bg-accent text-muted-foreground",
         primary: "bg-primary text-primary-foreground",
         notification: "bg-notification text-white",
         warning: "bg-warning text-white dark:text-background",

@@ -63,7 +63,7 @@ function ProjectRow({
       <button
         type="button"
         onClick={() => openProject(row.projectId)}
-        className="group flex w-full flex-col gap-1.5 px-1 py-3 text-left"
+        className="group flex w-full flex-col gap-1.5 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-accent"
       >
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex min-w-0 items-baseline gap-2">
@@ -75,10 +75,10 @@ function ProjectRow({
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
             {row.done}/{row.total} done
             {row.blocked > 0 ? (
-              <span className="text-rose-500"> · {row.blocked} blocked</span>
+              <span className="text-destructive"> · {row.blocked} blocked</span>
             ) : null}
             {row.overdue > 0 ? (
-              <span className="text-rose-500"> · {row.overdue} overdue</span>
+              <span className="text-destructive"> · {row.overdue} overdue</span>
             ) : null}
             {row.targetDate ? <span> · due {shortDate(row.targetDate)}</span> : null}
           </span>
@@ -87,13 +87,13 @@ function ProjectRow({
           <div
             className={cn(
               "h-full rounded-full",
-              row.pace === "on_pace" ? "bg-emerald-500" : "bg-amber-500",
+              row.pace === "on_pace" ? "bg-success" : "bg-warning",
             )}
             style={{ width: `${row.completionPct}%` }}
           />
         </div>
         {row.paceReasons.length > 0 ? (
-          <p className="text-xs text-pretty text-amber-600 dark:text-amber-500">
+          <p className="text-xs text-pretty text-warning">
             {row.paceReasons.join(" · ")}
           </p>
         ) : null}
@@ -111,7 +111,7 @@ function ProjectRow({
 function PaceBadge({ pace }: { pace: PortfolioRow["pace"] }) {
   if (pace === "on_pace")
     return (
-      <span className="shrink-0 text-xs text-muted-foreground">
+      <span className="shrink-0 text-xs text-faint-foreground">
         on pace
       </span>
     );
@@ -119,7 +119,7 @@ function PaceBadge({ pace }: { pace: PortfolioRow["pace"] }) {
     <span
       className={cn(
         "shrink-0 text-xs font-medium",
-        pace === "behind" ? "text-amber-500" : "text-rose-500",
+        pace === "behind" ? "text-warning" : "text-destructive",
       )}
     >
       {pace === "behind" ? "behind" : "at risk"}

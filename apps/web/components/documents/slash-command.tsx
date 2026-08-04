@@ -607,7 +607,7 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
 
     if (items.length === 0) {
       return (
-        <div className="w-72 rounded-lg border border-border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-md">
+        <div className="w-72 rounded-overlay bg-popover px-3 py-2 text-sm text-muted-foreground shadow-overlay">
           No matching blocks
         </div>
       );
@@ -633,10 +633,10 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
     );
 
     return (
-      <div className="max-h-80 w-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+      <div className="max-h-80 w-72 overflow-y-auto rounded-overlay bg-popover p-1 text-popover-foreground shadow-overlay">
         {groups.map(({ section, items: groupItems }) => (
           <div key={section}>
-            <div className="px-2 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="px-1.5 pt-2 pb-1 text-xs leading-3 font-medium text-faint-foreground">
               {SECTION_LABEL[section]}
             </div>
             {groupItems.map(({ item, index }) => {
@@ -651,18 +651,18 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
                   onClick={() => command(item)}
                   onMouseEnter={() => setSelected(index)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left",
-                    index === selected && "bg-accent text-accent-foreground",
+                    "flex w-full items-center gap-2.5 rounded-md px-1.5 py-[3px] text-left transition-colors",
+                    index === selected && "bg-accent",
                   )}
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     <Icon className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
+                    <span className="block truncate text-sm/[1.2]">
                       {item.title}
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <span className="block truncate text-xs text-faint-foreground">
                       {item.description}
                     </span>
                   </span>

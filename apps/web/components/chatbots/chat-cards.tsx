@@ -41,7 +41,7 @@ function Card({
 }) {
   if (card.type === "services") {
     return (
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
         <ul role="list" className="divide-y divide-zinc-100">
           {card.services.map((s) => (
             <li
@@ -89,7 +89,7 @@ function Card({
 
   if (card.type === "slots") {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
+      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
         <div className="mb-2 text-xs font-medium text-zinc-500">
           {card.serviceName}
           {card.date ? ` · ${card.date}` : ""}
@@ -134,7 +134,7 @@ function Card({
 
   // booking_confirmed
   return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+    <div className="flex items-start gap-2.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5">
       <CalendarCheck2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
       <div className="min-w-0 text-xs leading-snug text-emerald-900">
         <div className="font-semibold">{card.serviceName} — booked</div>

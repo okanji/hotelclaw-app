@@ -73,12 +73,16 @@ function defaultSize(seats: number): { w: number; h: number } {
 
 type TableState = "free" | "pending" | "booked" | "seated" | "inactive";
 
+/**
+ * A table reads as a tinted FILL, never an outlined box — the state is the
+ * color, and a free table is the quiet one (notion-spec §1/§5).
+ */
 const TABLE_TONES: Record<TableState, string> = {
-  free: "border-border bg-background text-muted-foreground hover:border-foreground/40",
+  free: "bg-card text-muted-foreground shadow-ring hover:bg-accent",
   pending: BOOKING_STATUS_UI.pending.tone,
   booked: BOOKING_STATUS_UI.confirmed.tone,
   seated: BOOKING_STATUS_UI.seated.tone,
-  inactive: "border-dashed border-border bg-muted/30 text-muted-foreground/50",
+  inactive: "bg-muted text-faint-foreground",
 };
 
 export function FloorPlanView({
@@ -362,21 +366,24 @@ export function FloorPlanView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+      {/* The side rail is 280px, not 240 — booking rows in it run at the house
+          14px content rung, and a guest name plus a status badge does not fit
+          in 240 without truncating to uselessness. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         {/* Canvas */}
         <div
           ref={canvasRef}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           className={cn(
-            "relative aspect-[4/3] w-full touch-none overflow-hidden rounded-lg border border-border bg-muted/20",
+            "relative aspect-[4/3] w-full touch-none overflow-hidden rounded-md bg-muted shadow-ring",
             mode === "edit" &&
               "bg-[radial-gradient(circle,_var(--color-border)_1px,_transparent_1px)] bg-[length:24px_24px]",
           )}
         >
           {draft.length === 0 ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <Armchair className="size-6 text-muted-foreground" />
+              <Armchair className="size-5 text-faint-foreground" />
               <p className="max-w-[38ch] text-sm text-muted-foreground">
                 No tables yet. Sketch the room yourself, or describe it and
                 let AI lay out a first draft to drag into shape.
@@ -428,24 +435,38 @@ export function FloorPlanView({
                   height: `${r.h}%`,
                 }}
                 className={cn(
-                  "absolute flex flex-col items-center justify-center border-2 text-center transition-colors",
-                  r.shape === "round" ? "rounded-full" : "rounded-lg",
+                  "absolute flex flex-col items-center justify-center overflow-hidden px-1 text-center transition-colors",
+                  r.shape === "round" ? "rounded-full" : "rounded-md",
                   TABLE_TONES[state],
                   mode === "edit" && "cursor-grab active:cursor-grabbing",
                   mode === "edit" && selectedIdx === i && "ring-2 ring-ring",
                   mode === "live" && "cursor-pointer",
                   mode === "live" && selectedBooking && state === "free" && r.active &&
-                    "ring-2 ring-success/60",
+                    "ring-2 ring-success",
                   mode === "live" && !selectedBooking && focusTableId === r.id &&
                     "ring-2 ring-ring",
                 )}
               >
-                <span className="text-xs leading-tight font-semibold">{r.name}</span>
-                <span className="text-[10px] leading-tight opacity-80">
-                  {mode === "live" && current
-                    ? `${current.guest_name.split(" ")[0]} ×${current.party_size}`
-                    : `${r.seats} seats`}
+                {/* A tile carries CONTENT, not metadata: the table name and the
+                    party on it are 14px/500 like every other row label in the
+                    app. The seat count is the one genuinely secondary
+                    annotation, so it stays on the 12px rung. Tiles shorter than
+                    the 8% default can't hold two lines — they drop the second
+                    one rather than shrink the type back down. */}
+                <span className="w-full truncate text-sm leading-tight font-medium">
+                  {r.name}
                 </span>
+                {r.h >= 8 ? (
+                  mode === "live" && current ? (
+                    <span className="w-full truncate text-sm leading-tight opacity-80">
+                      {current.guest_name.split(" ")[0]} ×{current.party_size}
+                    </span>
+                  ) : (
+                    <span className="w-full truncate text-xs leading-tight opacity-70">
+                      {r.seats} seats
+                    </span>
+                  )
+                ) : null}
               </button>
             );
           })}
@@ -453,7 +474,7 @@ export function FloorPlanView({
 
         {/* Side panel */}
         {mode === "edit" ? (
-          <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="space-y-3 rounded-md p-3 shadow-ring">
             {selected ? (
               <>
                 <div className="flex items-center justify-between">
@@ -472,24 +493,22 @@ export function FloorPlanView({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Name</Label>
+                    <Label>Name</Label>
                     <Input
                       value={selected.name}
                       onChange={(e) => patchSelected({ name: e.target.value })}
-                      className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Zone</Label>
+                    <Label>Zone</Label>
                     <Input
                       value={selected.zone ?? ""}
                       onChange={(e) => patchSelected({ zone: e.target.value || null })}
                       placeholder="Patio"
-                      className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Seats (max)</Label>
+                    <Label>Seats (max)</Label>
                     <Input
                       inputMode="numeric"
                       value={String(selected.seats)}
@@ -498,11 +517,10 @@ export function FloorPlanView({
                           seats: Math.max(1, Math.min(50, Number(e.target.value) || 1)),
                         })
                       }
-                      className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Min party</Label>
+                    <Label>Min party</Label>
                     <Input
                       inputMode="numeric"
                       value={String(selected.min_party)}
@@ -511,7 +529,6 @@ export function FloorPlanView({
                           min_party: Math.max(1, Number(e.target.value) || 1),
                         })
                       }
-                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
@@ -537,7 +554,7 @@ export function FloorPlanView({
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Drag tables to arrange the room (it&apos;s a schematic, not a
                 blueprint). Click one to edit its name, seats, and shape.
                 Min&nbsp;party keeps small parties off big tables until
@@ -567,14 +584,14 @@ export function FloorPlanView({
           />
         ) : (
           /* Live mode: the chronological list, host-board style. */
-          <div className="flex max-h-[480px] flex-col gap-1 overflow-y-auto rounded-lg border border-border p-2">
-            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+          <div className="flex max-h-[480px] flex-col gap-px overflow-y-auto rounded-md p-2 shadow-ring">
+            <p className="px-1 pb-1.5 text-xs font-medium text-faint-foreground">
               {selectedBooking
                 ? "Now click a free table to move them"
                 : "Today — click a booking then a table to move it, or click a table to seat a walk-in"}
             </p>
             {dayBookings.length === 0 ? (
-              <p className="px-1 py-6 text-center text-xs text-muted-foreground">
+              <p className="px-1 py-6 text-center text-sm text-muted-foreground">
                 No bookings this day.
               </p>
             ) : (
@@ -591,35 +608,43 @@ export function FloorPlanView({
                   <div
                     key={b.id}
                     className={cn(
-                      "rounded-md border px-2 py-1.5",
+                      "rounded-md px-2 py-1.5 transition-colors",
                       selectedBooking?.id === b.id
-                        ? "border-success/60 bg-success/5"
-                        : "border-transparent hover:border-border",
+                        ? "bg-success/12"
+                        : "hover:bg-accent",
                       terminal && "opacity-50",
                     )}
                   >
+                    {/* The house data row, at rail width: the guest is the
+                        14px/500 label; the time, party and table are the 12px
+                        faint metadata line under it. The time keeps its own
+                        aligned column so the list still scans chronologically
+                        — it just reads as metadata now, not as the content. */}
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 text-left"
+                      className="flex min-h-[34px] w-full items-center gap-3 text-left"
                       onClick={() =>
                         setSelectedBooking(
                           selectedBooking?.id === b.id || terminal ? null : b,
                         )
                       }
                     >
-                      <span className="w-14 shrink-0 text-xs font-medium tabular-nums">
+                      <span className="w-14 shrink-0 text-xs tabular-nums text-faint-foreground">
                         {time}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-xs">
-                        {b.guest_name} ×{b.party_size}
-                        {table ? (
-                          <span className="text-muted-foreground"> · {table.name}</span>
-                        ) : null}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {b.guest_name}
+                        </span>
+                        <span className="block truncate text-xs text-faint-foreground">
+                          ×{b.party_size}
+                          {table ? ` · ${table.name}` : ""}
+                        </span>
                       </span>
                       <BookingStatusBadge status={b.status} />
                     </button>
                     {!terminal ? (
-                      <div className="mt-1 flex gap-1 pl-14">
+                      <div className="mt-1 flex gap-1 pl-17">
                         {b.status === "confirmed" ? (
                           <MiniAction label="Seat" onClick={() => actOn(b, "seated")} />
                         ) : null}
@@ -693,7 +718,7 @@ function TableDetailPanel({
   const free = current.length === 0;
 
   return (
-    <div className="flex max-h-[480px] flex-col gap-3 overflow-y-auto rounded-lg border border-border p-3">
+    <div className="flex max-h-[480px] flex-col gap-3 overflow-y-auto rounded-md p-3 shadow-ring">
       <div className="flex items-center gap-1.5">
         <Button
           type="button"
@@ -706,7 +731,7 @@ function TableDetailPanel({
           <ChevronLeft className="size-4" />
         </Button>
         <p className="text-sm font-medium">{table.name}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-faint-foreground">
           {table.zone ? `${table.zone} · ` : ""}
           {table.seats} seats
         </p>
@@ -714,12 +739,14 @@ function TableDetailPanel({
 
       {free ? (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-success">
+          <p className="text-sm font-medium text-success">
             Free now
           </p>
           {table.active ? (
-            <div className="space-y-2 rounded-md border border-border p-2">
-              <p className="text-xs font-medium">Seat a walk-in</p>
+            <div className="space-y-2 rounded-md bg-muted p-2">
+              <p className="text-xs leading-3 font-medium text-faint-foreground">
+                Seat a walk-in
+              </p>
               <div className="flex flex-wrap gap-1">
                 {Array.from(
                   { length: Math.min(table.seats, 8) },
@@ -731,10 +758,12 @@ function TableDetailPanel({
                     aria-pressed={party === n}
                     onClick={() => setParty(n)}
                     className={cn(
-                      "size-7 rounded-full border text-xs tabular-nums",
+                      // A party size you pick is a value, not a caption — 14px
+                      // on a 30px control, the house chrome row.
+                      "size-8 rounded-md text-sm font-medium tabular-nums transition-colors focus-visible:shadow-focus focus-visible:outline-none",
                       party === n
-                        ? "border-foreground/40 bg-foreground/10 text-foreground"
-                        : "border-border text-muted-foreground hover:text-foreground",
+                        ? "bg-accent-pressed text-foreground"
+                        : "text-muted-foreground hover:bg-accent",
                     )}
                   >
                     {n}
@@ -745,7 +774,6 @@ function TableDetailPanel({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Name (optional)"
-                className="h-8 text-sm"
               />
               <Button
                 size="sm"
@@ -757,7 +785,7 @@ function TableDetailPanel({
               </Button>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               This table is inactive — reactivate it in Edit layout.
             </p>
           )}
@@ -765,14 +793,14 @@ function TableDetailPanel({
       ) : (
         <div className="space-y-2">
           {current.map((b) => (
-            <div key={b.id} className="rounded-md border border-border p-2">
+            <div key={b.id} className="rounded-md bg-muted p-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-medium">
+                <p className="min-w-0 truncate text-sm font-medium">
                   {b.guest_name} ×{b.party_size}
                 </p>
                 <BookingStatusBadge status={b.status} />
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-xs text-faint-foreground">
                 {time(b.starts_at)} – {time(b.ends_at)}
                 {b.guest_phone ? ` · ${b.guest_phone}` : ""}
               </p>
@@ -794,14 +822,16 @@ function TableDetailPanel({
 
       {upcoming.length > 0 ? (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Later today</p>
+          <p className="text-xs leading-3 font-medium text-faint-foreground">Later today</p>
           {upcoming.map((b) => (
-            <p key={b.id} className="text-xs">
-              <span className="font-medium tabular-nums">{time(b.starts_at)}</span>{" "}
-              <span className="text-muted-foreground">
+            <div key={b.id} className="flex items-baseline gap-3">
+              <span className="w-14 shrink-0 text-xs tabular-nums text-faint-foreground">
+                {time(b.starts_at)}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm">
                 {b.guest_name} ×{b.party_size}
               </span>
-            </p>
+            </div>
           ))}
         </div>
       ) : null}
@@ -814,7 +844,10 @@ function MiniAction({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      // A status action is a control, so it sits on the 30px chrome row with a
+      // 14px label — not a 12px caption.
+      // Fill only on hover — the label never flips ink (DESIGN.md §Interaction).
+      className="h-7 rounded-md bg-accent px-2 text-sm font-medium text-secondary-ink transition-colors hover:bg-accent-pressed focus-visible:shadow-focus focus-visible:outline-none"
     >
       {label}
     </button>

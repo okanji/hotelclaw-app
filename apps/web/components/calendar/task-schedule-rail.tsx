@@ -41,14 +41,15 @@ export function TaskChipGhost({
   priority: keyof typeof PRIORITY_META;
 }) {
   return (
-    <div className="flex w-56 cursor-grabbing items-start gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-xs shadow-lg ring-1 ring-foreground/5">
+    // A drag ghost genuinely floats, so it takes the ONE elevation recipe.
+    <div className="flex w-56 cursor-grabbing items-start gap-2 rounded-overlay bg-card px-2.5 py-2 text-sm shadow-overlay">
       <span
         className={cn(
-          "mt-1 size-1.5 shrink-0 rounded-full",
+          "mt-1.5 size-1.5 shrink-0 rounded-full",
           PRIORITY_META[priority].dotClass,
         )}
       />
-      <span className="line-clamp-2 min-w-0 flex-1 text-foreground/90">
+      <span className="line-clamp-2 min-w-0 flex-1 text-foreground">
         {title}
       </span>
     </div>
@@ -113,9 +114,9 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
 
   return (
     <aside className="flex min-h-0 w-64 flex-1 shrink-0 flex-col">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-          <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" />
+      <div className="flex h-11 items-center justify-between gap-2 px-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-secondary-ink">
+          <CircleDashed className="size-3.5 shrink-0 text-faint-foreground" />
           Unscheduled
         </div>
         <CountBadge>{total}</CountBadge>
@@ -125,17 +126,18 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
           {groups.map(({ key, meta, tasks }) => (
             <section key={key}>
               <div className="flex items-baseline justify-between px-1 pb-1">
+                {/* Group label: 12px/12px w500 faint, sentence case. */}
                 <span
                   className={cn(
-                    "text-xs font-medium uppercase tracking-wide",
+                    "text-xs leading-3 font-medium",
                     key === "urgent"
                       ? "text-destructive"
-                      : "text-muted-foreground",
+                      : "text-faint-foreground",
                   )}
                 >
                   {meta.label}
                 </span>
-                <span className="text-xs tabular-nums text-muted-foreground/70">
+                <span className="text-xs tabular-nums text-faint-foreground">
                   {tasks.length}
                 </span>
               </div>
@@ -152,7 +154,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
           ))}
         </div>
       </div>
-      <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+      <div className="px-3 py-2 text-xs text-faint-foreground">
         Drag a task onto the grid to schedule it
       </div>
     </aside>
@@ -189,18 +191,19 @@ function TaskChip({
       {...attributes}
       {...listeners}
       className={cn(
-        "group flex cursor-grab items-start gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-2 text-xs transition-colors",
-        "hover:border-foreground/25 hover:shadow-xs active:cursor-grabbing",
+        // A resting row: fill-only hover, no stroke, no lift.
+        "group flex cursor-grab items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        "hover:bg-accent active:cursor-grabbing",
       )}
     >
-      <GripVertical className="mt-0.5 size-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60" />
+      <GripVertical className="mt-1 size-3 shrink-0 text-transparent transition-colors group-hover:text-faint-foreground" />
       <span
         className={cn(
-          "mt-1 size-1.5 shrink-0 rounded-full",
+          "mt-1.5 size-1.5 shrink-0 rounded-full",
           priorityMeta.dotClass,
         )}
       />
-      <span className="line-clamp-2 min-w-0 flex-1 text-foreground/90">
+      <span className="line-clamp-2 min-w-0 flex-1 text-secondary-ink">
         {task.title}
       </span>
       <button
@@ -209,10 +212,10 @@ function TaskChip({
           e.stopPropagation();
           onUnschedule();
         }}
-        className="-m-1 rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
+        className="-m-1 rounded-md p-1 opacity-0 transition-opacity hover:bg-accent-pressed focus-visible:shadow-focus focus-visible:outline-none group-hover:opacity-100"
         aria-label="Hide from rail"
       >
-        <X className="size-3 text-muted-foreground" />
+        <X className="size-3 text-faint-foreground" />
       </button>
     </li>
   );

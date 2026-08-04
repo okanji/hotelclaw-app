@@ -103,16 +103,16 @@ function SubPageView({ node }: NodeViewProps) {
         onClick={open}
         disabled={missing}
         className={cn(
-          "group/subpage flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors",
-          "hover:border-border hover:bg-muted",
+          "group/subpage flex min-h-[30px] w-full items-center gap-2 rounded-md px-2 text-left transition-colors",
+          "hover:bg-accent",
           "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent",
         )}
       >
-        <FileText className="size-4 shrink-0 text-muted-foreground" />
+        <FileText className="size-4 shrink-0 text-faint-foreground" />
         <span className="flex-1 truncate text-sm font-medium underline-offset-2 group-hover/subpage:underline">
           {missing ? "Sub-page (unavailable)" : (title ?? "Untitled")}
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/subpage:opacity-100" />
+        <ChevronRight className="size-4 shrink-0 text-faint-foreground opacity-0 transition-opacity group-hover/subpage:opacity-100" />
       </button>
     </NodeViewWrapper>
   );

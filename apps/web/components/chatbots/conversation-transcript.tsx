@@ -156,7 +156,7 @@ export function ConversationTranscript({
           <ArrowLeft className="size-4" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold tracking-tight">
+          <h1 className="truncate text-base font-semibold">
             {guestLabel}
             {conversation.room_number ? (
               <span className="font-normal text-muted-foreground">
@@ -190,7 +190,7 @@ export function ConversationTranscript({
 
       <div
         ref={listRef}
-        className="mt-4 flex-1 space-y-2.5 overflow-y-auto rounded-lg border border-border bg-muted/10 p-4"
+        className="mt-4 flex-1 space-y-2.5 overflow-y-auto rounded-lg bg-muted p-4"
       >
         {messages.map((m) =>
           m.role === "system" ? (
@@ -279,7 +279,7 @@ export function ConversationTranscript({
           }
           rows={2}
           disabled={sending}
-          className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-focus"
         />
         <Button type="submit" disabled={sending || !input.trim()}>
           {sending ? "Sending…" : status === "human" ? "Reply" : "Take over"}

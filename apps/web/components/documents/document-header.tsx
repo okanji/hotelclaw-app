@@ -150,14 +150,14 @@ export function DocumentHeader({
             <button
               type="button"
               onClick={pickAndUploadCover}
-              className="rounded-md bg-background/85 px-2.5 py-1 text-xs font-medium text-foreground shadow hover:bg-background"
+              className="h-7 rounded-md bg-popover px-2 text-xs font-medium text-foreground shadow-overlay transition-colors hover:bg-accent"
             >
               Replace
             </button>
             <button
               type="button"
               onClick={() => setCover(null)}
-              className="rounded-md bg-background/85 p-1.5 text-foreground shadow hover:bg-background"
+              className="rounded-md bg-popover p-1.5 text-foreground shadow-overlay transition-colors hover:bg-accent"
               aria-label="Remove cover"
               title="Remove cover"
             >
@@ -188,14 +188,14 @@ export function DocumentHeader({
 
       {/* Hover hint row — "Add icon / Add cover / Add comment". Only the
           buttons whose target isn't already set are shown. */}
-      <div className="mb-2 flex h-7 items-center gap-3 text-sm text-muted-foreground opacity-0 transition-opacity group-hover/header:opacity-100">
+      <div className="mb-2 -ml-1.5 flex h-7 items-center gap-0.5 text-sm text-faint-foreground opacity-0 transition-opacity group-hover/header:opacity-100">
         {!icon ? (
           <IconPicker
             onSelect={(emoji) => void setIcon(emoji)}
             trigger={
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 hover:text-foreground"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
               >
                 <Smile className="size-4" />
                 Add icon
@@ -207,7 +207,7 @@ export function DocumentHeader({
           <button
             type="button"
             onClick={pickAndUploadCover}
-            className="inline-flex items-center gap-1.5 hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
           >
             <ImageIcon className="size-4" />
             Add cover
@@ -216,7 +216,7 @@ export function DocumentHeader({
         <button
           type="button"
           onClick={onAddComment}
-          className="inline-flex items-center gap-1.5 hover:text-foreground"
+          className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
         >
           <MessageCircle className="size-4" />
           Add comment
@@ -262,7 +262,7 @@ function IconPicker({
                 onSelect("");
                 setOpen(false);
               }}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Remove icon
             </button>

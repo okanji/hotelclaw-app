@@ -17,7 +17,7 @@ export type WidgetProps = { propertyId: string; userId: string };
 
 export type WidgetDef = {
   id: string;
-  /** Uppercase eyebrow above the title, editorial style. */
+  /** Sentence-case 12px label above the title. */
   kicker: string;
   /** Section heading. */
   title: string;

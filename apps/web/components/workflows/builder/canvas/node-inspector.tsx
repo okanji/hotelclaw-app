@@ -142,7 +142,7 @@ function NonModalSidePanel({
           data-slot="inspector-panel"
           className={cn(
             "fixed top-0 right-0 z-40 flex h-full w-full max-w-xl flex-col gap-0",
-            "border-l border-border bg-popover text-popover-foreground shadow-2xl",
+            "bg-popover text-popover-foreground shadow-overlay",
             "transition-transform duration-200 ease-out",
             "data-starting-style:translate-x-full data-ending-style:translate-x-full",
           )}
@@ -168,7 +168,7 @@ function Section({
   return (
     <section className="space-y-2.5">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-xs font-medium text-faint-foreground">
           {title}
         </h3>
         {description && (
@@ -681,7 +681,7 @@ function WebhookUrlPanel({ token }: { token: string | null }) {
   const url = `${origin}/api/workflows/webhook/${token}`;
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 rounded-md border border-input bg-muted/20 px-2.5 py-1.5">
+      <div className="flex items-center gap-2 rounded-md bg-muted px-2.5 py-1.5">
         <code className="min-w-0 flex-1 truncate text-xs text-foreground">{url}</code>
         <button
           type="button"
@@ -690,7 +690,7 @@ function WebhookUrlPanel({ token }: { token: string | null }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-1 text-xs text-muted-foreground hover:bg-accent"
         >
           {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
           {copied ? "Copied" : "Copy"}
@@ -731,11 +731,11 @@ function StepErrorHandling({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/[0.04] p-3">
+    <div className="space-y-3 rounded-lg bg-muted/[0.04] p-3">
       <p className="text-sm font-medium text-foreground">If this step fails</p>
 
       <label className="grid gap-1.5">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
+        <span className="text-xs font-medium text-faint-foreground">
           Retry first
         </span>
         <div className="flex items-center gap-2">
@@ -746,7 +746,7 @@ function StepErrorHandling({
             value={maxRetries}
             onChange={(e) => setRetries(Number(e.target.value))}
             aria-label="Retry attempts"
-            className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-9 w-20 rounded-md bg-background px-2 text-sm"
           />
           <span className="text-sm text-muted-foreground">
             {maxRetries === 0
@@ -757,7 +757,7 @@ function StepErrorHandling({
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
+        <span className="text-xs font-medium text-faint-foreground">
           Then
         </span>
         <WorkflowSelect
@@ -799,7 +799,7 @@ function StepProducesPanel({
           <Badge
             key={f.key}
             variant="outline"
-            className="gap-1.5 border-border/70 bg-muted/40 font-mono"
+            className="gap-1.5 border-border bg-muted font-mono"
           >
             {f.key}
             <span className="font-sans text-xs text-muted-foreground">{f.type}</span>
@@ -809,7 +809,7 @@ function StepProducesPanel({
       <p className="text-xs leading-relaxed text-muted-foreground">
         Later steps can use {fields.length === 1 ? "this" : "these"} via{" "}
         <span className="font-medium text-foreground/80">Insert data</span> — e.g.{" "}
-        <code className="rounded-md bg-muted/60 px-1 py-px font-mono text-xs">
+        <code className="rounded-md bg-muted px-1 py-px font-mono text-xs">
           {`{{steps.${stepId}.output.${fields[0]!.key}}}`}
         </code>
         .
@@ -890,7 +890,7 @@ function StepConfigSection({
   const body = (
     <div className="space-y-3">
       {inputEmpty && stepType.startsWith("ai.") && inputSuggestion && (
-        <div className="flex flex-col gap-2 rounded-md border border-warning/25 bg-warning/[0.06] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-md bg-warning/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm leading-relaxed text-foreground/85">
             This step needs text to work on. For task workflows, the complaint or
             details usually live in the task{" "}
@@ -908,7 +908,7 @@ function StepConfigSection({
         </div>
       )}
       {inputEmpty && stepType.startsWith("ai.") && !inputSuggestion && (
-        <p className="rounded-md border border-warning/25 bg-warning/[0.06] px-3 py-2 text-sm leading-relaxed text-foreground/85">
+        <p className="rounded-md bg-warning/10 px-3 py-2 text-sm leading-relaxed text-foreground/85">
           Choose what text the AI should read — use{" "}
           <span className="font-medium">Insert data</span> on the field below.
         </p>
@@ -1009,7 +1009,7 @@ function InspectorHeader({
   }
 
   return (
-    <header className="shrink-0 border-b border-border/60">
+    <header className="shrink-0 border-b border-border">
       <div className="flex items-start gap-3 px-4 pt-4 pb-3">
         <SurfaceBadge surface={surface} className="mt-0.5 size-9 rounded-lg" />
 
@@ -1032,13 +1032,13 @@ function InspectorHeader({
               }}
               placeholder={titlePlaceholder}
               aria-label="Step name"
-              className="w-full rounded-md border border-input bg-background px-2 py-1 text-base font-semibold tracking-tight text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+              className="w-full rounded-md bg-background px-2 py-1 text-base font-semibold text-foreground outline-none focus-visible:shadow-focus"
             />
           ) : (
             <div className="group/title flex items-start gap-1">
               <h2
                 className={cn(
-                  "min-w-0 flex-1 text-base font-semibold tracking-tight text-balance",
+                  "min-w-0 flex-1 text-base font-semibold text-balance",
                   usingDefaultName ? "text-muted-foreground" : "text-foreground",
                 )}
               >
@@ -1049,7 +1049,7 @@ function InspectorHeader({
                   type="button"
                   onClick={startRenaming}
                   aria-label="Rename step"
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground group-hover/title:text-muted-foreground"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent group-hover/title:text-muted-foreground"
                 >
                   <Pencil className="size-3.5" aria-hidden />
                 </button>
@@ -1067,14 +1067,14 @@ function InspectorHeader({
           type="button"
           onClick={onClose}
           aria-label="Close inspector"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
         >
           <X className="size-4" />
         </button>
       </div>
 
       {description ? (
-        <div className="border-t border-border/40 bg-muted/20 px-4 py-3">
+        <div className="border-t border-border bg-muted px-4 py-3">
           <p className="max-w-[56ch] text-sm text-pretty text-muted-foreground">{description}</p>
         </div>
       ) : null}

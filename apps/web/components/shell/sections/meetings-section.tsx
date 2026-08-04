@@ -85,7 +85,7 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
         <SidebarGroupLabel>Recent</SidebarGroupLabel>
         <SidebarGroupContent>
           {meetings.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-sidebar-foreground/60">
+            <p className="px-2 py-1.5 text-xs text-faint-foreground">
               No meetings yet. Click <strong>Meet</strong> in any channel.
             </p>
           ) : (
@@ -99,7 +99,12 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
                     size="sm"
                   >
                     {m.has_summary ? (
-                      <Sparkles className="text-indigo-400" />
+                      // A summarized meeting is marked by the icon SHAPE
+                      // alone. Notion nav rows carry no colored icons, and
+                      // the old `text-indigo-400` never rendered anyway (the
+                      // row's own `[&_svg]:text-sidebar-foreground/70` out-
+                      // specifies a plain utility class).
+                      <Sparkles />
                     ) : (
                       <Video />
                     )}

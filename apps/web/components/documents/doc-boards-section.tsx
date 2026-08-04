@@ -60,12 +60,12 @@ import {
 const COLOR_DOT = LABEL_DOT;
 /** Soft tint behind a board's drop-zone, used when a drag is over the strip. */
 const COLOR_DROP_TINT: Record<BoardColor, string> = {
-  slate: "bg-slate-500/5 ring-slate-500/20",
-  blue: "bg-blue-500/5 ring-blue-500/25",
-  green: "bg-emerald-500/5 ring-emerald-500/25",
-  amber: "bg-amber-500/5 ring-amber-500/25",
-  rose: "bg-rose-500/5 ring-rose-500/25",
-  violet: "bg-violet-500/5 ring-violet-500/25",
+  slate: "bg-slate-500/8",
+  blue: "bg-blue-500/8",
+  green: "bg-emerald-500/8",
+  amber: "bg-amber-500/8",
+  rose: "bg-rose-500/8",
+  violet: "bg-violet-500/8",
 };
 /** Per-color swatch + label for the color picker. */
 const COLOR_LABEL: Record<BoardColor, string> = {
@@ -327,7 +327,7 @@ function BoardStrip({
   });
 
   return (
-    <div className="group/board bg-zinc-200/70 px-7 pt-6 pb-5 dark:bg-white/[0.04]">
+    <div className="group/board rounded-md bg-muted px-7 pt-6 pb-5">
       <BoardHeader board={board} />
       <div
         ref={pinMode === "drag" ? setNodeRef : undefined}
@@ -335,7 +335,7 @@ function BoardStrip({
           "flex gap-3 overflow-x-auto py-2",
           pinMode === "drag" &&
             isOver &&
-            cn("rounded-lg ring-1 ring-inset", COLOR_DROP_TINT[board.color]),
+            cn("rounded-md", COLOR_DROP_TINT[board.color]),
         )}
       >
         {pinMode === "picker" ? (
@@ -434,11 +434,11 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
         placeholder="Untitled board"
         aria-label="Board name"
         className={cn(
-          "min-w-0 flex-1 truncate bg-transparent text-xl font-semibold tracking-tight text-foreground",
-          "outline-none placeholder:text-muted-foreground/60",
+          "min-w-0 flex-1 truncate bg-transparent text-base leading-6 font-semibold text-foreground",
+          "outline-none placeholder:text-faint-foreground",
         )}
       />
-      <span className="shrink-0 rounded-md bg-muted/60 px-2 py-0.5 text-sm text-muted-foreground tabular-nums">
+      <span className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-sm text-muted-foreground tabular-nums">
         {board.items.length}
       </span>
       {liveCount > 0 ? (
@@ -471,9 +471,7 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-                Color
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>Color</DropdownMenuLabel>
               {BOARD_COLORS.map((c) => (
                 <DropdownMenuItem
                   key={c}
@@ -512,7 +510,7 @@ function BoardEmptyHint({
 }) {
   if (pinMode === "picker" && pinPicker) {
     return (
-      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-lg border border-dashed border-border/70 px-4 py-4">
+      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-md bg-card px-4 py-4 shadow-ring">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-foreground">Pin documents</p>
           <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
@@ -526,13 +524,12 @@ function BoardEmptyHint({
   }
 
   return (
-    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 px-4 text-center">
-      <span
-        className="flex size-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground"
+    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2.5 rounded-md bg-card px-4 text-center shadow-ring">
+      <Pin
         aria-hidden="true"
-      >
-        <Pin strokeWidth={1.75} className="size-4" />
-      </span>
+        strokeWidth={1.75}
+        className="size-5 text-faint-foreground"
+      />
       <p className="max-w-[24ch] text-sm text-pretty text-muted-foreground">
         Drag a document here to pin it for your team.
       </p>
@@ -593,10 +590,12 @@ function DropSlot() {
     <div
       aria-hidden="true"
       className={cn(
-        "flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed transition-colors duration-200",
+        // A drop target reads as a fill, never a dashed outline
+        // (notion-spec §1 — surfaces separate by fill, not stroke).
+        "flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1.5 rounded-md transition-colors",
         isDragging
-          ? "border-foreground/30 bg-muted/20 text-foreground/70"
-          : "border-border/40 text-muted-foreground/40 group-hover/board:border-border/70",
+          ? "bg-accent-pressed text-muted-foreground"
+          : "text-faint-foreground opacity-0 group-hover/board:bg-accent group-hover/board:opacity-100",
       )}
     >
       <Pin strokeWidth={1.75} className="size-4" />
@@ -621,7 +620,7 @@ function EmptyBoardsCallout({
   pinMode: "drag" | "picker";
 }) {
   return (
-    <section className="border-b border-border/50 pb-8">
+    <section className="pb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-medium text-foreground">

@@ -22,7 +22,7 @@ import { LABEL_DOT } from "@/components/labels/label-tokens";
 const DOT = LABEL_DOT;
 
 const ROW =
-  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none";
+  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none";
 
 /**
  * Project + Space assignment for the task detail sidebar. Self-contained — reads
@@ -93,7 +93,7 @@ export function TaskProjectSpacePicker({
         >
           <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
             {project ? (
-              <span className={cn("size-2.5 rounded", DOT[project.color])} />
+              <span className={cn("size-2.5 rounded-md", DOT[project.color])} />
             ) : (
               <FolderKanban className="size-3.5" />
             )}
@@ -110,7 +110,7 @@ export function TaskProjectSpacePicker({
               onClick={() => void pickProject(p.id)}
               className="gap-2"
             >
-              <span className={cn("size-2.5 rounded", DOT[p.color])} />
+              <span className={cn("size-2.5 rounded-md", DOT[p.color])} />
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
               {p.id === project?.id ? <Check className="size-3.5" /> : null}
             </DropdownMenuItem>

@@ -49,7 +49,7 @@ export function WorkflowDetail({
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
-            <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
+            <div className="rounded-lg bg-muted p-12 text-center">
               <Workflow className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium text-foreground">
                 This workflow is empty
@@ -68,7 +68,7 @@ export function WorkflowDetail({
                 </Link>
                 <Link
                   href={`/p/${propertyId}/workflows/templates`}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                   <LibraryBig className="size-3.5" aria-hidden />
                   Browse templates

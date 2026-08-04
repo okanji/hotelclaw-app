@@ -141,7 +141,7 @@ export function AgentBuilderDialog({
                   type="button"
                   disabled={busy}
                   onClick={() => void send(ex)}
-                  className="w-full rounded-lg border border-border/60 px-3 py-2 text-left text-xs leading-relaxed text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                  className="w-full rounded-md bg-muted px-3 py-2 text-left text-sm leading-relaxed text-muted-foreground transition-colors hover:bg-accent"
                 >
                   {ex}
                 </button>
@@ -156,7 +156,7 @@ export function AgentBuilderDialog({
               <div
                 key={i}
                 className={cn(
-                  "max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed",
+                  "max-w-[85%] rounded-md px-3 py-2 text-sm leading-relaxed",
                   t.role === "user"
                     ? "self-end bg-primary/10 text-foreground"
                     : "self-start bg-muted text-foreground",
@@ -166,7 +166,7 @@ export function AgentBuilderDialog({
               </div>
             ))}
             {busy ? (
-              <div className="flex items-center gap-2 self-start rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 self-start rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" />
                 Thinking…
               </div>
@@ -175,20 +175,20 @@ export function AgentBuilderDialog({
         ) : null}
 
         {draft ? (
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4">
+          <div className="flex flex-col gap-3 rounded-md bg-muted p-4">
             <div className="flex items-center gap-2.5">
               <span className="text-2xl leading-none">
                 {draft.config.avatarEmoji}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">
+                <p className="truncate text-sm font-medium text-foreground">
                   {draft.name}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {draft.config.description}
                 </p>
               </div>
-              <span className="ml-auto shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
+              <span className="ml-auto shrink-0 rounded-md px-2 py-0.5 text-xs capitalize text-muted-foreground bg-muted">
                 {draft.config.modelTier}
               </span>
             </div>

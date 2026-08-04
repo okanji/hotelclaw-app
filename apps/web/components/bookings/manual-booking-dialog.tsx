@@ -173,7 +173,7 @@ export function ManualBookingDialog({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+              className="h-7 rounded-md bg-transparent px-2 text-sm shadow-ring transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus dark:bg-muted"
             />
           </div>
 

@@ -112,7 +112,7 @@ export function BotDetail({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/60 px-6 py-4">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -125,7 +125,7 @@ export function BotDetail({
           {podBotEmoji(bot.bot_id)}
         </TintIcon>
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold tracking-tight">
+          <h1 className="truncate text-base font-semibold">
             {displayName}
           </h1>
           <p className="truncate font-mono text-xs text-muted-foreground">
@@ -143,7 +143,7 @@ export function BotDetail({
       </header>
 
       {paused ? (
-        <div className="flex items-center gap-2 border-b border-border/60 bg-warning/10 px-6 py-2 text-sm text-warning">
+        <div className="flex items-center gap-2 border-b border-border bg-warning/10 px-6 py-2 text-sm text-warning">
           <ShieldAlert className="size-4 shrink-0" />
           This pod is {client.status} — its bots don&apos;t answer in channels
           or here until it&apos;s active again.
@@ -153,7 +153,7 @@ export function BotDetail({
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
         <div className="flex min-h-0 flex-col gap-8 overflow-y-auto px-6 py-6">
           {!canEdit ? (
-            <p className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
               Only owners can change pod bot configuration — shown here so the
               whole team can see exactly what this bot can do.
             </p>
@@ -170,7 +170,7 @@ export function BotDetail({
                   setDirty(true);
                 }}
                 disabled={!canEdit}
-                className="h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+                className="h-9 w-full max-w-sm rounded-md bg-transparent px-3 text-sm outline-none focus-visible:shadow-focus disabled:opacity-60 shadow-ring"
               />
             </label>
           </section>
@@ -211,7 +211,7 @@ export function BotDetail({
                   {tools.map((tool) => (
                     <label
                       key={tool.id}
-                      className="flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/40 has-[input:disabled]:cursor-default"
+                      className="flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent has-[input:disabled]:cursor-default"
                     >
                       <input
                         type="checkbox"
@@ -278,7 +278,7 @@ export function BotDetail({
           </section>
         </div>
 
-        <div className="min-h-0 border-t border-border/60 lg:border-t-0 lg:border-l">
+        <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
           <AgentChat
             propertyId={propertyId}
             target={{ botSlug: bot.bot_id }}

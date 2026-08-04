@@ -23,16 +23,18 @@ export function TimeFormatToggle() {
       <DropdownMenuSubTrigger>
         <Clock className="size-4" />
         Time format
-        <span className="ml-auto text-xs text-muted-foreground">{label}</span>
+        <span className="ml-auto text-xs font-normal text-faint-foreground">
+          {label}
+        </span>
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         <DropdownMenuItem onClick={() => void setFormat("12h")}>
           12-hour
-{format === "12h" ? <Check className="ml-auto size-4 text-muted-foreground" /> : null}
+{format === "12h" ? <Check className="ml-auto size-4 text-faint-foreground" /> : null}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void setFormat("24h")}>
           24-hour
-{format === "24h" ? <Check className="ml-auto size-4 text-muted-foreground" /> : null}
+{format === "24h" ? <Check className="ml-auto size-4 text-faint-foreground" /> : null}
         </DropdownMenuItem>
       </DropdownMenuSubContent>
     </DropdownMenuSub>

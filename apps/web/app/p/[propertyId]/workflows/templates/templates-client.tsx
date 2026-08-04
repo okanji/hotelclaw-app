@@ -186,13 +186,13 @@ function TemplatePreview({
           {template.surfaces.map((s) => (
             <span
               key={s}
-              className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+              className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-faint-foreground"
             >
               {s}
             </span>
           ))}
         </div>
-        <DialogTitle className="text-base font-semibold tracking-tight">
+        <DialogTitle className="text-base font-semibold">
           {template.name}
         </DialogTitle>
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -202,7 +202,7 @@ function TemplatePreview({
 
       {/* Flow — the only scrolling region, on a recessed band so the cards
           read as content rather than chrome. */}
-      <div className="min-h-0 flex-1 overflow-y-auto border-y border-border/60 bg-muted/20 px-5 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto border-y border-border bg-muted px-5 py-4">
         <WorkflowSpecPreview spec={template.spec} />
       </div>
 

@@ -27,7 +27,7 @@ export function highlight(text: string, query: string) {
         return isMatch ? (
           <mark
             key={i}
-            className="rounded bg-yellow-200/70 px-0.5 text-foreground dark:bg-yellow-400/30"
+            className="rounded-sm bg-annotation-mark px-0.5 text-foreground"
           >
             {part}
           </mark>

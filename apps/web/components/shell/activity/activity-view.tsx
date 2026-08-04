@@ -12,6 +12,11 @@ import { viewDef, viewFromParam } from "./views";
  * its rows. There's no separate detail pane: clicking a row navigates to the
  * thing it points at, so the sidebar (which slice) and this pane (the rows)
  * each have exactly one job and never duplicate each other.
+ *
+ * The unread count is topbar *meta*, not a control: 14px/400 faint, the same
+ * ramp as Notion's "Edited 2y ago" (docs/notion-spec.md §3). 12px is reserved
+ * for labels/captions/shortcuts, so this is `text-sm text-faint-foreground` —
+ * quieter than the 14px/500 title it sits opposite, never a second heading.
  */
 export function ActivityView({
   propertyId,
@@ -32,7 +37,7 @@ export function ActivityView({
         icon={<Icon />}
         actions={
           unseenCount > 0 ? (
-            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+            <span className="text-sm text-faint-foreground tabular-nums">
               {unseenCount} unread
             </span>
           ) : null

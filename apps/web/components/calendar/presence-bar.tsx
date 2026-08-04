@@ -68,8 +68,8 @@ export function CalendarPresenceBar() {
           <TooltipTrigger>
             <Avatar
               className={cn(
-                "size-6 ring-2 ring-card",
-                p.editingEventId && "ring-amber-400",
+                "size-6 ring-2 ring-background",
+                p.editingEventId && "ring-warning",
               )}
             >
               <AvatarImage src={p.avatar} />
@@ -79,12 +79,13 @@ export function CalendarPresenceBar() {
             </Avatar>
           </TooltipTrigger>
           <TooltipContent>
+            {/* The tooltip is a constant dark slab — its own ink ramp. */}
             <div className="text-xs">
               <div className="font-medium">{p.name ?? "Unnamed"}</div>
               {p.editingEventId ? (
-                <div className="text-muted-foreground">Editing an event</div>
+                <div className="opacity-70">Editing an event</div>
               ) : p.focusedDay ? (
-                <div className="text-muted-foreground">
+                <div className="opacity-70">
                   Looking at{" "}
                   {new Date(p.focusedDay).toLocaleDateString(undefined, {
                     month: "short",
@@ -97,7 +98,7 @@ export function CalendarPresenceBar() {
         </Tooltip>
       ))}
       {people.length > 5 ? (
-        <span className="ml-2 text-xs text-muted-foreground">
+        <span className="ml-2 text-xs text-faint-foreground">
           +{people.length - 5}
         </span>
       ) : null}

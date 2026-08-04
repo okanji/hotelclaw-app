@@ -255,7 +255,7 @@ export function RunInspectorClient({
           <StepRunRow key={s.id} step={s} ordinal={i + 1} />
         ))}
         {steps.length === 0 ? (
-          <li className="rounded-md border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">
+          <li className="rounded-md bg-muted p-6 text-center text-sm text-muted-foreground">
             No steps recorded yet.
           </li>
         ) : null}
@@ -269,7 +269,7 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <li className="rounded-md border border-border/60 bg-card">
+    <li className="rounded-md bg-card shadow-ring">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -316,12 +316,12 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
         />
       </button>
       {open ? (
-        <div className="border-t border-border/60 p-3 text-xs">
+        <div className="border-t border-border p-3 text-xs">
           {step.error ? (
             <Section title="What went wrong" tone="destructive">
               <p className="font-sans">{humanizeStepError(step.error)}</p>
               <details className="mt-2">
-                <summary className="cursor-pointer font-sans text-xs uppercase tracking-wide opacity-70 select-none">
+                <summary className="cursor-pointer font-sans text-xs text-faint-foreground select-none">
                   Technical details
                 </summary>
                 <pre className="mt-1 overflow-x-auto whitespace-pre-wrap">
@@ -410,7 +410,7 @@ function Section({
     <div className="mb-3 last:mb-0">
       <div
         className={cn(
-          "mb-1 text-xs font-medium uppercase tracking-wide",
+          "mb-1 text-xs font-medium",
           tone === "destructive" ? "text-destructive" : "text-muted-foreground",
         )}
       >
@@ -418,7 +418,7 @@ function Section({
       </div>
       <div
         className={cn(
-          "rounded-md bg-muted/40 p-2 font-mono text-xs text-foreground",
+          "rounded-md bg-muted p-2 font-mono text-xs text-foreground",
           tone === "destructive" && "bg-destructive/10 text-destructive",
         )}
       >

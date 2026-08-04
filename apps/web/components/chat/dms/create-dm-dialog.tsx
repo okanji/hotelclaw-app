@@ -135,7 +135,7 @@ export function CreateDmDialog({ propertyId, open, onOpenChange }: Props) {
                       aria-pressed={checked}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition",
-                        checked ? "bg-primary/5" : "hover:bg-muted",
+                        checked ? "bg-primary/5" : "hover:bg-accent",
                       )}
                     >
                       <UserAvatar member={m} />

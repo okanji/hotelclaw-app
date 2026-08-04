@@ -82,7 +82,7 @@ export function DocumentRow({
         onClick={handleClick}
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
-        className="flex items-center gap-3 rounded-lg px-3 py-2.5 group-hover/row:bg-muted/50"
+        className="flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors group-hover/row:bg-accent"
       >
         {draggable ? (
           // Drag handle: only the grip starts a drag, so grabbing the row's
@@ -96,7 +96,7 @@ export function DocumentRow({
               e.stopPropagation();
             }}
             aria-label="Drag to pin to a board"
-            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-muted-foreground/30 hover:text-muted-foreground/60 active:cursor-grabbing"
+            className="-mx-1 flex shrink-0 cursor-grab items-center self-stretch px-1 text-faint-foreground active:cursor-grabbing"
           >
             <GripVertical aria-hidden className="size-4" />
           </span>
@@ -104,19 +104,19 @@ export function DocumentRow({
           <span className="size-4 shrink-0 self-center" aria-hidden="true" />
         )}
         <span className="flex min-w-0 flex-1 items-center gap-3">
+          {/* 16px is THE row icon everywhere (notion-spec §4) — the two-line
+              variant used to bump this to 24px, the only oversized row icon
+              in the app. */}
           <FileText
             strokeWidth={1.5}
-            className={cn(
-              "shrink-0 text-muted-foreground",
-              editorName && !timeLabel ? "size-6" : "size-4",
-            )}
+            className="size-4 shrink-0 text-faint-foreground"
           />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">
               {doc.title || "Untitled"}
             </span>
             {editorName && !timeLabel ? (
-              <span className="block truncate text-sm text-muted-foreground">
+              <span className="block truncate text-xs text-faint-foreground">
                 Edited by {editorName}
               </span>
             ) : null}
@@ -124,7 +124,7 @@ export function DocumentRow({
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
           <DocumentViewerAvatarStack users={viewers} />
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="text-xs text-faint-foreground tabular-nums">
             {displayTime}
           </span>
         </span>

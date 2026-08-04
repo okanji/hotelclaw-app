@@ -1,20 +1,22 @@
 /* Spreadsheet styles. Scoped via the `.hc-sheet-root` ancestor selector. */
 
+/* A data grid is the one place a 1px line is genuinely structural, so the
+ * grid keeps its rules — but they ride the warm 7% `--border` token, never a
+ * gray stroke. Everything else here derives from a theme token: the cells sit
+ * on the CONTENT plane (--card), the frozen headers on the opaque chrome
+ * plane (--secondary; --muted is translucent and would let scrolling cells
+ * bleed through a sticky header), and the selection chrome is the Notion
+ * blue that --ring already carries. */
 .hc-sheet-root {
   --hc-sheet-grid-color: var(--border);
   --hc-sheet-grid-color-strong: var(--border);
-  --hc-sheet-cell-bg: var(--background);
-  --hc-sheet-cell-bg-alt: color-mix(in oklab, var(--background) 95%, var(--muted) 5%);
-  --hc-sheet-header-bg: var(--muted);
+  --hc-sheet-cell-bg: var(--card);
+  --hc-sheet-cell-bg-alt: color-mix(in oklab, var(--card) 95%, var(--muted) 5%);
+  --hc-sheet-header-bg: var(--secondary);
   --hc-sheet-header-text: var(--muted-foreground);
-  --hc-sheet-selection: hsl(220 90% 56%);
-  --hc-sheet-selection-bg: color-mix(in oklab, hsl(220 90% 56%) 10%, transparent);
-  --hc-sheet-error: hsl(0 70% 55%);
-}
-
-.hc-sheet-root.dark,
-.dark .hc-sheet-root {
-  --hc-sheet-grid-color: color-mix(in oklab, var(--border) 80%, transparent);
+  --hc-sheet-selection: var(--ring);
+  --hc-sheet-selection-bg: color-mix(in oklab, var(--ring) 10%, transparent);
+  --hc-sheet-error: var(--destructive);
 }
 
 /* Scroll container holds the entire table including frozen headers. */
@@ -41,7 +43,7 @@
   box-sizing: border-box;
   border-right: 1px solid var(--hc-sheet-grid-color);
   border-bottom: 1px solid var(--hc-sheet-grid-color);
-  font-size: 13px;
+  font-size: 14px;
   vertical-align: middle;
   padding: 0;
 }
@@ -87,12 +89,13 @@
   cursor: copy;
 }
 
-/* Floating charts over the grid. */
+/* Floating charts over the grid — a genuinely floating object, so it takes
+ * the house overlay recipe (the 1px warm ring is the shadow's last layer,
+ * hence no border). */
 .hc-sheet-chart {
-  background: var(--hc-sheet-cell-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  background: var(--popover);
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--overlay-shadow);
   display: flex;
   flex-direction: column;
   z-index: 10;
@@ -103,7 +106,6 @@
   gap: 6px;
   padding: 4px 6px;
   border-bottom: 1px solid var(--border);
-  background: var(--muted);
   cursor: move;
   user-select: none;
 }
@@ -228,11 +230,11 @@
 /* Find-replace highlight. Soft yellow for any match, stronger for the
    currently-focused one. */
 .hc-sheet-cell[data-match="true"] {
-  background: color-mix(in oklab, hsl(50 90% 50%) 20%, transparent);
+  background: var(--annotation-mark);
 }
 /* Data-validation invalid input → red dashed border. */
 .hc-sheet-cell[data-invalid="true"] {
-  outline: 2px dashed hsl(0 70% 55%);
+  outline: 2px dashed var(--destructive);
   outline-offset: -2px;
 }
 
@@ -252,8 +254,8 @@
 }
 
 .hc-sheet-cell[data-active-match="true"] {
-  background: color-mix(in oklab, hsl(50 95% 50%) 40%, transparent);
-  outline: 2px solid hsl(50 95% 45%);
+  background: var(--annotation-mark-active);
+  outline: 2px solid var(--annotation-underline);
   outline-offset: -2px;
 }
 
@@ -271,7 +273,7 @@
   height: 0;
   border-style: solid;
   border-width: 0 7px 7px 0;
-  border-color: transparent #f97316 transparent transparent;
+  border-color: transparent var(--warning) transparent transparent;
   pointer-events: none;
   z-index: 4;
 }
@@ -308,14 +310,17 @@
   outline-offset: -2px;
 }
 
+/* Presence name tag. `white` is the ink for the participant's saturated
+ * accent colour, which is user data rather than a theme token — there is no
+ * "on-accent" rung in the palette to point at. */
 .hc-sheet-cell[data-other-color] .hc-sheet-other-pill {
   position: absolute;
-  top: -16px;
+  top: -18px;
   left: -1px;
   background: var(--hc-other-color);
   color: white;
-  font-size: 10px;
-  line-height: 1;
+  font-size: 12px;
+  line-height: 1.2;
   padding: 2px 4px;
   white-space: nowrap;
   border-radius: 2px 2px 2px 0;

@@ -39,7 +39,7 @@ export function PendingInvitesSection() {
   return (
     <>
       <DropdownMenuGroup>
-        <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <DropdownMenuLabel className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-xs leading-3 font-medium text-faint-foreground">
           <Mail className="size-3" />
           Pending invites
         </DropdownMenuLabel>

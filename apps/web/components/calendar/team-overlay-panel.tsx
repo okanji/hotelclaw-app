@@ -53,16 +53,16 @@ export function TeamOverlayPanel({
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-t border-border">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-          <Users className="size-3.5 shrink-0 text-muted-foreground" />
+      <div className="flex h-11 items-center justify-between gap-2 px-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-secondary-ink">
+          <Users className="size-3.5 shrink-0 text-faint-foreground" />
           Team availability
         </div>
         {overlayUsers.size > 0 ? (
           <CountBadge>{overlayUsers.size} on</CountBadge>
         ) : null}
       </div>
-      <ul role="list" className="flex max-h-56 flex-col gap-0.5 overflow-auto p-1.5">
+      <ul role="list" className="flex max-h-56 flex-col gap-px overflow-auto p-2 pt-0">
         {members.map((m) => {
           const on = overlayUsers.has(m.id);
           const color = colorFor(m.id);
@@ -72,10 +72,10 @@ export function TeamOverlayPanel({
                 type="button"
                 onClick={() => toggleOverlayUser(m.id)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors",
+                  "flex min-h-[30px] w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm font-medium transition-colors focus-visible:shadow-focus focus-visible:outline-none",
                   on
-                    ? "bg-accent text-accent-foreground"
-                    : "text-foreground/80 hover:bg-accent/50",
+                    ? "bg-accent-pressed text-foreground"
+                    : "text-secondary-ink hover:bg-accent",
                 )}
               >
                 <Avatar className="size-6">
@@ -89,7 +89,7 @@ export function TeamOverlayPanel({
                     free/busy bars when they're toggled on. */}
                 <span
                   aria-hidden
-                  className="ml-auto size-2.5 rounded-sm"
+                  className="ml-auto size-2.5 shrink-0 rounded-full"
                   style={{
                     backgroundColor: on ? `#${color}` : undefined,
                     boxShadow: on

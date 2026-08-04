@@ -57,9 +57,9 @@ export function AiReviewBar({
 
   return (
     <div className="pointer-events-none sticky top-3 z-40 -mb-2 flex justify-center px-4">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/60 bg-popover/95 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-popover/80">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-overlay bg-popover py-1.5 pr-1.5 pl-3 shadow-overlay">
         <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-          <Sparkles className="size-3.5 text-violet-500" />
+          <Sparkles className="size-3.5 text-icon-accent" />
           AI suggested changes
         </span>
         <div className="flex items-center gap-1">
@@ -68,7 +68,7 @@ export function AiReviewBar({
             onClick={() => {
               editor.chain().focus().rejectAiEdit().run();
             }}
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
           >
             <X className="size-3.5" />
             Reject
@@ -79,7 +79,7 @@ export function AiReviewBar({
               editor.chain().focus().acceptAiEdit().run();
               snapshotVersion();
             }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1.5 text-sm font-medium text-white hover:bg-success/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-success dark:text-emerald-950"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:shadow-focus"
           >
             <Check className="size-3.5" />
             Accept

@@ -136,9 +136,11 @@ const BRANCH_ROW_GAP = 12; // ROW_STACK_GAP — bridged so the stem meets the ca
 const BRANCH_AXIS_X = 200; // card centre (CARD_W/2) — the fork is centred here
 const BRANCH_LANE_STRIDE = 436;
 
-// Shared card styling — mirrors task-card.tsx (rounded-md, border-border/70, p-3).
+// Shared card styling — a 6px card that separates by the warm ring + a fill
+// delta on hover/selection (notion-spec §1/§6: no visible stroke, hover is a
+// fill only). Semantic rings survive for invalid / unaccepted states.
 const FLOW_CARD = cn(
-  "relative rounded-md border border-border/70 bg-card p-3 text-left shadow-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "relative rounded-md bg-card p-3 text-left shadow-ring transition-colors outline-none focus-visible:shadow-focus",
 );
 
 function flowCardTone({
@@ -156,11 +158,11 @@ function flowCardTone({
 }) {
   return cn(
     FLOW_CARD,
-    !selected && !invalid && "hover:border-foreground/15",
-    selected && "border-foreground/20 ring-1 ring-foreground/10",
-    invalid && "border-destructive/50 hover:border-destructive/70",
+    !selected && !invalid && "hover:bg-accent",
+    selected && "bg-accent-pressed",
+    invalid && "ring-1 ring-destructive/40",
     unaccepted && "ring-1 ring-warning/25",
-    dragging && "border-dashed border-foreground/20 bg-muted/20 opacity-40",
+    dragging && "bg-muted opacity-40",
     className,
   );
 }
@@ -505,11 +507,11 @@ function StepDragCard({ step, ordinal }: { step: StepNode; ordinal: string }) {
   return (
     <div className="flex cursor-grabbing items-stretch gap-3">
       <div className="flex w-8 shrink-0 items-center justify-center">
-        <span className="inline-flex size-6 items-center justify-center rounded-full bg-background text-[0.625rem] font-medium tabular-nums text-muted-foreground ring-1 ring-black/10 dark:ring-white/10">
+        <span className="inline-flex size-6 items-center justify-center rounded-full bg-background text-xs font-medium tabular-nums text-muted-foreground shadow-ring">
           {ordinal}
         </span>
       </div>
-      <div className={cn(flowCardTone({ className: CARD_W }), "shadow-lg ring-1 ring-black/10 dark:ring-white/10")}>
+      <div className={cn(flowCardTone({ className: CARD_W }), "shadow-overlay")}>
         <StepMeta>{category}</StepMeta>
         <div className="mt-2 flex items-start gap-2">
           <SurfaceBadge surface={surface} className="mt-0.5 size-5 shrink-0" />
@@ -560,10 +562,10 @@ function TriggerRow({
           <StepMeta>Trigger</StepMeta>
           <span
             className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+              "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
               isDurable
                 ? "bg-muted text-muted-foreground"
-                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+                : "bg-success/10 text-success",
             )}
           >
             {isDurable ? "Waits for events" : "Runs once"}
@@ -579,7 +581,7 @@ function TriggerRow({
                 {chips.map((chip) => (
                   <span
                     key={chip}
-                    className="inline-flex max-w-full truncate rounded-md bg-muted/80 px-1.5 py-0.5 text-xs font-medium text-foreground/80"
+                    className="inline-flex max-w-full truncate rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground/80"
                   >
                     {chip}
                   </span>
@@ -781,15 +783,15 @@ function RailChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border border-border/70 bg-background tabular-nums",
+        "inline-flex items-center justify-center rounded-full bg-background tabular-nums",
         variant === "trigger" &&
-          "size-6 text-[0.625rem] font-medium text-muted-foreground",
+          "size-6 text-xs font-medium text-muted-foreground",
         variant === "default" &&
-          "size-6 text-[0.625rem] font-medium text-foreground",
+          "size-6 text-xs font-medium text-foreground",
         variant === "muted" &&
           "size-6 text-muted-foreground",
         variant === "small" &&
-          "size-5 text-[0.625rem] font-medium text-muted-foreground",
+          "size-5 text-xs font-medium text-muted-foreground",
       )}
     >
       {children}
@@ -807,7 +809,7 @@ function InsertRow({ onClick }: { onClick: () => void }) {
         <button
           type="button"
           onClick={onClick}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground opacity-70 transition-colors hover:bg-muted/40 hover:text-foreground group-hover/insert:opacity-100"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground opacity-70 transition-colors hover:bg-accent group-hover/insert:opacity-100"
           aria-label="Add step"
           title="Add step"
         >
@@ -897,7 +899,7 @@ function StepRow({
       <RailColumn lineVariant={isBranch ? "up" : "full"} chipPosition="center">
         <div
           aria-hidden
-          className="relative inline-flex size-6 items-center justify-center rounded-full border border-border/70 bg-background text-[0.625rem] font-medium tabular-nums text-foreground"
+          className="relative inline-flex size-6 items-center justify-center rounded-full bg-background text-xs font-medium tabular-nums text-foreground"
         >
           <span
             className={cn(
@@ -949,7 +951,7 @@ function StepRow({
                 }}
                 title="Duplicate step"
                 aria-label="Duplicate step"
-                className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
               >
                 <Copy className="size-3.5" aria-hidden />
               </button>
@@ -1054,13 +1056,13 @@ function BranchLanes({
                 data-branch-lane={`${step.id}:${label}`}
                 data-branch-lane-active={laneActive ? "" : undefined}
                 className={cn(
-                  "shrink-0 overflow-hidden rounded-md border bg-muted/10 transition-shadow",
+                  "shrink-0 overflow-hidden rounded-md border bg-muted transition-shadow",
                   LANE_W,
                   laneActive
                     ? label === "true"
-                      ? "border-emerald-500/45 bg-emerald-500/[0.04] ring-2 ring-emerald-500/20"
-                      : "border-rose-500/45 bg-rose-500/[0.04] ring-2 ring-rose-500/20"
-                    : "border-border/50",
+                      ? "border-success/45 bg-success/[0.04] ring-2 ring-success/20"
+                      : "border-destructive/45 bg-destructive/[0.04] ring-2 ring-destructive/20"
+                    : "border-border",
                 )}
               >
                 <BranchHeader label={label} active={laneActive} />
@@ -1135,9 +1137,9 @@ function BranchConnector({
             "absolute w-px",
             activeBranchPath === label
               ? label === "true"
-                ? "bg-emerald-500/60"
+                ? "bg-success/60"
                 : label === "false"
-                  ? "bg-rose-500/60"
+                  ? "bg-destructive/60"
                   : "bg-foreground/40"
               : "bg-muted-foreground/40 dark:bg-muted-foreground/35",
           )}
@@ -1151,9 +1153,9 @@ function BranchConnector({
 function BranchHeader({ label, active }: { label: string; active?: boolean }) {
   const dot =
     label === "true"
-      ? "bg-emerald-500"
+      ? "bg-success"
       : label === "false"
-        ? "bg-rose-500"
+        ? "bg-destructive"
         : "bg-muted-foreground";
 
   const text =
@@ -1169,7 +1171,7 @@ function BranchHeader({ label, active }: { label: string; active?: boolean }) {
     <div
       className={cn(
         "flex items-center gap-2 border-b px-3 py-2",
-        active ? "border-border/60 bg-background/40" : "border-border/40",
+        active ? "border-border bg-background/40" : "border-border",
       )}
     >
       <span className={cn("size-1.5 shrink-0 rounded-full", dot)} aria-hidden />
@@ -1227,15 +1229,15 @@ function EndStepRow({
         type="button"
         onClick={onClick}
         className={cn(
-          "group flex items-center gap-2 rounded-md border border-transparent px-2 py-1 text-left transition-colors hover:border-border/60 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus",
           CARD_W,
-          selected && "border-border/60 bg-muted/20",
+          selected && "border-border bg-muted",
         )}
       >
         <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <span className="text-xs font-medium text-muted-foreground">End</span>
         {outcome ? (
-          <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {outcome}
           </span>
         ) : null}
@@ -1249,7 +1251,7 @@ function EmptyLane({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={onAdd}
-      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/15 hover:bg-muted/20 hover:text-foreground"
+      className="flex w-full items-center justify-center gap-1.5 rounded-md bg-muted px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
     >
       <Plus className="size-3.5" aria-hidden />
       Add the first step
@@ -1419,7 +1421,7 @@ function PaletteDialog({
               onKeyDown={onKeyDown}
               placeholder="Search steps — try “notify”, “summarize”, “if”…"
               autoFocus
-              className="h-14 rounded-none border-0 pl-11 pr-4 text-base focus-visible:ring-0"
+              className="h-14 rounded-none border-0 pl-11 pr-4 text-base focus-visible:shadow-focus"
             />
           </div>
         </DialogHeader>
@@ -1429,7 +1431,7 @@ function PaletteDialog({
             aria-label="Step categories"
             aria-hidden={isSearching}
             className={cn(
-              "flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto border-r bg-muted/20 p-2",
+              "flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto border-r bg-muted p-2",
               isSearching && "invisible pointer-events-none",
             )}
           >
@@ -1514,7 +1516,7 @@ function PaletteNavButton({
         "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors",
         active
           ? "bg-secondary text-foreground"
-          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+          : "text-muted-foreground hover:bg-accent",
       )}
     >
       <span
@@ -1563,7 +1565,7 @@ function PaletteRow({
       onMouseMove={onHover}
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors",
-        active ? "bg-secondary" : "hover:bg-secondary/60",
+        active ? "bg-secondary" : "hover:bg-accent",
       )}
     >
       <SurfaceBadge surface={entry.surface} className="!size-8 shrink-0" />

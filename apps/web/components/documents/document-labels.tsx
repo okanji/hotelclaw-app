@@ -113,10 +113,8 @@ export function DocumentLabels({
             type="button"
             title="Labels"
             className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium tracking-tight transition-colors",
-              count > 0
-                ? "text-foreground hover:bg-muted"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors hover:bg-accent",
+              count > 0 ? "text-foreground" : "text-muted-foreground",
             )}
           />
         }
@@ -126,12 +124,12 @@ export function DocumentLabels({
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-72 p-0">
         {count > 0 ? (
-          <div className="flex flex-wrap gap-1.5 border-b border-border/60 p-2.5">
+          <div className="flex flex-wrap gap-1.5 border-b border-border p-2.5">
             {applied.map((l) => (
               <span
                 key={l.id}
                 className={cn(
-                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs tracking-tight",
+                  "flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium",
                   CHIP[l.color],
                 )}
               >
@@ -140,7 +138,7 @@ export function DocumentLabels({
                   type="button"
                   aria-label={`Remove ${l.name}`}
                   onClick={() => void toggle(l)}
-                  className="-mr-0.5 rounded-full p-0.5 hover:bg-foreground/10"
+                  className="-mr-0.5 rounded-md p-0.5 transition-colors hover:bg-accent-pressed"
                 >
                   <X className="size-3" />
                 </button>
@@ -169,10 +167,10 @@ export function DocumentLabels({
                 <button
                   type="button"
                   onClick={() => void toggle(l)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                  className="flex min-w-0 flex-1 items-center gap-2 min-h-7 rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] transition-colors hover:bg-accent"
                 >
                   <span className={cn("size-2 shrink-0 rounded-full", DOT[l.color])} />
-                  <span className="min-w-0 flex-1 truncate tracking-tight">
+                  <span className="min-w-0 flex-1 truncate">
                     {l.name}
                   </span>
                   {appliedIds.has(l.id) ? (
@@ -185,7 +183,7 @@ export function DocumentLabels({
                       <button
                         type="button"
                         aria-label={`Color for ${l.name}`}
-                        className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/label:opacity-100"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint-foreground opacity-0 transition-opacity hover:bg-accent group-hover/label:opacity-100"
                       />
                     }
                   >
@@ -212,17 +210,17 @@ export function DocumentLabels({
                 <button
                   type="button"
                   onClick={() => void create()}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                  className="flex w-full items-center gap-2 min-h-7 rounded-md px-1.5 py-[3px] text-left text-sm/[1.2] transition-colors hover:bg-accent"
                 >
-                  <Plus className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate tracking-tight">
+                  <Plus className="size-3.5 shrink-0 text-faint-foreground" />
+                  <span className="min-w-0 flex-1 truncate">
                     Create &ldquo;{query.trim()}&rdquo;
                   </span>
                 </button>
               </li>
             ) : null}
             {filtered.length === 0 && !query.trim() ? (
-              <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+              <li className="px-2 py-3 text-center text-sm text-muted-foreground">
                 No labels yet — type to create one.
               </li>
             ) : null}

@@ -102,16 +102,16 @@ export function SpaceChannelsPanel({
       ) : (
         <ul
           role="list"
-          className="flex flex-col divide-y divide-border/40 border-t border-border/40"
+          className="flex flex-col divide-y divide-border border-t border-border"
         >
           {channels.map((c) => (
             <li key={c.id}>
               <Link
                 href={channelHref(propertyId, c.stream_channel_type, c.stream_channel_id)}
-                className="flex items-center gap-3 rounded-md px-1 py-3 transition-colors hover:bg-muted"
+                className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
               >
                 <Hash className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-base tracking-tight text-foreground">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                   {c.name}
                 </span>
               </Link>

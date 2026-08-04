@@ -267,7 +267,7 @@ function InviteRowItem({
                     type="button"
                     aria-label={`Change role for ${row.email}`}
                     disabled={pending}
-                    className="shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="shrink-0 rounded-md focus-visible:shadow-focus focus-visible:outline-none"
                   />
                 }
               >

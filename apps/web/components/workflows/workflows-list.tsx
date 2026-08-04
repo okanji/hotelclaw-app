@@ -246,7 +246,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
               {filtered.length > 0 ? (
                 <ul
                   role="list"
-                  className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60"
+                  className="divide-y divide-border"
                 >
                   {filtered.map((w) => (
                     <Row
@@ -368,7 +368,7 @@ function Row({
   const relative = formatRelative(w.last_run_at);
 
   return (
-    <li className="group relative flex items-center gap-3 pr-2 pl-3 hover:bg-muted/40">
+    <li className="group relative flex items-center gap-3 pr-2 pl-3 hover:bg-accent">
       <Link
         href={`/p/${propertyId}/workflows/${w.id}`}
         className={cn(
@@ -420,7 +420,7 @@ function Row({
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Actions for ${w.name}`}
-            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 data-[popup-open]:opacity-100"
+            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100 data-[popup-open]:opacity-100"
           >
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
@@ -490,12 +490,12 @@ function TriggerBadge({ type }: { type: string | null }) {
 
 function FilteredEmpty({ onClear }: { onClear: () => void }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/15 px-6 py-10 text-center">
+    <div className="rounded-lg bg-muted px-6 py-10 text-center">
       <p className="text-sm text-muted-foreground">No workflows match your filters.</p>
       <button
         type="button"
         onClick={onClear}
-        className="mt-3 inline-flex items-center rounded-md border border-border/60 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/60"
+        className="mt-3 inline-flex items-center rounded-md bg-card px-2.5 py-1 text-sm font-medium text-foreground transition-colors hover:bg-accent"
       >
         Clear filters
       </button>
@@ -505,8 +505,8 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
 
 function EmptyState({ propertyId }: { propertyId: string }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/15 p-12 text-center">
-      <Workflow className="mx-auto mb-4 size-8 text-muted-foreground/70" aria-hidden />
+    <div className="rounded-lg bg-muted p-12 text-center">
+      <Workflow className="mx-auto mb-4 size-5 text-faint-foreground" aria-hidden />
       <h2 className="text-base font-semibold text-foreground">
         Put your busywork on autopilot
       </h2>
@@ -525,7 +525,7 @@ function EmptyState({ propertyId }: { propertyId: string }) {
         </Link>
         <Link
           href={`/p/${propertyId}/workflows/templates`}
-          className="inline-flex items-center rounded-md border border-border/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60"
+          className="inline-flex items-center rounded-md bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
           Browse templates
         </Link>

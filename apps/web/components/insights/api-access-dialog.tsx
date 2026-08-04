@@ -13,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { Input } from "@/components/ui/input";
 
 /**
  * API access — property-scoped tokens for the MCP endpoint, so external AI
@@ -137,11 +139,11 @@ function ApiAccessDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-medium tracking-tight">
+          <DialogTitle className="flex items-center gap-2">
             <KeyRound className="size-4" />
             API access
           </DialogTitle>
-          <DialogDescription className="text-sm tracking-tight text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Connect Claude, ChatGPT, or scripts to this property&apos;s live
             numbers over MCP — the same deterministic metrics the dashboards
             chart. Tokens are read-only and scoped to this property.
@@ -149,34 +151,32 @@ function ApiAccessDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-5">
-          <section className="flex flex-col gap-1.5">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              Endpoint
-            </h3>
+          <section className="flex flex-col gap-2">
+            <Eyebrow>Endpoint</Eyebrow>
             <button
               type="button"
               onClick={() => copy(mcpUrl, "Endpoint URL")}
-              className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-left font-mono text-xs text-foreground transition-colors outline-none hover:bg-accent-pressed focus-visible:shadow-focus"
               title="Copy"
             >
               <span className="truncate">{mcpUrl}</span>
               <Copy className="size-3.5 shrink-0 text-muted-foreground" />
             </button>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Streamable HTTP transport. Send the token as{" "}
               <code className="font-mono">Authorization: Bearer hc_…</code>
             </p>
           </section>
 
           {freshToken ? (
-            <section className="flex flex-col gap-1.5 rounded-md border border-success/40 bg-success/5 p-3">
-              <p className="text-xs font-medium text-foreground">
+            <section className="flex flex-col gap-2 rounded-md bg-success/10 p-3">
+              <p className="text-sm font-medium text-foreground">
                 Token created — copy it now, it won&apos;t be shown again.
               </p>
               <button
                 type="button"
                 onClick={() => copy(freshToken, "Token")}
-                className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-card px-3 py-2 text-left font-mono text-xs text-foreground transition-colors outline-none hover:bg-accent focus-visible:shadow-focus"
               >
                 <span className="truncate">{freshToken}</span>
                 <Copy className="size-3.5 shrink-0 text-muted-foreground" />
@@ -185,17 +185,15 @@ function ApiAccessDialog({
           ) : null}
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-              Tokens
-            </h3>
+            <Eyebrow>Tokens</Eyebrow>
             {active.length > 0 ? (
-              <ul className="flex flex-col divide-y divide-border/40">
+              <ul className="flex flex-col divide-y divide-border">
                 {active.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 py-1.5">
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                  <li key={t.id} className="flex min-h-[34px] items-center gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {t.name}
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                    <span className="shrink-0 text-xs text-faint-foreground tabular-nums">
                       {t.last_used_at
                         ? `used ${new Date(t.last_used_at).toLocaleDateString()}`
                         : "never used"}
@@ -223,13 +221,13 @@ function ApiAccessDialog({
               }}
               className="flex items-center gap-2"
             >
-              <input
+              <Input
                 value={name}
                 name="tokenName"
                 aria-label="Token name"
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Token name (e.g. Claude Desktop)"
-                className="h-8 flex-1 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex-1"
               />
               <Button
                 type="submit"

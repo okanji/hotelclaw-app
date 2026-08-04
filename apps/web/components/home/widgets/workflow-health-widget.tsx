@@ -68,39 +68,39 @@ export function WorkflowHealthWidget({ propertyId }: { propertyId: string }) {
       <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
         {stats.success > 0 ? (
           <div
-            className="h-full bg-emerald-500"
+            className="h-full bg-success"
             style={{ width: `${(stats.success / stats.total) * 100}%` }}
           />
         ) : null}
         {stats.failed > 0 ? (
           <div
-            className="h-full bg-rose-500"
+            className="h-full bg-destructive"
             style={{ width: `${(stats.failed / stats.total) * 100}%` }}
           />
         ) : null}
         {stats.active > 0 ? (
           <div
-            className="h-full bg-amber-500"
+            className="h-full bg-warning"
             style={{ width: `${(stats.active / stats.total) * 100}%` }}
           />
         ) : null}
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <Leg label="Succeeded" value={stats.success} dot="bg-emerald-500" />
-        <Leg label="Failed" value={stats.failed} dot="bg-rose-500" />
-        <Leg label="Running" value={stats.active} dot="bg-amber-500" />
+        <Leg label="Succeeded" value={stats.success} dot="bg-success" />
+        <Leg label="Failed" value={stats.failed} dot="bg-destructive" />
+        <Leg label="Running" value={stats.active} dot="bg-warning" />
       </div>
 
       {stats.failingTop.length > 0 ? (
-        <ul className="flex flex-col gap-1 border-t border-border/60 pt-3">
+        <ul role="list" className="-mx-2 flex flex-col border-t border-border pt-2">
           {stats.failingTop.map((w) => (
             <li key={w.id}>
               <Link
                 href={`/p/${propertyId}/workflows/${w.id}/runs`}
-                className="group flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                className="group flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
               >
-                <AlertTriangle className="size-3 shrink-0 text-rose-500" aria-hidden />
+                <AlertTriangle className="size-3.5 shrink-0 text-destructive" aria-hidden />
                 <span className="min-w-0 truncate group-hover:underline">{w.name}</span>
                 <span className="ml-auto tabular-nums">
                   {w.count} {w.count === 1 ? "failure" : "failures"}
@@ -124,7 +124,7 @@ function Leg({
   dot: string;
 }) {
   return (
-    <span className="flex items-center gap-1.5 text-xs tracking-tight text-muted-foreground">
+    <span className="flex items-center gap-1.5 text-xs text-faint-foreground">
       <span className={cn("size-1.5 rounded-full", dot)} />
       {label}
       <span className="tabular-nums text-foreground">{value}</span>

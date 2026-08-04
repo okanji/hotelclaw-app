@@ -48,8 +48,8 @@ const STATUS_META: Record<string, { label: string; dot: string; fill: string }> 
   },
   blocked: {
     label: "Blocked",
-    dot: "bg-rose-500",
-    fill: "bg-rose-500",
+    dot: "bg-destructive",
+    fill: "bg-destructive",
   },
 };
 
@@ -159,7 +159,7 @@ export function FlowBody({
       {hasFlowData ? (
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="h-[2px] w-4 rounded-full bg-emerald-500" />
+            <span className="h-[2px] w-4 rounded-full bg-success" />
             Completed
           </span>
           <span className="flex items-center gap-1.5">
@@ -206,7 +206,7 @@ function MetricsExplainer({
   if (!summary) return null;
   return (
     <p className="flex max-w-[72ch] items-start gap-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
-      <Sparkles className="mt-0.5 size-3.5 shrink-0 text-foreground/50" />
+      <Sparkles className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
       <span>{summary}</span>
     </p>
   );
@@ -240,12 +240,12 @@ function OpenWorkDistribution({
             />
           ))}
       </div>
-      <ul role="list" className="flex flex-col divide-y divide-border/40">
+      <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
         {byStatus.map((s) => (
           <li key={s.status}>
             <Link
               href={`/p/${propertyId}/tasks`}
-              className="group flex items-baseline gap-2.5 px-1 py-2"
+              className="group flex min-h-[34px] items-baseline gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
             >
               <span
                 className={cn(
@@ -254,15 +254,15 @@ function OpenWorkDistribution({
                 )}
                 aria-hidden="true"
               />
-              <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:underline">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
                 {STATUS_META[s.status]?.label ?? s.status}
               </span>
               {s.overdue > 0 ? (
-                <span className="shrink-0 text-xs tabular-nums text-rose-500">
+                <span className="shrink-0 text-xs tabular-nums text-destructive">
                   {s.overdue} overdue
                 </span>
               ) : null}
-              <span className="shrink-0 text-sm font-semibold tracking-tight tabular-nums text-foreground">
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
                 {s.count}
               </span>
             </Link>
@@ -323,20 +323,20 @@ export function AttentionList({
                 className={cn(
                   "size-4 shrink-0",
                   item.kind === "blocked"
-                    ? "text-rose-500"
+                    ? "text-destructive"
                     : item.kind === "overdue"
-                      ? "text-amber-500"
+                      ? "text-warning"
                       : "text-muted-foreground",
                 )}
               />
-              <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:underline">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
                 {item.title}
               </span>
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
                 {meta.label(item)}
               </span>
               {item.assigneeName ? (
-                <span className="hidden shrink-0 text-xs text-muted-foreground/80 sm:inline">
+                <span className="hidden shrink-0 text-xs text-faint-foreground sm:inline">
                   {item.assigneeName}
                 </span>
               ) : null}

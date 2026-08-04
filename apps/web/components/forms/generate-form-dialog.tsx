@@ -105,7 +105,7 @@ export function GenerateFormDialog({
                 type="button"
                 disabled={pending}
                 onClick={() => setPrompt(example)}
-                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                className="rounded-md bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
               >
                 {example}
               </button>

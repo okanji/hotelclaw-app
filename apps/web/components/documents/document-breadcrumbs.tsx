@@ -38,11 +38,11 @@ export function DocumentBreadcrumbs({
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-0.5 text-xs text-muted-foreground"
+      className="flex min-w-0 items-center gap-0.5 text-xs text-faint-foreground"
     >
       <Link
         href={`/p/${propertyId}/documents`}
-        className="shrink-0 rounded px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
+        className="shrink-0 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
       >
         All documents
       </Link>
@@ -52,7 +52,7 @@ export function DocumentBreadcrumbs({
           <Link
             href={documentHref(propertyId, crumb.id)}
             onClick={(e) => handleAncestorClick(e, crumb.id)}
-            className="truncate rounded px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
+            className="truncate rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
           >
             {crumb.title || "Untitled"}
           </Link>

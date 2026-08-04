@@ -11,7 +11,7 @@ export function TaskDetailSkeleton() {
       <header className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-4 text-sm text-muted-foreground">
         <ListChecks className="size-4" />
         <span>Tasks</span>
-        <ChevronRight className="size-3.5 text-muted-foreground/60" />
+        <ChevronRight className="size-3.5 text-muted-foreground" />
         <Skeleton className="h-4 w-14" />
       </header>
       <div className="flex min-h-0 flex-1">
@@ -38,10 +38,10 @@ export function TaskDetailSkeleton() {
               <Skeleton className="size-7 rounded-md" />
             </div>
             <Skeleton className="mt-5 h-4 w-28" />
-            <div className="mt-10 border-t border-border/60 pt-6">
+            <div className="mt-10 border-t border-border pt-6">
               <div className="mb-4 flex items-center justify-between">
                 <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-md" />
               </div>
               <Skeleton className="mb-4 h-4 w-48" />
               <div className="space-y-3">
@@ -55,15 +55,15 @@ export function TaskDetailSkeleton() {
                   </div>
                 ))}
               </div>
-              <Skeleton className="mt-4 h-16 w-full rounded-lg" />
+              <Skeleton className="mt-4 h-16 w-full rounded-md" />
             </div>
             </div>
           </div>
         </div>
 
-        <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border/60">
+        <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="border-b border-border/60 px-3 py-3">
+            <div key={i} className="border-b border-border px-3 py-3">
               <Skeleton className="h-3.5 w-24" />
               <div className="mt-2 space-y-1">
                 {Array.from({ length: i === 0 ? 6 : 3 }).map((__, j) => (

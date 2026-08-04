@@ -45,7 +45,7 @@ export function MentionRow({ propertyId, message }: Props) {
     <li>
       <button
         onClick={open}
-        className="flex w-full gap-3 rounded-md border bg-card p-3 text-left transition hover:border-primary/50 hover:bg-muted/50"
+        className="flex w-full gap-3 rounded-md bg-background p-3 text-left transition-colors hover:bg-accent"
       >
         <Avatar className="size-8 shrink-0">
           <AvatarImage src={message.user?.image as string | undefined} />
