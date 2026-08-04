@@ -96,61 +96,174 @@ function previewArgs(input: unknown): string {
 /**
  * Human labels for the "AI is thinking" progress line, keyed by tool name.
  *
+ * Two forms per tool:
+ *  - `base`  — what it's doing, with no subject ("Searching documents").
+ *  - `detail` — the same step WITH the subject, `{}` standing in for it
+ *    ("Searching documents for “freezer SOP”").
+ *
+ * The detail form is what makes the feed honest: "Looking through documents…"
+ * for 40s tells the reader nothing they can check, while "Reading “Freezer
+ * SOP”…" is a claim they can verify against the answer. Subjects come from the
+ * tool's OWN arguments (see ACTIVITY_DETAIL_ARGS) or, when the argument is
+ * only an id, from a title lookup (ACTIVITY_ID_LOOKUPS).
+ *
  * Only the verbs worth spelling out — anything unmapped falls back to the
  * de-underscored tool name, so a new catalog tool degrades to something
  * readable ("search chat messages…") instead of nothing.
  */
-const TOOL_ACTIVITY: Record<string, string> = {
-  read_document: "Reading",
-  list_documents: "Looking through documents",
-  search_documents: "Searching documents",
-  create_document: "Writing a new document",
-  update_document: "Writing",
-  archive_document: "Archiving a document",
-  restore_document_revision: "Restoring a document",
-  read_sheet: "Reading a spreadsheet",
-  update_sheet_cells: "Updating a spreadsheet",
-  brain_search: "Searching the knowledge brain",
-  brain_think: "Thinking it through with the brain",
-  brain_get: "Reading from the knowledge brain",
-  brain_list: "Browsing the knowledge brain",
-  brain_capture: "Saving to the knowledge brain",
-  search_tasks: "Searching tasks",
-  list_open_tasks: "Checking open tasks",
-  update_task: "Updating a task",
-  create_task: "Creating a task",
-  create_project: "Creating a project",
-  delete_task: "Deleting a task",
-  escalate_task: "Escalating a task",
-  render_ui: "Putting together a summary",
-  search_chat_messages: "Searching the channel history",
-  start_background_job: "Starting a background job",
-  list_bookings: "Checking bookings",
-  create_booking: "Making a booking",
-  update_booking_status: "Updating a booking",
-  check_availability: "Checking availability",
-  list_meetings: "Checking the calendar",
-  schedule_meeting: "Scheduling a meeting",
-  update_meeting: "Updating a meeting",
-  cancel_meeting: "Cancelling a meeting",
-  list_forms: "Checking forms",
-  create_form: "Building a form",
-  set_form_status: "Publishing a form",
-  share_form_to_channel: "Sharing a form",
-  get_form_response_summaries: "Reading form responses",
-  read_resource: "Reading an attached document",
-  get_org_chart: "Checking the org chart",
-  list_workflows: "Checking workflows",
-  trigger_workflow: "Running a workflow",
-  send_notification: "Sending a notification",
-  post_to_channel: "Posting to another channel",
-  guest_conversation_insights: "Reviewing guest conversations",
-  get_insight_brief: "Reading the insights brief",
-  get_weekly_report: "Reading the weekly report",
-  list_handovers: "Checking handovers",
-  ask_question: "Working out what to ask",
-  load_skill: "Loading a skill",
+const TOOL_ACTIVITY: Record<string, { base: string; detail?: string }> = {
+  read_document: { base: "Reading a document", detail: "Reading “{}”" },
+  list_documents: {
+    base: "Looking through documents",
+    detail: "Looking for documents matching “{}”",
+  },
+  search_documents: {
+    base: "Searching documents",
+    detail: "Searching documents for “{}”",
+  },
+  create_document: {
+    base: "Writing a new document",
+    detail: "Writing a new document, “{}”",
+  },
+  update_document: { base: "Writing", detail: "Writing to “{}”" },
+  rename_document: { base: "Renaming a document", detail: "Renaming a document to “{}”" },
+  archive_document: { base: "Archiving a document", detail: "Archiving “{}”" },
+  restore_document_revision: {
+    base: "Restoring a document",
+    detail: "Restoring an earlier version of “{}”",
+  },
+  read_sheet: { base: "Reading a spreadsheet", detail: "Reading the “{}” spreadsheet" },
+  update_sheet_cells: {
+    base: "Updating a spreadsheet",
+    detail: "Updating the “{}” spreadsheet",
+  },
+  brain_search: {
+    base: "Searching the knowledge brain",
+    detail: "Searching the knowledge brain for “{}”",
+  },
+  brain_think: {
+    base: "Thinking it through with the brain",
+    detail: "Asking the knowledge brain: “{}”",
+  },
+  brain_get: {
+    base: "Reading from the knowledge brain",
+    detail: "Reading “{}” from the knowledge brain",
+  },
+  brain_list: {
+    base: "Browsing the knowledge brain",
+    detail: "Browsing “{}” in the knowledge brain",
+  },
+  brain_capture: {
+    base: "Saving to the knowledge brain",
+    detail: "Saving “{}” to the knowledge brain",
+  },
+  search_tasks: { base: "Searching tasks", detail: "Searching tasks for “{}”" },
+  list_open_tasks: { base: "Checking open tasks" },
+  update_task: { base: "Updating a task", detail: "Updating “{}”" },
+  create_task: { base: "Creating a task", detail: "Creating the task “{}”" },
+  create_project: { base: "Creating a project", detail: "Creating the project “{}”" },
+  delete_task: { base: "Deleting a task", detail: "Deleting “{}”" },
+  escalate_task: { base: "Escalating a task", detail: "Escalating “{}”" },
+  render_ui: { base: "Putting together a summary" },
+  search_chat_messages: {
+    base: "Searching the channel history",
+    detail: "Searching the channel history for “{}”",
+  },
+  start_background_job: {
+    base: "Starting a background job",
+    detail: "Starting a background job: {}",
+  },
+  list_bookings: { base: "Checking bookings" },
+  create_booking: { base: "Making a booking", detail: "Booking {}" },
+  update_booking_status: { base: "Updating a booking", detail: "Updating booking {}" },
+  check_availability: { base: "Checking availability", detail: "Checking availability for {}" },
+  list_meetings: { base: "Checking the calendar" },
+  schedule_meeting: { base: "Scheduling a meeting", detail: "Scheduling “{}”" },
+  update_meeting: { base: "Updating a meeting", detail: "Updating the meeting “{}”" },
+  cancel_meeting: { base: "Cancelling a meeting", detail: "Cancelling “{}”" },
+  list_forms: { base: "Checking forms" },
+  create_form: { base: "Building a form", detail: "Building the form “{}”" },
+  set_form_status: { base: "Publishing a form", detail: "Publishing “{}”" },
+  share_form_to_channel: { base: "Sharing a form", detail: "Sharing the form “{}”" },
+  get_form_response_summaries: {
+    base: "Reading form responses",
+    detail: "Reading responses to “{}”",
+  },
+  read_resource: { base: "Reading an attached document", detail: "Reading “{}”" },
+  get_org_chart: { base: "Checking the org chart" },
+  list_workflows: { base: "Checking workflows" },
+  trigger_workflow: { base: "Running a workflow", detail: "Running the “{}” workflow" },
+  send_notification: { base: "Sending a notification", detail: "Notifying {}" },
+  post_to_channel: { base: "Posting to another channel" },
+  guest_conversation_insights: { base: "Reviewing guest conversations" },
+  get_insight_brief: { base: "Reading the insights brief" },
+  get_weekly_report: { base: "Reading the weekly report", detail: "Reading the {} weekly report" },
+  list_handovers: { base: "Checking handovers" },
+  ask_question: { base: "Working out what to ask" },
+  load_skill: { base: "Loading a skill", detail: "Loading the {} skill" },
+  delegate_task: { base: "Delegating the work", detail: "Delegating: {}" },
+  subagent: { base: "Handing off to a subagent", detail: "Handing off to a subagent: {}" },
 };
+
+/**
+ * Arguments that already carry a human-readable subject, per tool, in priority
+ * order. First non-empty string wins.
+ */
+const ACTIVITY_DETAIL_ARGS: Record<string, string[]> = {
+  load_skill: ["skill"],
+  search_documents: ["query"],
+  search_tasks: ["query"],
+  search_chat_messages: ["query"],
+  brain_search: ["query"],
+  brain_think: ["question"],
+  brain_get: ["slug"],
+  brain_list: ["prefix"],
+  brain_capture: ["page_title"],
+  list_documents: ["title_contains"],
+  create_document: ["title"],
+  update_document: ["new_title"],
+  rename_document: ["new_title"],
+  create_task: ["title"],
+  create_project: ["name"],
+  schedule_meeting: ["title"],
+  create_form: ["title"],
+  create_booking: ["service_name"],
+  check_availability: ["service_name"],
+  update_booking_status: ["reference"],
+  send_notification: ["person_name", "team_name"],
+  trigger_workflow: ["workflow_name"],
+  start_background_job: ["headline"],
+  get_weekly_report: ["audience"],
+  delegate_task: ["headline", "title", "brief"],
+  subagent: ["description", "message"],
+};
+
+/**
+ * Tools whose only subject is an id — resolve it to the record's title so the
+ * feed says "Reading “Freezer SOP”" rather than "Reading" (or, worse, a uuid).
+ * One indexed point-read per step, property-scoped like every other runtime
+ * query, and fail-soft: no row, no detail, generic label.
+ */
+const ACTIVITY_ID_LOOKUPS: Record<string, { arg: string; table: string }> = {
+  read_document: { arg: "document_id", table: "documents" },
+  update_document: { arg: "document_id", table: "documents" },
+  archive_document: { arg: "document_id", table: "documents" },
+  restore_document_revision: { arg: "document_id", table: "documents" },
+  read_resource: { arg: "document_id", table: "documents" },
+  read_sheet: { arg: "document_id", table: "documents" },
+  update_sheet_cells: { arg: "document_id", table: "documents" },
+  update_task: { arg: "task_id", table: "tasks" },
+  delete_task: { arg: "task_id", table: "tasks" },
+  escalate_task: { arg: "task_id", table: "tasks" },
+  update_meeting: { arg: "meeting_id", table: "meetings" },
+  cancel_meeting: { arg: "meeting_id", table: "meetings" },
+  set_form_status: { arg: "form_id", table: "forms" },
+  share_form_to_channel: { arg: "form_id", table: "forms" },
+  get_form_response_summaries: { arg: "form_id", table: "forms" },
+};
+
+const UUID_RX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Append one step to the turn's activity feed (migration 0096) AND set it as
@@ -226,20 +339,86 @@ export async function turnActivitySteps(
   return (data ?? []).map((r) => ({ label: r.label, at: r.created_at }));
 }
 
+/** One requested action, reduced to what a progress label needs. */
+export type ActivityAction = { toolName: string; input?: unknown };
+
+/** Trim a subject to something that fits one line of chat. */
+function clipSubject(value: string): string {
+  const flat = value.replace(/\s+/g, " ").trim();
+  if (!flat) return "";
+  return flat.length > 60 ? `${flat.slice(0, 59)}…` : flat;
+}
+
 /**
- * One progress label for a batch of tool calls. Repeats of the same tool
- * collapse with a count ("Reading 5 documents"), a mixed batch reports the
- * first — the point is a moving sign of life, not an audit trail.
+ * The human subject of one action: a readable argument if the tool has one,
+ * else the title behind an id argument, else nothing.
  */
-export function activityLabel(toolNames: string[]): string | null {
-  const names = toolNames.filter(Boolean);
-  if (names.length === 0) return null;
-  const first = names[0];
+async function activitySubject(
+  action: ActivityAction,
+  propertyId: string,
+): Promise<string | null> {
+  const input =
+    action.input && typeof action.input === "object"
+      ? (action.input as Record<string, unknown>)
+      : {};
+
+  for (const key of ACTIVITY_DETAIL_ARGS[action.toolName] ?? []) {
+    const value = input[key];
+    if (typeof value === "string" && value.trim()) return clipSubject(value);
+  }
+
+  const lookup = ACTIVITY_ID_LOOKUPS[action.toolName];
+  if (!lookup) return null;
+  const id = input[lookup.arg];
+  if (typeof id !== "string" || !UUID_RX.test(id)) return null;
+
+  try {
+    const { data } = await serviceClient()
+      .from(lookup.table)
+      .select("title")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    const title = (data as { title?: unknown } | null)?.title;
+    return typeof title === "string" && title.trim() ? clipSubject(title) : null;
+  } catch {
+    // Cosmetic surface — a lookup failure just costs the detail.
+    return null;
+  }
+}
+
+/**
+ * One progress label for a batch of requested actions.
+ *
+ * The label names the SUBJECT wherever one can be known — which document,
+ * which skill, which search terms — because a step the reader can't check
+ * ("Looking through documents…") is barely more informative than a spinner.
+ * A mixed or repeated batch reports the first action plus a "+N more" tail;
+ * the point is an honest moving sign of life, not an audit trail (the full
+ * per-step list is the disclosure under the delivered reply).
+ */
+export async function activityLabel(
+  actions: ActivityAction[],
+  propertyId: string,
+): Promise<string | null> {
+  const known = actions.filter((a) => a && typeof a.toolName === "string" && a.toolName);
+  if (known.length === 0) return null;
+
+  const first = known[0];
+  const spec = TOOL_ACTIVITY[first.toolName];
   const base =
-    TOOL_ACTIVITY[first] ?? first.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-  const sameTool = names.every((n) => n === first);
-  if (sameTool && names.length > 1) return `${base} ×${names.length}…`;
-  return `${base}…`;
+    spec?.base ??
+    first.toolName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  const subject = await activitySubject(first, propertyId);
+  const head =
+    subject && spec?.detail
+      ? spec.detail.replace("{}", subject)
+      : subject && !spec
+        ? `${base}: ${subject}`
+        : base;
+
+  const rest = known.length - 1;
+  return rest > 0 ? `${head} +${rest} more…` : `${head}…`;
 }
 
 /**

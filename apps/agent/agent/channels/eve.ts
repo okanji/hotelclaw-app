@@ -242,13 +242,34 @@ export default eveChannel({
       const actions = Array.isArray((data as { actions?: unknown[] }).actions)
         ? ((data as { actions: Array<Record<string, unknown>> }).actions)
         : [];
-      const toolNames = actions
-        .filter((a) => a.kind === "tool-call")
-        .map((a) => (typeof a.toolName === "string" ? a.toolName : ""));
-      const label = activityLabel(toolNames);
-      if (!label) return;
+      // Every action kind carries `input`, which is where the progress label
+      // gets its SUBJECT (which document, which skill, which query). eve's
+      // control-plane kinds have no `toolName` — map them onto synthetic ones
+      // so `load-skill` reads as the skill it is loading rather than nothing.
+      const described = actions
+        .map((a) => {
+          const toolName =
+            a.kind === "tool-call" && typeof a.toolName === "string"
+              ? a.toolName
+              : a.kind === "load-skill"
+                ? "load_skill"
+                : a.kind === "subagent-call" || a.kind === "remote-agent-call"
+                  ? "subagent"
+                  : "";
+          // Subagent kinds carry their human description at the top level,
+          // not inside `input` — fold it in so the label can use it.
+          const input =
+            toolName === "subagent" && typeof a.description === "string"
+              ? { description: a.description, ...(a.input as object | null) }
+              : a.input;
+          return { toolName, input };
+        })
+        .filter((a) => a.toolName);
+      if (described.length === 0) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce) return;
+      const label = await activityLabel(described, row.property_id);
+      if (!label) return;
       await recordActivity(row, label);
     },
 
