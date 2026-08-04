@@ -68,18 +68,24 @@ const redis = REDIS_URL && REDIS_TOKEN
 const BOT_USER_ID = process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai";
 const TEST_USER_ID = "ai-bot-test-user";
 const TEST_USER_NAME = "Bot Tester";
+/** Second human in the room. Needed to test the "coordination between two
+ *  named humans" skip rule honestly: @-mentioning a real member is a very
+ *  different classifier input than typing a name that resolves to nobody. */
+const PEER_USER_ID = "ai-bot-test-peer";
+const PEER_USER_NAME = "Sam Rivera";
 const DEFAULT_CHANNEL = "prop-697681e8-food-and-beverage-5d05af";
 const DEV_LOG = "/tmp/hotelclaw-dev.log";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 async function setupTestUser(channelId, channelType = "team") {
-  // Upsert the test user (idempotent).
+  // Upsert the test users (idempotent).
   await stream.upsertUser({ id: TEST_USER_ID, name: TEST_USER_NAME });
-  // Add to channel as a member (idempotent — Stream silently no-ops on dup).
+  await stream.upsertUser({ id: PEER_USER_ID, name: PEER_USER_NAME });
+  // Add to channel as members (idempotent — Stream silently no-ops on dup).
   const channel = stream.channel(channelType, channelId);
   try {
-    await channel.addMembers([TEST_USER_ID]);
+    await channel.addMembers([TEST_USER_ID, PEER_USER_ID]);
   } catch (err) {
     // "already a member" is fine.
     if (!/already/i.test(err.message ?? "")) {
@@ -129,10 +135,17 @@ async function resetEngagement(channelId, channelType = "team") {
 
 async function sendAsTestUser(channelId, text, opts = {}, channelType = "team") {
   const channel = stream.channel(channelType, channelId);
-  const mentioned_users = opts.mentionBot ? [BOT_USER_ID] : undefined;
+  // `mentionUsers` carries HUMAN mentions (e.g. @Sam) — the classifiers treat
+  // "addressed to a named teammate" very differently from an open question,
+  // and that only reproduces if mentioned_users is really populated.
+  const mentioned = [
+    ...(opts.mentionBot ? [BOT_USER_ID] : []),
+    ...(opts.mentionUsers ?? []),
+  ];
+  const mentioned_users = mentioned.length > 0 ? mentioned : undefined;
   const message = {
     text,
-    user_id: TEST_USER_ID,
+    user_id: opts.asUserId ?? TEST_USER_ID,
     ...(mentioned_users ? { mentioned_users } : {}),
     ...(opts.parentId
       ? { parent_id: opts.parentId, show_in_channel: false }
@@ -150,7 +163,11 @@ async function waitForBotReply({
   // Event-driven delivery (2026-07-23): the runtime posts when the turn
   // parks — tool-ladder turns routinely take 30-60s, so the assertion
   // window covers the p99 turn, not a synchronous function's budget.
-  timeoutMs = 90000,
+  // Raised 90s → 150s (2026-08-03): a knowledge-ladder turn ("do we have an
+  // SOP for X" → docs + brain + tasks) parked at 92.7s and the harness
+  // reported a false "no reply" three seconds early. Silence assertions
+  // pass their own short windows explicitly.
+  timeoutMs = 150000,
   intervalMs = 800,
 }) {
   const channel = stream.channel(channelType, channelId);
@@ -215,6 +232,33 @@ function safeParse(s) {
   }
 }
 
+/** Current dev-log size — the cursor a scenario passes to `decisionsSince`. */
+function devLogOffset() {
+  try {
+    return statSync(DEV_LOG).size;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Structured `[ai-trigger:*]` decisions logged since `offset`.
+ *
+ * `threadKey` narrowing matters: classifier calls for the parent message and
+ * for a thread reply run concurrently in `after()`, so the log is ordered by
+ * COMPLETION, not by send order — taking the last decision blind attributes
+ * the parent's verdict to the thread reply (seen 2026-08-03).
+ */
+function decisionsSince(offset, { kind, threadKey } = {}) {
+  let found = parseAiDecisions(tailDevLog(offset).lines);
+  if (kind) found = found.filter((d) => d.kind === kind);
+  if (threadKey) {
+    const scoped = found.filter((d) => d.threadKey === threadKey);
+    if (scoped.length > 0) return scoped;
+  }
+  return found;
+}
+
 /**
  * Reads dev-log lines added since `sinceOffset` (file size in bytes).
  * Returns `{ lines, offset }` so caller can continue tailing.
@@ -233,10 +277,47 @@ function tailDevLog(sinceOffset = 0) {
   return { lines, offset: stat.size };
 }
 
+/**
+ * Parse `[ai-trigger:*]` decisions out of dev-log lines.
+ *
+ * console.log(obj) prints the decision across MULTIPLE lines, so a
+ * line-filter (what this used to be) captured only the useless header
+ * `[ai-trigger:auto] {` and dropped the classifier's reason — the one thing
+ * AGENTS.md says to read when the bot mis-fires. Stitch the block back into
+ * a structured record so scenarios can assert on it and failures are
+ * self-explaining.
+ */
+function parseAiDecisions(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = /\[ai-trigger:(auto|engaged:spinoff|engaged)\]/.exec(lines[i]);
+    if (!head) continue;
+    const block = [];
+    for (let j = i + 1; j < lines.length && j < i + 16; j++) {
+      if (lines[j].trim() === "}") break;
+      block.push(lines[j].trim());
+    }
+    const text = block.join(" ");
+    out.push({
+      kind: head[1],
+      threadKey: /threadKey: '([^']*)'/.exec(text)?.[1] ?? null,
+      sensitivity: /sensitivity: '([^']*)'/.exec(text)?.[1] ?? null,
+      // auto mode → should_respond boolean; engaged/spinoff → 3-way decision.
+      shouldRespond: /should_respond: (true|false)/.exec(text)?.[1] ?? null,
+      decision: /decision: '([^']*)'/.exec(text)?.[1] ?? null,
+      reason: /reason: ["'](.*?)["'],?$/.exec(text)?.[1] ?? text,
+    });
+  }
+  return out;
+}
+
+function formatDecision(d) {
+  const verdict = d.decision ?? d.shouldRespond ?? "?";
+  return `[${d.kind}${d.sensitivity ? `/${d.sensitivity}` : ""}] thread=${d.threadKey} → ${verdict} — ${d.reason}`;
+}
+
 function extractAiDecisions(lines) {
-  return lines.filter((l) =>
-    /\[ai-trigger:(auto|engaged|engaged:spinoff)\]/.test(l),
-  );
+  return parseAiDecisions(lines).map(formatDecision);
 }
 
 // ─── Scenario runner ────────────────────────────────────────────────────────
@@ -300,7 +381,7 @@ async function runScenario(scenario, channelId) {
         timeoutMs:
           step.expectReply === "no"
             ? (step.timeoutMs ?? 8000)
-            : Math.max(step.timeoutMs ?? 0, 90000),
+            : Math.max(step.timeoutMs ?? 0, 150000),
       });
       if (!botReply) {
         if (step.expectReply === "no") {
@@ -782,6 +863,297 @@ async function waitForChannelDrain(channelId, quietMs = 6000, maxMs = 120000) {
   }
 }
 
+// ─── Mode-behaviour scenarios (`modes` command) ────────────────────────────
+//
+// The `suite` scenarios prove auto and engaged FIRE. These prove they fire
+// with the right JUDGEMENT — the parts users actually feel:
+//   • auto answers a follow-up nobody re-mentioned it in (classifier rule A)
+//   • auto stays out of coordination aimed at a named human (skip rule)
+//   • auto works inside threads and answers IN the thread
+//   • engaged listens without speaking when two humans coordinate
+//   • engaged's spinoff decision and its persisted state agree
+//   • a mention after the sign-off starts a fresh engagement
+//
+// Every assertion quotes the classifier's own reason on failure, so a red
+// run says WHY the bot decided what it did instead of just "no reply".
+
+const MODE_SCENARIOS = [
+  {
+    name: "auto/follow-up: unmentioned follow-up to the bot's own answer is answered",
+    setup: { mode: "auto", sensitivity: "balanced" },
+    custom: async (channelId) => {
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw how many tasks are open right now?",
+        { mentionBot: true },
+      );
+      const first = await waitForBotReply({ channelId, afterTimestamp: t0 });
+      if (!first) return { passed: false, reason: "no reply to the opening mention" };
+
+      const off = devLogOffset();
+      const t1 = Date.now();
+      await sendAsTestUser(channelId, "which of those would you start with?");
+      const reply = await waitForBotReply({ channelId, afterTimestamp: t1 });
+      const d = decisionsSince(off, { kind: "auto" }).pop();
+      if (!reply) {
+        return {
+          passed: false,
+          reason: `follow-up ignored — classifier: ${d ? formatDecision(d) : "never ran"}`,
+        };
+      }
+      if (d && d.shouldRespond !== "true") {
+        return { passed: false, reason: `replied but logged ${formatDecision(d)}` };
+      }
+      return { passed: true, decision: d ? formatDecision(d) : null };
+    },
+  },
+
+  {
+    name: "auto/coordination: a message aimed at a human teammate must not pull the bot in",
+    setup: { mode: "auto", sensitivity: "balanced" },
+    custom: async (channelId) => {
+      const off = devLogOffset();
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        `@${PEER_USER_NAME} can you restock the minibars on floor 3 before 3pm?`,
+        { mentionUsers: [PEER_USER_ID] },
+      );
+      // Real silence window: a turn the classifier green-lit would land well
+      // inside this, so "no message" here means the gate really held.
+      const reply = await waitForBotReply({
+        channelId,
+        afterTimestamp: t0,
+        timeoutMs: 45000,
+      });
+      const d = decisionsSince(off, { kind: "auto" }).pop();
+      if (!d) return { passed: false, reason: "auto classifier never ran" };
+      if (reply) {
+        return {
+          passed: false,
+          reason: `butted into human coordination: "${reply.text.slice(0, 90)}" — ${formatDecision(d)}`,
+        };
+      }
+      if (d.shouldRespond !== "false") {
+        return { passed: false, reason: `classifier green-lit it: ${formatDecision(d)}` };
+      }
+      return { passed: true, decision: formatDecision(d) };
+    },
+  },
+
+  {
+    name: "auto/thread: an unaddressed question inside a thread is answered in that thread",
+    setup: { mode: "auto", sensitivity: "balanced" },
+    custom: async (channelId) => {
+      const parent = await sendAsTestUser(
+        channelId,
+        "Thread: the walk-in freezer keeps alarming overnight",
+      );
+      await sleep(1200);
+      const off = devLogOffset();
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "do we have an SOP for the freezer temperature alarm?",
+        { parentId: parent.id },
+      );
+      const reply = await waitForBotReply({
+        channelId,
+        parentId: parent.id,
+        afterTimestamp: t0,
+      });
+      // Scope to THIS thread — the parent message is itself a top-level
+      // message auto mode classifies, and the two calls race.
+      const d = decisionsSince(off, { kind: "auto", threadKey: parent.id }).pop();
+      if (!reply) {
+        return {
+          passed: false,
+          reason: `no in-thread reply — classifier: ${d ? formatDecision(d) : "never ran"}`,
+        };
+      }
+      if (reply.parent_id !== parent.id) {
+        return {
+          passed: false,
+          reason: `reply escaped the thread (parent_id=${reply.parent_id})`,
+        };
+      }
+      if (d && d.threadKey !== parent.id) {
+        return {
+          passed: false,
+          reason: `classifier keyed thread=${d.threadKey}, expected ${parent.id}`,
+        };
+      }
+      return { passed: true, decision: d ? formatDecision(d) : null };
+    },
+  },
+
+  {
+    name: "engaged/stay-silent: humans coordinating keeps the bot listening, not talking",
+    setup: { mode: "engaged" },
+    custom: async (channelId) => {
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw what tasks are open in this property?",
+        { mentionBot: true },
+      );
+      const first = await waitForBotReply({ channelId, afterTimestamp: t0 });
+      if (!first) return { passed: false, reason: "no reply to the engaging mention" };
+
+      const off = devLogOffset();
+      const t1 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        `@${PEER_USER_NAME} can you take the linens order today?`,
+        { mentionUsers: [PEER_USER_ID] },
+      );
+      const reply = await waitForBotReply({
+        channelId,
+        afterTimestamp: t1,
+        timeoutMs: 45000,
+      });
+      const d = decisionsSince(off, { kind: "engaged" }).pop();
+      const state = await readEngagementState(channelId);
+      if (!d) return { passed: false, reason: "engaged classifier never ran" };
+      if (reply) {
+        return {
+          passed: false,
+          reason: `answered a message aimed at a teammate: "${reply.text.slice(0, 90)}" — ${formatDecision(d)}`,
+        };
+      }
+      if (d.decision !== "stay_silent") {
+        return { passed: false, reason: `expected stay_silent — ${formatDecision(d)}` };
+      }
+      if (!(state.ai_engaged_threads ?? []).includes("_root")) {
+        return {
+          passed: false,
+          reason: `engagement dropped: ${JSON.stringify(state.ai_engaged_threads)}`,
+        };
+      }
+      return { passed: true, decision: formatDecision(d) };
+    },
+  },
+
+  {
+    name: "engaged/spinoff: the spinoff decision and the persisted state agree",
+    setup: { mode: "engaged" },
+    custom: async (channelId) => {
+      const t0 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw what tasks are open in this property?",
+        { mentionBot: true },
+      );
+      const first = await waitForBotReply({ channelId, afterTimestamp: t0 });
+      if (!first) return { passed: false, reason: "no reply to the engaging mention" };
+
+      // Fork the SAME topic into a thread — the structural case the spinoff
+      // classifier exists for.
+      const parent = await sendAsTestUser(
+        channelId,
+        "Spinning the open-task cleanup into its own thread",
+      );
+      await sleep(1200);
+      const off = devLogOffset();
+      const t1 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "so which of those open tasks should we close out first?",
+        { parentId: parent.id },
+      );
+      const reply = await waitForBotReply({
+        channelId,
+        parentId: parent.id,
+        afterTimestamp: t1,
+        timeoutMs: 60000,
+      });
+      const d = decisionsSince(off, {
+        kind: "engaged:spinoff",
+        threadKey: parent.id,
+      }).pop();
+      const state = await readEngagementState(channelId);
+      if (!d) return { passed: false, reason: "spinoff classifier never ran" };
+
+      const engaged = state.ai_engaged_threads ?? [];
+      const skipped = state.ai_skipped_threads ?? [];
+      if (d.decision === "respond") {
+        if (!reply) return { passed: false, reason: `decided respond but posted nothing — ${formatDecision(d)}` };
+        if (!engaged.includes(parent.id)) {
+          return {
+            passed: false,
+            reason: `engaged the thread but state says ${JSON.stringify(engaged)}`,
+          };
+        }
+      } else {
+        if (reply) {
+          return {
+            passed: false,
+            reason: `decided ${d.decision} but still replied: "${reply.text.slice(0, 90)}"`,
+          };
+        }
+        if (!skipped.includes(parent.id)) {
+          return {
+            passed: false,
+            reason: `declined the spinoff but didn't mark it skipped (skipped=${JSON.stringify(skipped)}) — it will be re-classified on every message`,
+          };
+        }
+      }
+      return { passed: true, decision: formatDecision(d), engaged, skipped };
+    },
+  },
+
+  {
+    name: "engaged/re-engage: a mention after the sign-off starts a fresh engagement",
+    setup: { mode: "engaged" },
+    custom: async (channelId) => {
+      const t0 = Date.now();
+      await sendAsTestUser(channelId, "@hotelclaw what tasks are open?", {
+        mentionBot: true,
+      });
+      if (!(await waitForBotReply({ channelId, afterTimestamp: t0 }))) {
+        return { passed: false, reason: "no reply to the opening mention" };
+      }
+
+      const off = devLogOffset();
+      const t1 = Date.now();
+      await sendAsTestUser(channelId, "perfect, thanks — that's all I needed");
+      const signOff = await waitForBotReply({ channelId, afterTimestamp: t1 });
+      const d = decisionsSince(off, { kind: "engaged" }).pop();
+      if (!signOff || !/quiet/i.test(signOff.text ?? "")) {
+        return {
+          passed: false,
+          reason: `expected the sign-off, got "${signOff?.text?.slice(0, 90) ?? "nothing"}" — ${d ? formatDecision(d) : "no decision"}`,
+        };
+      }
+      const afterSignOff = await readEngagementState(channelId);
+      if ((afterSignOff.ai_engaged_threads ?? []).length !== 0) {
+        return {
+          passed: false,
+          reason: `still engaged after sign-off: ${JSON.stringify(afterSignOff.ai_engaged_threads)}`,
+        };
+      }
+
+      const t2 = Date.now();
+      await sendAsTestUser(
+        channelId,
+        "@hotelclaw actually — what documents do we have on file?",
+        { mentionBot: true },
+      );
+      const back = await waitForBotReply({ channelId, afterTimestamp: t2 });
+      const state = await readEngagementState(channelId);
+      if (!back) return { passed: false, reason: "bot never came back on re-mention" };
+      if (!(state.ai_engaged_threads ?? []).includes("_root")) {
+        return {
+          passed: false,
+          reason: `re-mention did not re-engage: ${JSON.stringify(state.ai_engaged_threads)}`,
+        };
+      }
+      return { passed: true, reply: back.text.slice(0, 110) };
+    },
+  },
+];
+
 // ─── Parallel/concurrency scenarios (0093: lossless queue + jobs) ──────────
 // These verify the eve-docs-prescribed app-layer queue and the detached
 // background-job path end-to-end against the live pipeline.
@@ -1151,6 +1523,7 @@ async function main() {
     console.log(`Usage:
   send  --channel <id> [--mode mention|auto|always|engaged] [--sensitivity ...] [--mention] --message "..."
   suite [--channel <id>]
+  modes [--channel <id>]      (auto + engaged judgement: follow-ups, skip rules, threads, spinoff)
   parallel [--channel <id>]   (queue drain, role gate, background job — several minutes)
   writes [--channel <id>]     (doc fill via Liveblocks + task update + notification)
   state [--channel <id>]
@@ -1205,6 +1578,13 @@ async function main() {
 
   if (cmd === "stress") {
     await runStress(channelId);
+    return;
+  }
+
+  if (cmd === "modes") {
+    // Judgement coverage for auto + engaged (follow-ups, skip rules,
+    // threads, spinoff, re-engagement).
+    await runStress(channelId, MODE_SCENARIOS, "MODES");
     return;
   }
 

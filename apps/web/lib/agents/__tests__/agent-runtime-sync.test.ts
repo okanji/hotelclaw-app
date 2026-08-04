@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { AGENT_TOOL_CATALOG, AGENT_TOOL_IDS } from "@hotelclaw/agent-config";
+import { CAPABILITY_TOOL_COVERAGE } from "@/lib/stream/ai-capability-map";
 
 /**
  * Drift guards for the cross-package contracts that have actually broken:
@@ -71,6 +72,38 @@ describe("AGENT_TOOL_CATALOG ↔ eve executor sync", () => {
       "start_background_job",
     ]) {
       expect(grants, `channel bot lost the "${required}" grant`).toContain(required);
+    }
+  });
+
+  it("the auto-mode classifier advertises every channel-bot grant", () => {
+    // Auto mode's rule B ("asks for something on the capability list") is one
+    // of only two ALWAYS-respond rules, so a grant the blurb never mentions
+    // is a capability the bot silently refuses to volunteer. The blurb had
+    // drifted to a read-only description of a bot with 47 write-capable
+    // grants — this guard is why that can't happen twice.
+    const block = agentConfigSrc.match(
+      /channelBotConfig\(\)[\s\S]*?tools:\s*\[([\s\S]*?)\]/,
+    );
+    const grants = [...block![1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+    const advertised = new Set(
+      Object.values(CAPABILITY_TOOL_COVERAGE).flatMap((ids) => [...ids]),
+    );
+    for (const g of grants) {
+      expect(
+        advertised.has(g),
+        `channel bot grants "${g}" but lib/stream/ai-capability-map.ts never advertises it — auto mode will stay silent when someone asks for it`,
+      ).toBe(true);
+    }
+  });
+
+  it("the classifier capability map only lists real catalog tools", () => {
+    for (const [line, ids] of Object.entries(CAPABILITY_TOOL_COVERAGE)) {
+      for (const id of ids) {
+        expect(
+          AGENT_TOOL_IDS.has(id),
+          `capability line "${line}" advertises "${id}" which is not in AGENT_TOOL_CATALOG`,
+        ).toBe(true);
+      }
     }
   });
 

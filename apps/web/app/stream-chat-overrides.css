@@ -639,6 +639,12 @@
 .str-chat__slack-message-main .str-chat__message-inner .str-chat__message-bubble {
   justify-self: stretch !important;
   width: 100% !important;
+  /* Stream caps any bubble that holds an attachment at
+     `min(--str-chat__attachment-max-width (~400px), 100%)`, which is what
+     actually cramped table+prose AI replies (prose-only bubbles were never
+     capped). Lift it — our attachments (ai_ui table max-w-4xl, artifact card
+     max-w-md, images) self-cap and left-align, and the text is capped below. */
+  max-width: 100% !important;
   min-width: 0;
 }
 .str-chat__slack-message-main
