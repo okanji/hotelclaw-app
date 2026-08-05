@@ -11,24 +11,41 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
- * TOKEN LAYER — Notion-derived. The contract is docs/notion-spec.md (measured
- * off app.notion.com, not guessed) and DESIGN.md describes how to spend these.
+ * TOKEN LAYER — Notion-derived. The contract is docs/notion-spec-v2.md
+ * (measured off app.notion.com, not guessed); DESIGN.md describes how to spend
+ * these. **v2 SUPERSEDES v1 (docs/notion-spec.md) on radii and card shadows.**
  *
- * Five rules the values below encode:
+ * Six rules the values below encode:
  *   1. Surfaces separate by a ~2% FILL delta plus a 7% WARM ring — never a
  *      visible gray stroke.
  *   2. Every grey is warm/brown-tinted. Neutral cold grey is what makes a UI
  *      read as a stock component library.
- *   3. Labels are sentence case, weight 500, letter-spacing NORMAL.
- *   4. Two radii: 6px for things you click, 10px for things that float.
- *   5. Elevation belongs to floating overlays only. Resting cards get none.
+ *   3. Labels are sentence case, weight 500, letter-spacing NORMAL. The face
+ *      is the plain SYSTEM stack — Notion ships no webfont, and neither do we.
+ *   4. FIVE radii, each with exactly one job: 4px pills · 6px clickables ·
+ *      10px cards/callouts/popovers · 20px modals · full for avatars.
+ *      (v1's "two rungs" rule is superseded.)
+ *   5. THREE elevations, never mixed: `shadow-card` (a resting surface that
+ *      represents a page), `shadow-popover` (floating chrome),
+ *      `shadow-modal` (translucent + blurred dialogs). v1 said resting cards
+ *      carry no shadow — true for wells and list rows, WRONG for cards.
+ *   6. Content lives in a `--content-width` (720px) centred document column;
+ *      data views break OUT of it to full width. That contrast IS the layout.
  * ------------------------------------------------------------------------ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Inter Variable is injected on <html> as --font-sans-inter via next/font (see layout.tsx). */
-  --font-sans: var(--font-sans-inter), ui-sans-serif, system-ui, sans-serif;
+  /* The PLAIN SYSTEM STACK — no webfont (notion-spec-v2 §2). Notion ships no
+     webfont at all; a loaded webfont is itself a "designed template" tell, and
+     the system face is what makes the chrome read native. The Inter next/font
+     wiring (`--font-sans-inter`) was deleted from app/layout.tsx on 2026-08-05
+     — do not reintroduce it. Emoji + Arabic/Hebrew faces are IN the stack so a
+     mixed-script string never falls through to a random installed face. */
+  --font-sans:
+    ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display",
+    "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic",
+    "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -71,6 +88,11 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  /* Blue used as TEXT (links, active labels). Separate from --primary because
+     a fill is judged against its label and text is judged against the canvas —
+     see the contrast note in :root. Use `text-primary-ink`, never
+     `text-primary`, whenever blue is the ink rather than the background. */
+  --color-primary-ink: var(--primary-ink);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -118,6 +140,53 @@
   --color-tint-coral-ink: var(--tint-coral-ink);
   --color-tint-honey: var(--tint-honey);
   --color-tint-honey-ink: var(--tint-honey-ink);
+  /* Translucent fill for the MODAL tier — pair with `backdrop-blur-modal` and
+     `rounded-modal shadow-modal`. Deliberately NOT `bg-popover`: the modal is
+     the only surface in the app that lets the page show through. */
+  --color-modal-bg: var(--modal-bg);
+  /* --- Status pills (notion-spec-v2 §6) ---------------------------------
+     A pill is "the hue at ~16% alpha + the SAME hue darkened for ink" —
+     measured off Notion as fill rgba(206,24,0,.165) / ink rgb(109,53,49).
+     Two families, one shape:
+
+       SEMANTIC  success · warning · info · danger · neutral
+                 (lifecycle states — the same meanings as --success/--warning/
+                 --info/--destructive; the pill fills are color-mixed off
+                 those tokens so the ramp can never drift out of sync)
+       ENTITY    slate · blue · green · amber · rose · violet
+                 (`EntityColor` — user-CHOSEN identity: labels, projects,
+                 teams, boards. Deliberately its own set so a user picking
+                 "green" is not asserting "success".)
+
+     Spend as `bg-pill-<name> text-pill-<name>-ink rounded-pill`. Never
+     re-derive a chip colour from the tailwind palette (`bg-blue-500/15
+     text-blue-700`) — that ramp is cold and breaks on the warm planes. */
+  --color-pill-success: var(--pill-success);
+  --color-pill-success-ink: var(--pill-success-ink);
+  --color-pill-warning: var(--pill-warning);
+  --color-pill-warning-ink: var(--pill-warning-ink);
+  --color-pill-info: var(--pill-info);
+  --color-pill-info-ink: var(--pill-info-ink);
+  --color-pill-danger: var(--pill-danger);
+  --color-pill-danger-ink: var(--pill-danger-ink);
+  --color-pill-neutral: var(--pill-neutral);
+  --color-pill-neutral-ink: var(--pill-neutral-ink);
+  --color-pill-slate: var(--pill-slate);
+  --color-pill-slate-ink: var(--pill-slate-ink);
+  --color-pill-blue: var(--pill-blue);
+  --color-pill-blue-ink: var(--pill-blue-ink);
+  --color-pill-green: var(--pill-green);
+  --color-pill-green-ink: var(--pill-green-ink);
+  --color-pill-amber: var(--pill-amber);
+  --color-pill-amber-ink: var(--pill-amber-ink);
+  --color-pill-rose: var(--pill-rose);
+  --color-pill-rose-ink: var(--pill-rose-ink);
+  --color-pill-violet: var(--pill-violet);
+  --color-pill-violet-ink: var(--pill-violet-ink);
+  /* The 720px centred DOCUMENT COLUMN (notion-spec-v2 §3). Prose, headings,
+     callouts and page titles live inside `max-w-content mx-auto`; data views
+     (tables, boards) deliberately break OUT of it to full width. */
+  --container-content: var(--content-width);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
@@ -140,19 +209,30 @@
      The app shell has NO serif voice. */
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
-  /* --- Radius: exactly two rungs -----------------------------------------
-     6px  (--radius)         anything you click: buttons, inputs, rows,
-                             menu items, cards, chips, badges, wells.
-     10px (--radius-overlay) anything that FLOATS: popover, dropdown, dialog,
-                             sheet, command palette, toast, drag overlay.
-     `rounded-sm|md|lg|4xl` all collapse onto 6px so the ~640 existing call
-     sites land on the scale with no file edits. `rounded-full` still means
-     avatars/dots/progress tracks. */
+  /* --- Radius: FIVE rungs, each with one job (notion-spec-v2 §4) ----------
+     This SUPERSEDES v1's "two rungs" rule.
+
+      4px  --radius-pill     select/status pills, block gutter buttons
+      6px  --radius (base)   anything you CLICK: buttons, inputs, rows,
+                             menu items, chips, wells
+     10px  --radius-card     things that are a SURFACE: cards, callouts,
+                             dropdowns, popovers  (=== --radius-overlay)
+     20px  --radius-modal    modals/dialogs/command palette, and view-tab
+                             pills (fully rounded at 32px tall)
+     full  rounded-full      avatars, dots, count badges, progress tracks
+
+     `rounded-sm|md|lg|4xl` all still collapse onto 6px so the ~640 existing
+     call sites land on the scale with no file edits. `--radius-overlay` is
+     kept as a live alias of `--radius-card` — it has many call sites and both
+     names mean 10px. Prefer `rounded-card` in new code. */
   --radius-sm: var(--radius);
   --radius-md: var(--radius);
   --radius-lg: var(--radius);
   --radius-4xl: var(--radius);
-  --radius-overlay: 0.625rem;
+  --radius-pill: 0.25rem;
+  --radius-card: 0.625rem;
+  --radius-overlay: var(--radius-card);
+  --radius-modal: 1.25rem;
   /* FROZEN at their pre-normalization computed values. `rounded-xl/2xl/3xl`
      survive ONLY because the out-of-scope guest world consumes them
      (components/public-booking/*, components/guest-chat/*, app/book/*).
@@ -162,12 +242,29 @@
   --radius-2xl: 0.9rem;
   --radius-3xl: 1.1rem;
 
-  /* --- Elevation: one recipe, applied only to floating things ------------
-     The 1px warm ring is the LAST shadow layer, not a `border` and not a
-     `ring-*` utility — stacking both double-rings. Overlays are
-     `rounded-overlay shadow-overlay` with border: none. */
+  /* --- Elevation: THREE tiers, never mixed (notion-spec-v2 §5) -----------
+     The 1px warm ring is the LAST shadow layer in each recipe, not a `border`
+     and not a `ring-*` utility — stacking both double-rings.
+
+       shadow-card     rounded-card  — a RESTING surface that represents a
+                       page: board cards, gallery cards, doc cards. This is
+                       the rung v1 got wrong ("resting cards get no shadow");
+                       wells and list rows still get none.
+       shadow-popover  rounded-card  — floating chrome: dropdown, menu,
+                       popover, toast, drag overlay.
+       shadow-modal    rounded-modal — dialogs + the command palette, over a
+                       translucent `bg-modal-bg` + `backdrop-blur-modal`.
+
+     `shadow-overlay` is the PRE-v2 name for the popover tier and still has
+     many call sites; it is kept as a live alias, not a dangling utility.
+     Both resolve to the same recipe. Prefer `shadow-popover` in new code. */
+  --shadow-card: var(--card-shadow);
+  --shadow-popover: var(--overlay-shadow);
   --shadow-overlay: var(--overlay-shadow);
+  --shadow-modal: var(--modal-shadow);
   --shadow-tooltip: var(--tooltip-shadow);
+  /* Blur radius behind the modal tier — `backdrop-blur-modal`. */
+  --blur-modal: 40px;
   /* A bare 1px warm ring for resting surfaces that genuinely need a boundary
      (cards, wells, inputs) — replaces `border border-border`. */
   --shadow-ring: var(--ring-shadow);
@@ -195,8 +292,29 @@
   --card-foreground: #2c2c2b;
   --popover: #ffffff;
   --popover-foreground: #2c2c2b;
-  --primary: #2c2c2b;
+  /* NOTION BLUE (2026-08-05, notion-spec-v2 §0/§6). This deliberately
+     overrides the 2026-07-17 "primary buttons stay warm ink" decision: the
+     primary button is now #2383e2 with a near-white label, the SAME blue as
+     --ring / --icon-accent so focus, links and the primary action are one
+     family. --primary is now a BRAND ACCENT, not an ink rung — if you want
+     "the darkest text" reach for `text-foreground`, never `text-primary`.
+
+     CONTRAST (measured 2026-08-05): Notion's own #2383e2 + #f3f9fd label is
+     3.65:1 — it FAILS WCAG AA (4.5:1) for the 14px w500 button label, and so
+     does #2383e2 on pure white (3.88:1). We keep Notion's hue but darken the
+     FILL to #1a6ed8, which is 4.92:1 against a white label. Fidelity to the
+     hue, not to an accessibility bug.
+
+     TWO ROLES, because one token cannot serve both: a FILL is judged against
+     its own label, whereas blue-as-TEXT is judged against the page canvas.
+     --primary       = the button/accent FILL (same on both planes; 3.57:1
+                       against the dark #191919 canvas, over the 3:1 UI floor)
+     --primary-ink   = blue used as TEXT (links, `text-primary-ink`). Must
+                       lighten on the dark plane or it fails as body text:
+                       #1a6ed8 on #191919 is only 3.57:1, #4a9df0 is 6.17:1. */
+  --primary: #1a6ed8;
   --primary-foreground: #ffffff;
+  --primary-ink: #1a6ed8;
   --secondary: #f1f0ee;
   --secondary-foreground: #2c2c2b;
   /* Wells are TRANSLUCENT warm-black so the same `bg-muted` composites
@@ -294,6 +412,42 @@
   --tint-coral-ink: oklch(0.45 0.105 40);
   --tint-honey: oklch(0.94 0.038 82);
   --tint-honey-ink: oklch(0.45 0.075 80);
+
+  /* --- Status pills: hue @ ~16% alpha + the same hue darkened for ink -----
+     The SEMANTIC five are color-mixed off the status ramp above so they can
+     never drift; only the inks are authored (a 16%-alpha fill needs ink that
+     is darker AND less chromatic than the ramp value, or the pill vibrates).
+     The ENTITY six are authored outright — they are identity, not state. */
+  --pill-success: color-mix(in oklab, var(--success) 16%, transparent);
+  --pill-success-ink: oklch(0.42 0.075 160);
+  --pill-warning: color-mix(in oklab, var(--warning) 16%, transparent);
+  --pill-warning-ink: oklch(0.44 0.085 62);
+  --pill-info: color-mix(in oklab, var(--info) 16%, transparent);
+  --pill-info-ink: oklch(0.44 0.1 250);
+  --pill-danger: color-mix(in oklab, var(--destructive) 16%, transparent);
+  --pill-danger-ink: oklch(0.45 0.105 28);
+  /* Neutral is the only pill whose fill is the warm-black wash, not a hue. */
+  --pill-neutral: rgb(33 27 23 / 8%);
+  --pill-neutral-ink: #5f5e59;
+  --pill-slate: oklch(0.55 0.02 250 / 16%);
+  --pill-slate-ink: oklch(0.43 0.02 250);
+  --pill-blue: oklch(0.6 0.14 250 / 16%);
+  --pill-blue-ink: oklch(0.44 0.1 250);
+  --pill-green: oklch(0.6 0.11 160 / 16%);
+  --pill-green-ink: oklch(0.42 0.075 160);
+  --pill-amber: oklch(0.68 0.13 66 / 16%);
+  --pill-amber-ink: oklch(0.44 0.085 62);
+  --pill-rose: oklch(0.62 0.16 12 / 16%);
+  --pill-rose-ink: oklch(0.45 0.105 15);
+  --pill-violet: oklch(0.6 0.15 300 / 16%);
+  --pill-violet-ink: oklch(0.44 0.11 300);
+
+  /* The centred document column (notion-spec-v2 §3). Mapped to the container
+     scale above, so `max-w-content` is the utility. */
+  --content-width: 720px;
+  /* Modal tier fill — translucent so the page reads through the blur. */
+  --modal-bg: rgb(255 255 255 / 90%);
+
   /* Document annotation + AI diff marks (used by app/documents-editor.css). */
   --annotation-mark: rgb(214 178 74 / 26%);
   --annotation-mark-active: rgb(196 148 30 / 42%);
@@ -303,10 +457,23 @@
   --diff-delete-bg: oklch(0.92 0.045 25);
   --diff-delete-ink: oklch(0.46 0.12 27);
 
-  /* --- Elevation recipes (raw values; mapped in @theme inline above) ----- */
+  /* --- Elevation recipes (raw values; mapped in @theme inline above) -----
+     Three tiers, measured (notion-spec-v2 §5). Each ends with the 1px warm
+     ring as its LAST layer — that ring IS the boundary, so these surfaces
+     carry `border: none` and no `ring-*` utility. */
+  /* CARD — resting content that represents a page. One soft far layer only. */
+  --card-shadow: rgb(25 25 25 / 2.7%) 0 4px 12px 0, rgb(42 28 0 / 7%) 0 0 0 1px;
+  /* POPOVER — floating chrome. `--overlay-shadow` is the pre-v2 name for this
+     exact recipe and is consumed directly by several stylesheets
+     (documents-editor.css, stream-chat-overrides.css, spreadsheet.css,
+     document-drag-handle.css, insights/chart-style.ts), so it stays the
+     canonical raw var and `--shadow-popover` maps onto it. */
   --overlay-shadow:
     rgb(25 25 25 / 5%) 0 20px 24px 0, rgb(25 25 25 / 2.7%) 0 5px 8px 0,
     rgb(42 28 0 / 7%) 0 0 0 1px;
+  /* MODAL — the only tier with no ring: it sits on a translucent blurred
+     fill, where a 1px ring reads as a seam. */
+  --modal-shadow: rgb(25 25 25 / 24%) 0 24px 48px 0, rgb(25 25 25 / 14%) 0 4px 12px 0;
   --tooltip-shadow:
     rgb(0 0 0 / 8%) 0 4px 12px -2px, rgb(255 255 255 / 5%) 0 0 0 1px inset;
   --ring-shadow: 0 0 0 1px rgb(42 28 0 / 7%);
@@ -348,8 +515,16 @@
   --card-foreground: #f0efed;
   --popover: #252525;
   --popover-foreground: #f0efed;
-  --primary: #f0efed;
-  --primary-foreground: #191919;
+  /* Notion blue does NOT invert with the theme — the button FILL is the same
+     brand accent on both planes (#1a6ed8 + white = 4.92:1 for the label, and
+     3.57:1 against the #191919 canvas, over the 3:1 UI floor). The old
+     #2c8ce6 was lifted for canvas contrast but only reached 3.50:1 with its
+     label, which fails AA — the fill must be judged against its LABEL.
+     Blue-as-TEXT is the one that has to lighten here: --primary-ink #4a9df0
+     is 6.17:1 on #191919, where the fill blue would be 3.57:1. */
+  --primary: #1a6ed8;
+  --primary-foreground: #ffffff;
+  --primary-ink: #4a9df0;
   --secondary: #2a2a29;
   --secondary-foreground: #f0efed;
   --muted: rgb(255 255 255 / 4.5%);
@@ -407,6 +582,36 @@
   --tint-coral-ink: oklch(0.92 0.028 42);
   --tint-honey: oklch(0.44 0.045 80);
   --tint-honey-ink: oklch(0.92 0.028 80);
+
+  /* Status pills, dark plane: SAME geometry and the same ~16% fill, but the
+     ink is LIGHTENED rather than darkened (it has to clear a dark fill). The
+     semantic fills stay color-mixed off the dark status ramp. */
+  --pill-success: color-mix(in oklab, var(--success) 16%, transparent);
+  --pill-success-ink: oklch(0.84 0.1 163);
+  --pill-warning: color-mix(in oklab, var(--warning) 16%, transparent);
+  --pill-warning-ink: oklch(0.87 0.1 84);
+  --pill-info: color-mix(in oklab, var(--info) 16%, transparent);
+  --pill-info-ink: oklch(0.82 0.1 250);
+  --pill-danger: color-mix(in oklab, var(--destructive) 16%, transparent);
+  --pill-danger-ink: oklch(0.82 0.11 25);
+  --pill-neutral: rgb(255 255 255 / 9%);
+  --pill-neutral-ink: #bcbab6;
+  --pill-slate: oklch(0.7 0.02 250 / 16%);
+  --pill-slate-ink: oklch(0.82 0.02 250);
+  --pill-blue: oklch(0.7 0.14 250 / 16%);
+  --pill-blue-ink: oklch(0.82 0.1 250);
+  --pill-green: oklch(0.7 0.11 160 / 16%);
+  --pill-green-ink: oklch(0.84 0.1 163);
+  --pill-amber: oklch(0.78 0.13 70 / 16%);
+  --pill-amber-ink: oklch(0.87 0.1 84);
+  --pill-rose: oklch(0.7 0.16 12 / 16%);
+  --pill-rose-ink: oklch(0.83 0.11 15);
+  --pill-violet: oklch(0.7 0.15 300 / 16%);
+  --pill-violet-ink: oklch(0.84 0.11 300);
+
+  /* --content-width is theme-independent — it is only redeclared in :root. */
+  --modal-bg: rgb(32 32 32 / 90%);
+
   --annotation-mark: rgb(214 178 74 / 22%);
   --annotation-mark-active: rgb(230 190 80 / 34%);
   --annotation-underline: rgb(230 190 80 / 50%);
@@ -415,9 +620,13 @@
   --diff-delete-bg: oklch(0.34 0.07 27);
   --diff-delete-ink: oklch(0.86 0.08 25);
 
+  /* Same three tiers; the ring swaps to the light 7.5% warm ring and the
+     ambient layers deepen so elevation still reads on a dark canvas. */
+  --card-shadow: rgb(0 0 0 / 20%) 0 4px 12px 0, rgb(255 255 255 / 7.5%) 0 0 0 1px;
   --overlay-shadow:
     rgb(0 0 0 / 30%) 0 20px 24px 0, rgb(0 0 0 / 20%) 0 5px 8px 0,
     rgb(255 255 255 / 7.5%) 0 0 0 1px;
+  --modal-shadow: rgb(0 0 0 / 48%) 0 24px 48px 0, rgb(0 0 0 / 32%) 0 4px 12px 0;
   --tooltip-shadow:
     rgb(0 0 0 / 40%) 0 4px 12px -2px, rgb(255 255 255 / 6%) 0 0 0 1px inset;
   --ring-shadow: 0 0 0 1px rgb(255 255 255 / 7.5%);
@@ -434,13 +643,16 @@
   }
   html {
     @apply font-sans;
-    /* Inter OpenType tuning: cv11 = single-storey `a`, ss03 = looped `l`,
-       cv02 = straight-leg `g`.
-       NOTE: there is deliberately NO `letter-spacing` here. Notion's
-       letter-spacing is `normal` everywhere (notion-spec §3) and the old
+    /* NO OpenType tuning. The old `"cv11","ss03","cv02"` triple was Inter
+       character-variant tuning; Inter is gone (notion-spec-v2 §2) and those
+       features mean nothing — or something else — on a system face. Notion
+       sets `font-feature-settings: normal`; so do we, explicitly, so nothing
+       inherits a stale value.
+       NOTE: there is deliberately NO `letter-spacing` here either. Notion's
+       letter-spacing is `normal` everywhere (notion-spec-v2 §2) and the old
        global `-0.011em` was a Linear signature. Do not reintroduce it, and
        do not add `tracking-tight` / `tracking-[0.18em]` to app surfaces. */
-    font-feature-settings: "cv11", "ss03", "cv02";
+    font-feature-settings: normal;
   }
 
   /* Slack-style slim scrollbars — standard properties ONLY (`scrollbar-width`

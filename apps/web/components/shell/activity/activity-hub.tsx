@@ -103,9 +103,14 @@ function FeedRow({
       >
         <span
           className={cn(
+            // An initials chip is an IDENTITY, not an action — `--primary` is
+            // now Notion blue and reserved for things you can press or that
+            // are active (notion-spec-v2 §0.2), so a blue-tinted avatar read
+            // as "this row is selected". Warm neutral in both branches; the
+            // actor/system distinction is carried by initials vs glyph.
             "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold select-none",
             v.actor
-              ? "bg-primary/10 text-primary"
+              ? "bg-accent-pressed text-secondary-ink"
               : "bg-muted text-foreground/70 [&_svg]:size-4",
           )}
           aria-hidden="true"
@@ -134,7 +139,9 @@ function FeedRow({
               {unseen ? (
                 <span
                   aria-hidden="true"
-                  className="size-1.5 rounded-full bg-primary"
+                  // The unread marker is the NOTIFICATION signal, not the
+                  // action colour — same hue as the rail's unread badge.
+                  className="size-1.5 rounded-full bg-notification"
                 />
               ) : null}
               {relativeTime(notification.created_at)}

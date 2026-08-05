@@ -43,7 +43,10 @@ export function ApprovalsView({
         description="Money-moving actions the bots have parked for a human decision. Nothing executes until someone approves — here, or by replying to the bot in its channel."
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {pending.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="Nothing waiting on you">
@@ -115,7 +118,7 @@ function ApprovalCard({
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg bg-warning/10 p-4">
+    <li className="flex flex-col gap-3 rounded-card bg-warning/10 p-4">
       <div className="flex items-center gap-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-sm">
           {podBotEmoji(session.bot?.bot_id ?? "")}

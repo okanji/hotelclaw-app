@@ -45,7 +45,7 @@ export function ResolvedConfig({
     <section className="flex flex-col gap-3">
       <div>
         <Eyebrow>Resolved session config</Eyebrow>
-        <p className="mt-1 max-w-[52ch] text-xs text-pretty text-muted-foreground">
+        <p className="mt-1 max-w-[52ch] text-sm text-pretty text-muted-foreground">
           What the runtime actually mounts when the next chat session starts.
           Resolution happens per session — save, then start a new chat to
           apply.
@@ -53,7 +53,7 @@ export function ResolvedConfig({
       </div>
 
       {paused ? (
-        <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
+        <p className="rounded-card bg-warning/10 p-3 text-sm text-pretty text-warning">
           Paused — sessions resolve to fallback instructions with no tools
           until the agent is activated.
         </p>
@@ -90,7 +90,7 @@ export function ResolvedConfig({
             </ul>
           )}
           {unknownGrants.length > 0 ? (
-            <p className="mt-1.5 text-xs text-pretty text-muted-foreground">
+            <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
               {unknownGrants.length} granted{" "}
               {unknownGrants.length === 1 ? "id isn't" : "ids aren't"} in the
               catalog and won&apos;t mount:{" "}

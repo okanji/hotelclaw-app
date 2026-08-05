@@ -221,7 +221,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
           <div className="flex items-center gap-1.5">
             <Link
               href={`/p/${propertyId}/workflows/new`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/80"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
             >
               <Sparkles className="size-3.5" />
               New workflow
@@ -495,7 +495,7 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
       <button
         type="button"
         onClick={onClear}
-        className="mt-3 inline-flex items-center rounded-md bg-card px-2.5 py-1 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        className="mt-3 inline-flex h-7 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
       >
         Clear filters
       </button>
@@ -518,14 +518,14 @@ function EmptyState({ propertyId }: { propertyId: string }) {
       <div className="mt-6 flex items-center justify-center gap-2">
         <Link
           href={`/p/${propertyId}/workflows/new`}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+          className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
         >
           <Sparkles className="size-4" />
           Build with AI
         </Link>
         <Link
           href={`/p/${propertyId}/workflows/templates`}
-          className="inline-flex items-center rounded-md bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          className="inline-flex h-7 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
         >
           Browse templates
         </Link>

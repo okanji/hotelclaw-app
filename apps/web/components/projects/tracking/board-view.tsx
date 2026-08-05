@@ -15,7 +15,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { CountBadge } from "@/components/ui/count-badge";
+import { statusBadgeVariants } from "@/components/ui/status-badge";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -61,10 +61,10 @@ function CardBody({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-md bg-card p-3 shadow-ring transition-colors",
-        dragging
-          ? "shadow-overlay"
-          : " ",
+        // Card tier: a project card is a page (notion-spec-v2 §5) — 10px
+        // radius + `shadow-card`, not the `rounded-md shadow-ring` WELL recipe.
+        "flex flex-col gap-3 rounded-card bg-card px-2.5 py-2 shadow-card transition-colors",
+        dragging && "shadow-popover",
       )}
     >
       <div className="flex items-center gap-2">
@@ -79,7 +79,8 @@ function CardBody({
             aria-hidden="true"
           />
         )}
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+        {/* Card title = CONTENT, 16px/24 weight 400 (notion-spec-v2 §2). */}
+        <span className="min-w-0 flex-1 truncate text-base leading-6 font-normal text-foreground">
           {project.name || "Untitled project"}
         </span>
         <span
@@ -167,25 +168,25 @@ function Column({
   const { setNodeRef } = useDroppable({ id: status });
   return (
     <div className="flex min-w-[300px] flex-1 flex-col">
+      {/* Group header = a tinted status pill + a faint count, and the column
+          itself carries NO background (notion-spec-v2 §6). */}
       <div className="mb-3 flex items-center gap-2 px-0.5">
-        <span
-          className={cn("size-2 shrink-0 rounded-full", meta.dot)}
-          aria-hidden="true"
-        />
-        <h2 className="text-sm font-medium text-foreground">
+        <h2 className={cn(statusBadgeVariants({ tone: meta.tone }))}>
           {meta.label}
         </h2>
-        <CountBadge>{projects.length}</CountBadge>
+        <span className="text-sm text-faint-foreground tabular-nums">
+          {projects.length}
+        </span>
       </div>
       <div
         ref={setNodeRef}
         className={cn(
           "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1.5 transition-colors",
-          isOver ? "bg-accent-pressed ring-1 ring-ring" : "bg-muted",
+          isOver && "bg-accent-pressed",
         )}
       >
         {projects.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-8 text-xs text-faint-foreground">
+          <div className="flex flex-1 items-center justify-center py-8 text-sm text-faint-foreground">
             No projects
           </div>
         ) : (

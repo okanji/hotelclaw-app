@@ -376,7 +376,7 @@ export function FloorPlanView({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           className={cn(
-            "relative aspect-[4/3] w-full touch-none overflow-hidden rounded-md bg-muted shadow-ring",
+            "relative aspect-[4/3] w-full touch-none overflow-hidden rounded-card bg-muted shadow-ring",
             mode === "edit" &&
               "bg-[radial-gradient(circle,_var(--color-border)_1px,_transparent_1px)] bg-[length:24px_24px]",
           )}
@@ -474,7 +474,7 @@ export function FloorPlanView({
 
         {/* Side panel */}
         {mode === "edit" ? (
-          <div className="space-y-3 rounded-md p-3 shadow-ring">
+          <div className="space-y-3 rounded-card p-3 shadow-ring">
             {selected ? (
               <>
                 <div className="flex items-center justify-between">
@@ -584,7 +584,7 @@ export function FloorPlanView({
           />
         ) : (
           /* Live mode: the chronological list, host-board style. */
-          <div className="flex max-h-[480px] flex-col gap-px overflow-y-auto rounded-md p-2 shadow-ring">
+          <div className="flex max-h-[480px] flex-col gap-px overflow-y-auto rounded-card p-2 shadow-ring">
             <p className="px-1 pb-1.5 text-xs font-medium text-faint-foreground">
               {selectedBooking
                 ? "Now click a free table to move them"
@@ -610,7 +610,10 @@ export function FloorPlanView({
                     className={cn(
                       "rounded-md px-2 py-1.5 transition-colors",
                       selectedBooking?.id === b.id
-                        ? "bg-success/12"
+                        // "picked up, now pick a table" — a state, so it is
+                        // the pill fill token, not `/12` alpha maths over the
+                        // status ramp (notion-spec-v2 §6).
+                        ? "bg-pill-success"
                         : "hover:bg-accent",
                       terminal && "opacity-50",
                     )}
@@ -622,7 +625,7 @@ export function FloorPlanView({
                         — it just reads as metadata now, not as the content. */}
                     <button
                       type="button"
-                      className="flex min-h-[34px] w-full items-center gap-3 text-left"
+                      className="flex min-h-[37px] w-full items-center gap-3 text-left"
                       onClick={() =>
                         setSelectedBooking(
                           selectedBooking?.id === b.id || terminal ? null : b,
@@ -718,7 +721,7 @@ function TableDetailPanel({
   const free = current.length === 0;
 
   return (
-    <div className="flex max-h-[480px] flex-col gap-3 overflow-y-auto rounded-md p-3 shadow-ring">
+    <div className="flex max-h-[480px] flex-col gap-3 overflow-y-auto rounded-card p-3 shadow-ring">
       <div className="flex items-center gap-1.5">
         <Button
           type="button"
@@ -743,7 +746,7 @@ function TableDetailPanel({
             Free now
           </p>
           {table.active ? (
-            <div className="space-y-2 rounded-md bg-muted p-2">
+            <div className="space-y-2 rounded-card bg-muted p-2">
               <p className="text-xs leading-3 font-medium text-faint-foreground">
                 Seat a walk-in
               </p>
@@ -793,7 +796,7 @@ function TableDetailPanel({
       ) : (
         <div className="space-y-2">
           {current.map((b) => (
-            <div key={b.id} className="rounded-md bg-muted p-2">
+            <div key={b.id} className="rounded-card bg-muted p-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="min-w-0 truncate text-sm font-medium">
                   {b.guest_name} ×{b.party_size}

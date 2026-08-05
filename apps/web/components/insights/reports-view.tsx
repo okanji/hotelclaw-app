@@ -138,7 +138,7 @@ function ReportRow({
       <button
         type="button"
         onClick={onToggle}
-        className="flex min-h-[34px] w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+        className="flex min-h-[37px] w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
       >
         <FileText className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">

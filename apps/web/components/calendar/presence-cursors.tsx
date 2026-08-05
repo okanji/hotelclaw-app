@@ -66,7 +66,7 @@ export function PresenceCursors() {
               <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L12 11 Z" />
             </svg>
             <span
-              className="ml-3 inline-block whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium text-white"
+              className="ml-3 inline-block whitespace-nowrap rounded-pill px-1.5 py-0.5 text-xs font-medium text-white"
               style={{ backgroundColor: color }}
             >
               {o.info?.name ?? "Anonymous"}

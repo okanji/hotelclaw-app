@@ -76,6 +76,20 @@ export type BookingListItem = {
   resource_id: string | null;
 };
 
+/**
+ * The reading column for everything that is NOT a data view. The page
+ * masthead already centres itself at 720px (`SectionHeader size="page"` →
+ * `max-w-content`); lists, card grids and toolbars sit in this wider centred
+ * column, and the two genuinely tabular surfaces — the floor plan and the
+ * timetable — carry NO cap at all and run edge to edge.
+ *
+ * That contrast is the whole point of notion-spec-v2 §3: prose stays in a
+ * narrow column while databases break out of it. Before this the entire
+ * Bookings page shared one `max-w-6xl` wrapper, so the masthead and the
+ * timetable were the same width and nothing read as a document.
+ */
+export const DATA_COL = "mx-auto w-full max-w-6xl";
+
 export function dateKey(iso: string): string {
   return iso.slice(0, 10);
 }
@@ -284,7 +298,7 @@ export function BookingsView({
 
   if (workspaceService) {
     return (
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
         <ServiceWorkspace
           propertyId={propertyId}
           propertySlug={propertySlug}
@@ -300,7 +314,7 @@ export function BookingsView({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       {/* Masthead — the same page tier every other index uses (`ui/section-header`
           size="page": 40/48 weight 700, no rule under it; header and content
           separate by whitespace, docs/notion-spec.md §1/§3). */}
@@ -340,8 +354,8 @@ export function BookingsView({
       />
 
       {/* Services */}
-      <section className={cn("space-y-4", view !== "services" && "hidden")}>
-        <h2 className="text-base leading-6 font-semibold text-foreground">
+      <section className={cn("space-y-4", DATA_COL, view !== "services" && "hidden")}>
+        <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
           Services
         </h2>
         {services.length === 0 ? (
@@ -374,8 +388,8 @@ export function BookingsView({
       </section>
 
       {/* Pending — every unconfirmed future booking, the work-to-zero list. */}
-      <section className={cn("space-y-4", view !== "pending" && "hidden")}>
-        <h2 className="text-base leading-6 font-semibold text-foreground">
+      <section className={cn("space-y-4", DATA_COL, view !== "pending" && "hidden")}>
+        <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
           Waiting on a yes
         </h2>
         {pendingBookings.length === 0 ? (
@@ -399,7 +413,7 @@ export function BookingsView({
       {/* Booking-engine pulse — page-headline stat cards (ui/stat-card, the
           Claude-dashboard tier). */}
       {view === "agenda" ? (
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={cn("mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4", DATA_COL)}>
           {(() => {
             const today = todayKey();
             const active = (b: BookingListItem) =>
@@ -446,7 +460,15 @@ export function BookingsView({
           view !== "agenda" && view !== "floor" && view !== "timetable" && "hidden",
         )}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* The day toolbar takes the width of the view it belongs to: the
+            reading column above a list, full bleed above a floor plan or a
+            timetable. */}
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-3",
+            view === "agenda" && DATA_COL,
+          )}
+        >
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -497,7 +519,7 @@ export function BookingsView({
         </div>
 
         {view === "agenda" ? (
-          <>
+          <div className={cn("space-y-3", DATA_COL)}>
             {/* Status filter chips (resOS pattern) — work the day by state. */}
             {dayBookings.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -550,7 +572,7 @@ export function BookingsView({
                   ))}
               </ul>
             )}
-          </>
+          </div>
         ) : null}
 
         {view === "floor" ? (
@@ -741,12 +763,12 @@ export function BookingRow({
   return (
     <li
       className={cn(
-        // The house 34px/6px data row (same metrics as the documents library,
-        // home widgets and the insights lists) — status is carried as a 2px
-        // left accent, the row's only line. Hover is fill, nothing else
-        // (notion-spec §4/§6).
-        "flex min-h-[34px] items-center gap-3 rounded-md border-l-2 px-2 py-1.5 transition-colors hover:bg-accent",
-        BOOKING_STATUS_UI[booking.status].accent,
+        // The measured 37px database row (notion-spec-v2 §6). The 2px coloured
+        // left accent is GONE: it is a visible stroke carrying information the
+        // `BookingStatusBadge` on the same row already carries, and a tinted
+        // rule down the side of every row is the generic-dashboard tell §1
+        // forbids. Hover is a fill, nothing else.
+        "flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
         terminal && "opacity-60",
       )}
     >
@@ -770,6 +792,9 @@ export function BookingRow({
             {booking.guest_phone ? ` · ${booking.guest_phone}` : ""}
           </span>
         </p>
+        {/* Second line is METADATA — 12px faint, the metadata rung of the
+            type ramp (notion-spec-v2 §2). At 14px it competed with the name
+            cell above it and the row read as two equal lines. */}
         <p className="truncate text-xs text-faint-foreground">
           {service ? `${service.emoji || ""} ${service.name}`.trim() : "Service"} ·{" "}
           {booking.reference}

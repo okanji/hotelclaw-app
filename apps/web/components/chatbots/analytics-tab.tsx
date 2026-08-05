@@ -90,7 +90,7 @@ export function AnalyticsTab({
               <div
                 key={v.day}
                 title={`${v.day}: ${v.messages}`}
-                className="flex-1 rounded-t-sm bg-foreground/70"
+                className="flex-1 rounded-t-sm bg-chart-4"
                 style={{ height: `${Math.max(4, (v.messages / maxVolume) * 100)}%` }}
               />
             ))}
@@ -108,7 +108,7 @@ export function AnalyticsTab({
               style={{ width: `${(sentiment.positive / sentimentTotal) * 100}%` }}
             />
             <span
-              className="bg-muted-foreground/40"
+              className="bg-chart-1"
               style={{ width: `${(sentiment.neutral / sentimentTotal) * 100}%` }}
             />
             <span

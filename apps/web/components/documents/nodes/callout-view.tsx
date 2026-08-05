@@ -18,13 +18,18 @@ import type { CalloutVariant } from "@/lib/documents/nodes/callout";
  * A callout is a FILL, not a bordered box (notion-spec §1 — surfaces separate
  * by fill, never a visible stroke). Tones come from the shared semantic ramp
  * so a callout can never drift from the app's other status colours.
+ *
+ * The untinted rung is the **chrome plane token** (`bg-background`, `#f9f8f7`)
+ * — notion-spec-v2 §6 measured Notion's default callout as literally the same
+ * fill as its sidebar, not a separate grey. Geometry is the SURFACE rung: 10px
+ * radius (`rounded-card`) and 12px padding (`p-3`), not the 6px clickable rung.
  */
 const VARIANT_STYLES: Record<CalloutVariant, string> = {
   info: "bg-info/10",
   success: "bg-success/10",
   warning: "bg-warning/10",
   danger: "bg-destructive/10",
-  note: "bg-muted",
+  note: "bg-background",
 };
 
 const VARIANT_LABEL: Record<CalloutVariant, string> = {
@@ -47,7 +52,7 @@ export function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
     <NodeViewWrapper
       data-type="callout"
       className={cn(
-        "callout my-2 flex gap-3 rounded-md px-3 py-2.5",
+        "callout my-2 flex gap-3 rounded-card p-3",
         VARIANT_STYLES[variant],
       )}
     >

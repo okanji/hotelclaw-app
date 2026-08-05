@@ -562,10 +562,12 @@ function TriggerRow({
           <StepMeta>Trigger</StepMeta>
           <span
             className={cn(
-              "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
+              // A trigger's execution mode is a VALUE, so it reads as the
+              // measured select pill (notion-spec-v2 §6), not a 12px chip.
+              "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium",
               isDurable
-                ? "bg-muted text-muted-foreground"
-                : "bg-success/10 text-success",
+                ? "bg-pill-neutral text-pill-neutral-ink"
+                : "bg-pill-success text-pill-success-ink",
             )}
           >
             {isDurable ? "Waits for events" : "Runs once"}

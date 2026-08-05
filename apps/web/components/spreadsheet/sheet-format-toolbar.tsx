@@ -329,7 +329,7 @@ function ToggleButton({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={cn("size-7", active && "bg-muted text-foreground")}
+      className={cn("size-7", active && "bg-accent-pressed text-foreground")}
     >
       {children}
     </Button>
@@ -337,7 +337,7 @@ function ToggleButton({
 }
 
 function Separator() {
-  return <span className="mx-1 h-5 w-px self-center bg-border/80" />;
+  return <span className="mx-1 h-5 w-px self-center bg-border" />;
 }
 
 const BORDER_STYLES: ReadonlyArray<{ id: CellBorder["style"]; label: string }> = [
@@ -434,8 +434,8 @@ function BordersButton({
                 setStyle(s.id);
               }}
               className={cn(
-                "rounded-md bg-muted px-1.5 py-1 text-xs transition-colors hover:bg-accent-pressed",
-                style === s.id && "bg-muted text-foreground",
+                "rounded-md bg-muted px-1.5 py-1 text-sm transition-colors hover:bg-accent-pressed",
+                style === s.id && "bg-accent-pressed text-foreground",
               )}
             >
               {s.label}
@@ -488,7 +488,7 @@ function WrapButton({
             variant="ghost"
             disabled={disabled}
             title="Text wrap"
-            className={cn("size-7", current && current !== "overflow" && "bg-muted text-foreground")}
+            className={cn("size-7", current && current !== "overflow" && "bg-accent-pressed text-foreground")}
           >
             <WrapText className="size-4" />
           </Button>
@@ -497,19 +497,19 @@ function WrapButton({
       <DropdownMenuContent align="start" className="w-auto overflow-x-visible">
         <DropdownMenuItem
           onClick={() => onPatch({ wrap: "overflow" })}
-          className={cn((current ?? "overflow") === "overflow" && "bg-muted")}
+          className={cn((current ?? "overflow") === "overflow" && "bg-accent-pressed")}
         >
           Overflow
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onPatch({ wrap: "wrap" })}
-          className={cn(current === "wrap" && "bg-muted")}
+          className={cn(current === "wrap" && "bg-accent-pressed")}
         >
           Wrap
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onPatch({ wrap: "clip" })}
-          className={cn(current === "clip" && "bg-muted")}
+          className={cn(current === "clip" && "bg-accent-pressed")}
         >
           Clip
         </DropdownMenuItem>
@@ -538,7 +538,7 @@ function FontFamilyButton({
             variant="ghost"
             disabled={disabled}
             title="Font"
-            className="h-7 min-w-[88px] justify-start gap-1 px-2 text-xs"
+            className="h-7 min-w-[88px] justify-start gap-1 px-2 text-sm"
           >
             <span style={{ fontFamily: active?.stack }}>{active?.label}</span>
           </Button>
@@ -549,7 +549,7 @@ function FontFamilyButton({
           <DropdownMenuItem
             key={f.id}
             onClick={() => onPatch({ fontFamily: f.stack })}
-            className={cn(active?.id === f.id && "bg-muted")}
+            className={cn(active?.id === f.id && "bg-accent-pressed")}
           >
             <span style={{ fontFamily: f.stack }}>{f.label}</span>
           </DropdownMenuItem>
@@ -583,7 +583,7 @@ function FontSizeButton({
             variant="ghost"
             disabled={disabled}
             title="Font size"
-            className="h-7 min-w-[44px] px-2 text-xs tabular-nums"
+            className="h-7 min-w-[44px] px-2 text-sm tabular-nums"
           >
             {value}
           </Button>
@@ -594,7 +594,7 @@ function FontSizeButton({
           <DropdownMenuItem
             key={s}
             onClick={() => onPatch({ fontSize: s })}
-            className={cn(value === s && "bg-muted")}
+            className={cn(value === s && "bg-accent-pressed")}
           >
             {s}
           </DropdownMenuItem>
@@ -765,7 +765,7 @@ function NumberFormatButton({
             variant="ghost"
             disabled={disabled}
             title="Number format"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             123
           </Button>
@@ -778,7 +778,7 @@ function NumberFormatButton({
             <DropdownMenuItem
               key={f.id}
               onClick={() => onPatch({ numberFormat: f.id })}
-              className={cn(current === f.id && "bg-muted")}
+              className={cn(current === f.id && "bg-accent-pressed")}
             >
               {f.label}
             </DropdownMenuItem>
@@ -792,7 +792,7 @@ function NumberFormatButton({
               if (s == null || s === "") return;
               onPatch({ numberFormat: "custom", customNumberFormat: s });
             }}
-            className={cn(current === "custom" && "bg-muted")}
+            className={cn(current === "custom" && "bg-accent-pressed")}
           >
             Custom format…
           </DropdownMenuItem>
@@ -808,8 +808,8 @@ function NumberFormatButton({
               type="button"
               onClick={() => onPatch({ decimals: d })}
               className={cn(
-                "h-6 w-6 rounded-md text-xs transition-colors hover:bg-accent",
-                decimals === d && "bg-muted text-foreground",
+                "h-6 w-6 rounded-md text-sm transition-colors hover:bg-accent",
+                decimals === d && "bg-accent-pressed text-foreground",
               )}
             >
               {d}

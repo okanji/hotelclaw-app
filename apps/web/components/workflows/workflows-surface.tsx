@@ -122,7 +122,9 @@ function pickView(pathname: string, propertyId: string) {
 function LoadingFallback() {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="h-11 shrink-0 border-b border-border" />
+      {/* Mirrors the TabNav `underline` strip (40px + warm hairline) so the
+          skeleton doesn't jump when the real sub-nav mounts. */}
+      <div className="h-10 shrink-0 border-b border-border" />
       <div className="flex-1" />
     </div>
   );

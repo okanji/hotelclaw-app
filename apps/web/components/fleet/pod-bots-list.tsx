@@ -43,7 +43,10 @@ export function PodBotsList({
         actions={<StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>}
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {bots.length === 0 ? (
         <EmptyState icon={Bot} title="No pod bots yet">
@@ -60,7 +63,7 @@ export function PodBotsList({
             return (
               <div
                 key={bot.id}
-                className="group relative flex flex-col gap-3 rounded-lg bg-background p-4 transition-colors hover:bg-accent"
+                className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
               >
                 <Link
                   href={`${base}/${bot.id}`}
@@ -72,7 +75,7 @@ export function PodBotsList({
                     {podBotEmoji(bot.bot_id)}
                   </TintIcon>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-base leading-6 font-normal">
                       {bot.display_name}
                     </p>
                     <p className="truncate font-mono text-xs text-muted-foreground">

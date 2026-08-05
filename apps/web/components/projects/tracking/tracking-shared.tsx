@@ -100,9 +100,13 @@ export const PROJECT_STATUS_META: Record<
   },
   completed: {
     label: "Completed",
-    dot: "bg-violet-500",
-    text: "text-violet-600 dark:text-violet-400",
-    soft: "bg-violet-500/10",
+    // The semantic ramp has no violet, but the ENTITY family does and the pill
+    // tokens are already theme-aware — so this drops the raw tailwind shades
+    // AND the `dark:` variant they needed. `soft` lands at ~10% (the pill fill
+    // is 16%), matching the `/10` the other rows use off the semantic ramp.
+    dot: "bg-pill-violet-ink",
+    text: "text-pill-violet-ink",
+    soft: "bg-pill-violet/60",
     tone: "violet",
   },
   archived: {
@@ -131,7 +135,7 @@ export const HEALTH_META: Record<
   on_track: { label: "On track", dot: "bg-success", text: "text-success" },
   at_risk: { label: "At risk", dot: "bg-warning", text: "text-warning" },
   overdue: { label: "Overdue", dot: "bg-destructive", text: "text-destructive" },
-  done: { label: "Done", dot: "bg-violet-500", text: "text-violet-600 dark:text-violet-400" }, // violet is the one state colour with no token
+  done: { label: "Done", dot: "bg-pill-violet-ink", text: "text-pill-violet-ink" },
 };
 
 /**

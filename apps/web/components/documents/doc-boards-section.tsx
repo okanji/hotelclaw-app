@@ -43,7 +43,7 @@ import {
   type DocumentBoardRow,
 } from "@/lib/query/section-queries";
 import { DocPinCard, DocumentPinPicker } from "@/components/documents/doc-pin-card";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { LABEL_DOT, LABEL_WASH } from "@/components/labels/label-tokens";
 import {
   useDocsHomePresenceMap,
 } from "@/components/documents/docs-home-presence";
@@ -59,14 +59,7 @@ import {
 /** Small accent dot in the board header. Matches the DB's color check. */
 const COLOR_DOT = LABEL_DOT;
 /** Soft tint behind a board's drop-zone, used when a drag is over the strip. */
-const COLOR_DROP_TINT: Record<BoardColor, string> = {
-  slate: "bg-slate-500/8",
-  blue: "bg-blue-500/8",
-  green: "bg-emerald-500/8",
-  amber: "bg-amber-500/8",
-  rose: "bg-rose-500/8",
-  violet: "bg-violet-500/8",
-};
+const COLOR_DROP_TINT: Record<BoardColor, string> = LABEL_WASH;
 /** Per-color swatch + label for the color picker. */
 const COLOR_LABEL: Record<BoardColor, string> = {
   slate: "Slate",
@@ -327,7 +320,10 @@ function BoardStrip({
   });
 
   return (
-    <div className="group/board rounded-md bg-muted px-7 pt-6 pb-5">
+    // No board background (notion-spec-v2 §6, the same rule as a kanban
+    // group): the cards ARE the board. The grey trough this used to paint is
+    // what made a shelf of pages read as a dashboard panel.
+    <div className="group/board rounded-md px-1 pt-2 pb-3">
       <BoardHeader board={board} />
       <div
         ref={pinMode === "drag" ? setNodeRef : undefined}
@@ -510,7 +506,11 @@ function BoardEmptyHint({
 }) {
   if (pinMode === "picker" && pinPicker) {
     return (
-      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-md bg-card px-4 py-4 shadow-ring">
+      // Card FOOTPRINT, well RECIPE: this tile stands in the same strip as
+      // `DocCard`, so it takes the 10px card rung (a 6px box beside 10px
+      // cards reads as a mistake) — but it is not a page, so it keeps the
+      // bare warm ring rather than `shadow-card` (notion-spec-v2 §4/§5).
+      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-card bg-card px-4 py-4 shadow-ring">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-foreground">Pin documents</p>
           <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
@@ -524,7 +524,7 @@ function BoardEmptyHint({
   }
 
   return (
-    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2.5 rounded-md bg-card px-4 text-center shadow-ring">
+    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2.5 rounded-card bg-card px-4 text-center shadow-ring">
       <Pin
         aria-hidden="true"
         strokeWidth={1.75}
@@ -592,7 +592,8 @@ function DropSlot() {
       className={cn(
         // A drop target reads as a fill, never a dashed outline
         // (notion-spec §1 — surfaces separate by fill, not stroke).
-        "flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1.5 rounded-md transition-colors",
+        // Same 10px card rung as the `DocCard`s it sits between.
+        "flex h-48 w-40 shrink-0 flex-col items-center justify-center gap-1.5 rounded-card transition-colors",
         isDragging
           ? "bg-accent-pressed text-muted-foreground"
           : "text-faint-foreground opacity-0 group-hover/board:bg-accent group-hover/board:opacity-100",

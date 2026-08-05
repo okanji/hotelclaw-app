@@ -150,7 +150,7 @@ export function ManageLabelsFooter({ propertyId }: { propertyId: string }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent"
         >
           <Settings2 className="size-3.5 shrink-0" />
           Manage labels…

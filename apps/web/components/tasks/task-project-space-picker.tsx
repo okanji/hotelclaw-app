@@ -17,7 +17,7 @@ import {
 } from "@/lib/query/project-queries";
 import type { EntityColor } from "@/lib/db/types";
 import { setTaskProject, setTaskSpace } from "@/components/projects/actions";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { LABEL_DOT, LABEL_INK } from "@/components/labels/label-tokens";
 
 const DOT = LABEL_DOT;
 
@@ -154,12 +154,5 @@ export function TaskProjectSpacePicker({
 }
 
 function textDot(color: EntityColor): string {
-  return {
-    slate: "size-3.5 text-slate-500",
-    blue: "size-3.5 text-blue-500",
-    green: "size-3.5 text-emerald-500",
-    amber: "size-3.5 text-amber-500",
-    rose: "size-3.5 text-rose-500",
-    violet: "size-3.5 text-violet-500",
-  }[color];
+  return `size-3.5 ${LABEL_INK[color]}`;
 }

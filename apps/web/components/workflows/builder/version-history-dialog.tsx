@@ -106,7 +106,7 @@ export function VersionHistoryDialog({
                     <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                       Version {v.version}
                       {v.is_current ? (
-                        <Badge className="bg-primary/10 text-primary">Current</Badge>
+                        <Badge variant="info">Current</Badge>
                       ) : null}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">

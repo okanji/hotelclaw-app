@@ -116,7 +116,14 @@ export function MonthGrid({
                     onSelectEvent(ev);
                   }}
                   className={cn(
-                    "truncate rounded-md px-1 py-0.5 text-left text-xs leading-tight transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
+                    // A month chip IS the measured select/status pill
+                    // (notion-spec-v2 §6): 4px radius, `0 6px` padding,
+                    // weight 500, tinted fill + same-hue ink from
+                    // `lib/calendar/event-visuals.ts` — never a stroke. It
+                    // holds 12px rather than the pill's 14px because six rows
+                    // of seven day-cells is the one place in the app where
+                    // the metadata rung wins over the UI rung.
+                    "truncate rounded-pill px-1.5 py-0.5 text-left text-xs leading-tight font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
                     eventChipClass(ev),
                   )}
                 >

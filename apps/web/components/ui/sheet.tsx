@@ -28,7 +28,8 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        // Plain low-alpha scrim — no backdrop blur (notion-spec §5/§6).
+        // Plain low-alpha scrim. The blur lives on the PANEL, not here
+        // (notion-spec-v2 §5) — see SheetContent's `backdrop-blur-modal`.
         "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className
       )}
@@ -70,10 +71,15 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          // Notion overlay language: the panel edge is the 1px warm ring that
-          // ships as the last layer of `shadow-overlay` — no `border-*` on any
-          // side. Entrance is an 8px slide (was 40px, a stock-library swoop).
-          "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-overlay transition duration-150 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-2 data-[side=bottom]:data-starting-style:translate-y-2 data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-2 data-[side=left]:data-starting-style:-translate-x-2 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-2 data-[side=right]:data-starting-style:translate-x-2 data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-2 data-[side=top]:data-starting-style:-translate-y-2",
+          // MODAL TIER (notion-spec-v2 §5), edge-anchored. A sheet IS a modal
+          // that happens to be pinned to one edge, so it gets the modal
+          // surface — translucent `bg-modal-bg` over a 40px backdrop blur plus
+          // the deep modal shadow — and the 20px modal radius on its two
+          // FLOATING corners only (the pinned edge stays square, since a
+          // radius against the viewport edge reads as a rendering bug). No
+          // `border-*` on any side. Entrance is an 8px slide (was 40px, a
+          // stock-library swoop).
+          "fixed z-50 flex flex-col gap-4 bg-modal-bg bg-clip-padding text-sm text-foreground shadow-modal backdrop-blur-modal transition duration-150 ease-in-out data-[side=bottom]:rounded-t-modal data-[side=left]:rounded-r-modal data-[side=right]:rounded-l-modal data-[side=top]:rounded-b-modal data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-2 data-[side=bottom]:data-starting-style:translate-y-2 data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-2 data-[side=left]:data-starting-style:-translate-x-2 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-2 data-[side=right]:data-starting-style:translate-x-2 data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-2 data-[side=top]:data-starting-style:-translate-y-2",
           sheetSideWidth[size],
           className
         )}

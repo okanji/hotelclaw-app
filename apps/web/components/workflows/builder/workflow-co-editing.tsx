@@ -250,7 +250,10 @@ export function WorkflowCoEditing({
           <span
             key={connectionId}
             title={`${name} · ${where}`}
-            className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-xs font-medium text-foreground"
+            // Presence avatar = identity, not action. It sits directly beside
+            // the `+N` overflow chip, which is warm neutral — two hues in one
+            // stack read as two different states (notion-spec-v2 §0.2).
+            className="inline-flex size-6 items-center justify-center rounded-full border-2 border-background bg-accent-pressed text-xs font-medium text-foreground"
           >
             {initials(name) || "?"}
           </span>

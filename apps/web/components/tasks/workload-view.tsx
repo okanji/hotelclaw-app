@@ -734,7 +734,7 @@ function Kpi({
   chart?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-md bg-card p-3 shadow-ring transition-colors">
+    <div className="flex min-w-0 items-center gap-3 rounded-card bg-card p-3 shadow-card transition-colors">
       <div
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-md",
@@ -747,7 +747,11 @@ function Kpi({
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs/[1] font-medium text-faint-foreground">
+        {/* 12/16, not 12/12: `truncate` sets overflow:hidden, and a line box
+            equal to the font size clips descenders (g/y/p) on the system
+            stack — Inter's tighter metrics hid this. 12/12 is the spec's
+            rung for STATIC section labels; a truncating one is metadata. */}
+        <p className="truncate text-xs font-medium text-faint-foreground">
           {label}
         </p>
         <p className="mt-1 text-2xl leading-8 font-semibold tabular-nums text-foreground">
@@ -1120,7 +1124,7 @@ function SidePanel({
                     type="button"
                     onClick={() => openTask(t.id)}
                     className={cn(
-                      "group relative flex w-full flex-col items-start gap-2 rounded-md bg-card p-3 text-left shadow-ring transition-colors",
+                      "group relative flex w-full flex-col items-start gap-2 rounded-card bg-card px-2.5 py-2 text-left shadow-card transition-colors",
                       "focus-visible:outline-none focus-visible:shadow-focus",
                     )}
                   >
@@ -1136,7 +1140,9 @@ function SidePanel({
                           t.priority === "none" && "bg-muted-foreground/40",
                         )}
                       />
-                      <span className="line-clamp-2 flex-1 text-sm leading-4.5 font-medium text-foreground">
+                      {/* Card title = CONTENT (16px/24 w400), not a UI row
+                          label (notion-spec-v2 §2). */}
+                      <span className="line-clamp-2 flex-1 text-base leading-6 font-normal text-foreground">
                         {t.title}
                       </span>
                     </div>

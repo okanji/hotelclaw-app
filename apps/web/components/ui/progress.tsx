@@ -46,7 +46,14 @@ function ProgressIndicator({
     <ProgressPrimitive.Indicator
       data-slot="progress-indicator"
       // Only the movement animates — never the color (notion-spec §6).
-      className={cn("h-full bg-primary transition-[width]", className)}
+      //
+      // The fill is warm INK, not `--primary`. A meter reports a VALUE; it is
+      // not an action and not an active state, and `--primary` became Notion
+      // blue on 2026-08-05 — a blue bar would claim the same weight as the
+      // page's primary button. `secondary-ink` on the warm `bg-accent` track
+      // reads at a glance without shouting. A meter that genuinely carries
+      // status (over budget, healthy) passes `bg-warning` / `bg-success`.
+      className={cn("h-full bg-secondary-ink transition-[width]", className)}
       {...props}
     />
   )

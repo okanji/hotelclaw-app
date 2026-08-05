@@ -95,7 +95,7 @@ export function TemplateField({
     return (
       <div className="flex items-center justify-between gap-2 rounded-lg bg-muted py-1.5 pr-1.5 pl-2.5">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-sm font-medium text-primary">
+          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-sm font-medium text-primary-ink">
             <Database className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{cand?.label ?? humanizeRef(boundPath)}</span>
           </span>
@@ -290,7 +290,7 @@ function RefPreview({ value }: { value: string }) {
       {refs.map((r, i) => (
         <span
           key={`${r}-${i}`}
-          className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
+          className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary-ink"
         >
           {humanizeRef(r)}
         </span>

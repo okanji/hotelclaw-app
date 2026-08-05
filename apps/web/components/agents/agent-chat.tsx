@@ -287,7 +287,7 @@ export function AgentChat({
                       key={prompt}
                       type="button"
                       onClick={() => send(prompt)}
-                      className="rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent bg-muted"
+                      className="inline-flex h-7 items-center rounded-md bg-muted px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
                     >
                       {prompt}
                     </button>
@@ -300,7 +300,7 @@ export function AgentChat({
             {transcript.map((item, index) => (
               <li key={index}>
                 {item.kind === "user" ? (
-                  <div className="ml-8 rounded-lg bg-muted px-3 py-2 text-sm">
+                  <div className="ml-8 rounded-card bg-muted px-3 py-2 text-sm">
                     {item.text}
                   </div>
                 ) : (

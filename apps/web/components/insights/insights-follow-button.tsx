@@ -321,7 +321,7 @@ function InsightsSubscriptionsDialog({
             ) : (
               <ul className="flex flex-col divide-y divide-border">
                 {follows.map((f) => (
-                  <li key={f.id} className="flex min-h-[34px] items-center gap-3">
+                  <li key={f.id} className="flex min-h-[37px] items-center gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {lensLabel(f.scope)}
                     </span>
@@ -347,7 +347,7 @@ function InsightsSubscriptionsDialog({
             {rules.length > 0 ? (
               <ul className="flex flex-col divide-y divide-border">
                 {rules.map((r) => (
-                  <li key={r.id} className="flex min-h-[34px] items-center gap-3">
+                  <li key={r.id} className="flex min-h-[37px] items-center gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {METRIC_LABEL[r.metric]}
                       {r.threshold !== null ? ` > ${r.threshold}` : ""}

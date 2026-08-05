@@ -107,7 +107,9 @@ export function ProjectsTableView({
   return (
     <div className="h-full overflow-y-auto px-8 py-2 sm:px-14">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background py-2 text-xs/[1] font-medium text-faint-foreground">
+      {/* Table header: 36px, 14px/16.8 weight 400 TERTIARY (notion-spec-v2 §6)
+          — not 12px faint, which is the metadata rung. */}
+      <div className="sticky top-0 z-10 flex h-9 items-center gap-3 border-b border-border bg-background text-sm/[1.2] font-normal text-muted-foreground">
         {COLUMNS.map((col, i) => {
           const active = col.key !== null && sort.key === col.key;
           const inner = (
@@ -158,7 +160,7 @@ export function ProjectsTableView({
             <li key={p.id} className="group/row">
               <Link
                 href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-3 rounded-md min-h-[34px] py-1.5 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                className="flex min-h-[37px] items-center gap-3 rounded-md py-1.5 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
               >
                 {/* Project */}
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">

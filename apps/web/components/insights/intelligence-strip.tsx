@@ -167,7 +167,7 @@ function InsightCardRow({
           ? "text-success"
           : "text-muted-foreground";
   return (
-    <article className="flex items-start gap-3 rounded-md bg-card p-4 shadow-ring">
+    <article className="flex items-start gap-3 rounded-card bg-card p-4 shadow-card">
       <Icon className={cn("mt-0.5 size-4 shrink-0", iconTone)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">

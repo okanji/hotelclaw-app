@@ -415,7 +415,7 @@ function SourceDetailDialog({
                   href={source.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block truncate text-sm text-primary underline-offset-2 hover:underline"
+                  className="block truncate text-sm text-primary-ink underline-offset-2 hover:underline"
                 >
                   {source.url}
                 </a>

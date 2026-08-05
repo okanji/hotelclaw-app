@@ -225,10 +225,9 @@ export function ChatbotDetail({
           onValueChange={(t) => setTab(t as typeof tab)}
           className="flex min-w-0 flex-col"
         >
-          <TabsList
-            variant="line"
-            className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border pb-0"
-          >
+          {/* View-tab pill row (notion-spec-v2 §6): no underline rail, no
+              container fill — the active tab IS the warm hover fill. */}
+          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto">
             <TabTrigger value="build" icon={Wand2} label="Build" />
             <TabTrigger
               value="knowledge"
@@ -363,7 +362,7 @@ function TabTrigger({
       <Icon className="size-4 shrink-0" />
       {label}
       {typeof count === "number" && count > 0 ? (
-        <span className="ml-0.5 rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground group-data-[variant=line]/tabs-list:in-data-active:bg-foreground/10 group-data-[variant=line]/tabs-list:in-data-active:text-foreground">
+        <span className="ml-0.5 rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground in-data-active:text-foreground">
           {count}
         </span>
       ) : null}

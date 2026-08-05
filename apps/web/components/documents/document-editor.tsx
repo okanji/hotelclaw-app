@@ -547,7 +547,7 @@ function EditorInner({
       <div className="flex-1 overflow-auto px-6 pb-24">
         <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
-          <div className="relative mx-auto w-full max-w-3xl pt-10">
+          <div className="relative mx-auto w-full max-w-content pt-10">
             <DocumentHeader
               propertyId={propertyId}
               documentId={documentId}

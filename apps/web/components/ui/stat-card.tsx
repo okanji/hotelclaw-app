@@ -7,12 +7,13 @@ import { cn } from "@/lib/utils"
 
 /**
  * Stat card — the dashboard headline stat: a 12px faint label with an optional
- * status pill in the top-right, a 28px tabular value, and a one-line context
- * beneath. Neutral surface only — `bg-card` plus the 1px warm ring, never a
- * gray stroke and never a shadow at rest (notion-spec §1/§5); colour belongs
- * to the pill/semantic state, never the card fill. Render a row of these at
- * the top of a dashboard (2–4 across); dense in-flow metric strips inside
- * widgets stay `ui/stat` (StatGroup) — this is the PAGE-headline tier.
+ * status pill in the top-right, a **24px weight-600 tabular** value, and a
+ * one-line context beneath. Neutral surface only — it is a card, so it takes
+ * the 10px `rounded-card` rung and the `shadow-card` tier whose last layer is
+ * the warm ring (notion-spec-v2 §4/§5); colour belongs to the pill/semantic
+ * state, never the card fill. Render a row of these at the top of a dashboard
+ * (2–4 across); dense in-flow metric strips inside widgets stay `ui/stat`
+ * (StatGroup) — this is the PAGE-headline tier.
  *
  * Make the whole card a link with `render={<Link href={…} />}` — don't nest
  * buttons inside a linked card.
@@ -42,7 +43,7 @@ function StatCard({
         {pill}
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-[1.75rem] leading-9 font-semibold text-foreground tabular-nums">
+        <span className="text-2xl leading-8 font-semibold text-foreground tabular-nums">
           {value}
         </span>
         {sub ? (
@@ -57,7 +58,7 @@ function StatCard({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex min-w-0 flex-col gap-3.5 rounded-md bg-card p-4 text-left shadow-ring outline-none",
+          "flex min-w-0 flex-col gap-3.5 rounded-card bg-card p-4 text-left shadow-card outline-none",
           // Hover is a FILL change only — no border shift, no shadow, no lift.
           // `bg-secondary` (not `bg-accent`): the card fill is OPAQUE, and the
           // translucent hover token would composite against the page instead
@@ -74,8 +75,10 @@ function StatCard({
   })
 }
 
-/** Corner chip for StatCard's `pill` slot ("0% used", "Review"). Subtle by
- *  default; `warning` for states that want a soft amber nudge. */
+/** Corner chip for StatCard's `pill` slot ("0% used", "Review"). The measured
+ *  Notion status pill: 20px tall, 4px radius, `0 6px` padding, 14px weight 500,
+ *  the hue at 16% alpha with the same hue darkened for ink (notion-spec-v2 §6).
+ *  Subtle by default; `warning` for states that want a soft amber nudge. */
 function StatCardPill({
   tone = "neutral",
   children,
@@ -86,10 +89,10 @@ function StatCardPill({
   return (
     <span
       className={cn(
-        "rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
         tone === "warning"
-          ? "bg-warning/10 text-warning"
-          : "bg-accent text-muted-foreground"
+          ? "bg-pill-warning text-pill-warning-ink"
+          : "bg-pill-neutral text-pill-neutral-ink"
       )}
     >
       {children}

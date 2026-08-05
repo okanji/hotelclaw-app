@@ -37,7 +37,7 @@ export function WorkflowProvenanceBadge({
         title="Created by a workflow"
         aria-label="Created by a workflow"
         className={cn(
-          "inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400",
+          "inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-pill-violet text-pill-violet-ink",
           className,
         )}
       >
@@ -52,7 +52,7 @@ export function WorkflowProvenanceBadge({
       dot={false}
       className={cn(
         "gap-1",
-        workflowId && workflowRunId && "hover:bg-violet-500/20",
+        workflowId && workflowRunId && "hover:bg-pill-violet-ink/20",
         className,
       )}
     >

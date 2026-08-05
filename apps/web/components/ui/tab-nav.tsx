@@ -12,13 +12,19 @@ import { cn } from "@/lib/utils"
  * TabsContent); TabNav renders no panels and owns no state — the caller
  * derives `active` from the pathname or its own state.
  *
- * Two variants, both on the measured Notion metrics (14px weight 500, warm
- * 5% hover fill, 6px radius, no label color flip on hover):
- * - `underline` (default) — quiet muted text over the warm hairline baseline,
- *   with a 2px **primary-ink** marker on the active item. (It used to be
- *   `accent-red`; Notion's active nav is never colored.) Page-level sub-nav.
- * - `pill` — compact 6px filter chips that take the warm hover fill, and the
- *   pressed rung of the same fill when active. Dense toolbars.
+ * **Every tab is a PILL now (notion-spec-v2 §6).** Notion has no underlined
+ * tabs anywhere — its view switcher (Board / Table / List) is a 32px-tall,
+ * 20px-radius pill with `6px 12px` padding and a `14px weight 500` label;
+ * the ACTIVE pill is filled with the warm hover fill and inactive ones are
+ * transparent. The 2px active marker that `underline` used to draw is
+ * **deleted**; hover and active are the same gesture at two strengths.
+ *
+ * The two variant keys survive so call sites keep compiling, and they still
+ * differ in the CONTAINER, not the item:
+ * - `underline` (default) — the strip sits on the warm hairline baseline that
+ *   separates it from the content below (Notion's collection header). Use for
+ *   page-level sub-nav.
+ * - `pill` — no baseline, tighter gutter. Dense toolbars and filter strips.
  */
 function TabNav({
   className,
@@ -32,7 +38,7 @@ function TabNav({
       data-variant={variant}
       className={cn(
         "group/tab-nav flex shrink-0 items-center",
-        variant === "underline" ? "h-9 gap-1 border-b border-border" : "gap-0.5",
+        variant === "underline" ? "h-10 gap-1 border-b border-border" : "gap-1",
         className
       )}
       {...props}
@@ -57,16 +63,14 @@ function TabNavItem({
         role: "tab",
         "aria-selected": active,
         className: cn(
-          "relative inline-flex items-center gap-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:shadow-focus",
-          // Muted at rest, full ink when active. Hover changes the FILL only.
-          "text-muted-foreground data-active:text-foreground",
+          // The measured view-tab pill: 32px tall, 20px radius, 6px 12px
+          // padding, 14px weight 500. Identical in both variants — only the
+          // strip around it differs.
+          "inline-flex h-8 items-center gap-1.5 rounded-modal px-3 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:shadow-focus",
+          // Muted at rest, full ink when active. Hover changes the FILL only,
+          // and the active pill's resting fill IS the hover fill.
+          "text-muted-foreground hover:bg-accent data-active:bg-accent data-active:text-foreground data-active:hover:bg-accent-pressed",
           "[&_svg]:size-3.5 [&_svg]:shrink-0",
-          // underline: full-height hit area, 2px primary-ink marker on active
-          "group-data-[variant=underline]/tab-nav:h-full group-data-[variant=underline]/tab-nav:rounded-md group-data-[variant=underline]/tab-nav:px-2.5 group-data-[variant=underline]/tab-nav:hover:bg-accent",
-          "group-data-[variant=underline]/tab-nav:after:absolute group-data-[variant=underline]/tab-nav:after:inset-x-2 group-data-[variant=underline]/tab-nav:after:-bottom-px group-data-[variant=underline]/tab-nav:after:h-0.5 group-data-[variant=underline]/tab-nav:after:bg-foreground group-data-[variant=underline]/tab-nav:after:opacity-0 group-data-[variant=underline]/tab-nav:data-active:after:opacity-100",
-          // pill: compact 6px filter chip on the warm hover/pressed fills
-          "group-data-[variant=pill]/tab-nav:h-7 group-data-[variant=pill]/tab-nav:rounded-md group-data-[variant=pill]/tab-nav:px-2.5",
-          "group-data-[variant=pill]/tab-nav:hover:bg-accent group-data-[variant=pill]/tab-nav:data-active:bg-accent-pressed",
           className
         ),
         ...(active ? { "data-active": "" } : {}),

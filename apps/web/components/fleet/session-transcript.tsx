@@ -122,7 +122,7 @@ export function SessionTranscriptSheet({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           {state === "error" ? (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="rounded-card bg-destructive/10 p-3 text-sm text-destructive">
               Couldn&apos;t read this session&apos;s event log — the agent
               runtime may be unreachable.
             </p>

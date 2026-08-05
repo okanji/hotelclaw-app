@@ -7,16 +7,27 @@ import { Eyebrow } from "@/components/ui/eyebrow"
  * hand-rolled ~70 times across list/index pages; new surfaces should
  * render it through this instead.
  *
- * Sizing follows the measured Notion type ramp (docs/notion-spec.md §3):
+ * Sizing follows the measured Notion type ramp (docs/notion-spec-v2.md §2):
  *
  *   `page`    — the H1 page title: `40px / 48px` weight **700**, sans,
  *               letter-spacing normal. Use once per page, at the top.
  *               (This used to be a `font-serif text-4xl` display title —
  *               the app shell has no serif voice.)
- *   `section` — (default) `16px / 24px` weight 600.
- *   `panel`   — panel/card-title tier, `14px` weight 500.
+ *   `section` — (default) the **H2 block**: `24px / 31.2px` weight 600.
+ *               v1 sized this 16px; v2 measured 24px off a real Notion H2 and
+ *               it is what gives a page its document rhythm.
+ *   `panel`   — the 16px / 24px weight-600 sub-section rung, for panel and
+ *               card titles that sit *inside* a section.
  *
  * There is no rule, underline, or colored eyebrow on any tier.
+ *
+ * **`page` carries the document column itself** (`mx-auto w-full
+ * max-w-content` — 720px, centred): a page masthead is prose, and prose lives
+ * in the column while the data view beneath it breaks OUT to full width. That
+ * contrast IS the Notion layout (notion-spec-v2 §3), and wiring it here rather
+ * than at ~16 call sites is what makes it hold. Pass
+ * `className="max-w-none"` on the rare masthead that genuinely must span the
+ * pane (a toolbar-shaped header over a full-bleed canvas).
  */
 function SectionHeader({
   title,
@@ -43,7 +54,13 @@ function SectionHeader({
   className?: string
 }) {
   return (
-    <header className={cn("flex items-start justify-between gap-4", className)}>
+    <header
+      className={cn(
+        "flex items-start justify-between gap-4",
+        size === "page" && "mx-auto w-full max-w-content",
+        className
+      )}
+    >
       <div className={cn("min-w-0", size === "page" && "flex flex-col gap-1.5")}>
         {eyebrow ? (
           <Eyebrow tone={eyebrowTone} className="mb-1.5">
@@ -55,11 +72,11 @@ function SectionHeader({
             {title}
           </h1>
         ) : size === "section" ? (
-          <h2 className="truncate text-base leading-6 font-semibold text-foreground">
+          <h2 className="truncate text-2xl leading-[1.3] font-semibold text-balance text-foreground">
             {title}
           </h2>
         ) : (
-          <h3 className="truncate text-sm font-medium text-foreground">
+          <h3 className="truncate text-base leading-6 font-semibold text-foreground">
             {title}
           </h3>
         )}
@@ -67,7 +84,9 @@ function SectionHeader({
           <p
             className={cn(
               "text-sm text-pretty text-muted-foreground",
-              size === "page" ? "mt-1 max-w-[64ch]" : "mt-0.5"
+              size === "page" && "mt-1 max-w-[64ch]",
+              size === "section" && "mt-1.5 max-w-[64ch]",
+              size === "panel" && "mt-0.5"
             )}
           >
             {description}
@@ -78,8 +97,10 @@ function SectionHeader({
         <div
           className={cn(
             "flex shrink-0 flex-wrap items-center justify-end gap-2",
-            // Masthead actions align with the title's optical center, not its cap top.
-            size === "page" && "mt-2"
+            // Actions align with the title's optical center, not its cap top —
+            // the taller the title rung, the further down that centre sits.
+            size === "page" && "mt-2",
+            size === "section" && "mt-0.5"
           )}
         >
           {actions}

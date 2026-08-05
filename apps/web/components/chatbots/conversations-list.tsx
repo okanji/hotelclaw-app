@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
@@ -20,36 +20,34 @@ export type ConversationListRow = {
   created_at: string;
 };
 
+/**
+ * A conversation outcome is a LIFECYCLE state, so it renders as the house
+ * StatusBadge (4px pill, hue-at-16% fill, same-hue ink) rather than a Badge
+ * with hand-mixed `/10` fills and a `border-*` class that painted nothing —
+ * there was no border width beside it.
+ */
 export function OutcomeBadge({ outcome }: { outcome: ChatbotConversationOutcome }) {
   switch (outcome) {
     case "order_placed":
-      return (
-        <Badge className="border-success/30 bg-success/10 text-success">
-          Order placed
-        </Badge>
-      );
+      return <StatusBadge tone="success">Order placed</StatusBadge>;
     case "booking_made":
-      return (
-        <Badge className="border-success/30 bg-success/10 text-success">
-          Booking made
-        </Badge>
-      );
+      return <StatusBadge tone="success">Booking made</StatusBadge>;
     case "escalated":
-      return (
-        <Badge className="border-warning/30 bg-warning/10 text-warning">
-          Escalated
-        </Badge>
-      );
+      return <StatusBadge tone="warning">Escalated</StatusBadge>;
     case "resolved":
-      return <Badge variant="secondary">Resolved</Badge>;
-    case "unresolved":
       return (
-        <Badge className="border-destructive/30 bg-destructive/10 text-destructive">
-          Unresolved
-        </Badge>
+        <StatusBadge tone="neutral" dot={false}>
+          Resolved
+        </StatusBadge>
       );
+    case "unresolved":
+      return <StatusBadge tone="danger">Unresolved</StatusBadge>;
     default:
-      return <Badge variant="secondary">Open</Badge>;
+      return (
+        <StatusBadge tone="neutral" dot={false}>
+          Open
+        </StatusBadge>
+      );
   }
 }
 
@@ -85,7 +83,7 @@ export function ConversationsTab({
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">
+              <p className="truncate text-sm font-medium">
                 {c.guest_name ?? "Anonymous guest"}
                 {c.room_number ? (
                   <span className="text-muted-foreground"> · Room {c.room_number}</span>
@@ -104,9 +102,7 @@ export function ConversationsTab({
               </p>
             </div>
             {c.status === "human" ? (
-              <Badge className="border-info/30 bg-info/10 text-info">
-                With staff
-              </Badge>
+              <StatusBadge tone="info">With staff</StatusBadge>
             ) : null}
             <OutcomeBadge outcome={c.outcome} />
           </Link>

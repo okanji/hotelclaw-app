@@ -82,7 +82,7 @@ export function DocumentRow({
         onClick={handleClick}
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
-        className="flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors group-hover/row:bg-accent"
+        className="flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors group-hover/row:bg-accent"
       >
         {draggable ? (
           // Drag handle: only the grip starts a drag, so grabbing the row's

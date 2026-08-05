@@ -280,7 +280,7 @@ export function QuickCreateRow({
               t.id === "generate" ? "Generate a document with AI" : `Create ${t.label.toLowerCase()}`
             }
             className={cn(
-              "flex min-w-0 items-center gap-3 rounded-md bg-card p-3 text-left shadow-ring transition-colors",
+              "flex min-w-0 items-center gap-3 rounded-card bg-card p-3 text-left shadow-card transition-colors",
               "hover:bg-accent",
               "focus-visible:outline-none focus-visible:shadow-focus",
               "disabled:cursor-not-allowed disabled:opacity-60",

@@ -443,7 +443,7 @@ export function EventDialog({
               className="size-4 accent-ring"
             />
             {withVideoCall ? (
-              <Video className="size-4 text-primary" />
+              <Video className="size-4 text-primary-ink" />
             ) : (
               <VideoOff className="size-4 text-muted-foreground" />
             )}

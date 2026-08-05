@@ -4,7 +4,7 @@
  * Notion-style document header: optional cover image, optional emoji icon,
  * and a hover row of "Add icon / Add cover / Add comment" buttons that lets
  * users add what's missing. Sits above the in-editor title (the `<h1>` first
- * node) inside the same centered max-w-3xl column.
+ * node) inside the same centered 720px document column (`max-w-content`).
  *
  * State:
  *   - `documents.icon` (text) and `documents.cover_url` (text) — see
@@ -176,7 +176,11 @@ export function DocumentHeader({
             trigger={
               <button
                 type="button"
-                className="select-none text-5xl leading-none transition-opacity hover:opacity-80"
+                // The measured Notion page icon is 78px, sitting ABOVE the
+                // title inside the document column (notion-spec-v2 §3). It was
+                // 48px, which read as a decoration beside the title rather
+                // than as the page's mark.
+                className="select-none text-[4.875rem] leading-none transition-opacity hover:opacity-80"
                 aria-label="Change icon"
               >
                 {icon}

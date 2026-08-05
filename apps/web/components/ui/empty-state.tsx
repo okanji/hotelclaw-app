@@ -10,7 +10,10 @@ import { cn } from "@/lib/utils"
  * with a `size-12 rounded-full bg-muted` icon plate — the single most
  * recognizable stock-library artifact in the primitive set. There is no
  * dashed stroke and no icon plate any more; the container, when present, is
- * a 4% warm well at the 6px control radius.
+ * a 4% warm well at the 10px surface radius (notion-spec-v2 §4 — a well is
+ * callout-shaped, and callouts are 10px). It is a WELL, not a card: no
+ * elevation, ever (`shadow-card` means "this rectangle is a page you can
+ * open", and an empty state is the absence of one).
  */
 function EmptyState({
   icon: Icon,
@@ -33,7 +36,7 @@ function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center gap-2.5 px-6 py-10 text-center",
-        !bare && "rounded-md bg-muted",
+        !bare && "rounded-card bg-muted",
         className
       )}
     >

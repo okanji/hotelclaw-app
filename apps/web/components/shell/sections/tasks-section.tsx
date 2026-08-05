@@ -117,7 +117,13 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
                       <span aria-hidden="true">{p.icon}</span>
                     ) : (
                       <span
-                        className={cn("size-2 rounded-xs", DOT[p.color])}
+                        // `rounded-pill` (4px), not `rounded-xs` — `--radius-xs`
+                        // is NOT remapped in globals.css, so `rounded-xs` was
+                        // resolving to Tailwind's stock 2px and sat off the
+                        // five-rung scale. 4px is the rung for small marks.
+                        // (The square-ish project mark stays distinct from the
+                        // round team dot above.)
+                        className={cn("size-2 rounded-pill", DOT[p.color])}
                         aria-hidden="true"
                       />
                     )}

@@ -21,33 +21,34 @@ export type WidgetDef = {
   kicker: string;
   /** Section heading. */
   title: string;
-  /** Span both columns on wide screens (boards / wide content). Default: one. */
-  wide?: boolean;
   Component: ComponentType<WidgetProps>;
 };
 
 /**
- * The Home dashboard widget catalog — the shipped default order. A user's saved
- * layout (order + hidden) is reconciled against this list, so adding a widget
- * here surfaces it for everyone without wiping their arrangement
- * (`useDashboardLayout`). Each widget renders as an editorial section (kicker +
- * heading + divider content), not a card. On wide containers the sections flow
- * into two columns; `wide` widgets span both. Default order pairs Your tasks
- * with Property pulse.
+ * The Home widget catalog — the shipped default order. A user's saved layout
+ * (order + hidden) is reconciled against this list, so adding a widget here
+ * surfaces it for everyone without wiping their arrangement
+ * (`useDashboardLayout`).
+ *
+ * Home is a **document**, not a dashboard: every entry renders as a
+ * `DocumentSection` — a 24px heading, the `kicker` as a 12px faint caption
+ * under it, then list-row content — stacked single-file down the 720px
+ * `max-w-content` column. There is no two-column masonry any more, so there is
+ * no `wide` flag: nothing on Home is a tabular data view that earns breaking
+ * out of the column (the widest thing, the pinned-boards row, scrolls
+ * horizontally inside it by design).
  */
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   {
     id: "morning-checkin",
     kicker: "Your daily ritual",
     title: "Morning check-in",
-    wide: true,
     Component: MorningCheckinWidget,
   },
   {
     id: "shift-brief",
     kicker: "Since your last shift",
     title: "Shift brief",
-    wide: true,
     Component: ShiftBriefWidget,
   },
   {
@@ -114,7 +115,6 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
     id: "pinned",
     kicker: "Pinned by the team",
     title: "Resources",
-    wide: true,
     Component: PinnedResourcesWidget,
   },
 ];

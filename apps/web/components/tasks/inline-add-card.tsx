@@ -69,7 +69,7 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpa
       // Active composer: the ONE case where a resting surface earns a visible
       // edge, because it is the focused thing on the board. Ring only — no
       // stroke, no elevation.
-      className={cn("rounded-md bg-card p-2 shadow-focus")}
+      className={cn("rounded-card bg-card px-2.5 py-2 shadow-focus")}
     >
       <Textarea
         bare

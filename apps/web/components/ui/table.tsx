@@ -5,11 +5,24 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Table (notion-spec §1/§3/§4): no gridlines. Columns separate by alignment
- * and whitespace — there are NO vertical rules, and the only horizontal rule
- * is the 1px warm `--border` divider. The header row is a 12px/12px weight-500
- * FAINT sentence-case label (never uppercase, never tracked), body cells are
- * 14px, rows are 34px tall, and row hover is the warm 5% fill only.
+ * Table — Notion's DATABASE table, measured (notion-spec-v2 §6).
+ *
+ * **v2 reverses v1's "no vertical rules" reading.** Notion's table view draws
+ * BOTH a `border-bottom` and a `border-right` on every cell, at the same 1px
+ * warm `--border` ring. What it does *not* have is an outer frame or zebra
+ * striping — so the last column drops its right edge and the grid simply ends.
+ *
+ * The measured metrics baked in here:
+ *   - body row **37px**, cell padding **7.5px 8px**
+ *   - header row **36px**, labels **14px / 16.8px weight 400 tertiary**
+ *     (`text-muted-foreground`) — v1 wrongly styled these 12px faint, which is
+ *     the metadata rung, not the UI rung
+ *   - the name/title column is `14px weight 500` primary ink →
+ *     `<TableCell variant="name">`
+ *   - row hover is the warm 5% fill, nothing else (no border shift, no lift)
+ *
+ * A table is a DATA VIEW, so it breaks OUT of the 720px document column to
+ * full width (notion-spec-v2 §3) — don't wrap one in `max-w-content`.
  */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
@@ -64,7 +77,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "h-[34px] border-b transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-accent-pressed",
+        "h-[37px] border-b transition-colors hover:bg-accent has-aria-expanded:bg-accent data-[state=selected]:bg-accent-pressed",
         className
       )}
       {...props}
@@ -76,8 +89,10 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // 36px, 14px/16.8px weight 400 tertiary. The right edge is part of the
+      // grid; the last column drops it so the table has no outer frame.
       className={cn(
-        "h-8 px-2 text-left align-middle text-xs leading-3 font-medium whitespace-nowrap text-faint-foreground [&:has([role=checkbox])]:pr-0",
+        "h-9 border-r px-2 text-left align-middle text-sm leading-[1.2] font-normal whitespace-nowrap text-muted-foreground last:border-r-0 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -85,12 +100,26 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<"td"> & {
+  /**
+   * `name` is Notion's title column: 14px **weight 500 primary ink**, the one
+   * cell in the row that is not secondary. Every other cell stays `default`.
+   */
+  variant?: "default" | "name"
+}) {
   return (
     <td
       data-slot="table-cell"
+      data-variant={variant}
+      // Cell padding is the measured 7.5px 8px; the right rule is the same 1px
+      // warm ring as the row's bottom rule, dropped on the last column.
       className={cn(
-        "px-2 py-1.5 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "border-r px-2 py-[7.5px] align-middle whitespace-nowrap last:border-r-0 [&:has([role=checkbox])]:pr-0",
+        variant === "name" && "font-medium text-foreground",
         className
       )}
       {...props}

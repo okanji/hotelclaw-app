@@ -79,7 +79,7 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 const STATUS_DOT: Record<ProjectStatus, string> = {
   active: "bg-success",
   planned: "bg-info",
-  completed: "bg-violet-500",
+  completed: "bg-pill-violet-ink",
   archived: "bg-muted-foreground/50",
 };
 const DOT = LABEL_DOT;
@@ -427,7 +427,7 @@ export function ProjectDetail({
                   >
                     <Link
                       href={`/p/${propertyId}/spaces/${s.id}`}
-                      className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
+                      className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
                     >
                       <span
                         className={cn(
@@ -462,7 +462,7 @@ export function ProjectDetail({
                   >
                     <Link
                       href={`/p/${propertyId}/documents/${d.id}`}
-                      className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
+                      className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
                     >
                       <FileText className="size-3.5 shrink-0 text-muted-foreground" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
@@ -705,7 +705,7 @@ function Contributors({
       className="flex flex-col divide-y divide-border border-t border-border"
     >
       {people.map((p) => (
-        <li key={p.id} className="flex items-center gap-3 px-1 py-3">
+        <li key={p.id} className="flex h-[37px] items-center gap-3 px-1">
           <Avatar className="size-7">
             {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
             <AvatarFallback className="text-xs">

@@ -176,7 +176,11 @@ export function WeekGrid({
                   onEditEvent={onEditEvent}
                   onMutated={onMutated}
                   triggerClassName={cn(
-                    "truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-xs font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
+                    // All-day chip = the measured select/status pill rung
+                    // (notion-spec-v2 §4/§6): 4px radius, not the 6px
+                    // clickable rung. Fill + ink come from
+                    // `lib/calendar/event-visuals.ts`.
+                    "truncate rounded-pill border-l-2 px-1.5 py-0.5 text-left text-xs font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
                     eventTint(ev),
                   )}
                 >
@@ -478,7 +482,7 @@ function DayColumn({
       {/* Drag-to-create slot preview */}
       {drag ? (
         <div
-          className="pointer-events-none absolute inset-x-1 rounded-md bg-accent-pressed"
+          className="pointer-events-none absolute inset-x-1 rounded-pill bg-accent-pressed"
           style={{
             top: (drag.startMin / 60) * HOUR_HEIGHT_PX,
             height:
@@ -491,7 +495,7 @@ function DayColumn({
           occupy if released here, snapped to the 15-minute grid. */}
       {taskDrop ? (
         <div
-          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs", EVENT_VISUALS.task.block)}
+          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-pill border-l-2 py-1 pr-1.5 pl-2 text-left text-xs", EVENT_VISUALS.task.block)}
           style={{
             top: (taskDrop.startMin / 60) * HOUR_HEIGHT_PX,
             height: HOUR_HEIGHT_PX,
@@ -612,7 +616,10 @@ function PositionedEvent({
       triggerClassName={cn(
         // Fill + accent edge only. Blocks are resting surfaces, so they get
         // no shadow and no stroke — hover is a fill shift (notion-spec §5/§6).
-        "absolute overflow-hidden rounded-md border-l-2 py-1 pr-1.5 pl-2 text-left text-xs transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
+        // Radius is the 4px PILL rung, not the 6px clickable one: a timed
+        // block is the same object as the all-day chip, just stretched down
+        // the time axis (notion-spec-v2 §4).
+        "absolute overflow-hidden rounded-pill border-l-2 py-1 pr-1.5 pl-2 text-left text-xs transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
         eventTint(event),
       )}
       triggerStyle={{
@@ -671,7 +678,10 @@ function ClusterTile({
       <PopoverTrigger
         data-event-block
         className={cn(
-          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md bg-card text-center text-foreground shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
+          // The collapsed pile sits in the same lane as the event blocks, so
+          // it takes the same 4px pill rung. It is NOT a page-like card, so
+          // it keeps the bare warm ring rather than `shadow-card`.
+          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-pill bg-card text-center text-foreground shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
           open && "ring-2 ring-ring",
         )}
         style={{

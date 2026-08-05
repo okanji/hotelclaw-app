@@ -124,7 +124,7 @@ export function AgentBuilderDialog({
       <DialogContent className="flex max-h-[85vh] max-w-lg flex-col gap-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" />
+            <Sparkles className="size-4 text-primary-ink" />
             Describe your agent
           </DialogTitle>
           <DialogDescription>

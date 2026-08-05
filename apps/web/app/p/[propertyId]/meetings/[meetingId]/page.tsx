@@ -43,7 +43,7 @@ export default async function MeetingDetailPage({
         }
       />
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <article className="mx-auto max-w-3xl space-y-6">
+        <article className="mx-auto max-w-content space-y-6">
           <header className="space-y-1 text-xs text-muted-foreground">
             <p>
               {new Date(detail.started_at).toLocaleString()}

@@ -54,21 +54,21 @@ export function WorkflowDetail({
               <p className="text-sm font-medium text-foreground">
                 This workflow is empty
               </p>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+              <p className="mx-auto mt-1 max-w-sm text-sm text-pretty text-muted-foreground">
                 Start from a template, or describe what you want and let the AI
                 design it.
               </p>
               <div className="mt-4 flex items-center justify-center gap-2">
                 <Link
                   href={`/p/${propertyId}/workflows/new`}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
                 >
                   <Sparkles className="size-3.5" aria-hidden />
                   Build with AI
                 </Link>
                 <Link
                   href={`/p/${propertyId}/workflows/templates`}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md bg-card px-2 text-sm font-medium shadow-ring hover:bg-accent"
                 >
                   <LibraryBig className="size-3.5" aria-hidden />
                   Browse templates

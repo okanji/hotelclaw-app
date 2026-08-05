@@ -231,7 +231,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
       <div className="mx-auto max-w-[760px] pb-16">
         <header className="mb-6 text-center">
           <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-md bg-primary/10">
-            <Sparkles className="size-5 text-primary" aria-hidden />
+            <Sparkles className="size-5 text-primary-ink" aria-hidden />
           </span>
           <h1 className="text-2xl font-semibold text-foreground">
             Describe what you want
@@ -279,7 +279,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
             <Eyebrow>Start from an idea</Eyebrow>
             <Link
               href={`/p/${propertyId}/workflows/templates`}
-              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary-ink hover:underline"
             >
               <LayoutTemplate className="size-3.5" aria-hidden />
               Browse templates

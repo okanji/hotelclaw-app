@@ -54,10 +54,14 @@ function TintCard({
       data-slot="tint-card"
       data-tone={tone}
       className={cn(
-        "rounded-md p-4",
+        // 10px — the surface rung a tint tile shares with cards and callouts
+        // (notion-spec-v2 §4). No `shadow-card` here: the tint fill IS the
+        // separation, and a warm ring over a coloured plane reads as a seam
+        // (Notion's coloured callouts carry a transparent border for exactly
+        // this reason).
+        "rounded-card p-4",
         tintTone[tone],
-        // notion-spec §5/§6: resting surfaces never carry elevation and
-        // hover never lifts. The affordance is a fill shift, nothing else.
+        // notion-spec-v2 §5: hover never lifts. It is a fill shift, nothing else.
         interactive &&
           "cursor-pointer transition-[filter] hover:brightness-[0.97] dark:hover:brightness-[1.08]",
         className

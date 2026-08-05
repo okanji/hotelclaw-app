@@ -32,10 +32,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          // A toast floats: no stroke, the 10px overlay radius, and the one
-          // elevation recipe (its last layer IS the 1px warm ring).
+          // A toast is floating chrome → the POPOVER tier (notion-spec-v2 §5):
+          // no stroke, the 10px card/popover radius, and the popover elevation
+          // whose LAST layer is the 1px warm ring.
           "--normal-border": "transparent",
-          "--border-radius": "var(--radius-overlay)",
+          "--border-radius": "var(--radius-card)",
         } as React.CSSProperties
       }
       toastOptions={{
@@ -43,7 +44,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // `!` is required: sonner ships its own unlayered
           // `[data-sonner-toast][data-styled=true]` rules, which otherwise beat
           // Tailwind's layered utilities regardless of specificity.
-          toast: "cn-toast shadow-overlay! text-sm!",
+          toast: "cn-toast shadow-popover! text-sm!",
         },
       }}
       {...props}

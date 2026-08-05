@@ -183,7 +183,7 @@ export function ProjectProgressList({
           <li key={p.id} className="group/row border-t border-border first:border-0">
             <Link
               href={`/p/${propertyId}/projects/${p.id}`}
-              className="flex items-center gap-3 rounded-md px-0.5 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
+              className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
             >
               <span
                 className={cn(
@@ -385,7 +385,7 @@ export function TasksPanel({
                     <li key={t.id} className="group/row relative">
                       <Link
                         href={`/p/${propertyId}/tasks/${t.id}`}
-                        className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 pr-8 transition-colors hover:bg-accent"
+                        className="flex items-center gap-3 min-h-[37px] rounded-md px-1 pr-8 transition-colors hover:bg-accent"
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                           {t.title || "Untitled task"}
@@ -466,7 +466,7 @@ export function DocsPanel({
                     e.preventDefault();
                     openDocument(d.id);
                   }}
-                  className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 pr-16 transition-colors hover:bg-accent"
+                  className="flex items-center gap-3 min-h-[37px] rounded-md px-1 pr-16 transition-colors hover:bg-accent"
                 >
                   <FileText
                     strokeWidth={1.5}

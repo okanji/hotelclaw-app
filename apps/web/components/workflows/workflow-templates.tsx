@@ -20,7 +20,9 @@ export function WorkflowTemplates({ propertyId }: { propertyId: string }) {
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[920px] px-10 pt-10 pb-12">
-          <p className="mb-4 text-xs text-muted-foreground">
+          {/* Orientation prose stays in the document column; the template
+              grid below it is a data view and breaks out (DESIGN.md §column). */}
+          <p className="mb-4 max-w-content text-sm text-pretty text-muted-foreground">
             Start with a ready-made workflow — pick one to create your own copy, then
             customize it however you like.
           </p>

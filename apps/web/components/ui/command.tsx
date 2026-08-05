@@ -11,10 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  InputGroup,
-  InputGroupAddon,
-} from "@/components/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
 function Command({
@@ -25,8 +21,13 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        // The palette floats → the 10px overlay radius.
-        "flex size-full flex-col overflow-hidden rounded-overlay bg-popover p-1 text-popover-foreground",
+        // Deliberately NO background: <Command> is always mounted inside a
+        // surface that already owns one — `PopoverContent` (combobox/facet
+        // pickers) or `CommandDialog`'s modal panel. Painting `bg-popover`
+        // here would punch an opaque rectangle through the modal tier's
+        // translucent fill. The 10px radius is kept for the popover case;
+        // inside the dialog the 20px panel clips it.
+        "flex size-full flex-col overflow-hidden rounded-card p-1 text-popover-foreground",
         className
       )}
       {...props}
@@ -56,8 +57,15 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-1/3 translate-y-0 overflow-hidden rounded-overlay p-0",
-          className
+          "top-1/3 translate-y-0 overflow-hidden p-0",
+          className,
+          // The MODAL tier is not a caller decision — the search palette is
+          // the canonical modal (notion-spec-v2 §5/§6), so these land AFTER
+          // `className` on purpose: a call site that still passes the pre-v2
+          // popover recipe (`rounded-overlay shadow-overlay`) would otherwise
+          // win the tailwind-merge and quietly demote the palette a tier.
+          // Size/position/padding stay overridable; the surface does not.
+          "rounded-modal bg-modal-bg shadow-modal backdrop-blur-modal"
         )}
         showCloseButton={showCloseButton}
       >
@@ -72,21 +80,25 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      {/* 6px control radius, warm fill instead of a gray stroke. */}
-      <InputGroup className="h-8! rounded-md! border-transparent! bg-accent shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+    // Search-modal grammar (notion-spec-v2 §6): the input is NOT a boxed form
+    // control. No fill, no radius, no ring — the row is separated from the
+    // results by a single 1px warm hairline, and the query itself is CONTENT
+    // (16px), not UI chrome (14px).
+    <div
+      data-slot="command-input-wrapper"
+      className="border-b border-border"
+    >
+      <div className="flex h-11 items-center gap-2 px-3">
+        <SearchIcon className="size-4 shrink-0 text-faint-foreground" />
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
-            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            "h-full w-full bg-transparent text-base outline-hidden placeholder:text-faint-foreground disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
           {...props}
         />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
-        </InputGroupAddon>
-      </InputGroup>
+      </div>
     </div>
   )
 }
@@ -128,8 +140,10 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        // Group heading = the 12px/12px w500 faint section label.
-        "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-1.5 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-xs/[1] **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-faint-foreground",
+        // Group heading = 12px/12px w500 at TERTIARY ink. The search modal
+        // sits one rung darker than a sidebar section label (which is faint)
+        // — notion-spec-v2 §6 measured it at `#7d7a75`.
+        "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-1.5 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-xs/[1] **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground",
         className
       )}
       {...props}
@@ -189,12 +203,32 @@ function CommandShortcut({
   )
 }
 
+/**
+ * The palette's footer bar (notion-spec-v2 §6): 41px tall, sitting under a
+ * single 1px warm hairline, carrying 12px faint shortcut hints. Optional —
+ * `CommandDialog` does not render one for you; place it as the last child of
+ * `<Command>`, after `<CommandList>`.
+ */
+function CommandFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="command-footer"
+      className={cn(
+        "-mx-1 -mb-1 mt-1 flex h-[41px] shrink-0 items-center gap-3 border-t border-border px-3 text-xs font-normal text-faint-foreground",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 export {
   Command,
   CommandDialog,
   CommandInput,
   CommandList,
   CommandEmpty,
+  CommandFooter,
   CommandGroup,
   CommandItem,
   CommandShortcut,

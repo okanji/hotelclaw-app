@@ -2658,7 +2658,7 @@ function FileMenuButton({
             size="sm"
             variant="ghost"
             title="File"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             <FileDown className="size-4" /> File
           </Button>
@@ -2725,7 +2725,7 @@ function DataToolsButton({
             size="sm"
             variant="ghost"
             title="Data tools"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             <Database className="size-4" /> Data
           </Button>
@@ -2929,7 +2929,7 @@ function InsertChartButton({
             variant="ghost"
             disabled={disabled}
             title="Insert chart / sparkline from selection"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             <BarChart3 className="size-4" /> Chart
           </Button>
@@ -3008,7 +3008,7 @@ function NamedRangesPopover({
             size="sm"
             variant="ghost"
             title="Named ranges"
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             <span className="font-mono">fx</span> Names
           </Button>

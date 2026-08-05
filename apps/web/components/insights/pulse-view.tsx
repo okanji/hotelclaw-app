@@ -245,7 +245,7 @@ function OpenWorkDistribution({
           <li key={s.status}>
             <Link
               href={`/p/${propertyId}/tasks`}
-              className="group flex min-h-[34px] items-baseline gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+              className="group flex min-h-[37px] items-baseline gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
             >
               <span
                 className={cn(

@@ -50,7 +50,7 @@ export function NodePalette({
             placeholder="Add a step…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-7 w-full rounded-sm border-0 bg-secondary pl-7 pr-2 text-xs outline-none focus-visible:shadow-focus focus:ring-primary/40"
+            className="h-7 w-full rounded-sm border-0 bg-secondary pl-7 pr-2 text-xs outline-none focus-visible:shadow-focus"
           />
         </div>
       </div>

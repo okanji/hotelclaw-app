@@ -281,7 +281,7 @@ export function AiCopilot({
           />
           <InputGroupAddon align="block-end" className="gap-2">
             <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Sparkles className="size-3 text-primary" aria-hidden />
+              <Sparkles className="size-3 text-primary-ink" aria-hidden />
               Build with AI
             </span>
             <span className="ml-auto inline-flex items-center gap-2">
@@ -319,7 +319,7 @@ export function AiCopilotLoadingPanel({ phase }: { phase: string }) {
     >
       <div className="flex items-start gap-3">
         <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
-          <Sparkles className="size-4 text-primary animate-pulse" aria-hidden />
+          <Sparkles className="size-4 text-primary-ink animate-pulse" aria-hidden />
           <span className="absolute inset-0 animate-ping rounded-full ring-1 ring-primary/30 opacity-40" />
         </span>
         <div className="min-w-0 flex-1 space-y-2">
@@ -367,7 +367,7 @@ function TranscriptRow({
   return (
     <div className="rounded-md bg-muted px-3 py-2 text-sm text-foreground">
       <div className="flex items-start gap-2">
-        <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden />
+        <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary-ink" aria-hidden />
         <span className="whitespace-pre-wrap">{turn.content}</span>
       </div>
       {turn.suggestions && turn.suggestions.length > 0 && onPickSuggestion ? (

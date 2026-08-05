@@ -35,20 +35,24 @@ const CARD_SHELL: Record<
   DocPinCardSize,
   { shell: string; pad: string; title: string; body: string; footer: string; snippetLines: number }
 > = {
+  // A gallery card IS a page: 10px `rounded-card` rung + `shadow-card`, and
+  // its TITLE is content (16px/24, weight 400) rather than a 14px UI label
+  // (notion-spec-v2 §2/§5). The compact rung is a thumbnail, so it keeps the
+  // UI rung — but never drops below 14px.
   default: {
-    shell: "h-48 w-40 rounded-md",
-    pad: "p-3",
-    title: "pr-6 text-sm",
+    shell: "h-48 w-40 rounded-card",
+    pad: "px-2.5 py-2",
+    title: "pr-6 text-base leading-6 font-normal",
     body: "text-sm line-clamp-5",
-    footer: "px-3 py-2 text-sm",
+    footer: "px-2.5 py-2 text-sm",
     snippetLines: 500,
   },
   compact: {
-    shell: "h-[7.5rem] w-[6.75rem] rounded-md",
+    shell: "h-[7.5rem] w-[6.75rem] rounded-card",
     pad: "p-2",
-    title: "pr-5 text-xs leading-snug",
-    body: "text-xs line-clamp-2",
-    footer: "px-2 py-1 text-xs",
+    title: "pr-5 text-sm leading-snug font-medium",
+    body: "text-sm line-clamp-2",
+    footer: "px-2 py-1 text-sm",
     snippetLines: 120,
   },
 };
@@ -113,7 +117,7 @@ export function DocPinCard({
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
         className={cn(
-          "flex flex-col overflow-hidden bg-card text-left shadow-ring transition-colors",
+          "flex flex-col overflow-hidden bg-card text-left shadow-card transition-colors",
           s.shell,
           draggable
             ? "cursor-grab active:cursor-grabbing group-hover/card:bg-accent"
@@ -121,7 +125,7 @@ export function DocPinCard({
         )}
       >
         <div className={cn("flex-1 overflow-hidden", s.pad)}>
-          <h3 className={cn("line-clamp-2 font-medium text-foreground", s.title)}>
+          <h3 className={cn("line-clamp-2 text-foreground", s.title)}>
             {doc.title || "Untitled"}
           </h3>
           <div className={cn("bg-border", size === "compact" ? "my-1 h-px" : "my-2 h-px")} />

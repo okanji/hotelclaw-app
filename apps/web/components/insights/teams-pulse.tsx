@@ -180,7 +180,7 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                 ? Math.round((row.completedRuns / row.totalRuns) * 100)
                 : null;
             return (
-              <tr key={row.spaceId} className="group h-[34px] transition-colors hover:bg-accent">
+              <tr key={row.spaceId} className="group h-[37px] transition-colors hover:bg-accent">
                 <td className="pr-3">
                   <Link
                     href={`/p/${propertyId}/spaces/${row.spaceId}`}

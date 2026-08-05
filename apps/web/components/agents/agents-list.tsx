@@ -94,7 +94,10 @@ export function AgentsList({
         }
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {view !== "builtin" ? (
         <>
@@ -138,14 +141,14 @@ export function AgentsList({
                   <li key={bot.id}>
                     <Link
                       href={`${base}/fleet/${bot.id}`}
-                      className="flex flex-col gap-2 rounded-md bg-background p-4 transition-colors hover:bg-accent"
+                      className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
                     >
                       <div className="flex items-center gap-3">
                         <TintIcon tone="lavender" className="text-base">
                           {podBotEmoji(bot.bot_id)}
                         </TintIcon>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate text-base leading-6 font-normal">
                             {bot.display_name}
                           </p>
                           <p className="truncate font-mono text-xs text-muted-foreground">
@@ -219,7 +222,7 @@ function AgentCard({
   const config = parseAgentConfig(agent.config);
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-md bg-background p-4 transition-colors hover:bg-accent">
+    <div className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent">
       <Link href={href} className="absolute inset-0" aria-label={agent.name} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
@@ -227,8 +230,8 @@ function AgentCard({
             {config.avatarEmoji || <Sparkles />}
           </TintIcon>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{agent.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-base leading-6 font-normal">{agent.name}</p>
+            <p className="truncate text-sm text-muted-foreground">
               {config.description || "No description yet"}
             </p>
           </div>
@@ -288,20 +291,20 @@ function BuiltinGrid({ className }: { className?: string }) {
         {BUILTIN_AGENTS.map((bot) => (
           <li
             key={bot.id}
-            className="flex flex-col gap-2 rounded-md bg-background p-4"
+            className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card"
           >
             <div className="flex items-center gap-3">
               <TintIcon tone="lavender" className="text-base">
                 {bot.emoji}
               </TintIcon>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{bot.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-base leading-6 font-normal">{bot.name}</p>
+                <p className="truncate text-sm text-muted-foreground">
                   {bot.where} · {bot.model}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-pretty text-muted-foreground">
+            <p className="text-sm text-pretty text-muted-foreground">
               {bot.promptSummary}
             </p>
             <div className="flex flex-wrap gap-1.5">

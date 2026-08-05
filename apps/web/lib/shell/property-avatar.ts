@@ -9,14 +9,18 @@ export function propertyInitial(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || "?";
 }
 
-// Deterministic per-property tint so each property reads as distinct.
+// Deterministic per-property tint so each property reads as distinct. These
+// are IDENTITY colours, not state — so they spend the ENTITY pill family
+// (globals.css `--pill-<hue>` / `--pill-<hue>-ink`), which is already the
+// "hue @ 16% fill + same hue darkened for ink" recipe this tile wants and is
+// already theme-aware (no `dark:` variant needed — the token flips itself).
 const TILE_TINTS = [
-  "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400",
+  "bg-pill-rose text-pill-rose-ink",
+  "bg-pill-amber text-pill-amber-ink",
+  "bg-pill-green text-pill-green-ink",
+  "bg-pill-blue text-pill-blue-ink",
+  "bg-pill-violet text-pill-violet-ink",
+  "bg-pill-slate text-pill-slate-ink",
 ];
 
 export function propertyTileTint(key: string): string {

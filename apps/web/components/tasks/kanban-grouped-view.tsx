@@ -27,11 +27,11 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import { setTaskProject, setTaskSpace } from "@/components/projects/actions";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { LABEL_CHIP } from "@/components/labels/label-tokens";
 
 const NONE = "__none__";
 
-const DOT = LABEL_DOT;
+const CHIP = LABEL_CHIP;
 
 type GroupBy = "space" | "project";
 
@@ -181,25 +181,28 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: `col:${colKey}` });
   return (
     <div className="flex w-72 shrink-0 flex-col">
+      {/* Group header = the entity-hued status PILL + a faint count
+          (notion-spec-v2 §6). The bare dot + primary-ink heading it replaces
+          was the generic-kanban shape. */}
       <div className="mb-2 flex items-center gap-2 px-1">
-        <span
+        <h3
           className={cn(
-            "size-2 rounded-full",
-            color ? DOT[color] : "bg-muted-foreground/40",
+            "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
+            color ? CHIP[color] : "bg-pill-neutral text-pill-neutral-ink",
           )}
-        />
-        <h3 className="text-sm font-medium text-foreground">
+        >
           {label}
         </h3>
-        <span className="text-xs text-faint-foreground tabular-nums">
+        <span className="text-sm text-faint-foreground tabular-nums">
           {tasks.length}
         </span>
       </div>
+      {/* No column background — cards float on the page plane. */}
       <div
         ref={setNodeRef}
         className={cn(
           "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1.5 transition-colors",
-          isOver ? "bg-accent-pressed ring-1 ring-ring" : "bg-muted",
+          isOver && "bg-accent-pressed",
         )}
       >
         {tasks.map((t) => (

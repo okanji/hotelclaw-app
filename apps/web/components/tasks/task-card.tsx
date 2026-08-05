@@ -160,9 +160,13 @@ function CardCreatedAt({ iso, now }: { iso: string | undefined; now: number }) {
 }
 
 const CARD_BASE = cn(
-  // Roomy padding (Linear sits ~12px) so the ID row, title, priority, and
-  // created-date each have their own breathing room.
-  "relative rounded-md bg-card p-3 shadow-ring",
+  // A board card IS a page (notion-spec-v2 §5): the 10px `rounded-card` rung
+  // and the `shadow-card` tier — one very soft far layer whose LAST layer is
+  // the 1px warm ring. It used to be `rounded-md shadow-ring`, which is the
+  // recipe for a WELL, and that is why the cards read as list rows sitting in
+  // a grey trough rather than as pages floating on the page plane.
+  // Measured padding is `8px 10px`.
+  "relative rounded-card bg-card px-2.5 py-2 shadow-card",
   // Offscreen cards skip paint entirely (content-visibility). On a full
   // board the columns are thousands of px tall; painting all of it into
   // Chrome's composited scroller textures is what pushed macOS GPU
@@ -245,11 +249,15 @@ function CardHeader({
 
 function CardTitle({ title, status }: { title: string; status: TaskStatus }) {
   return (
-    <div className="mt-2.5 flex items-start gap-1.5">
-      <span className="flex h-4.5 shrink-0 items-center">
+    // A database card's title is CONTENT, not a UI label — 16px / 24px weight
+    // 400 (notion-spec-v2 §2). v1 flattened it to `text-sm font-medium`, which
+    // is the sidebar-row rung, and that single decision is what made every
+    // card read as a list row instead of as a page.
+    <div className="mt-2 flex items-start gap-1.5">
+      <span className="flex h-6 shrink-0 items-center">
         <StatusIcon status={status} className="size-3.5" />
       </span>
-      <p className="line-clamp-2 text-sm leading-4.5 font-medium text-foreground">
+      <p className="line-clamp-3 text-base leading-6 font-normal text-foreground">
         {title}
       </p>
     </div>

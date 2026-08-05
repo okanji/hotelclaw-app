@@ -166,7 +166,7 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
 
   if (step === "idle" || step === "done") {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-md bg-card p-4 shadow-ring">
+      <div className="flex flex-col items-start gap-3 rounded-card bg-card p-4 shadow-ring">
         <div className="flex items-center gap-2.5">
           <Sunrise className="size-5 text-warning" strokeWidth={1.5} />
           <p className="text-sm font-medium text-foreground">
@@ -206,7 +206,7 @@ export function MorningCheckinWidget({ propertyId }: WidgetProps) {
 
   if (step === 3) {
     return (
-      <div className="flex flex-col gap-3 rounded-md bg-card p-4 shadow-ring">
+      <div className="flex flex-col gap-3 rounded-card bg-card p-4 shadow-ring">
         <p className="text-sm font-medium text-foreground">
           Here&rsquo;s your brief — edit anything, then share it.
         </p>
@@ -338,7 +338,7 @@ function QuestionCard({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md bg-card p-4 shadow-ring">
+    <div className="flex flex-col gap-3 rounded-card bg-card p-4 shadow-ring">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-foreground">{prompt}</p>
         <span className="shrink-0 text-xs tabular-nums text-faint-foreground">

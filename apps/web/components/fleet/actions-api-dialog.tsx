@@ -139,7 +139,7 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
       </section>
 
       {freshToken ? (
-        <section className="flex flex-col gap-1.5 rounded-md bg-success/10 p-3">
+        <section className="flex flex-col gap-1.5 rounded-card bg-success/10 p-3">
           <p className="text-xs font-medium text-foreground">
             Key created — copy it now, it won&apos;t be shown again.
           </p>

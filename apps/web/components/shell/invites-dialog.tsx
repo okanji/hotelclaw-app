@@ -244,11 +244,15 @@ function InviteRowItem({
       <span
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase",
+          // Status-tinted identity chip. The tones come from the `--pill-*`
+          // pairs (16% fill + darkened same-hue ink) so it agrees with every
+          // other status surface — and so "pending" stops borrowing the
+          // action blue, which read as a selected row (notion-spec-v2 §0.2).
           row.status === "accepted"
-            ? "bg-success/10 text-success"
+            ? "bg-pill-success text-pill-success-ink"
             : row.status === "expired"
-              ? "bg-muted text-muted-foreground"
-              : "bg-primary/10 text-primary",
+              ? "bg-pill-neutral text-pill-neutral-ink"
+              : "bg-pill-info text-pill-info-ink",
         )}
       >
         {row.email.slice(0, 1)}
@@ -336,7 +340,7 @@ function InviteRowItem({
 function StatusBadge({ status }: { status: "accepted" | "expired" }) {
   if (status === "accepted") {
     return (
-      <Badge className="shrink-0 gap-1 bg-success/10 text-success">
+      <Badge variant="success" className="shrink-0 gap-1">
         <CheckCircle2 />
         Accepted
       </Badge>

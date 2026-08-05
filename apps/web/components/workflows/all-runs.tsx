@@ -67,7 +67,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                 <li key={r.id}>
                   <Link
                     href={`/p/${propertyId}/workflows/${r.workflow_id}/runs/${r.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent"
+                    className="flex h-[37px] items-center gap-3 px-4 hover:bg-accent"
                   >
                     <StatusBadge tone={STATUS_TONES[r.status] ?? "neutral"} dot={false}>
                       {r.status}
@@ -76,7 +76,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                       {r.workflow_name}
                     </span>
                     {r.is_dry_run ? (
-                      <Badge variant="outline" className="border-border text-muted-foreground">
+                      <Badge variant="outline" className="text-muted-foreground">
                         test
                       </Badge>
                     ) : null}

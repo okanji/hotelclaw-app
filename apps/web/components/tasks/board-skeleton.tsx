@@ -6,7 +6,7 @@ const CARDS_PER_COLUMN = [3, 2, 1, 2];
 
 function CardSkeleton() {
   return (
-    <div className="rounded-md bg-card p-2 shadow-ring">
+    <div className="rounded-card bg-card px-2.5 py-2 shadow-card">
       {/* Header — task id (left), assignee (right) */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-2.5 w-10" />

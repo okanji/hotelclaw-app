@@ -98,7 +98,7 @@ export function WorkflowHealthWidget({ propertyId }: { propertyId: string }) {
             <li key={w.id}>
               <Link
                 href={`/p/${propertyId}/workflows/${w.id}/runs`}
-                className="group flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                className="group flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
               >
                 <AlertTriangle className="size-3.5 shrink-0 text-destructive" aria-hidden />
                 <span className="min-w-0 truncate group-hover:underline">{w.name}</span>

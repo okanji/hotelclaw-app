@@ -28,19 +28,69 @@ export type Task = {
   source_workflow_run_id?: string | null;
 };
 
-/** The board's columns, left to right, with their accent dot colour. */
+/**
+ * The board's columns, left to right.
+ *
+ * `pillTone` is the column's HUE, and it is the only colour the column header
+ * carries — Notion's board groups have **no column background at all**; the
+ * group header is a status pill (`rounded-pill bg-pill-<tone>
+ * text-pill-<tone>-ink`, notion-spec-v2 §6) and the inline "+ New" row at the
+ * foot of the column is tinted to the same hue. `dotClass` survives for the
+ * legacy surfaces (timeline/workload legends) that still draw a dot.
+ */
 export const COLUMNS: {
   id: TaskStatus;
   label: string;
   dotClass: string;
+  /** Pill token family for the group header + inline add row. */
+  pillTone: "neutral" | "info" | "warning" | "success";
   /** Soft WIP limit — column count badge turns amber over this. `null` = no limit. */
   wipLimit: number | null;
 }[] = [
-  { id: "todo", label: "To do", dotClass: "bg-muted-foreground", wipLimit: null },
-  { id: "in_progress", label: "In progress", dotClass: "bg-info", wipLimit: 5 },
-  { id: "blocked", label: "Blocked", dotClass: "bg-warning", wipLimit: 3 },
-  { id: "done", label: "Done", dotClass: "bg-success", wipLimit: null },
+  {
+    id: "todo",
+    label: "To do",
+    dotClass: "bg-muted-foreground",
+    pillTone: "neutral",
+    wipLimit: null,
+  },
+  {
+    id: "in_progress",
+    label: "In progress",
+    dotClass: "bg-info",
+    pillTone: "info",
+    wipLimit: 5,
+  },
+  {
+    id: "blocked",
+    label: "Blocked",
+    dotClass: "bg-warning",
+    pillTone: "warning",
+    wipLimit: 3,
+  },
+  {
+    id: "done",
+    label: "Done",
+    dotClass: "bg-success",
+    pillTone: "success",
+    wipLimit: null,
+  },
 ];
+
+/**
+ * Column hue → the two class pairs a board group spends it on. Kept here (not
+ * inline in the column component) so a new status lands its pill and its
+ * inline-add tint in one place. Static strings — Tailwind must see them.
+ */
+export const COLUMN_PILL_CLASS: Record<
+  (typeof COLUMNS)[number]["pillTone"],
+  { pill: string; add: string }
+> = {
+  neutral: { pill: "bg-pill-neutral text-pill-neutral-ink", add: "text-muted-foreground hover:bg-pill-neutral" },
+  info: { pill: "bg-pill-info text-pill-info-ink", add: "text-muted-foreground hover:bg-pill-info" },
+  warning: { pill: "bg-pill-warning text-pill-warning-ink", add: "text-muted-foreground hover:bg-pill-warning" },
+  success: { pill: "bg-pill-success text-pill-success-ink", add: "text-muted-foreground hover:bg-pill-success" },
+};
 
 export const STATUS_IDS: TaskStatus[] = COLUMNS.map((c) => c.id);
 
@@ -59,7 +109,13 @@ export const PRIORITY_META: Record<
     textClass: string;
     /** Tailwind class for the filled bars in `<PriorityBars />`. */
     barColorClass: string;
-    /** Tinted pill background + text used by the on-card priority badge. */
+    /**
+     * The measured Notion **select pill** (notion-spec-v2 §6) used by the
+     * on-card priority badge: fill = the hue at ~16%, ink = the same hue
+     * darkened. Sourced from the `--pill-*` token pairs, never hand-mixed
+     * alpha — a `bg-<hue>/10 text-<hue>` pill drifts from every other status
+     * chip in the app and fails contrast on the darker hues.
+     */
     badgeClass: string;
     /** Tailwind class for the left accent stripe on cards (legacy — kept for skeleton/overlay tinting). */
     stripeClass: string;
@@ -79,8 +135,7 @@ export const PRIORITY_META: Record<
     dotClass: "bg-destructive",
     textClass: "text-destructive",
     barColorClass: "bg-destructive",
-    badgeClass:
-      "bg-destructive/10 text-destructive",
+    badgeClass: "bg-pill-danger text-pill-danger-ink",
     stripeClass: "before:bg-destructive",
     order: 0,
     shortcut: 1,
@@ -91,8 +146,7 @@ export const PRIORITY_META: Record<
     dotClass: "bg-warning",
     textClass: "text-foreground",
     barColorClass: "bg-foreground",
-    badgeClass:
-      "bg-warning/10 text-warning",
+    badgeClass: "bg-pill-warning text-pill-warning-ink",
     stripeClass: "before:bg-warning",
     order: 1,
     shortcut: 2,
@@ -103,8 +157,7 @@ export const PRIORITY_META: Record<
     dotClass: "bg-info",
     textClass: "text-foreground",
     barColorClass: "bg-foreground",
-    badgeClass:
-      "bg-info/10 text-info",
+    badgeClass: "bg-pill-info text-pill-info-ink",
     stripeClass: "before:bg-info/70",
     order: 2,
     shortcut: 3,
@@ -115,8 +168,7 @@ export const PRIORITY_META: Record<
     dotClass: "bg-muted-foreground",
     textClass: "text-muted-foreground",
     barColorClass: "bg-foreground",
-    badgeClass:
-      "bg-muted text-muted-foreground",
+    badgeClass: "bg-pill-neutral text-pill-neutral-ink",
     stripeClass: "before:bg-transparent",
     order: 3,
     shortcut: 4,
@@ -127,8 +179,7 @@ export const PRIORITY_META: Record<
     dotClass: "bg-transparent",
     textClass: "text-muted-foreground",
     barColorClass: "bg-foreground/40",
-    badgeClass:
-      "bg-muted text-faint-foreground",
+    badgeClass: "bg-pill-neutral text-pill-neutral-ink",
     stripeClass: "before:bg-transparent",
     order: 4,
     shortcut: 0,

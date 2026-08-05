@@ -88,7 +88,7 @@ export function ShareFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-md border p-1">
+        <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-md p-1 shadow-ring">
           {channels === null ? (
             <p className="px-2 py-3 text-sm text-muted-foreground">Loading channels…</p>
           ) : channels.length === 0 ? (

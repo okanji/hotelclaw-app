@@ -2,15 +2,33 @@
 
 Two visual worlds, one token source. Read this before building any UI.
 
-The app shell follows **`docs/notion-spec.md`** — measured values pulled off
+The app shell follows **`docs/notion-spec-v2.md`** — measured values pulled off
 `app.notion.com` with `getComputedStyle`, not guesses. **When this file and
 the spec disagree, the spec wins.** Every number below traces back to it.
 
-> **This replaced the old Linear-inspired system (2026-08-04).** If you
-> remember rules about uppercase tracked eyebrows, a seven-rung radius scale,
-> `border-border` on every card, `shadow-sm` on resting surfaces, or a global
-> `-0.011em` letter-spacing — those are all **reversed**. See "What changed"
-> at the bottom.
+> ### v2 supersedes v1 (2026-08-05)
+>
+> `docs/notion-spec-v2.md` **supersedes `docs/notion-spec.md`** wherever they
+> disagree. v1 fixed our *tokens*; v2 fixes the *structure* — the reason the
+> app still read as a dashboard rather than as Notion. Three v1 rules are now
+> **reversed**, and if you learned them, unlearn them:
+>
+> | v1 said | v2 says |
+> |---|---|
+> | "Two radii: 6px clickable, 10px floating" | **Five radii** — 4 / 6 / 10 / 20 / full, each with exactly one job. |
+> | "Resting surfaces carry no shadow" | **Cards DO carry a soft shadow** (`shadow-card`). Still true for wells and list rows. |
+> | "Primary buttons stay warm ink" | **Primary is Notion blue `#2383e2`** with a near-white label. |
+>
+> Plus two additions v1 had no opinion on: the **720px document column**
+> (with data views breaking out of it to full width) and a **role-based type
+> ramp** (content 16px · UI 14px · metadata 12px — v1 wrongly flattened
+> content down to 14px).
+>
+> **And this whole system replaced the Linear-inspired one (2026-08-04).** If
+> you remember rules about uppercase tracked eyebrows, a seven-rung radius
+> scale, `border-border` on every card, `shadow-sm` on resting surfaces, or a
+> global `-0.011em` letter-spacing — those are all reversed too. See "What
+> changed" at the bottom.
 
 ## The two worlds
 
@@ -18,7 +36,7 @@ the spec disagree, the spec wins.** Every number below traces back to it.
 |---|---|---|
 | Who | Staff, managers, owners | Hotel guests + first-run owners |
 | Where | Everything under `/p/[propertyId]` | Onboarding wizard, `/welcome`, `/book`, `/g/[botSlug]`, event pages, booking emails |
-| Look | Notion-quiet: warm near-white chrome, white content, almost no strokes, 6px/10px radii, sentence-case labels | Warm cream, serif display questions, rust accent, one decision per screen |
+| Look | Notion-quiet: warm near-white chrome, white content, almost no strokes, a 720px document column, five radii, sentence-case labels, system font | Warm cream, serif display questions, rust accent, one decision per screen |
 | Theming | Light + dark (`.dark` class) | **Never theme-switches** — always cream |
 | Tokens | `background/card/muted/border/accent…` | `guest-*` |
 
@@ -27,10 +45,11 @@ change. It is a deliberate, distinct world. See its section below.
 
 ---
 
-## The five mechanisms
+## The mechanisms
 
-Notion is not "minimal", it is **quiet**. Five things do the work. If a
-surface looks like a stock component library, it's violating one of these:
+Notion is not "minimal", it is **quiet** — and it is a **document**. Seven
+things do the work. If a surface looks like a stock component library or like
+a dashboard, it's violating one of these:
 
 1. **Almost no borders.** Surfaces separate by a **~2% fill delta** plus a
    *sub-hairline* **7% warm ring** — never a visible gray stroke.
@@ -38,10 +57,17 @@ surface looks like a stock component library, it's violating one of these:
    `rgba(42,28,0,0.07)` — brown-black, never `#000` and never cold gray.
 3. **Muted by default.** Sidebar/nav rows are secondary ink at weight 500.
    Only the thing you're reading gets full ink.
-4. **One rhythm.** Rows are 30px. Menu items 28px. Radii 6px / 10px. Icons
-   12–16px. Everywhere.
+4. **One rhythm.** Rows are 30px. Menu items 28px. Icons 12–16px. Five radii,
+   three elevations, each with exactly one job. Everywhere.
 5. **Sentence case, letter-spacing `normal`.** Section labels are 12px/12px
    weight 500 faint — **not** uppercase, **not** tracked.
+6. **Content lives in a 720px centred column** — prose, headings, callouts,
+   the page title. **Data views break OUT of it to full width.** That
+   contrast *is* the layout, and it is the single biggest thing that made us
+   read as a dashboard.
+7. **Type is sized by ROLE, not by density.** Content is 16px, UI chrome is
+   14px, metadata is 12px. A board-card title is *content*, so it is 16px —
+   sizing it 14px is what made our cards read as UI rows instead of pages.
 
 ---
 
@@ -96,46 +122,64 @@ reads as body text. If you're styling a 12px label, it is faint.
   `focus-visible:shadow-focus` → `1px inset + 1px outer`. **Not** a 3px offset
   halo. Never `focus-visible:ring-[3px] ring-ring/50` again.
 
-### Radius — exactly two rungs
+### Radius — five rungs, each with one job
 
-```
-6px   var(--radius)          anything you CLICK: buttons, inputs, rows, menu
-                             items, cards, chips, badges, wells, tiles
-10px  var(--radius-overlay)  anything that FLOATS: popover, dropdown, dialog,
-                             sheet, command palette, toast, drag overlay
-```
+**v2 supersedes v1's "two rungs".**
+
+| Utility | Value | Its one job |
+|---|---|---|
+| `rounded-pill` | `4px` | select/status **pills**, block gutter buttons |
+| `rounded-md` (`--radius`) | `6px` | anything you **click**: buttons, inputs, rows, menu items, chips, wells |
+| `rounded-card` | `10px` | anything that is a **surface**: cards, callouts, dropdowns, popovers |
+| `rounded-modal` | `20px` | **modals**, dialogs, the command palette — and view-tab pills (fully rounded at 32px tall) |
+| `rounded-full` | — | avatars, dots, count badges, progress tracks |
 
 `rounded-sm`, `rounded-md`, `rounded-lg` and `rounded-4xl` **all collapse onto
-6px** — existing call sites land on the scale with no edits. Floating surfaces
-use `rounded-overlay`. `rounded-full` still means avatars, dots and progress
-tracks, nothing else.
+6px** — existing call sites land on the scale with no edits.
+
+`rounded-overlay` is a **live alias of `rounded-card`** (both 10px). It has
+many call sites and nothing is broken by leaving them; prefer `rounded-card`
+in new code.
 
 `rounded-xl` / `2xl` / `3xl` are **frozen legacy rungs that exist only for the
 guest world**. App surfaces must never use them. If you find one in an app
-file, convert it to `rounded-md` (clickable) or `rounded-overlay` (floating).
+file, convert it to `rounded-md` (clickable) or `rounded-card` (surface).
 
-### Elevation — overlays only
+### Elevation — three tiers, never mixed
 
-There is **one** recipe and it lives in a token:
+Each recipe ends with the **1px warm ring as its last layer**, so these
+surfaces carry `border: none` and **no `ring-*` utility** — stacking a ring on
+top double-rings them.
 
-- **`shadow-overlay`** — the full three-layer elevation with the **1px warm
-  ring as the last layer**. Every popover / dropdown / dialog / sheet /
-  command palette / toast / drag overlay gets `rounded-overlay shadow-overlay`
-  and **`border: none`, no `ring-*` utility** — stacking a ring on top
-  double-rings it.
+| Utility | Pair with | For |
+|---|---|---|
+| **`shadow-card`** | `rounded-card bg-card` | a **resting** surface that represents a *page*: board cards, gallery cards, doc cards. One soft far layer + the ring. |
+| **`shadow-popover`** | `rounded-card bg-popover` | **floating chrome**: popover, dropdown, menu, toast, drag overlay. |
+| **`shadow-modal`** | `rounded-modal bg-modal-bg backdrop-blur-modal` | **dialogs + the command palette**. The only tier with no ring — it sits on a translucent blurred fill, where a ring reads as a seam. |
+
+**`shadow-overlay` is a live alias of `shadow-popover`** (identical recipe,
+the pre-v2 name). Existing call sites keep working; prefer `shadow-popover` in
+new code. The raw `--overlay-shadow` var is still consumed directly by
+`documents-editor.css`, `stream-chat-overrides.css`, `spreadsheet.css`,
+`document-drag-handle.css` and `insights/chart-style.ts` — do not rename it.
+
+The other three shadow tokens are unchanged:
+
 - **`shadow-tooltip`** — the tighter tooltip recipe. Tooltips are a constant
   dark slab (`bg-tooltip-bg text-tooltip-foreground`) on **both** planes —
   never `bg-foreground`, which inverts with the theme.
-- **`shadow-ring`** — a bare 1px warm ring for a resting surface that
-  genuinely needs a boundary. **This replaces `border border-border` on
-  cards.** Prefer no boundary at all: fill delta first, ring only if the card
-  genuinely floats free of a container.
+- **`shadow-ring`** — a bare 1px warm ring for a resting surface that needs a
+  boundary but is **not** a card: wells, inputs, inline containers. It
+  replaces `border border-border`.
 - **`shadow-focus`** — the 1px inset+outer Notion blue focus shadow.
 - **`--sidebar-edge-shadow`** — the sidebar's right edge is an inset shadow,
   not a border. Use `shadow-(--sidebar-edge-shadow)`.
 
-**Resting cards get NO shadow.** `shadow-sm` / `shadow-xs` / `hover:shadow-*`
-on a static card is a bug. Elevation means "this floats above the page".
+**v1 said "resting cards get NO shadow" — that is now wrong for cards.** It
+stays right for **wells, list rows, toolbars and section containers**: those
+get `shadow-ring` or nothing. `shadow-card` means "this rectangle is a page
+you can open". `shadow-sm` / `shadow-xs` / `hover:shadow-*` / `hover:-translate-y-*`
+are still bugs — there is no lift, ever, and no tier outside these three.
 
 ### Motion
 
@@ -175,13 +219,70 @@ Transitions are for movement; hover is a fill change, not an animation.
   2026-08-04: the shell's three planes sit flush and separate by fill delta
   plus the sidebar's inset edge shadow. Do not use it in new code.
 
-### Fonts
+### Fonts — the system stack, no webfont
 
-`font-sans` (Inter Variable, OpenType-tuned), `font-mono` (Geist Mono),
-`font-serif` (**guest world only** — the app shell has no serif voice).
+**`font-sans` is the plain system stack.** Notion ships no webfont at all, and
+a loaded UI face is itself a "designed template" tell. As of 2026-08-05 the
+Inter `next/font` wiring is **deleted** from `app/layout.tsx` and
+`--font-sans-inter` no longer exists — do not reintroduce either.
+
+```
+ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display",
+"Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic",
+"Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"
+```
+
+The emoji and Arabic/Hebrew faces are *inside* the stack so a mixed-script
+string never falls through to a random installed face.
+
+`font-feature-settings` is **`normal`**. The old `"cv11","ss03","cv02"` triple
+was Inter character-variant tuning; on a system face those features mean
+nothing, or something else. Do not add OpenType features.
+
+`font-mono` (Geist Mono) and the chat's Lato (`--slack-chat-font-family`) are
+unaffected — they are real, deliberate faces for code and for the Slack-shaped
+chat surface. `font-serif` is **guest world only**; the app shell has no serif
+voice.
 
 There is **no global letter-spacing**. Do not reintroduce `tracking-tight`,
 `tracking-wide`, `tracking-widest` or `tracking-[0.18em]` on app surfaces.
+
+### Primary — Notion blue
+
+**`--primary` is `#2383e2`** (`#2c8ce6` on the dark plane, lifted one rung to
+clear the canvas) with `--primary-foreground` `#f3f9fd`. This deliberately
+**overrides the 2026-07-17 "buttons stay warm ink" decision**. It is the same
+blue as `--ring` and `--icon-accent`, so focus, links and the primary action
+are one family.
+
+> **`--primary` is a BRAND ACCENT, not an ink rung.** If you want "the darkest
+> text", that is `text-foreground`. `text-primary` now renders **blue** — it
+> is correct for links and for the active/working state, and wrong as a
+> synonym for "emphasis".
+
+The one-primary-button-per-screen rule below matters more now that primary is
+a saturated colour, not ink.
+
+### Status pills
+
+A pill is **the hue at ~16% alpha with the same hue darkened for ink**
+(measured: fill `rgba(206,24,0,.165)`, ink `rgb(109,53,49)`). Spend as
+`rounded-pill bg-pill-<name> text-pill-<name>-ink` — two families, one shape:
+
+- **Semantic** — `success · warning · info · danger · neutral`. Lifecycle
+  states. The fills are `color-mix`ed off `--success` / `--warning` / `--info`
+  / `--destructive`, so the pill ramp can never drift out of sync with the
+  status ramp. `neutral` is the only one whose fill is the warm-black wash
+  rather than a hue.
+- **Entity** — `slate · blue · green · amber · rose · violet` (`EntityColor`).
+  User-**chosen** identity: labels, projects, teams, boards. Deliberately its
+  own set, so a user picking "green" is not asserting "success".
+
+Both families lighten their ink on the dark plane rather than darkening it.
+
+**Never re-derive a chip colour from the Tailwind palette.**
+`bg-blue-500/15 text-blue-700 dark:text-blue-300` is the pattern this
+replaces — that ramp is cold and vibrates against the warm planes.
 
 ### Entity colors
 
@@ -191,19 +292,30 @@ things: spaces, labels, departments, boards.
 
 ---
 
-## Type ramp
+## Type ramp — size by ROLE, not by density
 
-| Element | Size / line-height | Weight | Color |
-|---|---|---|---|
-| Page title | `40px / 48px` | **700** | foreground |
-| Section title | `16px / 24px` | 600 | foreground |
-| Body / block text | `16px / 24px` | 400 | foreground |
-| **UI row label** (sidebar, nav, list rows) | `14px / 21px` | **500** | secondary-ink |
-| Menu item label | `14px / 16.8px` | 400 | foreground |
-| **Section label** | `12px / 12px` | **500** | faint — no uppercase, no tracking |
-| Caption | `12px / 16px` | 500 | faint |
-| Shortcut hint (`⌘K`) | `12px` | 400 | faint |
-| Tooltip | `12px` | 400 | tooltip-foreground |
+Three roles, and which one a thing is decides its size. **Content 16 · UI 14 ·
+metadata 12.** Nothing else.
+
+| Role | Element | Size / line-height | Weight | Colour |
+|---|---|---|---|---|
+| — | Page title | `40px / 48px` | **700** | foreground |
+| — | H2 block | `24px / 31.2px` | 600 | foreground |
+| **Content** | prose, block text, callout body, **board & gallery card titles**, modal search input | `16px / 24px` | 400 | foreground |
+| **Content** | Section title | `16px / 24px` | 600 | foreground |
+| **UI** | row label — sidebar, nav, list rows, table name cells | `14px / 21px` | **500** | secondary-ink → foreground when active |
+| **UI** | menu item label | `14px / 16.8px` | 400 | foreground |
+| **UI** | **table header** | `14px / 16.8px` | **400** | **muted-foreground** — not 12px, not faint |
+| **Metadata** | section label | `12px / 12px` | **500** | faint — no uppercase, no tracking |
+| **Metadata** | caption | `12px / 16px` | 500 | faint |
+| **Metadata** | shortcut hint (`⌘K`) | `12px` | 400 | faint |
+| **Metadata** | tooltip | `12px` | 400 | tooltip-foreground |
+
+> **A database/board/gallery card title is CONTENT (16px), not a UI label.**
+> v1 flattened those to 14px and it is why our cards read as UI rows instead
+> of as pages. Same for callout body and prose. If the user is *reading* it,
+> it is 16px; if they are *operating* it, 14px; if it *annotates* something
+> else, 12px.
 
 **14px is the UI default, not 12px.** Notion reserves 12px for
 labels/captions/shortcuts. Our old habit of `text-xs` rows is why the app
@@ -224,8 +336,46 @@ numbers that change.
 | Row icon | `12–16px`, `8px` gap to label |
 | Topbar | `44px` tall, **transparent** — no fill, no bottom border |
 | Menu / dropdown item | `28px` tall, `6px` radius, `3px 6px` padding |
-| Content column | `720px` max-width, centered |
+| **Content column** | **`--content-width` = 720px**, centred → `max-w-content mx-auto` |
+| Table row / header | `37px` / `36px`; cell padding `7.5px 8px` |
+| Board card | `260px` wide, `8px 10px` padding |
 | Divider | `1px` `--border`, full panel width |
+
+### The document column — the structural rule
+
+**Content sits in a 720px centred column; data views break OUT of it to full
+width.** That contrast is the layout. Concretely:
+
+- **Inside `max-w-content`** — page title, prose, headings, callouts,
+  paragraph-shaped settings, empty states, form bodies.
+- **Outside it, edge-to-edge** — tables, boards, timetables, floor plans,
+  calendars, anything that scrolls horizontally.
+
+Spacing inside the column is **padding, not margin**: every block is its
+content height plus `8px` top *and* bottom, so two consecutive paragraphs sit
+`16px` apart and collapsing margins never bite.
+
+A page that is *all* full-bleed cards is the dashboard look we are moving away
+from. If a surface has no prose at all, ask whether it should — a one-line
+orientation sentence in the column above a full-width table is the Notion
+shape.
+
+**Where the column is actually wired** (2026-08-05): `SectionHeader size="page"`
+(every index masthead), the document editor body, `ReportMarkdown`, the brain
+page/overview, the meeting detail article, and the Documents directory
+masthead. Everything else — boards, tables, timetables, floor plans,
+calendars, widget grids — is deliberately outside it.
+
+### Board groups — no column background, ever
+
+A kanban/gallery **group** has no fill: cards float on the page plane, the
+group header is a tinted status pill plus a faint count, and the column ends
+with a labelled, unfilled `+ New` row whose hover wash is the group's own hue
+(`COLUMN_PILL_CLASS` in `components/tasks/kanban.ts` is the one map; project
+boards derive theirs from `statusBadgeVariants`). The only fill a group ever
+takes is the transient `bg-accent-pressed` drop-target wash — no ring, no
+stroke. A grey well behind a column is the single loudest "generic kanban"
+tell and it is a bug.
 
 ---
 
@@ -250,9 +400,9 @@ primitives — **use these instead of hand-rolling**:
 |---|---|---|
 | `EmptyState` | every "nothing here yet" moment | a **dashed gray box**; a `size-12 rounded-full bg-muted` icon plate |
 | `Eyebrow` (`tone="app" \| "brand" \| "guest"`) | the small section label above a heading or date group | uppercase, `tracking-*`, or a colored label on app surfaces |
-| `SectionHeader` (`size="page" \| "section" \| "panel"`) | title + description + right-aligned actions | the ~70th inline `flex items-center justify-between` header; a serif page title |
+| `SectionHeader` (`size="page" \| "section" \| "panel"`) | title + description + right-aligned actions. **`page` carries the document column itself** (`mx-auto w-full max-w-content`) — the masthead sits at 720px while the grid/table under it stays full width. Escape with `className="max-w-none"`. | the ~70th inline `flex items-center justify-between` header; a serif page title; a full-width `<hr>` under the masthead (it reads as a seam beside a 720px column — use whitespace) |
 | `StatGroup` + `Stat` | dashboard/agenda metric strips | stat *cards*; **vertical rules between columns**; icons inside stats |
-| `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states | picking badge colors per domain; a `border-<tone>/30` stroke |
+| `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states — renders as a **pill**: `rounded-pill bg-pill-<tone> text-pill-<tone>-ink` | picking badge colors per domain; a `border-<tone>/30` stroke; a Tailwind-palette wash |
 | `Chip` (`tone="app" \| "guest"`, `selected`) | toggleable filter/option pills | bespoke `rounded-full border` toggles; hover that changes the border |
 | `TintIcon` (`tone`, from `ui/tint-card`) | the tinted icon plate on a neutral card; tone by domain: tasks=blue · bookings=coral · calendar=sage · docs/AI=lavender · forms/reports=honey | hand-rolled `rounded-lg bg-*/10` plates |
 
@@ -265,9 +415,10 @@ model: statuses → tones/classes in ONE file, every surface derives from it).
 **Adding a fresh shadcn component:** it will scaffold with
 `rounded-lg shadow-md ring-1 ring-foreground/10` on overlays and
 `focus-visible:ring-[3px]` on controls. Rewrite those to
-`rounded-overlay shadow-overlay` and `focus-visible:shadow-focus` before it
-lands. (`components.json` uses `baseColor: "stone"` so new components at least
-scaffold on a warm ramp.)
+`rounded-card shadow-popover` (or `rounded-modal shadow-modal bg-modal-bg
+backdrop-blur-modal` if it's a dialog) and `focus-visible:shadow-focus` before
+it lands. (`components.json` uses `baseColor: "stone"` so new components at
+least scaffold on a warm ramp.)
 
 ---
 
@@ -297,6 +448,14 @@ implementations.
 The guest world consumes the shared `--radius-xl/2xl/3xl` rungs, which is why
 those three are frozen rather than collapsed.
 
+> **One v2 change does reach the guest world: the sans face.** `--font-sans`
+> is a single global, so dropping Inter for the system stack changed guest
+> *body* text too. Everything that makes the guest world itself — the cream
+> planes, the `guest-*` palette, the serif display voice, the rust accent, the
+> frozen radii — is untouched, and the serif headings are unaffected because
+> `--font-serif` is its own token. Pinning guest surfaces back to Inter would
+> mean shipping the webfont on every page, which is exactly what v2 removes.
+
 ---
 
 ## House rules
@@ -316,19 +475,38 @@ those three are frozen rather than collapsed.
 
 ---
 
-## What changed (2026-08-04) — reversed rules
+## What changed (2026-08-05, v2) — reversed rules
 
-If you learned the old system, unlearn these:
+v2 is a **structural** pass; v1 was a token pass. These five reverse v1:
+
+| v1 rule (2026-08-04) | v2 rule (2026-08-05) |
+|---|---|
+| "Two radii: 6px clickable, 10px floating" | **Five radii** — `rounded-pill` 4 · `rounded-md` 6 · `rounded-card` 10 · `rounded-modal` 20 · `rounded-full`. `rounded-overlay` is now an alias of `rounded-card`. |
+| "Elevation belongs to floating overlays only. **Resting cards get none.**" | **Three tiers**: `shadow-card` (resting surfaces that *are* a page) · `shadow-popover` (floating chrome, = the old `shadow-overlay`) · `shadow-modal` (translucent + blurred). Wells and list rows still get none. |
+| Primary button = warm ink (`#2c2c2b`) | **Primary = Notion blue `#2383e2`** with an `#f3f9fd` label. `--primary` is now a brand accent, not an ink rung — `text-primary` renders blue. |
+| `font-sans` = Inter Variable with `"cv11","ss03","cv02"` | **The plain system stack**, `font-feature-settings: normal`. The Inter `next/font` wiring and `--font-sans-inter` are deleted. |
+| `text-sm` (14px) everywhere in the UI, including card titles | **Size by ROLE**: content 16 · UI 14 · metadata 12. Board/gallery card titles, prose and callout bodies are **content → 16px**. |
+
+And two things v1 had no opinion on, now mandatory:
+
+| New in v2 | Rule |
+|---|---|
+| **The document column** | Content sits in `max-w-content` (720px, centred); **data views break out to full width**. `--content-width` is the token. |
+| **Status pills** | `rounded-pill bg-pill-<name> text-pill-<name>-ink` — hue at 16% alpha + the same hue darkened for ink, across the semantic ramp *and* `EntityColor`. Replaces every `bg-blue-500/15 text-blue-700` chip. |
+
+### What changed (2026-08-04) — the v1 reversals, still in force
+
+If you learned the pre-Notion (Linear-inspired) system, unlearn these:
 
 | Old rule | New rule |
 |---|---|
 | `Eyebrow` = "small **uppercase tracked** label", never re-type `tracking-[0.18em]` | Labels are **sentence case, 12px/12px, weight 500, faint, no tracking**. The uppercase tracked eyebrow was our single loudest "template" tell. |
-| "Everything derives from `--radius` via the `--radius-sm…4xl` scale" | **Two rungs only**: 6px clickable, 10px floating. `sm/md/lg/4xl` all collapse to 6px; `xl/2xl/3xl` are frozen guest-only legacy. |
-| Cards are `border border-border bg-card` | Cards separate by **fill delta**; a boundary, if truly needed, is `shadow-ring`. No stroke. |
+| "Everything derives from `--radius` via the `--radius-sm…4xl` scale" | `sm/md/lg/4xl` all collapse to 6px; `xl/2xl/3xl` are frozen guest-only legacy. *(v1 said "two rungs only" — **superseded by v2's five rungs** above.)* |
+| Cards are `border border-border bg-card` | No stroke, ever. Cards separate by **fill delta**; a non-card surface that needs a boundary uses `shadow-ring`. *(v1 said cards get no shadow at all — **superseded**: cards now take `shadow-card`, whose last layer is that same warm ring.)* |
 | Separation: whitespace → hairline divider (`border-border/60`) → well (`bg-muted/50`) → card | Don't stack opacity modifiers on tokens that are already 4–7% alpha. Use them at full strength. |
 | Global `letter-spacing: -0.011em` + `tracking-tight` above `text-xl` | Letter-spacing is `normal` **everywhere**. |
-| `text-sm` body, `text-xs` for metadata | **14px is the UI default.** 12px is labels/captions/shortcuts only. Nothing below 12px. |
-| `shadow-sm` on cards, `hover:shadow-sm`, `hover:-translate-y-0.5` | Elevation on **floating overlays only**. No lift, ever. |
+| `text-sm` body, `text-xs` for metadata | **14px is the UI default.** 12px is labels/captions/shortcuts only. Nothing below 12px. *(v2 adds the other half: **content is 16px** — v1 wrongly flattened card titles and prose to 14px.)* |
+| `shadow-sm` on cards, `hover:shadow-sm`, `hover:-translate-y-0.5` | No lift, ever, and no shadow tier outside the three named ones. *(v1 said "floating overlays only" — **superseded**: `shadow-card` is a resting tier.)* |
 | `focus-visible:ring-[3px] ring-ring/50` | `focus-visible:shadow-focus` — 1px inset + 1px outer, Notion blue. |
 | `--shell-border` (deliberately darker shell outline) | Deprecated alias of `--border`. The shell is two flush planes. |
 | Hover may change border + background + label color | **Fill only**, 20ms. |

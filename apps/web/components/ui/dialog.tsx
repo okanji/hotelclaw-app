@@ -31,7 +31,9 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        // Plain low-alpha scrim — Notion does not blur the page behind a dialog.
+        // Plain low-alpha scrim. The blur lives on the PANEL
+        // (`backdrop-blur-modal`), not on the backdrop — Notion dims the page
+        // and blurs only what shows through the translucent modal fill.
         "fixed inset-0 isolate z-50 bg-black/10 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
@@ -54,9 +56,12 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          // Notion overlay: 10px radius + the one elevation recipe (whose last
-          // layer IS the 1px warm ring), no border/ring utility, fade only.
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-overlay bg-popover p-4 text-sm text-popover-foreground shadow-overlay duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          // MODAL TIER (notion-spec-v2 §5) — the signature Notion dialog:
+          // 20px radius, a TRANSLUCENT fill (`bg-modal-bg`, 90% opaque) over
+          // a 40px backdrop blur, and the deep two-layer modal shadow. This is
+          // the only tier with NO 1px ring: on a translucent blurred plane a
+          // ring reads as a seam. No border, no ring utility, fade only.
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-modal bg-modal-bg p-4 text-sm text-foreground shadow-modal backdrop-blur-modal duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           className
         )}
         {...props}

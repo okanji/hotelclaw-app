@@ -330,8 +330,15 @@ export async function consumeTurnStream(input: {
         continue;
       }
       if (event.type === "message.completed") {
+        // Accumulate, don't overwrite: a turn's assistant messages are a
+        // sequence, and last-wins silently dropped every message but the
+        // final one (2026-08-05 — a two-part question answered in two
+        // messages delivered only the closing note). Mirrors the runtime
+        // accumulator in apps/agent/agent/channels/eve.ts.
         const text = event.data?.message;
-        if (typeof text === "string" && text.trim()) replyText = text;
+        if (typeof text === "string" && text.trim()) {
+          replyText = replyText ? `${replyText}\n\n${text.trim()}` : text.trim();
+        }
       } else if (event.type === "action.result") {
         // render_ui returns its validated spec in the tool result.
         const result = event.data?.result as

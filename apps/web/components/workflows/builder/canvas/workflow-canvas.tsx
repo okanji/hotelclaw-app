@@ -41,19 +41,25 @@ import { NodeInspector } from "./node-inspector";
 const NODE_TYPES = { wf: WfNode };
 const EDGE_TYPES = { wfAnimated: AiEdges.Animated, wfTemporary: AiEdges.Temporary };
 
+// Connectors are STRUCTURE, not actions — they are drawn in warm ink, never in
+// `--primary`. (`--primary` became Notion blue on 2026-08-05; a blue graph made
+// every edge read as an active/selected affordance and drowned out the one
+// thing on the canvas that IS blue: selection.) The three weights below are the
+// whole hierarchy: happy path = full muted ink, branch = the same ink at 60%,
+// error = destructive + dashed.
 const DEFAULT_EDGE_OPTIONS = {
   type: "wfAnimated" as const,
-  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--primary)" },
-  style: { stroke: "var(--primary)", strokeWidth: 1.5 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--muted-foreground)" },
+  style: { stroke: "var(--muted-foreground)", strokeWidth: 1.5 },
 };
 
 // Color by edge kind. xyflow renders each edge with the `style` we set on
 // the edge object — so we override per-edge below in `specToGraph` output.
 const EDGE_STROKE = {
-  next: "var(--primary)",
+  next: "var(--muted-foreground)",
   branch: "color-mix(in srgb, var(--muted-foreground) 60%, transparent)",
   error: "var(--destructive)",
-  entry: "var(--primary)",
+  entry: "var(--muted-foreground)",
 } as const;
 
 // Branch handle layouts per step type. Other steps fall back to a single
@@ -304,7 +310,7 @@ function CanvasInner({
               view (or the AI copilot below) rather than a palette. */}
           {!hasSteps && (
             <Panel position="top-center" className="mt-24 max-w-md p-6 text-center">
-              <Sparkles className="mx-auto mb-2 size-5 text-primary" aria-hidden />
+              <Sparkles className="mx-auto mb-2 size-5 text-primary-ink" aria-hidden />
               <p className="text-sm font-medium text-foreground">
                 Nothing to map yet
               </p>

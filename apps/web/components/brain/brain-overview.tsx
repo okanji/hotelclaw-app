@@ -71,7 +71,7 @@ export function BrainOverview({
         : "success";
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col gap-8 overflow-y-auto p-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-content flex-col gap-8 overflow-y-auto p-6">
       {/* Status + health */}
       <section className="rounded-md bg-card p-5">
         <div className="flex flex-wrap items-start gap-3">
@@ -157,7 +157,7 @@ export function BrainOverview({
             delta={docCoverage.lastSyncAt ? `last ${timeAgo(docCoverage.lastSyncAt)}` : undefined}
           />
         </StatGroup>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           {status.kind === "none"
             ? `${docCoverage.total} document${docCoverage.total === 1 ? "" : "s"} will mirror into the brain once it's provisioned.`
             : docCoverage.stale > 0
@@ -235,7 +235,7 @@ export function BrainOverview({
       ) : null}
 
       {status.kind !== "none" ? (
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           Use the search box on the left to preview exactly what a bot
           retrieves for any question — an empty result means the fact was
           never captured.

@@ -66,14 +66,14 @@ export function BrainPageDetail({
 
   if (pageQuery.isPending) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-8 lg:px-10">
+      <div className="mx-auto max-w-content px-6 py-8 lg:px-10">
         <p className="text-sm text-muted-foreground">Loading page…</p>
       </div>
     );
   }
   if (pageQuery.isError) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-8 lg:px-10">
+      <div className="mx-auto max-w-content px-6 py-8 lg:px-10">
         <p className="text-sm text-pretty text-muted-foreground">
           Couldn&apos;t load this page — it may have been archived, or the
           brain is briefly unreachable.
@@ -84,7 +84,7 @@ export function BrainPageDetail({
   const page = pageQuery.data;
 
   return (
-    <article className="mx-auto flex max-w-3xl flex-col px-6 py-8 lg:px-10">
+    <article className="mx-auto flex max-w-content flex-col px-6 py-8 lg:px-10">
       <Button
         variant="ghost"
         size="sm"
@@ -142,7 +142,7 @@ export function BrainPageDetail({
       </header>
 
       {page.content_flag ? (
-        <p className="mt-5 rounded-md bg-warning/10 px-3 py-2 text-xs text-pretty text-warning">
+        <p className="mt-5 rounded-card bg-warning/10 p-3 text-sm text-pretty text-warning">
           The brain flagged this page&apos;s content ({page.content_flag.reason})
           — treat it with care: {page.content_flag.detail}
         </p>

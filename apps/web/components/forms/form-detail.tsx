@@ -531,9 +531,12 @@ function SortableFieldRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "rounded-lg bg-background",
+        "rounded-md bg-background",
         isDragging && "opacity-50",
-        selected && "border-ring",
+        // Selected = the header and its editor read as ONE surface, drawn by
+        // the bare warm ring. (`border-ring` used to sit here with no border
+        // width beside it, so it painted nothing at all.)
+        selected && "shadow-ring",
       )}
     >
       <div
@@ -924,18 +927,28 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
 
       <SummaryStrip fields={fields} responses={responses} />
 
-      <div className="overflow-x-auto rounded-lg shadow-ring">
-        <table className="w-full text-sm">
+      {/* Notion database table (notion-spec-v2 §6): 36px header of 14px w400
+          tertiary labels, 37px rows, BOTH dividers, no zebra, no outer
+          frame — a data view breaks out of the document column. */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted text-left text-xs text-muted-foreground">
-              {hasMore ? <th className="w-8 px-2 py-2" /> : null}
-              <th className="px-3 py-2 font-medium">Respondent</th>
+            <tr className="h-9 border-b border-border text-left font-normal text-muted-foreground">
+              {hasMore ? (
+                <th className="w-8 border-r border-border px-2 font-normal" />
+              ) : null}
+              <th className="border-r border-border px-2 font-normal">
+                Respondent
+              </th>
               {visible.map((f) => (
-                <th key={f.id} className="max-w-44 truncate px-3 py-2 font-medium">
+                <th
+                  key={f.id}
+                  className="max-w-44 truncate border-r border-border px-2 font-normal"
+                >
                   {f.label}
                 </th>
               ))}
-              <th className="px-3 py-2 font-medium">Submitted</th>
+              <th className="px-2 font-normal">Submitted</th>
             </tr>
           </thead>
           <tbody>
@@ -975,9 +988,9 @@ function ResponseRows({
   const colSpan = visible.length + 2 + (hasMore ? 1 : 0);
   return (
     <>
-      <tr className="border-b border-border last:border-0">
+      <tr className="h-[37px] border-b border-border last:border-0">
         {hasMore ? (
-          <td className="px-2 py-2">
+          <td className="border-r border-border px-2">
             <button
               type="button"
               onClick={onToggle}
@@ -990,21 +1003,25 @@ function ResponseRows({
             </button>
           </td>
         ) : null}
-        <td className="px-3 py-2 whitespace-nowrap">
+        {/* The name cell is the UI-row rung: 14px w500 primary. */}
+        <td className="border-r border-border px-2 font-medium whitespace-nowrap">
           {response.respondent?.name ?? "Anonymous"}
         </td>
         {visible.map((f) => (
-          <td key={f.id} className="max-w-44 truncate px-3 py-2">
+          <td
+            key={f.id}
+            className="max-w-44 truncate border-r border-border px-2"
+          >
             <AnswerCell field={f} value={response.answers[f.id]} />
           </td>
         ))}
-        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+        <td className="px-2 whitespace-nowrap text-muted-foreground">
           {formatDate(response.created_at)}
         </td>
       </tr>
       {expanded ? (
         <tr className="border-b border-border bg-muted last:border-0">
-          <td colSpan={colSpan} className="px-4 py-3">
+          <td colSpan={colSpan} className="px-2 py-3">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
               {allFields.map((f) => (
                 <div key={f.id}>
@@ -1120,9 +1137,13 @@ function SummaryStrip({
       {summaries.map((s) => (
         <div
           key={s.field.id}
-          className="w-56 shrink-0 rounded-lg bg-background p-3"
+          className="w-56 shrink-0 rounded-card p-3 shadow-ring"
         >
-          <p className="truncate text-xs font-medium">{s.field.label}</p>
+          {/* A per-field summary tile is a WELL, not a page: bare warm ring,
+              no card shadow, and its heading is a 12px section label. */}
+          <p className="truncate text-xs font-medium text-faint-foreground">
+            {s.field.label}
+          </p>
           {s.kind === "rating" ? (
             <p className="mt-2 text-2xl font-semibold">
               {s.avg.toFixed(1)}
@@ -1143,7 +1164,9 @@ function SummaryStrip({
                     </div>
                     <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-primary/60"
+                        // Answer-distribution meter — a VALUE, so warm ink
+                        // (same call as `ui/progress`), never `--primary`.
+                        className="h-full rounded-full bg-secondary-ink"
                         style={{ width: `${pct}%` }}
                       />
                     </div>

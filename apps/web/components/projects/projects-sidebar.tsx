@@ -21,6 +21,7 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import type { EntityColor } from "@/lib/db/types";
+import { LABEL_INK } from "@/components/labels/label-tokens";
 import { useOpenSpace } from "@/lib/spaces/use-open-space";
 import { useOpenProject } from "@/lib/projects/use-open-project";
 import { CreateEntityDialog } from "./create-entity-dialog";
@@ -195,12 +196,5 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
 
 /** Tint the Users glyph by space color (stroke uses currentColor). */
 function textColor(color: EntityColor): string {
-  return {
-    slate: "text-slate-500",
-    blue: "text-blue-500",
-    green: "text-emerald-500",
-    amber: "text-amber-500",
-    rose: "text-rose-500",
-    violet: "text-violet-500",
-  }[color];
+  return LABEL_INK[color];
 }

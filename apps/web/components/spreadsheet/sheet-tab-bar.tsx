@@ -122,7 +122,7 @@ export function SheetTabBar({
       >
         <Plus className="size-4" />
       </Button>
-      <span className="mr-1 h-5 w-px bg-border/70" />
+      <span className="mr-1 h-5 w-px bg-border" />
       <DndContext
         sensors={sensors}
         collisionDetection={rectIntersection}

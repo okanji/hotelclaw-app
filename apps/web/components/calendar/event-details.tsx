@@ -179,25 +179,28 @@ const RESPONSE_META: Record<
   AttendeeResponse,
   { label: string; icon: React.ReactNode; className: string }
 > = {
+  // An RSVP is a lifecycle STATE, so each tone is a `--pill-*` token PAIR
+  // (notion-spec-v2 §6) — never `/10` alpha maths over the status ramp, which
+  // drifts from the ramp and needs a `dark:` override the pair bakes in.
   accepted: {
     label: "Yes",
     icon: <Check className="size-3" />,
-    className: "bg-success/10 text-success",
+    className: "bg-pill-success text-pill-success-ink",
   },
   declined: {
     label: "No",
     icon: <X className="size-3" />,
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-pill-danger text-pill-danger-ink",
   },
   tentative: {
     label: "Maybe",
     icon: <HelpCircle className="size-3" />,
-    className: "bg-warning/10 text-warning",
+    className: "bg-pill-warning text-pill-warning-ink",
   },
   pending: {
     label: "Awaiting",
     icon: <CircleDashed className="size-3" />,
-    className: "bg-muted text-muted-foreground",
+    className: "bg-pill-neutral text-pill-neutral-ink",
   },
 };
 
@@ -398,7 +401,9 @@ export function MeetingDetails({
                     ) : (
                       <span
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-md py-0.5 pr-2 pl-1.5 text-xs font-medium",
+                          // The measured status pill: 20px tall, 4px radius,
+                          // `0 6px`, 14px weight 500 (notion-spec-v2 §6).
+                          "inline-flex h-5 shrink-0 items-center gap-1 rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
                           meta.className,
                         )}
                       >
@@ -498,7 +503,11 @@ export function TaskDetails({
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className={cn(
-                "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+                // Same measured status pill as the StatusBadge beside it, so
+                // the two read as one row of states (notion-spec-v2 §6). The
+                // fill comes from `PRIORITY_META.badgeClass`, which is now on
+                // the `--pill-*` token pairs too — geometry here, hue there.
+                "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
                 priorityMeta.badgeClass,
               )}
             >

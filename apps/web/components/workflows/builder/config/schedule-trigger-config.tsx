@@ -76,7 +76,7 @@ export function ScheduleTriggerConfig({
                       className={cn(
                         "h-8 w-10 rounded-md border text-sm font-medium transition-colors",
                         on
-                          ? "border-primary bg-primary/10 text-primary"
+                          ? "border-primary bg-primary/10 text-primary-ink"
                           : "border-input text-muted-foreground hover:bg-accent",
                       )}
                     >

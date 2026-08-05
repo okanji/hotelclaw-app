@@ -76,7 +76,10 @@ function CoverCard({
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3.5">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-foreground">
+          {/* A gallery-card title is CONTENT, not a UI label → 16px / 24px
+              (notion-spec-v2 §2). v1 flattened these to 14px, which is what
+              made our cards read as list rows instead of as pages. */}
+          <span className="truncate text-base leading-6 text-foreground">
             {title}
           </span>
           {titleMeta}
@@ -91,7 +94,7 @@ function CoverCard({
             {tags.map((t) => (
               <span
                 key={t}
-                className="rounded-md bg-accent px-1.5 py-0.5 text-xs font-medium text-faint-foreground"
+                className="rounded-pill bg-pill-neutral px-1.5 py-0.5 text-xs font-medium text-pill-neutral-ink"
               >
                 {t}
               </span>
@@ -108,7 +111,10 @@ function CoverCard({
     props: mergeProps<"div">(
       {
         className: cn(
-          "group/cover-card flex flex-col overflow-hidden rounded-md bg-card text-left shadow-ring outline-none",
+          // A gallery card IS a page → the 10px surface rung + the card
+          // elevation tier (notion-spec-v2 §5/§6). The ring is the shadow's
+          // last layer, so no `border` and no `ring-*` on top.
+          "group/cover-card flex flex-col overflow-hidden rounded-card bg-card text-left shadow-card outline-none",
           // Interactive affordances only when rendered as a link/button.
           // Fill-only hover (opaque surface ⇒ `bg-secondary`, not the
           // translucent `bg-accent`), no border shift, no shadow, no lift.

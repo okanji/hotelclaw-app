@@ -176,7 +176,10 @@ export function Timetable({
   }
 
   return (
-    <div className="hidden overflow-x-auto rounded-md shadow-ring md:block">
+    // A data view: full bleed inside its section, capped only by the
+    // horizontal scroller. The frame is a SURFACE, so it takes the 10px rung
+    // with the bare warm ring — it is not a page, so no `shadow-card`.
+    <div className="hidden overflow-x-auto rounded-card shadow-ring md:block">
       {/* Wider minimum than before: the resource column grew to hold a 14px
           table name, and the blocks need room for a 14px guest name. */}
       <div className="min-w-[720px]">
@@ -259,13 +262,16 @@ export function Timetable({
                               // on the block itself without erasing the status;
                               // it's an inset warm-black overlay instead, which
                               // is the same 5% fill gesture, layered.
-                              "group absolute top-1 bottom-1 z-[5] flex flex-col justify-center overflow-hidden rounded-md px-1.5 text-left focus-visible:shadow-focus focus-visible:outline-none",
+                              // 4px pill rung: a block is a status pill
+                              // stretched along the time axis, exactly like a
+                              // calendar event chip (notion-spec-v2 §4).
+                              "group absolute top-1 bottom-1 z-[5] flex flex-col justify-center overflow-hidden rounded-pill px-1.5 text-left focus-visible:shadow-focus focus-visible:outline-none",
                               STATUS_BLOCK[b.status],
                             )}
                           />
                         }
                       >
-                        <span className="pointer-events-none absolute inset-0 rounded-md transition-colors group-hover:bg-accent" />
+                        <span className="pointer-events-none absolute inset-0 rounded-pill transition-colors group-hover:bg-accent" />
                         {/* The guest is the content: 14px/500, same rung as a
                             list row. Party size + source are the annotation. */}
                         <span className="relative block truncate text-sm leading-tight font-medium">
@@ -347,11 +353,14 @@ export function Timetable({
                     key={t.left}
                     style={{ left: `${t.left}%` }}
                     className={cn(
-                      "absolute top-1.5 -translate-x-1/2 rounded-md px-1 text-xs font-medium tabular-nums",
+                      // An over-capacity hour is a STATE, so it is the pill:
+                      // 4px radius and a `--pill-*` token PAIR rather than
+                      // `/12` alpha maths over the ramp (notion-spec-v2 §6).
+                      "absolute top-1.5 -translate-x-1/2 rounded-pill px-1.5 text-xs font-medium tabular-nums",
                       ratio >= 1
-                        ? "bg-destructive/12 text-destructive"
+                        ? "bg-pill-danger text-pill-danger-ink"
                         : ratio >= 0.8
-                          ? "bg-warning/12 text-warning"
+                          ? "bg-pill-warning text-pill-warning-ink"
                           : "text-faint-foreground",
                     )}
                   >

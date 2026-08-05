@@ -42,7 +42,10 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
         description="Every durable conversation and workflow run the pod bots hold in this property. Open one to read its full event log — every message, tool call, and approval, exactly as it happened."
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {sessions.length === 0 ? (
         <EmptyState icon={MessagesSquare} title="No sessions yet">

@@ -75,7 +75,7 @@ export function PinFormDialog({
             “{formTitle}” will appear on the team’s overview.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-md border p-1">
+        <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-md p-1 shadow-ring">
           {spaces === null ? (
             <p className="px-2 py-3 text-sm text-muted-foreground">Loading teams…</p>
           ) : spaces.length === 0 ? (

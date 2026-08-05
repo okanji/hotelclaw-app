@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist_Mono, Lato } from "next/font/google";
+import { Geist_Mono, Lato } from "next/font/google";
 import "./globals.css";
 import "stream-chat-react/dist/css/index.css";
 import "./stream-chat-overrides.css";
@@ -9,12 +9,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
-const inter = Inter({
-  variable: "--font-sans-inter",
-  subsets: ["latin"],
-  axes: ["opsz"],
-});
-
+// There is deliberately NO sans webfont. `--font-sans` is the plain system
+// stack (app/globals.css, notion-spec-v2 §2) — Notion ships no webfont, and a
+// loaded UI face is itself a "designed template" tell. The old Inter
+// next/font wiring (`--font-sans-inter`) was removed on 2026-08-05; do not
+// reintroduce it. `font-mono` and the chat's Lato below are unaffected.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -49,7 +48,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${geistMono.variable} ${lato.variable} h-full antialiased`}
+      className={`${geistMono.variable} ${lato.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col overflow-hidden">
         <ThemeProvider>

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { deleteTask, moveTask, updateTask } from "./actions";
 import {
   COLUMNS,
+  COLUMN_PILL_CLASS,
   PRIORITY_META,
   PRIORITY_IDS,
   STATUS_IDS,
@@ -129,7 +130,7 @@ export function ListView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {/* Sticky table header — matches the row template below */}
-      <div className="sticky top-0 z-10 grid h-8 grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-card px-4 text-xs/[1] font-medium text-faint-foreground">
+      <div className="sticky top-0 z-10 grid h-9 grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-b border-border bg-card px-4 text-sm/[1.2] font-normal text-muted-foreground">
         <span />
         <span>Title</span>
         <span>Priority</span>
@@ -146,7 +147,7 @@ export function ListView({
         const isCollapsed = collapsed[status];
         return (
           <section key={status} className="border-b border-border last:border-0">
-            <header className="flex h-8 items-center gap-2 bg-muted px-4">
+            <header className="flex h-9 items-center gap-2 px-4">
               <button
                 type="button"
                 onClick={() =>
@@ -161,17 +162,21 @@ export function ListView({
                   <ChevronDown className="size-3.5" />
                 )}
               </button>
-              <StatusIcon status={col.id} className="size-3.5" />
-              <h3 className="text-sm font-medium text-foreground">
+              <h3
+                className={cn(
+                  "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
+                  COLUMN_PILL_CLASS[col.pillTone].pill,
+                )}
+              >
                 {col.label}
               </h3>
-              <span className="text-xs tabular-nums text-faint-foreground">
+              <span className="text-sm tabular-nums text-faint-foreground">
                 {rows.length}
               </span>
               <button
                 type="button"
                 onClick={() => onOpenFullCreate(status)}
-                className="ml-auto inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent"
+                className="ml-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground hover:bg-accent"
               >
                 <Plus className="size-3" />
                 New
@@ -180,7 +185,7 @@ export function ListView({
 
             {!isCollapsed ? (
               rows.length === 0 ? (
-                <div className="px-6 py-4 text-xs text-faint-foreground">
+                <div className="px-6 py-4 text-sm text-faint-foreground">
                   No tasks in this status.
                 </div>
               ) : (
@@ -424,9 +429,9 @@ function ListRow({
   return (
     <div
       className={cn(
-        // 34px row on the Notion rhythm; the only rule is the 1px warm
-        // divider between rows — no vertical rules, no per-row stroke.
-        "group grid min-h-[34px] grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border px-4 py-1 text-sm",
+        // The measured 37px database row (notion-spec-v2 §6); the only rule
+        // is the 1px warm divider between rows.
+        "group grid min-h-[37px] grid-cols-[24px_1fr_120px_140px_140px_180px_32px] items-center gap-3 border-t border-border px-4 py-1 text-sm",
         "hover:bg-accent",
         selected && "bg-accent-pressed",
         pending && "opacity-60",
@@ -480,7 +485,7 @@ function ListRow({
 
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs font-medium",
+          "inline-flex items-center gap-1.5 text-sm font-medium",
           priority.textClass,
         )}
       >
@@ -490,7 +495,7 @@ function ListRow({
 
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs tabular-nums",
+          "inline-flex items-center gap-1.5 text-sm tabular-nums",
           due
             ? overdue
               ? "text-destructive"
@@ -508,7 +513,7 @@ function ListRow({
         )}
       </span>
 
-      <span className="flex items-center gap-2 text-xs text-faint-foreground">
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
         {task.assignee_id ? (
           <>
             <Avatar size="sm" className="size-5">
@@ -526,7 +531,7 @@ function ListRow({
         )}
       </span>
 
-      <span className="text-xs text-faint-foreground tabular-nums">
+      <span className="text-sm text-muted-foreground tabular-nums">
         {formatDate(task.updated_at, now)}
       </span>
 

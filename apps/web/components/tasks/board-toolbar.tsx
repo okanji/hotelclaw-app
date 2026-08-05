@@ -217,7 +217,11 @@ export function BoardToolbar({
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             className={cn(
-              "h-7 w-44 rounded-md bg-accent pr-7 pl-7 text-xs shadow-none",
+              // The QUERY is a value the user types, so it reads on the UI
+              // rung (14px), not the metadata rung — a 12px input is the
+              // single loudest "this is a dashboard" tell (notion-spec-v2 §2).
+              // The `/` hint beside it stays 12px; that IS metadata.
+              "h-7 w-44 rounded-md bg-accent pr-7 pl-7 text-sm shadow-none",
               "placeholder:text-faint-foreground",
               "transition-colors",
               "focus-visible:shadow-focus focus-visible:outline-none",

@@ -4,11 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Alerts separate by FILL, not by a stroke (notion-spec §1): no border, the
- * 6px control radius, and a warm tinted ground per tone.
+ * An Alert is our CALLOUT (notion-spec-v2 §6): it separates by FILL, never by
+ * a stroke — no border — and it is a SURFACE, so it takes the 10px card radius
+ * and 12px padding rather than the 6px clickable rung. The warm tinted ground
+ * per tone is the whole boundary.
  */
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-md px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  "group/alert relative grid w-full gap-0.5 rounded-card p-3 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

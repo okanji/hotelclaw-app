@@ -132,7 +132,7 @@ export function SpaceMembersPanel({
           {roster.map((p) => (
             <li
               key={p.id}
-              className="group/row flex items-center gap-3 px-1 py-3"
+              className="group/row flex h-[37px] items-center gap-3 px-1"
             >
               <Avatar className="size-7">
                 {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}

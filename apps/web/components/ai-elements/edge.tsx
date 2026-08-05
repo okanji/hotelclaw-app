@@ -126,7 +126,10 @@ const Animated = ({ id, source, target, markerEnd, style }: EdgeProps) => {
   return (
     <>
       <BaseEdge id={id} markerEnd={markerEnd} path={edgePath} style={style} />
-      <circle fill="var(--primary)" r="4">
+      {/* The travelling flow dot rides a STRUCTURAL connector, so it takes
+          warm ink like the stroke does — not `--primary` (Notion blue), which
+          would put a pulsing action-coloured marker on every edge. */}
+      <circle fill="var(--muted-foreground)" r="4">
         <animateMotion dur="2s" path={edgePath} repeatCount="indefinite" />
       </circle>
     </>

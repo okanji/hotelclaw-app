@@ -9,11 +9,14 @@ import {
 import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 
 /**
- * Quick access to the main workspaces under the Home masthead. Neutral cards in
- * the house language — `bg-card` + the 1px warm ring, no stroke and no resting
- * shadow, matching the KPI stat cards. Colour lives only in the small tinted
- * icon chip, never the fill, so the whole page reads as one consistent card
- * system. Deep-links via next/link.
+ * Quick access to the main workspaces, sitting under the Home masthead like
+ * Notion's "recently visited" strip: four **page-like cards** — the one place
+ * on Home that legitimately takes `rounded-card` + `shadow-card`, because each
+ * card stands for a destination page (notion-spec-v2 §5). Content is stacked —
+ * tinted icon chip, then the destination name at the **content rung**
+ * (`16px / 24px` weight 400, not a 14px UI label), then a 12px faint line —
+ * which is what lets four of them sit inside the 720px document column without
+ * truncating. Colour lives only in the icon chip, never the fill.
  */
 type QuickTile = {
   label: string;
@@ -64,16 +67,16 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
           <Link
             key={t.label}
             href={t.href(base)}
-            className="flex min-w-0 items-center gap-3 rounded-md bg-card p-3.5 shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus"
+            className="flex min-w-0 flex-col gap-2.5 rounded-card bg-card p-3 shadow-card transition-colors hover:bg-accent focus-visible:shadow-focus"
           >
             <TintIcon tone={t.tone}>
               <Icon />
             </TintIcon>
             <div className="min-w-0">
-              <div className="text-sm font-medium text-foreground">
+              <div className="truncate text-base leading-6 font-normal text-foreground">
                 {t.label}
               </div>
-              <div className="truncate text-xs text-muted-foreground">
+              <div className="truncate text-xs leading-4 text-faint-foreground">
                 {t.sub}
               </div>
             </div>

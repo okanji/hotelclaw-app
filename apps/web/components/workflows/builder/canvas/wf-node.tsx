@@ -30,7 +30,7 @@ function friendlyKind(typeId: string): string {
 interface ExtraHandleSpec {
   id: string;
   label: string;
-  /** Tailwind color class for the handle, e.g. "bg-primary". */
+  /** Tailwind color class for the handle, e.g. "bg-secondary-ink". */
   tone?: string;
 }
 
@@ -63,16 +63,20 @@ export const WfNodeProvider = WfNodeCtx.Provider;
 const NODE_W = 280;
 const ROW_PX = 22;
 
+// Handles + the trigger's left rule are STRUCTURE (where a wire attaches, which
+// card is the entry point) — they are drawn in warm ink, never in `--primary`.
+// Since 2026-08-05 `--primary` is Notion blue, and on this canvas blue means
+// exactly one thing: the node you have selected.
 function outputsFor(
   isTrigger: boolean,
   branchHandles: ExtraHandleSpec[],
 ): ExtraHandleSpec[] {
   if (isTrigger) {
-    return [{ id: "next", label: "Next", tone: "bg-primary" }];
+    return [{ id: "next", label: "Next", tone: "bg-secondary-ink" }];
   }
   if (branchHandles.length === 0) {
     return [
-      { id: "next", label: "Next", tone: "bg-primary" },
+      { id: "next", label: "Next", tone: "bg-secondary-ink" },
       { id: "error", label: "On error", tone: "bg-destructive" },
     ];
   }
@@ -104,9 +108,15 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
         handles={{ target: false, source: false }}
         className={cn(
           "w-full transition-colors",
+          // Selection IS an active state, so it keeps the blue. It stays a
+          // `ring-*` rather than `shadow-focus`: AiNode is a `Card`, which
+          // carries `shadow-card`, and Tailwind box-shadow utilities share one
+          // `--tw-shadow` slot — `shadow-focus` would clobber the card's
+          // elevation, whereas `ring-*` composes with it.
           selected && "ring-2 ring-primary",
           data.unaccepted && "ring-2 ring-[var(--chart-2)]/70",
-          isTrigger && "border-l-2 border-l-primary",
+          // "This card is the entry point" is structure, not an action.
+          isTrigger && "border-l-2 border-l-secondary-ink",
         )}
       >
         <NodeHeader className="flex items-center gap-2">
@@ -150,7 +160,7 @@ export function WfNode({ id, data, selected }: NodeProps<WfRfNode>) {
               className={cn(
                 "!size-3 !border-2 !border-background",
                 out.id === "error" && "!bg-destructive",
-                out.id === "next" && "!bg-primary",
+                out.id === "next" && "!bg-secondary-ink",
                 out.id.startsWith("branch:") && "!bg-muted-foreground",
               )}
             />

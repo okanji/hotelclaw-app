@@ -220,7 +220,7 @@ export function SlackMessageImage(props: GalleryImageProps) {
                             href={openUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary underline-offset-2 hover:underline"
+                            className="text-primary-ink underline-offset-2 hover:underline"
                           >
                             {openUrl}
                           </a>

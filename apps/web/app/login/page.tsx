@@ -80,8 +80,12 @@ export default async function LoginPage({
       <div className="flex min-h-svh flex-col bg-card px-6 py-10 sm:px-10">
         {/* Wordmark — shown on mobile where the brand panel is hidden */}
         <div className="flex items-center gap-2.5 lg:invisible">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary">
-            <ConciergeBell className="size-4.5 text-primary-foreground" />
+          {/* The mark is BRAND (aubergine + lavender), matching the desktop
+              panel above — not `bg-primary`. `--primary` became Notion blue on
+              2026-08-05, so a primary-filled wordmark would paint the logo in
+              the primary-ACTION colour instead of the brand's. */}
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand">
+            <ConciergeBell className="size-4.5 text-brand-accent" />
           </span>
           <span className="text-base font-semibold">
             Hotelclaw

@@ -97,7 +97,10 @@ export function FormsList({
         }
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {forms.length === 0 ? (
         <EmptyState
@@ -208,7 +211,7 @@ function FormCard({
   }
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg bg-background p-4 transition-colors hover:bg-accent">
+    <div className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent">
       <Link href={href} className="absolute inset-0" aria-label={form.title} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
@@ -216,9 +219,9 @@ function FormCard({
             {form.icon || <ClipboardList />}
           </TintIcon>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{form.title}</p>
+            <p className="truncate text-base leading-6 font-normal">{form.title}</p>
             {form.description ? (
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-sm text-muted-foreground">
                 {form.description}
               </p>
             ) : null}

@@ -94,7 +94,7 @@ export function SpaceAutomationsPanel({
             <li key={w.id}>
               <Link
                 href={`/p/${propertyId}/workflows/${w.id}`}
-                className="group flex items-center gap-3 px-4 min-h-[34px] py-1.5 text-sm transition-colors hover:bg-accent"
+                className="group flex items-center min-h-[37px] gap-3 px-4 text-sm transition-colors hover:bg-accent"
               >
                 <Workflow className="size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate font-medium text-foreground">

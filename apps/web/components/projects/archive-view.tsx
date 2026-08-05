@@ -107,7 +107,8 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
         </p>
       </header>
 
-      <hr className="my-9 border-border" />
+      {/* Masthead and content separate by WHITESPACE (notion-spec-v2 §1/§3). */}
+      <div className="h-9" />
 
       {isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -165,7 +166,7 @@ function Section({
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Icon className="size-4 text-muted-foreground" strokeWidth={1.75} />
-        <h2 className="text-sm font-medium text-foreground">
+        <h2 className="text-base leading-6 font-semibold text-foreground">
           {title}
         </h2>
         <span className="text-xs text-faint-foreground tabular-nums">
@@ -179,7 +180,7 @@ function Section({
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-3 px-1 py-3"
+            className="flex h-[37px] items-center gap-3 px-1"
           >
             {item.icon ? (
               <span className="shrink-0 text-base leading-none">
@@ -194,7 +195,8 @@ function Section({
                 aria-hidden="true"
               />
             )}
-            <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+            {/* Name cell = the UI-row rung: 14px w500. */}
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
               {item.name || "Untitled"}
             </span>
             {item.archived_at ? (

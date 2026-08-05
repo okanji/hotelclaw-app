@@ -90,9 +90,9 @@ export function ArchivedDocumentsDialog({
             </p>
           ) : documents === null ? (
             <div className="space-y-2 py-2">
-              <Skeleton className="h-[34px] w-full" />
-              <Skeleton className="h-[34px] w-full" />
-              <Skeleton className="h-[34px] w-full" />
+              <Skeleton className="h-[37px] w-full" />
+              <Skeleton className="h-[37px] w-full" />
+              <Skeleton className="h-[37px] w-full" />
             </div>
           ) : documents.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
@@ -104,7 +104,7 @@ export function ArchivedDocumentsDialog({
                 {documents.map((d) => (
                   <li
                     key={d.id}
-                    className="flex min-h-[34px] items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+                    className="flex min-h-[37px] items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{d.title}</p>

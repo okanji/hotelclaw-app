@@ -196,7 +196,7 @@ export function BotDetail({
 
           <section className="flex flex-col gap-3">
             <Eyebrow>Tools</Eyebrow>
-            <p className="max-w-2xl text-xs text-pretty text-muted-foreground">
+            <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
               The bot&apos;s entire capability surface — a tool not granted
               here does not exist for it. Money-moving tools park every call
               for human approval (the Approvals inbox), no matter what the
@@ -242,7 +242,7 @@ export function BotDetail({
 
           <section className="flex flex-col gap-2">
             <Eyebrow>Fallback persona</Eyebrow>
-            <p className="max-w-2xl text-xs text-pretty text-muted-foreground">
+            <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
               The bot&apos;s real persona lives in the pod&apos;s knowledge
               brain and is resolved fresh each session. This fallback applies
               only when the brain is unreachable or the playbook is unseeded —

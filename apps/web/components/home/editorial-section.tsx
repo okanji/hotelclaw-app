@@ -24,12 +24,20 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * A Home dashboard section: a sentence-case 12px label over a 16px/600
+ * The **two-column grid** section — a sentence-case 12px label over a 16px/600
  * heading, then content laid out with whitespace and hairline row dividers —
  * not cards, and (per notion-spec §1) no rule under the heading. The whole
  * section is a dnd-kit sortable item; the drag grip and hide control sit in
  * the heading and reveal on hover, so the layout stays calm at rest but is
  * fully rearrangeable.
+ *
+ * **Insights is the only caller.** Home used to share this; it now renders
+ * `home/document-section.tsx` instead — a single-column document section with
+ * the H2 at the 24px rung and the grip out in the block gutter. The two are
+ * deliberately separate components, not one component with a variant flag, so
+ * that restructuring one page cannot move a pixel on the other. The rest of
+ * this file (CustomizeMenu, HiddenTray, and the widget primitives below) IS
+ * still shared by both.
  */
 export function EditorialSection({
   id,
@@ -272,7 +280,7 @@ export function DividerList({ children }: { children: React.ReactNode }) {
 
 /** Shared row metrics for divider-list rows — the 34px / 6px Notion row. */
 export const ROW_CLASS =
-  "flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5";
+  "flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5";
 
 export function WidgetEmpty({ children }: { children: React.ReactNode }) {
   return (

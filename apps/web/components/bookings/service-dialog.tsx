@@ -225,7 +225,7 @@ export function ServiceDialog({
           </div>
 
           {/* Weekly hours */}
-          <div className="space-y-2 rounded-md bg-muted p-3">
+          <div className="space-y-2 rounded-card bg-muted p-3">
             <p className="text-sm font-medium">Weekly hours</p>
             <p className="text-xs text-muted-foreground">
               The booking window per day — the last start time is the end of
@@ -332,7 +332,7 @@ export function ServiceDialog({
 
           {/* Specific dates — one-off events and special hours. Overrides
               weekly for that date (an event = empty weekly + dated ranges). */}
-          <div className="space-y-2 rounded-md bg-muted p-3">
+          <div className="space-y-2 rounded-card bg-muted p-3">
             <p className="text-sm font-medium">
               {kind === "event" ? "Event dates" : "Special dates (optional)"}
             </p>

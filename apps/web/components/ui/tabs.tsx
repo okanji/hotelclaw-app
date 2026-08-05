@@ -23,13 +23,23 @@ function Tabs({
   )
 }
 
+/**
+ * Tabs — in-place content panels. The strip is Notion's **view-tab pill row**
+ * (notion-spec-v2 §6): no container fill, no segmented-control well, no
+ * underline. Each tab is a 32px / 20px-radius pill whose active fill is the
+ * warm hover fill.
+ *
+ * Both `variant` keys survive so call sites keep compiling; neither paints a
+ * container any more (`default` used to be a `bg-muted` segmented control, and
+ * `line` used to draw a 2px underline marker — v2 deletes both).
+ */
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex w-fit items-center justify-center rounded-md p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+  "group/tabs-list inline-flex w-fit items-center justify-start gap-1 text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:items-stretch",
   {
     variants: {
       variant: {
-        default: "bg-muted",
-        line: "gap-1 bg-transparent",
+        default: "bg-transparent",
+        line: "bg-transparent",
       },
     },
     defaultVariants: {
@@ -58,13 +68,12 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        // No `shadow-sm` on the resting active tab (notion-spec §5: elevation
-        // is for floating overlays only), no dead transparent border, no
-        // label color flip on hover — hover is a fill change.
-        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start focus-visible:shadow-focus focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:hover:bg-accent group-data-[variant=line]/tabs-list:data-active:bg-transparent",
-        "data-active:bg-card data-active:text-foreground",
-        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        // The measured view-tab pill: 32px tall, 20px radius, 6px 12px
+        // padding, 14px weight 500. No elevation on the active tab, no
+        // underline marker, no label colour flip on hover — hover is a fill.
+        "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-modal px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start focus-visible:shadow-focus focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        // The active pill's resting fill IS the warm hover fill.
+        "hover:bg-accent data-active:bg-accent data-active:text-foreground data-active:hover:bg-accent-pressed",
         className
       )}
       {...props}

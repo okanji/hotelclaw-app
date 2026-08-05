@@ -52,7 +52,7 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
         <span
           className={cn(
             "block truncate text-xs",
-            writing ? "text-primary" : "text-muted-foreground",
+            writing ? "text-primary-ink" : "text-muted-foreground",
           )}
         >
           {status}
@@ -62,7 +62,7 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
         className={cn(
           "inline-flex shrink-0 items-center gap-1 text-xs font-medium transition-colors",
           writing
-            ? "text-primary"
+            ? "text-primary-ink"
             : "text-muted-foreground/70 group-hover:text-foreground",
         )}
       >

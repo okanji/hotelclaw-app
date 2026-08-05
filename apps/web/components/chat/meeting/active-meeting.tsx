@@ -129,7 +129,9 @@ function InCallView({ onLeave }: { onLeave: () => void }) {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
+          {/* Lifecycle state → the measured select pill (notion-spec-v2 §6):
+              20px tall, 4px radius, 14px w500, `--pill-*` fill + ink. */}
+          <span className="inline-flex h-5 items-center gap-1.5 rounded-pill bg-pill-success px-1.5 text-sm font-medium text-pill-success-ink">
             <span
               aria-hidden="true"
               className="size-1.5 animate-pulse rounded-full bg-success"
@@ -178,7 +180,7 @@ function TranscriptionPill() {
   }, [isTranscribing]);
   if (!isTranscribing) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-info/15 px-2 py-0.5 text-xs font-medium text-info">
+    <span className="inline-flex h-5 items-center gap-1.5 rounded-pill bg-pill-info px-1.5 text-sm font-medium text-pill-info-ink">
       <Sparkles className="size-3" />
       Transcribing
     </span>

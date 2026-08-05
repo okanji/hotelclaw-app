@@ -25,8 +25,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
-import { StatusIcon } from "./task-icons";
-import type { Task } from "./kanban";
+import { COLUMN_PILL_CLASS, type Task } from "./kanban";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import type { TaskStatus } from "@/lib/db/types";
 
@@ -45,6 +44,7 @@ type Props = {
     id: TaskStatus;
     label: string;
     dotClass: string;
+    pillTone: keyof typeof COLUMN_PILL_CLASS;
     wipLimit: number | null;
   };
   taskIds: string[];
@@ -149,13 +149,17 @@ export function KanbanColumn({
   }
   const overWip =
     column.wipLimit != null && taskIds.length > column.wipLimit;
+  const hue = COLUMN_PILL_CLASS[column.pillTone];
 
   if (collapsed) {
     return (
+      // No column background (notion-spec-v2 §6) — a collapsed group is just
+      // its pill turned sideways. The drop target is signalled by the warm
+      // pressed fill alone; no ring, no stroke.
       <section
         className={cn(
-          "flex h-full w-11 shrink-0 flex-col items-center rounded-md bg-muted py-3",
-          isDropTarget && "bg-accent-pressed ring-1 ring-ring",
+          "flex h-full w-11 shrink-0 flex-col items-center rounded-md py-3 transition-colors",
+          isDropTarget && "bg-accent-pressed",
         )}
       >
         <button
@@ -167,14 +171,16 @@ export function KanbanColumn({
           <ChevronRight className="size-3.5" />
         </button>
         <div className="mt-3 flex flex-col items-center gap-2">
-          <StatusIcon status={column.id} />
           <span
-            className="text-xs font-medium text-foreground [writing-mode:vertical-rl]"
+            className={cn(
+              "rounded-pill px-1 py-1.5 text-sm font-medium [writing-mode:vertical-rl]",
+              hue.pill,
+            )}
             style={{ textOrientation: "mixed" }}
           >
             {column.label}
           </span>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-sm tabular-nums text-faint-foreground">
             {taskIds.length}
           </span>
         </div>
@@ -183,24 +189,32 @@ export function KanbanColumn({
   }
 
   return (
+    // **No column background.** Notion's board groups float their cards on the
+    // page plane; the grey well we used to paint here is the single loudest
+    // "generic kanban" tell (notion-spec-v2 §1.4/§6). The only fill this
+    // element ever takes is the transient drop-target wash.
     <section
       className={cn(
-        "group/column flex h-full w-72 shrink-0 flex-col rounded-md bg-muted",
+        "group/column flex h-full w-72 shrink-0 flex-col rounded-md",
         "transition-colors",
-        isDropTarget && "bg-accent-pressed ring-1 ring-ring",
+        isDropTarget && "bg-accent-pressed",
       )}
     >
-      <header className="flex h-10 shrink-0 items-center gap-2 px-3">
-        <StatusIcon status={column.id} />
-        <h3 className="text-sm font-medium text-foreground">
+      {/* Group header = a tinted status PILL + a faint count. No icon glyph,
+          no primary-ink heading — the hue carries the state. */}
+      <header className="flex h-10 shrink-0 items-center gap-2 px-2">
+        <h3
+          className={cn(
+            "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
+            hue.pill,
+          )}
+        >
           {column.label}
         </h3>
         <span
           className={cn(
-            "text-xs tabular-nums",
-            overWip
-              ? "font-medium text-warning"
-              : "text-muted-foreground",
+            "text-sm tabular-nums",
+            overWip ? "font-medium text-warning" : "text-faint-foreground",
           )}
           title={
             overWip
@@ -210,7 +224,7 @@ export function KanbanColumn({
         >
           {taskIds.length}
           {column.wipLimit != null ? (
-            <span className="text-muted-foreground">/{column.wipLimit}</span>
+            <span className="text-faint-foreground">/{column.wipLimit}</span>
           ) : null}
         </span>
 
@@ -311,7 +325,7 @@ export function KanbanColumn({
             type="button"
             ref={sentinelRef}
             onClick={() => setVisibleCount((c) => c + COLUMN_PAGE)}
-            className="block w-full rounded-md py-2 text-center text-xs text-muted-foreground hover:text-foreground"
+            className="block w-full rounded-md py-2 text-center text-sm text-faint-foreground hover:text-foreground"
           >
             {taskIds.length - visibleIds.length} more…
           </button>
@@ -323,23 +337,23 @@ export function KanbanColumn({
           </div>
         ) : null}
 
-        {/* Footer add — a full-width pill anchored at the bottom of the
-            column's scroll area, matching Linear's resting CTA. Always
-            visible (empty or not) so adding feels one click away. */}
+        {/* Notion's inline "+ New page" row (notion-spec-v2 §6): always
+            visible, LABELLED, no fill at rest, and its hover wash is the
+            column's own hue. Not a filled grey pill with a bare glyph — that
+            read as a button parked in a well. */}
         {!adding ? (
           <button
             type="button"
             onClick={() => setAdding(true)}
-            aria-label={`Add task to ${column.label}`}
             className={cn(
-              "mt-0.5 flex h-9 w-full items-center justify-center rounded-md",
-              "bg-accent",
-              "text-muted-foreground transition-colors",
-              "hover:bg-accent",
-              "focus-visible:outline-none focus-visible:shadow-focus",
+              "mt-0.5 flex h-7 w-full items-center gap-1.5 rounded-md px-1.5",
+              "text-sm transition-colors",
+              hue.add,
+              "focus-visible:shadow-focus focus-visible:outline-none",
             )}
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5 shrink-0" />
+            New task
           </button>
         ) : null}
       </div>

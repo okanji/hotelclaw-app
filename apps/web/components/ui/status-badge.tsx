@@ -13,20 +13,29 @@ import { cn } from "@/lib/utils"
  * globals.css (--success/--warning/--info/--destructive) plus violet for
  * "in-progress/occupied" states.
  *
- * Notion language: a 6px rect, not a capsule, and NO stroke — the tinted
- * fill plus the leading dot already read as a state pill (notion-spec §1).
+ * Notion language (notion-spec-v2 §6): this is the measured STATUS PILL —
+ * 20px tall, 4px radius (`rounded-pill`, NOT the 6px clickable rung), padding
+ * `0 6px`, label 14px weight 500, fill = the hue at ~16% alpha and ink = the
+ * same hue darkened. No stroke, ever: the tinted fill plus the leading dot
+ * already read as a state.
+ *
+ * Every tone is a `--pill-*` token PAIR, so the fill/ink relationship is
+ * defined once in globals.css and inverts correctly on the dark plane with no
+ * `dark:` override here. Violet is the entity-palette rung (in-progress /
+ * occupied / seated), which is why it is `pill-violet` and not a raw
+ * `violet-500` — the tailwind palette is cold and breaks on the warm planes.
  */
 const statusBadgeVariants = cva(
-  "inline-flex h-5 w-fit shrink-0 items-center gap-1.5 rounded-md py-0.5 pr-2 pl-1.5 text-xs font-medium whitespace-nowrap",
+  "inline-flex h-5 w-fit shrink-0 items-center gap-1 rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
   {
     variants: {
       tone: {
-        neutral: "bg-accent text-muted-foreground",
-        success: "bg-success/10 text-success",
-        warning: "bg-warning/10 text-warning",
-        info: "bg-info/10 text-info",
-        danger: "bg-destructive/10 text-destructive",
-        violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+        neutral: "bg-pill-neutral text-pill-neutral-ink",
+        success: "bg-pill-success text-pill-success-ink",
+        warning: "bg-pill-warning text-pill-warning-ink",
+        info: "bg-pill-info text-pill-info-ink",
+        danger: "bg-pill-danger text-pill-danger-ink",
+        violet: "bg-pill-violet text-pill-violet-ink",
       },
     },
     defaultVariants: {
@@ -49,7 +58,7 @@ function StatusBadge({
   return (
     <span
       data-slot="status-badge"
-      className={cn(statusBadgeVariants({ tone }), !dot && "pl-2", className)}
+      className={cn(statusBadgeVariants({ tone }), className)}
       {...props}
     >
       {dot ? (

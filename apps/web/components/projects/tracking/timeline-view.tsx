@@ -26,7 +26,7 @@ const MS_PER_DAY = 86_400_000;
 const DIAMOND_TONE: Record<ProjectStatus, string> = {
   planned: "fill-info text-info",
   active: "fill-success text-success",
-  completed: "fill-violet-500 text-violet-500",
+  completed: "fill-pill-violet-ink text-pill-violet-ink",
   archived: "fill-muted-foreground text-muted-foreground",
 };
 
@@ -346,7 +346,10 @@ function DayHeader({
         {months.map((m) => (
           <span
             key={m.start}
-            className="absolute top-0 truncate px-2 text-xs/[1] font-medium text-faint-foreground"
+            // Plain `text-xs`: the `/[1]` here was dead anyway (the inline
+            // `lineHeight: "20px"` below out-specifies it) and reads as a
+            // 12/12 promise this element does not keep.
+            className="absolute top-0 truncate px-2 text-xs font-medium text-faint-foreground"
             style={{
               left: m.start * DAY_WIDTH,
               width: m.span * DAY_WIDTH,

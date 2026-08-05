@@ -107,7 +107,7 @@ export function AgentEditor({
 
       <section className="flex flex-col gap-3">
         <Eyebrow>Instructions</Eyebrow>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           The agent&apos;s system prompt, verbatim. What you write here is
           exactly what the model receives — nothing hidden.
         </p>
@@ -141,7 +141,7 @@ export function AgentEditor({
 
       <section className="flex flex-col gap-3">
         <Eyebrow>Tools</Eyebrow>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           A tool the agent isn&apos;t granted doesn&apos;t exist for it.
           Write-capable tools are marked.
         </p>
@@ -161,7 +161,7 @@ export function AgentEditor({
                   <span className="flex items-center gap-2 text-sm font-medium">
                     {tool.label}
                     {tool.category === "write" ? (
-                      <span className="rounded-md bg-warning/10 px-1.5 py-px text-xs text-warning">
+                      <span className="rounded-pill bg-pill-warning px-1.5 text-sm font-medium text-pill-warning-ink">
                         writes
                       </span>
                     ) : null}
@@ -178,7 +178,7 @@ export function AgentEditor({
 
       <section className="flex flex-col gap-3">
         <Eyebrow>Skills</Eyebrow>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           Markdown playbooks the agent loads only when relevant — SOPs,
           checklists, house procedures. The description tells the model when
           to reach for one.
@@ -232,7 +232,7 @@ export function AgentEditor({
 
       <section className="flex flex-col gap-3">
         <Eyebrow>Resources</Eyebrow>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           Documents the agent may read in full (via its &ldquo;Read attached
           resources&rdquo; tool — grant it above).
         </p>
@@ -265,7 +265,7 @@ export function AgentEditor({
 
       <section className="flex flex-col gap-3">
         <Eyebrow>Starter prompts</Eyebrow>
-        <p className="text-xs text-pretty text-muted-foreground">
+        <p className="text-sm text-pretty text-muted-foreground">
           Up to four suggested questions shown when a teammate opens the chat.
         </p>
         {[0, 1, 2, 3].map((i) => (

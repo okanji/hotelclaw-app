@@ -52,7 +52,10 @@ export default async function AllConversationsPage({
         }
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       {rows.length === 0 ? (
         <EmptyState icon={MessagesSquare} title="No conversations yet">

@@ -130,7 +130,9 @@ export function AgentDetail({
             onConfigChange={patchConfig}
             documents={documents}
           />
-          <hr className="my-10 border-border" />
+          {/* Sections separate by WHITESPACE — a full-width rule between two
+              stacked panels reads as a seam (notion-spec-v2 §1). */}
+          <div className="h-10" />
           <ResolvedConfig config={config} status={status} brain={brain} />
         </div>
         <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">

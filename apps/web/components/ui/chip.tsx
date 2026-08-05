@@ -16,7 +16,13 @@ import { cn } from "@/lib/utils"
  *             branch is DELIBERATELY untouched by the Notion normalization —
  *             every class it emits is byte-identical to the pre-Notion chip.
  *
- * Two sizes:
+ * A chip is a CLICKABLE, so it stays on the 6px rung — it is deliberately
+ * NOT converted to the 4px `rounded-pill` rung that Badge/StatusBadge moved
+ * to in v2. A pill states a value; a chip is a control you press.
+ *
+ * Two sizes, both on the UI rung of the type ramp (14px — notion-spec-v2 §2:
+ * a control label is UI, never metadata, so `sm` is a shorter chip and not a
+ * smaller typeface):
  *   `default` — the wizard/question-screen scale (generous tap target).
  *   `sm`      — dense toolbar filter pills.
  */
@@ -42,7 +48,7 @@ function Chip({
         // --- app: Notion control language -------------------------------
         tone === "app" && [
           "rounded-md font-medium transition-[background-color,box-shadow] outline-none focus-visible:shadow-focus",
-          size === "default" ? "h-7 px-3 text-sm" : "h-6 px-2.5 text-xs",
+          size === "default" ? "h-7 px-2.5 text-sm" : "h-6 px-2 text-sm",
           selected
             ? "bg-accent-pressed text-foreground"
             : "bg-transparent text-muted-foreground hover:bg-accent",

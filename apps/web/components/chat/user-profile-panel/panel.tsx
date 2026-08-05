@@ -204,7 +204,7 @@ function ProfileBody({
             value={
               <a
                 href={`mailto:${data.email}`}
-                className="text-primary hover:underline"
+                className="text-primary-ink hover:underline"
               >
                 {data.email}
               </a>

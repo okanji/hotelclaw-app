@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -326,9 +327,9 @@ export function DailyOpsPanel({
                 type="button"
                 onClick={() => setRating(rating === n ? null : n)}
                 className={cn(
-                  "size-8 rounded-md text-xs font-medium tabular-nums transition-colors",
+                  "size-8 rounded-md text-sm font-medium tabular-nums transition-colors",
                   rating === n
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent",
                 )}
               >
@@ -437,7 +438,7 @@ export function DailyOpsPanel({
               </div>
             </div>
             {isManagement && (feedbackByRoutine.get(routine.id)?.length ?? 0) > 0 ? (
-              <ul className="flex flex-col gap-0.5 rounded-md bg-warning/10 px-3 py-2">
+              <ul className="flex flex-col gap-0.5 rounded-card bg-warning/10 p-3">
                 {feedbackByRoutine.get(routine.id)!.slice(0, 4).map((f) => (
                   <li key={f.id} className="text-xs text-faint-foreground">
                     <Flag className="mr-1.5 inline size-3 text-warning" />
@@ -564,23 +565,20 @@ function NewRoutineForm({
       />
       <div className="flex flex-wrap items-center gap-1">
         {DAY_LABELS.map((label, day) => (
-          <button
+          /* Day toggles are the house Chip: a control you PRESS, so it stays
+             on the 6px clickable rung at the 14px UI size — not a 12px pill. */
+          <Chip
             key={day}
-            type="button"
+            size="sm"
+            selected={days.includes(day)}
             onClick={() =>
               setDays((d) =>
                 d.includes(day) ? d.filter((x) => x !== day) : [...d, day],
               )
             }
-            className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              days.includes(day)
-                ? "bg-accent-pressed text-foreground"
-                : "text-muted-foreground hover:bg-accent",
-            )}
           >
             {label}
-          </button>
+          </Chip>
         ))}
       </div>
       <div className="flex items-center gap-2">

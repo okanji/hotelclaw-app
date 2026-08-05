@@ -15,11 +15,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 import {
   orgChartQueryOptions,
@@ -152,25 +152,27 @@ function OrgBody({
       <section className="mt-14 min-w-0">
         <div className={structureView === "diagram" ? FULL : WRAP}>
           <SectionHeader
-            className="mb-5 border-b border-border pb-3"
+            className="mb-5"
             eyebrow="Structure"
             eyebrowTone="brand"
             title="Teams"
             actions={
-              <div className="flex gap-1">
+              /* A view switcher is a PILL row, never buttons or an underline
+                 (notion-spec-v2 §6). */
+              <TabNav variant="pill" aria-label="Structure view">
                 <ViewToggleButton
                   active={structureView === "diagram"}
                   label="Diagram"
-                  icon={<Network className="size-4" />}
+                  icon={<Network />}
                   onClick={() => setStructureView("diagram")}
                 />
                 <ViewToggleButton
                   active={structureView === "list"}
                   label="List"
-                  icon={<ListTree className="size-4" />}
+                  icon={<ListTree />}
                   onClick={() => setStructureView("list")}
                 />
-              </div>
+              </TabNav>
             }
           />
         </div>
@@ -200,7 +202,7 @@ function OrgBody({
       </section>
 
       <section className={cn(WRAP, "mt-16 min-w-0")}>
-        <SectionHeader className="mb-5 border-b border-border pb-3" eyebrow="Directory" eyebrowTone="brand" title="People" />
+        <SectionHeader className="mb-5" eyebrow="Directory" eyebrowTone="brand" title="People" />
         <PeopleDirectory
           propertyId={propertyId}
           org={org}
@@ -234,16 +236,10 @@ function ViewToggleButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={active ? "secondary" : "ghost"}
-      aria-pressed={active}
-      onClick={onClick}
-    >
+    <TabNavItem active={active} onClick={onClick}>
       {icon}
       {label}
-    </Button>
+    </TabNavItem>
   );
 }
 

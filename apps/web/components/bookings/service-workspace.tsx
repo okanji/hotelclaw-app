@@ -24,6 +24,7 @@ import type { BookingStatus } from "@/lib/db/types";
 import {
   BookingRow,
   BookingStatusBadge,
+  DATA_COL,
   dateKey,
   shiftDate,
   todayKey,
@@ -221,8 +222,10 @@ function ScopedAgenda({
     );
   }
 
+  // A list is not a data view — it reads in the centred column, while the
+  // floor plan and the timetable beside it run full bleed (§3).
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", DATA_COL)}>
       <div className="flex flex-wrap gap-1.5">
         {(
           [
@@ -287,7 +290,13 @@ function TableServiceView({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3",
+          // The toolbar takes the width of the view it heads.
+          tab === "reservations" && DATA_COL,
+        )}
+      >
         <TabNav variant="pill" aria-label="View">
           {(
             [
@@ -372,7 +381,7 @@ function TicketingView({
     : dayBookings;
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", DATA_COL)}>
       {dates.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {dates.map((d) => (
@@ -388,8 +397,10 @@ function TicketingView({
         </div>
       ) : null}
 
-      {/* Sales + door pulse — a warm well, not a bordered card. */}
-      <div className="space-y-2 rounded-md bg-muted px-4 py-3.5">
+      {/* Sales + door pulse — a CALLOUT: the chrome fill at the 10px surface
+          rung, no stroke and no shadow (notion-spec-v2 §4/§6). It is not a
+          page, so it gets neither `shadow-card` nor `shadow-ring`. */}
+      <div className="space-y-2 rounded-card bg-muted px-4 py-3.5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-sm">
             <span className="text-2xl font-semibold tabular-nums">
@@ -404,7 +415,9 @@ function TicketingView({
             checked in at the door
           </p>
         </div>
-        <span className="block h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        {/* Track is the warm hairline token, not `bg-muted` — the meter sits
+            INSIDE a `bg-muted` callout, so a muted track was invisible. */}
+        <span className="block h-1.5 w-full overflow-hidden rounded-full bg-border">
           <span
             className={cn(
               "block h-full rounded-full",
@@ -467,8 +480,10 @@ function DoorRow({ booking }: { booking: BookingListItem }) {
   return (
     <li
       className={cn(
-        // Same 34px/6px data row as the agenda and every other list surface.
-        "flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
+        // The measured 37px database row, identical to the agenda's
+        // `BookingRow` (notion-spec-v2 §6) — the door list is the same table
+        // rhythm, not a tighter one.
+        "flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
         terminal && "opacity-60",
       )}
     >
@@ -541,7 +556,14 @@ function DaySheetView({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3",
+          // Rentals put a full-bleed unit timetable under this bar; every
+          // other kind puts a list under it.
+          !(rentalMode && own.length > 0) && DATA_COL,
+        )}
+      >
         <DayNav day={day} onChange={setDay} />
         {rentalMode && outNow > 0 ? (
           <StatusBadge tone="violet" dot={false}>

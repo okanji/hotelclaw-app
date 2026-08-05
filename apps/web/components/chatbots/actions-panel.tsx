@@ -177,7 +177,7 @@ function ActionCard({
       {action.enabled ? (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
           {knowledgeWarning ? (
-            <div className="flex items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+            <div className="flex items-start gap-2 rounded-card bg-warning/10 p-3 text-sm text-warning">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               <span>{knowledgeWarning}</span>
             </div>

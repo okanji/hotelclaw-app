@@ -10,11 +10,13 @@ import {
   Command,
   CommandDialog,
   CommandEmpty,
+  CommandFooter,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Avatar,
   AvatarFallback,
@@ -32,35 +34,25 @@ import { useOpenChannel } from "@/lib/chat/use-open-channel";
 import { cn } from "@/lib/utils";
 
 /**
- * Palette chrome, per docs/notion-spec.md §4/§5.
+ * Palette chrome — the canonical MODAL tier (docs/notion-spec-v2.md §5/§6).
  *
- * The overlay recipe: 10px radius + the one three-layer elevation whose LAST
- * layer is the 1px warm ring — so the panel carries no `border` and no
- * `ring-*` utility (stacking either double-rings it).
+ * Measured, the Notion search modal is **1006×700**: a wide, tall reading
+ * surface, not a 384px dropdown. `DialogContent`'s default `sm:max-w-sm` is
+ * what kept ours narrow, so the width is set explicitly here (capped to the
+ * viewport). The surface itself — 20px radius, translucent fill, 40px
+ * backdrop blur, the two-layer modal shadow and NO ring — is applied by
+ * `CommandDialog` after `className`, so this must not try to re-state it.
  */
-const PALETTE_PANEL = "rounded-overlay p-0 ring-0 shadow-overlay";
+const PALETTE_PANEL =
+  "top-[12vh] w-[min(1006px,calc(100vw-2rem))] max-w-[min(1006px,calc(100vw-2rem))] p-0 sm:max-w-[min(1006px,calc(100vw-2rem))]";
 
 /**
- * The input row is 44px, chrome-free, and divided from the results by a single
- * 1px warm ring — not by a boxed form control. `CommandInput` renders an
- * `InputGroup` we can't reach through props, so it is retuned by data-slot
- * from the `<Command>` wrapper.
+ * Group heading: 12px/12px weight 500 at TERTIARY ink. The search modal's
+ * labels sit one rung darker than a sidebar section label (which is faint) —
+ * notion-spec-v2 §6 measured `#7d7a75` = `--muted-foreground`.
  */
-const PALETTE_INPUT_ROW = [
-  "[&_[data-slot=command-input-wrapper]]:border-b",
-  "[&_[data-slot=command-input-wrapper]]:border-border",
-  "[&_[data-slot=command-input-wrapper]]:p-0",
-  "[&_[data-slot=input-group]]:h-11!",
-  "[&_[data-slot=input-group]]:rounded-none!",
-  "[&_[data-slot=input-group]]:border-0!",
-  "[&_[data-slot=input-group]]:bg-transparent!",
-  "[&_[data-slot=input-group]]:ring-0!",
-  "[&_[data-slot=input-group]]:px-1!",
-].join(" ");
-
-/** Group heading: 12px/12px weight 500 faint, sentence case, no tracking. */
 const PALETTE_GROUP =
-  "**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:leading-3 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-faint-foreground";
+  "**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:leading-3 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground";
 
 /** Result row: 28px tall, 6px radius, 14px label, warm fill on selection. */
 const PALETTE_ITEM =
@@ -262,16 +254,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
           <Command> itself, so cmdk's internal context isn't provided to
           its subcomponents. Wrap explicitly. `shouldFilter={false}` because
           we already do all the filtering server-side per group. */}
-      <Command
-        shouldFilter={false}
-        className={cn("rounded-overlay p-0", PALETTE_INPUT_ROW)}
-      >
+      <Command shouldFilter={false} className="rounded-modal p-0">
         <CommandInput
           placeholder="Search channels, people, tasks, messages…"
           value={query}
           onValueChange={setQuery}
         />
-        <CommandList className="p-1">
+        {/* 700px panel − 44px input − 41px footer ≈ 615px of results. */}
+        <CommandList className="max-h-[min(615px,60vh)] p-1">
           <CommandEmpty className="py-6 text-center text-sm text-faint-foreground">
             {hasQuery ? "No results." : "Start typing to search."}
           </CommandEmpty>
@@ -407,6 +397,24 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
           </CommandGroup>
         ) : null}
         </CommandList>
+
+        {/* The measured footer bar (notion-spec-v2 §6): 41px, under a single
+            warm hairline, carrying 12px faint shortcut hints. */}
+        <CommandFooter className="mx-0 mt-0 mb-0">
+          <span className="flex items-center gap-1">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd>
+            to navigate
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>↵</Kbd>
+            to open
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>esc</Kbd>
+            to close
+          </span>
+        </CommandFooter>
       </Command>
     </CommandDialog>
   );

@@ -273,16 +273,27 @@ export default eveChannel({
       await recordActivity(row, label);
     },
 
-    // Last completed assistant message of the turn wins — the same
-    // semantics consumeTurnStream implemented web-side. One retry covers
-    // the tiny race between session creation and the web glue's row upsert.
+    // EVERY completed assistant message of the turn is kept, in order.
+    // This was last-wins until 2026-08-05, when "Tell me about our most
+    // important SOPs. Also, what are SOPs?" produced two messages — the
+    // definition + summary first, a short closing note second — and the
+    // second silently overwrote the first. The user saw only the closing
+    // note and reported the bot ignoring half the question; the model had
+    // answered both, and delivery threw the answer away. A turn's messages
+    // are a sequence, not a series of drafts. One retry covers the tiny
+    // race between session creation and the web glue's row upsert.
     "message.completed": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      const text = typeof data.message === "string" ? data.message : null;
-      if (!text?.trim()) return;
+      const text = typeof data.message === "string" ? data.message.trim() : "";
+      if (!text) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 1 });
       if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
-      await updateSessionRow(row.id, { reply_candidate: text });
+      const prior = (row.reply_candidate ?? "").trim();
+      // A replayed or retried event must not duplicate its own message.
+      if (prior === text || prior.endsWith(`\n\n${text}`)) return;
+      await updateSessionRow(row.id, {
+        reply_candidate: prior ? `${prior}\n\n${text}` : text,
+      });
     },
 
     // Two jobs:

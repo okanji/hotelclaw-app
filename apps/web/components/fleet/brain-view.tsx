@@ -60,7 +60,10 @@ export function BrainView({
         }
       />
 
-      <hr className="my-10 border-border" />
+      {/* Masthead and content separate by WHITESPACE. The full-width rule
+          that used to sit here read as a seam under a 720px document
+          column (notion-spec-v2 §1/§3). */}
+      <div className="h-10" />
 
       <section className="flex flex-col gap-4">
         <Eyebrow>Knowledge brain</Eyebrow>
@@ -96,7 +99,7 @@ export function BrainView({
               </span>
             </dd>
           </dl>
-          <p className="max-w-2xl text-xs text-pretty text-muted-foreground">
+          <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
             One shared brain server hosts every pod. Isolation is structural:
             this pod&apos;s OAuth client can write only to its own source
             (<code className="font-mono">{client.brain_source || "…"}</code>)

@@ -527,7 +527,10 @@ function DecisionPreview({
   if (!readsAs) return null;
 
   return (
-    <div className="rounded-md bg-primary/10 px-3.5 py-3">
+    // A plain-English restatement of the rule is a WELL — the quiet warm
+    // recessed surface — not an accent. It read as a blue callout only
+    // because `--primary` became Notion blue on 2026-08-05.
+    <div className="rounded-md bg-muted px-3.5 py-3">
       <p className="text-xs font-medium text-faint-foreground">
         Summary
       </p>
@@ -766,7 +769,7 @@ function LogicConnector({ combine }: { combine: "all" | "any" }) {
           "rounded-md px-2.5 py-0.5 text-xs font-medium",
           combine === "all"
             ? "bg-info/10 text-info"
-            : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+            : "bg-pill-violet text-pill-violet-ink",
         )}
       >
         {combine === "all" ? "And" : "Or"}

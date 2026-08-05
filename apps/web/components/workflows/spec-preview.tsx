@@ -41,8 +41,8 @@ export function WorkflowSpecPreview({
   return (
     <div className={cn("flex flex-col", className)}>
       {/* Trigger — visually distinct from action steps: violet accent + kicker. */}
-      <div className="flex items-start gap-3 rounded-md bg-muted px-3.5 py-2.5">
-        <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400">
+      <div className="flex items-start gap-3 rounded-card bg-muted p-3">
+        <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-pill-violet text-pill-violet-ink">
           <Zap className="size-3.5" aria-hidden />
         </span>
         <div className="min-w-0">
@@ -67,7 +67,7 @@ export function WorkflowSpecPreview({
           <Fragment key={step.id}>
             <Connector depth={depth} label={edgeLabel} />
             <div
-              className="flex items-start gap-3 rounded-md bg-muted px-3.5 py-2.5"
+              className="flex items-start gap-3 rounded-card bg-muted p-3"
               style={{ marginLeft: depth * 20 }}
             >
               <span className="mt-0.5 shrink-0">
@@ -94,7 +94,7 @@ export function WorkflowSpecPreview({
       {rows.length === 0 ? (
         <>
           <Connector depth={0} label={null} />
-          <div className="rounded-lg px-3.5 py-2.5 text-xs text-muted-foreground shadow-ring">
+          <div className="rounded-card p-3 text-sm text-muted-foreground shadow-ring">
             No steps yet.
           </div>
         </>

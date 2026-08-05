@@ -13,12 +13,11 @@ import {
 import {
   SortableContext,
   arrayMove,
-  rectSortingStrategy,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Check, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import { QuickAccessRow } from "./quick-access";
 import {
   DropdownMenu,
@@ -44,12 +43,8 @@ import {
 } from "./dashboard-registry";
 import { useDashboardLayout } from "./use-dashboard-layout";
 import Link from "next/link";
-import { StatCard } from "@/components/ui/stat-card";
-import {
-  CustomizeMenu,
-  EditorialSection,
-  HiddenTray,
-} from "./editorial-section";
+import { CustomizeMenu, HiddenTray } from "./editorial-section";
+import { DocumentSection, SectionHeading } from "./document-section";
 import {
   DashboardFilterMenu,
   DashboardFilterProvider,
@@ -68,14 +63,31 @@ import { AttentionWidget } from "./widgets/attention-widget";
 import { IntelligenceBriefWidget } from "./widgets/intelligence-brief-widget";
 
 /**
- * Property "Home" — a role-adaptive dashboard ("Compass"). One widget registry,
- * re-weighted by the viewer's property role: the masthead's at-a-glance number,
- * the single promoted "Today" hero, and the masonry's first-render order all
- * key off whether you're an owner, a manager, or staff — owners land on the
- * analyst's brief, managers on what needs a decision, staff on their shift.
- * The role seed only changes what you START with; the per-user drag/hide
- * arrangement (saved on-device) is untouched, and an unknown role degrades to
- * the persona-blind registry default. The personal activity feed lives in the
+ * Property "Home" — a role-adaptive **home document**, not a dashboard.
+ *
+ * Structure (notion-spec-v2 §3): the whole page is the 720px `max-w-content`
+ * column. It opens the way a Notion page opens — a 40px/48px weight-700 title,
+ * one 14px muted line, and then content. There is deliberately **no boxed KPI
+ * strip under the title**: the role-tuned numbers are a single quiet inline
+ * metrics line (12px faint labels beside 24px weight-600 tabular values,
+ * separated by whitespace, no card chrome), because they are heterogeneous
+ * signals that each belong to a *different* section below — folding them into
+ * those sections would scatter the at-a-glance read that the role weighting
+ * exists to give. The only page-like cards are the four quick-access
+ * destinations, which really are pages.
+ *
+ * Below the masthead the page is a stack of **document sections** — a 24px
+ * weight-600 heading, a 12px faint caption, then the content, separated by
+ * whitespace — instead of the old two-column masonry of bordered tiles. The
+ * per-user reorder/hide arrangement survives untouched: the grip just moved to
+ * the block gutter to the left of the column (see `DocumentSection`).
+ *
+ * Role still drives the ordering: one widget registry, re-weighted by the
+ * viewer's property role — the metrics line, the single promoted "today"
+ * section, and the stack's first-render order all key off whether you're an
+ * owner, a manager, or staff. The role seed only changes what you START with;
+ * the saved on-device arrangement wins, and an unknown role degrades to the
+ * persona-blind registry default. The personal activity feed lives in the
  * second sidebar (HomeSection).
  */
 export function HomeView({
@@ -132,7 +144,7 @@ export function HomeView({
     );
 
   const summary = usePersonalSummary(propertyId, effectiveUserId);
-  const statItems = useStatItems(role, summary, propertyId);
+  const metrics = useHomeMetrics(role, summary, propertyId);
 
   // The one signal lifted out of the masonry into the "Today" hero for this
   // lens. `intelligence` is hero-only (not a registry tile); the others are
@@ -164,66 +176,71 @@ export function HomeView({
 
   return (
     <DashboardFilterProvider value={filter}>
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="mb-14 flex flex-col gap-8">
+    {/* The scroll box keeps ≥32px of horizontal padding at every width so the
+        block-gutter grips (−28px) live inside it and never widen the page. */}
+    <div className="h-full w-full overflow-y-auto px-8 pt-8 pb-24 sm:px-14 sm:pt-10">
+      <div className="mx-auto flex w-full max-w-content flex-col">
+        {/* Page controls sit above the title in their own quiet row, the way a
+            Notion page header does — the title itself stays unencumbered. */}
+        <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+          {realRole ? (
+            <ViewAsMenu
+              realRole={realRole}
+              viewAs={viewAs}
+              onChange={(next) => {
+                setViewAs(next);
+                setViewAsUser(null);
+              }}
+              members={
+                realRole === "owner"
+                  ? (members ?? [])
+                      .filter((m) => m.id !== userId)
+                      .map((m) => ({
+                        id: m.id,
+                        name: m.name ?? "Unnamed",
+                        role: asHomeRole(m.role) ?? "staff",
+                      }))
+                  : []
+              }
+              viewAsUser={viewAsUser}
+              onChangeUser={(next) => {
+                setViewAsUser(next);
+                setViewAs(null);
+              }}
+            />
+          ) : null}
+          <DashboardFilterMenu
+            propertyId={propertyId}
+            value={filter}
+            onChange={setFilter}
+          />
+          <CustomizeMenu
+            items={DASHBOARD_WIDGETS}
+            visibleCount={visible.length}
+            isHidden={isHidden}
+            onToggle={toggleHidden}
+            onReset={reset}
+            presets={DASHBOARD_PRESETS}
+            onApplyPreset={(presetId) => {
+              const preset = DASHBOARD_PRESETS.find(
+                (candidate) => candidate.id === presetId,
+              );
+              if (preset) applyLayout(preset.order, preset.hidden);
+            }}
+          />
+        </div>
+
         <SectionHeader
           size="page"
-          className="flex-wrap gap-y-4"
           title={greeting}
           description={sublineFor(role)}
-          actions={
-            <>
-              {realRole ? (
-                <ViewAsMenu
-                  realRole={realRole}
-                  viewAs={viewAs}
-                  onChange={(next) => {
-                    setViewAs(next);
-                    setViewAsUser(null);
-                  }}
-                  members={
-                    realRole === "owner"
-                      ? (members ?? [])
-                          .filter((m) => m.id !== userId)
-                          .map((m) => ({
-                            id: m.id,
-                            name: m.name ?? "Unnamed",
-                            role: asHomeRole(m.role) ?? "staff",
-                          }))
-                      : []
-                  }
-                  viewAsUser={viewAsUser}
-                  onChangeUser={(next) => {
-                    setViewAsUser(next);
-                    setViewAs(null);
-                  }}
-                />
-              ) : null}
-              <DashboardFilterMenu
-                propertyId={propertyId}
-                value={filter}
-                onChange={setFilter}
-              />
-              <CustomizeMenu
-                items={DASHBOARD_WIDGETS}
-                visibleCount={visible.length}
-                isHidden={isHidden}
-                onToggle={toggleHidden}
-                onReset={reset}
-                presets={DASHBOARD_PRESETS}
-                onApplyPreset={(presetId) => {
-                  const preset = DASHBOARD_PRESETS.find(
-                    (candidate) => candidate.id === presetId,
-                  );
-                  if (preset) applyLayout(preset.order, preset.hidden);
-                }}
-              />
-            </>
-          }
         />
+
+        <MetricsLine items={metrics} />
+
         {viewAsUser ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-warning/10 px-3.5 py-2 text-sm">
-            <Eye className="size-4 shrink-0 text-warning" />
+          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-pill-warning px-3.5 py-2.5 text-sm">
+            <Eye className="size-4 shrink-0 text-pill-warning-ink" />
             <span className="text-foreground">
               Viewing as <strong>{viewAsUser.name}</strong> ({ROLE_LABEL[viewAsUser.role]})
             </span>
@@ -240,86 +257,75 @@ export function HomeView({
             </button>
           </div>
         ) : null}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {statItems.map((item) => (
-            <StatCard
-              key={item.label}
-              label={item.label}
-              value={item.value}
-              sub={item.sub}
-              pill={item.pill}
-              render={<Link href={item.href} />}
-            />
-          ))}
+
+        <div className="mt-10">
+          <QuickAccessRow propertyId={propertyId} />
         </div>
-        <QuickAccessRow propertyId={propertyId} />
-      </header>
 
-      {showHero && hero ? (
-        <section className="mb-16 min-w-0">
-          <div className="mb-4 flex flex-col gap-2">
-            <Eyebrow>{hero.kicker}</Eyebrow>
-            <h2 className="text-base leading-6 font-semibold text-foreground">
-              {hero.title}
-            </h2>
-          </div>
-          <HeroBody heroId={heroId!} propertyId={propertyId} />
-        </section>
-      ) : null}
+        {/* The stack: the promoted "today" section, then every other section,
+            separated by whitespace alone (no rules, no cards). */}
+        <div className="mt-14 flex flex-col gap-14">
+          {showHero && hero ? (
+            <section className="min-w-0">
+              <SectionHeading title={hero.title} subLabel={hero.kicker} />
+              <HeroBody heroId={heroId!} propertyId={propertyId} />
+            </section>
+          ) : null}
 
-      {gridIds.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-md bg-muted py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            {showHero
-              ? "Everything else is hidden — bring a section back from the tray below."
-              : "Every section is hidden — bring one back from the tray below."}
-          </p>
-          <Button type="button" size="sm" variant="outline" onClick={reset}>
-            <RotateCcw className="size-4" />
-            Restore default layout
-          </Button>
+          {gridIds.length === 0 ? (
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-sm text-pretty text-muted-foreground">
+                {showHero
+                  ? "Everything else is hidden — bring a section back from the tray below."
+                  : "Every section is hidden — bring one back from the tray below."}
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={reset}>
+                <RotateCcw className="size-4" />
+                Restore default layout
+              </Button>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={gridIds}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-14">
+                  {gridIds.map((id) => {
+                    const def = WIDGETS_BY_ID.get(id);
+                    if (!def) return null;
+                    const { Component } = def;
+                    return (
+                      <DocumentSection
+                        key={id}
+                        id={id}
+                        title={def.title}
+                        subLabel={def.kicker}
+                        onHide={() => toggleHidden(id)}
+                      >
+                        <Component
+                          propertyId={propertyId}
+                          userId={effectiveUserId}
+                        />
+                      </DocumentSection>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
         </div>
-      ) : (
-        <div className="@container">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={gridIds} strategy={rectSortingStrategy}>
-              <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-10 gap-y-16 @4xl:grid-cols-2">
-                {gridIds.map((id) => {
-                  const def = WIDGETS_BY_ID.get(id);
-                  if (!def) return null;
-                  const { Component } = def;
-                  return (
-                    <EditorialSection
-                      key={id}
-                      id={id}
-                      kicker={def.kicker}
-                      title={def.title}
-                      wide={def.wide}
-                      onHide={() => toggleHidden(id)}
-                    >
-                      <Component
-                        propertyId={propertyId}
-                        userId={effectiveUserId}
-                      />
-                    </EditorialSection>
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-      )}
 
-      <HiddenTray
-        items={DASHBOARD_WIDGETS}
-        hidden={hidden}
-        onRestore={toggleHidden}
-      />
-
+        <HiddenTray
+          items={DASHBOARD_WIDGETS}
+          hidden={hidden}
+          onRestore={toggleHidden}
+        />
+      </div>
     </div>
     </DashboardFilterProvider>
   );
@@ -346,32 +352,57 @@ function sublineFor(role: HomeLens): string {
   }
 }
 
-type HomeStat = {
+type HomeMetric = {
   label: string;
   value: number;
-  sub: string;
   href: string;
-  pill?: React.ReactNode;
+  /** Draw the value in warning ink while it's non-zero (waiting on a human). */
+  attention?: boolean;
 };
 
-/** Small amber corner chip for stats that are waiting on a human. */
-function AttentionPill({ children }: { children: React.ReactNode }) {
+/**
+ * The metrics line — what the 3-across KPI card strip became. Notion never
+ * opens a page with boxed stats, so these are plain inline pairs: a 24px
+ * weight-600 tabular value beside a 12px faint sentence-case label, items
+ * separated by whitespace only. Each pair is still a deep link to its surface.
+ */
+function MetricsLine({ items }: { items: HomeMetric[] }) {
+  if (items.length === 0) return null;
   return (
-    <span className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-warning">
-      {children}
-    </span>
+    <div className="mt-8 flex flex-wrap items-baseline gap-x-10 gap-y-3">
+      {items.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className="group/metric flex items-baseline gap-2 rounded-md focus-visible:shadow-focus"
+        >
+          <span
+            className={cn(
+              "text-2xl leading-8 font-semibold tabular-nums",
+              item.attention && item.value > 0
+                ? "text-pill-warning-ink"
+                : "text-foreground",
+            )}
+          >
+            {item.value}
+          </span>
+          <span className="text-xs leading-3 font-medium text-faint-foreground group-hover/metric:text-muted-foreground">
+            {item.label}
+          </span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
-/** Role-tuned headline stats (Claude-dashboard stat-card row). Owners lead
- *  with the front-desk + risk figures; everyone else keeps the personal
- *  task/unread read. All values come from queries the widgets below already
- *  fetch — no new endpoint; each card deep-links to its surface. */
-function useStatItems(
+/** Role-tuned headline numbers. Owners lead with the front-desk + risk figures;
+ *  everyone else keeps the personal task/unread read. All values come from
+ *  queries the sections below already fetch — no new endpoint. */
+function useHomeMetrics(
   role: HomeLens,
   summary: { open: number; dueSoon: number; unread: number },
   propertyId: string,
-): HomeStat[] {
+): HomeMetric[] {
   const { data: pendingBookings = 0 } = useQuery(
     pendingBookingsCountQueryOptions(propertyId),
   );
@@ -379,54 +410,45 @@ function useStatItems(
   const attention = metrics?.attention.length ?? 0;
   const base = `/p/${propertyId}`;
 
-  const unreadStat: HomeStat = {
-    label: "Unread activity",
+  const unreadMetric: HomeMetric = {
+    label: "Unread",
     value: summary.unread,
-    sub: "since you last looked",
     href: `${base}/activity`,
   };
 
   if (role === "owner") {
     return [
       {
-        label: "Pending bookings",
+        label: "Bookings waiting on a yes",
         value: pendingBookings,
-        sub: "waiting on a staff yes",
         href: `${base}/bookings?view=pending`,
-        pill:
-          pendingBookings > 0 ? (
-            <AttentionPill>Needs a yes</AttentionPill>
-          ) : undefined,
+        attention: true,
       },
       {
         label: "Need attention",
         value: attention,
-        sub: "flagged by pace + slip signals",
         href: `${base}/home/insights`,
-        pill:
-          attention > 0 ? <AttentionPill>Review</AttentionPill> : undefined,
+        attention: true,
       },
-      unreadStat,
+      unreadMetric,
     ];
   }
   return [
     {
       label: "Open tasks",
       value: summary.open,
-      sub: "assigned to you",
       href: `${base}/tasks`,
     },
     {
       label: "Due within 7 days",
       value: summary.dueSoon,
-      sub: "of your open tasks",
       href: `${base}/tasks`,
     },
-    unreadStat,
+    unreadMetric,
   ];
 }
 
-/* ── "Today" hero band ─────────────────────────────────────────────────────── */
+/* ── The promoted "today" section ──────────────────────────────────────────── */
 
 const HERO_META: Record<string, { kicker: string; title: string }> = {
   intelligence: { kicker: "Today · Where things stand", title: "The brief" },

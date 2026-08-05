@@ -162,7 +162,7 @@ export function SheetFindReplace({
             variant="ghost"
             onClick={onReplaceOne}
             disabled={matches.length === 0}
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
             title="Replace current"
           >
             <Replace className="size-3.5" />
@@ -173,7 +173,7 @@ export function SheetFindReplace({
             variant="ghost"
             onClick={onReplaceAll}
             disabled={matches.length === 0}
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
             title="Replace all"
           >
             All

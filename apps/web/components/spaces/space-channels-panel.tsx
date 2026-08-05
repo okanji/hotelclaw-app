@@ -108,7 +108,7 @@ export function SpaceChannelsPanel({
             <li key={c.id}>
               <Link
                 href={channelHref(propertyId, c.stream_channel_type, c.stream_channel_id)}
-                className="flex items-center gap-3 rounded-md px-1 min-h-[34px] py-1.5 transition-colors hover:bg-accent"
+                className="flex min-h-[37px] items-center gap-3 rounded-md px-1 transition-colors hover:bg-accent"
               >
                 <Hash className="size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">

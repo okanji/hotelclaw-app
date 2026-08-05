@@ -11,7 +11,7 @@ import { ROW_CLASS, WidgetEmpty } from "../editorial-section";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const SOURCE_DOT: Record<CalendarEvent["source"], string> = {
-  meeting: "bg-violet-500",
+  meeting: "bg-pill-violet-ink",
   task: "bg-info",
   external: "bg-faint-foreground",
   booking: "bg-success",

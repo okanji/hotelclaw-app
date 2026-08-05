@@ -57,7 +57,7 @@ export function BookingsWidget({ propertyId }: { propertyId: string }) {
             <li key={b.id}>
               <Link
                 href={`/p/${propertyId}/bookings${b.status === "pending" ? "?view=pending" : ""}`}
-                className="group flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                className="group flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
               >
                 <span
                   className={cn(

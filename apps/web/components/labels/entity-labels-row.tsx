@@ -127,7 +127,11 @@ export function EntityLabelsRow({
           <span
             key={l.id}
             className={cn(
-              "group flex max-w-[200px] items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs",
+              // A label is a Notion SELECT PILL, not a clickable: 20px tall,
+              // 4px radius, `0 6px` padding, 14px w500 (notion-spec-v2 §6).
+              // The fill/ink pair comes from LABEL_CHIP, so no `bg-muted`
+              // base is needed underneath it.
+              "group flex h-5 max-w-[200px] items-center gap-1 rounded-pill px-1.5 text-sm font-medium",
               LABEL_CHIP[l.color],
             )}
           >

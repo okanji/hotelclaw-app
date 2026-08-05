@@ -659,7 +659,12 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
                     <Icon className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm/[1.2]">
+                    {/* Default 14/20 leading, not 14/16.8 — this block both
+                        truncates (overflow:hidden) and carries descenders, and
+                        the system stack sits lower in the em box than Inter
+                        did. The tight menu-item rung is safe only where the
+                        row has vertical slack. */}
+                    <span className="block truncate text-sm">
                       {item.title}
                     </span>
                     <span className="block truncate text-xs text-faint-foreground">

@@ -30,6 +30,14 @@ import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
 
+/**
+ * The row-list column. Boards are a horizontally scrolling gallery and take
+ * the whole pane; a list of 34px document rows does not want to be 1700px
+ * wide, so the lists keep the old 1152px reading measure. Prose (the
+ * masthead) is narrower still — `max-w-content`, 720px.
+ */
+const LIST_COL = "mx-auto w-full max-w-6xl";
+
 const RECENTLY_EDITED_LIMIT = 6;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -132,10 +140,19 @@ function EditorialLayout({
   onGenerate: () => void;
 }) {
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    // The SCROLLER is uncapped on purpose. It used to be `max-w-6xl`, which
+    // silently defeated the 720/full-bleed contrast the masthead below sets
+    // up: with a 1152px cap, the "full-width" board strips were centred in a
+    // 1152 box on any wide display and the page read as one indented column.
+    // Prose (masthead) → `max-w-content`; row lists → `LIST_COL`; the board
+    // strips take the whole pane (notion-spec-v2 §3).
+    <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       {/* Masthead and content separate by WHITESPACE — the full-width rule
           that used to sit between them is gone (notion-spec §1). */}
-      <header className="mb-14 flex flex-col gap-10">
+      {/* The masthead is PROSE, so it sits in the 720px document column while
+          the boards/library below break out to full width (notion-spec-v2
+          §3). That contrast is the layout. */}
+      <header className="mx-auto mb-14 flex w-full max-w-content flex-col gap-10">
         <div className="flex items-center justify-end gap-6">
           <DocsActivitySheet propertyId={propertyId} />
         </div>
@@ -163,17 +180,19 @@ function EditorialLayout({
         </div>
       </header>
 
-      <div className="mb-12 max-w-xl">
+      <div className={cn(LIST_COL, "mb-12 max-w-xl")}>
         <DocumentSearch propertyId={propertyId} />
       </div>
 
       {docsError ? (
-        <p className="mb-10 text-sm text-destructive">
+        <p className={cn(LIST_COL, "mb-10 text-sm text-destructive")}>
           Could not load documents. Try refreshing the page.
         </p>
       ) : null}
 
       <div className="flex flex-col gap-16">
+        {/* The board strips are the DATA VIEW — they scroll horizontally and
+            take the full pane, no column cap. */}
         <section>
           <EditorialHeading kicker="On the boards">
             Pinned by the team
@@ -182,7 +201,7 @@ function EditorialLayout({
         </section>
 
         {hasRecentlyEdited ? (
-          <section>
+          <section className={LIST_COL}>
             <EditorialHeading kicker="In motion">
               Recently edited
             </EditorialHeading>
@@ -194,7 +213,7 @@ function EditorialLayout({
           </section>
         ) : null}
 
-        <UnpinZone id="unpin-zone:editorial" className="rounded-md">
+        <UnpinZone id="unpin-zone:editorial" className={cn(LIST_COL, "rounded-md")}>
           <section>
             <EditorialHeading
               kicker="The library"
@@ -244,7 +263,7 @@ function EditorialAllDocsList({ propertyId }: { propertyId: string }) {
             <Skeleton className="mb-3 h-3 w-24" />
             <ul className="flex flex-col gap-px">
               {Array.from({ length: 4 }).map((_, i) => (
-                <li key={i} className="flex h-[34px] items-center gap-3 px-2">
+                <li key={i} className="flex h-[37px] items-center gap-3 px-2">
                   <Skeleton className="size-4 shrink-0 rounded-sm" />
                   <Skeleton className="h-4 flex-1" />
                   <Skeleton className="ml-auto h-3 w-16" />
@@ -460,7 +479,7 @@ function TimelineRow({
         onClick={handleClick}
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
-        className="flex min-h-[34px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+        className="flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
       >
         {draggable ? (
           // Drag handle: only the grip starts a drag, so grabbing the row's

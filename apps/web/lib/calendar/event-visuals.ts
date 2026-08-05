@@ -16,6 +16,15 @@ import type { CalendarEvent } from "@/lib/calendar/types";
  * went (docs/notion-spec.md §1/§5) is the stroke: blocks used to carry a
  * `ring-<hue>/20` outline on top of the fill. A block is now a warm tinted
  * FILL plus its 2px left accent edge, nothing else.
+ *
+ * The hues themselves are drawn from the ENTITY pill family
+ * (`--pill-<hue>` / `--pill-<hue>-ink`), NOT the raw tailwind palette. An
+ * event source is identity ("this came from Google"), not a lifecycle state,
+ * so it belongs to the same family as labels/projects/teams — and the pill
+ * tokens are warm-shifted and already theme-aware, so the `dark:` ink
+ * variants these used to need are gone (the token flips itself).
+ * Microsoft maps to `slate` because the entity family has no indigo; the five
+ * sources stay mutually distinct, which is the only property that matters.
  */
 type EventSourceKey = "meeting" | "task" | "booking" | "google" | "microsoft";
 
@@ -31,38 +40,34 @@ export const EVENT_VISUALS: Record<
   { block: string; chip: string; dot: string; swatch: string }
 > = {
   meeting: {
-    block: "border-l-blue-500/80 bg-blue-500/10 text-blue-900 dark:text-blue-100",
-    chip: "bg-blue-500/12 text-blue-900 dark:text-blue-100",
-    dot: "bg-blue-500",
-    swatch: "var(--color-blue-500)",
+    block: "border-l-pill-blue-ink bg-pill-blue text-pill-blue-ink",
+    chip: "bg-pill-blue text-pill-blue-ink",
+    dot: "bg-pill-blue-ink",
+    swatch: "var(--pill-blue-ink)",
   },
   task: {
-    block:
-      "border-l-amber-500/80 bg-amber-500/10 text-amber-900 dark:text-amber-100",
-    chip: "bg-amber-500/12 text-amber-900 dark:text-amber-100",
-    dot: "bg-amber-500",
-    swatch: "var(--color-amber-500)",
+    block: "border-l-pill-amber-ink bg-pill-amber text-pill-amber-ink",
+    chip: "bg-pill-amber text-pill-amber-ink",
+    dot: "bg-pill-amber-ink",
+    swatch: "var(--pill-amber-ink)",
   },
   booking: {
-    block:
-      "border-l-violet-500/80 bg-violet-500/10 text-violet-900 dark:text-violet-100",
-    chip: "bg-violet-500/12 text-violet-900 dark:text-violet-100",
-    dot: "bg-violet-500",
-    swatch: "var(--color-violet-500)",
+    block: "border-l-pill-violet-ink bg-pill-violet text-pill-violet-ink",
+    chip: "bg-pill-violet text-pill-violet-ink",
+    dot: "bg-pill-violet-ink",
+    swatch: "var(--pill-violet-ink)",
   },
   google: {
-    block:
-      "border-l-emerald-500/80 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100",
-    chip: "bg-emerald-500/12 text-emerald-900 dark:text-emerald-100",
-    dot: "bg-emerald-500",
-    swatch: "var(--color-emerald-500)",
+    block: "border-l-pill-green-ink bg-pill-green text-pill-green-ink",
+    chip: "bg-pill-green text-pill-green-ink",
+    dot: "bg-pill-green-ink",
+    swatch: "var(--pill-green-ink)",
   },
   microsoft: {
-    block:
-      "border-l-indigo-500/80 bg-indigo-500/10 text-indigo-900 dark:text-indigo-100",
-    chip: "bg-indigo-500/12 text-indigo-900 dark:text-indigo-100",
-    dot: "bg-indigo-500",
-    swatch: "var(--color-indigo-500)",
+    block: "border-l-pill-slate-ink bg-pill-slate text-pill-slate-ink",
+    chip: "bg-pill-slate text-pill-slate-ink",
+    dot: "bg-pill-slate-ink",
+    swatch: "var(--pill-slate-ink)",
   },
 };
 

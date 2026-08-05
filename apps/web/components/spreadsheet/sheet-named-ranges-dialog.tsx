@@ -64,7 +64,7 @@ export function SheetNamedRangesPanel({
 
   return (
     <div className="w-80 p-2">
-      <div className="mb-2 text-xs font-medium text-foreground">
+      <div className="mb-2 text-xs font-medium text-faint-foreground">
         Named ranges
       </div>
       {ranges.length === 0 ? (
@@ -125,7 +125,7 @@ export function SheetNamedRangesPanel({
             size="sm"
             onClick={handleAdd}
             disabled={!hasSelection || draft.trim().length === 0}
-            className="h-7 px-2 text-xs"
+            className="h-7 px-2 text-sm"
           >
             <Plus className="size-3.5" /> Add
           </Button>

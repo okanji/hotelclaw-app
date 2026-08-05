@@ -42,10 +42,12 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            // Notion overlay: 10px radius, NO border/ring utility — the 1px
-            // warm ring is the last layer of `shadow-overlay`. Enter/exit is a
-            // fade plus a 4px directional slide; no zoom balloon.
-            "z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-overlay bg-popover p-1 text-popover-foreground shadow-overlay duration-100 outline-none data-[side=bottom]:slide-in-from-top-1 data-[side=inline-end]:slide-in-from-left-1 data-[side=inline-start]:slide-in-from-right-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0",
+            // POPOVER TIER (notion-spec-v2 §5): 10px radius + the popover
+            // elevation, NO border and NO ring utility — the 1px warm ring is
+            // the LAST layer of `shadow-popover`, so stacking either double-
+            // rings the panel. Enter/exit is a fade plus a 4px directional
+            // slide; no zoom balloon.
+            "z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-card bg-popover p-1 text-popover-foreground shadow-popover duration-100 outline-none data-[side=bottom]:slide-in-from-top-1 data-[side=inline-end]:slide-in-from-left-1 data-[side=inline-start]:slide-in-from-right-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0",
             className
           )}
           {...props}
