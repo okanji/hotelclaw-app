@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Chip } from "@/components/ui/chip";
+import { PageShell } from "@/components/ui/page-shell";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   documentBoardsQueryOptions,
@@ -29,14 +30,6 @@ import { useMemberName } from "@/lib/documents/use-member-name";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { usePrewarmDocument } from "@/lib/liveblocks/use-prewarm-document";
-
-/**
- * The row-list column. Boards are a horizontally scrolling gallery and take
- * the whole pane; a list of 34px document rows does not want to be 1700px
- * wide, so the lists keep the old 1152px reading measure. Prose (the
- * masthead) is narrower still — `max-w-content`, 720px.
- */
-const LIST_COL = "mx-auto w-full max-w-6xl";
 
 const RECENTLY_EDITED_LIMIT = 6;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -140,19 +133,16 @@ function EditorialLayout({
   onGenerate: () => void;
 }) {
   return (
-    // The SCROLLER is uncapped on purpose. It used to be `max-w-6xl`, which
-    // silently defeated the 720/full-bleed contrast the masthead below sets
-    // up: with a 1152px cap, the "full-width" board strips were centred in a
-    // 1152 box on any wide display and the page read as one indented column.
-    // Prose (masthead) → `max-w-content`; row lists → `LIST_COL`; the board
-    // strips take the whole pane (notion-spec-v2 §3).
+    // ONE width for the whole Directory. The masthead used to sit in the 720px
+    // prose column while the lists ran at 1152 and the board strips took the
+    // pane — three different left edges on one page (title x=563, boards
+    // x=326), which read as broken alignment. `PageShell` owns the width now;
+    // everything below shares its edge top to bottom.
     <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <PageShell className="flex flex-col">
       {/* Masthead and content separate by WHITESPACE — the full-width rule
           that used to sit between them is gone (notion-spec §1). */}
-      {/* The masthead is PROSE, so it sits in the 720px document column while
-          the boards/library below break out to full width (notion-spec-v2
-          §3). That contrast is the layout. */}
-      <header className="mx-auto mb-14 flex w-full max-w-content flex-col gap-10">
+      <header className="mb-14 flex w-full flex-col gap-10">
         <div className="flex items-center justify-end gap-6">
           <DocsActivitySheet propertyId={propertyId} />
         </div>
@@ -180,19 +170,21 @@ function EditorialLayout({
         </div>
       </header>
 
-      <div className={cn(LIST_COL, "mb-12 max-w-xl")}>
+      {/* `max-w-xl` sizes the SEARCH CONTROL, not the page — it still starts on
+          the shell's left edge. */}
+      <div className="mb-12 w-full max-w-xl">
         <DocumentSearch propertyId={propertyId} />
       </div>
 
       {docsError ? (
-        <p className={cn(LIST_COL, "mb-10 text-sm text-destructive")}>
+        <p className="mb-10 text-sm text-destructive">
           Could not load documents. Try refreshing the page.
         </p>
       ) : null}
 
       <div className="flex flex-col gap-16">
-        {/* The board strips are the DATA VIEW — they scroll horizontally and
-            take the full pane, no column cap. */}
+        {/* The board strips scroll horizontally INSIDE the page column — they
+            no longer break out of it. */}
         <section>
           <EditorialHeading kicker="On the boards">
             Pinned by the team
@@ -201,7 +193,7 @@ function EditorialLayout({
         </section>
 
         {hasRecentlyEdited ? (
-          <section className={LIST_COL}>
+          <section>
             <EditorialHeading kicker="In motion">
               Recently edited
             </EditorialHeading>
@@ -213,7 +205,7 @@ function EditorialLayout({
           </section>
         ) : null}
 
-        <UnpinZone id="unpin-zone:editorial" className={cn(LIST_COL, "rounded-md")}>
+        <UnpinZone id="unpin-zone:editorial" className="rounded-md">
           <section>
             <EditorialHeading
               kicker="The library"
@@ -237,6 +229,7 @@ function EditorialLayout({
           </section>
         </UnpinZone>
       </div>
+      </PageShell>
     </div>
   );
 }

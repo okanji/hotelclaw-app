@@ -2,6 +2,7 @@
 
 import { Workflow } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { NewWorkflowClient } from "@/app/p/[propertyId]/workflows/new/new-workflow-client";
 
 export function WorkflowsNew({ propertyId }: { propertyId: string }) {
@@ -14,9 +15,9 @@ export function WorkflowsNew({ propertyId }: { propertyId: string }) {
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <div className="px-6 pt-12 pb-12">
+        <PageShell className="px-6 pt-12 pb-12">
           <NewWorkflowClient propertyId={propertyId} />
-        </div>
+        </PageShell>
       </div>
     </div>
   );

@@ -41,6 +41,7 @@ import { ShareFormDialog } from "./share-form-dialog";
 import { PinFormDialog } from "./pin-form-dialog";
 import { createForm, deleteForm } from "./actions";
 import type { FormStatus } from "@/lib/db/types";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type FormListItem = {
   id: string;
@@ -77,7 +78,7 @@ export function FormsList({
   const base = `/p/${propertyId}/forms`;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
@@ -167,7 +168,7 @@ export function FormsList({
           router.refresh();
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

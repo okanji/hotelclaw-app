@@ -14,6 +14,7 @@ import {
 } from "@/components/shell/notification-item";
 import { matchesView, type ActivityViewId } from "./views";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { PageShell } from "@/components/ui/page-shell";
 import type { NotificationRow } from "@/lib/notifications/types";
 
 /**
@@ -52,7 +53,11 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-6 sm:px-10 sm:py-8">
+    // One page width for the feed — `PageShell` owns it (was a bare
+    // `max-w-3xl`, the last surviving page-container one-off outside the
+    // guest world). The `PageHeader` above is full-pane chrome, so this
+    // column is the page's only content edge.
+    <PageShell className="px-6 py-6 sm:px-10 sm:py-8">
       <div className="flex flex-col gap-7">
         {groups.map((group) => (
           <section key={group.key} className="flex flex-col gap-1.5">
@@ -75,7 +80,7 @@ export function ActivityFeed({
           </section>
         ))}
       </div>
-    </div>
+    </PageShell>
   );
 }
 

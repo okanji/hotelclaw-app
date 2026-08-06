@@ -4,7 +4,8 @@
  * Notion-style document header: optional cover image, optional emoji icon,
  * and a hover row of "Add icon / Add cover / Add comment" buttons that lets
  * users add what's missing. Sits above the in-editor title (the `<h1>` first
- * node) inside the same centered 720px document column (`max-w-content`).
+ * node) inside the editor's single `PageShell width="prose"` column, so the
+ * header and the document body share one left edge.
  *
  * State:
  *   - `documents.icon` (text) and `documents.cover_url` (text) — see

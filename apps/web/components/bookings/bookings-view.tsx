@@ -46,6 +46,7 @@ import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type ServiceListItem = {
   id: string;
@@ -75,20 +76,6 @@ export type BookingListItem = {
   source: BookingSource;
   resource_id: string | null;
 };
-
-/**
- * The reading column for everything that is NOT a data view. The page
- * masthead already centres itself at 720px (`SectionHeader size="page"` →
- * `max-w-content`); lists, card grids and toolbars sit in this wider centred
- * column, and the two genuinely tabular surfaces — the floor plan and the
- * timetable — carry NO cap at all and run edge to edge.
- *
- * That contrast is the whole point of notion-spec-v2 §3: prose stays in a
- * narrow column while databases break out of it. Before this the entire
- * Bookings page shared one `max-w-6xl` wrapper, so the masthead and the
- * timetable were the same width and nothing read as a document.
- */
-export const DATA_COL = "mx-auto w-full max-w-6xl";
 
 export function dateKey(iso: string): string {
   return iso.slice(0, 10);
@@ -313,8 +300,15 @@ export function BookingsView({
     );
   }
 
+  // ONE width for the whole screen, masthead included (`ui/page-shell`). The
+  // floor plan and the timetable ARE the data canvas and take the pane; the
+  // agenda / pending / services screens are lists and sit in the 960px page
+  // column. Nothing inside the shell re-caps its own width.
+  const shellWidth = view === "floor" || view === "timetable" ? "bleed" : "page";
+
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <PageShell width={shellWidth}>
       {/* Masthead — the same page tier every other index uses (`ui/section-header`
           size="page": 40/48 weight 700, no rule under it; header and content
           separate by whitespace, docs/notion-spec.md §1/§3). */}
@@ -354,7 +348,7 @@ export function BookingsView({
       />
 
       {/* Services */}
-      <section className={cn("space-y-4", DATA_COL, view !== "services" && "hidden")}>
+      <section className={cn("space-y-4", view !== "services" && "hidden")}>
         <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
           Services
         </h2>
@@ -388,7 +382,7 @@ export function BookingsView({
       </section>
 
       {/* Pending — every unconfirmed future booking, the work-to-zero list. */}
-      <section className={cn("space-y-4", DATA_COL, view !== "pending" && "hidden")}>
+      <section className={cn("space-y-4", view !== "pending" && "hidden")}>
         <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
           Waiting on a yes
         </h2>
@@ -413,7 +407,7 @@ export function BookingsView({
       {/* Booking-engine pulse — page-headline stat cards (ui/stat-card, the
           Claude-dashboard tier). */}
       {view === "agenda" ? (
-        <div className={cn("mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4", DATA_COL)}>
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(() => {
             const today = todayKey();
             const active = (b: BookingListItem) =>
@@ -460,15 +454,9 @@ export function BookingsView({
           view !== "agenda" && view !== "floor" && view !== "timetable" && "hidden",
         )}
       >
-        {/* The day toolbar takes the width of the view it belongs to: the
-            reading column above a list, full bleed above a floor plan or a
-            timetable. */}
-        <div
-          className={cn(
-            "flex flex-wrap items-center justify-between gap-3",
-            view === "agenda" && DATA_COL,
-          )}
-        >
+        {/* The day toolbar shares the page's one edge — the shell above owns
+            the width, so this never re-centres itself. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -519,7 +507,7 @@ export function BookingsView({
         </div>
 
         {view === "agenda" ? (
-          <div className={cn("space-y-3", DATA_COL)}>
+          <div className="space-y-3">
             {/* Status filter chips (resOS pattern) — work the day by state. */}
             {dayBookings.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -624,6 +612,7 @@ export function BookingsView({
           )
         ) : null}
       </section>
+      </PageShell>
 
       {dialogs}
     </div>

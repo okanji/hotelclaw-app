@@ -6,6 +6,7 @@ import { History, Workflow } from "lucide-react";
 import { allPropertyRunsQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { WorkflowsTabs } from "./workflows-tabs";
@@ -57,7 +58,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[920px] px-10 pt-8 pb-12">
+        <PageShell className="px-10 pt-8 pb-12">
           {runs.length > 0 ? (
             <ul
               role="list"
@@ -102,7 +103,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
               </p>
             </div>
           )}
-        </div>
+        </PageShell>
       </div>
     </div>
   );

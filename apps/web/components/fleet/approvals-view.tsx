@@ -13,6 +13,7 @@ import {
 } from "@/lib/query/fleet-queries";
 import { podBotEmoji, podToolInfo } from "@/lib/fleet/tool-catalog";
 import { decideApproval } from "./actions";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * Approvals inbox. Rows come straight from bot_chat_sessions
@@ -34,7 +35,7 @@ export function ApprovalsView({
   const pending = sessions.filter((s) => s.status === "awaiting_approval");
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         eyebrow="Fleet"
@@ -76,7 +77,7 @@ export function ApprovalsView({
           Only owners and managers can decide approvals.
         </p>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 

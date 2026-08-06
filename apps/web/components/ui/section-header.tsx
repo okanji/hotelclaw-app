@@ -21,13 +21,17 @@ import { Eyebrow } from "@/components/ui/eyebrow"
  *
  * There is no rule, underline, or colored eyebrow on any tier.
  *
- * **`page` carries the document column itself** (`mx-auto w-full
- * max-w-content` — 720px, centred): a page masthead is prose, and prose lives
- * in the column while the data view beneath it breaks OUT to full width. That
- * contrast IS the Notion layout (notion-spec-v2 §3), and wiring it here rather
- * than at ~16 call sites is what makes it hold. Pass
- * `className="max-w-none"` on the rare masthead that genuinely must span the
- * pane (a toolbar-shaped header over a full-bleed canvas).
+ * **SectionHeader imposes NO width.** It used to carry the 720px document
+ * column (`mx-auto w-full max-w-content`) so that a masthead sat at 720 while
+ * the content under it ran wider. That produced pages with two or three
+ * different left edges — the Directory had mastheads at x=563 and boards at
+ * x=326 — which reads as broken alignment, not as Notion's prose/data
+ * contrast. Notion gets away with it because a Notion page is 90% prose; our
+ * pages are a masthead plus a list, so they must share one edge.
+ *
+ * Width is now owned by ONE wrapper per page: `PageShell` (`ui/page-shell`).
+ * A page picks a single width and everything in it — masthead, toolbar,
+ * list, table — inherits that edge top to bottom. See DESIGN.md § Page width.
  */
 function SectionHeader({
   title,
@@ -57,7 +61,6 @@ function SectionHeader({
     <header
       className={cn(
         "flex items-start justify-between gap-4",
-        size === "page" && "mx-auto w-full max-w-content",
         className
       )}
     >

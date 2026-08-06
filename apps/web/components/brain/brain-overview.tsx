@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { StatGroup, Stat } from "@/components/ui/stat";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
 import { cn } from "@/lib/utils";
 import type { BrainOverview } from "@/lib/brain/shared";
 import { provisionBrainAction } from "./actions";
@@ -71,7 +72,8 @@ export function BrainOverview({
         : "success";
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-content flex-col gap-8 overflow-y-auto p-6">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
+      <PageShell className="flex flex-col gap-8">
       {/* Status + health */}
       <section className="rounded-md bg-card p-5">
         <div className="flex flex-wrap items-start gap-3">
@@ -241,6 +243,7 @@ export function BrainOverview({
           never captured.
         </p>
       ) : null}
+      </PageShell>
     </div>
   );
 }

@@ -32,11 +32,11 @@ export type WidgetDef = {
  *
  * Home is a **document**, not a dashboard: every entry renders as a
  * `DocumentSection` — a 24px heading, the `kicker` as a 12px faint caption
- * under it, then list-row content — stacked single-file down the 720px
- * `max-w-content` column. There is no two-column masonry any more, so there is
- * no `wide` flag: nothing on Home is a tabular data view that earns breaking
- * out of the column (the widest thing, the pinned-boards row, scrolls
- * horizontally inside it by design).
+ * under it, then list-row content — stacked single-file down Home's single
+ * `PageShell` column (`page`, 960px). There is no two-column masonry any more,
+ * so there is no `wide` flag: nothing on Home is a tabular data view that
+ * earns breaking out of the column (the widest thing, the pinned-boards row,
+ * scrolls horizontally inside it by design).
  */
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   {

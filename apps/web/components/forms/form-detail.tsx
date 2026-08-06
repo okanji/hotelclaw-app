@@ -80,6 +80,7 @@ import {
   type FormSchema,
 } from "@/lib/forms/schema";
 import type { FormResponseSource, FormStatus } from "@/lib/db/types";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type FormRow = {
   id: string;
@@ -169,7 +170,7 @@ export function FormDetail({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={`/p/${propertyId}/forms`}
@@ -232,7 +233,7 @@ export function FormDetail({
           </TabsContent>
         ) : null}
       </Tabs>
-    </div>
+    </PageShell>
   );
 }
 

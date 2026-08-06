@@ -36,6 +36,7 @@ import { parseChatbotConfig, type ChatbotTemplate } from "@/lib/chatbots/schema"
 import { NewChatbotDialog } from "./new-chatbot-dialog";
 import { deleteChatbot } from "./actions";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type ChatbotListItem = {
   id: string;
@@ -112,7 +113,7 @@ export function ChatbotsList({
   });
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
@@ -162,7 +163,7 @@ export function ChatbotsList({
           router.refresh();
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -66,13 +67,15 @@ export function OrgView({
     (selectedTeamId && data?.teams.find((t) => t.id === selectedTeamId)) ||
     null;
 
-  // The diagram canvas spans the full inset width (SHELL padding only); text
-  // blocks stay in a readable 6xl column via WRAP.
+  // ONE width for the whole page (`page`, 960). The diagram used to break out
+  // to the full pane while every text block sat in a centred 6xl column, which
+  // gave the page two left edges; the diagram scrolls horizontally inside its
+  // own container (see `tree-scroller`), so it does not need the extra width.
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto pt-12 pb-16 sm:pt-16">
+      <PageShell className="px-8 sm:px-14">
       <SectionHeader
         size="page"
-        className={WRAP}
         title="Org chart"
         description={
           <>
@@ -84,13 +87,13 @@ export function OrgView({
       />
 
       {isPending || !data ? (
-        <div className={cn(WRAP, "mt-12 flex flex-col gap-3")}>
+        <div className="mt-12 flex flex-col gap-3">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
       ) : selectedTeam ? (
-        <div className={cn(WRAP, "mt-10")}>
+        <div className="mt-10">
           <TeamDetail
             propertyId={propertyId}
             team={selectedTeam}
@@ -102,7 +105,7 @@ export function OrgView({
         </div>
       ) : (
         <>
-          <div className={cn(WRAP, "mt-8")}>
+          <div className="mt-8">
             <OrgProposals propertyId={propertyId} org={data} />
           </div>
           <OrgBody
@@ -114,14 +117,10 @@ export function OrgView({
           />
         </>
       )}
+      </PageShell>
     </div>
   );
 }
-
-/** Readable centered column for text blocks. */
-const WRAP = "mx-auto w-full max-w-6xl px-8 sm:px-14";
-/** Full-inset width with matching side padding (for the diagram canvas). */
-const FULL = "w-full px-8 sm:px-14";
 
 function OrgBody({
   propertyId,
@@ -143,65 +142,59 @@ function OrgBody({
 
   return (
     <>
-      <div className={cn(WRAP, "mt-10 flex gap-8 border-t border-border pt-5 text-sm")}>
+      <div className="mt-10 flex gap-8 border-t border-border pt-5 text-sm">
         <Stat value={org.teams.length} label="teams" />
         <Stat value={org.people.length} label="people" />
         <Stat value={reportingCount} label="reporting lines" />
       </div>
 
       <section className="mt-14 min-w-0">
-        <div className={structureView === "diagram" ? FULL : WRAP}>
-          <SectionHeader
-            className="mb-5"
-            eyebrow="Structure"
-            eyebrowTone="brand"
-            title="Teams"
-            actions={
-              /* A view switcher is a PILL row, never buttons or an underline
-                 (notion-spec-v2 §6). */
-              <TabNav variant="pill" aria-label="Structure view">
-                <ViewToggleButton
-                  active={structureView === "diagram"}
-                  label="Diagram"
-                  icon={<Network />}
-                  onClick={() => setStructureView("diagram")}
-                />
-                <ViewToggleButton
-                  active={structureView === "list"}
-                  label="List"
-                  icon={<ListTree />}
-                  onClick={() => setStructureView("list")}
-                />
-              </TabNav>
-            }
-          />
-        </div>
+        <SectionHeader
+          className="mb-5"
+          eyebrow="Structure"
+          eyebrowTone="brand"
+          title="Teams"
+          actions={
+            /* A view switcher is a PILL row, never buttons or an underline
+               (notion-spec-v2 §6). */
+            <TabNav variant="pill" aria-label="Structure view">
+              <ViewToggleButton
+                active={structureView === "diagram"}
+                label="Diagram"
+                icon={<Network />}
+                onClick={() => setStructureView("diagram")}
+              />
+              <ViewToggleButton
+                active={structureView === "list"}
+                label="List"
+                icon={<ListTree />}
+                onClick={() => setStructureView("list")}
+              />
+            </TabNav>
+          }
+        />
         {structureView === "diagram" ? (
-          <div className={FULL}>
-            <OrgDiagram
-              propertyId={propertyId}
-              propertyName={propertyName}
-              org={org}
-              openTaskCounts={org.openTaskCounts}
-              isManagement={isManagement}
-              onSelectTeam={onSelectTeam}
-            />
-          </div>
+          <OrgDiagram
+            propertyId={propertyId}
+            propertyName={propertyName}
+            org={org}
+            openTaskCounts={org.openTaskCounts}
+            isManagement={isManagement}
+            onSelectTeam={onSelectTeam}
+          />
         ) : (
-          <div className={WRAP}>
-            <TeamsTree
-              propertyId={propertyId}
-              propertyName={propertyName}
-              org={org}
-              openTaskCounts={org.openTaskCounts}
-              isManagement={isManagement}
-              onSelectTeam={onSelectTeam}
-            />
-          </div>
+          <TeamsTree
+            propertyId={propertyId}
+            propertyName={propertyName}
+            org={org}
+            openTaskCounts={org.openTaskCounts}
+            isManagement={isManagement}
+            onSelectTeam={onSelectTeam}
+          />
         )}
       </section>
 
-      <section className={cn(WRAP, "mt-16 min-w-0")}>
+      <section className="mt-16 min-w-0">
         <SectionHeader className="mb-5" eyebrow="Directory" eyebrowTone="brand" title="People" />
         <PeopleDirectory
           propertyId={propertyId}

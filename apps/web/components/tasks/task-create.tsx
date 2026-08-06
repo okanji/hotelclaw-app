@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -162,12 +163,13 @@ export function TaskCreatePage({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
+        {/* One page width for the whole create surface — PageShell owns it. */}
+        <PageShell className="px-10 pt-16 pb-12">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
-          className="mx-auto max-w-[820px] px-10 pt-16 pb-12"
         >
           <textarea
             ref={titleRef}
@@ -394,6 +396,7 @@ export function TaskCreatePage({
             </span>
           </div>
         </form>
+        </PageShell>
       </div>
     </div>
   );

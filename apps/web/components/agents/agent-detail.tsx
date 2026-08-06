@@ -17,6 +17,7 @@ import { updateAgent } from "./actions";
 import { AgentEditor } from "./agent-editor";
 import { AgentChat, type AgentChatSession } from "./agent-chat";
 import { ResolvedConfig } from "./resolved-config";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * Agent workspace: transparent config editor on the left, a live chat with
@@ -82,7 +83,9 @@ export function AgentDetail({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // Two-pane workspace (config beside a live chat) — a canvas surface, so
+    // the header bar and both panes share the full pane width and one edge.
+    <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
         <Button
           variant="ghost"
@@ -147,6 +150,6 @@ export function AgentDetail({
           />
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

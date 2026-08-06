@@ -183,10 +183,22 @@
   --color-pill-rose-ink: var(--pill-rose-ink);
   --color-pill-violet: var(--pill-violet);
   --color-pill-violet-ink: var(--pill-violet-ink);
-  /* The 720px centred DOCUMENT COLUMN (notion-spec-v2 §3). Prose, headings,
-     callouts and page titles live inside `max-w-content mx-auto`; data views
-     (tables, boards) deliberately break OUT of it to full width. */
+  /* PAGE WIDTH — exactly three rungs, and a page uses ONE of them for its
+     WHOLE length (masthead, toolbar, list and table all share the edge).
+     Mixing rungs inside a page is what produced the ragged multi-left-edge
+     bug; see the note on `SectionHeader`, which no longer imposes a width.
+
+       max-w-content (720px)  reading surfaces only — the document editor,
+                              brain pages, rendered reports, meeting notes.
+       max-w-page    (960px)  THE DEFAULT for every index, list, detail and
+                              settings page. Wide enough not to feel cramped,
+                              narrow enough to keep a readable measure.
+       (no class)             canvas surfaces that ARE the data view — kanban
+                              board, calendar grid, timetable, floor plan,
+                              workload. Their masthead is full width too, so
+                              the left edge still holds. */
   --container-content: var(--content-width);
+  --container-page: var(--page-width);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
@@ -442,9 +454,15 @@
   --pill-violet: oklch(0.6 0.15 300 / 16%);
   --pill-violet-ink: oklch(0.44 0.11 300);
 
-  /* The centred document column (notion-spec-v2 §3). Mapped to the container
-     scale above, so `max-w-content` is the utility. */
+  /* The centred document column (notion-spec-v2 §3) — READING surfaces only.
+     Mapped to the container scale above, so `max-w-content` is the utility. */
   --content-width: 720px;
+  /* The default app page width → `max-w-page`. 720px is too narrow for a page
+     that is a masthead plus a list (tiles crowd, tables clip); the pane itself
+     is ~1170px at a 1456px viewport, so filling it reads as full-bleed. 960px
+     is the middle rung this app was already reaching for by hand with its old
+     820px/920px/max-w-6xl one-offs. */
+  --page-width: 960px;
   /* Modal tier fill — translucent so the page reads through the blur. */
   --modal-bg: rgb(255 255 255 / 90%);
 

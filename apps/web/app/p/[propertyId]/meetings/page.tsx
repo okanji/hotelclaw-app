@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Video } from "lucide-react";
 import { ImportTranscriptDialog } from "@/components/chat/meeting/import-transcript-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PageShell } from "@/components/ui/page-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,8 @@ export default async function MeetingsPage({
         }
       />
       <div className="flex-1 overflow-y-auto p-4">
+        {/* One width for the page — the list and the empty state share it. */}
+        <PageShell className="h-full">
         {meetings.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <Video className="size-8 text-muted-foreground" />
@@ -59,7 +62,7 @@ export default async function MeetingsPage({
             </p>
           </div>
         ) : (
-          <ul className="mx-auto max-w-6xl space-y-2">
+          <ul className="space-y-2">
             {meetings.map((m) => (
               <li key={m.id}>
                 <Link
@@ -99,6 +102,7 @@ export default async function MeetingsPage({
             ))}
           </ul>
         )}
+        </PageShell>
       </div>
     </div>
   );

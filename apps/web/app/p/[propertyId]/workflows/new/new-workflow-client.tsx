@@ -228,7 +228,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
 
   if (!spec) {
     return (
-      <div className="mx-auto max-w-[760px] pb-16">
+      <div className="pb-16">
         <header className="mb-6 text-center">
           <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-md bg-primary/10">
             <Sparkles className="size-5 text-primary-ink" aria-hidden />
@@ -336,7 +336,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-[820px]">
+    <div>
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Workflow className="size-4 shrink-0 text-muted-foreground" aria-hidden />

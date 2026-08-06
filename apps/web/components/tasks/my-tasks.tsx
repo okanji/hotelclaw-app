@@ -31,6 +31,7 @@ import {
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   tasksQueryOptions,
   propertyMembersQueryOptions,
@@ -222,7 +223,7 @@ export function MyTasks({
   });
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <header>
         <p className="text-sm text-muted-foreground">{dateLine}</p>
         <h1 className="mt-1 text-[2.5rem] leading-[3rem] font-bold text-balance">
@@ -385,7 +386,7 @@ export function MyTasks({
           </PortalDragOverlay>
         </DndContext>
       )}
-    </div>
+    </PageShell>
   );
 }
 

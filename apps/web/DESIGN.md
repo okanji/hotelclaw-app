@@ -61,10 +61,10 @@ a dashboard, it's violating one of these:
    three elevations, each with exactly one job. Everywhere.
 5. **Sentence case, letter-spacing `normal`.** Section labels are 12px/12px
    weight 500 faint — **not** uppercase, **not** tracked.
-6. **Content lives in a 720px centred column** — prose, headings, callouts,
-   the page title. **Data views break OUT of it to full width.** That
-   contrast *is* the layout, and it is the single biggest thing that made us
-   read as a dashboard.
+6. **One width per page, top to bottom.** A page picks a single width via
+   `PageShell` and *everything* in it shares that edge — masthead, toolbar,
+   list, table. Reading surfaces get the 720px column; everything else gets
+   960px; true canvases go full-bleed.
 7. **Type is sized by ROLE, not by density.** Content is 16px, UI chrome is
    14px, metadata is 12px. A board-card title is *content*, so it is 16px —
    sizing it 14px is what made our cards read as UI rows instead of pages.
@@ -336,35 +336,45 @@ numbers that change.
 | Row icon | `12–16px`, `8px` gap to label |
 | Topbar | `44px` tall, **transparent** — no fill, no bottom border |
 | Menu / dropdown item | `28px` tall, `6px` radius, `3px 6px` padding |
-| **Content column** | **`--content-width` = 720px**, centred → `max-w-content mx-auto` |
+| **Page width** | `PageShell` — `page` **960px** (default) · `prose` **720px** · `bleed` (none) |
 | Table row / header | `37px` / `36px`; cell padding `7.5px 8px` |
 | Board card | `260px` wide, `8px 10px` padding |
 | Divider | `1px` `--border`, full panel width |
 
-### The document column — the structural rule
+### Page width — one per page, and only `PageShell` decides it
 
-**Content sits in a 720px centred column; data views break OUT of it to full
-width.** That contrast is the layout. Concretely:
+**A page picks ONE width and every element in it shares that edge, from the
+masthead to the last row.** Width is set in exactly one place —
+`components/ui/page-shell.tsx`:
 
-- **Inside `max-w-content`** — page title, prose, headings, callouts,
-  paragraph-shaped settings, empty states, form bodies.
-- **Outside it, edge-to-edge** — tables, boards, timetables, floor plans,
-  calendars, anything that scrolls horizontally.
+| `width` | max-width | use for |
+|---|---|---|
+| `page` | **960px** | **the default** — index, list, detail, settings |
+| `prose` | 720px | reading surfaces: document editor + header, brain page detail, `ReportMarkdown`, meeting notes |
+| `bleed` | none | surfaces that ARE the data canvas: kanban board / timeline / workload, calendar grids, bookings floor plan + timetable, the workflow builder, two-pane workspaces (agent, pod-bot, chatbot detail). Their masthead goes full width too, so the edge still holds. |
 
-Spacing inside the column is **padding, not margin**: every block is its
+Rules:
+- **Never** put a `max-w-*` page container on a surface — `PageShell` owns it.
+  (`max-w-*` that shortens a *lede's* measure or truncates a cell is fine; it
+  has no `mx-auto`, so it cannot create a second left edge.)
+- **Never** nest two `PageShell`s with different widths.
+- The page's own gutter goes on `PageShell`'s `className`; it lands on the
+  OUTER box, outside the measure, so padding can never shrink the content
+  width. That two-element structure is deliberate — see the comment in
+  `page-shell.tsx`.
+
+**Why this is a rule and not a preference.** v2 briefly wired the 720px column
+into `SectionHeader size="page"` itself, chasing Notion's prose-column /
+full-bleed-data contrast. Every masthead pinned to 720 while the content under
+it kept its own container, so pages grew two or three left edges — the
+Documents Directory measured its title at x=563, its search at x=623 and its
+boards at x=326. Notion can do that contrast because a Notion page is mostly
+prose; ours are a masthead plus a list, so misalignment is all you see.
+`SectionHeader` now imposes no width at all.
+
+Spacing *inside* the column is **padding, not margin**: every block is its
 content height plus `8px` top *and* bottom, so two consecutive paragraphs sit
 `16px` apart and collapsing margins never bite.
-
-A page that is *all* full-bleed cards is the dashboard look we are moving away
-from. If a surface has no prose at all, ask whether it should — a one-line
-orientation sentence in the column above a full-width table is the Notion
-shape.
-
-**Where the column is actually wired** (2026-08-05): `SectionHeader size="page"`
-(every index masthead), the document editor body, `ReportMarkdown`, the brain
-page/overview, the meeting detail article, and the Documents directory
-masthead. Everything else — boards, tables, timetables, floor plans,
-calendars, widget grids — is deliberately outside it.
 
 ### Board groups — no column background, ever
 
@@ -400,7 +410,7 @@ primitives — **use these instead of hand-rolling**:
 |---|---|---|
 | `EmptyState` | every "nothing here yet" moment | a **dashed gray box**; a `size-12 rounded-full bg-muted` icon plate |
 | `Eyebrow` (`tone="app" \| "brand" \| "guest"`) | the small section label above a heading or date group | uppercase, `tracking-*`, or a colored label on app surfaces |
-| `SectionHeader` (`size="page" \| "section" \| "panel"`) | title + description + right-aligned actions. **`page` carries the document column itself** (`mx-auto w-full max-w-content`) — the masthead sits at 720px while the grid/table under it stays full width. Escape with `className="max-w-none"`. | the ~70th inline `flex items-center justify-between` header; a serif page title; a full-width `<hr>` under the masthead (it reads as a seam beside a 720px column — use whitespace) |
+| `SectionHeader` (`size="page" \| "section" \| "panel"`) | title + description + right-aligned actions. **Imposes NO width** — `PageShell` owns that, so the masthead shares its page's edge. | the ~70th inline `flex items-center justify-between` header; a serif page title; a full-width `<hr>` under the masthead (use whitespace); adding `max-w-*` here to "fix" alignment — fix it on the `PageShell` |
 | `StatGroup` + `Stat` | dashboard/agenda metric strips | stat *cards*; **vertical rules between columns**; icons inside stats |
 | `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states — renders as a **pill**: `rounded-pill bg-pill-<tone> text-pill-<tone>-ink` | picking badge colors per domain; a `border-<tone>/30` stroke; a Tailwind-palette wash |
 | `Chip` (`tone="app" \| "guest"`, `selected`) | toggleable filter/option pills | bespoke `rounded-full border` toggles; hover that changes the border |

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Archive, ArrowLeft, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { PageShell } from "@/components/ui/page-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -66,25 +67,27 @@ export function BrainPageDetail({
 
   if (pageQuery.isPending) {
     return (
-      <div className="mx-auto max-w-content px-6 py-8 lg:px-10">
+      <PageShell width="prose" className="px-6 py-8 lg:px-10">
         <p className="text-sm text-muted-foreground">Loading page…</p>
-      </div>
+      </PageShell>
     );
   }
   if (pageQuery.isError) {
     return (
-      <div className="mx-auto max-w-content px-6 py-8 lg:px-10">
+      <PageShell width="prose" className="px-6 py-8 lg:px-10">
         <p className="text-sm text-pretty text-muted-foreground">
           Couldn&apos;t load this page — it may have been archived, or the
           brain is briefly unreachable.
         </p>
-      </div>
+      </PageShell>
     );
   }
   const page = pageQuery.data;
 
   return (
-    <article className="mx-auto flex max-w-content flex-col px-6 py-8 lg:px-10">
+    // A brain page is a READING surface — one 720px prose column.
+    <PageShell width="prose" className="px-6 py-8 lg:px-10">
+      <article className="flex flex-col">
       <Button
         variant="ghost"
         size="sm"
@@ -212,7 +215,8 @@ export function BrainPageDetail({
           onArchived={onArchived}
         />
       ) : null}
-    </article>
+      </article>
+    </PageShell>
   );
 }
 

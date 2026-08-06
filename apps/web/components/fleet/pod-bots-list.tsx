@@ -8,6 +8,7 @@ import { TintIcon } from "@/components/ui/tint-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { podBotEmoji, podToolInfo } from "@/lib/fleet/tool-catalog";
 import { CLIENT_STATUS_UI, MODEL_TIER_UI } from "@/lib/fleet/status-colors";
+import { PageShell } from "@/components/ui/page-shell";
 
 type BotRow = {
   id: string;
@@ -32,7 +33,7 @@ export function PodBotsList({
   const clientStatus = CLIENT_STATUS_UI[client.status];
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
@@ -99,6 +100,6 @@ export function PodBotsList({
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

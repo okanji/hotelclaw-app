@@ -42,6 +42,7 @@ import { AnalyticsTab } from "./analytics-tab";
 import { DeployPanel } from "./deploy-panel";
 import { updateChatbot } from "./actions";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type ChannelOption = { id: string; name: string; stream_channel_id: string };
 export type SpaceOption = { id: string; name: string };
@@ -167,7 +168,16 @@ export function ChatbotDetail({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    // `bleed`, like the other two-pane workspaces (`agents/agent-detail`,
+    // `fleet/bot-detail`): the builder column sits beside a 380px sticky test
+    // console, so a 960 cap left it 444px wide and the 7-tab strip needed 791
+    // (measured) — it clipped. Bleed keeps ONE left edge (masthead, tab strip,
+    // builder column and console all start at the shell's padding) while
+    // giving the editor room. See DESIGN.md § Page width.
+    <PageShell
+      width="bleed"
+      className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16"
+    >
       <header className="flex flex-wrap items-center gap-3">
         <Link
           href={`/p/${propertyId}/chatbots`}
@@ -339,7 +349,7 @@ export function ChatbotDetail({
           />
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

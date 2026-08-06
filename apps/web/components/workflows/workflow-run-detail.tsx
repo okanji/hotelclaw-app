@@ -7,6 +7,7 @@ import {
   workflowRunDetailQueryOptions,
 } from "@/lib/query/workflow-queries";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { RunInspectorClient } from "@/app/p/[propertyId]/workflows/[workflowId]/runs/[runId]/run-inspector-client";
 
 export function WorkflowRunDetail({
@@ -36,14 +37,14 @@ export function WorkflowRunDetail({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
+        <PageShell className="px-10 pt-10 pb-12">
           <RunInspectorClient
             propertyId={propertyId}
             workflowId={workflowId}
             initialRun={run as Parameters<typeof RunInspectorClient>[0]["initialRun"]}
             initialSteps={runData.steps as Parameters<typeof RunInspectorClient>[0]["initialSteps"]}
           />
-        </div>
+        </PageShell>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import {
 } from "@/lib/fleet/tool-catalog";
 import { CLIENT_STATUS_UI, MODEL_TIER_UI } from "@/lib/fleet/status-colors";
 import { updateBot } from "./actions";
+import { PageShell } from "@/components/ui/page-shell";
 
 type BotRow = {
   id: string;
@@ -111,7 +112,9 @@ export function BotDetail({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // Two-pane workspace (config beside the live test chat) — a canvas
+    // surface: header bar and both panes share the full pane width.
+    <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
         <Button
           variant="ghost"
@@ -293,6 +296,6 @@ export function BotDetail({
           />
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

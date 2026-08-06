@@ -35,6 +35,7 @@ import type { TriggerEventType } from "@/lib/workflows/spec";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -231,7 +232,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[920px] px-10 pt-8 pb-12">
+        <PageShell className="px-10 pt-8 pb-12">
           {has ? (
             <>
               <Toolbar
@@ -275,7 +276,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
           ) : (
             <EmptyState propertyId={propertyId} />
           )}
-        </div>
+        </PageShell>
       </div>
     </div>
   );

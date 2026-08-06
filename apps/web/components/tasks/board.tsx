@@ -7,6 +7,7 @@ import { useBroadcastEvent } from "@liveblocks/react";
 import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
 import {
@@ -223,8 +224,16 @@ export function TasksBoard({
 
   if (isPending) return <TasksBoardSkeleton />;
 
+  /*
+   * WIDTH — `bleed`, for the whole page. The board, the grouped board, the
+   * timeline and the workload chart are all data canvases that want the pane,
+   * and the list view shares this page's masthead + toolbar: capping only the
+   * list would make the page's left edge jump on every view switch, which is
+   * exactly the two-edge problem PageShell exists to kill. So the header, the
+   * toolbar, the filter bar and every view run to the same full-width edge.
+   */
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
+    <PageShell width="bleed" className="flex h-full min-h-0 flex-1 flex-col">
       <PageHeader
         breadcrumbs={
           mineOnly
@@ -321,6 +330,6 @@ export function TasksBoard({
           hideDone={hideDone}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

@@ -19,6 +19,7 @@ import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
 import { sendStaffReply, setConversationState } from "./actions";
 import { ChatBubble, ToolCallList } from "./chat/primitives";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type TranscriptMessage = {
   id: string;
@@ -144,7 +145,7 @@ export function ConversationTranscript({
   const guestLabel = conversation.guest_name ?? "Anonymous guest";
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 pt-8 pb-6 sm:px-10">
+    <PageShell className="flex h-full flex-col px-6 pt-8 pb-6 sm:px-10">
       <header className="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
@@ -292,6 +293,6 @@ export function ConversationTranscript({
           conversation to it.
         </p>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

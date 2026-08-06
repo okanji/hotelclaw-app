@@ -7,6 +7,7 @@ import { LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { workflowDetailQueryOptions } from "@/lib/query/workflow-queries";
 import { classifyMode } from "@/lib/workflows/spec";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { BuilderShell } from "./builder/builder-shell";
 import { WorkflowRoom } from "./builder/workflow-room";
 
@@ -32,9 +33,8 @@ export function WorkflowDetail({
         ]}
       />
       {spec ? (
-        // BuilderShell owns its own width + padding so the canvas view can
-        // break out of the comfortable reading column (820px) into the full-
-        // width workspace it needs.
+        // The builder is a canvas surface — BuilderShell owns its own width
+        // (PageShell width="bleed") so the graph gets the whole pane.
         <WorkflowRoom propertyId={propertyId} workflowId={workflowId} initialSpec={spec}>
           <BuilderShell
             propertyId={propertyId}
@@ -48,7 +48,7 @@ export function WorkflowDetail({
         </WorkflowRoom>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
+          <PageShell className="px-10 pt-10 pb-12">
             <div className="rounded-lg bg-muted p-12 text-center">
               <Workflow className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium text-foreground">
@@ -75,7 +75,7 @@ export function WorkflowDetail({
                 </Link>
               </div>
             </div>
-          </div>
+          </PageShell>
         </div>
       )}
     </div>

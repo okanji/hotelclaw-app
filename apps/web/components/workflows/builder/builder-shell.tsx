@@ -9,6 +9,7 @@ import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import { validateSpec } from "@/lib/workflows/validate";
 import { STEP_FIELDS } from "@/lib/workflows/field-defs";
+import { PageShell } from "@/components/ui/page-shell";
 import { AiCopilot } from "./ai-copilot";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
 import { TreeList } from "./tree-list/tree-list";
@@ -316,7 +317,9 @@ export function BuilderShell({
 
   return (
     <WorkflowBuilderDataProvider propertyId={propertyId}>
-    <div className="flex h-full min-h-0 flex-col">
+    {/* The builder is a canvas surface: the graph, the step tree and the
+        banners all share the full pane width (PageShell width="bleed"). */}
+    <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
       <header
         className={cn(
           "flex shrink-0 flex-col items-stretch gap-2 border-b border-border bg-background/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between",
@@ -419,7 +422,7 @@ export function BuilderShell({
         <div
           className={cn(
             "shrink-0",
-            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+            isMap ? "px-4 pt-2" : "px-10 pt-4",
           )}
         >
           <AcceptBar count={unaccepted.size} onAccept={acceptAll} onReject={rejectAll} />
@@ -430,7 +433,7 @@ export function BuilderShell({
         <div
           className={cn(
             "shrink-0",
-            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+            isMap ? "px-4 pt-2" : "px-10 pt-4",
           )}
         >
           <div className="flex items-start justify-between gap-3 rounded-md bg-destructive/10 px-3 py-2 text-sm">
@@ -459,7 +462,7 @@ export function BuilderShell({
         <div
           className={cn(
             "shrink-0",
-            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+            isMap ? "px-4 pt-2" : "px-10 pt-4",
           )}
         >
           <SpecErrorBanner messages={unattachedErrors.map(humanizeSpecIssue)} />
@@ -470,7 +473,7 @@ export function BuilderShell({
         <div
           className={cn(
             "shrink-0",
-            isMap ? "px-4 pt-2" : "mx-auto w-full max-w-[820px] px-10 pt-4",
+            isMap ? "px-4 pt-2" : "px-10 pt-4",
           )}
         >
           <WarningBanner messages={[...warningById.values()]} />
@@ -546,7 +549,7 @@ export function BuilderShell({
         open={testOpen}
         onClose={() => setTestOpen(false)}
       />
-    </div>
+    </PageShell>
     </WorkflowBuilderDataProvider>
   );
 }

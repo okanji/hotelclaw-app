@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   CustomizeMenu,
@@ -146,7 +147,8 @@ export function InsightsView({
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-6xl px-8 pt-12 pb-24 sm:px-14 sm:pt-16">
+        <div className="w-full px-8 pt-12 pb-24 sm:px-14 sm:pt-16">
+          <PageShell>
           <SectionHeader
             size="page"
             className="flex-wrap gap-y-3"
@@ -253,6 +255,7 @@ export function InsightsView({
               </>
             )}
           </div>
+          </PageShell>
         </div>
       </div>
       {data && data.role !== "staff" && !isReports ? (

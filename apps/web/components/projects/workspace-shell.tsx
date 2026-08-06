@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageShell } from "@/components/ui/page-shell";
 
 const RAIL_STORAGE_KEY = "workspace:rail-collapsed";
 
@@ -30,9 +31,13 @@ export type WorkspaceTab = {
 
 /**
  * Shared chrome for a Space / Project workspace, Linear-style: a main column
- * (header + tabs + active tab) and an optional right **properties rail**. The
- * whole [main | rail] block is bounded and centered on large screens — wider
- * than a single column, but never full-bleed.
+ * (header + tabs + active tab) and an optional right **properties rail**.
+ *
+ * Width: the main column IS this page's `PageShell` (`page`, 960), so the
+ * breadcrumb, the view tabs, the header and the active tab's content all share
+ * one left edge from the top of the page to the bottom. The rail sits outside
+ * that column (the same shape as the task detail's sidebar) and the
+ * [main | rail] pair is centered by the row around them.
  */
 export function WorkspaceShell({
   breadcrumb,
@@ -79,8 +84,11 @@ export function WorkspaceShell({
 
   return (
     <div className="flex h-full min-h-0 justify-center">
-      <div className="flex w-full min-w-0 max-w-7xl">
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pt-8 pb-20 sm:px-12 sm:pt-12">
+      <div className="flex w-full min-w-0 justify-center">
+        {/* `mx-0` cancels PageShell's own centering — the row centers the
+            [main | rail] pair, so auto margins here would only shove the rail
+            away from the column it belongs to. */}
+        <PageShell className="mx-0 flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pt-8 pb-20 sm:px-12 sm:pt-12">
           {breadcrumb ? (
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">{breadcrumb}</div>
@@ -134,7 +142,7 @@ export function WorkspaceShell({
           </div>
 
           <div className="min-h-0 flex-1">{current?.content}</div>
-        </div>
+        </PageShell>
 
         {rightRail && !railCollapsed ? (
           <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-12 pb-20 md:flex">

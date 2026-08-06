@@ -9,6 +9,7 @@ import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   projectSpacesQueryOptions,
   projectsTrackingQueryOptions,
@@ -123,8 +124,14 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     onChanged,
   };
 
+  /*
+   * WIDTH — `bleed`, for the whole page. Two of the three views (board,
+   * timeline) are data canvases that want the pane, and all three share this
+   * masthead and tab strip, so one full-width edge keeps the page from
+   * shifting sideways when the view changes.
+   */
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <PageShell width="bleed" className="flex h-full flex-col overflow-hidden">
       <div className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
         <SectionHeader
           size="page"
@@ -205,6 +212,6 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
         propertyId={propertyId}
         kind="project"
       />
-    </div>
+    </PageShell>
   );
 }

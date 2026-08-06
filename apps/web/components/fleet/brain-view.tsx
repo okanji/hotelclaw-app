@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { BRAIN_HEALTH_UI, CLIENT_STATUS_UI } from "@/lib/fleet/status-colors";
 import { ActionsApiKeys } from "./actions-api-dialog";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * Brain & access — read-only transparency for the pod's knowledge brain
@@ -41,7 +42,7 @@ export function BrainView({
   const clientStatus = CLIENT_STATUS_UI[client.status];
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         eyebrow="Fleet"
@@ -121,6 +122,6 @@ export function BrainView({
           </p>
         )}
       </section>
-    </div>
+    </PageShell>
   );
 }

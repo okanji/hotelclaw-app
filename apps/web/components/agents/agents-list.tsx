@@ -32,6 +32,7 @@ import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { NewAgentDialog } from "./new-agent-dialog";
 import { AgentBuilderDialog } from "./agent-builder-dialog";
 import { deleteAgent } from "./actions";
+import { PageShell } from "@/components/ui/page-shell";
 
 type PodBotSummary = {
   id: string;
@@ -74,7 +75,7 @@ export function AgentsList({
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         className="flex-wrap gap-y-3"
@@ -205,7 +206,7 @@ export function AgentsList({
           router.refresh();
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

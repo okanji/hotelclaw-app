@@ -18,6 +18,7 @@ import {
 import { Check, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { QuickAccessRow } from "./quick-access";
 import {
   DropdownMenu,
@@ -65,8 +66,12 @@ import { IntelligenceBriefWidget } from "./widgets/intelligence-brief-widget";
 /**
  * Property "Home" — a role-adaptive **home document**, not a dashboard.
  *
- * Structure (notion-spec-v2 §3): the whole page is the 720px `max-w-content`
- * column. It opens the way a Notion page opens — a 40px/48px weight-700 title,
+ * Structure (notion-spec-v2 §3): the whole page is ONE `PageShell` column —
+ * `page` (960px), the app-wide default, so the masthead and every section
+ * below it share one left edge. (Home was briefly a 720px prose column; its
+ * content is list rows with right-aligned metadata, not prose, and those rows
+ * read better with the extra measure.) It opens the way a Notion page opens —
+ * a 40px/48px weight-700 title,
  * one 14px muted line, and then content. There is deliberately **no boxed KPI
  * strip under the title**: the role-tuned numbers are a single quiet inline
  * metrics line (12px faint labels beside 24px weight-600 tabular values,
@@ -179,7 +184,7 @@ export function HomeView({
     {/* The scroll box keeps ≥32px of horizontal padding at every width so the
         block-gutter grips (−28px) live inside it and never widen the page. */}
     <div className="h-full w-full overflow-y-auto px-8 pt-8 pb-24 sm:px-14 sm:pt-10">
-      <div className="mx-auto flex w-full max-w-content flex-col">
+      <PageShell className="flex flex-col">
         {/* Page controls sit above the title in their own quiet row, the way a
             Notion page header does — the title itself stays unencumbered. */}
         <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
@@ -325,7 +330,7 @@ export function HomeView({
           hidden={hidden}
           onRestore={toggleHidden}
         />
-      </div>
+      </PageShell>
     </div>
     </DashboardFilterProvider>
   );

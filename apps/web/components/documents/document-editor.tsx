@@ -67,6 +67,7 @@ import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge
 import { DocumentLinkedTasks } from "./document-linked-tasks";
 import { DocumentLabels } from "./document-labels";
 import { DocumentShare } from "./document-share";
+import { PageShell } from "@/components/ui/page-shell";
 import { DocumentHeader } from "./document-header";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
@@ -547,7 +548,9 @@ function EditorInner({
       <div className="flex-1 overflow-auto px-6 pb-24">
         <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
-          <div className="relative mx-auto w-full max-w-content pt-10">
+          {/* The document IS the reading surface: header (cover/icon/hover
+              row) and body share ONE 720px column, top to bottom. */}
+          <PageShell width="prose" className="relative pt-10">
             <DocumentHeader
               propertyId={propertyId}
               documentId={documentId}
@@ -584,7 +587,7 @@ function EditorInner({
             <ClientSideSuspense fallback={null}>
               <EditorThreads editor={editor} />
             </ClientSideSuspense>
-          </div>
+          </PageShell>
         </ThreadIndicatorEditorContext.Provider>
       </div>
       <DocumentAiPanel

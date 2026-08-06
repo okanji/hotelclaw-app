@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask, escalateTask, updateTask } from "./actions";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { PresenceBar } from "./presence-bar";
 import { taskShortId } from "./kanban";
 import {
@@ -227,10 +228,10 @@ export function TaskDetail({
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto">
-            {/* Reading column — narrower than the full pane and pushed down
-                from the top so the title gets the same "page header" breathing
-                room Linear gives its work item view. */}
-            <div className="mx-auto max-w-[820px] px-10 pt-16 pb-12">
+            {/* One page width for the whole column (PageShell owns it), pushed
+                down from the top so the title gets the same "page header"
+                breathing room Linear gives its work item view. */}
+            <PageShell className="px-10 pt-16 pb-12">
             <textarea
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -351,7 +352,7 @@ export function TaskDetail({
 
               <TaskAiPanel propertyId={propertyId} taskId={task.id} />
             </section>
-            </div>
+            </PageShell>
           </div>
         </div>
 

@@ -17,6 +17,7 @@ import { Chip } from "@/components/ui/chip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { SectionHeader } from "@/components/ui/section-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseServiceSchedule } from "@/lib/bookings/schema";
@@ -24,7 +25,6 @@ import type { BookingStatus } from "@/lib/db/types";
 import {
   BookingRow,
   BookingStatusBadge,
-  DATA_COL,
   dateKey,
   shiftDate,
   todayKey,
@@ -78,8 +78,18 @@ export function ServiceWorkspace({
         ? "Rentals"
         : "Appointments";
 
+  // ONE width for the workspace, masthead included — decided by the service
+  // KIND, not by the open tab, so switching Reservations → Floor plan never
+  // shifts the left edge. A restaurant is a host console (floor plan +
+  // timetable) and a rental with units is a unit schedule: both ARE the data
+  // canvas, so they take the pane. Ticketing and day sheets are lists and sit
+  // in the 960px page column.
+  const ownResources = resources.filter((r) => r.service_id === service.id);
+  const shellWidth =
+    tableMode || (rentalMode && ownResources.length > 0) ? "bleed" : "page";
+
   return (
-    <div className="space-y-4">
+    <PageShell width={shellWidth} className="space-y-4">
       {/* Same masthead tier as every other index page (`ui/section-header`
           size="page" — 40/48 weight 700, no rule). */}
       <SectionHeader
@@ -151,7 +161,7 @@ export function ServiceWorkspace({
           onClose={() => setPageDialogOpen(false)}
         />
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 
@@ -222,10 +232,9 @@ function ScopedAgenda({
     );
   }
 
-  // A list is not a data view — it reads in the centred column, while the
-  // floor plan and the timetable beside it run full bleed (§3).
+  // No width of its own — the workspace shell above owns the page's one edge.
   return (
-    <div className={cn("space-y-3", DATA_COL)}>
+    <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
         {(
           [
@@ -290,13 +299,7 @@ function TableServiceView({
 
   return (
     <div className="space-y-3">
-      <div
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-3",
-          // The toolbar takes the width of the view it heads.
-          tab === "reservations" && DATA_COL,
-        )}
-      >
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <TabNav variant="pill" aria-label="View">
           {(
             [
@@ -381,7 +384,7 @@ function TicketingView({
     : dayBookings;
 
   return (
-    <div className={cn("space-y-4", DATA_COL)}>
+    <div className="space-y-4">
       {dates.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {dates.map((d) => (
@@ -556,14 +559,7 @@ function DaySheetView({
 
   return (
     <div className="space-y-3">
-      <div
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-3",
-          // Rentals put a full-bleed unit timetable under this bar; every
-          // other kind puts a list under it.
-          !(rentalMode && own.length > 0) && DATA_COL,
-        )}
-      >
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <DayNav day={day} onChange={setDay} />
         {rentalMode && outNow > 0 ? (
           <StatusBadge tone="violet" dot={false}>

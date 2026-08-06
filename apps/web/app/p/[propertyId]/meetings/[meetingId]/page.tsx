@@ -5,6 +5,7 @@ import { getMeetingDetail } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
 import { ArrowLeft, FileText, Hash, Square, Video } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,11 @@ export default async function MeetingDetailPage({
         }
       />
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <article className="mx-auto max-w-content space-y-6">
+        {/* A meeting's notes are a reading surface — the 720px prose column
+            (`ui/page-shell`), one edge from the metadata header to the
+            transcript. */}
+        <PageShell width="prose">
+        <article className="space-y-6">
           <header className="space-y-1 text-xs text-muted-foreground">
             <p>
               {new Date(detail.started_at).toLocaleString()}
@@ -100,6 +105,7 @@ export default async function MeetingDetailPage({
             </section>
           ) : null}
         </article>
+        </PageShell>
       </div>
     </div>
   );

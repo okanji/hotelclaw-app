@@ -14,6 +14,7 @@ import {
 import { SESSION_STATUS_UI } from "@/lib/fleet/status-colors";
 import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { SessionTranscriptSheet } from "./session-transcript";
+import { PageShell } from "@/components/ui/page-shell";
 
 /** Sessions list — stored columns only (no live stream classification in
  *  the list; the transcript sheet reads the real event log on demand). */
@@ -33,7 +34,7 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
       <SectionHeader
         size="page"
         eyebrow="Fleet"
@@ -73,7 +74,7 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
         session={openSession}
         onClose={close}
       />
-    </div>
+    </PageShell>
   );
 }
 

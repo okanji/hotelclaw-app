@@ -1,5 +1,6 @@
 import { ChevronRight, ListChecks } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * Loading placeholder shaped like <TaskDetail> — breadcrumb header, main
@@ -17,7 +18,7 @@ export function TaskDetailSkeleton() {
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-[820px] px-10 pt-16 pb-12">
+            <PageShell className="px-10 pt-16 pb-12">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="mt-4 h-4 w-full max-w-md" />
             {/* Inline properties strip */}
@@ -57,7 +58,7 @@ export function TaskDetailSkeleton() {
               </div>
               <Skeleton className="mt-4 h-16 w-full rounded-md" />
             </div>
-            </div>
+            </PageShell>
           </div>
         </div>
 

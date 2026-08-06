@@ -8,6 +8,7 @@ import {
   workflowRunsQueryOptions,
 } from "@/lib/query/workflow-queries";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageShell } from "@/components/ui/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 
@@ -66,7 +67,7 @@ export function WorkflowRunsList({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[820px] px-10 pt-10 pb-12">
+        <PageShell className="px-10 pt-10 pb-12">
           {runs.length > 0 ? (
             <ul className="divide-y divide-border">
               {runs.map((r) => (
@@ -105,7 +106,7 @@ export function WorkflowRunsList({
               </p>
             </div>
           )}
-        </div>
+        </PageShell>
       </div>
     </div>
   );
