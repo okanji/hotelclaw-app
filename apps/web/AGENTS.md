@@ -73,6 +73,16 @@ node ... scripts/bot-capability-test.mjs --sweep      # delete leftover CAPTEST 
   `--sweep` clears leftovers from a crashed run.
 - It runs against **whatever the Stream webhook points at** — prod by
   default, so no ngrok needed (`configure-stream-webhook.mjs status`).
+  Corollary: a scenario for a tool that exists in this repo but has NOT been
+  deployed will fail, and the failure is about the deploy, not the code.
+
+  > **`action/list-channels` is expected to FAIL until `apps/agent` ships.**
+  > `list_channels` was added 2026-08-07 to close the gap this suite found
+  > (`post_to_channel` was granted but nothing could turn a channel name into
+  > an id). It is written, granted, capability-mapped, drift-guards pass, and
+  > it builds — but production predates it, so the bot correctly answers
+  > "I have no channel directory". Re-run `--only action/list-channels`
+  > after the next deploy; nothing else needs to change.
 - **Writing a scenario — three ways the harness lied before the bot did.**
   Every one of these produced a red result against a bot that was correct:
   1. *Incomplete ground truth invents hallucinations.* A doc whose record
