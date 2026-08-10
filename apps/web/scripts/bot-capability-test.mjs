@@ -638,21 +638,32 @@ const ACTION_SCENARIOS = [
     // The closest thing the bot has to "raise an alert" — and it is
     // approval-gated, so this also exercises the park → approve → execute
     // loop end to end.
+    //
+    // Name the team EXPLICITLY: with "send it to the team" the bot sometimes
+    // (correctly) asks "which team?" instead of parking, and the scenario
+    // failed a reasonable clarifying question as a missing approval gate.
+    // Determinism in the ask, not tolerance in the assertion.
     approvalGated: true,
-    ask: `@hotelclaw Send a notification to the team saying "${MARK} chiller reading is drifting, please check". Go ahead.`,
+    ask: `@hotelclaw Send a notification to the Engineering & Maintenance team saying "${MARK} chiller reading is drifting, please check". Go ahead.`,
     async verify({ propertyId }) {
       // The message lives inside the jsonb `payload` (shape varies by
       // notification type), so match on the serialised payload rather than
       // guessing a key.
-      const row = await pollFor(async () => {
-        const { data } = await supabase
-          .from("notifications")
-          .select("id, type, payload, created_at")
-          .eq("property_id", propertyId)
-          .order("created_at", { ascending: false })
-          .limit(40);
-        return (data ?? []).find((n) => JSON.stringify(n.payload ?? {}).includes(MARK));
-      });
+      // 120s window, not the 60s default: under load the approval turn can
+      // deliver the row late — a dual-harness run had cleanup sweep the
+      // notifications the verifier had already declared missing.
+      const row = await pollFor(
+        async () => {
+          const { data } = await supabase
+            .from("notifications")
+            .select("id, type, payload, created_at")
+            .eq("property_id", propertyId)
+            .order("created_at", { ascending: false })
+            .limit(40);
+          return (data ?? []).find((n) => JSON.stringify(n.payload ?? {}).includes(MARK));
+        },
+        { timeoutMs: 120_000 },
+      );
       return row
         ? { passed: true, detail: `type=${row.type}` }
         : { passed: false, reason: "no notification row containing the message" };
