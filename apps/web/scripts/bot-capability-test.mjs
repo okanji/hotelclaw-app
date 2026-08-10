@@ -206,31 +206,39 @@ async function judge({ question, reply, groundTruth, parts, mustNot = [] }) {
     .filter(Boolean)
     .join("\n");
 
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 1200,
-        messages: [{ role: "user", content: prompt }],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!res.ok) {
-      return { skipped: true, parts: [], hallucinated: false, notes: `judge HTTP ${res.status}` };
+  // One retry: a single truncated/failed judge response otherwise fails the
+  // scenario (fail-closed is right, but a transient API hiccup graded a
+  // CORRECT bot answer as a failure on the first post-deploy run).
+  let lastErr = "";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-5",
+          max_tokens: 2000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      if (!res.ok) {
+        lastErr = `judge HTTP ${res.status}`;
+        continue;
+      }
+      const body = await res.json();
+      const text = (body.content ?? []).map((b) => b.text ?? "").join("");
+      const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+      return JSON.parse(json);
+    } catch (err) {
+      lastErr = `judge error: ${err.message}`;
     }
-    const body = await res.json();
-    const text = (body.content ?? []).map((b) => b.text ?? "").join("");
-    const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-    return JSON.parse(json);
-  } catch (err) {
-    return { skipped: true, parts: [], hallucinated: false, notes: `judge error: ${err.message}` };
   }
+  return { skipped: true, parts: [], hallucinated: false, notes: lastErr };
 }
 
 // ─── Ground truth loaders ──────────────────────────────────────────────────
