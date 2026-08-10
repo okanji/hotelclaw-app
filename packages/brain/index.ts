@@ -158,8 +158,28 @@ export async function callBrain(
   }
 }
 
-/** Fetch a page's markdown, or null (missing page and transport failure
- * both resolve null — callers that must distinguish use callBrain). */
+/**
+ * Fetch a page's markdown, or null (missing page and transport failure
+ * both resolve null — callers that must distinguish use callBrain).
+ *
+ * THE BODY LIVES IN `compiled_truth`. gbrain's `get_page` returns
+ * `{ id, slug, type, title, compiled_truth, timeline, frontmatter, … }` —
+ * there is no `content` or `markdown` key. Reading only those two meant this
+ * returned null for EVERY page that exists, which broke six call sites at
+ * once (found 2026-08-10):
+ *
+ *   • `brain_get` answered `{found:false}` for real pages, so the read
+ *     ladder's "search → get the full page" step never worked;
+ *   • pod-bot playbook injection (instructions/dynamic.ts, skills/playbook.ts)
+ *     silently loaded no playbook;
+ *   • guest-profile prefetch never found a profile;
+ *   • and worst, `captureEvidence` below treats null as "page missing" and
+ *     re-`put_page`s the OPERATOR REVIEW stub — so every capture CLOBBERED
+ *     the page's compiled truth, destroying exactly what the
+ *     append-evidence-never-rewrite discipline exists to protect.
+ *
+ * `content`/`markdown` stay as fallbacks in case the serve's shape changes.
+ */
 export async function getBrainPageMarkdown(
   brainUrl: string | null,
   cred: BrainCredential | null,
@@ -168,8 +188,12 @@ export async function getBrainPageMarkdown(
   const result = await callBrain(brainUrl, cred, "get_page", { slug });
   if (!result.ok) return null;
   if (typeof result.content === "string") return result.content || null;
-  const page = result.content as { content?: string; markdown?: string } | null;
-  return page?.content ?? page?.markdown ?? null;
+  const page = result.content as {
+    compiled_truth?: string;
+    content?: string;
+    markdown?: string;
+  } | null;
+  return page?.compiled_truth ?? page?.content ?? page?.markdown ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -291,7 +315,7 @@ export const brainToolDescriptions = {
   brain_think:
     "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. Reads across many pages and composes a real answer rather than handing back excerpts. Slow (~40s) — reserve for questions needing judgment ('why does the pool keep going green?', 'what do we know about this supplier?'), not lookups brain_search can answer.",
   brain_capture:
-    "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for confirmed recurring issues, fixes, supplier behavior, team decisions, guest-relevant lore. SKIP chit-chat and anything already authoritative in the app (tasks, bookings, docs). slug examples: 'systems/pool', 'suppliers/acme-pool-services'.",
+    "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for confirmed recurring issues, fixes, supplier behavior, team decisions, guest-relevant lore. SKIP chit-chat and anything already authoritative in the app (tasks, bookings, docs). SLUG CONVENTION (it determines how the brain wires the page into its knowledge graph): suppliers/vendors/businesses → 'companies/<name>' (e.g. 'companies/acme-pool-services'); a specific person → 'people/<name>'; equipment, places, systems, recurring topics → 'concepts/<name>' (e.g. 'concepts/walk-in-freezer', 'concepts/pool'). Never invent other top-level folders — pages outside these stay invisible to the graph.",
   brain_get:
     "Read one full brain page by slug (compiled truth + evidence timeline). Use after brain_search/brain_list surfaces a promising slug — search returns chunks, not full pages.",
   brain_list:
@@ -310,7 +334,9 @@ export const brainToolSchemas = {
     slug: z
       .string()
       .regex(/^[a-z0-9][a-z0-9/_-]{2,80}$/)
-      .describe("Entity page path (kebab-case, '/'-separated)"),
+      .describe(
+        "Entity page path (kebab-case): companies/<supplier>, people/<person>, or concepts/<system-or-topic>. These three prefixes are the ones gbrain types and graph-links; others produce invisible pages.",
+      ),
     page_title: z.string().min(2).max(120),
     observation: z
       .string()
@@ -372,7 +398,26 @@ export const KNOWLEDGE_DISCIPLINE = [
   "- When surfaces disagree in coverage, say which said what: \"Documents has 5 SOPs; the brain has no incident history on this.\" End partial answers with an explicit note on what you could not check.",
   `- Cite brain findings as ${BRAIN_CITATION_FORMAT} and documents by title with their app link. Never present uncited claims as property knowledge.`,
   "- A brain hit whose slug looks like `documents/<uuid>` IS one of those app documents, mirrored. Cite it by TITLE with its app link — never paste the raw slug or uuid at a human. When a tool result carries a `sources` list, it has already resolved those slugs to titles and links: use them verbatim.",
+  "- When capturing, file pages by what they ARE: suppliers/vendors under `companies/`, individual people under `people/`, equipment/places/topics under `concepts/`. The brain wires its knowledge graph off these folders — a page filed anywhere else stays disconnected.",
 ].join("\n");
+
+/**
+ * Slug prefixes whose pages participate in gbrain's knowledge graph —
+ * link EXTRACTION only fires for targets under gbrain's built-in directory
+ * whitelist, and of those, `companies/` and `people/` additionally type
+ * their pages as graph entities (verified against the live serve
+ * 2026-08-10: `companies/x` → type `company`, `people/x` → `person`,
+ * while `entities/x`, `systems/x`, `suppliers/x` all fall back to
+ * `concept`/invisible and an explicit `type:` param is ignored).
+ * Used by the doc mirror to decide which pages are worth cross-linking.
+ */
+export const BRAIN_ENTITY_PREFIXES = [
+  "companies/",
+  "people/",
+  "concepts/",
+  "meetings/",
+  "projects/",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Stream-safe text chunking. Stream Chat SILENTLY DISCARDS messages past
@@ -426,18 +471,60 @@ export function documentBrainSlug(documentId: string): string {
 
 const DOC_BODY_CAP = 60_000;
 
+/**
+ * Pick which of the property's entity pages a document should cross-link.
+ * 100% deterministic: an entity qualifies when its TITLE appears verbatim
+ * (case-insensitive, word-bounded) in the document text. No model anywhere.
+ *
+ * This is what earns gbrain's knowledge graph: link extraction only sees
+ * `[Title](slug)` references, and before this the mirror emitted zero links
+ * — 106/106 pages islanded, link_density 0/25, no_orphans 0/15. Titles
+ * shorter than 4 chars are skipped (too many false word-boundary hits).
+ */
+export function matchRelatedEntities(
+  bodyText: string,
+  candidates: Array<{ slug: string; title: string | null }>,
+  { limit = 10 }: { limit?: number } = {},
+): Array<{ slug: string; title: string }> {
+  const haystack = ` ${bodyText.toLowerCase()} `;
+  const hits: Array<{ slug: string; title: string }> = [];
+  for (const c of candidates) {
+    const title = (c.title ?? "").trim();
+    if (title.length < 4 || !c.slug) continue;
+    if (!BRAIN_ENTITY_PREFIXES.some((p) => c.slug.startsWith(p))) continue;
+    const needle = title.toLowerCase();
+    const at = haystack.indexOf(needle);
+    if (at === -1) continue;
+    // Word boundaries by hand — the needle may contain regex metachars and
+    // building a RegExp from user titles is an injection foot-gun.
+    const before = haystack[at - 1] ?? " ";
+    const after = haystack[at + needle.length] ?? " ";
+    if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) continue;
+    hits.push({ slug: c.slug, title });
+    if (hits.length >= limit) break;
+  }
+  return hits;
+}
+
 /** Render the mirror page for an app document. Deterministic (no model),
  * link built from ids in code — never composed by an LLM. The whole page is
  * overwritten on every sync: the app's Postgres row is canonical and this
  * page is a derived index, so the compiled-truth/timeline split does not
- * apply here (documented deviation; see plan). */
+ * apply here (documented deviation; see plan).
+ *
+ * `related` (optional) renders a Related-entities section as `[Title](slug)`
+ * markdown links — the exact shape gbrain's link extractor matches — so
+ * mirrored documents wire into the property's knowledge graph instead of
+ * every page being an island. */
 export function renderDocumentBrainPage(input: {
   title: string;
   href: string;
   bodyText: string;
   updatedAt: string | null;
+  related?: Array<{ slug: string; title: string }>;
 }): string {
   const body = input.bodyText.trim();
+  const related = input.related ?? [];
   return [
     `# ${input.title}`,
     "",
@@ -448,6 +535,14 @@ export function renderDocumentBrainPage(input: {
     body.length > DOC_BODY_CAP
       ? `${body.slice(0, DOC_BODY_CAP)}\n\n> [truncated — full text in the app]`
       : body || "_(document has no body text yet)_",
+    ...(related.length > 0
+      ? [
+          "",
+          "## Related",
+          "",
+          ...related.map((r) => `- [${r.title}](${r.slug})`),
+        ]
+      : []),
     "",
   ]
     .filter((line): line is string => line !== null)

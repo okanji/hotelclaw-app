@@ -62,10 +62,11 @@ itself asking for. All three are now in the live variable and in
 3. **`gbrain extract --stale`** — cleared `links_extraction_lag` (100% of
    pages had un-extracted edges).
 
-   ⚠️ It extracts **0 links** for us, and will keep doing so — see below.
-   Kept in the schedule so the sweep is correct the moment that changes.
+   ⚠️ For its first three days this extracted **0 links** — see below for
+   why, and for the 2026-08-10 build that fixed it (first real edges wired
+   the same day).
 
-   **But extraction alone cannot build our graph — our slugs are
+   **Extraction alone could not build our graph — our slugs were
    unextractable.** After the 2026-08-06 re-mirror the lag check went green
    and `link_count` stayed at **0**. Root cause is in
    `gbrain/src/core/link-extraction.ts`: both `ENTITY_REF_RE` and
@@ -82,52 +83,55 @@ itself asking for. All three are now in the live variable and in
    extracts zero edges. Adding `[[documents/<id>]]` links today would be
    wasted work.
 
-   The list is a source-level `const`, not config. BUT it contains
-   **`entities`**, and the pattern is `<dir>/<anything>` — so an
-   `entities/` prefix is an already-whitelisted escape hatch that keeps our
-   own taxonomy. Verified against the real regex:
+   ~~The recommendation used to be "do neither yet".~~ **BUILT 2026-08-10**
+   — the graph layer is implemented and verified live:
 
-   ```
-   [[suppliers/acme]]           -> ignored
-   [[entities/suppliers/acme]]  -> EXTRACTS entities/suppliers/acme
-   [[entities/systems/pool]]    -> EXTRACTS entities/systems/pool
-   ```
+   - **Slug conventions carry the graph.** Probed against the live serve:
+     `companies/x` → type `company`, `people/x` → `person`; everything else
+     (`entities/`, `systems/`, `suppliers/`, explicit `type:` param) falls
+     back to `concept`. So captures now file suppliers under `companies/`,
+     people under `people/`, systems/topics under `concepts/` (extractable
+     for links even though only the first two count in the coverage
+     denominators). Enforced via the `brain_capture` schema + description +
+     KNOWLEDGE_DISCIPLINE in `packages/brain`; the three deterministic
+     writers moved too (`meetings/outcomes`, `concepts/triage-routing`,
+     `concepts/workflow-signals`). Legacy pages migrated with timelines.
+   - **The doc mirror now emits links.** `matchRelatedEntities` in
+     `packages/brain` (deterministic title match, word-bounded, no model)
+     picks entity pages the document mentions; `renderDocumentBrainPage`
+     renders them as a `## Related` section of `[Title](slug)` links — the
+     exact shape the extractor matches. `doc-sync` feeds it with a per-
+     property entity list (60s cache, fail-soft).
+   - **Verified end to end at Solana Cove:** captured
+     `concepts/walk-in-freezer` → 3 mentioning documents re-mirrored with
+     Related sections → `extract --stale` wired **3 links** (the brain's
+     first ever) → `get_backlinks` shows `documents/* → concepts/walk-in-
+     freezer (mentions)` → brain_score 46 → 49 with all three frozen
+     components moving (link_density 0→1, no_orphans 0→1, timeline 0→2).
 
-   So earning the graph does NOT need the slug-rename migration an earlier
-   draft of this file proposed (`suppliers/`→`companies/` etc.), nor an
-   upstream change. It needs: (a) entity pages under `entities/…`, and
-   (b) pages that actually LINK to them. (b) is the real work —
-   `renderDocumentBrainPage` emits no links at all today.
+   The score now climbs with corpus growth: captures create typed entities,
+   mirrors link to them, the 03:00 extract wires edges, and timelines
+   accrue from meetings + captures.
 
-   **Recommendation: not yet, and understand why before doing it.**
-   `link_count=0` is not a defect — it is an accurate measurement that we
-   use gbrain as a semantic index over app documents, not as the curated
-   cross-linked wiki it is designed to be (see
-   `node_modules/gbrain/docs/GBRAIN_RECOMMENDED_SCHEMA.md`: MECE entity
-   directories, a RESOLVER decision tree, compiled-truth + timeline pages,
-   "unlike RAG, where the LLM re-derives knowledge from scratch every
-   query"). Our brain is ~110 auto-mirrored documents against a handful of
-   genuinely entity-shaped pages, so a graph would have almost nothing to
-   connect. `brain_score 46/100` measures the same gap — it is dominated by
-   link density and timeline coverage, both near zero by construction.
+   **Link lag is CLOSED (2026-08-10):** `reconcileEntityMentionCursors`
+   runs as pass 0 of the nightly `/api/brain/sync-documents` cron — any
+   entity newer than a mentioning document's mirror resets that document's
+   cursor, so the same run re-renders its Related links. Without it, a
+   stable SOP mirrored before an entity existed would never link to it
+   (edits were the only re-render trigger, and reference docs rarely get
+   edited). Verified live: created `concepts/south-lawn`, touched nothing,
+   ran the cron → 7/7 mentioning documents re-mirrored WITH the link two
+   minutes later; extract wired 7 edges; brain_score 49 → 50. Self-limiting:
+   after the re-mirror, `brain_synced_at > entity.updated` and the doc
+   stops matching, so it costs one re-mirror per (entity-update, doc) pair.
 
-   Revisit when entity pages (suppliers, systems, guests, recurring
-   incidents) are a meaningful share of the corpus rather than a rounding
-   error. Until then the fleet test reports this as a WARN, not a failure,
-   deliberately.
-2. **No job-queue worker.** Doctor: *"1 embed-backfill job(s) have waited
-   on queue 'default' for up to 463h and no live worker is registered"*.
-   The script gained a `jobs` mode (`gbrain jobs work --queue default
-   --drain`) — wire it to an hourly slot.
-3. **No `ANTHROPIC_API_KEY` on this service.** `dream` is compiled-truth
-   consolidation and needs an LLM, exactly like the serve's `think` (see
-   `infra/railway-brain-serve/README.md`). Copy the key here too, or the
-   nightly dream is a no-op and `timeline_coverage` stays at 0.
-
-Each run reinstalls gbrain (`bun add gbrain@github:garrytan/gbrain#1f319e6d5aff7674d8f48f289768ff75911a9ea8`,
-~1-2 min). If that cost ever matters, bake the Dockerfile in this
-directory into an image instead — it's the same script with the install
-done at build time. **Keep the pin in step with the serve deployment.**
+   Remaining honest caveat: the 15 timeline-coverage points count only
+   `companies/`/`people/` pages accruing evidence — earned by real usage,
+   not ops. (It largely self-resolves: pages born from `captureEvidence`
+   carry a timeline entry by construction, so the ratio tracks ~1.0 once
+   real supplier/person captures exist. Note gbrain's health denominators
+   include SOFT-DELETED entity pages until their 72h TTL purges them —
+   deleted test probes can depress the ratio for up to three days.)
 
 ## Verify
 

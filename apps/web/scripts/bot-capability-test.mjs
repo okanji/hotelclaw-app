@@ -32,6 +32,7 @@
 //
 // Every fixture the bot creates carries the CAPTEST marker so cleanup can
 // sweep leftovers from a crashed run (`--sweep`).
+import { createDecipheriv, createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { StreamChat } from "stream-chat";
 
@@ -60,6 +61,12 @@ const TEST_USER_NAME = "Capability Tester";
 // Solana Cove `general` — the demo property with a real document corpus
 // (24 docs incl. 4 SOPs). Knowledge scenarios need a corpus to be about.
 const DEFAULT_CHANNEL = "prop-d58fc73b-general-bcdcd3";
+/** A SECOND channel, for the relay/discovery scenarios. The test user must
+ *  be a member of it: `list_channels` is scoped to the sender's memberships
+ *  (same rule as search_chat_messages), so a channel the tester doesn't
+ *  belong to is correctly invisible — which failed the first run of
+ *  `action/list-channels` even though the tool worked. */
+const TARGET_CHANNEL = "prop-d58fc73b-announcements-db5598";
 
 /** Marker on everything the bot is asked to create, so `--sweep` can find
  *  leftovers from a run that died before cleanup. */
@@ -75,15 +82,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function setupTestUser(channelId) {
   await stream.upsertUser({ id: TEST_USER_ID, name: TEST_USER_NAME });
-  const channel = stream.channel("team", channelId);
-  try {
-    await channel.addMembers([TEST_USER_ID]);
-  } catch (err) {
-    if (!/already/i.test(err.message ?? "")) {
-      console.warn("[setup] addMembers:", err.message);
+  // Join BOTH the channel under test and the relay target: list_channels is
+  // sender-membership-scoped, so a channel the tester isn't in is invisible
+  // by design and the discovery scenario would fail on a working tool.
+  for (const cid of new Set([channelId, TARGET_CHANNEL])) {
+    try {
+      await stream.channel("team", cid).addMembers([TEST_USER_ID]);
+    } catch (err) {
+      if (!/already/i.test(err.message ?? "")) {
+        console.warn(`[setup] addMembers ${cid}:`, err.message);
+      }
     }
   }
-  await channel.updatePartial({ set: { ai_mode: "mention" } });
+  await stream.channel("team", channelId).updatePartial({ set: { ai_mode: "mention" } });
 }
 
 async function ask(channelId, text) {
@@ -271,6 +282,99 @@ function documentGroundTruth(docs) {
 /** Every name a document can legitimately be called by. */
 function documentNames(docs) {
   return docs.flatMap((d) => [d.title, d.heading].filter(Boolean));
+}
+
+/**
+ * Read the property's knowledge brain with its own OAuth credential, the
+ * same way the runtime does. Needed because a `brain_capture` cannot be
+ * verified from Postgres — the evidence lands in gbrain, not in our tables.
+ * Mirrors tests/gbrain-fleet.test.mjs; returns null when unconfigured.
+ */
+async function brainCall(propertyId, tool, args) {
+  const url = process.env.BRAIN_MCP_URL;
+  const material = process.env.CHATBOT_SESSION_SECRET ?? process.env.STREAM_API_SECRET;
+  if (!url || !material) return null;
+  const { data: row } = await supabase
+    .from("property_brains")
+    .select("client_id, client_secret_enc")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (!row) return null;
+  const parts = String(row.client_secret_enc ?? "").split(".");
+  if (parts.length !== 4 || parts[0] !== "v1") return null;
+  let secret;
+  try {
+    const key = createHash("sha256").update(`${material}:property-brains`).digest();
+    const d = createDecipheriv("aes-256-gcm", key, Buffer.from(parts[1], "base64url"));
+    d.setAuthTag(Buffer.from(parts[2], "base64url"));
+    secret = Buffer.concat([
+      d.update(Buffer.from(parts[3], "base64url")),
+      d.final(),
+    ]).toString("utf8");
+  } catch {
+    return null;
+  }
+  const origin = new URL(url).origin;
+  const tok = await fetch(`${origin}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: row.client_id,
+      client_secret: secret,
+    }),
+  }).then((r) => (r.ok ? r.json() : null));
+  if (!tok?.access_token) return null;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization: `Bearer ${tok.access_token}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: tool, arguments: args },
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  // The serve holds the SSE stream open after replying — read one data line.
+  const ct = res.headers.get("content-type") ?? "";
+  let text;
+  if (ct.includes("text/event-stream") && res.body) {
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let line = null;
+    try {
+      while (line === null) {
+        const c = await reader.read();
+        if (c.done) break;
+        buf += dec.decode(c.value, { stream: true });
+        if (buf.includes("\n")) {
+          const done = buf
+            .slice(0, buf.lastIndexOf("\n"))
+            .split("\n")
+            .filter((l) => l.startsWith("data:"));
+          if (done.length) line = done[done.length - 1];
+        }
+      }
+    } finally {
+      reader.cancel().catch(() => {});
+    }
+    text = line ? line.slice(5) : "";
+  } else {
+    text = await res.text();
+  }
+  if (!text.trim()) return null;
+  const blocks = (JSON.parse(text).result?.content ?? []).map((b) => b.text ?? "").join("\n");
+  try {
+    return JSON.parse(blocks);
+  } catch {
+    return blocks;
+  }
 }
 
 /** Poll a check until it returns something truthy — writes land through
@@ -623,7 +727,7 @@ const ACTION_SCENARIOS = [
     approvalGated: true,
     ask: `@hotelclaw Use post_to_channel to post into channel id \`prop-d58fc73b-announcements-db5598\` the exact text: ${MARK} broadcast check. Go ahead.`,
     async verify({ sentAt }) {
-      const target = stream.channel("team", "prop-d58fc73b-announcements-db5598");
+      const target = stream.channel("team", TARGET_CHANNEL);
       const found = await pollFor(async () => {
         const state = await target.query({ messages: { limit: 30 } });
         return (state.messages ?? []).find(
@@ -706,6 +810,130 @@ const ACTION_SCENARIOS = [
       return note
         ? { passed: true, detail: "task_escalated notification emitted" }
         : { passed: false, reason: "no task_escalated notification for the task" };
+    },
+  },
+
+  {
+    id: "action/brain-capture",
+    tools: ["brain_capture", "brain_get"],
+    // The capture path, verified in gbrain rather than Postgres.
+    //
+    // Worth its own scenario because the 2026-08-10 audit found EVERY
+    // timeline entry in the brain came from a test or a manual operator
+    // action — none from a deterministic writer. The meeting writer turned
+    // out to be blocked upstream (no Stream call webhook). This asserts the
+    // remaining live path — a bot asked to remember something — genuinely
+    // lands durable evidence, so a future regression is visible immediately.
+    ask: `@hotelclaw Remember this for next time: the ice machine on level 2 trips its breaker when the compressor and the lift run together. Capture it. [${MARK}]`,
+    async verify({ propertyId }) {
+      const found = await pollFor(
+        async () => {
+          const listed = await brainCall(propertyId, "list_pages", {
+            limit: 60,
+            sort: "updated_desc",
+          });
+          if (!Array.isArray(listed)) return null;
+          // The model picks its own slug (systems/…, operations/…) — find the
+          // page by recency + content rather than guessing the name.
+          for (const p of listed.slice(0, 12)) {
+            // The observation lands in the TIMELINE, and `get_page` returns a
+            // `timeline` key that is always []. Ask get_timeline explicitly —
+            // checking the page body alone reports a working capture as lost
+            // (that mistake failed this scenario twice against a correct bot).
+            const tl = await brainCall(propertyId, "get_timeline", {
+              slug: p.slug,
+              limit: 20,
+            });
+            const blob = JSON.stringify(tl ?? "");
+            if (/ice machine/i.test(blob) && /breaker|compressor|lift/i.test(blob)) {
+              return { slug: p.slug };
+            }
+          }
+          return null;
+        },
+        { timeoutMs: 90_000, intervalMs: 8000 },
+      );
+      if (!found) {
+        return {
+          passed: false,
+          reason: "no brain page carries the captured observation (brain_capture did not land)",
+        };
+      }
+      return { passed: true, detail: `captured to ${found.slug}` };
+    },
+    async cleanupExtra({ propertyId }) {
+      const listed = await brainCall(propertyId, "list_pages", { limit: 60 });
+      for (const p of Array.isArray(listed) ? listed.slice(0, 12) : []) {
+        if (!/ice-machine|ice machine/i.test(String(p.slug))) continue;
+        await brainCall(propertyId, "delete_page", { slug: p.slug });
+      }
+    },
+  },
+
+  {
+    id: "action/rename-document",
+    tools: ["rename_document", "list_documents"],
+    // The record title is what every list, card and citation shows — and the
+    // corpus has a doc whose record title is "Untitled document" while its
+    // body is a full SOP. Renaming is the fix, so it should be tested.
+    ask: `@hotelclaw Create a document titled "${MARK} temp name", then rename it to "${MARK} Linen Handling". Go ahead.`,
+    async verify({ propertyId }) {
+      const row = await pollFor(async () => {
+        const { data } = await supabase
+          .from("documents")
+          .select("id, title")
+          .eq("property_id", propertyId)
+          .ilike("title", `%${MARK}%Linen Handling%`)
+          .maybeSingle();
+        return data;
+      });
+      return row
+        ? { passed: true, detail: `renamed to "${row.title}"` }
+        : { passed: false, reason: "document not found under the new title" };
+    },
+  },
+
+  {
+    id: "action/delete-task",
+    tools: ["delete_task", "create_task"],
+    approvalGated: true,
+    ask: `@hotelclaw Create a task "${MARK} scratch to delete", then delete it. Go ahead.`,
+    async verify({ propertyId }) {
+      // Absence is the assertion — poll for the row to be GONE, with a floor
+      // wait so "not created yet" can't masquerade as "deleted".
+      await sleep(6000);
+      const { data } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("property_id", propertyId)
+        .ilike("title", `%${MARK}%scratch to delete%`);
+      return (data ?? []).length === 0
+        ? { passed: true, detail: "task removed" }
+        : { passed: false, reason: "task still present after the delete was approved" };
+    },
+  },
+
+  {
+    id: "action/list-open-tasks",
+    tools: ["list_open_tasks", "search_tasks"],
+    ask: `@hotelclaw What tasks are currently open? [${MARK}]`,
+    async verify({ propertyId, reply }) {
+      const { data } = await supabase
+        .from("tasks")
+        .select("title")
+        .eq("property_id", propertyId)
+        .not("status", "in", '("done","cancelled")')
+        .limit(30);
+      const titles = (data ?? []).map((t) => t.title).filter(Boolean);
+      if (titles.length === 0) {
+        return /no open tasks|nothing open|all clear/i.test(reply)
+          ? { passed: true, detail: "correctly reported none open" }
+          : { passed: false, reason: "no open tasks exist but the bot listed some" };
+      }
+      const hit = titles.some((t) => reply.toLowerCase().includes(t.toLowerCase().slice(0, 14)));
+      return hit
+        ? { passed: true, detail: `named a real open task of ${titles.length}` }
+        : { passed: false, reason: `named none of the ${titles.length} real open tasks` };
     },
   },
 
@@ -833,7 +1061,7 @@ async function sweep(propertyId, { quiet = false } = {}) {
   // Stream messages are not DB rows, so the row sweep above leaves the test
   // chatter behind and the channels slowly fill with CAPTEST noise. Clean
   // both the channel under test and any channel a scenario relays into.
-  for (const cid of [DEFAULT_CHANNEL, "prop-d58fc73b-announcements-db5598"]) {
+  for (const cid of [DEFAULT_CHANNEL, TARGET_CHANNEL]) {
     try {
       const ch = stream.channel("team", cid);
       const state = await ch.query({ messages: { limit: 60 } });
@@ -1050,6 +1278,13 @@ async function main() {
 
   if (!flag("--keep")) {
     console.log("\nCleaning up…");
+    // Scenario-specific teardown first (e.g. brain pages, which the row
+    // sweep cannot see), then the marker sweep.
+    for (const sc of selected) {
+      if (typeof sc.cleanupExtra === "function") {
+        await sc.cleanupExtra(ctx).catch(() => {});
+      }
+    }
     await sweep(propertyId);
   } else {
     console.log(`\n--keep: ${MARK} fixtures left in place (sweep later with --sweep)`);

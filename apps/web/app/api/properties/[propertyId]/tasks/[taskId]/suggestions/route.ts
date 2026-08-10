@@ -130,7 +130,7 @@ export async function POST(
               ? `assignee ${suggestion.suggested_value}`
               : `priority ${suggestion.suggested_value}`;
         await captureToBrain(binding, {
-          slug: "operations/triage-routing",
+          slug: "concepts/triage-routing",
           pageTitle: "Task routing memory",
           summary: `Task "${String(task.title).slice(0, 120)}" → ${target} (triage suggestion accepted by staff).`,
           source: `triage, ${new Date().toISOString().slice(0, 10)}`,

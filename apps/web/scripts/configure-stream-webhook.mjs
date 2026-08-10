@@ -79,13 +79,26 @@ if (arg === "status") {
   process.exit(0);
 }
 
-const webhookUrl = `${origin.replace(/\/$/, "")}/api/stream/webhook/message-new`;
+const base = origin.replace(/\/$/, "");
+const chatUrl = `${base}/api/stream/webhook/message-new`;
+const callUrl = `${base}/api/stream/webhook/call`;
 
 // Stream's v2 hook system: configure via the `event_hooks` array on the app.
-// `explicit_event_hooks_deletion: true` makes the update replace the entire
-// hook list with the array provided here — exactly one hook for this URL —
-// instead of appending. That's what we want, so re-running the script after a
-// ngrok URL change cleanly swaps the URL instead of leaving dead hooks behind.
+// `explicit_event_hooks_deletion: true` makes the update REPLACE the entire
+// hook list with the array provided here instead of appending — so re-running
+// after an ngrok URL change cleanly swaps URLs instead of leaving dead hooks.
+//
+// THAT REPLACEMENT IS WHY BOTH HOOKS MUST BE LISTED HERE. Until 2026-08-10
+// this array held only the chat hook, so the VIDEO hook was absent — and any
+// call hook added by hand in the dashboard was silently wiped the next time
+// anyone ran this script. Consequence: `call.transcription_ready` never
+// reached /api/stream/webhook/call, so no meeting was ever transcribed
+// (meeting_transcripts had 0 rows), no summary or action items were produced
+// from a real call, and the meeting → brain capture in lib/meetings/
+// summarize.ts could not fire. The app auto-starts transcription on join
+// (lib/stream/meeting-context.tsx) — only the callback was missing.
+//
+// Add new hooks to THIS array; never register one in the dashboard alone.
 const res = await client.updateAppSettings({
   event_hooks: [
     {
@@ -93,11 +106,24 @@ const res = await client.updateAppSettings({
       enabled: true,
       product: "chat",
       event_types: ["message.new"],
-      webhook_url: webhookUrl,
+      webhook_url: chatUrl,
+    },
+    {
+      hook_type: "webhook",
+      enabled: true,
+      product: "video",
+      // The three events app/api/stream/webhook/call/route.ts handles.
+      event_types: [
+        "call.transcription_ready",
+        "call.session_started",
+        "call.session_ended",
+      ],
+      webhook_url: callUrl,
     },
   ],
   explicit_event_hooks_deletion: true,
 });
 
-console.log(`Webhook registered: ${webhookUrl}`);
+console.log(`Chat  webhook registered: ${chatUrl}`);
+console.log(`Video webhook registered: ${callUrl}`);
 console.log(`Stream response duration: ${res.duration ?? "n/a"}`);

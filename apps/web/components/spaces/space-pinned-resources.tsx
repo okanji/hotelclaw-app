@@ -125,7 +125,10 @@ export function SpacePinnedResources({
             {picker}
           </div>
         ) : (
-          <div className="flex gap-2 overflow-x-auto">
+          // `-m-2 p-2` moves the trough's own padding INSIDE the scroll
+          // container: same visual inset, but now the cards' `shadow-card`
+          // ring has room instead of being clipped at the scroll edge.
+          <div className="-m-2 flex gap-2 overflow-x-auto p-2">
             {pinnedCards.map((doc) => (
               <DocPinCard
                 key={doc.id}

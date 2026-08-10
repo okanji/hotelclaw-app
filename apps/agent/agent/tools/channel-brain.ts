@@ -85,18 +85,49 @@ export default defineDynamic({
               slug,
             });
             if (!result.ok) return { unavailable: true, reason: result.reason };
+            // get_page returns the body as `compiled_truth` — NOT `content`
+            // or `markdown`. Reading the wrong keys made this answer
+            // {found:false} for every page that exists, so the read ladder's
+            // "search then fetch the full page" step never worked (2026-08-10).
+            const raw = result.content as {
+              compiled_truth?: string;
+              content?: string;
+              markdown?: string;
+              timeline?: Array<{ date?: string; summary?: string; source?: string }>;
+            } | null;
             const page =
               typeof result.content === "string"
                 ? result.content
-                : ((result.content as { content?: string; markdown?: string } | null)
-                    ?.content ??
-                  (result.content as { markdown?: string } | null)?.markdown ??
-                  "");
+                : (raw?.compiled_truth ?? raw?.content ?? raw?.markdown ?? "");
             if (!page) return { found: false, slug };
+            // The tool promises "compiled truth + evidence timeline", and the
+            // timeline needs its OWN call: `get_page` returns a `timeline`
+            // key that is ALWAYS `[]` (verified against the live serve
+            // 2026-08-10 — reading it made captured evidence look lost when
+            // it was sitting in get_timeline all along). Without this second
+            // call brain_get shows only the compiled-truth stub, which for a
+            // captured page is the one part with nothing in it.
+            const tl = await callBrainToolDirect(
+              brainMcpUrl,
+              brainCred,
+              "get_timeline",
+              { slug, limit: 20 },
+            );
+            const timeline = (Array.isArray(tl.content) ? tl.content : [])
+              .map((t: { date?: string; summary?: string; source?: string }) => ({
+                date: typeof t?.date === "string" ? t.date.slice(0, 10) : null,
+                summary: t?.summary ?? "",
+                source: t?.source ?? "",
+              }))
+              .filter((t) => t.summary);
             const sources = await resolveBrainSources(brainPropertyId, slug);
-            return sources.length > 0
-              ? { found: true, slug, markdown: page.slice(0, 20_000), sources }
-              : { found: true, slug, markdown: page.slice(0, 20_000) };
+            return {
+              found: true,
+              slug,
+              markdown: page.slice(0, 20_000),
+              ...(timeline.length > 0 ? { timeline } : {}),
+              ...(sources.length > 0 ? { sources } : {}),
+            };
           },
         }),
         brain_list: defineTool({

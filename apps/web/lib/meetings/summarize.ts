@@ -341,7 +341,7 @@ export async function processTranscriptReady(args: {
         .filter(Boolean)
         .join("\n\n");
       const captured = await captureToBrain(binding, {
-        slug: "operations/meetings",
+        slug: "meetings/outcomes",
         pageTitle: "Meeting outcomes",
         summary: `${args.meeting.title || "Meeting"}: ${summary.decisions[0] ?? summary.summary_md.split("\n")[0].slice(0, 200)}`,
         detail,

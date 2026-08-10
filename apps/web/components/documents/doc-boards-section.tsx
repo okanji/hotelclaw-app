@@ -334,7 +334,13 @@ function BoardStrip({
       <div
         ref={pinMode === "drag" ? setNodeRef : undefined}
         className={cn(
-          "flex gap-3 overflow-x-auto py-2",
+          // `overflow-x-auto` clips at this element's PADDING box, and
+          // `shadow-card` paints a 1px ring + drop shadow OUTSIDE each card's
+          // border box — with no horizontal padding the first card lost its
+          // whole left edge. The padding gives the ring room; the matching
+          // negative margin cancels it so the cards stay aligned with the
+          // board header (which is indented by the parent's `px-1`).
+          "flex gap-3 overflow-x-auto -mx-2 px-2 py-2",
           pinMode === "drag" &&
             isOver &&
             cn("rounded-md", COLOR_DROP_TINT[board.color]),

@@ -16,7 +16,10 @@ import "server-only";
 import {
   callBrain,
   documentBrainSlug,
+  matchRelatedEntities,
+  normalizeListPages,
   renderDocumentBrainPage,
+  BRAIN_ENTITY_PREFIXES,
   DOC_BRAIN_PREFIX,
   DOC_SYNC_INGESTED_VIA,
 } from "@hotelclaw/brain";
@@ -27,6 +30,38 @@ import { createServiceClient } from "@/lib/supabase/server";
 type SyncOutcome =
   | { ok: true; action: "mirrored" | "deleted" | "skipped" }
   | { ok: false; reason: string };
+
+/**
+ * Entity pages a property's documents can cross-link (companies/, people/,
+ * concepts/, …). Cached briefly so the nightly sweep — up to 200 docs per
+ * run — costs ONE list_pages per property instead of one per document.
+ * Fail-soft: any error yields an empty list and the mirror simply renders
+ * without a Related section, exactly as it did before linking existed.
+ */
+const entityCache = new Map<
+  string,
+  { at: number; entities: Array<{ slug: string; title: string | null }> }
+>();
+const ENTITY_CACHE_TTL_MS = 60_000;
+
+async function propertyEntityPages(
+  binding: NonNullable<Awaited<ReturnType<typeof resolvePropertyBrain>>>,
+  propertyId: string,
+): Promise<Array<{ slug: string; title: string | null }>> {
+  const cached = entityCache.get(propertyId);
+  if (cached && Date.now() - cached.at < ENTITY_CACHE_TTL_MS) return cached.entities;
+  const listed = await callBrain(binding.url, binding, "list_pages", {
+    limit: 200,
+    sort: "updated_desc",
+  });
+  const entities = listed.ok
+    ? normalizeListPages(listed.content).pages.filter((p) =>
+        BRAIN_ENTITY_PREFIXES.some((prefix) => p.slug.startsWith(prefix)),
+      )
+    : [];
+  entityCache.set(propertyId, { at: Date.now(), entities });
+  return entities;
+}
 
 /** Mirror one document into its property's brain (or remove it, when
  * archived). Fail-soft: every failure returns { ok:false } and logs. */
@@ -95,6 +130,14 @@ export async function syncDocumentToBrain(
     ? `${mainText}\n\n## Attached files (extracted text)\n\n${attachmentsText}`
     : mainText;
 
+  // Cross-link entities the document mentions (deterministic title match) —
+  // this is what puts mirrored documents INTO the knowledge graph instead of
+  // leaving every page an island. Fail-soft: no entities, no section.
+  const entities = await propertyEntityPages(binding, doc.property_id).catch(
+    () => [],
+  );
+  const related = matchRelatedEntities(bodyText, entities);
+
   const put = await callBrain(binding.url, binding, "put_page", {
     slug,
     content: renderDocumentBrainPage({
@@ -102,6 +145,7 @@ export async function syncDocumentToBrain(
       href: `/p/${doc.property_id}/documents/${doc.id}`,
       bodyText,
       updatedAt: doc.body_updated_at,
+      related,
     }),
     ingested_via: DOC_SYNC_INGESTED_VIA,
   });
@@ -230,6 +274,64 @@ export async function sweepOrphanedBrainPages({
   }
 
   return counts;
+}
+
+/**
+ * Close the link-lag gap: a mirror's Related section is computed at mirror
+ * time, so a document mirrored BEFORE an entity existed never links to it —
+ * and the docs richest in entity mentions (SOPs, reference lists) are the
+ * least likely to ever be edited again. Without this pass the knowledge
+ * graph only grows along the edit path.
+ *
+ * For every entity page newer than a mentioning document's mirror, null
+ * that document's cursor so the ordinary sweep re-mirrors it (and re-renders
+ * Related) in the same nightly run. Idempotent and self-limiting: after the
+ * re-mirror, brain_synced_at > entity.updated and the doc stops matching.
+ * Title match mirrors matchRelatedEntities' rules (≥4 chars); ilike
+ * wildcards in titles are escaped rather than trusted.
+ */
+export async function reconcileEntityMentionCursors({
+  propertyId,
+}: { propertyId?: string } = {}): Promise<{ reset: number }> {
+  const supabase = createServiceClient();
+  const query = supabase.from("property_brains").select("property_id");
+  const { data: bound } = propertyId
+    ? await query.eq("property_id", propertyId)
+    : await query;
+
+  let reset = 0;
+  for (const row of bound ?? []) {
+    const pid = row.property_id as string;
+    const binding = await resolvePropertyBrain(pid);
+    if (!binding) continue;
+    const entities = await propertyEntityPages(binding, pid).catch(() => []);
+
+    for (const entity of entities) {
+      const title = (entity.title ?? "").trim();
+      if (title.length < 4) continue;
+      const updated = (entity as { updated?: string | null }).updated ?? null;
+      if (!updated) continue;
+      const escaped = title.replace(/[%_\\]/g, (c) => `\\${c}`);
+      const { data: stale } = await supabase
+        .from("documents")
+        .select("id")
+        .eq("property_id", pid)
+        .is("archived_at", null)
+        .not("brain_synced_at", "is", null)
+        .lt("brain_synced_at", updated)
+        .ilike("body_text", `%${escaped}%`)
+        .limit(50);
+      const ids = (stale ?? []).map((d) => d.id as string);
+      if (ids.length === 0) continue;
+      await supabase
+        .from("documents")
+        .update({ brain_synced_at: null })
+        .in("id", ids);
+      reset += ids.length;
+    }
+  }
+  if (reset > 0) logBrainEvent("doc_sync_ok", { action: "entity_mention_cursors_reset", reset });
+  return { reset };
 }
 
 /** Reconciliation sweep across all properties: mirror anything whose

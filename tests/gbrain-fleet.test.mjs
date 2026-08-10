@@ -214,19 +214,19 @@ async function main() {
     );
     // The self-wiring knowledge graph is gbrain's headline retrieval
     // advantage (+31.4pp P@5 upstream over vector-only); zero edges means
-    // we are getting a plain vector index out of it.
+    // we are getting a plain vector index out of it. The graph layer was
+    // built 2026-08-10 (entity slug conventions + Related sections in the
+    // doc mirror), so edges should exist and grow from here.
     //
-    // Two independent causes, so read `run_doctor` above before acting:
-    // if links_extraction_lag is WARNing, extraction is simply not running
-    // (fix: `gbrain extract --stale` in the maintenance cron). If it is
-    // OK and link_count is still 0 — the state after the 2026-08-06
-    // backfill — extraction runs and finds nothing, because
-    // renderDocumentBrainPage emits plain prose with no entity links for
-    // it to wire. Earning the graph means emitting links in the mirror.
+    // link_count lives in get_stats, NOT get_health — reading it off the
+    // health payload compares undefined to 0 and warns forever, which made
+    // this check report "no edges" on the very run after the first edges
+    // were wired.
+    const gs = await call(admin.token, "get_stats", {}, 60_000);
     warn(
       "1f knowledge graph has extracted edges",
-      (gh.body?.link_count ?? 0) > 0,
-      `link_count=0 across ${gh.body?.page_count} pages — see run_doctor's links_extraction_lag check to tell "not extracted" from "nothing to extract"`,
+      (gs.body?.link_count ?? 0) > 0,
+      `link_count=${gs.body?.link_count ?? "?"} across ${gh.body?.page_count} pages — see run_doctor's links_extraction_lag check to tell "not extracted" from "nothing to extract"`,
     );
   }
 

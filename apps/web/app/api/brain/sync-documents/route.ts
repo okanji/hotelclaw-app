@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  reconcileEntityMentionCursors,
   sweepDocumentsBrainSync,
   sweepOrphanedBrainPages,
 } from "@/lib/brain/doc-sync";
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
   if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Pass 0, brain → app: entities created since a document was last
+  // mirrored reset that document's cursor, so the sweep below re-renders
+  // its Related links tonight instead of never (stable SOPs are exactly
+  // the docs that would otherwise stay unlinked forever).
+  const mentions = await reconcileEntityMentionCursors();
   const counts = await sweepDocumentsBrainSync();
   // Second pass, walking brain → app: the cursor sweep above is
   // document-driven and structurally cannot see mirror pages whose document
@@ -27,6 +33,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     ...counts,
+    entityCursorsReset: mentions.reset,
     orphansScanned: orphans.scanned,
     orphansDeleted: orphans.deleted,
     orphansFailed: orphans.failed,

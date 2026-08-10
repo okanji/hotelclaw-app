@@ -30,7 +30,7 @@ export const gbrainCaptureRunner: RunnerImpl<
   }
 
   const result = await captureToBrain(binding, {
-    slug: "operations/workflow-signals",
+    slug: "concepts/workflow-signals",
     pageTitle: "Workflow signals",
     summary: config.text.slice(0, 1000),
     ...(config.tags?.length ? { detail: `tags: ${config.tags.join(", ")}` } : {}),
