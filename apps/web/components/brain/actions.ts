@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
 import { provisionPropertyBrain } from "@/lib/brain/provision";
+import { invalidatePropertyBrain } from "@/lib/brain/client";
 
 /**
  * Brain server actions. Provisioning writes property_brains (service-role
@@ -19,6 +20,7 @@ const Uuid = z.string().uuid();
 
 export async function provisionBrainAction(
   propertyId: string,
+  { repair = false }: { repair?: boolean } = {},
 ): Promise<ActionResult> {
   const pid = Uuid.safeParse(propertyId);
   if (!pid.success) return { error: "Invalid property" };
@@ -37,7 +39,26 @@ export async function provisionBrainAction(
     .maybeSingle();
   if (!property?.slug) return { error: "Property not found" };
 
+  // Repair: the row exists but its OAuth client no longer authenticates
+  // (revoked server-side, or a partial provisioning run). provisionPropertyBrain
+  // refuses to touch an existing row, so drop the dead one first and let it
+  // mint a fresh client.
+  //
+  // NON-DESTRUCTIVE: the source id is deterministic (`prop-<pid[0:8]>`) and
+  // `sources_add` tolerates "exists", so the replacement client is rescoped
+  // onto the SAME source — every existing page stays exactly where it is.
+  if (repair) {
+    const { error: delErr } = await service
+      .from("property_brains")
+      .delete()
+      .eq("property_id", pid.data);
+    if (delErr) return { error: `Could not clear the old binding: ${delErr.message}` };
+  }
+
   const result = await provisionPropertyBrain(pid.data, property.slug);
+  // Always drop the cache — on success the credential changed, and on a
+  // repair failure the stale one must not linger either.
+  invalidatePropertyBrain(pid.data);
   if ("error" in result) return { error: result.error };
   if ("skipped" in result) {
     // Already provisioned / pod-inherited is a benign no-op from the UI —

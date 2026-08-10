@@ -44,6 +44,57 @@ node --env-file=.env.local scripts/bot-chat-test.mjs state
 node --env-file=.env.local scripts/bot-chat-test.mjs reset
 ```
 
+## Capability suite — is the ANSWER right, and did the write LAND?
+
+`bot-chat-test` proves the bot FIRES (modes, classifier, queue, delivery). It
+says nothing about answer quality or whether a requested write happened.
+`scripts/bot-capability-test.mjs` asserts outcomes, and is the one to run
+when you touch the tool catalog, the knowledge ladder, or the persona.
+
+```bash
+# Everything (knowledge + actions). ~15-25 min: each turn is a real eve turn.
+node --env-file=.env.local --no-network-family-autoselection \
+  scripts/bot-capability-test.mjs
+
+node ... scripts/bot-capability-test.mjs knowledge    # retrieval + honesty only
+node ... scripts/bot-capability-test.mjs actions      # writes only
+node ... scripts/bot-capability-test.mjs --only knowledge/two-part
+node ... scripts/bot-capability-test.mjs --coverage   # which grants are untested
+node ... scripts/bot-capability-test.mjs --sweep      # delete leftover CAPTEST rows
+```
+
+- **knowledge** scenarios are graded by an LLM judge that is handed GROUND
+  TRUTH loaded from Postgres, so it grades against facts, not plausibility.
+  Deterministic checks run first; the judge can only ADD failures.
+  `knowledge/absent` is the anti-hallucination test — it asks about an SOP
+  that does not exist and the only passing answer is "I can't find one".
+- **action** scenarios verify the ROW, never the bot's claim of success.
+- Fixtures carry a `CAPTEST` marker; cleanup runs automatically, and
+  `--sweep` clears leftovers from a crashed run.
+- It runs against **whatever the Stream webhook points at** — prod by
+  default, so no ngrok needed (`configure-stream-webhook.mjs status`).
+- **Writing a scenario — three ways the harness lied before the bot did.**
+  Every one of these produced a red result against a bot that was correct:
+  1. *Incomplete ground truth invents hallucinations.* A doc whose record
+     title is "Untitled document" has a BODY titled "SOP: Walk-in Freezer…";
+     grading against record titles alone marks the right answer as fabricated.
+     `realDocuments()` supplies title AND content heading.
+  2. *The answer is not always the message text.* `render_ui` puts tables and
+     lists in an `ai_ui` ATTACHMENT — the text just says "titles below".
+     Always grade `gradeableText(message)`, never `message.text`.
+  3. *The bot writes Unicode.* "−18 °C" uses U+2212, not an ASCII hyphen, so
+     `/-18/` misses it. `gradeableText` normalises dashes; keep regexes loose.
+  4. *Six tools are APPROVAL-GATED* (`archive_document`, `delete_task`,
+     `cancel_meeting`, `update_booking_status`, `send_notification`,
+     `post_to_channel`). They park for sign-off instead of executing, so
+     asserting an immediate row fails a correct bot. Set `approvalGated: true`
+     — the runner then asserts the park FIRED, replies "approve", and only
+     then checks the row. A startup drift guard warns on the mismatch.
+  5. *Beware the false pass.* `post_to_channel` "passed" while never running:
+     asked to post to the CURRENT channel the bot correctly answers "my reply
+     already is a message here", and a text assertion matches that. Test a
+     relay into a DIFFERENT channel, and verify in the target.
+
 **Prerequisites** (one-time; check these are still true before running):
 - `pnpm dev` running on `localhost:3000` (other local projects sometimes squat :3000 — if Next bumps the port, tunnel to the bumped port instead)
 - `ngrok` tunnel up, Stream webhook event-hook pointing at `<ngrok>/api/stream/webhook/message-new`

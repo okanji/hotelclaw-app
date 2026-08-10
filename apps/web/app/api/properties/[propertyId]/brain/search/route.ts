@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callBrainTool, resolvePropertyBrain } from "@/lib/brain/client";
+import { resolveMirrorTitles } from "@/lib/brain/browse";
+
+// Hybrid search on the shared serve measures ~21s against the live fleet
+// (2026-08-06 audit) — the 30s transport default leaves almost no margin,
+// and a timeout here reads to the caller as "the brain knows nothing".
+const SEARCH_TIMEOUT_MS = 60_000;
 
 /**
  * `POST /api/properties/:propertyId/brain/search` — { query, limit? }
@@ -46,10 +52,22 @@ export async function POST(
   if (!binding) {
     return NextResponse.json({ unavailable: true, reason: "no brain provisioned" });
   }
-  const result = await callBrainTool(binding, "search", { query, limit });
-  return NextResponse.json(
-    result.ok
-      ? { results: result.content }
-      : { unavailable: true, reason: result.reason },
+  const result = await callBrainTool(
+    binding,
+    "search",
+    { query, limit },
+    { timeoutMs: SEARCH_TIMEOUT_MS },
   );
+  if (!result.ok) {
+    return NextResponse.json({ unavailable: true, reason: result.reason });
+  }
+  // Mirror pages can carry a slug-derived title from the serve; the app row
+  // is canonical, so show the document's real title.
+  const results = Array.isArray(result.content)
+    ? await resolveMirrorTitles(
+        propertyId,
+        result.content as Array<{ slug: string; title?: string }>,
+      )
+    : result.content;
+  return NextResponse.json({ results });
 }

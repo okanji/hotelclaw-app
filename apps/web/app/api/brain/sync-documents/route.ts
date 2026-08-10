@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { sweepDocumentsBrainSync } from "@/lib/brain/doc-sync";
+import {
+  sweepDocumentsBrainSync,
+  sweepOrphanedBrainPages,
+} from "@/lib/brain/doc-sync";
 
 // Vercel Cron — nightly 03:30 UTC (see vercel.json). Reconciliation sweep
 // for the document → brain mirror: the Liveblocks snapshot webhook is the
@@ -15,5 +18,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const counts = await sweepDocumentsBrainSync();
-  return NextResponse.json({ ok: true, ...counts });
+  // Second pass, walking brain → app: the cursor sweep above is
+  // document-driven and structurally cannot see mirror pages whose document
+  // was hard-deleted (no row left to iterate) or archived before it was ever
+  // mirrored. Those pages stay searchable, so a bot cites retracted content
+  // as current knowledge — a correctness bug, not housekeeping.
+  const orphans = await sweepOrphanedBrainPages();
+  return NextResponse.json({
+    ok: true,
+    ...counts,
+    orphansScanned: orphans.scanned,
+    orphansDeleted: orphans.deleted,
+    orphansFailed: orphans.failed,
+  });
 }

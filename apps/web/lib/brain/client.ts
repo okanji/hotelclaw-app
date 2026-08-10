@@ -41,6 +41,15 @@ const BINDING_TTL_MS = 5 * 60_000;
 // leave surfaces brainless for 5 minutes.
 const NULL_TTL_MS = 30_000;
 
+/**
+ * Drop a cached binding. Must be called after (re)provisioning: the cache
+ * would otherwise keep handing out the OLD credential for up to
+ * BINDING_TTL_MS, so a repair would appear to do nothing for 5 minutes.
+ */
+export function invalidatePropertyBrain(propertyId: string): void {
+  bindingCache.delete(propertyId);
+}
+
 export async function resolvePropertyBrain(
   propertyId: string,
 ): Promise<BrainBinding | null> {

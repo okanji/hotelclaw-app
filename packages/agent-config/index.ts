@@ -192,6 +192,13 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
+    id: "list_channels",
+    label: "List chat channels",
+    summary:
+      "The property's channels the requesting person belongs to, with their ids — how a channel named '#announcements' becomes an id post_to_channel can use.",
+    category: "read",
+  },
+  {
     id: "list_forms",
     label: "Read forms",
     summary: "List the property's forms and their status/response counts.",

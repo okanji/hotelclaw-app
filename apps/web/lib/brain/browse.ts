@@ -16,6 +16,8 @@ import "server-only";
  *   - archive: soft-delete the whole page (`delete_page`, 72h recovery
  *     window on the serve). Owner-only; the strongest retraction we expose.
  */
+import { DOC_BRAIN_PREFIX } from "@hotelclaw/brain";
+import { createServiceClient } from "@/lib/supabase/server";
 import { callBrainTool, type BrainBinding, type BrainResult } from "@/lib/brain/client";
 import {
   CORRECTION_MARK,
@@ -33,16 +35,63 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/**
+ * Replace mirror-page titles with the document's real app title.
+ *
+ * The serve stores whatever title it derived when the page was WRITTEN.
+ * Pages written before it started reading the body H1 kept a slug-derived
+ * title ("E536b30a C4ff 4733 A0d9 C2ac886c3520" — 63 of 84 fleet pages as
+ * of the 2026-08-06 audit), and the sync cursor considers them fresh, so
+ * they never self-heal. Postgres is canonical for the title anyway, so
+ * resolve it here rather than trusting the mirror.
+ *
+ * Tenant-scoped: only documents belonging to `propertyId` are resolved, so
+ * a title can never be surfaced across properties.
+ */
+export async function resolveMirrorTitles<T extends { slug: string; title?: string }>(
+  propertyId: string,
+  rows: T[],
+): Promise<T[]> {
+  const ids = rows
+    .filter((r) => typeof r?.slug === "string" && r.slug.startsWith(DOC_BRAIN_PREFIX))
+    .map((r) => r.slug.slice(DOC_BRAIN_PREFIX.length));
+  if (ids.length === 0) return rows;
+
+  try {
+    const { data } = await createServiceClient()
+      .from("documents")
+      .select("id, title")
+      .eq("property_id", propertyId)
+      .in("id", [...new Set(ids)].slice(0, 500));
+    const titles = new Map(
+      (data ?? []).map((d) => [d.id as string, (d.title as string) || ""]),
+    );
+    return rows.map((row) => {
+      if (typeof row?.slug !== "string" || !row.slug.startsWith(DOC_BRAIN_PREFIX)) {
+        return row;
+      }
+      const title = titles.get(row.slug.slice(DOC_BRAIN_PREFIX.length));
+      return title ? { ...row, title } : row;
+    });
+  } catch {
+    // Fail-soft: a title lookup failure must not blank the index.
+    return rows;
+  }
+}
+
 export async function listBrainPages(
   binding: BrainBinding | null,
-  { limit = 100 }: { limit?: number } = {},
+  {
+    limit = 100,
+    propertyId,
+  }: { limit?: number; propertyId?: string } = {},
 ): Promise<BrainPageSummary[] | null> {
   const result = await callBrainTool(binding, "list_pages", {
     limit,
     sort: "updated_desc",
   });
   if (!result.ok || !Array.isArray(result.content)) return null;
-  return result.content.flatMap((raw): BrainPageSummary[] => {
+  const pages = result.content.flatMap((raw): BrainPageSummary[] => {
     const row = asRecord(raw);
     if (!row || typeof row.slug !== "string") return [];
     return [
@@ -54,11 +103,13 @@ export async function listBrainPages(
       },
     ];
   });
+  return propertyId ? resolveMirrorTitles(propertyId, pages) : pages;
 }
 
 export async function readBrainPage(
   binding: BrainBinding | null,
   slug: string,
+  { propertyId }: { propertyId?: string } = {},
 ): Promise<BrainPageDetail | null> {
   const [pageResult, timelineResult] = await Promise.all([
     callBrainTool(binding, "get_page", { slug }),
@@ -86,9 +137,15 @@ export async function readBrainPage(
   });
 
   const contentFlag = asRecord(page.content_flag);
+  const rawTitle =
+    typeof page.title === "string" && page.title ? page.title : page.slug;
+  const [resolved] = propertyId
+    ? await resolveMirrorTitles(propertyId, [{ slug: page.slug, title: rawTitle }])
+    : [{ title: rawTitle }];
+
   return {
     slug: page.slug,
-    title: typeof page.title === "string" && page.title ? page.title : page.slug,
+    title: resolved?.title ?? rawTitle,
     type: typeof page.type === "string" ? page.type : "page",
     tags: Array.isArray(page.tags)
       ? page.tags.filter((t): t is string => typeof t === "string")

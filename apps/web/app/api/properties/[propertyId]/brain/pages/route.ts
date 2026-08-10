@@ -34,7 +34,7 @@ export async function GET(
   if (!binding) {
     return NextResponse.json({ unavailable: true, reason: "no brain provisioned" });
   }
-  const pages = await listBrainPages(binding);
+  const pages = await listBrainPages(binding, { propertyId });
   if (pages === null) {
     return NextResponse.json({ unavailable: true, reason: "brain unreachable" });
   }

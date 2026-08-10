@@ -49,15 +49,27 @@ export function BrainOverview({
   isOwner: boolean;
   onSelectSlug: (slug: string) => void;
 }) {
-  const { status, health, healthReachable, docCoverage, knowledge, recent } =
-    overview;
+  const {
+    status,
+    health,
+    healthReachable,
+    bindingOk,
+    docCoverage,
+    knowledge,
+    recent,
+  } = overview;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const provision = () => {
+  // A binding that exists but cannot answer. Distinct from "no brain yet"
+  // (nothing to repair) and from "serve down" (nothing WE can fix) — this
+  // one is the property's own OAuth client, and re-provisioning fixes it.
+  const bindingBroken = bindingOk === false && healthReachable;
+
+  const provision = (repair = false) => {
     setError(null);
     startTransition(async () => {
-      const res = await provisionBrainAction(propertyId);
+      const res = await provisionBrainAction(propertyId, { repair });
       if ("error" in res) setError(res.error);
       // Success revalidates the route server-side; the page re-renders with
       // the new binding, so no client state to flip here.
@@ -67,13 +79,22 @@ export function BrainOverview({
   const statusTone =
     status.kind === "none"
       ? "warning"
-      : status.kind === "pod" && status.podStatus !== "active"
-        ? "warning"
-        : "success";
+      : bindingOk === false
+        ? "danger"
+        : status.kind === "pod" && status.podStatus !== "active"
+          ? "warning"
+          : "success";
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-      <PageShell className="flex flex-col gap-8">
+      {/* The layout wrapper is INSIDE PageShell on purpose: PageShell puts
+          `className` on its outer box but renders children inside a separate
+          max-width measure div, so `flex flex-col gap-8` passed to PageShell
+          lands on a parent whose only child is that measure — the gap never
+          reaches these sections, and "Knowledge map" collided with the
+          document-mirror paragraph above it. */}
+      <PageShell>
+        <div className="flex flex-col gap-8">
       {/* Status + health */}
       <section className="rounded-md bg-card p-5">
         <div className="flex flex-wrap items-start gap-3">
@@ -85,23 +106,60 @@ export function BrainOverview({
               <h2 className="text-base font-semibold">
                 Knowledge brain
               </h2>
-              <StatusBadge tone={statusTone}>{KIND_LABEL[status.kind]}</StatusBadge>
+              <StatusBadge tone={statusTone}>
+                {bindingOk === false ? "Binding broken" : KIND_LABEL[status.kind]}
+              </StatusBadge>
               {status.kind !== "none" ? (
                 <StatusBadge tone={healthReachable ? "success" : "danger"} dot>
                   {healthReachable
-                    ? `Online${health.version ? ` · v${health.version}` : ""}`
-                    : "Unreachable"}
+                    ? `Server online${health.version ? ` · v${health.version}` : ""}`
+                    : "Server unreachable"}
                 </StatusBadge>
               ) : null}
             </div>
             <p className="mt-1 text-sm text-pretty text-muted-foreground">
-              {status.kind === "per_property" &&
+              {bindingOk === false
+                ? healthReachable
+                  ? "The knowledge server is up, but this property's credential was rejected — so every bot here is currently running without the brain. Re-provisioning mints a fresh credential against the same source; nothing already captured is lost."
+                  : "The knowledge server is not answering. Captures and searches fail until it recovers; nothing already captured is lost."
+                : null}
+              {bindingOk !== false && status.kind === "per_property" &&
                 `This property writes to its own isolated source. Provisioned ${timeAgo(status.provisionedAt)}.`}
-              {status.kind === "pod" &&
+              {bindingOk !== false && status.kind === "pod" &&
                 "This property inherits its pod client's shared brain — captures compound with the pod's knowledge."}
               {status.kind === "none" &&
                 "Nothing is captured yet. Provisioning binds the property to its own isolated source so meetings, guest details, documents, and captured evidence become searchable memory."}
             </p>
+
+            {bindingBroken && isOwner ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button
+                  size="sm"
+                  onClick={() => provision(true)}
+                  disabled={
+                    pending || status.kind !== "per_property" || !status.transport
+                  }
+                >
+                  <Sparkles className="size-4" />
+                  {pending ? "Repairing…" : "Repair binding"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {status.kind !== "per_property"
+                    ? "Pod bindings are repaired on the client, not here."
+                    : !status.transport
+                      ? "Provisioning isn't configured on this host."
+                      : "Mints a new credential on the same source."}
+                </span>
+                {error ? (
+                  <span className="text-xs text-destructive">{error}</span>
+                ) : null}
+              </div>
+            ) : null}
+            {bindingBroken && !isOwner ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Ask an owner to repair the brain binding for this property.
+              </p>
+            ) : null}
             {status.source ? (
               <p className="mt-2 font-mono text-xs text-muted-foreground">
                 {status.source}
@@ -113,7 +171,7 @@ export function BrainOverview({
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Button
                   size="sm"
-                  onClick={provision}
+                  onClick={() => provision()}
                   disabled={pending || !status.canProvision}
                 >
                   <Sparkles className="size-4" />
@@ -174,7 +232,14 @@ export function BrainOverview({
         <div className="grid gap-8 sm:grid-cols-2">
           <section className="flex flex-col gap-3">
             <Eyebrow>Knowledge map</Eyebrow>
-            {knowledge.total === 0 ? (
+            {bindingOk === false ? (
+              // Never claim an empty brain we could not read — that is exactly
+              // how a revoked credential passed for a fresh, empty one.
+              <p className="text-sm text-pretty text-muted-foreground">
+                Can&apos;t read the brain right now, so what it knows is
+                unknown — not empty.
+              </p>
+            ) : knowledge.total === 0 ? (
               <p className="text-sm text-pretty text-muted-foreground">
                 Nothing captured yet. Pages appear as meetings are summarized,
                 guests share details, and bots capture evidence.
@@ -243,6 +308,7 @@ export function BrainOverview({
           never captured.
         </p>
       ) : null}
+        </div>
       </PageShell>
     </div>
   );

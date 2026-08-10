@@ -106,8 +106,12 @@ function channelBotConfig(): AgentConfig {
       "list_bookings",
       "create_booking",
       "update_booking_status",
-      // Chat history (sender-membership-scoped)
+      // Chat history + channel directory (both sender-membership-scoped).
+      // list_channels is what makes post_to_channel usable: without it the
+      // bot only knows the id of the channel it is sitting in, so "post this
+      // in #announcements" was unanswerable (found by bot-capability-test).
       "search_chat_messages",
+      "list_channels",
       // Forms
       "list_forms",
       "get_form_response_summaries",

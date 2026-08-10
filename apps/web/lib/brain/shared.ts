@@ -57,6 +57,17 @@ export type BrainOverview = {
   /** Shared serve liveness (probed server-side; url never reaches client). */
   health: { status: string | null; version: string | null; engine: string | null };
   healthReachable: boolean;
+  /**
+   * Did THIS property's credential actually answer, this render?
+   *
+   * `healthReachable` only proves the shared SERVE is up — it says nothing
+   * about the property's own OAuth client. A revoked client (observed
+   * 2026-08-06 on prop-f47be200: `invalid_grant / Client has been revoked`)
+   * used to render as "Provisioned · Online" with an empty knowledge map,
+   * i.e. indistinguishable from a brand-new brain. Null when there is no
+   * binding to verify.
+   */
+  bindingOk: boolean | null;
   /** Document mirror coverage, from documents.brain_synced_at. */
   docCoverage: {
     total: number;

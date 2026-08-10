@@ -2484,6 +2484,53 @@ export default defineDynamic({
         });
       }
 
+      if (grants.has("list_channels")) {
+        tools.list_channels = defineTool({
+          description:
+            "List this property's chat channels — name and channel_id — scoped to channels the REQUESTING PERSON is a member of. Use this to turn a channel NAME the person said ('post it in #announcements') into the channel_id that post_to_channel needs. Without it there is no way to address any channel but the current one.",
+          inputSchema: z.object({
+            name_contains: z
+              .string()
+              .max(80)
+              .optional()
+              .describe("Optional filter on the channel name, e.g. 'announce'"),
+            limit: z.number().int().min(1).max(50).default(25),
+          }),
+          async execute({ name_contains, limit }) {
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const secret = process.env.STREAM_API_SECRET;
+            if (!apiKey || !secret) return { error: "Chat not configured." };
+            try {
+              const server = StreamChat.getInstance(apiKey, secret, { timeout: 15_000 });
+              // Same tenancy shape as search_chat_messages: property custom
+              // field AND the SENDER's membership. A non-member sender sees
+              // nothing, so this can never enumerate channels on behalf of
+              // the owner-fallback acting principal.
+              const channels = await server.queryChannels(
+                {
+                  type: { $in: ["team", "messaging"] },
+                  property_id: propertyId,
+                  members: { $in: [senderId] },
+                } as Parameters<typeof server.queryChannels>[0],
+                { last_message_at: -1 },
+                { limit, state: false, watch: false },
+              );
+              const needle = name_contains?.toLowerCase();
+              const rows = channels
+                .map((c) => ({
+                  channel_id: c.id ?? null,
+                  name: (c.data?.name as string | undefined) ?? c.id ?? "",
+                }))
+                .filter((c) => c.channel_id)
+                .filter((c) => !needle || c.name.toLowerCase().includes(needle));
+              return { count: rows.length, channels: rows };
+            } catch (e) {
+              return { error: e instanceof Error ? e.message : "channel list failed" };
+            }
+          },
+        });
+      }
+
       if (grants.has("post_to_channel")) {
         tools.post_to_channel = defineTool({
           // Approval-gated: the SYSTEM parks this call and the channel shows an
@@ -2492,7 +2539,7 @@ export default defineDynamic({
           // task or a doc stays unblocked.
           approval: always(),
           description:
-            "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — find it via search_chat_messages results or ask the requester. Only this property's channels are allowed.",
+            "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — when the person names a channel rather than giving an id, call list_channels first to resolve it. Only this property's channels are allowed.",
           inputSchema: z.object({
             channel_id: z.string().min(6).max(120),
             message: z.string().min(1).max(3000),

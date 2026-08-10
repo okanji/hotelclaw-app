@@ -43,6 +43,14 @@ import { logBrainEvent } from "@/lib/brain/telemetry";
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * "This already exists" from the serve, in every phrasing it uses.
+ * `sources_add` answers `… is already registered.`, the CLI answers
+ * `… exists`. Keep the two transports and
+ * scripts/provision-property-brain.mjs in step.
+ */
+const SOURCE_ALREADY_RX = /already registered|exist/i;
+
 export type ProvisionResult =
   | { ok: true; source: string; clientId: string; transport: "cli" | "http" }
   | { skipped: string }
@@ -220,12 +228,20 @@ async function provisionViaHttp(
   if (!admin) return { error: "BRAIN_TOKEN_ADMIN is not a clientId:secret pair" };
   const origin = new URL(url).origin;
 
-  // 1. Source (idempotent: tolerate "exists" from a previous partial run).
+  // 1. Source (idempotent: tolerate a source left by a previous partial run,
+  // or by the property's own earlier binding when we are REPAIRING a revoked
+  // credential — re-provisioning must land on the SAME source so nothing
+  // already captured is orphaned).
+  //
+  // The serve's wording is `Source id "prop-x" is already registered.` — it
+  // does NOT contain "exist", so the original /exist/i guard never matched
+  // and every re-provision failed hard (found by the 2026-08-06 audit while
+  // repairing prop-f47be200). Match both phrasings.
   const added = await callBrain(url, admin, "sources_add", {
     id: source,
     name: source,
   });
-  if (!added.ok && !/exist/i.test(added.reason)) {
+  if (!added.ok && !SOURCE_ALREADY_RX.test(added.reason)) {
     return { error: `sources_add failed: ${added.reason}` };
   }
 

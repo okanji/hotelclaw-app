@@ -276,10 +276,20 @@ export const BRAIN_CITATION_FORMAT =
   "[brain: <source>/<page-slug>]" as const;
 
 export const brainToolDescriptions = {
+  // 2026-08-06 audit: `search` IS hybrid (vector + keyword), verified against
+  // the live serve — "what happens when the chiller gets too warm" surfaces
+  // the walk-in freezer SOP even though the word "chiller" appears nowhere in
+  // it. Mid-audit this looked keyword-only and the description briefly said
+  // so; the real cause was corpus state (22 pages never evaluated against the
+  // contextual-retrieval ladder, plus chunks split across two embedding
+  // models after a provider switch). `gbrain reindex --markdown` fixed it.
+  // If semantic recall ever looks dead again, check corpus health FIRST —
+  // `content_chunks.model` should be one value, and doctor's
+  // contextual_retrieval_coverage should be clean.
   brain_search:
-    "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, playbooks, team lore — plus a mirror of the property's documents). Cheap hybrid retrieval returning matching chunks. Use FIRST for anything that smells like 'have we seen this before'. Chunks are excerpts — follow up with brain_get on a promising slug for the full page.",
+    "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, playbooks, team lore — plus a mirror of the property's documents). Hybrid retrieval — matches on MEANING as well as words, so a question phrased in your own vocabulary still finds the right page. Use FIRST for anything that smells like 'have we seen this before'. Chunks are excerpts — follow up with brain_get on a promising slug for the full page. The best hit is not always rank 1; scan the top few.",
   brain_think:
-    "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. Expensive — reserve for questions needing judgment across many pages ('why does the pool keep going green?', 'what do we know about this supplier?'). Not for simple lookups.",
+    "Ask the knowledge brain a HARD question and get a synthesized answer with citations and honest gap analysis. Reads across many pages and composes a real answer rather than handing back excerpts. Slow (~40s) — reserve for questions needing judgment ('why does the pool keep going green?', 'what do we know about this supplier?'), not lookups brain_search can answer.",
   brain_capture:
     "Record a durable observation in the property's shared brain so future conversations — yours and other bots' — benefit. Use for confirmed recurring issues, fixes, supplier behavior, team decisions, guest-relevant lore. SKIP chit-chat and anything already authoritative in the app (tasks, bookings, docs). slug examples: 'systems/pool', 'suppliers/acme-pool-services'.",
   brain_get:

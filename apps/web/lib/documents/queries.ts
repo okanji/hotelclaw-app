@@ -21,8 +21,11 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     // to ~240 chars. Written by the Liveblocks ydocUpdated webhook —
     // see `lib/documents/snapshot.ts`. Full text isn't huge in practice
     // (kB range per doc) and a single round-trip beats 50 Liveblocks rooms.
+    // `kind` lets the Directory list lead each row with the right icon — a
+    // spreadsheet and a document are otherwise indistinguishable in a list of
+    // "Untitled" rows.
     .select(
-      "id, title, updated_at, body_text, created_at, created_by, last_edited_by, space_id",
+      "id, title, kind, updated_at, body_text, created_at, created_by, last_edited_by, space_id",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

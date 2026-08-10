@@ -24,7 +24,11 @@ import { InvitesDialog } from "./invites-dialog";
 import { PendingInvitesSection } from "./pending-invites-section";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { propertyInitial, propertyTileTint } from "@/lib/shell/property-avatar";
+import {
+  propertyInitial,
+  propertySoftTint,
+  propertyTileTint,
+} from "@/lib/shell/property-avatar";
 import type { Membership } from "@/lib/auth/session";
 
 export function PropertySwitcher({
@@ -83,16 +87,24 @@ export function PropertySwitcher({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton className="h-[30px] w-fit max-w-full" />
+              <SidebarMenuButton
+                className={cn(
+                  "h-[30px] w-fit max-w-full [&_svg]:text-current",
+                  // Identity, not state: the row wears the property's own hue
+                  // from the same six-tint family as the rail's org tile, at
+                  // the wide-surface strength (~9% fill + hue ink).
+                  propertySoftTint(currentPropertyId),
+                )}
+              />
             }
           >
             {/* Org name + chevron only — the property's logo lives in the rail
                 now (RailOrgSwitcher). Weight 500 primary ink at 14px: this is
                 a UI row, not a display title (notion-spec §3). */}
-            <span className="min-w-0 truncate text-sm font-medium text-sidebar-accent-foreground">
+            <span className="min-w-0 truncate text-sm font-medium">
               {current?.property.name ?? "Property"}
             </span>
-            <ChevronsUpDown className="size-3.5! shrink-0 text-faint-foreground" />
+            <ChevronsUpDown className="size-3.5! shrink-0 opacity-60" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"

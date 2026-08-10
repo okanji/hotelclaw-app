@@ -21,8 +21,12 @@ export default async function BrainPage({
   if (!membership) notFound();
 
   const binding = await resolvePropertyBrain(propertyId);
-  const initialPages = binding ? await listBrainPages(binding) : null;
-  const overview = await loadBrainOverview(propertyId, initialPages);
+  const initialPages = binding
+    ? await listBrainPages(binding, { propertyId })
+    : null;
+  const overview = await loadBrainOverview(propertyId, initialPages, {
+    hasBinding: Boolean(binding),
+  });
 
   return (
     <BrainBrowser

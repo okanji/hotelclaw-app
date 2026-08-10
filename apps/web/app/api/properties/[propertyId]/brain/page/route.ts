@@ -42,7 +42,7 @@ export async function GET(
   if (!binding) {
     return NextResponse.json({ unavailable: true, reason: "no brain provisioned" });
   }
-  const page = await readBrainPage(binding, slug);
+  const page = await readBrainPage(binding, slug, { propertyId });
   if (!page) {
     return NextResponse.json({ error: "page not found" }, { status: 404 });
   }

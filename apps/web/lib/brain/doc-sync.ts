@@ -17,6 +17,7 @@ import {
   callBrain,
   documentBrainSlug,
   renderDocumentBrainPage,
+  DOC_BRAIN_PREFIX,
   DOC_SYNC_INGESTED_VIA,
 } from "@hotelclaw/brain";
 import { resolvePropertyBrain } from "@/lib/brain/client";
@@ -119,6 +120,116 @@ export async function syncDocumentToBrain(
     .eq("id", doc.id);
   logBrainEvent("doc_sync_ok", { documentId, action: "mirrored" });
   return { ok: true, action: "mirrored" };
+}
+
+/**
+ * Force a re-mirror regardless of the cursor. The cursor-driven sweep can
+ * only see documents whose ROW moved; it is blind to drift on the brain
+ * side (e.g. pages written before the serve derived titles from the body
+ * H1 keep a slug-derived title like "E536b30a C4ff …" forever, because
+ * brain_synced_at says "fresh"). Used by scripts/brain-remirror-documents.mjs.
+ */
+export async function remirrorDocument(documentId: string): Promise<SyncOutcome> {
+  const supabase = createServiceClient();
+  await supabase
+    .from("documents")
+    .update({ brain_synced_at: null })
+    .eq("id", documentId);
+  return syncDocumentToBrain(documentId);
+}
+
+/**
+ * Delete mirror pages whose document no longer warrants one — the sweep's
+ * blind spot, and a correctness bug rather than a cosmetic one: a page for
+ * a hard-deleted or archived document stays searchable, so a bot cites
+ * retracted content as current property knowledge.
+ *
+ * The cursor sweep is DOCUMENT-driven, so it can never see these:
+ *   - hard-deleted documents leave no row to iterate;
+ *   - a document archived while brain_synced_at was null is explicitly
+ *     skipped ("never mirrored" — but a page from an earlier era exists).
+ *
+ * This walks the other direction: enumerate the brain's `documents/*` pages
+ * per property and delete the ones with no live, unarchived document.
+ */
+export async function sweepOrphanedBrainPages({
+  propertyId,
+  dryRun = false,
+}: { propertyId?: string; dryRun?: boolean } = {}): Promise<{
+  scanned: number;
+  deleted: number;
+  failed: number;
+  orphans: string[];
+}> {
+  const supabase = createServiceClient();
+  const counts = { scanned: 0, deleted: 0, failed: 0, orphans: [] as string[] };
+
+  const query = supabase.from("property_brains").select("property_id");
+  const { data: bound } = propertyId
+    ? await query.eq("property_id", propertyId)
+    : await query;
+  const propertyIds = (bound ?? []).map((r) => r.property_id as string);
+
+  for (const pid of propertyIds) {
+    const binding = await resolvePropertyBrain(pid);
+    if (!binding) continue;
+
+    const listed = await callBrain(binding.url, binding, "list_pages", {
+      limit: 500,
+      sort: "updated_desc",
+    });
+    if (!listed.ok || !Array.isArray(listed.content)) {
+      logBrainEvent("doc_sync_failed", {
+        propertyId: pid,
+        stage: "orphan_sweep_list",
+        reason: listed.ok ? "unexpected list shape" : listed.reason,
+      });
+      continue;
+    }
+
+    const docPages = listed.content.flatMap((raw) => {
+      const slug = (raw as { slug?: unknown })?.slug;
+      return typeof slug === "string" && slug.startsWith(DOC_BRAIN_PREFIX)
+        ? [slug]
+        : [];
+    });
+    counts.scanned += docPages.length;
+    if (docPages.length === 0) continue;
+
+    const ids = docPages.map((slug) => slug.slice(DOC_BRAIN_PREFIX.length));
+    // Scope the lookup to THIS property: a page whose id resolves to another
+    // property's document is still an orphan here (and would be a fence bug).
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, archived_at")
+      .eq("property_id", pid)
+      .in("id", ids);
+    const liveIds = new Set(
+      (docs ?? []).filter((d) => !d.archived_at).map((d) => d.id as string),
+    );
+
+    for (const slug of docPages) {
+      if (liveIds.has(slug.slice(DOC_BRAIN_PREFIX.length))) continue;
+      counts.orphans.push(slug);
+      if (dryRun) continue;
+      const deleted = await callBrain(binding.url, binding, "delete_page", { slug });
+      const ok =
+        deleted.ok || /not.?found|does not exist|no such/i.test(deleted.reason);
+      if (ok) {
+        counts.deleted += 1;
+        logBrainEvent("doc_sync_ok", { propertyId: pid, action: "orphan_deleted" });
+      } else {
+        counts.failed += 1;
+        logBrainEvent("doc_sync_failed", {
+          propertyId: pid,
+          stage: "orphan_delete",
+          reason: deleted.reason,
+        });
+      }
+    }
+  }
+
+  return counts;
 }
 
 /** Reconciliation sweep across all properties: mirror anything whose

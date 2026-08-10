@@ -110,10 +110,24 @@ export default defineDynamic({
             });
             if (!result.ok) return { unavailable: true, reason: result.reason };
             const listed = normalizeListPages(result.content);
-            const pages = prefix
+            const filtered = prefix
               ? listed.pages.filter((p) => p.slug.startsWith(prefix))
               : listed.pages;
-            return { count: pages.length, pages: pages.slice(0, limit) };
+            const capped = filtered.slice(0, limit);
+            // Enumeration is the one read where the model shows titles to a
+            // human verbatim ("what SOPs do we have"). The serve's stored
+            // title can be slug-derived for older mirror pages, so swap in
+            // the document's real app title — the same resolution search/get
+            // already do, applied to the list itself rather than a footnote.
+            const sources = await resolveBrainSources(brainPropertyId, capped);
+            const byslug = new Map(sources.map((s) => [s.slug, s]));
+            const pages = capped.map((p) => {
+              const source = byslug.get(p.slug);
+              return source ? { ...p, title: source.title, link: source.link } : p;
+            });
+            return sources.length > 0
+              ? { count: pages.length, pages, sources }
+              : { count: pages.length, pages };
           },
         }),
         brain_capture: defineTool({

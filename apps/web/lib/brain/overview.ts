@@ -25,7 +25,11 @@ async function probeHealth(): Promise<BrainOverview["health"] & { reachable: boo
   if (!url) return empty;
   try {
     const res = await fetch(`${new URL(url).origin}/health`, {
-      signal: AbortSignal.timeout(3000),
+      // 8s, not 3s: a cold /health on the shared serve measured 1.8s and the
+      // fleet test caught it exceeding 3s under load. Timing out here renders
+      // a red "Server unreachable" badge on a perfectly healthy brain — the
+      // same class of lie as the green badge over a revoked credential.
+      signal: AbortSignal.timeout(8000),
       cache: "no-store",
     });
     if (!res.ok) return empty;
@@ -159,10 +163,15 @@ function deriveKnowledge(
  * Assemble the overview. `pages` is the index the page already fetched for
  * the browser (avoids a second list_pages round-trip); pass null when the
  * property has no binding.
+ *
+ * `hasBinding` distinguishes the two reasons `pages` can be null — no
+ * binding at all vs. a binding whose credential failed. Without it a
+ * revoked client renders as an empty brain (see BrainOverview.bindingOk).
  */
 export async function loadBrainOverview(
   propertyId: string,
   pages: BrainPageSummary[] | null,
+  { hasBinding }: { hasBinding: boolean },
 ): Promise<BrainOverview> {
   const [status, health, docCoverage] = await Promise.all([
     loadStatus(propertyId),
@@ -175,6 +184,9 @@ export async function loadBrainOverview(
     status,
     health: healthFields,
     healthReachable: reachable,
+    // listBrainPages returns [] for a genuinely empty brain and null only on
+    // a transport/auth failure — so this is a real verification, not a guess.
+    bindingOk: hasBinding ? pages !== null : null,
     docCoverage,
     knowledge: deriveKnowledge(pages),
     recent: (pages ?? []).slice(0, RECENT_LIMIT),

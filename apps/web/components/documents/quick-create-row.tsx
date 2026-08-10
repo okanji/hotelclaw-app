@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ChevronDown,
   ClipboardList,
   FileText,
   Loader2,
+  Plus,
   Sparkles,
   Table2,
   Upload,
@@ -16,6 +18,14 @@ import {
 import { marked } from "marked";
 import { renameDocument } from "./actions";
 import { setPendingImport } from "@/lib/documents/pending-generation";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TintIcon, type TintTone } from "@/components/ui/tint-card";
 import { cn } from "@/lib/utils";
 import { createDocument } from "./actions";
@@ -27,11 +37,14 @@ import {
 } from "@/lib/query/section-queries";
 
 /**
- * Quick-create tile row for the Docs home — one tile per creatable type
- * (Document, Spreadsheet, Form) plus an AI generate shortcut. Mirrors the
- * house `QuickAccessRow` language (neutral card, subtle border, colour only in
- * the tinted icon chip). A single click creates and navigates; while a create
- * is in flight its tile spins and the rest are disabled.
+ * The five ways to put something new in the Directory, in ONE place — used by
+ * two presentations that share `useDocumentCreators`:
+ *
+ *  - `<NewDocumentMenu>` — the toolbar's "New" dropdown. This is the default
+ *    affordance once the property has documents, so the toolbar can lead with
+ *    search (the actual primary act on a directory).
+ *  - `<QuickCreateRow>` — the full tile row, kept for the EMPTY state, where
+ *    discoverability beats density and there is no list to search yet.
  *
  * "doc"/"sheet" both live in the `documents` table (`kind`); "form" lives in
  * the separate `forms` table and opens the form builder. "generate" defers to
@@ -132,13 +145,12 @@ function htmlFromImport(kind: ImportKind, raw: string): string {
     .join("");
 }
 
-export function QuickCreateRow({
-  propertyId,
-  onGenerate,
-}: {
-  propertyId: string;
-  onGenerate: () => void;
-}) {
+/**
+ * All five create paths, headless. Both presentations call `run(id)`; the
+ * import path needs a real `<input type=file>` in the DOM, so the hook hands
+ * back the ref + change handler and the caller renders `<ImportFileInput>`.
+ */
+function useDocumentCreators(propertyId: string, onGenerate: () => void) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<TileId | null>(null);
@@ -235,38 +247,135 @@ export function QuickCreateRow({
     }
   }
 
-  async function handle(id: TileId) {
-    if (busy) return;
-    if (id === "generate") {
-      onGenerate();
-      return;
-    }
-    if (id === "import") {
-      fileInputRef.current?.click();
-      return;
-    }
-    setBusy(id);
-    try {
-      if (id === "form") await createBlankForm();
-      else await createDoc(id);
-    } finally {
-      setBusy(null);
-    }
+  const run = useCallback(
+    async (id: TileId) => {
+      if (busy) return;
+      if (id === "generate") {
+        onGenerate();
+        return;
+      }
+      if (id === "import") {
+        fileInputRef.current?.click();
+        return;
+      }
+      setBusy(id);
+      try {
+        if (id === "form") await createBlankForm();
+        else await createDoc(id);
+      } finally {
+        setBusy(null);
+      }
+    },
+    // `createDoc`/`createBlankForm` are re-created every render but close over
+    // nothing that changes identity meaningfully; the deps that matter are the
+    // busy latch and the generate callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [busy, onGenerate],
+  );
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) void handleImportFile(file);
   }
+
+  return { busy, run, fileInputRef, onFileChange };
+}
+
+/** The hidden picker the "Import" path clicks. Render one per creator hook. */
+function ImportFileInput({
+  inputRef,
+  onChange,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <input
+      ref={inputRef}
+      type="file"
+      accept=".md,.markdown,.html,.htm,.txt"
+      className="hidden"
+      onChange={onChange}
+    />
+  );
+}
+
+/**
+ * Toolbar "New" dropdown — the dense presentation of the same five paths.
+ * Import is separated by a rule because it consumes something the user already
+ * has rather than producing something blank.
+ */
+export function NewDocumentMenu({
+  propertyId,
+  onGenerate,
+}: {
+  propertyId: string;
+  onGenerate: () => void;
+}) {
+  const { busy, run, fileInputRef, onFileChange } = useDocumentCreators(
+    propertyId,
+    onGenerate,
+  );
+
+  return (
+    <>
+      <ImportFileInput inputRef={fileInputRef} onChange={onFileChange} />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button size="sm" disabled={busy !== null} />}
+        >
+          {busy ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Plus />
+          )}
+          New
+          <ChevronDown className="opacity-70" />
+        </DropdownMenuTrigger>
+        {/* Wide enough that the trailing hint never wraps — at `min-w-52` the
+            two-word labels and the hints collided mid-item. */}
+        <DropdownMenuContent align="end" sideOffset={4} className="min-w-72">
+          {TILES.map((t) => {
+            const Icon = t.icon;
+            return (
+              <span key={t.id} className="contents">
+                {t.id === "import" ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem onClick={() => void run(t.id)}>
+                  <Icon strokeWidth={1.5} className="text-faint-foreground" />
+                  <span className="flex-1 whitespace-nowrap">{t.label}</span>
+                  <span className="shrink-0 text-xs whitespace-nowrap text-faint-foreground">
+                    {t.sub}
+                  </span>
+                </DropdownMenuItem>
+              </span>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
+/**
+ * Tile row — the discoverable presentation, used on the empty Directory where
+ * there is nothing to search and the question is "what can I even make here?".
+ */
+export function QuickCreateRow({
+  propertyId,
+  onGenerate,
+}: {
+  propertyId: string;
+  onGenerate: () => void;
+}) {
+  const { busy, run, fileInputRef, onFileChange } = useDocumentCreators(
+    propertyId,
+    onGenerate,
+  );
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".md,.markdown,.html,.htm,.txt"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) void handleImportFile(file);
-        }}
-      />
+      <ImportFileInput inputRef={fileInputRef} onChange={onFileChange} />
       {TILES.map((t) => {
         const Icon = t.icon;
         const isBusy = busy === t.id;
@@ -275,7 +384,7 @@ export function QuickCreateRow({
             key={t.id}
             type="button"
             disabled={busy !== null}
-            onClick={() => void handle(t.id)}
+            onClick={() => void run(t.id)}
             aria-label={
               t.id === "generate" ? "Generate a document with AI" : `Create ${t.label.toLowerCase()}`
             }

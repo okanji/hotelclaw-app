@@ -105,9 +105,12 @@ async function adminSession() {
 async function provisionOne(property, ctx) {
   const source = `prop-${property.id.slice(0, 8)}`;
 
-  // 1. Source (idempotent: tolerate "exists").
+  // 1. Source (idempotent: tolerate a source a previous run already made —
+  // required for --force, which repairs a revoked credential onto the SAME
+  // source). The serve says `… is already registered.`, which contains no
+  // "exist"; keep this in step with SOURCE_ALREADY_RX in lib/brain/provision.ts.
   const added = await mcp(ctx.bearer, "sources_add", { id: source, name: source });
-  if (added.isError && !/exist/i.test(added.text)) {
+  if (added.isError && !/already registered|exist/i.test(added.text)) {
     throw new Error(`sources_add failed: ${added.text.slice(0, 200)}`);
   }
   console.log(added.isError ? `source ${source} already exists` : `source ${source} created`);

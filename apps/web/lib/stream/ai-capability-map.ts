@@ -70,6 +70,7 @@ export const CAPABILITY_TOOL_COVERAGE: Record<string, readonly string[]> = {
   "people & comms": [
     "get_org_chart",
     "search_chat_messages",
+    "list_channels",
     "send_notification",
     "post_to_channel",
   ],

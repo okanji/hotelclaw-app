@@ -23,8 +23,31 @@ const TILE_TINTS = [
   "bg-pill-slate text-pill-slate-ink",
 ];
 
-export function propertyTileTint(key: string): string {
+// Same six hues, dialled down for a WIDE surface. The 16% chip fill is sized
+// for a 20px tile; across a full-width row it reads as a coloured button, so
+// the fill drops to ~9% (16% × 55) and only the ink carries the hue. Index
+// stays keyed off the same string, so the switcher row and the rail's org
+// tile are always the same colour for a given property.
+const SOFT_TINTS = [
+  "bg-pill-rose/55 text-pill-rose-ink hover:bg-pill-rose/80 data-open:hover:bg-pill-rose/80 active:bg-pill-rose/95",
+  "bg-pill-amber/55 text-pill-amber-ink hover:bg-pill-amber/80 data-open:hover:bg-pill-amber/80 active:bg-pill-amber/95",
+  "bg-pill-green/55 text-pill-green-ink hover:bg-pill-green/80 data-open:hover:bg-pill-green/80 active:bg-pill-green/95",
+  "bg-pill-blue/55 text-pill-blue-ink hover:bg-pill-blue/80 data-open:hover:bg-pill-blue/80 active:bg-pill-blue/95",
+  "bg-pill-violet/55 text-pill-violet-ink hover:bg-pill-violet/80 data-open:hover:bg-pill-violet/80 active:bg-pill-violet/95",
+  "bg-pill-slate/55 text-pill-slate-ink hover:bg-pill-slate/80 data-open:hover:bg-pill-slate/80 active:bg-pill-slate/95",
+];
+
+function tintIndex(key: string): number {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return TILE_TINTS[h % TILE_TINTS.length];
+  return h % TILE_TINTS.length;
+}
+
+export function propertyTileTint(key: string): string {
+  return TILE_TINTS[tintIndex(key)];
+}
+
+/** Wide-surface variant of {@link propertyTileTint} — same hue, softer fill. */
+export function propertySoftTint(key: string): string {
+  return SOFT_TINTS[tintIndex(key)];
 }

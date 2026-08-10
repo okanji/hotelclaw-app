@@ -190,9 +190,15 @@ export function DocBoardsSection({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-foreground">Boards</h2>
-          <span className="text-sm text-muted-foreground tabular-nums">
+        {/* The section heading role is 16px/w600 (notion-spec-v2 §2). This is
+            the ONLY header the boards shelf gets — the Directory used to stack
+            an editorial kicker and an h2 above it, so three headings ran before
+            the first card. */}
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base leading-6 font-semibold text-foreground">
+            Boards
+          </h2>
+          <span className="text-sm text-faint-foreground tabular-nums">
             {boards.length}
           </span>
         </div>
