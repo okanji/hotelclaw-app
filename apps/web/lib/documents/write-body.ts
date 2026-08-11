@@ -11,12 +11,6 @@ import "server-only";
  * ProseMirror JSON (the seed-demo gotcha).
  */
 import { generateHTML, generateJSON } from "@tiptap/html";
-import { getSchema } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
 import { withProsemirrorDocument } from "@liveblocks/node-prosemirror";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
@@ -25,6 +19,7 @@ import {
   persistDocumentSnapshot,
 } from "@/lib/documents/snapshot";
 import { sanitizeDocHtml } from "@/lib/ai/bots/doc-bot";
+import { WRITE_EXTENSIONS, WRITE_SCHEMA } from "@/lib/documents/editor-schema";
 import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -34,8 +29,12 @@ import { createServiceClient } from "@/lib/supabase/server";
 // strips them anyway. The SAME set builds both the HTML→JSON conversion and
 // the ProseMirror schema passed to Liveblocks: the library default is
 // StarterKit-only and rejects table nodes with "Invalid content".
-const EXTENSIONS = [StarterKit, Table, TableRow, TableCell, TableHeader];
-const SCHEMA = getSchema(EXTENSIONS);
+//
+// Both now live in lib/documents/editor-schema.ts alongside the READ schema,
+// so the write surface and the parse-back surface can be seen together — they
+// drifted apart once already and cost every non-StarterKit node in the app.
+const EXTENSIONS = WRITE_EXTENSIONS;
+const SCHEMA = WRITE_SCHEMA;
 
 type ProseMirrorNode = { type: string; content?: unknown[] };
 

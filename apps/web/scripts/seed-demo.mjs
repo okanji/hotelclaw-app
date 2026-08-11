@@ -26,6 +26,9 @@ import { createClient } from "@supabase/supabase-js";
 import { StreamChat } from "stream-chat";
 import { Liveblocks } from "@liveblocks/node";
 import { withProsemirrorDocument } from "@liveblocks/node-prosemirror";
+// Same schema the app parses with — the library default is StarterKit-only
+// and silently drops every other node (see lib/documents/editor-schema.ts).
+import { READ_SCHEMA } from "../lib/documents/editor-schema.ts";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -161,7 +164,7 @@ async function writeDocBody(rec) {
   );
   await retry(() =>
     withProsemirrorDocument(
-      { client: liveblocks, roomId: rec.roomId },
+      { client: liveblocks, roomId: rec.roomId, schema: READ_SCHEMA },
       async (api) => {
         await api.setContent(doc);
       },
@@ -171,7 +174,7 @@ async function writeDocBody(rec) {
     liveblocks.getYjsDocumentAsBinaryUpdate(rec.roomId),
   );
   const derived = await retry(() =>
-    withProsemirrorDocument({ client: liveblocks, roomId: rec.roomId }, (api) => ({
+    withProsemirrorDocument({ client: liveblocks, roomId: rec.roomId, schema: READ_SCHEMA }, (api) => ({
       bodyText: api.getText({ blockSeparator: "\n" }),
       bodyJson: api.toJSON(),
     })),

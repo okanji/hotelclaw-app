@@ -20,6 +20,12 @@
 import { Liveblocks } from "@liveblocks/node";
 import { withProsemirrorDocument } from "@liveblocks/node-prosemirror";
 import { createClient } from "@supabase/supabase-js";
+// The SAME schema the app parses documents with. Without it Liveblocks falls
+// back to its StarterKit-only default and this backfill would re-write every
+// row's body_text/body_json with tables, callouts, charts, embeds,
+// attachments, images and task lists stripped out — which is precisely the
+// bug this script is now used to REPAIR (2026-08-11).
+import { READ_SCHEMA } from "../lib/documents/editor-schema.ts";
 
 const PAGE_SIZE = 100;
 const missingOnly = process.argv.includes("--missing-only");
@@ -75,7 +81,7 @@ for (;;) {
     try {
       const [bodyStateBuf, derived] = await Promise.all([
         liveblocks.getYjsDocumentAsBinaryUpdate(roomId),
-        withProsemirrorDocument({ client: liveblocks, roomId }, (api) => ({
+        withProsemirrorDocument({ client: liveblocks, roomId, schema: READ_SCHEMA }, (api) => ({
           bodyText: api.getText({ blockSeparator: "\n" }),
           bodyJson: api.toJSON(),
         })),

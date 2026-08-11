@@ -117,12 +117,17 @@ async function main() {
     ok("bot parked on a question rather than inventing a number");
     ok("turn slot released", `turn_state=${parked.turn_state}`);
 
-    const st = await channel.query({ messages: { limit: 25 } });
-    const question = (st.messages ?? []).find(
-      (m) => m.user?.id === BOT_USER_ID && m.created_at > before && (m.text ?? "").trim(),
-    );
-    if (!question) bad("question posted to the channel", "no bot message found");
-    else ok("question posted to the channel", `"${question.text.slice(0, 70)}…"`);
+    // The park is stamped on the row by `input.requested`, which fires BEFORE
+    // delivery posts the message — answering off the row alone races the
+    // question into the channel (observed: answer at :22, question at :23).
+    // Wait for the visible message, which is what a human would answer.
+    const question = await until("the question to reach the channel", 120_000, async () => {
+      const st = await channel.query({ messages: { limit: 25 } });
+      return (st.messages ?? []).find(
+        (m) => m.user?.id === BOT_USER_ID && m.created_at > before && (m.text ?? "").trim(),
+      );
+    });
+    ok("question posted to the channel", `"${question.text.slice(0, 70)}…"`);
 
     // ── THE BUG ── answer with NO @-mention. Pre-fix this was dropped.
     console.log("\n2. answering WITHOUT an @-mention (this is the bug)…");
@@ -138,13 +143,21 @@ async function main() {
     ok("unmentioned answer resumed the parked session", `nonce ${resumed.turn_nonce.slice(0, 8)}`);
 
     // And it must actually finish the work, not just acknowledge.
+    let lastBody = "";
     const finished = await until("the doc to be written", 240_000, async () => {
       const { data: d } = await sb
         .from("documents")
         .select("body_text")
         .eq("id", doc.id)
         .single();
-      return (d.body_text ?? "").replace(/\s+/g, " ").includes("555 9911") ? d : null;
+      lastBody = d?.body_text ?? "";
+      return lastBody.replace(/\s+/g, " ").includes("555 9911") ? d : null;
+    }).catch((e) => {
+      // Print what DID land — a silent timeout hides whether the bot failed
+      // to write or the write simply isn't reflected in body_text.
+      console.log(`\n  --- documents.body_text at timeout (${lastBody.length} chars) ---`);
+      console.log(lastBody.slice(0, 800) || "  (empty)");
+      throw e;
     });
     ok("the work completed with OUR number", `${finished.body_text.length} chars written`);
     if (/TO CONFIRM|\bTBD\b/i.test(finished.body_text)) {

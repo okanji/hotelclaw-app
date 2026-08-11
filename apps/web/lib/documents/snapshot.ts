@@ -1,5 +1,6 @@
 import "server-only";
 import { withProsemirrorDocument } from "@liveblocks/node-prosemirror";
+import { READ_SCHEMA } from "@/lib/documents/editor-schema";
 import type { Liveblocks } from "@liveblocks/node";
 import type { createServiceClient } from "@/lib/supabase/server";
 
@@ -36,8 +37,15 @@ export async function captureDocumentSnapshot(
 ): Promise<DocumentSnapshot> {
   const [bodyStateBuf, derived] = await Promise.all([
     liveblocks.getYjsDocumentAsBinaryUpdate(roomId),
+    // READ_SCHEMA, not the library default. Omitting the schema here parsed
+    // every document with Liveblocks' StarterKit-only default, silently
+    // dropping tables, callouts, toggles, charts, embeds, attachments,
+    // images and task lists from body_text/body_json while leaving them
+    // intact in Yjs — so that content was unsearchable, absent from the
+    // brain mirror, and invisible to the AI's read-before-edit (which then
+    // destroyed it on the next mode=replace). See lib/documents/editor-schema.ts.
     withProsemirrorDocument<{ bodyText: string; bodyJson: unknown }>(
-      { client: liveblocks, roomId },
+      { client: liveblocks, roomId, schema: READ_SCHEMA },
       (api) => ({
         bodyText: api.getText({ blockSeparator: "\n" }),
         bodyJson: api.toJSON(),
