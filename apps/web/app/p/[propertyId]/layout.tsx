@@ -85,6 +85,13 @@ export default async function PropertyLayout({
 
   const cookieStore = await cookies();
 
+  // Sidebar width preference — restored server-side so the first paint
+  // already matches (no width jump). Clamped client-side in LeftShell.
+  const sidebarWidthCookie = Number(cookieStore.get("sidebar_width")?.value);
+  const sidebarWidth = Number.isFinite(sidebarWidthCookie)
+    ? sidebarWidthCookie
+    : undefined;
+
   // Stream the user's notifications to the client so the Activity feed (rail
   // badge + section) and the Activity page render populated on first paint —
   // the shared `useNotifications` hook hydrates from this.
@@ -159,6 +166,7 @@ export default async function PropertyLayout({
                     <div className="flex min-h-0 flex-1">
                     <LeftShell
                       className="peer max-md:hidden"
+                      initialSidebarWidth={sidebarWidth}
                       currentPropertyId={propertyId}
                       memberships={memberships}
                       user={{

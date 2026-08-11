@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 import { getCalendarEvents } from "@/lib/calendar/queries";
 
 /**
@@ -26,10 +26,7 @@ export async function GET(
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

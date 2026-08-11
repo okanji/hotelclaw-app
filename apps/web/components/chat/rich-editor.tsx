@@ -66,6 +66,10 @@ type Props = {
   onSubmit?: () => void;
   onChange?: () => void;
   onMentionContextChange?: (ctx: MentionContext | null) => void;
+  /** Called with clipboard files (pasted screenshots, files copied from the
+   *  OS file manager) so the composer can stage them as attachments instead
+   *  of silently dropping them. */
+  onPasteFiles?: (files: File[]) => void;
   /** Keys to ignore (caller may handle them, e.g. when a popover is open). */
   shouldYieldKey?: (e: React.KeyboardEvent) => boolean;
   className?: string;
@@ -84,6 +88,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     onSubmit,
     onChange,
     onMentionContextChange,
+    onPasteFiles,
     shouldYieldKey,
     className,
   },
@@ -311,6 +316,16 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
   }
 
   function onPaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    // Clipboard files (a pasted screenshot, files copied from Finder /
+    // Explorer) become attachments, matching Slack. When files are present
+    // any accompanying text/html is decoration (e.g. an <img> tag mirroring
+    // the screenshot) — attach the files and insert nothing.
+    const files = Array.from(e.clipboardData.files);
+    if (files.length > 0 && onPasteFiles) {
+      e.preventDefault();
+      onPasteFiles(files);
+      return;
+    }
     // Force plain text on paste — keeps the editor from inheriting messy
     // styles from the source (Word, web pages).
     e.preventDefault();

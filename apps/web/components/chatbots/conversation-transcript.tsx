@@ -280,7 +280,7 @@ export function ConversationTranscript({
           }
           rows={2}
           disabled={sending}
-          className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-focus"
+          className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm text-foreground shadow-composer transition-[box-shadow] placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-composer-focus"
         />
         <Button type="submit" disabled={sending || !input.trim()}>
           {sending ? "Sending…" : status === "human" ? "Reply" : "Take over"}

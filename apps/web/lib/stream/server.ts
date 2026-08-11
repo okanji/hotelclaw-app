@@ -34,7 +34,11 @@ export async function upsertStreamUser(user: {
   _upsertedUsers.add(cacheKey);
 }
 
-export function createStreamUserToken(userId: string) {
+export function createStreamUserToken(userId: string, validitySeconds?: number) {
+  if (validitySeconds) {
+    const exp = Math.floor(Date.now() / 1000) + validitySeconds;
+    return getStreamServer().createToken(userId, exp);
+  }
   return getStreamServer().createToken(userId);
 }
 

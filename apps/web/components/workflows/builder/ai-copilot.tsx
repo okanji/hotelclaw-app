@@ -255,7 +255,7 @@ export function AiCopilot({
       <form onSubmit={handleSubmit}>
         <InputGroup
           className={cn(
-            "overflow-hidden border-border bg-card",
+            "overflow-hidden bg-card shadow-composer has-[[data-slot=input-group-control]:focus-visible]:shadow-composer-focus",
             busy && "opacity-80",
           )}
         >

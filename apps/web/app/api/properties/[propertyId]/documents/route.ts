@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 import { getDocuments } from "@/lib/documents/queries";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ propertyId: string }> },
 ) {
   const { propertyId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

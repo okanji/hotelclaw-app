@@ -283,6 +283,12 @@
   /* Focus: 1px Notion blue, inset + outer. NOT a 3px offset halo.
      Use as `focus-visible:shadow-focus`. */
   --shadow-focus: var(--focus-shadow);
+  /* Chat composers (channel composer, AI ask docks, copilot inputs): a
+     STRONGER warm ring than --shadow-ring so the input reads as the page's
+     affordance at rest, and a warm — never blue — focus state. Form fields
+     keep the blue --shadow-focus; conversational inputs use these. */
+  --shadow-composer: var(--composer-ring-shadow);
+  --shadow-composer-focus: var(--composer-focus-shadow);
 
   /* Hover is a background change and it is near-instant. Bare
      `transition-colors` / `transition-[background-color]` now resolve to
@@ -496,6 +502,8 @@
     rgb(0 0 0 / 8%) 0 4px 12px -2px, rgb(255 255 255 / 5%) 0 0 0 1px inset;
   --ring-shadow: 0 0 0 1px rgb(42 28 0 / 7%);
   --focus-shadow: #2383e2 0 0 0 1px inset, #2383e2 0 0 0 1px;
+  --composer-ring-shadow: 0 0 0 1px rgb(42 28 0 / 14%);
+  --composer-focus-shadow: 0 0 0 1px rgb(42 28 0 / 26%);
   /* The sidebar's right edge is a SHADOW, not a border (notion-spec §2). */
   --sidebar-edge-shadow: inset -1px 0 0 #f0efed;
 
@@ -649,6 +657,8 @@
     rgb(0 0 0 / 40%) 0 4px 12px -2px, rgb(255 255 255 / 6%) 0 0 0 1px inset;
   --ring-shadow: 0 0 0 1px rgb(255 255 255 / 7.5%);
   --focus-shadow: #2383e2 0 0 0 1px inset, #2383e2 0 0 0 1px;
+  --composer-ring-shadow: 0 0 0 1px rgb(255 255 255 / 15%);
+  --composer-focus-shadow: 0 0 0 1px rgb(255 255 255 / 28%);
   --sidebar-edge-shadow: inset -1px 0 0 #2c2c2b;
 }
 

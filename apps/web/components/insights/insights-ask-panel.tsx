@@ -195,7 +195,7 @@ export function InsightsAskPanel({
             rows={1}
             placeholder="Ask about this lens's numbers…"
             disabled={busy}
-            className="max-h-28 min-h-9 flex-1 resize-none rounded-md bg-transparent px-3 py-2 text-sm shadow-ring outline-none transition-[background-color,box-shadow] placeholder:text-faint-foreground focus-visible:shadow-focus disabled:opacity-50 dark:bg-muted"
+            className="max-h-28 min-h-9 flex-1 resize-none rounded-md bg-transparent px-3 py-2 text-sm shadow-composer outline-none transition-[background-color,box-shadow] placeholder:text-faint-foreground focus-visible:shadow-composer-focus disabled:opacity-50 dark:bg-muted"
           />
           <Button
             type="submit"

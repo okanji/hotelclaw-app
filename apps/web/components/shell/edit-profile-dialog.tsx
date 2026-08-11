@@ -26,6 +26,7 @@ type Props = {
   initialAvatarUrl: string | null;
   email: string;
   userId: string;
+  onDeleteAccount: () => void;
 };
 
 const AVATARS_BUCKET = "avatars";
@@ -44,6 +45,7 @@ export function EditProfileDialog({
   initialAvatarUrl,
   email,
   userId,
+  onDeleteAccount,
 }: Props) {
   const router = useRouter();
   const [fullName, setFullName] = useState(initialName ?? "");
@@ -231,6 +233,17 @@ export function EditProfileDialog({
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
+            {/* Deliberately quiet: account deletion hides behind the profile
+                dialog as a caption-rung link, not a menu item — it only gains
+                destructive ink on hover. */}
+            <button
+              type="button"
+              onClick={onDeleteAccount}
+              disabled={busy || uploading}
+              className="mr-auto text-xs text-faint-foreground underline-offset-2 transition-colors hover:text-destructive hover:underline focus-visible:shadow-focus disabled:pointer-events-none rounded-sm outline-none"
+            >
+              Delete account…
+            </button>
             <Button
               type="button"
               variant="ghost"

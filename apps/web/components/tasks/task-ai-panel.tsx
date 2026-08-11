@@ -137,7 +137,7 @@ export function TaskAiPanel({
           }}
           placeholder="What does this task involve? Who's blocked on this? Suggest next steps…"
           rows={2}
-          className="min-h-0 flex-1 resize-none bg-background"
+          className="min-h-0 flex-1 resize-none bg-background shadow-composer focus-visible:shadow-composer-focus"
           disabled={busy}
         />
         <Button

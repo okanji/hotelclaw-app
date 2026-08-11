@@ -32,15 +32,143 @@ cd apps/mobile && npx expo run:ios      # or run:android (needs Xcode / Android 
 
 ```
 app/
-  _layout.tsx                         # SafeArea > GestureHandlerRootView > ChatWrapper > AppProvider > Stack
-  index.tsx                           # ChannelList
+  _layout.tsx                         # SafeArea > GestureHandler > AuthProvider > ChatWrapper > PropertyProvider > AppProvider > Stack (Stack.Protected auth guard)
+  login.tsx                           # email+password sign-in (Supabase)
+  (tabs)/_layout.tsx                  # NativeTabs bottom bar: Channels / DMs / Tasks / Calendar / You
+  (tabs)/index.tsx                    # Channels (type "team"), scoped to active property
+  (tabs)/dms.tsx                      # DMs (type "messaging"), same scoping
+  (tabs)/tasks.tsx                    # task list (My / Open / All) + new-task sheet
+  (tabs)/calendar.tsx                 # 30-day agenda, read-only
+  (tabs)/you.tsx                      # account + Documents link + property switcher + sign out
   channel/[cid].tsx                   # Channel + MessageList + MessageComposer
   channel/[cid]/thread/[messageId].tsx# Thread
-components/ChatWrapper.tsx            # useCreateChatClient + OverlayProvider + Chat
+  task/[taskId].tsx                   # task detail: complete, status, priority, assignee
+  documents.tsx                       # document list + search
+  document/[documentId].tsx           # read-only document (body_text)
+components/ChannelListPane.tsx        # the shared channel list (filters + tenant guards)
+components/ScreenHeader.tsx           # compact nav bar for tab screens (NativeTabs has no header)
+components/ui.tsx                     # Loading / ErrorState / EmptyState, status+priority ramps
+components/ChatWrapper.tsx            # useCreateChatClient w/ backend tokenProvider
+lib/api.ts                            # Bearer-authed calls into the web API + useApi hook
+contexts/AuthContext.tsx             # Supabase session (AsyncStorage-persisted)
+contexts/PropertyContext.tsx         # memberships + active property (tenant)
 contexts/AppContext.tsx              # selected channel + active thread
-chatConfig.ts                        # reads EXPO_PUBLIC_STREAM_* env
+lib/supabase.ts                      # supabase-js client (AsyncStorage, AppState refresh)
+chatConfig.ts                        # reads EXPO_PUBLIC_* env (all public values)
 custom-types.d.ts                    # Stream custom-data module augmentation
 ```
+
+## Auth & tenancy
+
+- Sign-in is Supabase email+password (same `auth.users` as web). Session
+  persists in AsyncStorage; `Stack.Protected` in `_layout.tsx` gates all
+  screens behind it.
+- Stream tokens are minted by the web app: `GET /api/stream/token` with
+  `Authorization: Bearer <supabase access token>`. Mobile tokens carry a 12h
+  expiry; `ChatWrapper` passes a provider function so Stream re-fetches on
+  expiry. `EXPO_PUBLIC_API_URL` points at the web app.
+- Tenancy: `PropertyContext` loads the user's `memberships` (RLS-gated,
+  filtered to self — see the gotcha in `apps/web/lib/auth/session.ts`), and the
+  channel list filters on `property_id` + `frozen: false`, mirroring
+  `apps/web/components/chat/channel-list/channel-list-section.tsx`.
+  The self-filter is load-bearing, not defensive: without it this account sees
+  25 membership rows instead of its own 8.
+- **Navigation follows Slack's mobile model**: a bottom tab bar (Channels /
+  DMs / You). **Switching property lives in the You tab**, not the header —
+  you change org rarely and read messages constantly, so the switcher gets no
+  prime space. Two earlier attempts were wrong: a bare `⇄` glyph (unreadable as
+  a control) and then a header title button + a full-width segment row (too
+  prominent, ate list space).
+- The Channels header shows the property name as **plain text, not a control** —
+  it tells you which org you're in, the way Slack titles Home with the
+  workspace name.
+- **Header actions are an icon pill, not text buttons** (Apple Calendar's
+  pattern): view-type / search / + grouped in one rounded `#f3f4f6` pill on the
+  right. Search is collapsed behind its icon and expands to a full-width bar
+  over the header when tapped, so it costs a row only while in use. Tasks and
+  Calendar both use this. Icons are `@expo/vector-icons` (Ionicons) — font
+  based, so adding it needed **no** native rebuild (expo-font is already in the
+  build); SF Symbols are only available to `NativeTabs`, not arbitrary views.
+- **Channels vs DMs** are one query with a different Stream channel type
+  (`team` vs `messaging`), matching web's two `ChannelListSection`s — shared by
+  `components/ChannelListPane.tsx`, one tab each. DMs are property-scoped too
+  (the DM channel carries `property_id`), so a DM in another property appears
+  only after switching to it. Creating a DM is still web-only.
+- A deep link into `channel/[cid]` can point at another property. The screen
+  reads the channel's `property_id` and switches the active property to match
+  when you're a member, and refuses to render when you aren't.
+- **Scoping is client-side only.** A valid user token can still query
+  cross-property channels straight against Stream (verified: 30 channels
+  unscoped vs 2–5 scoped). Locking that down means Stream channel-type
+  permissions — not done yet.
+
+## Tasks / Calendar / Documents
+
+These surfaces talk to the **web app's property API** (`lib/api.ts`, Bearer
+auth), not straight to Postgres. That is deliberate for WRITES: task create and
+update run the shared `lib/tasks/mutations.ts` on the server, so mobile gets the
+same assignment notifications, background triage, and top-of-column positioning
+as web. A direct Supabase insert would fire the DB triggers (workflow
+automations) but silently skip all three.
+
+- `GET/POST /api/properties/:id/tasks`, `GET/PATCH .../tasks/:taskId`,
+  `GET .../calendar?from&to`, `GET .../documents`, `GET .../members` all accept
+  cookie **or** Bearer via `lib/auth/api-caller.ts`.
+- The calendar route already returns a unified feed (meetings + scheduled tasks
+  + bookings + connected external calendars), so the agenda needs no merging.
+- Task filtering lives in `lib/task-filters.ts` (pure), mirroring **every** web
+  board facet — search, status, priority, assignee, creator, team, project,
+  label, due bucket, source, and custom fields (0080) — including the exact
+  `taskDueBuckets` arithmetic and the OR-within / AND-across semantics.
+  Facet catalogues (teams, projects, custom fields + values) come from
+  `lib/catalogues.ts`, read straight from Supabase under RLS: they're
+  side-effect-free reference reads, unlike writes, which must go through the
+  shared mutation layer.
+- The calendar is a real calendar: list + compact month views, search, event
+  detail, and create/edit/delete via `/api/properties/:id/meetings`, which runs
+  the same `saveMeetingFor` as the web dialog. Only `source: "meeting"` events
+  are editable — tasks, bookings and external-calendar events are owned by
+  other surfaces.
+  Native date/time pickers come from `@react-native-community/datetimepicker`
+  (native module — adding it required a rebuild).
+
+## Documents are the real editor, in a WebView
+
+`components/WebSurface.tsx` renders a page from the web app inside the native
+shell. `document/[documentId]` points it at
+`/p/<pid>/documents/<id>` — so mobile gets Tiptap + Liveblocks collaboration,
+presence, and every custom block, fully editable, with no second editor to
+maintain.
+
+**This is not laziness, it's the only option.** ProseMirror requires a browser
+DOM (contenteditable + DOM observers), so Tiptap cannot run natively in RN, and
+Liveblocks' React Native support covers presence/storage only — there is no RN
+text editor. Every alternative (`@10play/tentap-editor` et al) is also a WebView,
+just with a *different* Tiptap that would have none of our nodes.
+
+Auth: the WebView has no cookies but the app has a Bearer session, so
+`WebSurface` injects the tokens with `injectedJavaScriptBeforeContentLoaded`
+and `/auth/mobile-bridge` (web) calls `supabase.auth.setSession` to mint the
+cookie session, then redirects. Tokens go through injected JS, never a query
+param — a URL would leak them into server logs, Referer, and history. `/auth`
+is already in the middleware's public allowlist.
+- `EXPO_PUBLIC_API_URL` must point at a running web server or every one of these
+  screens shows its error state.
+
+## Failure states are load-bearing here
+
+Three screens can only fail by hanging, so each one must surface the error and
+offer a way out. Regressions here look exactly like a slow network:
+
+- `ChatWrapper` — `useCreateChatClient` leaves the client `null` forever if the
+  token mint fails, and it wraps the navigator, so a bad `EXPO_PUBLIC_API_URL`
+  strands the whole app on a spinner. It now shows the failing endpoint with
+  Retry / Sign out, and names the URL after 8s of silence.
+- `channel/[cid]` — a rejected `watch()` (deleted channel, non-member) used to
+  spin forever; it now renders an error with Go back.
+- `PropertyContext` — a failed memberships fetch used to render as "No
+  properties yet", which reads as an account problem. It now carries a distinct
+  `error` + `reload()`.
 
 ## Conventions (from the Stream RN skill RULES — non-negotiable)
 
@@ -51,10 +179,39 @@ custom-types.d.ts                    # Stream custom-data module augmentation
   `Channel` from `useChatContext().client` on the destination screen.
 - On a channel screen under a native header, pass the header height as BOTH
   `keyboardVerticalOffset` and `topInset` on `Channel`.
+- **The AI thinking row is DB-driven, not Stream typing.**
+  `components/AiThinkingIndicator.tsx` mirrors web's: it watches
+  `channel_bot_sessions.turn_state` (+ `channel_bot_activity` steps) over
+  Supabase Realtime, because eve turns run 30s–minutes while Stream expires
+  typing after seconds. Root (`_root`) conversations only; softens to "Still
+  working on it…" after 25s. Realtime topics get a random suffix — a shared
+  topic name crashes on double-mount.
+  It mounts via `additionalFlatListProps.ListHeaderComponent`: the RN list is
+  **inverted**, so that slot is the visual BOTTOM, matching where web portals
+  its row. The SDK owns that slot for the typing indicator and
+  `additionalFlatListProps` is spread AFTER it, so the typing indicator is
+  re-rendered there explicitly — dropping it would silently undo human typing
+  indicators.
+- **Message clustering is SHARED with web**, not reimplemented:
+  `@hotelclaw/chat-grouping` (pure, dependency-free, unit-tested in
+  `apps/web/lib/chat/__tests__/message-grouping.test.ts`) holds the rules —
+  2-minute gap, one `eve_turn` = one cluster, and no cluster break for
+  attachments/reactions. `lib/message-grouping.ts` adapts it to the RN API
+  (`getMessageGroupStyle`), which differs in two ways: RN passes date
+  separators as `dateSeparatorDate` params instead of injecting rows (they must
+  become cluster breaks), and it wants `GroupStyle[]` rather than one role.
+  Pass BOTH `getMessageGroupStyle` and `maxTimeBetweenGroupedMessages` on
+  `Channel`, on the thread screen too. These rules have drifted twice; a second
+  implementation would guarantee a third.
+- SDK 56: `Tabs` from the expo-router root export is **deprecated**. Use
+  `NativeTabs` from `expo-router/unstable-native-tabs` — a real UIKit tab bar
+  that takes SF Symbols via `<NativeTabs.Trigger.Icon sf="…" />`, so it needs no
+  icon package (this app has no `@expo/vector-icons`). It rides on
+  react-native-screens, already in the native build — no rebuild to adopt it.
 
 ## Credentials
 
-`chatConfig.ts` reads `EXPO_PUBLIC_STREAM_*` from `.env.local` (gitignored). The
-public API key is shared with web (`NEXT_PUBLIC_STREAM_API_KEY`). The **API
-secret never goes in this app** — dev tokens only; production tokens come from a
-backend token provider.
+`chatConfig.ts` reads `EXPO_PUBLIC_*` from `.env.local` (gitignored) — see
+`.env.example`. All values are public (Stream API key, Supabase URL +
+publishable key, web API base URL). The **API secret and service-role key never
+go in this app**; user tokens are minted at runtime by `/api/stream/token`.

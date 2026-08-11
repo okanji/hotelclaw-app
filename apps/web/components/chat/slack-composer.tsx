@@ -18,6 +18,8 @@ import {
   AtSign,
   Bold,
   ChevronDown,
+  CircleAlert,
+  CircleStop,
   Code,
   Code2,
   FileText,
@@ -33,6 +35,7 @@ import {
   SquareSlash,
   Strikethrough,
   TextQuote,
+  Trash2,
   Type,
   Underline,
   X,
@@ -44,6 +47,7 @@ import {
   type MentionContext,
   type RichEditorHandle,
 } from "./rich-editor";
+import { formatAudioDuration, useVoiceRecorder } from "./use-voice-recorder";
 import { useEffect } from "react";
 
 const EmojiPicker = dynamic(
@@ -56,6 +60,21 @@ type UploadingFile = {
   name: string;
   progress: "uploading" | "done" | "error";
 };
+
+/** Stream's CDN rejects uploads over 100 MB (dashboard default). Guarding
+ *  client-side turns a slow, doomed upload into an instant toast. */
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+/** Map a file's mime type onto the Stream attachment `type` the renderers
+ *  key off. Getting this right is what makes an uploaded .mp4 render as a
+ *  playable video (not a download row) and lands it in the correct bucket
+ *  of the channel Files tab (`use-channel-files.ts` queries by type). */
+function attachmentKindFor(file: File): "image" | "video" | "audio" | "file" {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "audio";
+  return "file";
+}
 
 type QueuedAttachment = Attachment & { _id: string };
 
@@ -107,6 +126,7 @@ export function SlackComposer({
 
   const editorRef = useRef<RichEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const [sending, setSending] = useState(false);
   const [showFormatting, setShowFormatting] = useState(true);
@@ -114,8 +134,59 @@ export function SlackComposer({
   const [uploads, setUploads] = useState<UploadingFile[]>([]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [mention, setMention] = useState<MentionContext | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   // Force a render when editor content changes so the send button can update.
   const [, bumpRender] = useState(0);
+
+  // Slack-style voice messages. While recording/processing, the editor row is
+  // visually replaced by the recording strip and send/attach are disabled —
+  // stop first, the chip appears, then send (least-surprising: nothing can
+  // race the encode, and text typed earlier is preserved underneath).
+  const recorder = useVoiceRecorder();
+  const recorderActive = recorder.status !== "idle";
+  // Stable reference for the scope-reset effect (the `recorder` object is
+  // rebuilt each render; its callbacks are not).
+  const cancelRecording = recorder.cancel;
+
+  // This component is NOT remounted on channel switch (`<Channel>` has no
+  // key), so composer state would otherwise follow the user across channels —
+  // stage a file in #a, switch to #b, send → the file lands in #b. Reset the
+  // draft whenever the (channel, thread) scope changes, and tag in-flight
+  // uploads with the scope they started in so a late-resolving upload can't
+  // re-inject an attachment into the wrong channel's draft.
+  const scopeKey = `${channel?.cid ?? "none"}:${parentId ?? ""}`;
+  const scopeRef = useRef(scopeKey);
+  useEffect(() => {
+    if (scopeRef.current === scopeKey) return;
+    scopeRef.current = scopeKey;
+    setAttachments([]);
+    setUploads([]);
+    setMention(null);
+    editorRef.current?.clear();
+    // An in-progress voice recording belongs to the channel it started in —
+    // discard it rather than let it land in the new channel's draft.
+    cancelRecording();
+  }, [scopeKey, cancelRecording]);
+
+  // Typing indicators. This is a fully custom composer — it calls
+  // `channel.sendMessage` directly and never mounts Stream's `MessageInput` /
+  // `MessageComposer`, which is the only thing that normally calls
+  // `channel.keystroke()`. Without this, a web user NEVER appears as typing on
+  // any client (mobile included), even though `typing_events` is enabled on
+  // both channel types and `MessageList` renders the indicator fine.
+  // `keystroke()` self-throttles to one `typing.start` per 2s, so calling it on
+  // every change is safe.
+  const notifyTyping = useCallback(() => {
+    void channel?.keystroke(parentId ?? undefined).catch(() => {});
+  }, [channel, parentId]);
+
+  const stopTyping = useCallback(() => {
+    void channel?.stopTyping(parentId ?? undefined).catch(() => {});
+  }, [channel, parentId]);
+
+  // Leaving the channel/thread mid-draft would otherwise strand a typing.start
+  // until the server's own expiry.
+  useEffect(() => stopTyping, [stopTyping]);
 
   const channelName =
     (channel?.data as { name?: string } | undefined)?.name ??
@@ -128,9 +199,23 @@ export function SlackComposer({
   const submit = useCallback(async () => {
     const editor = editorRef.current;
     if (!editor || sending) return;
+    // Don't let Enter race an in-flight upload — the message would send
+    // without the attachment and orphan the upload chip.
+    if (uploads.some((u) => u.progress === "uploading")) {
+      toast.info("Hold on — files are still uploading");
+      return;
+    }
+    // Same rule for a voice message mid-recording: stop it first so the
+    // attachment can't be silently left behind.
+    if (recorderActive) {
+      toast.info("Finish your voice message first");
+      return;
+    }
     const text = editor.getMarkdown();
     if (!text && attachments.length === 0) return;
     setSending(true);
+    // Clear the indicator immediately rather than waiting for server expiry.
+    stopTyping();
     try {
       await channel.sendMessage({
         text,
@@ -155,7 +240,7 @@ export function SlackComposer({
     } finally {
       setSending(false);
     }
-  }, [attachments, channel, parentId, sending]);
+  }, [attachments, channel, parentId, recorderActive, sending, stopTyping, uploads]);
 
   // ── Member candidates for mention popover ────────────────────────────
   const memberCandidates = useMemo(() => {
@@ -216,59 +301,217 @@ export function SlackComposer({
     fileInputRef.current?.click();
   }
 
-  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  // Shared upload path for the attach button, paste, and drag-and-drop.
+  // Files upload concurrently; each is tagged with the scope it started in
+  // so a completion after a channel switch is discarded, not misfiled.
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length || !channel) return;
+      const scope = scopeKey;
+      await Promise.all(
+        files.map(async (file) => {
+          if (file.size > MAX_UPLOAD_BYTES) {
+            toast.error(`"${file.name}" is over the 100 MB upload limit`);
+            return;
+          }
+          const id = `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          setUploads((u) => [...u, { id, name: file.name, progress: "uploading" }]);
+          try {
+            const kind = attachmentKindFor(file);
+            const res =
+              kind === "image"
+                ? await channel.sendImage(file, file.name, file.type)
+                : await channel.sendFile(file, file.name, file.type);
+            const url = (res as { file: string }).file;
+            const attachment: QueuedAttachment =
+              kind === "image"
+                ? {
+                    _id: id,
+                    type: "image",
+                    image_url: url,
+                    thumb_url: url,
+                    fallback: file.name,
+                    title: file.name,
+                    mime_type: file.type,
+                    file_size: file.size,
+                  }
+                : {
+                    _id: id,
+                    type: kind,
+                    asset_url: url,
+                    title: file.name,
+                    mime_type: file.type,
+                    file_size: file.size,
+                  };
+            if (scopeRef.current !== scope) return;
+            setAttachments((a) => [...a, attachment]);
+            setUploads((u) => u.filter((x) => x.id !== id));
+          } catch (err) {
+            console.error("upload failed", err);
+            toast.error(`Upload failed: ${file.name}`);
+            if (scopeRef.current !== scope) return;
+            setUploads((u) =>
+              u.map((x) => (x.id === id ? { ...x, progress: "error" } : x)),
+            );
+          }
+        }),
+      );
+    },
+    [channel, scopeKey],
+  );
+
+  // ── Voice message ────────────────────────────────────────────────────
+  const startVoiceRecording = useCallback(async () => {
+    const res = await recorder.start();
+    if (res.ok) return;
+    toast.error(
+      res.reason === "denied"
+        ? "Microphone access is blocked — allow it in your browser's site settings to record voice messages"
+        : res.reason === "no-mic"
+          ? "No microphone found"
+          : res.reason === "unsupported"
+            ? "Voice messages aren't supported in this browser"
+            : "Couldn't start recording",
+    );
+  }, [recorder]);
+
+  // Stop → encode (mp3, or mp4 as-is on Safari) → upload via the same
+  // scope-tagged chip discipline as file uploads → stage a `voiceRecording`
+  // attachment (Stream's default Attachment renders it as a player).
+  const finishVoiceRecording = useCallback(async () => {
+    if (!channel) return;
+    const scope = scopeKey;
+    const result = await recorder.stop();
+    if (!result) {
+      toast.error("Couldn't process the recording");
+      return;
+    }
+    // Channel switched while recording/encoding — the scope effect already
+    // cancelled the draft; drop the result instead of misfiling it.
+    if (scopeRef.current !== scope) return;
+    const { file } = result;
+    const id = `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setUploads((u) => [
+      ...u,
+      { id, name: "Voice message", progress: "uploading" },
+    ]);
+    try {
+      const res = await channel.sendFile(file, file.name, result.mimeType);
+      const url = (res as { file: string }).file;
+      const attachment: QueuedAttachment = {
+        _id: id,
+        type: "voiceRecording",
+        asset_url: url,
+        title: file.name,
+        duration: result.durationSeconds,
+        mime_type: result.mimeType,
+        file_size: file.size,
+        waveform_data: result.waveformData,
+      };
+      if (scopeRef.current !== scope) return;
+      setAttachments((a) => [...a, attachment]);
+      setUploads((u) => u.filter((x) => x.id !== id));
+    } catch (err) {
+      console.error("voice message upload failed", err);
+      toast.error("Upload failed: voice message");
+      if (scopeRef.current !== scope) return;
+      setUploads((u) =>
+        u.map((x) => (x.id === id ? { ...x, progress: "error" } : x)),
+      );
+    }
+  }, [channel, recorder, scopeKey]);
+
+  function onFilesPicked(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!files.length) return;
-    for (const file of files) {
-      const id = `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      setUploads((u) => [...u, { id, name: file.name, progress: "uploading" }]);
-      try {
-        const isImage = file.type.startsWith("image/");
-        const res = isImage
-          ? await channel.sendImage(file, file.name, file.type)
-          : await channel.sendFile(file, file.name, file.type);
-        const url = (res as { file: string }).file;
-        const attachment: QueuedAttachment = isImage
-          ? {
-              _id: id,
-              type: "image",
-              image_url: url,
-              thumb_url: url,
-              fallback: file.name,
-              mime_type: file.type,
-              file_size: file.size,
-            }
-          : {
-              _id: id,
-              type: "file",
-              asset_url: url,
-              title: file.name,
-              mime_type: file.type,
-              file_size: file.size,
-            };
-        setAttachments((a) => [...a, attachment]);
-        setUploads((u) => u.filter((x) => x.id !== id));
-      } catch (err) {
-        console.error("upload failed", err);
-        toast.error(`Upload failed: ${file.name}`);
-        setUploads((u) =>
-          u.map((x) => (x.id === id ? { ...x, progress: "error" } : x)),
-        );
-      }
-    }
+    void uploadFiles(files);
   }
 
   function removeAttachment(id: string) {
     setAttachments((a) => a.filter((x) => x._id !== id));
   }
 
+  function dismissUpload(id: string) {
+    setUploads((u) => u.filter((x) => x.id !== id));
+  }
+
+  // ── Drag-and-drop ─────────────────────────────────────────────────────
+  // The drop target is the whole panel this composer lives in (main channel
+  // window or thread panel), not just the composer strip — matching the
+  // Slack habit of dropping a file anywhere over the conversation. Falls
+  // back to the composer root when neither panel ancestor exists (threads
+  // feed cards).
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const panel =
+      root.closest<HTMLElement>(".str-chat__thread, .str-chat__main-panel") ??
+      root;
+    // dragenter/dragleave fire for every descendant crossed; keep a depth
+    // counter so the highlight only clears when the pointer truly leaves.
+    let depth = 0;
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth += 1;
+      setDragActive(true);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragActive(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragActive(false);
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length) void uploadFiles(files);
+    };
+    panel.addEventListener("dragenter", onDragEnter);
+    panel.addEventListener("dragover", onDragOver);
+    panel.addEventListener("dragleave", onDragLeave);
+    panel.addEventListener("drop", onDrop);
+    return () => {
+      panel.removeEventListener("dragenter", onDragEnter);
+      panel.removeEventListener("dragover", onDragOver);
+      panel.removeEventListener("dragleave", onDragLeave);
+      panel.removeEventListener("drop", onDrop);
+    };
+  }, [uploadFiles]);
+
   // ── Render ────────────────────────────────────────────────────────────
   const isEditorEmpty = editorRef.current?.isEmpty() ?? true;
-  const canSend = (!isEditorEmpty || attachments.length > 0) && !sending;
+  const uploading = uploads.some((u) => u.progress === "uploading");
+  const canSend =
+    (!isEditorEmpty || attachments.length > 0) &&
+    !sending &&
+    !uploading &&
+    !recorderActive;
 
   return (
-    <div className="group/composer mx-4 mt-2 mb-4 flex flex-col rounded-md bg-transparent shadow-ring transition-[box-shadow] focus-within:shadow-focus">
+    <div
+      ref={rootRef}
+      className={cn(
+        "group/composer mx-4 mt-2 mb-4 flex flex-col rounded-md bg-transparent shadow-composer transition-[box-shadow] focus-within:shadow-composer-focus",
+        dragActive && "shadow-composer-focus",
+      )}
+    >
+      {/* Drop hint — the whole panel accepts the drop; this is the cue. */}
+      {dragActive && (
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
+          <Plus className="size-3.5" />
+          Drop files to attach
+        </div>
+      )}
       {/* Attachment preview chips */}
       {(attachments.length > 0 || uploads.length > 0) && (
         <div className="flex flex-wrap gap-2 border-b border-border px-3 py-2">
@@ -279,15 +522,34 @@ export function SlackComposer({
               onRemove={() => removeAttachment(a._id)}
             />
           ))}
-          {uploads.map((u) => (
-            <div
-              key={u.id}
-              className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
-            >
-              <Skeleton className="size-3 rounded-sm bg-muted-foreground/40" />
-              <span className="max-w-[140px] truncate">{u.name}</span>
-            </div>
-          ))}
+          {uploads.map((u) =>
+            u.progress === "error" ? (
+              <div
+                key={u.id}
+                className="flex items-center gap-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive"
+              >
+                <CircleAlert className="size-3.5" />
+                <span className="max-w-[140px] truncate">{u.name}</span>
+                <span className="whitespace-nowrap">failed</span>
+                <button
+                  type="button"
+                  aria-label="Dismiss failed upload"
+                  onClick={() => dismissUpload(u.id)}
+                  className="ml-1 inline-flex size-4 items-center justify-center rounded-sm transition-colors hover:bg-destructive/15"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <div
+                key={u.id}
+                className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
+              >
+                <Skeleton className="size-3 rounded-sm bg-muted-foreground/40" />
+                <span className="max-w-[140px] truncate">{u.name}</span>
+              </div>
+            ),
+          )}
         </div>
       )}
 
@@ -371,8 +633,55 @@ export function SlackComposer({
         </div>
       )}
 
+      {/* Recording strip — visually replaces the editor row while a voice
+          message is being recorded/encoded. The editor stays mounted (just
+          hidden) so any draft text survives the recording. */}
+      {recorderActive && (
+        <div className="flex items-center gap-3 px-[17px] py-[13px]">
+          <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-red opacity-50" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-accent-red" />
+          </span>
+          <span className="w-9 shrink-0 text-xs tabular-nums text-muted-foreground">
+            {formatAudioDuration(recorder.elapsedMs / 1000)}
+          </span>
+          <div
+            className="flex h-6 min-w-0 flex-1 items-center justify-end gap-[3px] overflow-hidden"
+            aria-hidden="true"
+          >
+            {recorder.amplitudes.slice(-48).map((v, i) => (
+              <span
+                key={i}
+                className="w-[3px] shrink-0 rounded-full bg-foreground/50"
+                style={{ height: `${Math.max(12, Math.round(v * 100))}%` }}
+              />
+            ))}
+          </div>
+          {recorder.status === "processing" ? (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              Processing…
+            </span>
+          ) : (
+            <ToolbarGroup>
+              <IconBtn
+                label="Discard recording"
+                onClick={() => recorder.cancel()}
+              >
+                <Trash2 />
+              </IconBtn>
+              <IconBtn
+                label="Stop recording"
+                onClick={() => void finishVoiceRecording()}
+              >
+                <CircleStop />
+              </IconBtn>
+            </ToolbarGroup>
+          )}
+        </div>
+      )}
+
       {/* Editor (mention popover anchored on the wrapper) */}
-      <div className="px-[17px] py-[13px]">
+      <div className={cn("px-[17px] py-[13px]", recorderActive && "hidden")}>
         <Popover
           open={mentionOpen}
           onOpenChange={(o) => {
@@ -387,7 +696,15 @@ export function SlackComposer({
                   ref={editorRef}
                   placeholder={ph}
                   onSubmit={submit}
-                  onChange={() => bumpRender((n) => n + 1)}
+                  onChange={() => {
+                    bumpRender((n) => n + 1);
+                    // Only signal typing when there's content: `clear()` also
+                    // fires onChange (after send, and on the channel-switch
+                    // draft reset), and a keystroke there would show a
+                    // phantom "is typing" to everyone else.
+                    if (!editorRef.current?.isEmpty()) notifyTyping();
+                  }}
+                  onPasteFiles={(files) => void uploadFiles(files)}
                   onMentionContextChange={setMention}
                   shouldYieldKey={(e) => {
                     if (!mentionOpen) return false;
@@ -430,7 +747,11 @@ export function SlackComposer({
       <div className="flex items-center justify-between px-2 pb-1.5">
         <div className="flex items-center gap-0">
           <ToolbarGroup>
-            <IconBtn label="Attach files" onClick={pickFiles}>
+            <IconBtn
+              label="Attach files"
+              onClick={pickFiles}
+              disabled={recorderActive}
+            >
               <Plus />
             </IconBtn>
             <IconBtn
@@ -484,7 +805,22 @@ export function SlackComposer({
           </ToolbarGroup>
           <Divider />
           <ToolbarGroup>
-            <IconBtn label="Voice message — not yet available">
+            <IconBtn
+              label={
+                recorder.status === "recording"
+                  ? "Stop recording"
+                  : "Record voice message"
+              }
+              active={recorderActive}
+              disabled={recorder.status === "processing"}
+              onClick={() => {
+                if (recorder.status === "recording") {
+                  void finishVoiceRecording();
+                } else if (recorder.status === "idle") {
+                  void startVoiceRecording();
+                }
+              }}
+            >
               <Mic />
             </IconBtn>
           </ToolbarGroup>
@@ -532,7 +868,7 @@ export function SlackComposer({
         type="file"
         multiple
         className="hidden"
-        onChange={onFiles}
+        onChange={onFilesPicked}
       />
     </div>
   );
@@ -557,11 +893,13 @@ function IconBtn({
   label,
   onClick,
   active,
+  disabled,
   children,
 }: {
   label: string;
   onClick?: () => void;
   active?: boolean;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -572,6 +910,7 @@ function IconBtn({
       aria-label={label}
       title={label}
       aria-pressed={active}
+      disabled={disabled}
       onMouseDown={(e) => {
         // Keep the editor focused so execCommand has a valid selection.
         e.preventDefault();
@@ -596,10 +935,16 @@ function AttachmentChip({
   onRemove: () => void;
 }) {
   const isImage = attachment.type === "image";
-  const title =
-    (attachment.fallback as string | undefined) ??
-    (attachment.title as string | undefined) ??
-    "attachment";
+  const isVoice = attachment.type === "voiceRecording";
+  const title = isVoice
+    ? `Voice message${
+        attachment.duration
+          ? ` · ${formatAudioDuration(attachment.duration)}`
+          : ""
+      }`
+    : ((attachment.fallback as string | undefined) ??
+      (attachment.title as string | undefined) ??
+      "attachment");
   return (
     <div className="group relative inline-flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
       {isImage && attachment.image_url ? (
@@ -609,10 +954,12 @@ function AttachmentChip({
           alt=""
           className="size-6 rounded-md object-cover"
         />
+      ) : isVoice ? (
+        <Mic className="size-3.5 text-muted-foreground" />
       ) : (
         <FileText className="size-3.5 text-muted-foreground" />
       )}
-      <span className="max-w-[140px] truncate">{title}</span>
+      <span className="max-w-[160px] truncate">{title}</span>
       <button
         type="button"
         aria-label="Remove attachment"

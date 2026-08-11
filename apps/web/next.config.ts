@@ -8,7 +8,12 @@ const nextConfig: NextConfig = {
   // of localhost (Next blocks cross-origin HMR by default).
   allowedDevOrigins: ["127.0.0.1"],
   // Workspace packages shipped as TS source (shared with the eve runtime).
-  transpilePackages: ["@hotelclaw/agent-config", "@hotelclaw/brain", "@hotelclaw/chat-ui"],
+  transpilePackages: [
+    "@hotelclaw/agent-config",
+    "@hotelclaw/brain",
+    "@hotelclaw/chat-grouping",
+    "@hotelclaw/chat-ui",
+  ],
   turbopack: {
     // Monorepo root (two levels up from apps/web). pnpm's hoisted layout puts
     // `next` (and most deps) in the repo-root node_modules, so Turbopack must

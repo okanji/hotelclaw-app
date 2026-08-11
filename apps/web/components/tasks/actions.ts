@@ -2,15 +2,11 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import {
-  createNotification,
-  type NotificationType,
-} from "@/lib/notifications/server";
-import type { Database } from "@/lib/db/types";
-
-type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
+import { createNotification } from "@/lib/notifications/server";
+// Task writes live in lib/tasks/mutations so the REST routes (mobile, Bearer
+// auth) and these actions (web, cookie auth) can't diverge.
+import { createTaskFor, updateTaskFor } from "@/lib/tasks/mutations";
 
 const Statuses = ["todo", "in_progress", "blocked", "done"] as const;
 const Priorities = ["none", "low", "medium", "high", "urgent"] as const;
@@ -48,166 +44,33 @@ const MoveSchema = z.object({
 export async function createTask(
   input: z.input<typeof CreateSchema>,
 ): Promise<{ taskId: string } | { error: string }> {
-  const parsed = CreateSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid input" };
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  // Team defaults to the creator's home team (org chart: memberships
-  // .primary_space_id). `spaceId` absent (undefined) → default; explicit
-  // null → deliberately no team (the dialog's "No team" choice); a uuid →
-  // that team. This is why the field is `.nullable().optional()`.
-  let spaceId = parsed.data.spaceId;
-  if (spaceId === undefined) {
-    const { data: membership } = await supabase
-      .from("memberships")
-      .select("primary_space_id")
-      .eq("property_id", parsed.data.propertyId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    spaceId = membership?.primary_space_id ?? null;
-  }
+  const result = await createTaskFor(supabase, user.id, input);
+  if ("error" in result) return result;
 
-  // New cards land at the top of their column.
-  const position = await topPositionFor(
-    supabase,
-    parsed.data.propertyId,
-    parsed.data.status,
-  );
-
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert({
-      property_id: parsed.data.propertyId,
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      status: parsed.data.status,
-      priority: parsed.data.priority,
-      assignee_id: parsed.data.assigneeId ?? null,
-      created_by: user.id,
-      position,
-      parent_id: parsed.data.parentId ?? null,
-      space_id: spaceId,
-      project_id: parsed.data.projectId ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !data) return { error: error?.message ?? "Insert failed" };
-
-  // Notify the assignee if it's not the creator themselves.
-  if (parsed.data.assigneeId && parsed.data.assigneeId !== user.id) {
-    await emitTaskAssignmentNotifications({
-      taskId: data.id,
-      propertyId: parsed.data.propertyId,
-      title: parsed.data.title,
-      byUserId: user.id,
-      previousAssigneeId: null,
-      nextAssigneeId: parsed.data.assigneeId,
-    });
-  }
-
-  // Bare tasks (missing team/assignee/priority) get triaged in the
-  // background — suggestions land as pending rows on the task detail; the
-  // bot no-ops when nothing is missing.
-  if (
-    !parsed.data.spaceId ||
-    !parsed.data.assigneeId ||
-    parsed.data.priority === "none"
-  ) {
-    const taskId = data.id;
-    const propertyId = parsed.data.propertyId;
-    after(async () => {
-      try {
-        const { triageTask } = await import("@/lib/ai/bots/triage-bot");
-        await triageTask({ propertyId, taskId });
-      } catch (err) {
-        console.error("[triage] background triage failed", taskId, err);
-      }
-    });
-  }
-
-  revalidatePath(`/p/${parsed.data.propertyId}/tasks`);
-  return { taskId: data.id };
+  revalidatePath(`/p/${result.propertyId}/tasks`);
+  return { taskId: result.taskId };
 }
 
 export async function updateTask(
   input: z.input<typeof UpdateSchema>,
 ): Promise<{ ok: true } | { error: string }> {
-  const parsed = UpdateSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid input" };
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  // Read the previous assignee/status so we can detect changes and emit
-  // assigned/unassigned notifications (and re-anchor the card on a status move).
-  const { data: before } = await supabase
-    .from("tasks")
-    .select("assignee_id, title, property_id, status")
-    .eq("id", parsed.data.taskId)
-    .maybeSingle();
+  const result = await updateTaskFor(supabase, user.id, input);
+  if ("error" in result) return result;
 
-  const patch: TaskUpdate = {};
-  if (parsed.data.title !== undefined) patch.title = parsed.data.title;
-  if (parsed.data.description !== undefined)
-    patch.description = parsed.data.description;
-  if (parsed.data.status !== undefined) patch.status = parsed.data.status;
-  if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
-  if (parsed.data.assigneeId !== undefined)
-    patch.assignee_id = parsed.data.assigneeId;
-  if (parsed.data.dueAt !== undefined) patch.due_at = parsed.data.dueAt;
-  if (parsed.data.labels !== undefined) patch.labels = parsed.data.labels;
-  if (parsed.data.projectName !== undefined)
-    patch.project_name = parsed.data.projectName;
-
-  // Changing status moves the card to a different column — drop it at the
-  // top so it doesn't inherit a stale position from its old column.
-  if (
-    parsed.data.status !== undefined &&
-    before &&
-    parsed.data.status !== before.status
-  ) {
-    patch.position = await topPositionFor(
-      supabase,
-      before.property_id,
-      parsed.data.status,
-    );
-  }
-
-  const { data: row, error } = await supabase
-    .from("tasks")
-    .update(patch)
-    .eq("id", parsed.data.taskId)
-    .select("property_id, title")
-    .single();
-
-  if (error || !row) return { error: error?.message ?? "Update failed" };
-
-  if (
-    parsed.data.assigneeId !== undefined &&
-    before &&
-    parsed.data.assigneeId !== before.assignee_id
-  ) {
-    await emitTaskAssignmentNotifications({
-      taskId: parsed.data.taskId,
-      propertyId: row.property_id,
-      title: row.title,
-      byUserId: user.id,
-      previousAssigneeId: before.assignee_id,
-      nextAssigneeId: parsed.data.assigneeId,
-    });
-  }
-
-  revalidatePath(`/p/${row.property_id}/tasks`);
-  revalidatePath(`/p/${row.property_id}/tasks/${parsed.data.taskId}`);
+  revalidatePath(`/p/${result.propertyId}/tasks`);
+  revalidatePath(`/p/${result.propertyId}/tasks/${result.taskId}`);
   return { ok: true };
 }
 
@@ -346,69 +209,3 @@ export async function escalateTask(
 }
 
 /* -------------------------------------------------------------------------- */
-
-/**
- * Returns a `position` that places a card just above the current top card of
- * a column (or a sensible default when the column is empty). Used for newly
- * created cards and for cards moved between columns outside of a drag.
- */
-async function topPositionFor(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  propertyId: string,
-  status: (typeof Statuses)[number],
-): Promise<number> {
-  const { data: top } = await supabase
-    .from("tasks")
-    .select("position")
-    .eq("property_id", propertyId)
-    .eq("status", status)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return top ? top.position - 1024 : 1024;
-}
-
-async function emitTaskAssignmentNotifications(args: {
-  taskId: string;
-  propertyId: string;
-  title: string;
-  byUserId: string;
-  previousAssigneeId: string | null;
-  nextAssigneeId: string | null;
-}): Promise<void> {
-  const service = createServiceClient();
-  const { data: actor } = await service
-    .from("profiles")
-    .select("full_name")
-    .eq("id", args.byUserId)
-    .maybeSingle();
-  const byUserName = actor?.full_name ?? null;
-
-  const events: Array<{ userId: string; type: NotificationType }> = [];
-  if (args.nextAssigneeId && args.nextAssigneeId !== args.byUserId) {
-    events.push({ userId: args.nextAssigneeId, type: "task_assigned" });
-  }
-  if (
-    args.previousAssigneeId &&
-    args.previousAssigneeId !== args.byUserId &&
-    args.previousAssigneeId !== args.nextAssigneeId
-  ) {
-    events.push({ userId: args.previousAssigneeId, type: "task_unassigned" });
-  }
-
-  await Promise.all(
-    events.map((e) =>
-      createNotification({
-        userId: e.userId,
-        propertyId: args.propertyId,
-        type: e.type,
-        payload: {
-          taskId: args.taskId,
-          taskTitle: args.title,
-          byUserId: args.byUserId,
-          byUserName,
-        },
-      }),
-    ),
-  );
-}

@@ -1,9 +1,11 @@
 "use client";
 
 import { Attachment as DefaultAttachment, type AttachmentProps } from "stream-chat-react";
+import type { Attachment as StreamAttachment } from "stream-chat";
 import { isAppArtifactAttachment } from "@hotelclaw/chat-ui";
 import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
 import { ArtifactCard } from "@/components/chat/artifact-card";
+import { SlackGallery } from "@/components/chat/slack-gallery";
 import { SlackMessageImage } from "@/components/chat/slack-message-image";
 import { FormAttachmentCard } from "@/components/forms/form-attachment-card";
 import type { FormAttachmentPayload } from "@/components/forms/share-actions";
@@ -33,6 +35,23 @@ export function SlackAttachment(props: AttachmentProps) {
     (a) => !isForm(a) && !isAiUiAttachment(a) && !isAppArtifactAttachment(a),
   );
 
+  // 2+ plain images would otherwise be folded by Stream into a synthetic
+  // `gallery` attachment whose grid bypasses the custom `Image` component —
+  // losing all the Slack card chrome. Pull them out and render SlackGallery
+  // instead (scraped link previews keep their image and stay with Card).
+  // `others` can also carry SharedLocationResponse (SlackMessageUI prepends
+  // `message.shared_location`), which has none of these fields — the property
+  // probe narrows it away.
+  const isPlainImage = (a: (typeof others)[number]): a is StreamAttachment => {
+    const att = a as { type?: unknown; og_scrape_url?: unknown; title_link?: unknown };
+    return att.type === "image" && !att.og_scrape_url && !att.title_link;
+  };
+  const galleryImages = others.filter(isPlainImage);
+  const useSlackGallery = galleryImages.length >= 2;
+  const defaultAttachments = useSlackGallery
+    ? others.filter((a) => !isPlainImage(a))
+    : others;
+
   return (
     <>
       {formAttachments.map((a) => (
@@ -44,10 +63,11 @@ export function SlackAttachment(props: AttachmentProps) {
       {artifactAttachments.map((a, i) => (
         <ArtifactCard key={a.document_id ?? i} attachment={a} />
       ))}
-      {others.length > 0 ? (
+      {useSlackGallery ? <SlackGallery images={galleryImages} /> : null}
+      {defaultAttachments.length > 0 ? (
         <DefaultAttachment
           {...rest}
-          attachments={others}
+          attachments={defaultAttachments}
           Image={ImageFromProps ?? SlackMessageImage}
         />
       ) : null}

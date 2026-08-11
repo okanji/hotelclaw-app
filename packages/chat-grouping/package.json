@@ -1,0 +1,8 @@
+{
+  "name": "@hotelclaw/chat-grouping",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Slack-style message clustering rules for the chat surfaces. Pure, dependency-free TS source shared by apps/web (stream-chat-react <MessageList groupStyles>) and apps/mobile (stream-chat-expo). Lives in a package so the two clients cannot drift — the rules have silently diverged before. Keep it free of react, stream-chat, and node imports.",
+  "main": "./index.ts",
+  "types": "./index.ts"
+}

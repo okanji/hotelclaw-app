@@ -1140,6 +1140,33 @@
   max-width: 100%;
 }
 
+/* Multi-image messages (SlackGallery): the single-image rules above stretch
+   each image full-width, which stacks a gallery into a tall column. Scope a
+   2-up tile grid to the gallery variant instead; the "+N" overflow overlay
+   renders inside the last tile button, so tiles just need relative + hidden. */
+.str-chat .str-chat__slack-gallery-card .str-chat__modal-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.str-chat .str-chat__slack-gallery-card .str-chat__modal-gallery__image {
+  position: relative;
+  overflow: hidden;
+  height: 158px;
+  width: 100%;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0;
+}
+
+.str-chat .str-chat__slack-gallery-card .str-chat__modal-gallery__image img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Slack-style segmented reaction pills (bottom row under text).
 */

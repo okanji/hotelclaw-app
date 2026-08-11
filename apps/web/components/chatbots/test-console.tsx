@@ -209,7 +209,7 @@ export function TestConsole({
             placeholder="Message as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm max-sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-focus"
+            className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm max-sm:text-base text-foreground shadow-composer transition-[box-shadow] placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-composer-focus"
           />
           <Button
             type="button"

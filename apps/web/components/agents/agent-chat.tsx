@@ -372,7 +372,7 @@ export function AgentChat({
           placeholder={paused ? "Agent is paused" : `Message ${agentName}…`}
           rows={1}
           disabled={paused || busy}
-          className="min-h-9 flex-1 resize-none"
+          className="min-h-9 flex-1 resize-none shadow-composer focus-visible:shadow-composer-focus"
         />
         <Button
           type="submit"

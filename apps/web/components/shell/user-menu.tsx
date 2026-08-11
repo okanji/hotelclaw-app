@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, Trash2, UserCog } from "lucide-react";
+import { LogOut, UserCog } from "lucide-react";
 import { EditProfileDialog } from "./edit-profile-dialog";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeToggle } from "./theme-toggle";
@@ -90,14 +90,6 @@ export function UserMenu({ user }: { user: User }) {
               Sign out
             </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setDeleteOpen(true)}
-            className="text-destructive focus:bg-destructive/10 focus:text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive"
-          >
-            <Trash2 className="size-4" />
-            Delete account
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -108,6 +100,10 @@ export function UserMenu({ user }: { user: User }) {
         initialAvatarUrl={user.avatarUrl}
         email={user.email}
         userId={user.id}
+        onDeleteAccount={() => {
+          setProfileOpen(false);
+          setDeleteOpen(true);
+        }}
       />
 
       <DeleteAccountDialog

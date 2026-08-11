@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 import { createStreamUserToken, upsertStreamUser } from "@/lib/stream/server";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// Bearer-path tokens (mobile) expire and are re-fetched by the app's Stream
+// tokenProvider. Cookie-path tokens (web) stay non-expiring for now because the
+// web client connects with a static token, not a provider.
+const MOBILE_TOKEN_TTL_SECONDS = 60 * 60 * 12;
+
+export async function GET(request: NextRequest) {
+  const { supabase, user, isBearer } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -23,6 +25,9 @@ export async function GET() {
     image: profile?.avatar_url ?? null,
   });
 
-  const token = createStreamUserToken(user.id);
+  const token = createStreamUserToken(
+    user.id,
+    isBearer ? MOBILE_TOKEN_TTL_SECONDS : undefined,
+  );
   return NextResponse.json({ token });
 }

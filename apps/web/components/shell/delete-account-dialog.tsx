@@ -23,8 +23,9 @@ type Props = {
 
 /**
  * Irreversible account deletion. Deliberately gated behind a type-your-email
- * confirmation so it can't be triggered by a stray click — the menu entry
- * that opens this is itself tucked away at the bottom of the user menu.
+ * confirmation so it can't be triggered by a stray click — the only way in
+ * is the quiet footer link inside the Edit profile dialog (nothing in the
+ * user menu itself).
  */
 export function DeleteAccountDialog({ email, open, onOpenChange }: Props) {
   const [confirm, setConfirm] = useState("");

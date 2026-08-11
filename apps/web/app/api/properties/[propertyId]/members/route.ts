@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 
 /**
  * Members of a property, with profile info merged in.
@@ -11,15 +12,11 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
  * Two cheap queries + an in-memory merge sidesteps that entirely.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ propertyId: string }> },
 ) {
   const { propertyId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

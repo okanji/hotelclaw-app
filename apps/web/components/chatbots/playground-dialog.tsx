@@ -178,7 +178,7 @@ export function PlaygroundDialog({
             placeholder="Message both panes as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none text-sm"
+            className="flex-1 resize-none text-sm shadow-composer focus-visible:shadow-composer-focus"
           />
           <Button type="submit" disabled={busy || !input.trim()}>
             {busy ? "Running…" : "Send to both"}

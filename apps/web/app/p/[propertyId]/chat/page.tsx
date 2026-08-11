@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { channelHref } from "@/lib/chat/channel-href";
+import { ChatIndexRedirect } from "@/components/chat/chat-index-redirect";
 
 export default async function ChatIndex({
   params,
@@ -18,7 +18,13 @@ export default async function ChatIndex({
     .limit(1);
 
   if (data && data.length > 0) {
-    redirect(channelHref(propertyId, "team", data[0].stream_channel_id));
+    // Client-side replace, NOT a server redirect() — see ChatIndexRedirect's
+    // docblock for the hard-load crash this avoids.
+    return (
+      <ChatIndexRedirect
+        href={channelHref(propertyId, "team", data[0].stream_channel_id)}
+      />
+    );
   }
 
   return (
