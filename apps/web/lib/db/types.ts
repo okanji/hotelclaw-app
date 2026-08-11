@@ -2522,6 +2522,10 @@ export interface Database {
           // Progress line for the chat thinking row (0095) — short human
           // label the runtime advances per tool batch, null between turns.
           turn_activity: string | null;
+          // Stream message id of the question this session parked on (0098).
+          // A reply in that message's thread routes the answer back here —
+          // the only path a background job can be answered by.
+          question_message_id: string | null;
           last_turn_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2546,6 +2550,7 @@ export interface Database {
           kind?: "chat" | "job";
           job_headline?: string | null;
           turn_activity?: string | null;
+          question_message_id?: string | null;
           last_turn_at?: string | null;
         };
         Update: Partial<{
@@ -2564,6 +2569,7 @@ export interface Database {
           kind: "chat" | "job";
           job_headline: string | null;
           turn_activity: string | null;
+          question_message_id: string | null;
           last_turn_at: string | null;
         }>;
         Relationships: [];

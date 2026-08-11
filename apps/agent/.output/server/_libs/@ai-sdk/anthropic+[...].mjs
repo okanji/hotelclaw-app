@@ -8801,6 +8801,9 @@ const WORKFLOW_SERIALIZE = Symbol.for("workflow-serialize");
 const WORKFLOW_DESERIALIZE = Symbol.for("workflow-deserialize");
 //#endregion
 //#region node_modules/@ai-sdk/provider-utils/dist/index.js
+function asArray(value) {
+	return value === void 0 ? [] : Array.isArray(value) ? value : [value];
+}
 function combineHeaders(...headers) {
 	return headers.reduce((combinedHeaders, currentHeaders) => ({
 		...combinedHeaders,
@@ -9551,6 +9554,10 @@ var getFromApi = async ({ url, headers = {}, successfulResponseHandler, failedRe
 		});
 	}
 };
+function isBuffer(value) {
+	var _a2, _b2;
+	return (_b2 = (_a2 = globalThis.Buffer) == null ? void 0 : _a2.isBuffer(value)) != null ? _b2 : false;
+}
 function isNonNullable(value) {
 	return value != null;
 }
@@ -16046,4 +16053,4 @@ function createAnthropic(options = {}) {
 }
 var anthropic = createAnthropic();
 //#endregion
-export { datetime as C, safeParseAsync as S, record as _, _instanceof as a, union as b, array as c, discriminatedUnion as d, lazy as f, object as g, number as h, _enum as i, boolean as l, never as m, EventSourceParserStream as n, _null as o, literal as p, ZodFirstPartyTypeKind as r, any as s, anthropic as t, custom as u, strictObject as v, toJSONSchema as w, unknown as x, string as y };
+export { literal as A, datetime as B, _null as C, custom as D, boolean as E, strictObject as F, string as I, union as L, number as M, object as N, discriminatedUnion as O, record as P, unknown as R, _instanceof as S, array as T, toJSONSchema as V, AISDKError as _, cancelResponseBody as a, ZodFirstPartyTypeKind as b, getRuntimeEnvironmentUserAgent as c, readResponseWithSizeLimit as d, resolve as f, zodSchema as g, withUserAgentSuffix as h, asSchema as i, never as j, lazy as k, isBuffer as l, safeValidateTypes as m, DownloadError as n, createIdGenerator as o, safeParseJSON as p, asArray as r, fetchWithValidatedRedirects as s, anthropic as t, lazySchema as u, TypeValidationError as v, any as w, _enum as x, EventSourceParserStream as y, safeParseAsync as z };

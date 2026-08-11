@@ -54,7 +54,11 @@ export type ActivationReason =
   | "mention"
   | "auto-classifier"
   | "always-mode"
-  | "engaged-follow-up";
+  | "engaged-follow-up"
+  /** The session was parked on a question YOU asked and this message is the
+   *  answer. Outranks the channel's ai_mode — see the webhook's parked
+   *  gate. */
+  | "answered-question";
 
 export type BotScope = {
   propertyId: string;
@@ -158,6 +162,8 @@ function activationNoteFor(reason: ActivationReason): string {
       return "This channel is in 'always respond' mode: the team wants you to respond to every message in this channel, even ones not addressed to you. Respond as a participating teammate. Do NOT say 'I wasn't tagged' or ask the user to mention you — you've been explicitly invited to participate in every message here.";
     case "engaged-follow-up":
       return "You're currently engaged in this conversation. Respond as a continuing participant — the user is following up on something you were just discussing. Don't ask to be re-tagged; you're already in the conversation.";
+    case "answered-question":
+      return "You asked this person a question and paused; this message is their answer. Pick the work back up where you left it and carry it through — don't restate the question, don't ask to be re-tagged, and don't start over.";
   }
 }
 

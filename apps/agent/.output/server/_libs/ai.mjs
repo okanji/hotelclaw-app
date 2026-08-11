@@ -2,206 +2,206 @@ import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
 __eveDirname(__eveFileURLToPath(import.meta.url));
 import { A as resolve, C as isFullMediaType, D as lazySchema, F as validateTypes, G as getErrorMessage, I as withUserAgentSuffix, L as zodSchema, M as safeParseJSON, N as safeValidateTypes, R as AISDKError, S as isExecutableTool, T as isUrlSupported, U as TypeValidationError, V as InvalidPromptError, W as UnsupportedFunctionalityError, _ as fetchWithValidatedRedirects, b as isAbortError, c as DownloadError, d as cancelResponseBody, f as convertBase64ToUint8Array, g as executeTool, h as detectMediaType, i as gateway, j as retryWithExponentialBackoff, k as readResponseWithSizeLimit, l as asArray, m as createIdGenerator, n as GatewayError, p as convertUint8ArrayToBase64, s as DelayedPromise, t as GatewayAuthenticationError, u as asSchema, v as filterNullable, w as isProviderReference, x as isBuffer, y as getRuntimeEnvironmentUserAgent, z as APICallError } from "./@ai-sdk/gateway+[...].mjs";
-import { _ as record, a as _instanceof, b as union, c as array$1, d as discriminatedUnion, f as lazy, g as object$1, h as number, i as _enum, l as boolean, m as never, o as _null, p as literal, u as custom, v as strictObject, x as unknown, y as string } from "./@ai-sdk/anthropic+[...].mjs";
+import { A as literal, C as _null, D as custom, E as boolean, F as strictObject, I as string, L as union, M as number, N as object$2, O as discriminatedUnion, P as record, R as unknown, S as _instanceof, T as array$2, _ as AISDKError$1, f as resolve$1, g as zodSchema$1, i as asSchema$1, j as never, k as lazy, l as isBuffer$1, m as safeValidateTypes$1, o as createIdGenerator$1, p as safeParseJSON$1, r as asArray$1, u as lazySchema$1, v as TypeValidationError$1, x as _enum } from "./@ai-sdk/anthropic+[...].mjs";
 //#region ../../node_modules/eve/node_modules/ai/dist/index.js
-var __defProp = Object.defineProperty;
-var __export = (target, all) => {
-	for (var name22 in all) __defProp(target, name22, {
+var __defProp$1 = Object.defineProperty;
+var __export$1 = (target, all) => {
+	for (var name22 in all) __defProp$1(target, name22, {
 		get: all[name22],
 		enumerable: true
 	});
 };
-var name = "AI_InvalidArgumentError";
-var marker = `vercel.ai.error.${name}`;
-var symbol = Symbol.for(marker);
-var _a;
+var name$1 = "AI_InvalidArgumentError";
+var marker$1 = `vercel.ai.error.${name$1}`;
+var symbol$1 = Symbol.for(marker$1);
+var _a$1;
 var InvalidArgumentError = class extends AISDKError {
 	constructor({ parameter, value, message }) {
 		super({
-			name,
+			name: name$1,
 			message: `Invalid argument for parameter ${parameter}: ${message}`
 		});
-		this[_a] = true;
+		this[_a$1] = true;
 		this.parameter = parameter;
 		this.value = value;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker);
+		return AISDKError.hasMarker(error, marker$1);
 	}
 };
-_a = symbol;
-var name3 = "AI_InvalidToolApprovalError";
-var marker3 = `vercel.ai.error.${name3}`;
-var symbol3 = Symbol.for(marker3);
-var _a3;
+_a$1 = symbol$1;
+var name3$1 = "AI_InvalidToolApprovalError";
+var marker3$1 = `vercel.ai.error.${name3$1}`;
+var symbol3$1 = Symbol.for(marker3$1);
+var _a3$1;
 var InvalidToolApprovalError = class extends AISDKError {
 	constructor({ approvalId }) {
 		super({
-			name: name3,
+			name: name3$1,
 			message: `Tool approval response references unknown approvalId: "${approvalId}". No matching tool-approval-request found in message history.`
 		});
-		this[_a3] = true;
+		this[_a3$1] = true;
 		this.approvalId = approvalId;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker3);
+		return AISDKError.hasMarker(error, marker3$1);
 	}
 };
-_a3 = symbol3;
-var name4 = "AI_InvalidToolApprovalSignatureError";
-var marker4 = `vercel.ai.error.${name4}`;
-var symbol4 = Symbol.for(marker4);
-var _a4;
+_a3$1 = symbol3$1;
+var name4$1 = "AI_InvalidToolApprovalSignatureError";
+var marker4$1 = `vercel.ai.error.${name4$1}`;
+var symbol4$1 = Symbol.for(marker4$1);
+var _a4$1;
 var InvalidToolApprovalSignatureError = class extends AISDKError {
 	constructor({ approvalId, toolCallId, reason }) {
 		super({
-			name: name4,
+			name: name4$1,
 			message: `Tool approval signature verification failed for approval "${approvalId}" (tool call "${toolCallId}"): ${reason}`
 		});
-		this[_a4] = true;
+		this[_a4$1] = true;
 		this.approvalId = approvalId;
 		this.toolCallId = toolCallId;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker4);
+		return AISDKError.hasMarker(error, marker4$1);
 	}
 };
-_a4 = symbol4;
-var name5 = "AI_InvalidToolInputError";
-var marker5 = `vercel.ai.error.${name5}`;
-var symbol5 = Symbol.for(marker5);
-var _a5;
+_a4$1 = symbol4$1;
+var name5$1 = "AI_InvalidToolInputError";
+var marker5$1 = `vercel.ai.error.${name5$1}`;
+var symbol5$1 = Symbol.for(marker5$1);
+var _a5$1;
 var InvalidToolInputError = class extends AISDKError {
 	constructor({ toolInput, toolName, cause, message = `Invalid input for tool ${toolName}: ${getErrorMessage(cause)}` }) {
 		super({
-			name: name5,
+			name: name5$1,
 			message,
 			cause
 		});
-		this[_a5] = true;
+		this[_a5$1] = true;
 		this.toolInput = toolInput;
 		this.toolName = toolName;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker5);
+		return AISDKError.hasMarker(error, marker5$1);
 	}
 };
-_a5 = symbol5;
-var name6 = "AI_ToolCallNotFoundForApprovalError";
-var marker6 = `vercel.ai.error.${name6}`;
-var symbol6 = Symbol.for(marker6);
-var _a6;
+_a5$1 = symbol5$1;
+var name6$1 = "AI_ToolCallNotFoundForApprovalError";
+var marker6$1 = `vercel.ai.error.${name6$1}`;
+var symbol6$1 = Symbol.for(marker6$1);
+var _a6$1;
 var ToolCallNotFoundForApprovalError = class extends AISDKError {
 	constructor({ toolCallId, approvalId }) {
 		super({
-			name: name6,
+			name: name6$1,
 			message: `Tool call "${toolCallId}" not found for approval request "${approvalId}".`
 		});
-		this[_a6] = true;
+		this[_a6$1] = true;
 		this.toolCallId = toolCallId;
 		this.approvalId = approvalId;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker6);
+		return AISDKError.hasMarker(error, marker6$1);
 	}
 };
-_a6 = symbol6;
-var name7 = "AI_MissingToolResultsError";
-var marker7 = `vercel.ai.error.${name7}`;
-var symbol7 = Symbol.for(marker7);
-var _a7;
+_a6$1 = symbol6$1;
+var name7$1 = "AI_MissingToolResultsError";
+var marker7$1 = `vercel.ai.error.${name7$1}`;
+var symbol7$1 = Symbol.for(marker7$1);
+var _a7$1;
 var MissingToolResultsError = class extends AISDKError {
 	constructor({ toolCallIds }) {
 		super({
-			name: name7,
+			name: name7$1,
 			message: `Tool result${toolCallIds.length > 1 ? "s are" : " is"} missing for tool call${toolCallIds.length > 1 ? "s" : ""} ${toolCallIds.join(", ")}.`
 		});
-		this[_a7] = true;
+		this[_a7$1] = true;
 		this.toolCallIds = toolCallIds;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker7);
+		return AISDKError.hasMarker(error, marker7$1);
 	}
 };
-_a7 = symbol7;
-var name9 = "AI_NoObjectGeneratedError";
-var marker9 = `vercel.ai.error.${name9}`;
-var symbol9 = Symbol.for(marker9);
-var _a9;
-var NoObjectGeneratedError = class extends AISDKError {
+_a7$1 = symbol7$1;
+var name9$1 = "AI_NoObjectGeneratedError";
+var marker9$1 = `vercel.ai.error.${name9$1}`;
+var symbol9$1 = Symbol.for(marker9$1);
+var _a9$1;
+var NoObjectGeneratedError$1 = class extends AISDKError {
 	constructor({ message = "No object generated.", cause, text: text2, response, usage, finishReason }) {
 		super({
-			name: name9,
+			name: name9$1,
 			message,
 			cause
 		});
-		this[_a9] = true;
+		this[_a9$1] = true;
 		this.text = text2;
 		this.response = response;
 		this.usage = usage;
 		this.finishReason = finishReason;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker9);
+		return AISDKError.hasMarker(error, marker9$1);
 	}
 };
-_a9 = symbol9;
-var name10 = "AI_NoOutputGeneratedError";
-var marker10 = `vercel.ai.error.${name10}`;
-var symbol10 = Symbol.for(marker10);
-var _a10;
+_a9$1 = symbol9$1;
+var name10$1 = "AI_NoOutputGeneratedError";
+var marker10$1 = `vercel.ai.error.${name10$1}`;
+var symbol10$1 = Symbol.for(marker10$1);
+var _a10$1;
 var NoOutputGeneratedError = class extends AISDKError {
 	constructor({ message = "No output generated.", cause } = {}) {
 		super({
-			name: name10,
+			name: name10$1,
 			message,
 			cause
 		});
-		this[_a10] = true;
+		this[_a10$1] = true;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker10);
+		return AISDKError.hasMarker(error, marker10$1);
 	}
 };
-_a10 = symbol10;
-var name14 = "AI_NoSuchToolError";
-var marker14 = `vercel.ai.error.${name14}`;
-var symbol14 = Symbol.for(marker14);
-var _a14;
+_a10$1 = symbol10$1;
+var name14$1 = "AI_NoSuchToolError";
+var marker14$1 = `vercel.ai.error.${name14$1}`;
+var symbol14$1 = Symbol.for(marker14$1);
+var _a14$1;
 var NoSuchToolError = class extends AISDKError {
 	constructor({ toolName, availableTools = void 0, message = `Model tried to call unavailable tool '${toolName}'. ${availableTools === void 0 ? "No tools are available." : `Available tools: ${availableTools.join(", ")}.`}` }) {
 		super({
-			name: name14,
+			name: name14$1,
 			message
 		});
-		this[_a14] = true;
+		this[_a14$1] = true;
 		this.toolName = toolName;
 		this.availableTools = availableTools;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker14);
+		return AISDKError.hasMarker(error, marker14$1);
 	}
 };
-_a14 = symbol14;
-var name15 = "AI_ToolCallRepairError";
-var marker15 = `vercel.ai.error.${name15}`;
-var symbol15 = Symbol.for(marker15);
-var _a15;
+_a14$1 = symbol14$1;
+var name15$1 = "AI_ToolCallRepairError";
+var marker15$1 = `vercel.ai.error.${name15$1}`;
+var symbol15$1 = Symbol.for(marker15$1);
+var _a15$1;
 var ToolCallRepairError = class extends AISDKError {
 	constructor({ cause, originalError, message = `Error repairing tool call: ${getErrorMessage(cause)}` }) {
 		super({
-			name: name15,
+			name: name15$1,
 			message,
 			cause
 		});
-		this[_a15] = true;
+		this[_a15$1] = true;
 		this.originalError = originalError;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker15);
+		return AISDKError.hasMarker(error, marker15$1);
 	}
 };
-_a15 = symbol15;
+_a15$1 = symbol15$1;
 var UnsupportedModelVersionError = class extends AISDKError {
 	constructor(options) {
 		super({
@@ -213,83 +213,83 @@ var UnsupportedModelVersionError = class extends AISDKError {
 		this.modelId = options.modelId;
 	}
 };
-var name16 = "AI_UIMessageStreamError";
-var marker16 = `vercel.ai.error.${name16}`;
-var symbol16 = Symbol.for(marker16);
-var _a16;
+var name16$1 = "AI_UIMessageStreamError";
+var marker16$1 = `vercel.ai.error.${name16$1}`;
+var symbol16$1 = Symbol.for(marker16$1);
+var _a16$1;
 var UIMessageStreamError = class extends AISDKError {
 	constructor({ chunkType, chunkId, message }) {
 		super({
-			name: name16,
+			name: name16$1,
 			message
 		});
-		this[_a16] = true;
+		this[_a16$1] = true;
 		this.chunkType = chunkType;
 		this.chunkId = chunkId;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker16);
+		return AISDKError.hasMarker(error, marker16$1);
 	}
 };
-_a16 = symbol16;
-var name17 = "AI_InvalidDataContentError";
-var marker17 = `vercel.ai.error.${name17}`;
-var symbol17 = Symbol.for(marker17);
-var _a17;
+_a16$1 = symbol16$1;
+var name17$1 = "AI_InvalidDataContentError";
+var marker17$1 = `vercel.ai.error.${name17$1}`;
+var symbol17$1 = Symbol.for(marker17$1);
+var _a17$1;
 var InvalidDataContentError = class extends AISDKError {
 	constructor({ content, cause, message = `Invalid data content. Expected a base64 string, Uint8Array, ArrayBuffer, or Buffer, but got ${typeof content}.` }) {
 		super({
-			name: name17,
+			name: name17$1,
 			message,
 			cause
 		});
-		this[_a17] = true;
+		this[_a17$1] = true;
 		this.content = content;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker17);
+		return AISDKError.hasMarker(error, marker17$1);
 	}
 };
-_a17 = symbol17;
-var name18 = "AI_InvalidMessageRoleError";
-var marker18 = `vercel.ai.error.${name18}`;
-var symbol18 = Symbol.for(marker18);
-var _a18;
+_a17$1 = symbol17$1;
+var name18$1 = "AI_InvalidMessageRoleError";
+var marker18$1 = `vercel.ai.error.${name18$1}`;
+var symbol18$1 = Symbol.for(marker18$1);
+var _a18$1;
 var InvalidMessageRoleError = class extends AISDKError {
 	constructor({ role, message = `Invalid message role: '${role}'. Must be one of: "system", "user", "assistant", "tool".` }) {
 		super({
-			name: name18,
+			name: name18$1,
 			message
 		});
-		this[_a18] = true;
+		this[_a18$1] = true;
 		this.role = role;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker18);
+		return AISDKError.hasMarker(error, marker18$1);
 	}
 };
-_a18 = symbol18;
-var name20 = "AI_RetryError";
-var marker20 = `vercel.ai.error.${name20}`;
-var symbol20 = Symbol.for(marker20);
-var _a20;
+_a18$1 = symbol18$1;
+var name20$1 = "AI_RetryError";
+var marker20$1 = `vercel.ai.error.${name20$1}`;
+var symbol20$1 = Symbol.for(marker20$1);
+var _a20$1;
 var RetryError = class extends AISDKError {
 	constructor({ message, reason, errors }) {
 		super({
-			name: name20,
+			name: name20$1,
 			message
 		});
-		this[_a20] = true;
+		this[_a20$1] = true;
 		this.reason = reason;
 		this.errors = errors;
 		this.lastError = errors[errors.length - 1];
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker20);
+		return AISDKError.hasMarker(error, marker20$1);
 	}
 };
-_a20 = symbol20;
-function formatWarning({ warning, provider, model }) {
+_a20$1 = symbol20$1;
+function formatWarning$1({ warning, provider, model }) {
 	const prefix = `AI SDK Warning${provider != null && model != null ? ` (${provider} / ${model})` : ""}:`;
 	switch (warning.type) {
 		case "unsupported": {
@@ -307,9 +307,9 @@ function formatWarning({ warning, provider, model }) {
 		default: return `${prefix} ${JSON.stringify(warning, null, 2)}`;
 	}
 }
-var FIRST_WARNING_INFO_MESSAGE = "AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.";
-var hasLoggedBefore = false;
-var logWarnings = (options) => {
+var FIRST_WARNING_INFO_MESSAGE$1 = "AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.";
+var hasLoggedBefore$1 = false;
+var logWarnings$1 = (options) => {
 	if (options.warnings.length === 0) return;
 	const logger = globalThis.AI_SDK_LOG_WARNINGS;
 	if (logger === false) return;
@@ -317,12 +317,12 @@ var logWarnings = (options) => {
 		logger(options);
 		return;
 	}
-	if (!hasLoggedBefore) {
-		hasLoggedBefore = true;
-		console.info(FIRST_WARNING_INFO_MESSAGE);
+	if (!hasLoggedBefore$1) {
+		hasLoggedBefore$1 = true;
+		console.info(FIRST_WARNING_INFO_MESSAGE$1);
 	}
 	for (const warning of options.warnings) {
-		const message = formatWarning({
+		const message = formatWarning$1({
 			warning,
 			provider: options.provider,
 			model: options.model
@@ -331,8 +331,8 @@ var logWarnings = (options) => {
 		else console.warn(message);
 	}
 };
-function logV2CompatibilityWarning({ provider, modelId }) {
-	logWarnings({
+function logV2CompatibilityWarning$1({ provider, modelId }) {
+	logWarnings$1({
 		warnings: [{
 			type: "compatibility",
 			feature: "specificationVersion",
@@ -344,7 +344,7 @@ function logV2CompatibilityWarning({ provider, modelId }) {
 }
 function asEmbeddingModelV3(model) {
 	if (model.specificationVersion === "v3") return model;
-	logV2CompatibilityWarning({
+	logV2CompatibilityWarning$1({
 		provider: model.provider,
 		modelId: model.modelId
 	});
@@ -363,7 +363,7 @@ function asEmbeddingModelV4(model) {
 }
 function asImageModelV3(model) {
 	if (model.specificationVersion === "v3") return model;
-	logV2CompatibilityWarning({
+	logV2CompatibilityWarning$1({
 		provider: model.provider,
 		modelId: model.modelId
 	});
@@ -380,9 +380,9 @@ function asImageModelV4(model) {
 		return target[prop];
 	} });
 }
-function asLanguageModelV3(model) {
+function asLanguageModelV3$1(model) {
 	if (model.specificationVersion === "v3") return model;
-	logV2CompatibilityWarning({
+	logV2CompatibilityWarning$1({
 		provider: model.provider,
 		modelId: model.modelId
 	});
@@ -393,29 +393,29 @@ function asLanguageModelV3(model) {
 				const result = await target.doGenerate(...args);
 				return {
 					...result,
-					finishReason: convertV2FinishReasonToV3(result.finishReason),
-					usage: convertV2UsageToV3(result.usage)
+					finishReason: convertV2FinishReasonToV3$1(result.finishReason),
+					usage: convertV2UsageToV3$1(result.usage)
 				};
 			};
 			case "doStream": return async (...args) => {
 				const result = await target.doStream(...args);
 				return {
 					...result,
-					stream: convertV2StreamToV3(result.stream)
+					stream: convertV2StreamToV3$1(result.stream)
 				};
 			};
 			default: return target[prop];
 		}
 	} });
 }
-function convertV2StreamToV3(stream) {
+function convertV2StreamToV3$1(stream) {
 	return stream.pipeThrough(new TransformStream({ transform(chunk, controller) {
 		switch (chunk.type) {
 			case "finish":
 				controller.enqueue({
 					...chunk,
-					finishReason: convertV2FinishReasonToV3(chunk.finishReason),
-					usage: convertV2UsageToV3(chunk.usage)
+					finishReason: convertV2FinishReasonToV3$1(chunk.finishReason),
+					usage: convertV2UsageToV3$1(chunk.usage)
 				});
 				break;
 			default:
@@ -424,13 +424,13 @@ function convertV2StreamToV3(stream) {
 		}
 	} }));
 }
-function convertV2FinishReasonToV3(finishReason) {
+function convertV2FinishReasonToV3$1(finishReason) {
 	return {
 		unified: finishReason === "unknown" ? "other" : finishReason,
 		raw: void 0
 	};
 }
-function convertV2UsageToV3(usage) {
+function convertV2UsageToV3$1(usage) {
 	return {
 		inputTokens: {
 			total: usage.inputTokens,
@@ -445,9 +445,9 @@ function convertV2UsageToV3(usage) {
 		}
 	};
 }
-function asLanguageModelV4(model) {
+function asLanguageModelV4$1(model) {
 	if (model.specificationVersion === "v4") return model;
-	const v3Model = model.specificationVersion === "v2" ? asLanguageModelV3(model) : model;
+	const v3Model = model.specificationVersion === "v2" ? asLanguageModelV3$1(model) : model;
 	return new Proxy(v3Model, { get(target, prop) {
 		if (prop === "specificationVersion") return "v4";
 		return target[prop];
@@ -462,7 +462,7 @@ function asRerankingModelV4(model) {
 }
 function asSpeechModelV3(model) {
 	if (model.specificationVersion === "v3") return model;
-	logV2CompatibilityWarning({
+	logV2CompatibilityWarning$1({
 		provider: model.provider,
 		modelId: model.modelId
 	});
@@ -481,7 +481,7 @@ function asSpeechModelV4(model) {
 }
 function asTranscriptionModelV3(model) {
 	if (model.specificationVersion === "v3") return model;
-	logV2CompatibilityWarning({
+	logV2CompatibilityWarning$1({
 		provider: model.provider,
 		modelId: model.modelId
 	});
@@ -503,7 +503,7 @@ function asProviderV3(provider) {
 	const v2Provider = provider;
 	return {
 		specificationVersion: "v3",
-		languageModel: (modelId) => asLanguageModelV3(v2Provider.languageModel(modelId)),
+		languageModel: (modelId) => asLanguageModelV3$1(v2Provider.languageModel(modelId)),
 		embeddingModel: (modelId) => asEmbeddingModelV3(v2Provider.textEmbeddingModel(modelId)),
 		imageModel: (modelId) => asImageModelV3(v2Provider.imageModel(modelId)),
 		transcriptionModel: v2Provider.transcriptionModel ? (modelId) => asTranscriptionModelV3(v2Provider.transcriptionModel(modelId)) : void 0,
@@ -516,7 +516,7 @@ function asProviderV4(provider) {
 	const v3Provider = !("specificationVersion" in provider) || provider.specificationVersion !== "v3" ? asProviderV3(provider) : provider;
 	return {
 		specificationVersion: "v4",
-		languageModel: (modelId) => asLanguageModelV4(v3Provider.languageModel(modelId)),
+		languageModel: (modelId) => asLanguageModelV4$1(v3Provider.languageModel(modelId)),
 		embeddingModel: (modelId) => asEmbeddingModelV4(v3Provider.embeddingModel(modelId)),
 		imageModel: (modelId) => asImageModelV4(v3Provider.imageModel(modelId)),
 		transcriptionModel: v3Provider.transcriptionModel ? (modelId) => asTranscriptionModelV4(v3Provider.transcriptionModel(modelId)) : void 0,
@@ -538,7 +538,7 @@ function resolveLanguageModel(model) {
 			modelId: unsupportedModel.modelId
 		});
 	}
-	return asLanguageModelV4(model);
+	return asLanguageModelV4$1(model);
 }
 function getGlobalProvider() {
 	var _a22;
@@ -556,14 +556,14 @@ function cloneValue(value) {
 	if (value != null && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, value2]) => [key, cloneValue(value2)]));
 	return value;
 }
-var VERSION = "7.0.31";
-var download = async ({ url, maxBytes, abortSignal }) => {
+var VERSION$1 = "7.0.31";
+var download$1 = async ({ url, maxBytes, abortSignal }) => {
 	var _a22;
 	const urlText = url.toString();
 	try {
 		const response = await fetchWithValidatedRedirects({
 			url: urlText,
-			headers: withUserAgentSuffix({}, `ai-sdk/${VERSION}`, getRuntimeEnvironmentUserAgent()),
+			headers: withUserAgentSuffix({}, `ai-sdk/${VERSION$1}`, getRuntimeEnvironmentUserAgent()),
 			abortSignal
 		});
 		if (!response.ok) {
@@ -590,7 +590,7 @@ var download = async ({ url, maxBytes, abortSignal }) => {
 		});
 	}
 };
-var createDefaultDownloadFunction = (download2 = download) => (requestedDownloads) => Promise.all(requestedDownloads.map(async (requestedDownload) => requestedDownload.isUrlSupportedByModel ? null : await download2(requestedDownload)));
+var createDefaultDownloadFunction = (download2 = download$1) => (requestedDownloads) => Promise.all(requestedDownloads.map(async (requestedDownload) => requestedDownload.isUrlSupportedByModel ? null : await download2(requestedDownload)));
 function splitDataUrl(dataUrl) {
 	try {
 		const [header, base64Content] = dataUrl.split(",");
@@ -785,7 +785,7 @@ function convertToLanguageModelMessage({ message, downloadedAssets, provider }) 
 				}).map((part) => convertPartToLanguageModelPart(part, downloadedAssets)).filter((part) => part.type !== "text" || part.text !== ""),
 				providerOptions: message.providerOptions
 			};
-			if (warnings.length > 0) logWarnings({ warnings });
+			if (warnings.length > 0) logWarnings$1({ warnings });
 			return converted;
 		}
 		case "assistant": {
@@ -861,7 +861,7 @@ function convertToLanguageModelMessage({ message, downloadedAssets, provider }) 
 				}),
 				providerOptions: message.providerOptions
 			};
-			if (warnings.length > 0) logWarnings({ warnings });
+			if (warnings.length > 0) logWarnings$1({ warnings });
 			return converted;
 		}
 		case "tool": {
@@ -891,7 +891,7 @@ function convertToLanguageModelMessage({ message, downloadedAssets, provider }) 
 				}),
 				providerOptions: message.providerOptions
 			};
-			if (warnings.length > 0) logWarnings({ warnings });
+			if (warnings.length > 0) logWarnings$1({ warnings });
 			return converted;
 		}
 		default: throw new InvalidMessageRoleError({ role });
@@ -1341,250 +1341,250 @@ function getToolTimeoutMs(timeout, toolName) {
 	if (timeout == null || typeof timeout === "number") return;
 	return (_b = (_a22 = timeout.tools) == null ? void 0 : _a22[`${toolName}Ms`]) != null ? _b : timeout.toolMs;
 }
-var jsonValueSchema = lazy(() => union([
+var jsonValueSchema$1 = lazy(() => union([
 	_null(),
 	string(),
 	number(),
 	boolean(),
-	record(string(), jsonValueSchema.optional()),
-	array$1(jsonValueSchema)
+	record(string(), jsonValueSchema$1.optional()),
+	array$2(jsonValueSchema$1)
 ]));
-var providerMetadataSchema = record(string(), record(string(), jsonValueSchema.optional()));
-var fileInlineDataSchema = union([
+var providerMetadataSchema$1 = record(string(), record(string(), jsonValueSchema$1.optional()));
+var fileInlineDataSchema$1 = union([
 	string(),
 	_instanceof(Uint8Array),
 	_instanceof(ArrayBuffer),
 	custom(isBuffer, { message: "Must be a Buffer" })
 ]);
-var providerReferenceSchema = record(string(), string());
-var textPartSchema = object$1({
+var providerReferenceSchema$1 = record(string(), string());
+var textPartSchema$1 = object$2({
 	type: literal("text"),
 	text: string(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var imagePartSchema = object$1({
+var imagePartSchema$1 = object$2({
 	type: literal("image"),
 	image: union([
-		fileInlineDataSchema,
+		fileInlineDataSchema$1,
 		_instanceof(URL),
-		providerReferenceSchema
+		providerReferenceSchema$1
 	]),
 	mediaType: string().optional(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var taggedFileDataSchema = discriminatedUnion("type", [
-	object$1({
+var taggedFileDataSchema$1 = discriminatedUnion("type", [
+	object$2({
 		type: literal("data"),
-		data: fileInlineDataSchema
+		data: fileInlineDataSchema$1
 	}),
-	object$1({
+	object$2({
 		type: literal("url"),
 		url: _instanceof(URL)
 	}),
-	object$1({
+	object$2({
 		type: literal("reference"),
-		reference: providerReferenceSchema
+		reference: providerReferenceSchema$1
 	}),
-	object$1({
+	object$2({
 		type: literal("text"),
 		text: string()
 	})
 ]);
-var taggedReasoningFileDataSchema = discriminatedUnion("type", [object$1({
+var taggedReasoningFileDataSchema$1 = discriminatedUnion("type", [object$2({
 	type: literal("data"),
-	data: fileInlineDataSchema
-}), object$1({
+	data: fileInlineDataSchema$1
+}), object$2({
 	type: literal("url"),
 	url: _instanceof(URL)
 })]);
-var filePartSchema = object$1({
+var filePartSchema$1 = object$2({
 	type: literal("file"),
 	data: union([
-		taggedFileDataSchema,
-		fileInlineDataSchema,
+		taggedFileDataSchema$1,
+		fileInlineDataSchema$1,
 		_instanceof(URL),
-		providerReferenceSchema
+		providerReferenceSchema$1
 	]),
 	filename: string().optional(),
 	mediaType: string(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var reasoningPartSchema = object$1({
+var reasoningPartSchema$1 = object$2({
 	type: literal("reasoning"),
 	text: string(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var customPartSchema = object$1({
+var customPartSchema$1 = object$2({
 	type: literal("custom"),
 	kind: string().transform((value) => value),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var reasoningFilePartSchema = object$1({
+var reasoningFilePartSchema$1 = object$2({
 	type: literal("reasoning-file"),
 	data: union([
-		taggedReasoningFileDataSchema,
-		fileInlineDataSchema,
+		taggedReasoningFileDataSchema$1,
+		fileInlineDataSchema$1,
 		_instanceof(URL)
 	]),
 	mediaType: string(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var toolCallPartSchema = object$1({
+var toolCallPartSchema$1 = object$2({
 	type: literal("tool-call"),
 	toolCallId: string(),
 	toolName: string(),
 	input: unknown(),
-	providerOptions: providerMetadataSchema.optional(),
+	providerOptions: providerMetadataSchema$1.optional(),
 	providerExecuted: boolean().optional()
 });
-var outputSchema = discriminatedUnion("type", [
-	object$1({
+var outputSchema$1 = discriminatedUnion("type", [
+	object$2({
 		type: literal("text"),
 		value: string(),
-		providerOptions: providerMetadataSchema.optional()
+		providerOptions: providerMetadataSchema$1.optional()
 	}),
-	object$1({
+	object$2({
 		type: literal("json"),
-		value: jsonValueSchema,
-		providerOptions: providerMetadataSchema.optional()
+		value: jsonValueSchema$1,
+		providerOptions: providerMetadataSchema$1.optional()
 	}),
-	object$1({
+	object$2({
 		type: literal("execution-denied"),
 		reason: string().optional(),
-		providerOptions: providerMetadataSchema.optional()
+		providerOptions: providerMetadataSchema$1.optional()
 	}),
-	object$1({
+	object$2({
 		type: literal("error-text"),
 		value: string(),
-		providerOptions: providerMetadataSchema.optional()
+		providerOptions: providerMetadataSchema$1.optional()
 	}),
-	object$1({
+	object$2({
 		type: literal("error-json"),
-		value: jsonValueSchema,
-		providerOptions: providerMetadataSchema.optional()
+		value: jsonValueSchema$1,
+		providerOptions: providerMetadataSchema$1.optional()
 	}),
-	object$1({
+	object$2({
 		type: literal("content"),
-		value: array$1(union([
-			object$1({
+		value: array$2(union([
+			object$2({
 				type: literal("text"),
 				text: string(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("file"),
-				data: taggedFileDataSchema,
+				data: taggedFileDataSchema$1,
 				mediaType: string(),
 				filename: string().optional(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("file-data"),
 				data: string(),
 				mediaType: string(),
 				filename: string().optional(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("file-url"),
 				url: string(),
 				mediaType: string().optional(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("file-id"),
 				fileId: union([string(), record(string(), string())]),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("file-reference"),
 				providerReference: record(string(), string()),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("image-data"),
 				data: string(),
 				mediaType: string(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("image-url"),
 				url: string(),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("image-file-id"),
 				fileId: union([string(), record(string(), string())]),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("image-file-reference"),
 				providerReference: record(string(), string()),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			}),
-			object$1({
+			object$2({
 				type: literal("custom"),
-				providerOptions: providerMetadataSchema.optional()
+				providerOptions: providerMetadataSchema$1.optional()
 			})
 		]))
 	})
 ]);
-var toolResultPartSchema = object$1({
+var toolResultPartSchema$1 = object$2({
 	type: literal("tool-result"),
 	toolCallId: string(),
 	toolName: string(),
-	output: outputSchema,
-	providerOptions: providerMetadataSchema.optional()
+	output: outputSchema$1,
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var toolApprovalRequestSchema = object$1({
+var toolApprovalRequestSchema$1 = object$2({
 	type: literal("tool-approval-request"),
 	approvalId: string(),
 	toolCallId: string()
 });
-var toolApprovalResponseSchema = object$1({
+var toolApprovalResponseSchema$1 = object$2({
 	type: literal("tool-approval-response"),
 	approvalId: string(),
 	approved: boolean(),
 	reason: string().optional()
 });
-var systemModelMessageSchema = object$1({
+var systemModelMessageSchema$1 = object$2({
 	role: literal("system"),
 	content: string(),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var userModelMessageSchema = object$1({
+var userModelMessageSchema$1 = object$2({
 	role: literal("user"),
-	content: union([string(), array$1(union([
-		textPartSchema,
-		imagePartSchema,
-		filePartSchema
+	content: union([string(), array$2(union([
+		textPartSchema$1,
+		imagePartSchema$1,
+		filePartSchema$1
 	]))]),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var assistantModelMessageSchema = object$1({
+var assistantModelMessageSchema$1 = object$2({
 	role: literal("assistant"),
-	content: union([string(), array$1(union([
-		textPartSchema,
-		customPartSchema,
-		filePartSchema,
-		reasoningPartSchema,
-		reasoningFilePartSchema,
-		toolCallPartSchema,
-		toolResultPartSchema,
-		toolApprovalRequestSchema
+	content: union([string(), array$2(union([
+		textPartSchema$1,
+		customPartSchema$1,
+		filePartSchema$1,
+		reasoningPartSchema$1,
+		reasoningFilePartSchema$1,
+		toolCallPartSchema$1,
+		toolResultPartSchema$1,
+		toolApprovalRequestSchema$1
 	]))]),
-	providerOptions: providerMetadataSchema.optional()
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var toolModelMessageSchema = object$1({
+var toolModelMessageSchema$1 = object$2({
 	role: literal("tool"),
-	content: array$1(union([toolResultPartSchema, toolApprovalResponseSchema])),
-	providerOptions: providerMetadataSchema.optional()
+	content: array$2(union([toolResultPartSchema$1, toolApprovalResponseSchema$1])),
+	providerOptions: providerMetadataSchema$1.optional()
 });
-var modelMessageSchema = union([
-	systemModelMessageSchema,
-	userModelMessageSchema,
-	assistantModelMessageSchema,
-	toolModelMessageSchema
+var modelMessageSchema$1 = union([
+	systemModelMessageSchema$1,
+	userModelMessageSchema$1,
+	assistantModelMessageSchema$1,
+	toolModelMessageSchema$1
 ]);
 async function standardizePrompt({ allowSystemInMessages = false, system, instructions = system, prompt, messages }) {
 	if (prompt == null && messages == null) throw new InvalidPromptError({
@@ -1618,7 +1618,7 @@ async function standardizePrompt({ allowSystemInMessages = false, system, instru
 	});
 	const validationResult = await safeValidateTypes({
 		value: messages,
-		schema: array$1(modelMessageSchema)
+		schema: array$2(modelMessageSchema$1)
 	});
 	if (!validationResult.success) throw new InvalidPromptError({
 		prompt,
@@ -1709,7 +1709,7 @@ function mergeAbortSignals(...signals) {
 	const validSignals = filterNullable(...signals).map((signal) => signal instanceof AbortSignal ? signal : AbortSignal.timeout(signal));
 	return validSignals.length === 0 ? void 0 : validSignals.length === 1 ? validSignals[0] : AbortSignal.any(validSignals);
 }
-function mergeObjects(base, overrides) {
+function mergeObjects$1(base, overrides) {
 	if (base === void 0 && overrides === void 0) return;
 	if (base === void 0) return overrides;
 	if (overrides === void 0) return base;
@@ -1722,7 +1722,7 @@ function mergeObjects(base, overrides) {
 			const baseValue = key in base ? base[key] : void 0;
 			const isSourceObject = overridesValue !== null && typeof overridesValue === "object" && !Array.isArray(overridesValue) && !(overridesValue instanceof Date) && !(overridesValue instanceof RegExp);
 			const isTargetObject = baseValue !== null && baseValue !== void 0 && typeof baseValue === "object" && !Array.isArray(baseValue) && !(baseValue instanceof Date) && !(baseValue instanceof RegExp);
-			if (isSourceObject && isTargetObject) result[key] = mergeObjects(baseValue, overridesValue);
+			if (isSourceObject && isTargetObject) result[key] = mergeObjects$1(baseValue, overridesValue);
 			else result[key] = overridesValue;
 		}
 	}
@@ -1994,15 +1994,15 @@ var DefaultGeneratedFileWithType = class extends DefaultGeneratedFile {
 		this.type = "file";
 	}
 };
-var output_exports = {};
-__export(output_exports, {
-	array: () => array,
-	choice: () => choice,
-	json: () => json,
-	object: () => object,
-	text: () => text
+var output_exports$1 = {};
+__export$1(output_exports$1, {
+	array: () => array$1,
+	choice: () => choice$1,
+	json: () => json$1,
+	object: () => object$1,
+	text: () => text$1
 });
-function fixJson(input) {
+function fixJson$1(input) {
 	const stack = ["ROOT"];
 	let lastValidIndex = -1;
 	let literalStart = null;
@@ -2265,7 +2265,7 @@ function fixJson(input) {
 	}
 	return result;
 }
-async function parsePartialJson(jsonText) {
+async function parsePartialJson$1(jsonText) {
 	if (jsonText === void 0) return {
 		value: void 0,
 		state: "undefined-input"
@@ -2275,7 +2275,7 @@ async function parsePartialJson(jsonText) {
 		value: result.value,
 		state: "successful-parse"
 	};
-	result = await safeParseJSON({ text: fixJson(jsonText) });
+	result = await safeParseJSON({ text: fixJson$1(jsonText) });
 	if (result.success) return {
 		value: result.value,
 		state: "repaired-parse"
@@ -2285,7 +2285,7 @@ async function parsePartialJson(jsonText) {
 		state: "failed-parse"
 	};
 }
-var text = () => ({
+var text$1 = () => ({
 	name: "text",
 	responseFormat: Promise.resolve({ type: "text" }),
 	async parseCompleteOutput({ text: text2 }) {
@@ -2296,7 +2296,7 @@ var text = () => ({
 	},
 	createElementStreamTransform() {}
 });
-var object = ({ schema: inputSchema, name: name22, description }) => {
+var object$1 = ({ schema: inputSchema, name: name22, description }) => {
 	const schema = asSchema(inputSchema);
 	return {
 		name: "object",
@@ -2308,7 +2308,7 @@ var object = ({ schema: inputSchema, name: name22, description }) => {
 		})),
 		async parseCompleteOutput({ text: text2 }, context) {
 			const parseResult = await safeParseJSON({ text: text2 });
-			if (!parseResult.success) throw new NoObjectGeneratedError({
+			if (!parseResult.success) throw new NoObjectGeneratedError$1({
 				message: "No object generated: could not parse the response.",
 				cause: parseResult.error,
 				text: text2,
@@ -2320,7 +2320,7 @@ var object = ({ schema: inputSchema, name: name22, description }) => {
 				value: parseResult.value,
 				schema
 			});
-			if (!validationResult.success) throw new NoObjectGeneratedError({
+			if (!validationResult.success) throw new NoObjectGeneratedError$1({
 				message: "No object generated: response did not match schema.",
 				cause: validationResult.error,
 				text: text2,
@@ -2331,7 +2331,7 @@ var object = ({ schema: inputSchema, name: name22, description }) => {
 			return validationResult.value;
 		},
 		async parsePartialOutput({ text: text2 }) {
-			const result = await parsePartialJson(text2);
+			const result = await parsePartialJson$1(text2);
 			switch (result.state) {
 				case "failed-parse":
 				case "undefined-input": return;
@@ -2342,7 +2342,7 @@ var object = ({ schema: inputSchema, name: name22, description }) => {
 		createElementStreamTransform() {}
 	};
 };
-var array = ({ element: inputElementSchema, name: name22, description }) => {
+var array$1 = ({ element: inputElementSchema, name: name22, description }) => {
 	const elementSchema = asSchema(inputElementSchema);
 	return {
 		name: "array",
@@ -2366,7 +2366,7 @@ var array = ({ element: inputElementSchema, name: name22, description }) => {
 		}),
 		async parseCompleteOutput({ text: text2 }, context) {
 			const parseResult = await safeParseJSON({ text: text2 });
-			if (!parseResult.success) throw new NoObjectGeneratedError({
+			if (!parseResult.success) throw new NoObjectGeneratedError$1({
 				message: "No object generated: could not parse the response.",
 				cause: parseResult.error,
 				text: text2,
@@ -2375,7 +2375,7 @@ var array = ({ element: inputElementSchema, name: name22, description }) => {
 				finishReason: context.finishReason
 			});
 			const outerValue = parseResult.value;
-			if (outerValue == null || typeof outerValue !== "object" || !("elements" in outerValue) || !Array.isArray(outerValue.elements)) throw new NoObjectGeneratedError({
+			if (outerValue == null || typeof outerValue !== "object" || !("elements" in outerValue) || !Array.isArray(outerValue.elements)) throw new NoObjectGeneratedError$1({
 				message: "No object generated: response did not match schema.",
 				cause: new TypeValidationError({
 					value: outerValue,
@@ -2392,7 +2392,7 @@ var array = ({ element: inputElementSchema, name: name22, description }) => {
 					value: element,
 					schema: elementSchema
 				});
-				if (!validationResult.success) throw new NoObjectGeneratedError({
+				if (!validationResult.success) throw new NoObjectGeneratedError$1({
 					message: "No object generated: response did not match schema.",
 					cause: validationResult.error,
 					text: text2,
@@ -2405,7 +2405,7 @@ var array = ({ element: inputElementSchema, name: name22, description }) => {
 			return validatedElements;
 		},
 		async parsePartialOutput({ text: text2 }) {
-			const result = await parsePartialJson(text2);
+			const result = await parsePartialJson$1(text2);
 			switch (result.state) {
 				case "failed-parse":
 				case "undefined-input": return;
@@ -2434,7 +2434,7 @@ var array = ({ element: inputElementSchema, name: name22, description }) => {
 		}
 	};
 };
-var choice = ({ options: choiceOptions, name: name22, description }) => {
+var choice$1 = ({ options: choiceOptions, name: name22, description }) => {
 	return {
 		name: "choice",
 		responseFormat: Promise.resolve({
@@ -2454,7 +2454,7 @@ var choice = ({ options: choiceOptions, name: name22, description }) => {
 		}),
 		async parseCompleteOutput({ text: text2 }, context) {
 			const parseResult = await safeParseJSON({ text: text2 });
-			if (!parseResult.success) throw new NoObjectGeneratedError({
+			if (!parseResult.success) throw new NoObjectGeneratedError$1({
 				message: "No object generated: could not parse the response.",
 				cause: parseResult.error,
 				text: text2,
@@ -2463,7 +2463,7 @@ var choice = ({ options: choiceOptions, name: name22, description }) => {
 				finishReason: context.finishReason
 			});
 			const outerValue = parseResult.value;
-			if (outerValue == null || typeof outerValue !== "object" || !("result" in outerValue) || typeof outerValue.result !== "string" || !choiceOptions.includes(outerValue.result)) throw new NoObjectGeneratedError({
+			if (outerValue == null || typeof outerValue !== "object" || !("result" in outerValue) || typeof outerValue.result !== "string" || !choiceOptions.includes(outerValue.result)) throw new NoObjectGeneratedError$1({
 				message: "No object generated: response did not match schema.",
 				cause: new TypeValidationError({
 					value: outerValue,
@@ -2477,7 +2477,7 @@ var choice = ({ options: choiceOptions, name: name22, description }) => {
 			return outerValue.result;
 		},
 		async parsePartialOutput({ text: text2 }) {
-			const result = await parsePartialJson(text2);
+			const result = await parsePartialJson$1(text2);
 			switch (result.state) {
 				case "failed-parse":
 				case "undefined-input": return;
@@ -2494,7 +2494,7 @@ var choice = ({ options: choiceOptions, name: name22, description }) => {
 		createElementStreamTransform() {}
 	};
 };
-var json = ({ name: name22, description } = {}) => {
+var json$1 = ({ name: name22, description } = {}) => {
 	return {
 		name: "json",
 		responseFormat: Promise.resolve({
@@ -2504,7 +2504,7 @@ var json = ({ name: name22, description } = {}) => {
 		}),
 		async parseCompleteOutput({ text: text2 }, context) {
 			const parseResult = await safeParseJSON({ text: text2 });
-			if (!parseResult.success) throw new NoObjectGeneratedError({
+			if (!parseResult.success) throw new NoObjectGeneratedError$1({
 				message: "No object generated: could not parse the response.",
 				cause: parseResult.error,
 				text: text2,
@@ -2515,7 +2515,7 @@ var json = ({ name: name22, description } = {}) => {
 			return parseResult.value;
 		},
 		async parsePartialOutput({ text: text2 }) {
-			const result = await parsePartialJson(text2);
+			const result = await parsePartialJson$1(text2);
 			switch (result.state) {
 				case "failed-parse":
 				case "undefined-input": return;
@@ -3329,7 +3329,7 @@ function sortToolResultContentByToolCallOrder({ toolResultContent, toolCallOrder
 	let toolResultIndex = 0;
 	return toolResultContent.map((part) => part.type === "tool-result" ? sortedToolResults[toolResultIndex++] : part);
 }
-var encoder = new TextEncoder();
+var encoder$1 = new TextEncoder();
 function canonicalJSON(value) {
 	if (value === null || value === void 0) return JSON.stringify(value);
 	if (typeof value !== "object") return JSON.stringify(value);
@@ -3340,22 +3340,22 @@ function toBase64url(bytes) {
 	return convertUint8ArrayToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 async function hashCanonical(value) {
-	const digest = await crypto.subtle.digest("SHA-256", encoder.encode(canonicalJSON(value)));
+	const digest = await crypto.subtle.digest("SHA-256", encoder$1.encode(canonicalJSON(value)));
 	return toBase64url(new Uint8Array(digest));
 }
-var encoder2 = new TextEncoder();
+var encoder2$1 = new TextEncoder();
 function fromBase64url(str) {
 	return convertBase64ToUint8Array(str);
 }
 async function importKey(secret) {
-	const keyData = typeof secret === "string" ? encoder2.encode(secret) : secret;
+	const keyData = typeof secret === "string" ? encoder2$1.encode(secret) : secret;
 	return crypto.subtle.importKey("raw", keyData, {
 		name: "HMAC",
 		hash: "SHA-256"
 	}, false, ["sign", "verify"]);
 }
 function buildPayload(approvalId, toolCallId, toolName, inputDigest) {
-	return encoder2.encode(`${approvalId}
+	return encoder2$1.encode(`${approvalId}
 ${toolCallId}
 ${toolName}
 ${inputDigest}`);
@@ -3442,15 +3442,15 @@ async function validateApprovedToolApprovals({ approvedToolApprovals, tools, too
 		deniedToolApprovals: denied
 	};
 }
-var originalGenerateId = createIdGenerator({
+var originalGenerateId$1 = createIdGenerator({
 	prefix: "aitxt",
 	size: 24
 });
-var originalGenerateCallId = createIdGenerator({
+var originalGenerateCallId$1 = createIdGenerator({
 	prefix: "call",
 	size: 24
 });
-async function generateText({ model: modelArg, tools, toolChoice, instructions, system, prompt, messages, allowSystemInMessages, maxRetries: maxRetriesArg, abortSignal, timeout, headers, stopWhen = isStepCount(1), experimental_sandbox: sandbox, output, toolApproval, experimental_toolApprovalSecret, experimental_telemetry, telemetry = experimental_telemetry, providerOptions, activeTools, toolOrder, prepareStep, experimental_repairToolCall, repairToolCall = experimental_repairToolCall, experimental_refineToolInput: refineToolInput, experimental_download: download2, runtimeContext = {}, toolsContext = {}, experimental_include, include = experimental_include, _internal: { generateId: generateId2 = originalGenerateId, generateCallId = originalGenerateCallId, now: now2 = now } = {}, onStart, experimental_onStart, onStepStart, experimental_onStepStart, onLanguageModelCallStart, experimental_onLanguageModelCallStart, onLanguageModelCallEnd, experimental_onLanguageModelCallEnd, onToolExecutionStart, onToolExecutionEnd, experimental_onToolCallStart, experimental_onToolCallFinish, onStepEnd, onStepFinish, onFinish, onEnd = onFinish, ...settings }) {
+async function generateText({ model: modelArg, tools, toolChoice, instructions, system, prompt, messages, allowSystemInMessages, maxRetries: maxRetriesArg, abortSignal, timeout, headers, stopWhen = isStepCount(1), experimental_sandbox: sandbox, output, toolApproval, experimental_toolApprovalSecret, experimental_telemetry, telemetry = experimental_telemetry, providerOptions, activeTools, toolOrder, prepareStep, experimental_repairToolCall, repairToolCall = experimental_repairToolCall, experimental_refineToolInput: refineToolInput, experimental_download: download2, runtimeContext = {}, toolsContext = {}, experimental_include, include = experimental_include, _internal: { generateId: generateId2 = originalGenerateId$1, generateCallId = originalGenerateCallId$1, now: now2 = now } = {}, onStart, experimental_onStart, onStepStart, experimental_onStepStart, onLanguageModelCallStart, experimental_onLanguageModelCallStart, onLanguageModelCallEnd, experimental_onLanguageModelCallEnd, onToolExecutionStart, onToolExecutionEnd, experimental_onToolCallStart, experimental_onToolCallFinish, onStepEnd, onStepFinish, onFinish, onEnd = onFinish, ...settings }) {
 	var _a22, _b, _c, _d;
 	include = {
 		requestBody: (_a22 = include == null ? void 0 : include.requestBody) != null ? _a22 : false,
@@ -3475,7 +3475,7 @@ async function generateText({ model: modelArg, tools, toolChoice, instructions, 
 		abortSignal: mergedAbortSignal
 	});
 	const callSettings = prepareLanguageModelCallOptions(settings);
-	const headersWithUserAgent = withUserAgentSuffix(headers != null ? headers : {}, `ai/${VERSION}`);
+	const headersWithUserAgent = withUserAgentSuffix(headers != null ? headers : {}, `ai/${VERSION$1}`);
 	const initialPrompt = await standardizePrompt({
 		instructions,
 		system,
@@ -3659,7 +3659,7 @@ async function generateText({ model: modelArg, tools, toolChoice, instructions, 
 							});
 							const stepToolChoice = prepareToolChoice({ toolChoice: (_j = prepareStepResult == null ? void 0 : prepareStepResult.toolChoice) != null ? _j : toolChoice });
 							const stepMessages = (_k = prepareStepResult == null ? void 0 : prepareStepResult.messages) != null ? _k : stepInputMessages;
-							const stepProviderOptions = mergeObjects(providerOptions, prepareStepResult == null ? void 0 : prepareStepResult.providerOptions);
+							const stepProviderOptions = mergeObjects$1(providerOptions, prepareStepResult == null ? void 0 : prepareStepResult.providerOptions);
 							await notify({
 								event: {
 									callId,
@@ -3960,7 +3960,7 @@ async function generateText({ model: modelArg, tools, toolChoice, instructions, 
 								response: stepResponse,
 								toolsContext
 							});
-							logWarnings({
+							logWarnings$1({
 								warnings: (_q = currentModelResponse.warnings) != null ? _q : [],
 								provider: stepModel.provider,
 								model: stepModel.modelId
@@ -4045,7 +4045,7 @@ async function generateText({ model: modelArg, tools, toolChoice, instructions, 
 				callbacks: [onEnd, telemetryDispatcher.onEnd]
 			});
 			let resolvedOutput;
-			if (lastStep.finishReason === "stop") resolvedOutput = await (output != null ? output : text()).parseCompleteOutput({ text: lastStep.text }, {
+			if (lastStep.finishReason === "stop") resolvedOutput = await (output != null ? output : text$1()).parseCompleteOutput({ text: lastStep.text }, {
 				response: lastStep.response,
 				usage: lastStep.usage,
 				finishReason: lastStep.finishReason
@@ -4318,7 +4318,7 @@ function toTextStream({ stream }) {
 		if (part.type === "text-delta") controller.enqueue(part.text);
 	} }));
 }
-var JsonToSseTransformStream = class extends TransformStream {
+var JsonToSseTransformStream$1 = class extends TransformStream {
 	constructor() {
 		super({
 			transform(part, controller) {
@@ -4340,7 +4340,7 @@ var UI_MESSAGE_STREAM_HEADERS = {
 	"x-accel-buffering": "no"
 };
 function createUIMessageStreamResponse({ status, statusText, headers, stream, consumeSseStream }) {
-	let sseStream = stream.pipeThrough(new JsonToSseTransformStream());
+	let sseStream = stream.pipeThrough(new JsonToSseTransformStream$1());
 	if (consumeSseStream) {
 		const [stream1, stream2] = sseStream.tee();
 		sseStream = stream1;
@@ -4353,7 +4353,7 @@ function createUIMessageStreamResponse({ status, statusText, headers, stream, co
 	});
 }
 function pipeUIMessageStreamToResponse({ response, status, statusText, headers, stream, consumeSseStream }) {
-	let sseStream = stream.pipeThrough(new JsonToSseTransformStream());
+	let sseStream = stream.pipeThrough(new JsonToSseTransformStream$1());
 	if (consumeSseStream) {
 		const [stream1, stream2] = sseStream.tee();
 		sseStream = stream1;
@@ -4372,23 +4372,23 @@ function getResponseUIMessageId({ originalMessages, responseMessageId }) {
 	const lastMessage = originalMessages[originalMessages.length - 1];
 	return (lastMessage == null ? void 0 : lastMessage.role) === "assistant" ? lastMessage.id : typeof responseMessageId === "function" ? responseMessageId() : responseMessageId;
 }
-var toolMetadataSchema = record(string(), jsonValueSchema.optional());
+var toolMetadataSchema$1 = record(string(), jsonValueSchema$1.optional());
 lazySchema(() => zodSchema(union([
 	strictObject({
 		type: literal("text-start"),
 		id: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("text-delta"),
 		id: string(),
 		delta: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("text-end"),
 		id: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("error"),
@@ -4399,8 +4399,8 @@ lazySchema(() => zodSchema(union([
 		toolCallId: string(),
 		toolName: string(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional(),
-		toolMetadata: toolMetadataSchema.optional(),
+		providerMetadata: providerMetadataSchema$1.optional(),
+		toolMetadata: toolMetadataSchema$1.optional(),
 		dynamic: boolean().optional(),
 		title: string().optional()
 	}),
@@ -4415,8 +4415,8 @@ lazySchema(() => zodSchema(union([
 		toolName: string(),
 		input: unknown(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional(),
-		toolMetadata: toolMetadataSchema.optional(),
+		providerMetadata: providerMetadataSchema$1.optional(),
+		toolMetadata: toolMetadataSchema$1.optional(),
 		dynamic: boolean().optional(),
 		title: string().optional()
 	}),
@@ -4426,8 +4426,8 @@ lazySchema(() => zodSchema(union([
 		toolName: string(),
 		input: unknown(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional(),
-		toolMetadata: toolMetadataSchema.optional(),
+		providerMetadata: providerMetadataSchema$1.optional(),
+		toolMetadata: toolMetadataSchema$1.optional(),
 		dynamic: boolean().optional(),
 		errorText: string(),
 		title: string().optional()
@@ -4445,15 +4445,15 @@ lazySchema(() => zodSchema(union([
 		approved: boolean(),
 		reason: string().optional(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("tool-output-available"),
 		toolCallId: string(),
 		output: unknown(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional(),
-		toolMetadata: toolMetadataSchema.optional(),
+		providerMetadata: providerMetadataSchema$1.optional(),
+		toolMetadata: toolMetadataSchema$1.optional(),
 		dynamic: boolean().optional(),
 		preliminary: boolean().optional()
 	}),
@@ -4462,8 +4462,8 @@ lazySchema(() => zodSchema(union([
 		toolCallId: string(),
 		errorText: string(),
 		providerExecuted: boolean().optional(),
-		providerMetadata: providerMetadataSchema.optional(),
-		toolMetadata: toolMetadataSchema.optional(),
+		providerMetadata: providerMetadataSchema$1.optional(),
+		toolMetadata: toolMetadataSchema$1.optional(),
 		dynamic: boolean().optional()
 	}),
 	strictObject({
@@ -4473,30 +4473,30 @@ lazySchema(() => zodSchema(union([
 	strictObject({
 		type: literal("reasoning-start"),
 		id: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("reasoning-delta"),
 		id: string(),
 		delta: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("reasoning-end"),
 		id: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("custom"),
 		kind: string().transform((value) => value),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("source-url"),
 		sourceId: string(),
 		url: string(),
 		title: string().optional(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("source-document"),
@@ -4504,19 +4504,19 @@ lazySchema(() => zodSchema(union([
 		mediaType: string(),
 		title: string(),
 		filename: string().optional(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("file"),
 		url: string(),
 		mediaType: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: literal("reasoning-file"),
 		url: string(),
 		mediaType: string(),
-		providerMetadata: providerMetadataSchema.optional()
+		providerMetadata: providerMetadataSchema$1.optional()
 	}),
 	strictObject({
 		type: custom((value) => typeof value === "string" && value.startsWith("data-"), { message: "Type must start with \"data-\"" }),
@@ -4683,7 +4683,7 @@ function processUIMessageStream({ stream, messageMetadataSchema, dataPartSchemas
 			}
 			async function updateMessageMetadata(metadata) {
 				if (metadata != null) {
-					const mergedMetadata = state.message.metadata != null ? mergeObjects(state.message.metadata, metadata) : metadata;
+					const mergedMetadata = state.message.metadata != null ? mergeObjects$1(state.message.metadata, metadata) : metadata;
 					if (messageMetadataSchema != null) await validateTypes({
 						value: mergedMetadata,
 						schema: messageMetadataSchema,
@@ -4852,7 +4852,7 @@ function processUIMessageStream({ stream, messageMetadataSchema, dataPartSchemas
 						message: `Received tool-input-delta for missing tool call with ID "${chunk.toolCallId}". Ensure a "tool-input-start" chunk is sent before any "tool-input-delta" chunks.`
 					});
 					partialToolCall.text += chunk.inputTextDelta;
-					const { value: partialArgs } = await parsePartialJson(partialToolCall.text);
+					const { value: partialArgs } = await parsePartialJson$1(partialToolCall.text);
 					if (partialToolCall.dynamic) updateDynamicToolPart({
 						toolCallId: chunk.toolCallId,
 						toolName: partialToolCall.toolName,
@@ -5670,15 +5670,15 @@ function invokeToolCallbacksFromStream({ stream, tools, stepInputMessages, abort
 		}
 	} }));
 }
-var originalGenerateId2 = createIdGenerator({
+var originalGenerateId2$1 = createIdGenerator({
 	prefix: "aitxt",
 	size: 24
 });
-var originalGenerateCallId2 = createIdGenerator({
+var originalGenerateCallId2$1 = createIdGenerator({
 	prefix: "call",
 	size: 24
 });
-async function streamLanguageModelCall({ model, tools, toolOrder, output, toolChoice, prompt, system, instructions, messages, allowSystemInMessages, download: download2, abortSignal, headers, includeRawChunks, providerOptions, repairToolCall, refineToolInput, executeLanguageModelCallInTelemetryContext = async ({ execute }) => await execute(), callId, toolsContext, experimental_sandbox: sandbox, _internal: { generateId: generateId2 = originalGenerateId2, generateCallId = originalGenerateCallId2, now: now2 = now } = {}, onStart, onLanguageModelCallStart, onLanguageModelCallEnd, ...callSettings }) {
+async function streamLanguageModelCall({ model, tools, toolOrder, output, toolChoice, prompt, system, instructions, messages, allowSystemInMessages, download: download2, abortSignal, headers, includeRawChunks, providerOptions, repairToolCall, refineToolInput, executeLanguageModelCallInTelemetryContext = async ({ execute }) => await execute(), callId, toolsContext, experimental_sandbox: sandbox, _internal: { generateId: generateId2 = originalGenerateId2$1, generateCallId = originalGenerateCallId2$1, now: now2 = now } = {}, onStart, onLanguageModelCallStart, onLanguageModelCallEnd, ...callSettings }) {
 	const resolvedModel = resolveLanguageModel(model);
 	const effectiveCallId = callId != null ? callId : generateCallId();
 	const standardizedPrompt = await standardizePrompt({
@@ -6058,11 +6058,11 @@ function upsertTextContentPart({ content, partIndexes, id, type, textDelta, prov
 	if (textDelta != null) part.text += textDelta;
 	if (providerMetadata != null) part.providerMetadata = providerMetadata;
 }
-var originalGenerateId3 = createIdGenerator({
+var originalGenerateId3$1 = createIdGenerator({
 	prefix: "aitxt",
 	size: 24
 });
-var originalGenerateCallId3 = createIdGenerator({
+var originalGenerateCallId3$1 = createIdGenerator({
 	prefix: "call",
 	size: 24
 });
@@ -6094,7 +6094,7 @@ var isOutputChunkType = {
 };
 function streamText({ model, tools, toolChoice, instructions, system, prompt, messages, allowSystemInMessages, maxRetries, abortSignal, timeout, headers, stopWhen = isStepCount(1), experimental_sandbox: sandbox, output, toolApproval, experimental_toolApprovalSecret, experimental_telemetry, telemetry = experimental_telemetry, prepareStep, providerOptions, activeTools, toolOrder, experimental_repairToolCall, repairToolCall = experimental_repairToolCall, experimental_refineToolInput: refineToolInput, experimental_transform: transform, experimental_download: download2, includeRawChunks, onChunk, onError = ({ error }) => {
 	console.error(error);
-}, onFinish, onEnd = onFinish, onAbort, onStepEnd, onStepFinish, onStart, experimental_onStart, onStepStart, experimental_onStepStart, onLanguageModelCallStart, experimental_onLanguageModelCallStart, onLanguageModelCallEnd, experimental_onLanguageModelCallEnd, onToolExecutionStart, onToolExecutionEnd, experimental_onToolCallStart, experimental_onToolCallFinish, runtimeContext = {}, toolsContext = {}, experimental_include, include = experimental_include, _internal: { now: now2 = now, generateId: generateId2 = originalGenerateId3, generateCallId = originalGenerateCallId3 } = {}, ...settings }) {
+}, onFinish, onEnd = onFinish, onAbort, onStepEnd, onStepFinish, onStart, experimental_onStart, onStepStart, experimental_onStepStart, onLanguageModelCallStart, experimental_onLanguageModelCallStart, onLanguageModelCallEnd, experimental_onLanguageModelCallEnd, onToolExecutionStart, onToolExecutionEnd, experimental_onToolCallStart, experimental_onToolCallFinish, runtimeContext = {}, toolsContext = {}, experimental_include, include = experimental_include, _internal: { now: now2 = now, generateId: generateId2 = originalGenerateId3$1, generateCallId = originalGenerateCallId3$1 } = {}, ...settings }) {
 	var _a22, _b, _c, _d;
 	const totalTimeoutMs = getTotalTimeoutMs(timeout);
 	const stepTimeoutMs = getStepTimeoutMs(timeout);
@@ -6398,7 +6398,7 @@ var DefaultStreamTextResult = class {
 						event: currentStepResult,
 						callbacks: [onStepFinish, telemetryDispatcher.onStepEnd]
 					});
-					logWarnings({
+					logWarnings$1({
 						warnings: recordedWarnings,
 						provider: model.provider,
 						model: model.modelId
@@ -6533,7 +6533,7 @@ var DefaultStreamTextResult = class {
 				isRunning = false;
 			}
 		}));
-		this.baseStream = stream.pipeThrough(createOutputTransformStream(output != null ? output : text())).pipeThrough(eventProcessor);
+		this.baseStream = stream.pipeThrough(createOutputTransformStream(output != null ? output : text$1())).pipeThrough(eventProcessor);
 		const { maxRetries } = prepareRetries({
 			maxRetries: maxRetriesArg,
 			abortSignal
@@ -6753,7 +6753,7 @@ var DefaultStreamTextResult = class {
 					currentStepMessages = stepMessages;
 					const stepInstructions = (_k = (_j = prepareStepResult == null ? void 0 : prepareStepResult.instructions) != null ? _j : prepareStepResult == null ? void 0 : prepareStepResult.system) != null ? _k : instructionsForNextStep;
 					instructionsForNextStep = stepInstructions;
-					const stepProviderOptions = mergeObjects(providerOptions, prepareStepResult == null ? void 0 : prepareStepResult.providerOptions);
+					const stepProviderOptions = mergeObjects$1(providerOptions, prepareStepResult == null ? void 0 : prepareStepResult.providerOptions);
 					const stepStartTimestampMs = now2();
 					const { retry } = prepareRetries({
 						maxRetries,
@@ -7212,7 +7212,7 @@ var DefaultStreamTextResult = class {
 	get output() {
 		return this.finalStep.then((step) => {
 			var _a22;
-			return ((_a22 = this.outputSpecification) != null ? _a22 : text()).parseCompleteOutput({ text: step.text }, {
+			return ((_a22 = this.outputSpecification) != null ? _a22 : text$1()).parseCompleteOutput({ text: step.text }, {
 				response: step.response,
 				usage: step.usage,
 				finishReason: step.finishReason
@@ -7403,9 +7403,9 @@ var ToolLoopAgent = class {
 		});
 	}
 };
-var toolMetadataSchema2 = record(string(), jsonValueSchema.optional());
-var providerReferenceSchema2 = record(string(), string());
-lazySchema(() => zodSchema(array$1(object$1({
+var toolMetadataSchema2$1 = record(string(), jsonValueSchema$1.optional());
+var providerReferenceSchema2$1 = record(string(), string());
+lazySchema(() => zodSchema(array$2(object$2({
 	id: string(),
 	role: _enum([
 		"system",
@@ -7413,97 +7413,97 @@ lazySchema(() => zodSchema(array$1(object$1({
 		"assistant"
 	]),
 	metadata: unknown().optional(),
-	parts: array$1(union([
-		object$1({
+	parts: array$2(union([
+		object$2({
 			type: literal("text"),
 			text: string(),
 			state: _enum(["streaming", "done"]).optional(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("reasoning"),
 			text: string(),
 			state: _enum(["streaming", "done"]).optional(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("custom"),
 			kind: string(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("source-url"),
 			sourceId: string(),
 			url: string(),
 			title: string().optional(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("source-document"),
 			sourceId: string(),
 			mediaType: string(),
 			title: string(),
 			filename: string().optional(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("file"),
 			mediaType: string(),
 			filename: string().optional(),
 			url: string(),
-			providerReference: providerReferenceSchema2.optional(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerReference: providerReferenceSchema2$1.optional(),
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("reasoning-file"),
 			mediaType: string(),
 			url: string(),
-			providerMetadata: providerMetadataSchema.optional()
+			providerMetadata: providerMetadataSchema$1.optional()
 		}),
-		object$1({ type: literal("step-start") }),
-		object$1({
+		object$2({ type: literal("step-start") }),
+		object$2({
 			type: string().startsWith("data-"),
 			id: string().optional(),
 			data: unknown()
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("input-streaming"),
 			input: unknown().optional(),
 			providerExecuted: boolean().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
 			output: never().optional(),
 			errorText: never().optional(),
 			approval: never().optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("input-available"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
 			approval: never().optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("approval-requested"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: never().optional(),
 				reason: never().optional(),
@@ -7511,18 +7511,18 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			})
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("approval-responded"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: boolean(),
 				reason: string().optional(),
@@ -7530,20 +7530,20 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			})
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-available"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: unknown(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			resultProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			resultProviderMetadata: providerMetadataSchema$1.optional(),
 			preliminary: boolean().optional(),
-			approval: object$1({
+			approval: object$2({
 				id: string(),
 				approved: literal(true),
 				reason: string().optional(),
@@ -7551,20 +7551,20 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			}).optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-error"),
 			input: unknown().optional(),
 			rawInput: unknown().optional(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: string(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			resultProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			resultProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: literal(true),
 				reason: string().optional(),
@@ -7572,18 +7572,18 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			}).optional()
 		}),
-		object$1({
+		object$2({
 			type: literal("dynamic-tool"),
 			toolName: string(),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-denied"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: literal(false),
 				reason: string().optional(),
@@ -7591,41 +7591,41 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			})
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("input-streaming"),
 			providerExecuted: boolean().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
 			input: unknown().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
 			approval: never().optional()
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("input-available"),
 			providerExecuted: boolean().optional(),
 			input: unknown(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
 			approval: never().optional()
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("approval-requested"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: never().optional(),
 				reason: never().optional(),
@@ -7633,17 +7633,17 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			})
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("approval-responded"),
 			input: unknown(),
 			providerExecuted: boolean().optional(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: boolean(),
 				reason: string().optional(),
@@ -7651,19 +7651,19 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			})
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-available"),
 			providerExecuted: boolean().optional(),
 			input: unknown(),
 			output: unknown(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			resultProviderMetadata: providerMetadataSchema.optional(),
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			resultProviderMetadata: providerMetadataSchema$1.optional(),
 			preliminary: boolean().optional(),
-			approval: object$1({
+			approval: object$2({
 				id: string(),
 				approved: literal(true),
 				reason: string().optional(),
@@ -7671,19 +7671,19 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			}).optional()
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-error"),
 			providerExecuted: boolean().optional(),
 			input: unknown().optional(),
 			rawInput: unknown().optional(),
 			output: never().optional(),
 			errorText: string(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			resultProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			resultProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: literal(true),
 				reason: string().optional(),
@@ -7691,17 +7691,17 @@ lazySchema(() => zodSchema(array$1(object$1({
 				signature: string().optional()
 			}).optional()
 		}),
-		object$1({
+		object$2({
 			type: string().startsWith("tool-"),
 			toolCallId: string(),
-			toolMetadata: toolMetadataSchema2.optional(),
+			toolMetadata: toolMetadataSchema2$1.optional(),
 			state: literal("output-denied"),
 			providerExecuted: boolean().optional(),
 			input: unknown(),
 			output: never().optional(),
 			errorText: never().optional(),
-			callProviderMetadata: providerMetadataSchema.optional(),
-			approval: object$1({
+			callProviderMetadata: providerMetadataSchema$1.optional(),
+			approval: object$2({
 				id: string(),
 				approved: literal(false),
 				reason: string().optional(),
@@ -7738,8 +7738,8 @@ createIdGenerator({
 	prefix: "aiobj",
 	size: 24
 });
-function createDownload(options) {
-	return ({ url, abortSignal }) => download({
+function createDownload$1(options) {
+	return ({ url, abortSignal }) => download$1({
 		url,
 		maxBytes: options == null ? void 0 : options.maxBytes,
 		abortSignal
@@ -7750,6 +7750,1562 @@ createIdGenerator({
 	size: 24
 });
 createIdGenerator({
+	prefix: "call",
+	size: 24
+});
+//#endregion
+//#region node_modules/ai/dist/index.js
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+	for (var name22 in all) __defProp(target, name22, {
+		get: all[name22],
+		enumerable: true
+	});
+};
+var name9 = "AI_NoObjectGeneratedError";
+var marker9 = `vercel.ai.error.${name9}`;
+var symbol9 = Symbol.for(marker9);
+var _a9;
+var NoObjectGeneratedError = class extends AISDKError$1 {
+	constructor({ message = "No object generated.", cause, text: text2, response, usage, finishReason }) {
+		super({
+			name: name9,
+			message,
+			cause
+		});
+		this[_a9] = true;
+		this.text = text2;
+		this.response = response;
+		this.usage = usage;
+		this.finishReason = finishReason;
+	}
+	static isInstance(error) {
+		return AISDKError$1.hasMarker(error, marker9);
+	}
+};
+_a9 = symbol9;
+function formatWarning({ warning, provider, model }) {
+	const prefix = `AI SDK Warning${provider != null && model != null ? ` (${provider} / ${model})` : ""}:`;
+	switch (warning.type) {
+		case "unsupported": {
+			let message = `${prefix} The feature "${warning.feature}" is not supported.`;
+			if (warning.details) message += ` ${warning.details}`;
+			return message;
+		}
+		case "compatibility": {
+			let message = `${prefix} The feature "${warning.feature}" is used in a compatibility mode.`;
+			if (warning.details) message += ` ${warning.details}`;
+			return message;
+		}
+		case "deprecated": return `${prefix} Deprecated: "${warning.setting}". ${warning.message}`;
+		case "other": return `${prefix} ${warning.message}`;
+		default: return `${prefix} ${JSON.stringify(warning, null, 2)}`;
+	}
+}
+var FIRST_WARNING_INFO_MESSAGE = "AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.";
+var hasLoggedBefore = false;
+var logWarnings = (options) => {
+	if (options.warnings.length === 0) return;
+	const logger = globalThis.AI_SDK_LOG_WARNINGS;
+	if (logger === false) return;
+	if (typeof logger === "function") {
+		logger(options);
+		return;
+	}
+	if (!hasLoggedBefore) {
+		hasLoggedBefore = true;
+		console.info(FIRST_WARNING_INFO_MESSAGE);
+	}
+	for (const warning of options.warnings) {
+		const message = formatWarning({
+			warning,
+			provider: options.provider,
+			model: options.model
+		});
+		if (typeof process !== "undefined" && typeof process.emitWarning === "function") process.emitWarning(message, { type: warning.type === "deprecated" ? "DeprecationWarning" : "Warning" });
+		else console.warn(message);
+	}
+};
+function logV2CompatibilityWarning({ provider, modelId }) {
+	logWarnings({
+		warnings: [{
+			type: "compatibility",
+			feature: "specificationVersion",
+			details: `Using v2 specification compatibility mode. Some features may not be available.`
+		}],
+		provider,
+		model: modelId
+	});
+}
+function asLanguageModelV3(model) {
+	if (model.specificationVersion === "v3") return model;
+	logV2CompatibilityWarning({
+		provider: model.provider,
+		modelId: model.modelId
+	});
+	return new Proxy(model, { get(target, prop) {
+		switch (prop) {
+			case "specificationVersion": return "v3";
+			case "doGenerate": return async (...args) => {
+				const result = await target.doGenerate(...args);
+				return {
+					...result,
+					finishReason: convertV2FinishReasonToV3(result.finishReason),
+					usage: convertV2UsageToV3(result.usage)
+				};
+			};
+			case "doStream": return async (...args) => {
+				const result = await target.doStream(...args);
+				return {
+					...result,
+					stream: convertV2StreamToV3(result.stream)
+				};
+			};
+			default: return target[prop];
+		}
+	} });
+}
+function convertV2StreamToV3(stream) {
+	return stream.pipeThrough(new TransformStream({ transform(chunk, controller) {
+		switch (chunk.type) {
+			case "finish":
+				controller.enqueue({
+					...chunk,
+					finishReason: convertV2FinishReasonToV3(chunk.finishReason),
+					usage: convertV2UsageToV3(chunk.usage)
+				});
+				break;
+			default:
+				controller.enqueue(chunk);
+				break;
+		}
+	} }));
+}
+function convertV2FinishReasonToV3(finishReason) {
+	return {
+		unified: finishReason === "unknown" ? "other" : finishReason,
+		raw: void 0
+	};
+}
+function convertV2UsageToV3(usage) {
+	return {
+		inputTokens: {
+			total: usage.inputTokens,
+			noCache: void 0,
+			cacheRead: usage.cachedInputTokens,
+			cacheWrite: void 0
+		},
+		outputTokens: {
+			total: usage.outputTokens,
+			text: void 0,
+			reasoning: usage.reasoningTokens
+		}
+	};
+}
+function asLanguageModelV4(model) {
+	if (model.specificationVersion === "v4") return model;
+	const v3Model = model.specificationVersion === "v2" ? asLanguageModelV3(model) : model;
+	return new Proxy(v3Model, { get(target, prop) {
+		if (prop === "specificationVersion") return "v4";
+		return target[prop];
+	} });
+}
+var jsonValueSchema = lazy(() => union([
+	_null(),
+	string(),
+	number(),
+	boolean(),
+	record(string(), jsonValueSchema.optional()),
+	array$2(jsonValueSchema)
+]));
+var providerMetadataSchema = record(string(), record(string(), jsonValueSchema.optional()));
+var fileInlineDataSchema = union([
+	string(),
+	_instanceof(Uint8Array),
+	_instanceof(ArrayBuffer),
+	custom(isBuffer$1, { message: "Must be a Buffer" })
+]);
+var providerReferenceSchema = record(string(), string());
+var textPartSchema = object$2({
+	type: literal("text"),
+	text: string(),
+	providerOptions: providerMetadataSchema.optional()
+});
+var imagePartSchema = object$2({
+	type: literal("image"),
+	image: union([
+		fileInlineDataSchema,
+		_instanceof(URL),
+		providerReferenceSchema
+	]),
+	mediaType: string().optional(),
+	providerOptions: providerMetadataSchema.optional()
+});
+var taggedFileDataSchema = discriminatedUnion("type", [
+	object$2({
+		type: literal("data"),
+		data: fileInlineDataSchema
+	}),
+	object$2({
+		type: literal("url"),
+		url: _instanceof(URL)
+	}),
+	object$2({
+		type: literal("reference"),
+		reference: providerReferenceSchema
+	}),
+	object$2({
+		type: literal("text"),
+		text: string()
+	})
+]);
+var taggedReasoningFileDataSchema = discriminatedUnion("type", [object$2({
+	type: literal("data"),
+	data: fileInlineDataSchema
+}), object$2({
+	type: literal("url"),
+	url: _instanceof(URL)
+})]);
+var filePartSchema = object$2({
+	type: literal("file"),
+	data: union([
+		taggedFileDataSchema,
+		fileInlineDataSchema,
+		_instanceof(URL),
+		providerReferenceSchema
+	]),
+	filename: string().optional(),
+	mediaType: string(),
+	providerOptions: providerMetadataSchema.optional()
+});
+var reasoningPartSchema = object$2({
+	type: literal("reasoning"),
+	text: string(),
+	providerOptions: providerMetadataSchema.optional()
+});
+var customPartSchema = object$2({
+	type: literal("custom"),
+	kind: string().transform((value) => value),
+	providerOptions: providerMetadataSchema.optional()
+});
+var reasoningFilePartSchema = object$2({
+	type: literal("reasoning-file"),
+	data: union([
+		taggedReasoningFileDataSchema,
+		fileInlineDataSchema,
+		_instanceof(URL)
+	]),
+	mediaType: string(),
+	providerOptions: providerMetadataSchema.optional()
+});
+var toolCallPartSchema = object$2({
+	type: literal("tool-call"),
+	toolCallId: string(),
+	toolName: string(),
+	input: unknown(),
+	providerOptions: providerMetadataSchema.optional(),
+	providerExecuted: boolean().optional()
+});
+var outputSchema = discriminatedUnion("type", [
+	object$2({
+		type: literal("text"),
+		value: string(),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		type: literal("json"),
+		value: jsonValueSchema,
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		type: literal("execution-denied"),
+		reason: string().optional(),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		type: literal("error-text"),
+		value: string(),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		type: literal("error-json"),
+		value: jsonValueSchema,
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		type: literal("content"),
+		value: array$2(union([
+			object$2({
+				type: literal("text"),
+				text: string(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("file"),
+				data: taggedFileDataSchema,
+				mediaType: string(),
+				filename: string().optional(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("file-data"),
+				data: string(),
+				mediaType: string(),
+				filename: string().optional(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("file-url"),
+				url: string(),
+				mediaType: string().optional(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("file-id"),
+				fileId: union([string(), record(string(), string())]),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("file-reference"),
+				providerReference: record(string(), string()),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("image-data"),
+				data: string(),
+				mediaType: string(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("image-url"),
+				url: string(),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("image-file-id"),
+				fileId: union([string(), record(string(), string())]),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("image-file-reference"),
+				providerReference: record(string(), string()),
+				providerOptions: providerMetadataSchema.optional()
+			}),
+			object$2({
+				type: literal("custom"),
+				providerOptions: providerMetadataSchema.optional()
+			})
+		]))
+	})
+]);
+var toolResultPartSchema = object$2({
+	type: literal("tool-result"),
+	toolCallId: string(),
+	toolName: string(),
+	output: outputSchema,
+	providerOptions: providerMetadataSchema.optional()
+});
+var toolApprovalRequestSchema = object$2({
+	type: literal("tool-approval-request"),
+	approvalId: string(),
+	toolCallId: string()
+});
+var toolApprovalResponseSchema = object$2({
+	type: literal("tool-approval-response"),
+	approvalId: string(),
+	approved: boolean(),
+	reason: string().optional()
+});
+union([
+	object$2({
+		role: literal("system"),
+		content: string(),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		role: literal("user"),
+		content: union([string(), array$2(union([
+			textPartSchema,
+			imagePartSchema,
+			filePartSchema
+		]))]),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		role: literal("assistant"),
+		content: union([string(), array$2(union([
+			textPartSchema,
+			customPartSchema,
+			filePartSchema,
+			reasoningPartSchema,
+			reasoningFilePartSchema,
+			toolCallPartSchema,
+			toolResultPartSchema,
+			toolApprovalRequestSchema
+		]))]),
+		providerOptions: providerMetadataSchema.optional()
+	}),
+	object$2({
+		role: literal("tool"),
+		content: array$2(union([toolResultPartSchema, toolApprovalResponseSchema])),
+		providerOptions: providerMetadataSchema.optional()
+	})
+]);
+function mergeObjects(base, overrides) {
+	if (base === void 0 && overrides === void 0) return;
+	if (base === void 0) return overrides;
+	if (overrides === void 0) return base;
+	const result = { ...base };
+	for (const key in overrides) {
+		if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
+		if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+			const overridesValue = overrides[key];
+			if (overridesValue === void 0) continue;
+			const baseValue = key in base ? base[key] : void 0;
+			const isSourceObject = overridesValue !== null && typeof overridesValue === "object" && !Array.isArray(overridesValue) && !(overridesValue instanceof Date) && !(overridesValue instanceof RegExp);
+			const isTargetObject = baseValue !== null && baseValue !== void 0 && typeof baseValue === "object" && !Array.isArray(baseValue) && !(baseValue instanceof Date) && !(baseValue instanceof RegExp);
+			if (isSourceObject && isTargetObject) result[key] = mergeObjects(baseValue, overridesValue);
+			else result[key] = overridesValue;
+		}
+	}
+	return result;
+}
+__export({}, {
+	array: () => array,
+	choice: () => choice,
+	json: () => json,
+	object: () => object,
+	text: () => text
+});
+function fixJson(input) {
+	const stack = ["ROOT"];
+	let lastValidIndex = -1;
+	let literalStart = null;
+	let unicodeEscapeDigits = 0;
+	function isHexDigit(char) {
+		return char >= "0" && char <= "9" || char >= "A" && char <= "F" || char >= "a" && char <= "f";
+	}
+	function processValueStart(char, i, swapState) {
+		switch (char) {
+			case "\"":
+				lastValidIndex = i;
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_STRING");
+				break;
+			case "f":
+			case "t":
+			case "n":
+				lastValidIndex = i;
+				literalStart = i;
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_LITERAL");
+				break;
+			case "-":
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_NUMBER");
+				break;
+			case "0":
+			case "1":
+			case "2":
+			case "3":
+			case "4":
+			case "5":
+			case "6":
+			case "7":
+			case "8":
+			case "9":
+				lastValidIndex = i;
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_NUMBER");
+				break;
+			case "{":
+				lastValidIndex = i;
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_OBJECT_START");
+				break;
+			case "[":
+				lastValidIndex = i;
+				stack.pop();
+				stack.push(swapState);
+				stack.push("INSIDE_ARRAY_START");
+				break;
+		}
+	}
+	function processAfterObjectValue(char, i) {
+		switch (char) {
+			case ",":
+				stack.pop();
+				stack.push("INSIDE_OBJECT_AFTER_COMMA");
+				break;
+			case "}":
+				lastValidIndex = i;
+				stack.pop();
+				break;
+		}
+	}
+	function processAfterArrayValue(char, i) {
+		switch (char) {
+			case ",":
+				stack.pop();
+				stack.push("INSIDE_ARRAY_AFTER_COMMA");
+				break;
+			case "]":
+				lastValidIndex = i;
+				stack.pop();
+				break;
+		}
+	}
+	for (let i = 0; i < input.length; i++) {
+		const char = input[i];
+		switch (stack[stack.length - 1]) {
+			case "ROOT":
+				processValueStart(char, i, "FINISH");
+				break;
+			case "INSIDE_OBJECT_START":
+				switch (char) {
+					case "\"":
+						stack.pop();
+						stack.push("INSIDE_OBJECT_KEY");
+						break;
+					case "}":
+						lastValidIndex = i;
+						stack.pop();
+						break;
+				}
+				break;
+			case "INSIDE_OBJECT_AFTER_COMMA":
+				switch (char) {
+					case "\"":
+						stack.pop();
+						stack.push("INSIDE_OBJECT_KEY");
+						break;
+				}
+				break;
+			case "INSIDE_OBJECT_KEY":
+				switch (char) {
+					case "\"":
+						stack.pop();
+						stack.push("INSIDE_OBJECT_AFTER_KEY");
+						break;
+				}
+				break;
+			case "INSIDE_OBJECT_AFTER_KEY":
+				switch (char) {
+					case ":":
+						stack.pop();
+						stack.push("INSIDE_OBJECT_BEFORE_VALUE");
+						break;
+				}
+				break;
+			case "INSIDE_OBJECT_BEFORE_VALUE":
+				processValueStart(char, i, "INSIDE_OBJECT_AFTER_VALUE");
+				break;
+			case "INSIDE_OBJECT_AFTER_VALUE":
+				processAfterObjectValue(char, i);
+				break;
+			case "INSIDE_STRING":
+				switch (char) {
+					case "\"":
+						stack.pop();
+						lastValidIndex = i;
+						break;
+					case "\\":
+						stack.push("INSIDE_STRING_ESCAPE");
+						break;
+					default: lastValidIndex = i;
+				}
+				break;
+			case "INSIDE_ARRAY_START":
+				switch (char) {
+					case "]":
+						lastValidIndex = i;
+						stack.pop();
+						break;
+					default:
+						lastValidIndex = i;
+						processValueStart(char, i, "INSIDE_ARRAY_AFTER_VALUE");
+						break;
+				}
+				break;
+			case "INSIDE_ARRAY_AFTER_VALUE":
+				switch (char) {
+					case ",":
+						stack.pop();
+						stack.push("INSIDE_ARRAY_AFTER_COMMA");
+						break;
+					case "]":
+						lastValidIndex = i;
+						stack.pop();
+						break;
+					default:
+						lastValidIndex = i;
+						break;
+				}
+				break;
+			case "INSIDE_ARRAY_AFTER_COMMA":
+				processValueStart(char, i, "INSIDE_ARRAY_AFTER_VALUE");
+				break;
+			case "INSIDE_STRING_ESCAPE":
+				stack.pop();
+				if (char === "u") {
+					unicodeEscapeDigits = 0;
+					stack.push("INSIDE_STRING_UNICODE_ESCAPE");
+				} else lastValidIndex = i;
+				break;
+			case "INSIDE_STRING_UNICODE_ESCAPE":
+				if (isHexDigit(char)) {
+					unicodeEscapeDigits++;
+					if (unicodeEscapeDigits === 4) {
+						stack.pop();
+						lastValidIndex = i;
+					}
+				}
+				break;
+			case "INSIDE_NUMBER":
+				switch (char) {
+					case "0":
+					case "1":
+					case "2":
+					case "3":
+					case "4":
+					case "5":
+					case "6":
+					case "7":
+					case "8":
+					case "9":
+						lastValidIndex = i;
+						break;
+					case "e":
+					case "E":
+					case "-":
+					case ".": break;
+					case ",":
+						stack.pop();
+						if (stack[stack.length - 1] === "INSIDE_ARRAY_AFTER_VALUE") processAfterArrayValue(char, i);
+						if (stack[stack.length - 1] === "INSIDE_OBJECT_AFTER_VALUE") processAfterObjectValue(char, i);
+						break;
+					case "}":
+						stack.pop();
+						if (stack[stack.length - 1] === "INSIDE_OBJECT_AFTER_VALUE") processAfterObjectValue(char, i);
+						break;
+					case "]":
+						stack.pop();
+						if (stack[stack.length - 1] === "INSIDE_ARRAY_AFTER_VALUE") processAfterArrayValue(char, i);
+						break;
+					default:
+						stack.pop();
+						break;
+				}
+				break;
+			case "INSIDE_LITERAL": {
+				const partialLiteral = input.substring(literalStart, i + 1);
+				if (!"false".startsWith(partialLiteral) && !"true".startsWith(partialLiteral) && !"null".startsWith(partialLiteral)) {
+					stack.pop();
+					if (stack[stack.length - 1] === "INSIDE_OBJECT_AFTER_VALUE") processAfterObjectValue(char, i);
+					else if (stack[stack.length - 1] === "INSIDE_ARRAY_AFTER_VALUE") processAfterArrayValue(char, i);
+				} else lastValidIndex = i;
+				break;
+			}
+		}
+	}
+	let result = input.slice(0, lastValidIndex + 1);
+	for (let i = stack.length - 1; i >= 0; i--) switch (stack[i]) {
+		case "INSIDE_STRING":
+			result += "\"";
+			break;
+		case "INSIDE_OBJECT_KEY":
+		case "INSIDE_OBJECT_AFTER_KEY":
+		case "INSIDE_OBJECT_AFTER_COMMA":
+		case "INSIDE_OBJECT_START":
+		case "INSIDE_OBJECT_BEFORE_VALUE":
+		case "INSIDE_OBJECT_AFTER_VALUE":
+			result += "}";
+			break;
+		case "INSIDE_ARRAY_START":
+		case "INSIDE_ARRAY_AFTER_COMMA":
+		case "INSIDE_ARRAY_AFTER_VALUE":
+			result += "]";
+			break;
+		case "INSIDE_LITERAL": {
+			const partialLiteral = input.substring(literalStart, input.length);
+			if ("true".startsWith(partialLiteral)) result += "true".slice(partialLiteral.length);
+			else if ("false".startsWith(partialLiteral)) result += "false".slice(partialLiteral.length);
+			else if ("null".startsWith(partialLiteral)) result += "null".slice(partialLiteral.length);
+		}
+	}
+	return result;
+}
+async function parsePartialJson(jsonText) {
+	if (jsonText === void 0) return {
+		value: void 0,
+		state: "undefined-input"
+	};
+	let result = await safeParseJSON$1({ text: jsonText });
+	if (result.success) return {
+		value: result.value,
+		state: "successful-parse"
+	};
+	result = await safeParseJSON$1({ text: fixJson(jsonText) });
+	if (result.success) return {
+		value: result.value,
+		state: "repaired-parse"
+	};
+	return {
+		value: void 0,
+		state: "failed-parse"
+	};
+}
+var text = () => ({
+	name: "text",
+	responseFormat: Promise.resolve({ type: "text" }),
+	async parseCompleteOutput({ text: text2 }) {
+		return text2;
+	},
+	async parsePartialOutput({ text: text2 }) {
+		return { partial: text2 };
+	},
+	createElementStreamTransform() {}
+});
+var object = ({ schema: inputSchema, name: name22, description }) => {
+	const schema = asSchema$1(inputSchema);
+	return {
+		name: "object",
+		responseFormat: resolve$1(schema.jsonSchema).then((jsonSchema2) => ({
+			type: "json",
+			schema: jsonSchema2,
+			...name22 != null && { name: name22 },
+			...description != null && { description }
+		})),
+		async parseCompleteOutput({ text: text2 }, context) {
+			const parseResult = await safeParseJSON$1({ text: text2 });
+			if (!parseResult.success) throw new NoObjectGeneratedError({
+				message: "No object generated: could not parse the response.",
+				cause: parseResult.error,
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			const validationResult = await safeValidateTypes$1({
+				value: parseResult.value,
+				schema
+			});
+			if (!validationResult.success) throw new NoObjectGeneratedError({
+				message: "No object generated: response did not match schema.",
+				cause: validationResult.error,
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			return validationResult.value;
+		},
+		async parsePartialOutput({ text: text2 }) {
+			const result = await parsePartialJson(text2);
+			switch (result.state) {
+				case "failed-parse":
+				case "undefined-input": return;
+				case "repaired-parse":
+				case "successful-parse": return { partial: result.value };
+			}
+		},
+		createElementStreamTransform() {}
+	};
+};
+var array = ({ element: inputElementSchema, name: name22, description }) => {
+	const elementSchema = asSchema$1(inputElementSchema);
+	return {
+		name: "array",
+		responseFormat: resolve$1(elementSchema.jsonSchema).then((jsonSchema2) => {
+			const { $schema: _$schema, ...itemSchema } = jsonSchema2;
+			return {
+				type: "json",
+				schema: {
+					$schema: "http://json-schema.org/draft-07/schema#",
+					type: "object",
+					properties: { elements: {
+						type: "array",
+						items: itemSchema
+					} },
+					required: ["elements"],
+					additionalProperties: false
+				},
+				...name22 != null && { name: name22 },
+				...description != null && { description }
+			};
+		}),
+		async parseCompleteOutput({ text: text2 }, context) {
+			const parseResult = await safeParseJSON$1({ text: text2 });
+			if (!parseResult.success) throw new NoObjectGeneratedError({
+				message: "No object generated: could not parse the response.",
+				cause: parseResult.error,
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			const outerValue = parseResult.value;
+			if (outerValue == null || typeof outerValue !== "object" || !("elements" in outerValue) || !Array.isArray(outerValue.elements)) throw new NoObjectGeneratedError({
+				message: "No object generated: response did not match schema.",
+				cause: new TypeValidationError$1({
+					value: outerValue,
+					cause: "response must be an object with an elements array"
+				}),
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			const validatedElements = [];
+			for (const element of outerValue.elements) {
+				const validationResult = await safeValidateTypes$1({
+					value: element,
+					schema: elementSchema
+				});
+				if (!validationResult.success) throw new NoObjectGeneratedError({
+					message: "No object generated: response did not match schema.",
+					cause: validationResult.error,
+					text: text2,
+					response: context.response,
+					usage: context.usage,
+					finishReason: context.finishReason
+				});
+				validatedElements.push(validationResult.value);
+			}
+			return validatedElements;
+		},
+		async parsePartialOutput({ text: text2 }) {
+			const result = await parsePartialJson(text2);
+			switch (result.state) {
+				case "failed-parse":
+				case "undefined-input": return;
+				case "repaired-parse":
+				case "successful-parse": {
+					const outerValue = result.value;
+					if (outerValue == null || typeof outerValue !== "object" || !("elements" in outerValue) || !Array.isArray(outerValue.elements)) return;
+					const rawElements = result.state === "repaired-parse" && outerValue.elements.length > 0 ? outerValue.elements.slice(0, -1) : outerValue.elements;
+					const parsedElements = [];
+					for (const rawElement of rawElements) {
+						const validationResult = await safeValidateTypes$1({
+							value: rawElement,
+							schema: elementSchema
+						});
+						if (validationResult.success) parsedElements.push(validationResult.value);
+					}
+					return { partial: parsedElements };
+				}
+			}
+		},
+		createElementStreamTransform() {
+			let publishedElements = 0;
+			return new TransformStream({ transform({ partialOutput }, controller) {
+				if (partialOutput != null) for (; publishedElements < partialOutput.length; publishedElements++) controller.enqueue(partialOutput[publishedElements]);
+			} });
+		}
+	};
+};
+var choice = ({ options: choiceOptions, name: name22, description }) => {
+	return {
+		name: "choice",
+		responseFormat: Promise.resolve({
+			type: "json",
+			schema: {
+				$schema: "http://json-schema.org/draft-07/schema#",
+				type: "object",
+				properties: { result: {
+					type: "string",
+					enum: choiceOptions
+				} },
+				required: ["result"],
+				additionalProperties: false
+			},
+			...name22 != null && { name: name22 },
+			...description != null && { description }
+		}),
+		async parseCompleteOutput({ text: text2 }, context) {
+			const parseResult = await safeParseJSON$1({ text: text2 });
+			if (!parseResult.success) throw new NoObjectGeneratedError({
+				message: "No object generated: could not parse the response.",
+				cause: parseResult.error,
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			const outerValue = parseResult.value;
+			if (outerValue == null || typeof outerValue !== "object" || !("result" in outerValue) || typeof outerValue.result !== "string" || !choiceOptions.includes(outerValue.result)) throw new NoObjectGeneratedError({
+				message: "No object generated: response did not match schema.",
+				cause: new TypeValidationError$1({
+					value: outerValue,
+					cause: "response must be an object that contains a choice value."
+				}),
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			return outerValue.result;
+		},
+		async parsePartialOutput({ text: text2 }) {
+			const result = await parsePartialJson(text2);
+			switch (result.state) {
+				case "failed-parse":
+				case "undefined-input": return;
+				case "repaired-parse":
+				case "successful-parse": {
+					const outerValue = result.value;
+					if (outerValue == null || typeof outerValue !== "object" || !("result" in outerValue) || typeof outerValue.result !== "string") return;
+					const potentialMatches = choiceOptions.filter((choiceOption) => choiceOption.startsWith(outerValue.result));
+					if (result.state === "successful-parse") return potentialMatches.includes(outerValue.result) ? { partial: outerValue.result } : void 0;
+					else return potentialMatches.length === 1 ? { partial: potentialMatches[0] } : void 0;
+				}
+			}
+		},
+		createElementStreamTransform() {}
+	};
+};
+var json = ({ name: name22, description } = {}) => {
+	return {
+		name: "json",
+		responseFormat: Promise.resolve({
+			type: "json",
+			...name22 != null && { name: name22 },
+			...description != null && { description }
+		}),
+		async parseCompleteOutput({ text: text2 }, context) {
+			const parseResult = await safeParseJSON$1({ text: text2 });
+			if (!parseResult.success) throw new NoObjectGeneratedError({
+				message: "No object generated: could not parse the response.",
+				cause: parseResult.error,
+				text: text2,
+				response: context.response,
+				usage: context.usage,
+				finishReason: context.finishReason
+			});
+			return parseResult.value;
+		},
+		async parsePartialOutput({ text: text2 }) {
+			const result = await parsePartialJson(text2);
+			switch (result.state) {
+				case "failed-parse":
+				case "undefined-input": return;
+				case "repaired-parse":
+				case "successful-parse": return result.value === void 0 ? void 0 : { partial: result.value };
+			}
+		},
+		createElementStreamTransform() {}
+	};
+};
+new TextEncoder();
+new TextEncoder();
+createIdGenerator$1({
+	prefix: "aitxt",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "call",
+	size: 24
+});
+TransformStream;
+var toolMetadataSchema = record(string(), jsonValueSchema.optional());
+lazySchema$1(() => zodSchema$1(union([
+	strictObject({
+		type: literal("text-start"),
+		id: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("text-delta"),
+		id: string(),
+		delta: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("text-end"),
+		id: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("error"),
+		errorText: string()
+	}),
+	strictObject({
+		type: literal("tool-input-start"),
+		toolCallId: string(),
+		toolName: string(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional(),
+		toolMetadata: toolMetadataSchema.optional(),
+		dynamic: boolean().optional(),
+		title: string().optional()
+	}),
+	strictObject({
+		type: literal("tool-input-delta"),
+		toolCallId: string(),
+		inputTextDelta: string()
+	}),
+	strictObject({
+		type: literal("tool-input-available"),
+		toolCallId: string(),
+		toolName: string(),
+		input: unknown(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional(),
+		toolMetadata: toolMetadataSchema.optional(),
+		dynamic: boolean().optional(),
+		title: string().optional()
+	}),
+	strictObject({
+		type: literal("tool-input-error"),
+		toolCallId: string(),
+		toolName: string(),
+		input: unknown(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional(),
+		toolMetadata: toolMetadataSchema.optional(),
+		dynamic: boolean().optional(),
+		errorText: string(),
+		title: string().optional()
+	}),
+	strictObject({
+		type: literal("tool-approval-request"),
+		approvalId: string(),
+		toolCallId: string(),
+		isAutomatic: boolean().optional(),
+		signature: string().optional()
+	}),
+	strictObject({
+		type: literal("tool-approval-response"),
+		approvalId: string(),
+		approved: boolean(),
+		reason: string().optional(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("tool-output-available"),
+		toolCallId: string(),
+		output: unknown(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional(),
+		toolMetadata: toolMetadataSchema.optional(),
+		dynamic: boolean().optional(),
+		preliminary: boolean().optional()
+	}),
+	strictObject({
+		type: literal("tool-output-error"),
+		toolCallId: string(),
+		errorText: string(),
+		providerExecuted: boolean().optional(),
+		providerMetadata: providerMetadataSchema.optional(),
+		toolMetadata: toolMetadataSchema.optional(),
+		dynamic: boolean().optional()
+	}),
+	strictObject({
+		type: literal("tool-output-denied"),
+		toolCallId: string()
+	}),
+	strictObject({
+		type: literal("reasoning-start"),
+		id: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("reasoning-delta"),
+		id: string(),
+		delta: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("reasoning-end"),
+		id: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("custom"),
+		kind: string().transform((value) => value),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("source-url"),
+		sourceId: string(),
+		url: string(),
+		title: string().optional(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("source-document"),
+		sourceId: string(),
+		mediaType: string(),
+		title: string(),
+		filename: string().optional(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("file"),
+		url: string(),
+		mediaType: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: literal("reasoning-file"),
+		url: string(),
+		mediaType: string(),
+		providerMetadata: providerMetadataSchema.optional()
+	}),
+	strictObject({
+		type: custom((value) => typeof value === "string" && value.startsWith("data-"), { message: "Type must start with \"data-\"" }),
+		id: string().optional(),
+		data: unknown(),
+		transient: boolean().optional()
+	}),
+	strictObject({ type: literal("start-step") }),
+	strictObject({ type: literal("finish-step") }),
+	strictObject({
+		type: literal("start"),
+		messageId: string().optional(),
+		messageMetadata: unknown().optional()
+	}),
+	strictObject({
+		type: literal("finish"),
+		finishReason: _enum([
+			"stop",
+			"length",
+			"content-filter",
+			"tool-calls",
+			"error",
+			"other"
+		]).optional(),
+		messageMetadata: unknown().optional()
+	}),
+	strictObject({
+		type: literal("abort"),
+		reason: string().optional()
+	}),
+	strictObject({
+		type: literal("message-metadata"),
+		messageMetadata: unknown()
+	})
+])));
+createIdGenerator$1({
+	prefix: "aitxt",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "call",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "aitxt",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "call",
+	size: 24
+});
+var toolMetadataSchema2 = record(string(), jsonValueSchema.optional());
+var providerReferenceSchema2 = record(string(), string());
+lazySchema$1(() => zodSchema$1(array$2(object$2({
+	id: string(),
+	role: _enum([
+		"system",
+		"user",
+		"assistant"
+	]),
+	metadata: unknown().optional(),
+	parts: array$2(union([
+		object$2({
+			type: literal("text"),
+			text: string(),
+			state: _enum(["streaming", "done"]).optional(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("reasoning"),
+			text: string(),
+			state: _enum(["streaming", "done"]).optional(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("custom"),
+			kind: string(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("source-url"),
+			sourceId: string(),
+			url: string(),
+			title: string().optional(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("source-document"),
+			sourceId: string(),
+			mediaType: string(),
+			title: string(),
+			filename: string().optional(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("file"),
+			mediaType: string(),
+			filename: string().optional(),
+			url: string(),
+			providerReference: providerReferenceSchema2.optional(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({
+			type: literal("reasoning-file"),
+			mediaType: string(),
+			url: string(),
+			providerMetadata: providerMetadataSchema.optional()
+		}),
+		object$2({ type: literal("step-start") }),
+		object$2({
+			type: string().startsWith("data-"),
+			id: string().optional(),
+			data: unknown()
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("input-streaming"),
+			input: unknown().optional(),
+			providerExecuted: boolean().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			approval: never().optional()
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("input-available"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: never().optional()
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("approval-requested"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: never().optional(),
+				reason: never().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("approval-responded"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: boolean(),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-available"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: unknown(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			resultProviderMetadata: providerMetadataSchema.optional(),
+			preliminary: boolean().optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(true),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			}).optional()
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-error"),
+			input: unknown().optional(),
+			rawInput: unknown().optional(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: string(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			resultProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(true),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			}).optional()
+		}),
+		object$2({
+			type: literal("dynamic-tool"),
+			toolName: string(),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-denied"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(false),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("input-streaming"),
+			providerExecuted: boolean().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			input: unknown().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			approval: never().optional()
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("input-available"),
+			providerExecuted: boolean().optional(),
+			input: unknown(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: never().optional()
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("approval-requested"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: never().optional(),
+				reason: never().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("approval-responded"),
+			input: unknown(),
+			providerExecuted: boolean().optional(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: boolean(),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-available"),
+			providerExecuted: boolean().optional(),
+			input: unknown(),
+			output: unknown(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			resultProviderMetadata: providerMetadataSchema.optional(),
+			preliminary: boolean().optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(true),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			}).optional()
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-error"),
+			providerExecuted: boolean().optional(),
+			input: unknown().optional(),
+			rawInput: unknown().optional(),
+			output: never().optional(),
+			errorText: string(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			resultProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(true),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			}).optional()
+		}),
+		object$2({
+			type: string().startsWith("tool-"),
+			toolCallId: string(),
+			toolMetadata: toolMetadataSchema2.optional(),
+			state: literal("output-denied"),
+			providerExecuted: boolean().optional(),
+			input: unknown(),
+			output: never().optional(),
+			errorText: never().optional(),
+			callProviderMetadata: providerMetadataSchema.optional(),
+			approval: object$2({
+				id: string(),
+				approved: literal(false),
+				reason: string().optional(),
+				isAutomatic: boolean().optional(),
+				signature: string().optional()
+			})
+		})
+	]))
+}).superRefine((message, context) => {
+	if (message.role !== "assistant" && message.parts.length === 0) context.addIssue({
+		origin: "array",
+		code: "too_small",
+		minimum: 1,
+		inclusive: true,
+		input: message.parts,
+		path: ["parts"],
+		message: "Message must contain at least one part"
+	});
+})).nonempty("Messages array must not be empty")));
+createIdGenerator$1({
+	prefix: "call",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "call",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "aiobj",
+	size: 24
+});
+createIdGenerator$1({
+	prefix: "aiobj",
+	size: 24
+});
+function defaultSettingsMiddleware({ settings }) {
+	return {
+		specificationVersion: "v4",
+		transformParams: async ({ params }) => {
+			return mergeObjects(settings, params);
+		}
+	};
+}
+var wrapLanguageModel = ({ model: inputModel, middleware: middlewareArg, modelId, providerId }) => {
+	const model = asLanguageModelV4(inputModel);
+	return [...asArray$1(middlewareArg)].reverse().reduce((wrappedModel, middleware) => {
+		return doWrap({
+			model: wrappedModel,
+			middleware,
+			modelId,
+			providerId
+		});
+	}, model);
+};
+var doWrap = ({ model, middleware: { transformParams, wrapGenerate, wrapStream, overrideProvider, overrideModelId, overrideSupportedUrls }, modelId, providerId }) => {
+	var _a22, _b, _c;
+	async function doTransform({ params, type }) {
+		return transformParams ? await transformParams({
+			params,
+			type,
+			model
+		}) : params;
+	}
+	return {
+		specificationVersion: "v4",
+		provider: (_a22 = providerId != null ? providerId : overrideProvider == null ? void 0 : overrideProvider({ model })) != null ? _a22 : model.provider,
+		modelId: (_b = modelId != null ? modelId : overrideModelId == null ? void 0 : overrideModelId({ model })) != null ? _b : model.modelId,
+		supportedUrls: (_c = overrideSupportedUrls == null ? void 0 : overrideSupportedUrls({ model })) != null ? _c : model.supportedUrls,
+		async doGenerate(params) {
+			const transformedParams = await doTransform({
+				params,
+				type: "generate"
+			});
+			const doGenerate = async () => await model.doGenerate(transformedParams);
+			const doStream = async () => await model.doStream(transformedParams);
+			return wrapGenerate ? await wrapGenerate({
+				doGenerate,
+				doStream,
+				params: transformedParams,
+				model
+			}) : await doGenerate();
+		},
+		async doStream(params) {
+			const transformedParams = await doTransform({
+				params,
+				type: "stream"
+			});
+			const doGenerate = async () => await model.doGenerate(transformedParams);
+			const doStream = async () => await model.doStream(transformedParams);
+			return wrapStream ? await wrapStream({
+				doGenerate,
+				doStream,
+				params: transformedParams,
+				model
+			}) : await doStream();
+		}
+	};
+};
+createIdGenerator$1({
 	prefix: "call",
 	size: 24
 });
@@ -7784,4 +9340,4 @@ var MockLanguageModelV3 = class {
 	}
 };
 //#endregion
-export { getStaticToolName as A, parsePartialJson as B, convertDataContentToBase64String as C, filterActiveTools as D, createUIMessageStreamResponse as E, isStaticToolUIPart as F, streamText as G, pipeUIMessageStreamToResponse as H, isStepCount as I, toUIMessageChunk as J, systemModelMessageSchema as K, isToolUIPart as L, getToolTimeoutMs as M, getTotalTimeoutMs as N, generateText as O, isDynamicToolUIPart as P, modelMessageSchema as R, consumeStream as S, createTextStreamResponse as T, registerTelemetry as U, pipeTextStreamToResponse as V, streamLanguageModelCall as W, toolModelMessageSchema as X, toUIMessageStream as Y, userModelMessageSchema as Z, ToolLoopAgent as _, InvalidMessageRoleError as a, UnsupportedModelVersionError as b, InvalidToolInputError as c, NoObjectGeneratedError as d, NoOutputGeneratedError as f, ToolCallRepairError as g, ToolCallNotFoundForApprovalError as h, InvalidDataContentError as i, getStepTimeoutMs as j, getChunkTimeoutMs as k, JsonToSseTransformStream as l, RetryError as m, DefaultGeneratedFile as n, InvalidToolApprovalError as o, NoSuchToolError as p, toTextStream as q, InvalidArgumentError as r, InvalidToolApprovalSignatureError as s, MockLanguageModelV3 as t, MissingToolResultsError as u, UIMessageStreamError as v, createDownload as w, assistantModelMessageSchema as x, UI_MESSAGE_STREAM_HEADERS as y, output_exports as z };
+export { userModelMessageSchema$1 as $, generateText as A, modelMessageSchema$1 as B, assistantModelMessageSchema$1 as C, createTextStreamResponse as D, createDownload$1 as E, getTotalTimeoutMs as F, registerTelemetry as G, parsePartialJson$1 as H, isDynamicToolUIPart as I, systemModelMessageSchema$1 as J, streamLanguageModelCall as K, isStaticToolUIPart as L, getStaticToolName as M, getStepTimeoutMs as N, createUIMessageStreamResponse as O, getToolTimeoutMs as P, toolModelMessageSchema$1 as Q, isStepCount as R, UnsupportedModelVersionError as S, convertDataContentToBase64String as T, pipeTextStreamToResponse as U, output_exports$1 as V, pipeUIMessageStreamToResponse as W, toUIMessageChunk as X, toTextStream as Y, toUIMessageStream as Z, ToolCallNotFoundForApprovalError as _, InvalidArgumentError as a, UIMessageStreamError as b, InvalidToolApprovalError as c, JsonToSseTransformStream$1 as d, MissingToolResultsError as f, RetryError as g, NoSuchToolError as h, DefaultGeneratedFile as i, getChunkTimeoutMs as j, filterActiveTools as k, InvalidToolApprovalSignatureError as l, NoOutputGeneratedError as m, defaultSettingsMiddleware as n, InvalidDataContentError as o, NoObjectGeneratedError$1 as p, streamText as q, wrapLanguageModel as r, InvalidMessageRoleError as s, MockLanguageModelV3 as t, InvalidToolInputError as u, ToolCallRepairError as v, consumeStream as w, UI_MESSAGE_STREAM_HEADERS as x, ToolLoopAgent as y, isToolUIPart as z };

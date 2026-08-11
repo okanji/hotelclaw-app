@@ -4,6 +4,7 @@ import {
   brainToolSchemas,
   normalizeListPages,
   operatorReviewPage,
+  resolveCaptureSlug,
 } from "@hotelclaw/brain";
 import { CHANNEL_BOT_SLUG } from "../lib/agent-config";
 import { tenantCallerOrNull } from "../lib/tenant";
@@ -164,7 +165,14 @@ export default defineDynamic({
         brain_capture: defineTool({
           description: brainToolDescriptions.brain_capture,
           inputSchema: brainToolSchemas.brain_capture,
-          async execute({ slug, page_title, observation, source }) {
+          async execute({ slug: requestedSlug, page_title, observation, source }) {
+            // Enforce the slug namespace rather than trusting the description
+            // to be followed (a live audit found `systems/probe-check`, which
+            // the serve types as an invisible page with no graph edges).
+            const slugCheck = resolveCaptureSlug(requestedSlug);
+            if (!slugCheck.ok) return { captured: false, reason: slugCheck.reason };
+            const slug = slugCheck.slug;
+
             const existing = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
               slug,
             });
@@ -182,9 +190,18 @@ export default defineDynamic({
               summary: observation,
               source,
             });
-            return entry.ok
-              ? { captured: true, slug }
-              : { captured: false, reason: entry.reason };
+            if (!entry.ok) return { captured: false, reason: entry.reason };
+            return {
+              captured: true,
+              slug,
+              // Tell the model where it actually landed, so a later brain_get
+              // uses the real slug rather than the one it asked for.
+              ...(slugCheck.coercedFrom
+                ? {
+                    note: `Filed under '${slug}' — '${slugCheck.coercedFrom}' is not a namespace the brain's knowledge graph indexes.`,
+                  }
+                : {}),
+            };
           },
         }),
       };

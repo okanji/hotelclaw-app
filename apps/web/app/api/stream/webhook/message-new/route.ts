@@ -31,6 +31,7 @@ import {
   type ActivationReason,
 } from "@/lib/stream/ai-reply";
 import { clearThread } from "@/lib/stream/ai-turn-history";
+import { routeAnswerToParkedSession } from "@/lib/stream/channel-bot-eve";
 import { maybePodBotReply } from "@/lib/stream/pod-bot-reply";
 
 /**
@@ -407,6 +408,35 @@ function maybeTriggerAiReply(args: {
         "balanced") as ChimeSensitivity;
       const engagementState = readEngagementState(channelData);
       const threadKey = args.parentId ?? ROOT_THREAD_KEY;
+
+      // ─── Answering a parked question OUTRANKS ai_mode ────────────────────
+      // A session waiting on a human owns the next message. Without this the
+      // mode gate below drops the answer: `mention` is the DEFAULT mode, so
+      // a bot that asked "which unit is the backup freezer?" never heard the
+      // reply unless the user happened to @-mention it, and the session sat
+      // parked forever. Same hole applied to approval-gated tools.
+      try {
+        const parked = await routeAnswerToParkedSession({
+          propertyId: args.propertyId,
+          streamChannelId: args.channelId,
+          channelType: args.channelType,
+          parentId: args.parentId,
+          triggerMessage: args.triggerMessage,
+        });
+        if (parked?.kind === "job") return; // resumed in place
+        if (parked?.kind === "chat") {
+          await generateAndPostReply(
+            buildReplyContext(
+              { ...args, parentId: parked.parentId },
+              "answered-question",
+            ),
+          );
+          return;
+        }
+      } catch (err) {
+        // Fall through to normal dispatch — never lose a message to this.
+        console.error("[ai-trigger] parked-question gate failed", err);
+      }
 
       // ─── Mode dispatch ───────────────────────────────────────────────────
       if (mode === "always" && args.parentId !== null && !args.botMentioned) {

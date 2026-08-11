@@ -398,7 +398,8 @@ export const KNOWLEDGE_DISCIPLINE = [
   "- When surfaces disagree in coverage, say which said what: \"Documents has 5 SOPs; the brain has no incident history on this.\" End partial answers with an explicit note on what you could not check.",
   `- Cite brain findings as ${BRAIN_CITATION_FORMAT} and documents by title with their app link. Never present uncited claims as property knowledge.`,
   "- A brain hit whose slug looks like `documents/<uuid>` IS one of those app documents, mirrored. Cite it by TITLE with its app link — never paste the raw slug or uuid at a human. When a tool result carries a `sources` list, it has already resolved those slugs to titles and links: use them verbatim.",
-  "- When capturing, file pages by what they ARE: suppliers/vendors under `companies/`, individual people under `people/`, equipment/places/topics under `concepts/`. The brain wires its knowledge graph off these folders — a page filed anywhere else stays disconnected.",
+  "- When capturing, file pages by what they ARE: suppliers/vendors under `companies/`, individual people under `people/`, equipment/places/topics under `concepts/`. The brain wires its knowledge graph off these folders — anything else is refiled under `concepts/` automatically, so pick the right one rather than inventing a namespace.",
+  "- Retrieval is only half the loop: when substantial work produces a durable FINDING about this property (an audit's verdict, a recurring failure and its cause, a supplier's behaviour, a decision and why), capture it before you finish. Findings, not transcripts; skip what the app already owns authoritatively, and skip anything you aren't confident of yet.",
 ].join("\n");
 
 /**
@@ -418,6 +419,71 @@ export const BRAIN_ENTITY_PREFIXES = [
   "meetings/",
   "projects/",
 ] as const;
+
+/**
+ * Namespaces a MODEL-driven `brain_capture` may write to: the graph-typed
+ * prefixes above, plus `operations/` (app-written pages the deterministic
+ * capture writers own — meeting summaries, triage routings — which a bot may
+ * legitimately add evidence to).
+ */
+export const BRAIN_CAPTURE_PREFIXES = [
+  ...BRAIN_ENTITY_PREFIXES,
+  "operations/",
+] as const;
+
+export type CaptureSlugResolution =
+  | { ok: true; slug: string; coercedFrom: string | null }
+  | { ok: false; reason: string };
+
+/**
+ * Force a capture slug into a namespace the brain can actually see.
+ *
+ * The slug convention has been spelled out in `brain_capture`'s description
+ * since the curated surface existed, and the model still files pages outside
+ * it — a live audit on 2026-08-11 found `systems/probe-check`, which per the
+ * verified serve behaviour above types as an invisible `concept` with no
+ * graph edges. Prose in a tool description is a suggestion; this is the rule.
+ *
+ * Anything outside the allowed namespaces keeps its LAST path segment and
+ * moves under `concepts/` — the doctrine's catch-all for equipment, places,
+ * systems, and topics — so `systems/probe-check` becomes
+ * `concepts/probe-check` rather than being rejected and costing a turn.
+ * `documents/` is the one hard refusal: that namespace is the automatic
+ * document mirror, and anything written there is destroyed by the next sync.
+ */
+export function resolveCaptureSlug(raw: string): CaptureSlugResolution {
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized) return { ok: false, reason: "Empty slug." };
+
+  // DOC_BRAIN_PREFIX is declared below; function bodies resolve at call time.
+  if (normalized.startsWith(DOC_BRAIN_PREFIX)) {
+    return {
+      ok: false,
+      reason:
+        "documents/ is the automatic document mirror — a page written there is overwritten by the next sync. To record something about a document's SUBJECT, file it under concepts/ instead; to change the document itself, use update_document.",
+    };
+  }
+
+  if (BRAIN_CAPTURE_PREFIXES.some((p) => normalized.startsWith(p) && normalized.length > p.length)) {
+    return { ok: true, slug: normalized, coercedFrom: null };
+  }
+
+  const name = normalized.split("/").filter(Boolean).pop() ?? "";
+  // A bare namespace ("concepts/", "people") names no page — coercing it would
+  // mint `concepts/concepts`. Refuse and let the model pick a real name.
+  const isBareNamespace = BRAIN_CAPTURE_PREFIXES.some(
+    (p) => p.slice(0, -1) === name,
+  );
+  if (name.length < 2 || isBareNamespace) {
+    return { ok: false, reason: `Slug '${raw}' has no usable page name.` };
+  }
+  return { ok: true, slug: `concepts/${name}`, coercedFrom: normalized };
+}
 
 // ---------------------------------------------------------------------------
 // Stream-safe text chunking. Stream Chat SILENTLY DISCARDS messages past

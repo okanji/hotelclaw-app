@@ -21,6 +21,7 @@ import {
   brainToolDescriptions,
   brainToolSchemas,
   normalizeListPages,
+  resolveCaptureSlug,
 } from "@hotelclaw/brain";
 import type { BotScope } from "@/lib/ai/run-bot";
 import {
@@ -96,16 +97,28 @@ export async function buildGbrainTools(scope: BotScope): Promise<ToolSet> {
     brain_capture: tool({
       description: brainToolDescriptions.brain_capture,
       inputSchema: brainToolSchemas.brain_capture,
-      async execute({ slug, page_title, observation, source }) {
+      async execute({ slug: requestedSlug, page_title, observation, source }) {
+        // Namespace enforcement, shared with the eve executors — see
+        // resolveCaptureSlug for why the tool description isn't enough.
+        const resolved = resolveCaptureSlug(requestedSlug);
+        if (!resolved.ok) return { captured: false, reason: resolved.reason };
+        const slug = resolved.slug;
         const result = await captureToBrain(binding, {
           slug,
           pageTitle: page_title,
           summary: observation,
           source,
         });
-        return result.ok
-          ? { captured: true, slug }
-          : { captured: false, reason: result.reason };
+        if (!result.ok) return { captured: false, reason: result.reason };
+        return {
+          captured: true,
+          slug,
+          ...(resolved.coercedFrom
+            ? {
+                note: `Filed under '${slug}' — '${resolved.coercedFrom}' is not a namespace the brain's knowledge graph indexes.`,
+              }
+            : {}),
+        };
       },
     }),
   };

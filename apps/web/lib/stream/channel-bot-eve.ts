@@ -56,6 +56,8 @@ const ACTIVATION_NOTES: Record<ActivationReason, string> = {
   "always-mode": "this channel has you set to respond to every message",
   "engaged-follow-up":
     "you are in an ongoing engaged conversation in this thread and the newest message continues it",
+  "answered-question":
+    "you asked this person a question and paused — the newest message is their answer. Pick the work back up and carry it through; don't restate the question or start over",
 };
 
 // A chat turn stuck 'running' past this is presumed dead (runtime crash
@@ -250,6 +252,320 @@ export async function releaseChannelTurn(
     .update({ turn_state: "idle" })
     .eq("channel_id", channelId)
     .eq("thread_key", threadKey);
+}
+
+/** True when a session is parked on a QUESTION the user still owes an answer
+ *  to (as opposed to parked-and-finished). Mirrors the runtime's
+ *  `pendingQuestions` filter — a request with no prompt has nothing to
+ *  answer. Exported for the webhook's gate and its tests. */
+export function hasPendingQuestion(pendingApproval: unknown): boolean {
+  const requests = (pendingApproval as { requests?: unknown } | null)?.requests;
+  if (!Array.isArray(requests)) return false;
+  return requests.some((r) => {
+    const prompt = (r as { prompt?: unknown }).prompt;
+    return typeof prompt === "string" && prompt.trim().length > 0;
+  });
+}
+
+/**
+ * Where an incoming message should go when a session is WAITING ON A HUMAN.
+ *
+ * - `job`   — already handled here: a background job was resumed with the
+ *             answer. The caller stops.
+ * - `chat`  — a conversational session is parked; the caller must run the
+ *             normal turn for `parentId` REGARDLESS of the channel's
+ *             `ai_mode`, because the bot asked and this is the reply.
+ */
+export type ParkedAnswerRoute =
+  | { kind: "job" }
+  | { kind: "chat"; parentId: string | null }
+  | null;
+
+type ParkedRow = {
+  id: string;
+  kind: "chat" | "job";
+  thread_key: string;
+  channel_type: "team" | "messaging";
+  eve_session_id: string | null;
+  eve_continuation_token: string | null;
+  runtime_tag: string | null;
+  turn_state: string | null;
+  pending_approval: Record<string, unknown> | null;
+  job_headline: string | null;
+};
+
+const PARKED_COLUMNS =
+  "id, kind, thread_key, channel_type, eve_session_id, eve_continuation_token, runtime_tag, turn_state, pending_approval, job_headline";
+
+/**
+ * Resolve an incoming message against sessions parked on a question.
+ *
+ * TWO ROUTES, because sessions are keyed two different ways:
+ *
+ *  1. `question_message_id` (0098) — the Stream message the question was
+ *     posted as. A reply in THAT thread answers THAT session, whatever its
+ *     thread key. This is the only way a background job can ever be
+ *     answered: its `job:<uuid>` thread key is synthetic and no inbound
+ *     message can produce it. It also rescues a conversational question
+ *     that the user happened to answer in-thread, which would otherwise
+ *     open a brand-new thread session and strand the parked one forever.
+ *  2. The session for this (channel, thread) itself, when it is parked.
+ *     The bot asked in the channel and the answer arrived in the channel.
+ *
+ * Returning non-null means the message is an ANSWER and outranks the
+ * channel's ai_mode: the default mode is "mention", so without this a bot
+ * that asked "which unit is the backup freezer?" would never hear the reply
+ * unless the user happened to @-mention it.
+ */
+export async function routeAnswerToParkedSession(ctx: {
+  propertyId: string;
+  streamChannelId: string;
+  channelType: "team" | "messaging";
+  parentId: string | null;
+  triggerMessage: {
+    id: string;
+    text: string;
+    userId: string;
+    userName?: string | null;
+  };
+}): Promise<ParkedAnswerRoute> {
+  try {
+    const service = createServiceClient();
+
+    let row: ParkedRow | null = null;
+    if (ctx.parentId) {
+      const { data } = await service
+        .from("channel_bot_sessions")
+        .select(PARKED_COLUMNS)
+        .eq("channel_id", ctx.streamChannelId)
+        .eq("question_message_id", ctx.parentId)
+        .maybeSingle();
+      row = (data as ParkedRow | null) ?? null;
+    }
+    if (!row) {
+      const { data } = await service
+        .from("channel_bot_sessions")
+        .select(PARKED_COLUMNS)
+        .eq("channel_id", ctx.streamChannelId)
+        .eq("thread_key", ctx.parentId ?? ROOT_THREAD_KEY)
+        .maybeSingle();
+      row = (data as ParkedRow | null) ?? null;
+    }
+
+    if (!row || !hasPendingQuestion(row.pending_approval)) return null;
+
+    if (row.kind === "chat") {
+      // The normal turn path already answers parks correctly (it calls
+      // buildInputResponses against this same row) — it just never gets to
+      // run under mention mode. Hand it back with the thread the session
+      // actually lives in, so the reply lands where the question was asked.
+      return {
+        kind: "chat",
+        parentId: row.thread_key === ROOT_THREAD_KEY ? null : row.thread_key,
+      };
+    }
+
+    await resumeParkedJob(row, ctx);
+    return { kind: "job" };
+  } catch (err) {
+    // Never let this gate swallow a message: falling through to the normal
+    // mode dispatch is the safe failure.
+    console.error("[channel-bot-eve] parked-answer routing failed", err);
+    return null;
+  }
+}
+
+/**
+ * Deliver an answer into a parked BACKGROUND JOB and let it carry on.
+ *
+ * Jobs have no queue and no context packing — they are detached sessions
+ * whose entire world is their brief. All this does is address the answer to
+ * the parked request and resume, which is exactly eve's documented
+ * pause/resume contract (`inputResponses` keyed by `requestId`).
+ */
+async function resumeParkedJob(
+  row: ParkedRow,
+  ctx: {
+    propertyId: string;
+    streamChannelId: string;
+    channelType: "team" | "messaging";
+    triggerMessage: { text: string; userId: string; userName?: string | null };
+  },
+): Promise<void> {
+  const service = createServiceClient();
+  // Fail OPEN on an unknown tag. The staleness guard exists to stop a resume
+  // across runtime builds (which runs toolless), but a job row written before
+  // tag inheritance shipped has no tag at all — treating that as stale would
+  // make every such job unanswerable, which is strictly worse than attempting
+  // a resume that simply errors if the session really is gone.
+  const stale = row.runtime_tag !== null && row.runtime_tag !== RUNTIME_TAG;
+
+  // A job cannot be restarted from here — its brief lived in the session we
+  // can no longer resume. Say so instead of silently eating the answer.
+  if (!row.eve_session_id || !row.eve_continuation_token || stale) {
+    await service
+      .from("channel_bot_sessions")
+      .update({ question_message_id: null, pending_approval: null, turn_state: "idle" })
+      .eq("id", row.id);
+    await postJobNotice(
+      ctx.streamChannelId,
+      row.channel_type,
+      row.thread_key,
+      `⚠️ **${row.job_headline ?? "Background job"}** — I can't pick this back up: the job's session ${stale ? "was replaced by a runtime update" : "is no longer resumable"}. Ask me again and I'll rerun it with your answer.`,
+    );
+    return;
+  }
+
+  // Claim the turn slot. A parked job is idle by definition, so losing this
+  // race means something else already resumed it.
+  const { data: claimed } = await service
+    .from("channel_bot_sessions")
+    .update({ turn_state: "running", turn_started_at: new Date().toISOString() })
+    .eq("id", row.id)
+    .eq("turn_state", "idle")
+    .select("id");
+  if ((claimed ?? []).length === 0) {
+    console.log("[channel-bot-eve] job resume lost the claim", { rowId: row.id });
+    return;
+  }
+
+  const { responses, consumedAnswer } = buildInputResponses(
+    row.pending_approval,
+    ctx.triggerMessage.text,
+  );
+
+  const turnNonce = crypto.randomUUID();
+  const answerMessage = [
+    `[turn ${turnNonce} — internal marker, ignore]`,
+    `[Now: ${new Date().toISOString()} (UTC). Resolve relative dates/times from this.]`,
+    `[Activation: the requester answered the question you parked on. Continue the job to completion and deliver the final result.]`,
+    `${ctx.triggerMessage.userName ?? "A teammate"} answers: ${ctx.triggerMessage.text.trim() || "(no text)"}`,
+  ].join("\n\n");
+
+  // Open the accumulator BEFORE sending — the first model step can outrace
+  // the nonce otherwise, and the delivery handlers key everything off it.
+  await service
+    .from("channel_bot_sessions")
+    .update({
+      turn_nonce: turnNonce,
+      reply_candidate: null,
+      ui_spec: null,
+      pending_approval: null,
+      question_message_id: null,
+      status: "idle",
+      last_turn_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+
+  const actingUserId = await resolveActingPrincipal(
+    ctx.propertyId,
+    ctx.triggerMessage.userId,
+  );
+  const headers = actingUserId
+    ? fleetServiceHeaders({
+        propertyId: ctx.propertyId,
+        userId: actingUserId,
+        botSlug: CHANNEL_BOT_SLUG,
+        channelId: ctx.streamChannelId,
+        senderId: ctx.triggerMessage.userId,
+      })
+    : null;
+
+  const response = headers
+    ? await fetch(
+        `${eveOrigin()}/eve/v1/session/${encodeURIComponent(row.eve_session_id)}`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            continuationToken: row.eve_continuation_token,
+            // A bare "yes"/"2" is delivered ONLY as the input response —
+            // echoing it as a message made the model treat it as a fresh,
+            // contextless turn.
+            ...(consumedAnswer ? {} : { message: answerMessage }),
+            ...(responses.length > 0 ? { inputResponses: responses } : {}),
+          }),
+          signal: AbortSignal.timeout(15_000),
+        },
+      ).catch(() => null)
+    : null;
+
+  if (!response?.ok) {
+    // Put the park back so the question is still answerable, and free the
+    // slot — a job wedged in `running` waits out the 10-minute stale cutoff.
+    await service
+      .from("channel_bot_sessions")
+      .update({
+        turn_state: "idle",
+        pending_approval: row.pending_approval,
+        status: "awaiting_approval",
+      })
+      .eq("id", row.id);
+    await postJobNotice(
+      ctx.streamChannelId,
+      row.channel_type,
+      row.thread_key,
+      `⚠️ **${row.job_headline ?? "Background job"}** — couldn't deliver your answer to the running job (${response?.status ?? "unreachable"}). Try replying again.`,
+    );
+    return;
+  }
+
+  console.log("[channel-bot-eve] job resumed with answer", {
+    rowId: row.id,
+    sessionId: row.eve_session_id,
+    turnNonce,
+    inputResponses: responses.length,
+  });
+}
+
+/** The acting principal for a turn: the sender when they're a member of the
+ *  property, else its earliest owner/manager. (Role-gated tools still check
+ *  the RAW sender, so this can't widen anyone's access.) */
+async function resolveActingPrincipal(
+  propertyId: string,
+  senderId: string,
+): Promise<string | null> {
+  const service = createServiceClient();
+  const { data: membership } = await service
+    .from("memberships")
+    .select("user_id")
+    .eq("property_id", propertyId)
+    .eq("user_id", senderId)
+    .maybeSingle();
+  if (membership) return senderId;
+  const { data: fallback } = await service
+    .from("memberships")
+    .select("user_id")
+    .eq("property_id", propertyId)
+    .in("role", ["owner", "manager"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return fallback?.user_id ?? null;
+}
+
+/** Post a job-lifecycle notice into the thread the question was asked in. */
+async function postJobNotice(
+  channelId: string,
+  channelType: "team" | "messaging",
+  threadKey: string,
+  text: string,
+): Promise<void> {
+  try {
+    const channel = getStreamServer().channel(channelType, channelId);
+    await channel.sendMessage({
+      text,
+      user_id: getBotUserId(),
+      ai_generated: true,
+      // Job rows carry a synthetic `job:<uuid>` thread key — never a real
+      // parent id — so notices post top-level, like job results do.
+      ...(threadKey.startsWith("job:") || threadKey === ROOT_THREAD_KEY
+        ? {}
+        : { parent_id: threadKey, show_in_channel: false }),
+    } as unknown as Parameters<typeof channel.sendMessage>[0]);
+  } catch (err) {
+    console.error("[channel-bot-eve] job notice failed", err);
+  }
 }
 
 export async function runChannelBotEveTurn(ctx: {
@@ -473,6 +789,9 @@ export async function runChannelBotEveTurn(ctx: {
         reply_candidate: null,
         ui_spec: null,
         pending_approval: null,
+        // This turn answers (or supersedes) whatever the session was parked
+        // on, so the old question's thread must stop routing replies here.
+        question_message_id: null,
         status: "idle",
         last_turn_at: new Date().toISOString(),
       },

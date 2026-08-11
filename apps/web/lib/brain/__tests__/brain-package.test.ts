@@ -19,6 +19,8 @@ import {
   normalizeListPages,
   operatorReviewPage,
   renderDocumentBrainPage,
+  resolveCaptureSlug,
+  BRAIN_CAPTURE_PREFIXES,
 } from "@hotelclaw/brain";
 
 describe("brain secret crypto (AES-256-GCM, shared derivation)", () => {
@@ -359,5 +361,58 @@ describe("doc mirror entity cross-linking (the knowledge-graph feed)", () => {
       "meetings/",
       "projects/",
     ]);
+  });
+});
+
+describe("capture slug namespace enforcement", () => {
+  // The convention has been spelled out in brain_capture's description since
+  // the curated surface existed, and the model still ignored it: a live audit
+  // on 2026-08-11 found `systems/probe-check`, which the serve types as an
+  // invisible page with no graph edges. Prose is a suggestion; this is a rule.
+  it("leaves a correctly-filed slug alone", () => {
+    for (const prefix of BRAIN_CAPTURE_PREFIXES) {
+      const slug = `${prefix}acme-pool-services`;
+      expect(resolveCaptureSlug(slug)).toEqual({
+        ok: true,
+        slug,
+        coercedFrom: null,
+      });
+    }
+  });
+
+  it("refiles an unknown namespace under concepts/, keeping the page name", () => {
+    const r = resolveCaptureSlug("systems/probe-check");
+    expect(r).toEqual({
+      ok: true,
+      slug: "concepts/probe-check",
+      coercedFrom: "systems/probe-check",
+    });
+  });
+
+  it("gives a bare name a namespace rather than rejecting it", () => {
+    expect(resolveCaptureSlug("walk-in-freezer")).toMatchObject({
+      ok: true,
+      slug: "concepts/walk-in-freezer",
+    });
+  });
+
+  it("normalizes case, whitespace and stray slashes", () => {
+    expect(resolveCaptureSlug("  Concepts//Walk In Freezer/ ")).toMatchObject({
+      ok: true,
+      slug: "concepts/walk-in-freezer",
+    });
+  });
+
+  it("REFUSES the documents/ mirror — the next sync would destroy the write", () => {
+    const r = resolveCaptureSlug(`${DOC_BRAIN_PREFIX}some-uuid`);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/mirror/i);
+  });
+
+  it("refuses a slug with no usable page name", () => {
+    expect(resolveCaptureSlug("   ").ok).toBe(false);
+    expect(resolveCaptureSlug("//").ok).toBe(false);
+    // A bare prefix names no page.
+    expect(resolveCaptureSlug("concepts/").ok).toBe(false);
   });
 });

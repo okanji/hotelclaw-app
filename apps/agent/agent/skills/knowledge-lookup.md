@@ -35,8 +35,13 @@ empty source.
    just keyword search.
 3. Chunks are not pages: after a `brain_search` hit, `brain_get` the slug
    before quoting details.
-4. `brain_think` is the expensive last resort for judgment questions
-   spanning many pages — never for simple lookups.
+4. `brain_think` is for JUDGMENT that spans many pages — "which of our
+   SOPs are thin?", "why does the pool keep going green?", "what do we
+   know about this supplier?". It costs ~40s, so never use it for a
+   lookup `brain_search` answers. But do reach for it before grinding
+   through a dozen pages one at a time: if you are about to read the
+   whole corpus to form an opinion, that IS the question `brain_think`
+   exists to answer, and skipping it costs more than it saves.
 
 ## 3. Compose the answer
 
@@ -51,3 +56,22 @@ empty source.
   you say the property has none — and name what you checked. If a surface
   you'd need isn't available to you, say you can't see it.
 - End partial answers with an explicit gap note ("I couldn't check X").
+
+## 4. Give back what the work taught you
+
+Retrieval is half the loop. When a piece of substantial work produces a
+durable FINDING about this property — an audit's verdict, a recurring
+failure and its cause, a supplier's behaviour, a decision and the reason
+behind it, a gap someone should close — `brain_capture` it before you
+finish, so the next conversation starts from it instead of re-deriving it.
+
+- Capture findings, not transcripts. One to three specific sentences.
+- Skip anything the app already owns authoritatively (task state, booking
+  rows, document bodies — documents are mirrored into the brain already).
+- Skip chit-chat, and skip things you are not yet confident of.
+- File by what the page IS: `companies/<supplier>`, `people/<person>`,
+  `concepts/<equipment-place-or-topic>`. Other namespaces are silently
+  refiled under `concepts/` because the brain's graph doesn't index them.
+
+A long audit that answers a question and captures nothing has to be run
+again next month from scratch.

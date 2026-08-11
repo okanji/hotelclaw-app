@@ -31,10 +31,15 @@ export type DeliveryRow = {
   kind: "chat" | "job";
   job_headline: string | null;
   pending_approval: unknown;
+  /** Stream message id of the question this session is parked on (0098).
+   *  A reply in THAT message's thread routes back here — the answer path
+   *  for background jobs, whose `job:<uuid>` thread key no inbound message
+   *  can ever produce. */
+  question_message_id: string | null;
 };
 
 const ROW_COLUMNS =
-  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval";
+  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval, question_message_id";
 
 /** One entry of `pending_approval.requests` as stamped by the eve channel's
  *  `input.requested` handler. */
@@ -534,10 +539,33 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // No typing.stop: the web no longer sends typing.start — the client's
   // thinking row watches the DB turn claim instead (spans the whole turn).
 
+  // A turn that parks on a question produces NO message text — the question
+  // lives in the park payload. Append it below whatever text the turn did
+  // produce: the prod failure had the model post a "I have a few quick
+  // questions!" preamble and then lose the questions themselves.
+  const questions = pendingQuestions(row);
+  const isQuestionPark = questions.length > 0;
+
+  // Retire a previous question's anchor up front, so every exit path below
+  // (ui-only turn, empty turn, a send that throws) leaves a session that is
+  // no longer waiting with no route for stray replies to resume it.
+  if (!isQuestionPark && row.question_message_id) {
+    await updateSessionRow(row.id, { question_message_id: null });
+  }
+
   const rawText = (row.reply_candidate ?? "").trim();
+  // A parked job has NOT finished — labelling its question "✅ finished"
+  // (the old unconditional prefix) told the reader the work was done and
+  // buried the thing blocking it.
   const replyText =
-    rawText && row.kind === "job" && row.job_headline
-      ? `✅ **${row.job_headline}** — finished:\n\n${rawText}`
+    row.kind === "job" && row.job_headline
+      ? isQuestionPark
+        ? [`⏸️ **${row.job_headline}** — I need one thing from you:`, rawText]
+            .filter(Boolean)
+            .join("\n\n")
+        : rawText
+          ? `✅ **${row.job_headline}** — finished:\n\n${rawText}`
+          : rawText
       : rawText;
 
   // render_ui spec was validated + link-rewritten by the tool runtime-side;
@@ -549,12 +577,17 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
     if (validated.ok) attachments = [{ type: "ai_ui", spec: validated.spec }];
   }
 
-  // A turn that parks on a question produces NO message text — the question
-  // lives in the park payload. Append it below whatever text the turn did
-  // produce: the prod failure had the model post a "I have a few quick
-  // questions!" preamble and then lose the questions themselves.
-  const questions = pendingQuestions(row).map(renderQuestion);
-  const text = [replyText, ...questions].filter(Boolean).join("\n\n");
+  // A background job's question is answered by REPLYING IN ITS THREAD — the
+  // job's `job:<uuid>` thread key is synthetic, so the message's parent id is
+  // the only thing that can route an answer back to it (0098). Say so, or the
+  // reader answers at top level and the job waits forever.
+  const threadHint =
+    isQuestionPark && row.kind === "job"
+      ? "_Reply in this thread to answer — the job is paused until you do._"
+      : "";
+  const text = [replyText, ...questions.map(renderQuestion), threadHint]
+    .filter(Boolean)
+    .join("\n\n");
 
   // Activity feed (0096) travels WITH the reply as a custom field, so the
   // record of what the bot did outlives the transient thinking row and can be
@@ -641,6 +674,12 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
       console.error("[channel-delivery] sendMessage failed", { chunk: i }, err);
       if (isRoot) return;
     }
+  }
+
+  // Anchor the question to the message it was posted as, so a reply in that
+  // thread routes back to THIS session (0098).
+  if (isQuestionPark && rootMessageId) {
+    await updateSessionRow(row.id, { question_message_id: rootMessageId });
   }
 }
 
@@ -740,7 +779,10 @@ export async function drainQueueOrIdle(
   continuationToken: string | null,
 ): Promise<void> {
   if (row.kind === "job") {
-    // Jobs are one-shot: delivered → done. No queue, no follow-up turns.
+    // Jobs have no message queue — nothing routes to them by thread key. They
+    // park either FINISHED or ON A QUESTION; both release the turn slot, and a
+    // question park stays resumable through its `question_message_id` anchor
+    // (the continuation token was stored by the caller just above).
     await updateSessionRow(row.id, { turn_state: "idle" });
     return;
   }

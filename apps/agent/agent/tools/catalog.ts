@@ -7,6 +7,7 @@ import {
   brainToolSchemas,
   normalizeListPages,
   operatorReviewPage,
+  resolveCaptureSlug,
 } from "@hotelclaw/brain";
 import { serviceClient } from "../lib/supabase";
 import { resolveSessionAgent } from "../lib/agent-config";
@@ -730,7 +731,7 @@ export default defineDynamic({
       if (grants.has("update_document")) {
         tools.update_document = defineTool({
           description:
-            "Write CONTENT into an existing document — replace the whole body or append sections, and optionally rename it. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. Pass new_title to also set the record's title in the same call (e.g. an 'Untitled' doc you're filling with a titled SOP — set new_title to the SOP's name). This REPLACES/extends the body — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
+            "Write CONTENT into an existing document — replace the whole body or append sections, and optionally rename it. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. Pass new_title to also set the record's title in the same call (e.g. an 'Untitled' doc you're filling with a titled SOP — set new_title to the SOP's name); if you don't, a doc still called 'Untitled' is auto-titled from its own heading and the result tells you what it became, so say so in your reply. This REPLACES/extends the body — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
           inputSchema: z.object({
             document_id: z.string().uuid(),
             content_html: z.string().min(10).max(100_000),
@@ -749,12 +750,56 @@ export default defineDynamic({
             const supabase = serviceClient();
             const { data: docRow } = await supabase
               .from("documents")
-              .select("title")
+              .select("title, body_text")
               .eq("id", document_id)
               .eq("property_id", propertyId)
               .maybeSingle();
             if (!docRow) return { error: "Document not found in this property." };
-            const cardTitle = new_title ?? docRow.title;
+
+            // AUTO-TITLE. A doc whose RECORD title is still "Untitled
+            // document" while its body opens with a real heading reads as
+            // untitled everywhere it matters — lists, search, artifact cards,
+            // the brain mirror. The persona has told the model to fix this
+            // since 2026-07-25 and it still ships untitled docs (observed
+            // 2026-08-11: a background job wrote a full walk-in-freezer SOP
+            // into a doc that is STILL called "Untitled document"). A rule the
+            // model has to remember is a rule that gets dropped under load, so
+            // derive it here instead: replace mode reads the heading out of
+            // the body being written, append mode out of the body already
+            // there. An explicit new_title always wins.
+            let resolvedTitle = new_title;
+            if (!resolvedTitle && /^untitled\b/i.test((docRow.title ?? "").trim())) {
+              const markup = mode === "append" ? "" : content_html;
+              const tagged =
+                /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(markup)?.[1] ??
+                /<h2[^>]*>([\s\S]*?)<\/h2>/i.exec(markup)?.[1] ??
+                null;
+              // body_text is already plain text, so its first non-empty line
+              // IS the rendered heading. Length-capped: a doc that opens on a
+              // paragraph rather than a heading must not be titled with it.
+              const plain =
+                tagged === null
+                  ? ((docRow.body_text ?? "")
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .find((line) => line.length >= 3 && line.length <= 120) ?? null)
+                  : null;
+              const candidate = (tagged ?? plain ?? "")
+                .replace(/<[^>]+>/g, "")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .replace(/&#39;|&apos;/g, "'")
+                .replace(/&quot;/g, '"')
+                .replace(/&nbsp;/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+              if (candidate.length >= 3 && candidate.length <= 200) {
+                resolvedTitle = candidate;
+              }
+            }
+            const autoTitled = !new_title && !!resolvedTitle;
+            const cardTitle = resolvedTitle ?? docRow.title;
 
             const cardId = `eve-artifact-${toolCtx.callId}`;
             const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
@@ -810,7 +855,7 @@ export default defineDynamic({
                   documentId: document_id,
                   html: content_html,
                   mode,
-                  ...(new_title ? { title: new_title } : {}),
+                  ...(resolvedTitle ? { title: resolvedTitle } : {}),
                   ...(userId ? { actorUserId: userId } : {}),
                 }),
                 signal: AbortSignal.timeout(55_000),
@@ -865,6 +910,11 @@ export default defineDynamic({
               characters: body.bodyTextLength,
               title: body.title,
               link: body.url,
+              // Surfaced so the reply can mention it — a silent rename is a
+              // change the requester never gets told about.
+              ...(autoTitled
+                ? { auto_titled_from: docRow.title, auto_titled_to: resolvedTitle }
+                : {}),
             };
           },
         });
@@ -1490,7 +1540,7 @@ export default defineDynamic({
       if (grants.has("start_background_job") && sessionChannelId) {
         tools.start_background_job = defineTool({
           description:
-            "Start a DETACHED background job for heavy, long-running work (audits, reports, bulk analysis, anything needing many steps or minutes of work) and reply to the requester immediately. The job runs in its own session with the same capabilities and posts its results to this channel when done, prefixed with your headline. After calling this, tell the requester the job is running and results will be posted here. Do NOT use it for quick lookups you can answer in this turn.",
+            "Start a DETACHED background job for heavy, long-running work (audits, reports, bulk analysis, anything needing many steps or minutes of work) and reply to the requester immediately. The job runs in its own session with the same capabilities and posts its results to this channel when done, prefixed with your headline. After calling this, tell the requester the job is running and results will be posted here. Do NOT use it for quick lookups you can answer in this turn. The job CAN pause and ask the requester a question mid-run (ask_question) — but every question stalls it until someone answers, so settle the decisions you can foresee in THIS conversation before starting it, and put the answers in the brief.",
           inputSchema: z.object({
             headline: z
               .string()
@@ -1502,7 +1552,7 @@ export default defineDynamic({
               .min(20)
               .max(4000)
               .describe(
-                "Self-contained task brief: goal, scope, what the final answer must contain. The job cannot ask follow-up questions.",
+                "Self-contained task brief: goal, scope, what the final answer must contain, and every decision already settled with the requester (so the job doesn't have to stop and re-ask).",
               ),
           }),
           async execute({ headline, brief }, toolCtx) {
@@ -1533,7 +1583,14 @@ export default defineDynamic({
             const jobNonce = crypto.randomUUID();
             const jobMessage = [
               `[turn ${jobNonce} — internal marker, ignore]`,
-              `[Background job — you are running DETACHED. Work autonomously to completion; nobody can answer follow-up questions. Never call start_background_job. Deliver ONE final answer — it will be posted to the team channel under the headline "${headline}". Keep it tight and scannable (aim under 4000 characters): lead with findings, use short sections, cut process narration.]`,
+              `[Background job — you are running DETACHED in your own session. Work autonomously; never call start_background_job. Deliver ONE final answer — it will be posted to the team channel under the headline "${headline}". Keep it tight and scannable (aim under 4000 characters): lead with findings, use short sections, cut process narration.]`,
+              // The TO-CONFIRM incident (2026-08-11): the old brief said
+              // "nobody can answer follow-up questions", so a job that hit an
+              // unknown had only two moves — invent a fact or leave a
+              // placeholder in the deliverable. It left three in an SOP. Jobs
+              // can park and ask now (0098 routes the answer back through the
+              // question's thread), so the placeholder move is banned outright.
+              `[You CAN ask the requester a question: call ask_question and you will park until they answer in the channel — the pause is durable, so take it rather than guessing. Use it sparingly and BATCH: one ask_question carrying every open question beats five pauses. NEVER write a placeholder into a deliverable — no "TO CONFIRM", no "TBD", no bracketed blanks. If a fact is missing: ask for it when the work genuinely cannot proceed without it; otherwise write the parts you can, leave the unknown OUT of the document, and create a task naming the person who owes the answer. A document with a hole in it is worse than a shorter document, because it ships looking finished.]`,
               brief,
             ].join("\n\n");
 
@@ -1551,7 +1608,7 @@ export default defineDynamic({
 
             const { data: chatRow } = await supabase
               .from("channel_bot_sessions")
-              .select("channel_type")
+              .select("channel_type, runtime_tag")
               .eq("channel_id", sessionChannelId)
               .eq("thread_key", "_root")
               .maybeSingle();
@@ -1566,6 +1623,12 @@ export default defineDynamic({
                 kind: "job",
                 job_headline: headline,
                 eve_session_id: createdBody.sessionId,
+                // Inherit the parent conversation's build tag: this job runs on
+                // the same runtime build, and the tag is what lets an ANSWER to
+                // a parked question decide whether the session is still
+                // resumable. Without it every job row looked stale and no job
+                // question could ever be answered.
+                runtime_tag: chatRow?.runtime_tag ?? null,
                 turn_nonce: jobNonce,
                 turn_state: "running",
                 turn_started_at: new Date().toISOString(),
@@ -2868,7 +2931,13 @@ export default defineDynamic({
           tools.brain_capture = defineTool({
             description: brainToolDescriptions.brain_capture,
             inputSchema: brainToolSchemas.brain_capture,
-            async execute({ slug, page_title, observation, source }) {
+            async execute({ slug: requestedSlug, page_title, observation, source }) {
+              // Same namespace enforcement as the channel bot's capture
+              // (tools/channel-brain.ts) — keep the two in sync.
+              const slugCheck = resolveCaptureSlug(requestedSlug);
+              if (!slugCheck.ok) return { captured: false, reason: slugCheck.reason };
+              const slug = slugCheck.slug;
+
               const existing = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
                 slug,
               });
@@ -2886,9 +2955,16 @@ export default defineDynamic({
                 summary: observation,
                 source,
               });
-              return entry.ok
-                ? { captured: true, slug }
-                : { captured: false, reason: entry.reason };
+              if (!entry.ok) return { captured: false, reason: entry.reason };
+              return {
+                captured: true,
+                slug,
+                ...(slugCheck.coercedFrom
+                  ? {
+                      note: `Filed under '${slug}' — '${slugCheck.coercedFrom}' is not a namespace the brain's knowledge graph indexes.`,
+                    }
+                  : {}),
+              };
             },
           });
         }
