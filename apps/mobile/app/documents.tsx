@@ -59,7 +59,8 @@ export default function DocumentsScreen() {
             renderItem={({ item }) => (
               <Row
                 onPress={() =>
-                  router.push({
+                  // navigate (not push) so a double-tap can't stack the screen
+                  router.navigate({
                     pathname: "/document/[documentId]",
                     params: { documentId: item.id },
                   })

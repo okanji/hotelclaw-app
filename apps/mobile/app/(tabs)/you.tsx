@@ -50,7 +50,7 @@ export default function YouTab() {
                 chat/tasks/calendar are checked constantly. */}
             <Pressable
               style={styles.linkRow}
-              onPress={() => router.push("/documents")}
+              onPress={() => router.navigate("/documents")}
             >
               <Text style={styles.linkText}>📄  Documents</Text>
               <Text style={styles.chevron}>›</Text>

@@ -59,7 +59,7 @@ export function ArtifactCard({
   return canOpen ? (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-      onPress={() => router.push(`/document/${documentId}`)}
+      onPress={() => router.navigate(`/document/${documentId}`)}
     >
       {body}
     </Pressable>

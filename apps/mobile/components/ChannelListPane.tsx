@@ -137,7 +137,10 @@ export function ChannelListPane({ kind }: { kind: "team" | "messaging" }) {
       onAddedToChannel={admitChannel}
       onSelect={(channel) => {
         setChannel(channel);
-        router.push({
+        // `navigate`, not `push`: the channel screen takes a beat to load, so
+        // a double-tap on a slow row would stack the screen twice and Back
+        // would have to be pressed twice. navigate dedupes same-route+params.
+        router.navigate({
           pathname: "/channel/[cid]",
           params: { cid: channel.cid },
         });

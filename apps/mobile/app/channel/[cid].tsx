@@ -160,7 +160,8 @@ export default function ChannelScreen() {
           }}
           onThreadSelect={(message) => {
             setThread(message);
-            router.push({
+            // navigate (not push) so a double-tap can't stack the screen
+            router.navigate({
               pathname: "/channel/[cid]/thread/[messageId]",
               params: { cid: channel.cid, messageId: message?.id ?? "" },
             });

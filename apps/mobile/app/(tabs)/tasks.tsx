@@ -186,7 +186,8 @@ export default function TasksTab() {
             <TaskRow
               task={item}
               onPress={() =>
-                router.push({
+                // navigate (not push) so a double-tap can't stack the screen
+                router.navigate({
                   pathname: "/task/[taskId]",
                   params: { taskId: item.id },
                 })

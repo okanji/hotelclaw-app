@@ -104,7 +104,7 @@ function DataTableView({
               styles.tableBodyRow,
               pressed && styles.pressed,
             ]}
-            onPress={() => router.push(route)}
+            onPress={() => router.navigate(route)}
           >
             {cells}
           </Pressable>
@@ -196,7 +196,7 @@ function CardView({
   return route ? (
     <Pressable
       style={({ pressed }) => [styles.block, styles.card, pressed && styles.pressed]}
-      onPress={() => router.push(route)}
+      onPress={() => router.navigate(route)}
     >
       {body}
     </Pressable>
