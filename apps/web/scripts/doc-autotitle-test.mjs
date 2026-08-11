@@ -115,8 +115,26 @@ async function main() {
       ok("record title set (model supplied it)", JSON.stringify(final.title));
     }
   } finally {
+    // Deleting the row is NOT enough: every active document is mirrored into
+    // the brain as `documents/<id>` (lib/brain/doc-sync.ts), and only the
+    // ARCHIVE path calls delete_page. A hard delete leaves an orphan brain
+    // page pointing at a document that no longer exists — this test left two
+    // before the cleanup was fixed. Drop the mirror first, then the row.
+    try {
+      const { resolvePropertyBrain, callBrainTool } = await import(
+        "../lib/brain/client.ts"
+      );
+      const binding = await resolvePropertyBrain(propertyId);
+      if (binding) {
+        await callBrainTool(binding, "delete_page", {
+          slug: `documents/${doc.id}`,
+        });
+      }
+    } catch {
+      // Best-effort: a stranded mirror page is untidy, not harmful.
+    }
     await sb.from("documents").delete().eq("id", doc.id);
-    console.log("\n(stub doc cleaned up)");
+    console.log("\n(stub doc + brain mirror cleaned up)");
   }
 }
 

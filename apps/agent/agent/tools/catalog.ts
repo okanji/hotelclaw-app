@@ -1540,7 +1540,7 @@ export default defineDynamic({
       if (grants.has("start_background_job") && sessionChannelId) {
         tools.start_background_job = defineTool({
           description:
-            "Start a DETACHED background job for heavy, long-running work (audits, reports, bulk analysis, anything needing many steps or minutes of work) and reply to the requester immediately. The job runs in its own session with the same capabilities and posts its results to this channel when done, prefixed with your headline. After calling this, tell the requester the job is running and results will be posted here. Do NOT use it for quick lookups you can answer in this turn. The job CAN pause and ask the requester a question mid-run (ask_question) — but every question stalls it until someone answers, so settle the decisions you can foresee in THIS conversation before starting it, and put the answers in the brief.",
+            "Start a DETACHED background job for heavy, long-running work (audits, reports, bulk analysis, anything needing many steps or minutes of work) and reply to the requester immediately. The job runs in its own session with the same capabilities and posts its results to this channel when done, prefixed with your headline. After calling this, tell the requester the job is running and results will be posted here. Do NOT use it for quick lookups you can answer in this turn. Start it when asked — do NOT interview the requester first; choose sensible defaults for scope, window, depth and output, put them in the brief, and state them in your ack so they can correct you while it runs. The job CAN also pause and ask mid-run (ask_question) if something genuinely blocks it.",
           inputSchema: z.object({
             headline: z
               .string()
