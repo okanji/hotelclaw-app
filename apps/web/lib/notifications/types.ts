@@ -69,6 +69,15 @@ export type MentionPayload = {
   preview: string;
 };
 
+/** @-mention inside a task's comment thread (Liveblocks Comments). */
+export type TaskCommentMentionPayload = {
+  taskId: string;
+  taskTitle: string | null;
+  byUserId: string;
+  byUserName: string | null;
+  preview: string;
+};
+
 export type BriefingPayload = {
   periodStart: string;
   periodEnd: string;

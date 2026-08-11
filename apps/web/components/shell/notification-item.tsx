@@ -22,6 +22,7 @@ import type {
   InviteAccessRequestedPayload,
   MeetingSummaryPayload,
   MentionPayload,
+  TaskCommentMentionPayload,
   NotificationRow,
   ProjectAtRiskPayload,
   TaskAssignedPayload,
@@ -331,6 +332,31 @@ export function notificationView(
         preview: p.preview ?? "mentioned you",
         actor: byName,
         channel: p.channelName ? `#${p.channelName}` : null,
+      };
+    }
+    case "task_comment_mention": {
+      const p = n.payload as Partial<TaskCommentMentionPayload>;
+      const byName = p.byUserName ?? "Someone";
+      return {
+        icon: <MessageSquareText className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">{byName}</strong> mentioned you
+            in a comment
+            {p.taskTitle ? (
+              <>
+                {" "}
+                on <strong className="font-semibold">{p.taskTitle}</strong>
+              </>
+            ) : null}
+          </>
+        ),
+        sub: p.preview ?? null,
+        href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
+        kicker: "Mention on a task",
+        preview: p.preview ?? "mentioned you in a comment",
+        actor: byName,
+        channel: null,
       };
     }
     case "meeting_summary": {

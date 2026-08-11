@@ -22,6 +22,7 @@ import { WorkflowsSection } from "./sections/workflows-section";
 import { ChatbotsSection } from "./sections/chatbots-section";
 import { AgentsSection } from "./sections/agents-section";
 import { BookingsSection } from "./sections/bookings-section";
+import { FormsSection } from "./sections/forms-section";
 import type { Membership } from "@/lib/auth/session";
 
 type Props = {
@@ -119,6 +120,11 @@ export function SectionSidebar({
         </SectionPane>
         <SectionPane active={section === "docs"}>
           <DocumentsTreeSection propertyId={currentPropertyId} />
+        </SectionPane>
+        <SectionPane active={section === "forms"}>
+          <Suspense fallback={null}>
+            <FormsSection propertyId={currentPropertyId} />
+          </Suspense>
         </SectionPane>
         <SectionPane active={section === "workflows"}>
           <Suspense fallback={null}>

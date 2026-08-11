@@ -13,7 +13,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import {
+  FIELD_TYPE_LABEL,
+  isChoiceField,
+  optionsToText,
+  parseOptionsInput,
+} from "@/lib/tasks/custom-field-options";
+import { OptionChip } from "./custom-field-chip";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   customFieldsQueryOptions,
@@ -139,8 +147,8 @@ function FieldManagerRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(field.name);
-  const [optionsText, setOptionsText] = useState(
-    field.options.map((o) => o.label).join(", "),
+  const [optionsText, setOptionsText] = useState(() =>
+    optionsToText(field.options),
   );
   const [editingOptions, setEditingOptions] = useState(false);
 
@@ -161,26 +169,14 @@ function FieldManagerRow({
 
   function commitOptions() {
     setEditingOptions(false);
-    const labels = optionsText
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (labels.length === 0) {
-      setOptionsText(field.options.map((o) => o.label).join(", "));
+    // Existing option ids and colours survive an edit — `parseOptionsInput`
+    // matches by label, so stored task values never break on a re-order or a
+    // one-word addition.
+    const next = parseOptionsInput(optionsText, field.options);
+    if (next.length === 0) {
+      setOptionsText(optionsToText(field.options));
       return;
     }
-    // Keep existing option ids for unchanged labels so stored values survive;
-    // new labels get fresh slug ids.
-    const byLabel = new Map(field.options.map((o) => [o.label.toLowerCase(), o]));
-    const next = labels.map((label) => {
-      const existing = byLabel.get(label.toLowerCase());
-      return (
-        existing ?? {
-          id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60),
-          label,
-        }
-      );
-    });
     startTransition(async () => {
       const res = await updateCustomField({ fieldId: field.id, options: next });
       if ("error" in res) toast.error(res.error);
@@ -212,8 +208,8 @@ function FieldManagerRow({
           disabled={pending}
           className="h-7 flex-1 border-transparent px-1.5 text-sm font-medium shadow-none focus-visible:border-border"
         />
-        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs capitalize text-faint-foreground">
-          {field.type}
+        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-faint-foreground">
+          {FIELD_TYPE_LABEL[field.type]}
         </span>
         <span className="shrink-0 text-xs text-faint-foreground">
           {scopeLabel}
@@ -234,26 +230,35 @@ function FieldManagerRow({
           <Archive className="size-3.5" />
         </Button>
       </div>
-      {field.type === "select" ? (
+      {isChoiceField(field.type) ? (
         editingOptions ? (
-          <Input
+          // A textarea, not an input: options are one-per-line so a column
+          // pasted from a spreadsheet lands correctly. Enter therefore adds an
+          // option rather than committing — Escape/blur commits.
+          <Textarea
             autoFocus
             value={optionsText}
             onChange={(e) => setOptionsText(e.target.value)}
             onBlur={commitOptions}
             onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") e.currentTarget.blur();
             }}
             disabled={pending}
-            className="h-7 text-xs"
+            rows={Math.min(8, Math.max(3, field.options.length))}
+            className="text-xs"
           />
         ) : (
           <button
             type="button"
             onClick={() => setEditingOptions(true)}
-            className="w-fit text-left text-xs text-muted-foreground hover:text-foreground"
+            aria-label={`Edit options for ${field.name}`}
+            className="flex w-fit flex-wrap items-center gap-1 rounded-md text-left"
           >
-            {field.options.map((o) => o.label).join(" · ") || "No options"}
+            {field.options.length === 0 ? (
+              <span className="text-xs text-muted-foreground">No options</span>
+            ) : (
+              field.options.map((o) => <OptionChip key={o.id} option={o} />)
+            )}
           </button>
         )
       ) : null}

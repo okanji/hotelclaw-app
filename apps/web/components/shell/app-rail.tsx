@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   CalendarDays,
+  ClipboardList,
   FileText,
   Home,
   LineChart,
@@ -92,6 +93,7 @@ const railFooterButtonClass =
  */
 const MORE_SECTIONS = new Set<ShellSection>([
   "dms",
+  "forms",
   "workflows",
   "chatbots",
   "agents",
@@ -100,11 +102,28 @@ const MORE_SECTIONS = new Set<ShellSection>([
 ]);
 const MORE_DESCRIPTIONS: Partial<Record<ShellSection, string>> = {
   dms: "Direct messages",
+  forms: "Build forms, collect responses",
   workflows: "Automate tasks and triggers",
   chatbots: "Build guest-facing assistants",
   agents: "Internal AI agents — build, inspect, chat",
   bookings: "Reservations and availability",
   meetings: "Video calls and recordings",
+};
+/**
+ * ClickUp-style app-grid tiles in the More panel: each section gets a small
+ * colored icon plate from the brand tint palette (the same lavender / blue /
+ * sage / coral / honey ramp the cover cards use — never raw hex). Order in
+ * the grid is `items` order (dms, forms, workflows / chatbots, agents,
+ * bookings / meetings), so repeated hues are kept non-adjacent.
+ */
+const MORE_TINTS: Partial<Record<ShellSection, string>> = {
+  dms: "bg-tint-blue text-tint-blue-ink",
+  forms: "bg-tint-honey text-tint-honey-ink",
+  workflows: "bg-tint-lavender text-tint-lavender-ink",
+  chatbots: "bg-tint-sage text-tint-sage-ink",
+  agents: "bg-tint-coral text-tint-coral-ink",
+  bookings: "bg-tint-honey text-tint-honey-ink",
+  meetings: "bg-tint-blue text-tint-blue-ink",
 };
 type RailItem = {
   section: ShellSection;
@@ -313,6 +332,13 @@ export function AppRail({
         icon: FileText,
         href: `/p/${propertyId}/documents`,
         routeKey: "/documents",
+      },
+      {
+        section: "forms",
+        label: "Forms",
+        icon: ClipboardList,
+        href: `/p/${propertyId}/forms`,
+        routeKey: "/forms",
       },
       {
         section: "workflows",
@@ -616,51 +642,64 @@ export function AppRail({
                     side="right"
                     align="end"
                     sideOffset={8}
-                    className="w-60"
+                    // ClickUp-style app grid, Notion-dressed: the panel stays
+                    // popover tier (10px radius, shadow-popover ring — from
+                    // the primitive), the tiles sit on a 3-up grid.
+                    className="w-64 p-1.5"
                   >
-                    {/* Section label: 12px/12px weight 500 faint, sentence
-                        case, no tracking (notion-spec §3). */}
-                    <p className="px-1.5 pt-1 pb-1.5 text-xs leading-3 font-medium text-faint-foreground">
-                      More
-                    </p>
-                    {moreItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = section === item.section;
-                      // A single count per row, rendered as a quiet tabular
-                      // number at the right edge — no colored pill, no plate.
-                      const count =
-                        item.section === "workflows"
-                          ? failingWorkflows
-                          : item.section === "bookings"
-                            ? pendingBookings
-                            : item.section === "agents"
-                              ? pendingApprovals
-                              : 0;
-                      return (
-                        <DropdownMenuItem
-                          key={item.section}
-                          onClick={() => handleClick(item)}
-                          aria-current={isActive ? "page" : undefined}
-                          // The description is a hover hint now: Notion menu
-                          // rows are one line of 14px text, never a stack.
-                          title={MORE_DESCRIPTIONS[item.section]}
-                          className={cn(isActive && "bg-accent")}
-                        >
-                          <Icon
-                            strokeWidth={1.75}
-                            className="text-faint-foreground"
-                          />
-                          <span className="min-w-0 flex-1 truncate">
-                            {item.label}
-                          </span>
-                          {count > 0 ? (
-                            <span className="ml-auto shrink-0 text-xs font-medium text-warning tabular-nums">
-                              {count}
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {moreItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = section === item.section;
+                        const count =
+                          item.section === "workflows"
+                            ? failingWorkflows
+                            : item.section === "bookings"
+                              ? pendingBookings
+                              : item.section === "agents"
+                                ? pendingApprovals
+                                : 0;
+                        return (
+                          <DropdownMenuItem
+                            key={item.section}
+                            onClick={() => handleClick(item)}
+                            aria-current={isActive ? "page" : undefined}
+                            title={MORE_DESCRIPTIONS[item.section]}
+                            // Stacked tile: icon plate + label. Highlight is
+                            // the same warm fill menu rows use — no border,
+                            // no shadow lift.
+                            className={cn(
+                              "flex-col gap-1.5 px-1 pt-2.5 pb-2",
+                              isActive && "bg-accent",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "relative flex size-9 items-center justify-center rounded-md",
+                                MORE_TINTS[item.section] ??
+                                  "bg-accent text-secondary-foreground",
+                              )}
+                            >
+                              <Icon
+                                className="size-[18px]"
+                                strokeWidth={1.75}
+                              />
+                              {count > 0 ? (
+                                // Amber cutout badge on the plate corner —
+                                // same treatment as the rail icons, ringed
+                                // with the popover surface.
+                                <span className="absolute -top-1.5 -right-1.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] leading-none font-medium text-white tabular-nums ring-2 ring-popover dark:text-background">
+                                  {count > 9 ? "9+" : count}
+                                </span>
+                              ) : null}
                             </span>
-                          ) : null}
-                        </DropdownMenuItem>
-                      );
-                    })}
+                            <span className="w-full truncate text-center text-xs leading-none font-medium">
+                              {item.label}
+                            </span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </li>

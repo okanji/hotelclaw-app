@@ -16,6 +16,7 @@ import {
   Sparkles,
   SquareCheck,
   Tag,
+  Tags,
   Type,
   User,
   X,
@@ -50,6 +51,7 @@ import {
   customFieldsQueryOptions,
   type CustomFieldRow,
 } from "@/lib/query/custom-field-queries";
+import { isChoiceField, optionColor } from "@/lib/tasks/custom-field-options";
 import type {
   CustomFieldType,
   EntityColor,
@@ -279,10 +281,14 @@ function taskDueBuckets(task: Task, now: number): DueBucket[] {
 
 /**
  * Custom-field values for the whole board, normalized to comparable strings:
- * task id → field id → value. Absence of a key IS the "empty" signal, so no
+ * task id → field id → values. Absence of a key IS the "empty" signal, so no
  * field definitions are needed at match time.
+ *
+ * Always an ARRAY, even for single-valued fields — a `multi_select` (label)
+ * field holds several option ids at once, and matching "has any of these"
+ * uniformly beats branching on the field type at match time.
  */
-export type FieldValueIndex = Map<string, Map<string, string>>;
+export type FieldValueIndex = Map<string, Map<string, string[]>>;
 
 /**
  * AND across facets, OR within a facet. `currentUserId` is unused here — "Me"
@@ -337,11 +343,11 @@ export function matchesFacets(
   }
   for (const [fieldId, selected] of Object.entries(filters.fieldValues)) {
     if (selected.length === 0) continue;
-    const value = fieldIndex?.get(task.id)?.get(fieldId);
+    const values = fieldIndex?.get(task.id)?.get(fieldId);
     const ok = selected.some((v) => {
-      if (v === FIELD_EMPTY) return value === undefined;
-      if (v === FIELD_SET) return value !== undefined;
-      return value === v;
+      if (v === FIELD_EMPTY) return values === undefined;
+      if (v === FIELD_SET) return values !== undefined;
+      return values?.includes(v) ?? false;
     });
     if (!ok) return false;
   }
@@ -359,7 +365,13 @@ export function buildFieldValueIndex(
       perTask = new Map();
       index.set(row.task_id, perTask);
     }
-    perTask.set(row.field_id, String(row.value));
+    // Label fields arrive as an array of option ids; everything else is a
+    // scalar that becomes a one-element array. An empty array means the value
+    // was cleared, which reads as absent.
+    const values = Array.isArray(row.value)
+      ? row.value.map((v) => String(v))
+      : [String(row.value)];
+    if (values.length > 0) perTask.set(row.field_id, values);
   }
   return index;
 }
@@ -407,6 +419,7 @@ const FIELD_TYPE_ICON: Record<CustomFieldType, typeof User> = {
   text: Type,
   number: Hash,
   select: ListFilter,
+  multi_select: Tags,
   date: CalendarDays,
   checkbox: SquareCheck,
 };
@@ -553,13 +566,19 @@ function buildFieldOptions(facet: FacetKey, data: FacetData): Option[] {
     node: <span className="size-2 shrink-0 rounded-full border border-muted-foreground/40" />,
   };
 
-  if (field.type === "select") {
+  // Dropdown and label fields both filter on their own option list — a label
+  // field matches when the task carries ANY of the ticked options.
+  if (isChoiceField(field.type)) {
     return [
       ...field.options.map<Option>((o) => ({
         value: o.id,
         label: o.label,
         keywords: o.label,
-        node: glyph,
+        node: (
+          <span
+            className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[optionColor(o)])}
+          />
+        ),
       })),
       emptyOption,
     ];

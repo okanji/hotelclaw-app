@@ -183,6 +183,31 @@ const AddLabelStep = z.object({
   config: z.object({ task_id: TplString, label: TplString }),
 });
 
+const RemoveLabelStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.task.remove_label"),
+  config: z.object({ task_id: TplString, label: TplString }),
+});
+
+/**
+ * Write a custom field on a task — ClickUp's "Change Custom Field value"
+ * action, and the other half of the `task.field_changed` trigger we already
+ * had. `value` is a template string; the runner coerces it to the field's
+ * type (option label OR id for a dropdown, comma-separated for a label field,
+ * yes/no for a checkbox) so a workflow author never has to know option ids.
+ * An empty value clears the field.
+ */
+const SetTaskFieldStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.task.set_field"),
+  config: z.object({
+    task_id: TplString,
+    /** The custom field, by name (case-insensitive) or id. */
+    field: TplString,
+    value: z.string().optional(),
+  }),
+});
+
 const PostChatMessageStep = z.object({
   ...StepCommon,
   type: z.literal("action.chat.post_message"),
@@ -549,6 +574,8 @@ export const StepNode = z.discriminatedUnion("type", [
   UpdateTaskStep,
   AssignTaskStep,
   AddLabelStep,
+  RemoveLabelStep,
+  SetTaskFieldStep,
   PostChatMessageStep,
   PostThreadReplyStep,
   MentionUserStep,

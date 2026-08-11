@@ -9,18 +9,35 @@ import type { CustomFieldOption, Database } from "@/lib/db/types";
 // same policies as tasks. The task.field_changed workflow event is emitted
 // by the Postgres trigger, not here.
 
-const FieldTypes = ["text", "number", "select", "date", "checkbox"] as const;
+const FieldTypes = [
+  "text",
+  "number",
+  "select",
+  "multi_select",
+  "date",
+  "checkbox",
+] as const;
+
+/** Field types whose value is picked from `options`. */
+const CHOICE_TYPES = ["select", "multi_select"] as const;
+function isChoiceType(t: (typeof FieldTypes)[number]): boolean {
+  return (CHOICE_TYPES as readonly string[]).includes(t);
+}
+
+const ColorZ = z.enum(["slate", "blue", "green", "amber", "rose", "violet"]);
 
 const OptionZ = z.object({
   id: z.string().min(1).max(60),
   label: z.string().min(1).max(60),
+  color: ColorZ.optional(),
 });
 
 const CreateFieldSchema = z.object({
   propertyId: z.string().uuid(),
   name: z.string().min(1).max(60),
   type: z.enum(FieldTypes),
-  options: z.array(OptionZ).max(30).default([]),
+  // ClickUp caps dropdown/label fields at 500 options; same ceiling here.
+  options: z.array(OptionZ).max(500).default([]),
   spaceId: z.string().uuid().nullable().optional(),
 });
 
@@ -29,8 +46,13 @@ export async function createCustomField(
 ): Promise<{ id: string } | { error: string }> {
   const parsed = CreateFieldSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid input" };
-  if (parsed.data.type === "select" && parsed.data.options.length === 0) {
-    return { error: "A dropdown needs at least one option" };
+  if (isChoiceType(parsed.data.type) && parsed.data.options.length === 0) {
+    return {
+      error:
+        parsed.data.type === "multi_select"
+          ? "A label field needs at least one option"
+          : "A dropdown needs at least one option",
+    };
   }
 
   const supabase = await createClient();
@@ -72,7 +94,7 @@ export async function createCustomField(
 const UpdateFieldSchema = z.object({
   fieldId: z.string().uuid(),
   name: z.string().min(1).max(60).optional(),
-  options: z.array(OptionZ).max(30).optional(),
+  options: z.array(OptionZ).max(500).optional(),
   archived: z.boolean().optional(),
 });
 
@@ -105,8 +127,16 @@ const SetValueSchema = z.object({
   propertyId: z.string().uuid(),
   taskId: z.string().uuid(),
   fieldId: z.string().uuid(),
-  // null clears the value (deletes the row)
-  value: z.union([z.string().max(500), z.number(), z.boolean()]).nullable(),
+  // null clears the value (deletes the row). An array is a multi_select
+  // (label) value — the option ids that are ticked.
+  value: z
+    .union([
+      z.string().max(500),
+      z.number(),
+      z.boolean(),
+      z.array(z.string().max(60)).max(500),
+    ])
+    .nullable(),
 });
 
 export async function setTaskFieldValue(
@@ -139,7 +169,14 @@ export async function setTaskFieldValue(
   ]);
   if (!field || !task) return { error: "Not found" };
 
-  if (parsed.data.value === null) {
+  // An emptied label field is a cleared field — drop the row rather than
+  // storing `[]`, so "Empty" filters and the trigger's from/to stay honest.
+  const incoming =
+    Array.isArray(parsed.data.value) && parsed.data.value.length === 0
+      ? null
+      : parsed.data.value;
+
+  if (incoming === null) {
     const { error } = await supabase
       .from("task_field_values")
       .delete()
@@ -150,7 +187,8 @@ export async function setTaskFieldValue(
   }
 
   // Type-check the value against the field definition.
-  const v = parsed.data.value;
+  const options = field.options as CustomFieldOption[];
+  const v = incoming;
   const ok =
     (field.type === "text" && typeof v === "string") ||
     (field.type === "number" && typeof v === "number" && Number.isFinite(v)) ||
@@ -160,15 +198,27 @@ export async function setTaskFieldValue(
       /^\d{4}-\d{2}-\d{2}$/.test(v)) ||
     (field.type === "select" &&
       typeof v === "string" &&
-      (field.options as CustomFieldOption[]).some((o) => o.id === v));
+      options.some((o) => o.id === v)) ||
+    // Every ticked id must still exist on the definition — an option deleted
+    // from the field can't be re-applied to a task.
+    (field.type === "multi_select" &&
+      Array.isArray(v) &&
+      v.every((id) => options.some((o) => o.id === id)));
   if (!ok) return { error: "Value doesn't match the field type" };
+
+  // Store label ids in definition order and de-duplicated, so the stored
+  // array is canonical — the trigger's `is not distinct from` no-op check
+  // compares arrays element-wise, and a reordered array is not a change.
+  const stored = Array.isArray(v)
+    ? options.filter((o) => v.includes(o.id)).map((o) => o.id)
+    : v;
 
   const { error } = await supabase.from("task_field_values").upsert(
     {
       task_id: parsed.data.taskId,
       field_id: parsed.data.fieldId,
       property_id: parsed.data.propertyId,
-      value: v,
+      value: stored,
       updated_by: user.id,
     },
     { onConflict: "task_id,field_id" },

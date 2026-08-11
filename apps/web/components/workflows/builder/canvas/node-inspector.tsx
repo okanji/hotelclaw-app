@@ -16,12 +16,19 @@ import { AiStepTester } from "@/components/workflows/builder/ai-step-tester";
 import { TypedStepForm } from "./typed-step-form";
 import { DataContextPanel } from "@/components/workflows/builder/config/data-context-panel";
 import { LabelTriggerFilter } from "@/components/workflows/builder/config/label-trigger-filter";
+import { FieldTriggerFilter } from "@/components/workflows/builder/config/field-trigger-filter";
 import { ScheduleTriggerConfig } from "@/components/workflows/builder/config/schedule-trigger-config";
 import { ConditionBuilder } from "@/components/workflows/builder/config/condition-builder";
 import { explainTemplateValue } from "@/lib/workflows/explain-template";
 import {
   ADDED_LABELS_PATH,
   extractAddedLabelFilter,
+  extractFieldTriggerFilter,
+  mergeFieldTriggerFilter,
+  stripFieldTriggerFilter,
+  FIELD_NAME_PATH,
+  FIELD_TO_PATH,
+  type FieldTriggerSelection,
   explainTriggerFilter,
   mergeTriggerFilter,
   stripAddedLabelFilter,
@@ -210,6 +217,7 @@ function TriggerEditor({
     });
   }, [spec, builderData?.taskLabels]);
   const isLabelAdded = spec.trigger.event_type === "task.label_added";
+  const isFieldChanged = spec.trigger.event_type === "task.field_changed";
   const isScheduled =
     spec.trigger.event_type === "schedule.cron" ||
     spec.trigger.event_type === "schedule.at_time";
@@ -222,6 +230,14 @@ function TriggerEditor({
   const selectedLabels = useMemo(
     () => (isLabelAdded ? extractAddedLabelFilter(filterExpr) : []),
     [isLabelAdded, filterExpr],
+  );
+
+  const fieldSelection = useMemo(
+    () =>
+      isFieldChanged
+        ? extractFieldTriggerFilter(filterExpr)
+        : { fieldName: null, toValue: null },
+    [isFieldChanged, filterExpr],
   );
 
   const summary = useMemo(
@@ -250,7 +266,17 @@ function TriggerEditor({
     commitFilter(mergeTriggerFilter(labels, stripAddedLabelFilter(filterExpr)));
   }
 
+  function commitFieldSelection(next: FieldTriggerSelection) {
+    commitFilter(
+      mergeFieldTriggerFilter(next, stripFieldTriggerFilter(filterExpr)),
+    );
+  }
+
   function commitAdditional(expr: unknown | undefined) {
+    if (isFieldChanged) {
+      commitFilter(mergeFieldTriggerFilter(fieldSelection, expr));
+      return;
+    }
     commitFilter(mergeTriggerFilter(selectedLabels, expr));
   }
 
@@ -295,6 +321,14 @@ function TriggerEditor({
                 compact
               />
             ) : null,
+            fieldFilter: isFieldChanged ? (
+              <FieldTriggerFilter
+                propertyId={propertyId}
+                selection={fieldSelection}
+                onChange={commitFieldSelection}
+                compact
+              />
+            ) : null,
             scheduleConfig: isScheduled ? (
               <ScheduleTriggerConfig trigger={spec.trigger} onChange={commitSchedule} />
             ) : null,
@@ -307,15 +341,27 @@ function TriggerEditor({
               <div className="space-y-3">
                 <ConditionBuilder
                   variant="trigger"
-                  value={isLabelAdded ? stripAddedLabelFilter(filterExpr) : filterExpr}
+                  value={
+                    isLabelAdded
+                      ? stripAddedLabelFilter(filterExpr)
+                      : isFieldChanged
+                        ? stripFieldTriggerFilter(filterExpr)
+                        : filterExpr
+                  }
                   refs={refs}
                   onChange={(expr) => {
-                    if (isLabelAdded) commitAdditional(expr);
+                    if (isLabelAdded || isFieldChanged) commitAdditional(expr);
                     else commitFilter(expr);
                   }}
                   hidePreview
                   embedded
-                  excludePaths={isLabelAdded ? [ADDED_LABELS_PATH] : undefined}
+                  excludePaths={
+                    isLabelAdded
+                      ? [ADDED_LABELS_PATH]
+                      : isFieldChanged
+                        ? [FIELD_NAME_PATH, FIELD_TO_PATH]
+                        : undefined
+                  }
                 />
               </div>
             ) : null,

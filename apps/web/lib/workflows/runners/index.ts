@@ -6,6 +6,8 @@ import {
   updateTaskRunner,
   assignTaskRunner,
   addLabelRunner,
+  removeLabelRunner,
+  setTaskFieldRunner,
   queryTasksRunner,
 } from "./tasks";
 import {
@@ -63,6 +65,8 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   "action.task.update": updateTaskRunner as Runner,
   "action.task.assign": assignTaskRunner as Runner,
   "action.task.add_label": addLabelRunner as Runner,
+  "action.task.remove_label": removeLabelRunner as Runner,
+  "action.task.set_field": setTaskFieldRunner as Runner,
 
   // Chat
   "action.chat.post_message": postMessageRunner as Runner,

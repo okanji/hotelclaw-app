@@ -238,6 +238,48 @@ const actions: StepCatalogEntry[] = [
       return `Add label${c.label ? ` "${c.label}"` : ""}`;
     },
   },
+  {
+    id: "action.task.remove_label",
+    surface: "tasks",
+    category: "action",
+    label: "Remove label from task",
+    description:
+      "Removes a single label from a task. Removing a label that isn't there does nothing.",
+    examplePrompts: [
+      "remove the 'blocked' label",
+      "clear the follow-up tag once it's done",
+    ],
+    outputSchema: z.object({ task: z.record(z.string(), z.unknown()) }),
+    explain: (config) => {
+      const c = config as { label?: string };
+      return `Remove label${c.label ? ` "${c.label}"` : ""}`;
+    },
+  },
+  {
+    id: "action.task.set_field",
+    surface: "tasks",
+    category: "action",
+    label: "Set a custom field",
+    description:
+      "Writes a custom field on a task — the write half of the 'when a custom field changes' trigger. Name the field and the value; for a dropdown or label field you can give the option's label and it will be matched (label fields take a comma-separated list). Leave the value empty to clear the field.",
+    examplePrompts: [
+      "set Material status to LPO created",
+      "set the Department labels to Maintenance, Front desk",
+      "tick the Sign-off checkbox",
+      "clear the Cost field",
+    ],
+    outputSchema: z.object({
+      field_id: z.string(),
+      field_name: z.string(),
+      value: z.unknown(),
+    }),
+    explain: (config) => {
+      const c = config as { field?: string; value?: string };
+      if (!c.field) return "Set a custom field";
+      if (!c.value) return `Clear ${c.field}`;
+      return `Set ${c.field} to ${c.value}`;
+    },
+  },
 ];
 
 export const TASKS_TRIGGERS = triggers;

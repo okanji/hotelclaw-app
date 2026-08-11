@@ -27,6 +27,11 @@ const ANALYSER_MIN_DECIBELS = -100;
 const MAX_FREQUENCY_AMPLITUDE = 255;
 /** Stream's DEFAULT_AUDIO_TRANSCODER_CONFIG.sampleRate. */
 const MP3_SAMPLE_RATE = 16_000;
+/** Live bars shown in the recording strip. State carries only this tail —
+ *  the FULL history stays in a ref for the final waveform — so the 60ms
+ *  sampling tick copies a fixed 48 items instead of an ever-growing array
+ *  (a 5-minute recording would otherwise spread ~5k entries 16×/second). */
+const LIVE_WAVEFORM_BARS = 48;
 
 export type VoiceRecorderStatus = "idle" | "recording" | "processing";
 
@@ -166,7 +171,7 @@ export function useVoiceRecorder() {
         const normalized =
           rootMeanSquare(frequencyBins) / MAX_FREQUENCY_AMPLITUDE;
         amplitudesRef.current.push(normalized);
-        setAmplitudes([...amplitudesRef.current]);
+        setAmplitudes(amplitudesRef.current.slice(-LIVE_WAVEFORM_BARS));
         setElapsedMs(Date.now() - startedAtRef.current);
       }, AMPLITUDE_SAMPLING_MS);
 

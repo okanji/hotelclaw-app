@@ -20,6 +20,7 @@ export type ShellSection =
   | "tasks"
   | "calendar"
   | "docs"
+  | "forms"
   | "meetings"
   | "workflows"
   | "chatbots"
@@ -43,9 +44,9 @@ function sectionFromPath(pathname: string): ShellSection | null {
   // own.
   if (pathname.includes("/projects")) return "home";
   if (pathname.includes("/spaces")) return "home";
-  // Forms are authored artifacts — they live in the Documents section
-  // sidebar, so form routes light up the Docs rail.
-  if (pathname.includes("/forms")) return "docs";
+  // Forms is a first-class rail section (in More); the Documents sidebar
+  // keeps a convenience group pointing at the same routes.
+  if (pathname.includes("/forms")) return "forms";
   if (pathname.includes("/bookings")) return "bookings";
   if (pathname.includes("/activity")) return "activity";
   // Before the /chat check — "/chatbots" contains "/chat" as a substring.
@@ -100,6 +101,7 @@ const ALL_SECTIONS: ShellSection[] = [
   "tasks",
   "calendar",
   "docs",
+  "forms",
   "meetings",
   "workflows",
   "chatbots",

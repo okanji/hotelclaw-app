@@ -79,6 +79,112 @@ export function mergeTriggerFilter(
   });
 }
 
+/* ── task.field_changed: which field, and which value ────────────────────── */
+
+/**
+ * The custom-field equivalent of the label picker above. `task.field_changed`
+ * fires for EVERY field on every task, so a workflow almost always wants to
+ * narrow it to one field ("Material status") and usually to one landing value
+ * ("becomes LPO created") — which is exactly the shape ClickUp's "Custom Field
+ * changes" trigger takes.
+ *
+ * Both clauses are ordinary conditions on the trigger payload, so the runtime
+ * evaluator needs no special case: this is just a friendlier way to author
+ * what the generic condition builder could already express.
+ */
+export const FIELD_NAME_PATH = "trigger.field_name";
+export const FIELD_TO_PATH = "trigger.to";
+
+export type FieldTriggerSelection = {
+  /** Field NAME (the payload carries the name, so filters stay readable). */
+  fieldName: string | null;
+  /** Option label / value the field must land on; null = any change. */
+  toValue: string | null;
+};
+
+/**
+ * Deliberately a plain boolean rather than a type predicate: two predicate
+ * calls on the same node in one expression narrow `CondNode` down to `never`
+ * on the second, which TypeScript then refuses to read `.value` off.
+ */
+function isFieldClause(c: CondNode, path: string): boolean {
+  return c.kind === "clause" && c.path === path && c.op === "==";
+}
+
+export function extractFieldTriggerFilter(expr: unknown): FieldTriggerSelection {
+  const model = parseCondition(expr);
+  if (!model) return { fieldName: null, toValue: null };
+  let fieldName: string | null = null;
+  let toValue: string | null = null;
+  for (const c of model.clauses) {
+    if (c.kind !== "clause" || c.op !== "==") continue;
+    if (c.path === FIELD_NAME_PATH) fieldName = c.value || null;
+    else if (c.path === FIELD_TO_PATH) toValue = c.value || null;
+  }
+  return { fieldName, toValue };
+}
+
+/** Filter with the field clauses removed — for the generic condition builder. */
+export function stripFieldTriggerFilter(expr: unknown): unknown | undefined {
+  const model = parseCondition(expr);
+  if (!model) return expr === undefined ? undefined : expr;
+  const rest = model.clauses.filter(
+    (c) =>
+      !isFieldClause(c, FIELD_NAME_PATH) && !isFieldClause(c, FIELD_TO_PATH),
+  );
+  if (rest.length === model.clauses.length) return serializeCondition(model);
+  return serializeCondition({ ...model, clauses: rest });
+}
+
+export function buildFieldTriggerFilterExpr(
+  selection: FieldTriggerSelection,
+): unknown | undefined {
+  const clauses: Clause[] = [];
+  if (selection.fieldName) {
+    clauses.push({
+      kind: "clause",
+      path: FIELD_NAME_PATH,
+      op: "==",
+      value: selection.fieldName,
+      values: [],
+      type: "string",
+    });
+  }
+  // A landing value without a field would match that value on ANY field —
+  // never what the author means, so it only counts alongside a field.
+  if (selection.fieldName && selection.toValue) {
+    clauses.push({
+      kind: "clause",
+      path: FIELD_TO_PATH,
+      op: "==",
+      value: selection.toValue,
+      values: [],
+      type: "string",
+    });
+  }
+  if (clauses.length === 0) return undefined;
+  return serializeCondition({ combine: "all", clauses });
+}
+
+/** Merge the dedicated field filter with additional conditions (AND). */
+export function mergeFieldTriggerFilter(
+  selection: FieldTriggerSelection,
+  additionalExpr: unknown | undefined,
+): unknown | undefined {
+  const fieldExpr = buildFieldTriggerFilterExpr(selection);
+  const extra = stripFieldTriggerFilter(additionalExpr);
+  if (!fieldExpr) return extra;
+  if (!extra) return fieldExpr;
+
+  const fieldModel = parseCondition(fieldExpr);
+  const extraModel = parseCondition(extra);
+  if (!fieldModel || !extraModel) return { and: [fieldExpr, extra] };
+  return serializeCondition({
+    combine: "all",
+    clauses: [...fieldModel.clauses, ...extraModel.clauses],
+  });
+}
+
 function humanizeLabel(token: string): string {
   const words = token.replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
@@ -111,6 +217,17 @@ export function explainTriggerFilter(
     return "When any label is added";
   }
 
+  if (eventType === "task.field_changed") {
+    const { fieldName, toValue } = extractFieldTriggerFilter(filterExpr);
+    const extra = explainCondition(stripFieldTriggerFilter(filterExpr));
+    const hasExtra = extra && extra !== "a condition";
+
+    let headline = "When any custom field changes";
+    if (fieldName && toValue) headline = `When ${fieldName} becomes ${toValue}`;
+    else if (fieldName) headline = `When ${fieldName} changes`;
+    return hasExtra ? `${headline} · ${extra}` : headline;
+  }
+
   if (filterExpr === undefined || filterExpr === null) {
     return base;
   }
@@ -130,7 +247,20 @@ export function triggerFilterChips(
     if (labels.length > 0) {
       for (const l of labels) chips.push(humanizeLabel(l));
     }
+    const extra = explainCondition(stripAddedLabelFilter(filterExpr));
+    if (extra && extra !== "a condition") chips.push(extra);
+    return chips;
   }
+
+  if (eventType === "task.field_changed") {
+    const { fieldName, toValue } = extractFieldTriggerFilter(filterExpr);
+    if (fieldName) chips.push(fieldName);
+    if (toValue) chips.push(`→ ${toValue}`);
+    const extra = explainCondition(stripFieldTriggerFilter(filterExpr));
+    if (extra && extra !== "a condition") chips.push(extra);
+    return chips;
+  }
+
   const extra = explainCondition(stripAddedLabelFilter(filterExpr));
   if (extra && extra !== "a condition") chips.push(extra);
   return chips;

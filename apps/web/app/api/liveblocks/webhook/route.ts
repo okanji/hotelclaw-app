@@ -7,7 +7,10 @@ import {
 } from "@/lib/documents/snapshot";
 import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
-import { parseDocumentRoomId } from "@/lib/liveblocks/rooms";
+import { parseDocumentRoomId, parseTaskRoomId } from "@/lib/liveblocks/rooms";
+import { getMentionsFromCommentBody, stringifyCommentBody } from "@liveblocks/node";
+import { createNotification } from "@/lib/notifications/server";
+import { BOT_USER_ID } from "@/lib/ai/bot-identity";
 import {
   captureSheetSnapshot,
   persistSheetSnapshot,
@@ -207,6 +210,24 @@ export async function POST(request: NextRequest) {
     event.type === "commentReactionAdded" ||
     event.type === "commentReactionRemoved"
   ) {
+    // Human @-mentions in task comments → app notifications. Runs in
+    // `after()` so the bot dispatch below isn't delayed; fail-soft — a
+    // notification miss must never affect the webhook response.
+    if (event.type === "commentCreated") {
+      const data = event.data;
+      after(async () => {
+        try {
+          await notifyTaskCommentMentions({
+            roomId: data.roomId,
+            threadId: data.threadId,
+            commentId: data.commentId,
+            authorId: data.createdBy,
+          });
+        } catch (err) {
+          console.error("[liveblocks-webhook] mention notify failed", err);
+        }
+      });
+    }
     try {
       const bot = getCommentBot();
       const forwarded = new Request(request.url, {
@@ -230,4 +251,86 @@ export async function POST(request: NextRequest) {
   }
 
   return new NextResponse(null, { status: 204 });
+}
+
+/**
+ * Notify property members @-mentioned in a task comment. Task rooms only
+ * (`property:<pid>:task:<taskId>`) — document/board comments have their own
+ * surfaces and can adopt this later. Mentioned ids are validated against the
+ * property's membership roster so a forged mention can't notify outsiders;
+ * the author and the AI bot are skipped (the bot has its own reply path).
+ */
+async function notifyTaskCommentMentions(args: {
+  roomId: string;
+  threadId: string;
+  commentId: string;
+  authorId: string;
+}) {
+  const room = parseTaskRoomId(args.roomId);
+  if (!room) return;
+
+  const lb = getLiveblocksServer();
+  const comment = await lb.getComment({
+    roomId: args.roomId,
+    threadId: args.threadId,
+    commentId: args.commentId,
+  });
+  if (!comment.body) return;
+
+  const mentionedIds = [
+    ...new Set(
+      getMentionsFromCommentBody(comment.body)
+        .filter((m) => m.kind === "user")
+        .map((m) => m.id),
+    ),
+  ].filter((id) => id !== args.authorId && id !== BOT_USER_ID);
+  if (mentionedIds.length === 0) return;
+
+  const service = createServiceClient();
+  const [{ data: members }, { data: task }, { data: authorProfile }] =
+    await Promise.all([
+      service
+        .from("memberships")
+        .select("user_id")
+        .eq("property_id", room.propertyId)
+        .in("user_id", mentionedIds),
+      service
+        .from("tasks")
+        .select("title")
+        .eq("id", room.taskId)
+        .maybeSingle(),
+      service
+        .from("profiles")
+        .select("full_name")
+        .eq("id", args.authorId)
+        .maybeSingle(),
+    ]);
+
+  const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
+  const recipients = mentionedIds.filter((id) => memberIds.has(id));
+  if (recipients.length === 0) return;
+
+  const preview = (
+    await stringifyCommentBody(comment.body, { format: "plain" })
+  )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+
+  await Promise.all(
+    recipients.map((userId) =>
+      createNotification({
+        userId,
+        propertyId: room.propertyId,
+        type: "task_comment_mention",
+        payload: {
+          taskId: room.taskId,
+          taskTitle: task?.title ?? null,
+          byUserId: args.authorId,
+          byUserName: authorProfile?.full_name ?? null,
+          preview,
+        },
+      }),
+    ),
+  );
 }

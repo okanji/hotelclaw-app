@@ -74,7 +74,7 @@ export function matchesView(n: NotificationRow, view: ActivityViewId): boolean {
     case "unread":
       return !n.seen_at;
     case "mentions":
-      return n.type === "mention";
+      return n.type === "mention" || n.type === "task_comment_mention";
     case "tasks":
       return (
         n.type === "task_assigned" ||

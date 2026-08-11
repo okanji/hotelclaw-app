@@ -364,6 +364,46 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       required: true,
     },
   ],
+  "action.task.remove_label": [
+    {
+      kind: "template",
+      key: "task_id",
+      label: "Task",
+      placeholder: "The task to remove the label from",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "label",
+      label: "Label",
+      placeholder: "needs-review",
+      required: true,
+    },
+  ],
+  "action.task.set_field": [
+    {
+      kind: "template",
+      key: "task_id",
+      label: "Task",
+      placeholder: "The task to update",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "field",
+      label: "Custom field",
+      placeholder: "Material status",
+      help: "The field's name, exactly as it appears on the task.",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "value",
+      label: "Set to",
+      placeholder: "LPO created",
+      help: "For a dropdown or label field, use the option's name — several, comma-separated, for a label field. Leave empty to clear the field.",
+    },
+  ],
 
   // ─── Chat actions ──────────────────────────────────────────────────────
   "action.chat.post_message": [

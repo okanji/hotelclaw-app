@@ -33,9 +33,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "propertyId required" }, { status: 400 });
   }
 
-  const { data: isMember, error: memberErr } = await supabase.rpc("is_member", {
-    prop_id: propertyId,
-  });
+  // The membership gate and the roster read are independent — run them
+  // concurrently (this fires on every keystroke of the mention typeahead,
+  // so one fewer serial DB round trip is felt). The roster is only USED
+  // after the gate passes, and it's RLS-guarded regardless.
+  //
+  // Two queries instead of a relational join: `profiles!inner(...)` from
+  // `memberships` 500s because the FK goes to auth.users, not profiles, so
+  // PostgREST can't resolve the embed (same reason the members route does
+  // this — see app/api/properties/[propertyId]/members/route.ts). This being
+  // a join was why @-mention suggestions never returned any members.
+  const [
+    { data: isMember, error: memberErr },
+    { data: members, error: membersErr },
+  ] = await Promise.all([
+    supabase.rpc("is_member", { prop_id: propertyId }),
+    supabase
+      .from("memberships")
+      .select("user_id")
+      .eq("property_id", propertyId)
+      .neq("user_id", user.id),
+  ]);
+
   if (memberErr) {
     return NextResponse.json({ error: memberErr.message }, { status: 500 });
   }
@@ -43,27 +62,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // Members of the property, optionally filtered by name. We do the filter
-  // through the `profiles` join so display names match what the picker shows.
-  let query = supabase
-    .from("memberships")
-    .select("user_id, profiles!inner(id, full_name)")
-    .eq("property_id", propertyId)
-    .neq("user_id", user.id)
+  if (membersErr) {
+    return NextResponse.json({ error: membersErr.message }, { status: 500 });
+  }
+
+  const memberIds = (members ?? [])
+    .map((m) => m.user_id as string)
+    .filter((id): id is string => !!id);
+  if (memberIds.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  let profileQuery = supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", memberIds)
+    .order("full_name", { ascending: true })
     .limit(MAX_RESULTS);
 
   if (text.trim().length > 0) {
-    // PostgREST embedded-filter syntax for the joined `profiles` row.
-    query = query.ilike("profiles.full_name", `%${text}%`);
+    profileQuery = profileQuery.ilike("full_name", `%${text.trim()}%`);
   }
 
-  const { data, error } = await query;
+  const { data: profiles, error } = await profileQuery;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const ids = (data ?? [])
-    .map((row) => row.user_id as string)
-    .filter((id): id is string => !!id);
+  const ids = (profiles ?? []).map((p) => p.id as string);
   return NextResponse.json(ids);
 }

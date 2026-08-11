@@ -14,6 +14,7 @@ export type NotificationType =
   | "invite_received"
   | "invite_access_requested"
   | "mention"
+  | "task_comment_mention"
   | "meeting_summary"
   | "workflow"
   | "briefing"

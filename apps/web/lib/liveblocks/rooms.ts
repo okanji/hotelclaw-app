@@ -57,6 +57,19 @@ export function propertyIdFromRoomId(roomId: string): string | null {
  * any other room shape — task rooms, board rooms, malformed ids — so callers
  * can ignore non-doc traffic without false matches.
  */
+/** Parse a task room id (`property:<pid>:task:<taskId>`); null for others. */
+export function parseTaskRoomId(
+  roomId: string,
+): { propertyId: string; taskId: string } | null {
+  const parts = roomId.split(":");
+  if (parts.length !== 4) return null;
+  const [scope, propertyId, kind, taskId] = parts;
+  if (scope !== "property" || kind !== "task" || !propertyId || !taskId) {
+    return null;
+  }
+  return { propertyId, taskId };
+}
+
 export function parseDocumentRoomId(
   roomId: string,
 ): { propertyId: string; documentId: string } | null {

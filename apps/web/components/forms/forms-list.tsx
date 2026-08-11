@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   ClipboardList,
@@ -70,12 +70,25 @@ export function FormsList({
   responseCounts: Record<string, number>;
 }) {
   const router = useRouter();
+  const params = useSearchParams();
   const [newOpen, setNewOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [deleting, setDeleting] = useState<FormListItem | null>(null);
   const [sharing, setSharing] = useState<FormListItem | null>(null);
   const [pinning, setPinning] = useState<FormListItem | null>(null);
   const base = `/p/${propertyId}/forms`;
+
+  // The Forms section sidebar deep-links the create flows (`?new=1` /
+  // `?ai=1`). React to the param on every navigation (not just mount — the
+  // component stays mounted when only the query string changes), then strip
+  // it so closing the dialog leaves a clean URL and the link works again.
+  useEffect(() => {
+    if (params.get("new") === "1") setNewOpen(true);
+    if (params.get("ai") === "1") setGenerateOpen(true);
+    if (params.get("new") === "1" || params.get("ai") === "1") {
+      window.history.replaceState(null, "", base);
+    }
+  }, [params, base]);
 
   return (
     <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">

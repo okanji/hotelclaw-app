@@ -12,6 +12,7 @@ export default defineConfig({
     include: [
       "lib/spreadsheet/formula/**/*.test.ts",
       "lib/onboarding/**/*.test.ts",
+      "lib/forms/**/*.test.ts",
       "lib/brain/**/*.test.ts",
       "lib/agents/__tests__/**/*.test.ts",
       "lib/chat/__tests__/**/*.test.ts",

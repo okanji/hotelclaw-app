@@ -30,13 +30,43 @@ export type MeetingRecurrence = {
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
 
-// ── Custom fields (migration 0080) ──────────────────────────────────────────
-export type CustomFieldType = "text" | "number" | "select" | "date" | "checkbox";
-/** Select options — values store the option `id`, so labels stay renameable. */
-export type CustomFieldOption = { id: string; label: string };
+// ── Custom fields (migrations 0080, 0099) ───────────────────────────────────
+/**
+ * `select` is a single-choice dropdown; `multi_select` is the LABEL field —
+ * the multiple-choice version of the same option list, scoped to this one
+ * field (unlike the property-wide `labels` catalog, which is shared across
+ * tasks, docs, projects and teams).
+ */
+export type CustomFieldType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi_select"
+  | "date"
+  | "checkbox";
+/**
+ * Options for select / multi_select. Values store the option `id`, so labels
+ * stay renameable and recolorable without touching stored data. `color` is
+ * optional for rows written before 0099.
+ */
+export type CustomFieldOption = {
+  id: string;
+  label: string;
+  color?: EntityColor;
+};
 /** jsonb value per field type: text/select/date → string, number → number,
- *  checkbox → boolean. */
-export type CustomFieldValue = string | number | boolean;
+ *  checkbox → boolean, multi_select → array of option ids. */
+export type CustomFieldValue = string | number | boolean | string[];
+
+// ── List view column layout (migration 0099) ────────────────────────────────
+/**
+ * One column in the tasks list view. `id` is a built-in key ("title",
+ * "priority", …) or `field:<uuid>` for a custom field — the same addressing
+ * the board's filter facets use.
+ */
+export type TaskViewColumn = { id: string; width: number; hidden?: boolean };
+/** Active sort, or null for manual (drag-orderable) order. */
+export type TaskViewSort = { columnId: string; dir: "asc" | "desc" } | null;
 
 // ── Daily operations (migration 0082) ───────────────────────────────────────
 /** Checklist item on a routine — ids are stable slugs so runs survive
@@ -562,6 +592,30 @@ export interface Database {
         Update: Partial<{
           value: CustomFieldValue;
           updated_by: string | null;
+        }>;
+        Relationships: [];
+      };
+      task_view_columns: {
+        Row: {
+          user_id: string;
+          property_id: string;
+          view_key: string;
+          columns: TaskViewColumn[];
+          sort: TaskViewSort;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          property_id: string;
+          view_key?: string;
+          columns?: TaskViewColumn[];
+          sort?: TaskViewSort;
+          updated_at?: string;
+        };
+        Update: Partial<{
+          columns: TaskViewColumn[];
+          sort: TaskViewSort;
+          updated_at: string;
         }>;
         Relationships: [];
       };

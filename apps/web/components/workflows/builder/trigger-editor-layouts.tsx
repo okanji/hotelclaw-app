@@ -23,6 +23,14 @@ export function TriggerEditorFlowLayout({ slots }: { slots: TriggerEditorSlots }
       children: slots.labelFilter,
     });
   }
+  if (slots.fieldFilter) {
+    steps.push({
+      id: "field",
+      marker: steps.length + 1,
+      title: "Only this field",
+      children: slots.fieldFilter,
+    });
+  }
   if (slots.scheduleConfig) {
     steps.push({
       id: "schedule",

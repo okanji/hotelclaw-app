@@ -64,6 +64,7 @@ import {
   type BuilderShared,
 } from "./form-builder-extras";
 import { FormStatusBadge } from "./status-badge";
+import { TaskAutomationCard } from "./task-automation-card";
 import { updateForm, deleteForm } from "./actions";
 import {
   FIELD_TYPE_META,
@@ -1323,6 +1324,10 @@ function SettingsTab({
           />
         </label>
       </section>
+
+      <hr className="border-border" />
+
+      <TaskAutomationCard propertyId={propertyId} formId={form.id} />
 
       <hr className="border-border" />
 
