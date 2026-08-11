@@ -11,7 +11,10 @@ import {
   TypingIndicatorContainer,
   useChatContext,
 } from "stream-chat-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { AiThinkingIndicator } from "../../components/AiThinkingIndicator";
+import { AiModeSheet } from "../../components/AiModeSheet";
+import { MentionTextInput } from "../../components/MentionTextInput";
 import type { Channel as ChannelType } from "stream-chat";
 import { useAppContext } from "../../contexts/AppContext";
 import { usePropertyContext } from "../../contexts/PropertyContext";
@@ -36,6 +39,7 @@ export default function ChannelScreen() {
     contextChannel,
   );
   const [error, setError] = useState<string | null>(null);
+  const [aiSheetOpen, setAiSheetOpen] = useState(false);
   const headerHeight = useHeaderHeight();
   const headerHeightRef = useRef(headerHeight);
 
@@ -128,7 +132,27 @@ export default function ChannelScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: channel.data?.name ?? "Channel" }} />
+      <Stack.Screen
+        options={{
+          title: channel.data?.name ?? "Channel",
+          // Channel-wide AI reply settings (mode + sensitivity) — the mobile
+          // counterpart of web's channel-header AI button.
+          headerRight: () => (
+            <Pressable
+              onPress={() => setAiSheetOpen(true)}
+              hitSlop={10}
+              accessibilityLabel="AI assistant settings"
+            >
+              <Ionicons name="sparkles-outline" size={20} color="#111827" />
+            </Pressable>
+          ),
+        }}
+      />
+      <AiModeSheet
+        channel={channel}
+        visible={aiSheetOpen}
+        onClose={() => setAiSheetOpen(false)}
+      />
       {/* Custom attachment renderers (ai_ui / form / app_artifact) — see
           components/attachments/CustomAttachments.tsx for the mechanism. */}
       <CustomAttachmentProvider>
@@ -167,7 +191,9 @@ export default function ChannelScreen() {
             });
           }}
         />
-        <MessageComposer />
+        {/* Mention-aware input: committed @-mentions render bold+blue while
+            typing (components/MentionTextInput.tsx). */}
+        <MessageComposer TextInputComponent={MentionTextInput} />
       </Channel>
       </CustomAttachmentProvider>
     </>

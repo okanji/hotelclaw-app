@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 import { getStreamServer } from "@/lib/stream/server";
 import { setChannelAiSettings } from "@/lib/stream/ai-adapter";
 
@@ -30,10 +30,8 @@ const Body = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Cookie (web) or Bearer (mobile) — same handler for both surfaces.
+  const { user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

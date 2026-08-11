@@ -8,6 +8,7 @@ import { Channel, Thread, useChatContext } from "stream-chat-expo";
 import type { Channel as ChannelType } from "stream-chat";
 import { useAppContext } from "../../../../contexts/AppContext";
 import { CustomAttachmentProvider } from "../../../../components/attachments/CustomAttachments";
+import { MentionTextInput } from "../../../../components/MentionTextInput";
 import {
   CLUSTER_TIME_GAP_MS,
   slackGetMessageGroupStyle,
@@ -62,7 +63,13 @@ export default function ThreadScreen() {
         getMessageGroupStyle={slackGetMessageGroupStyle}
         maxTimeBetweenGroupedMessages={CLUSTER_TIME_GAP_MS}
       >
-        <Thread onThreadDismount={() => setThread(null)} />
+        <Thread
+          onThreadDismount={() => setThread(null)}
+          // Same mention-aware input as the channel composer.
+          additionalMessageComposerProps={{
+            TextInputComponent: MentionTextInput,
+          }}
+        />
       </Channel>
       </CustomAttachmentProvider>
     </>

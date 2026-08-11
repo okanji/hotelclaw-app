@@ -51,7 +51,12 @@ import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorView } from "@tiptap/pm/view";
-import { HelpCircle, Loader2, Sparkles } from "lucide-react";
+import { HelpCircle, Loader2, MoreHorizontal, Sparkles } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { roomIdForDocument } from "@/lib/liveblocks/rooms";
 import {
   documentsTreeQueryOptions,
@@ -500,25 +505,25 @@ function EditorInner({
       {/* Top row: breadcrumbs (left) + document metadata (right). Keeping
           "Edited by" / History / presence up here lets the formatting toolbar
           below stay a single slim band. */}
-      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6 max-md:gap-2 max-md:px-3">
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}
           currentTitle={liveTitle}
         />
-        <div className="flex shrink-0 items-center gap-2.5">
+        {/* ≥md: the full action row. */}
+        <div className="hidden shrink-0 items-center gap-2.5 md:flex">
           <WorkflowProvenanceBadge
             propertyId={propertyId}
             source={source}
             workflowId={sourceWorkflowId}
             workflowRunId={sourceWorkflowRunId}
-            className="hidden md:inline-flex"
           />
           <DocumentLastEdited
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
-            className="hidden text-sm text-faint-foreground tabular-nums md:block"
+            className="text-sm text-faint-foreground tabular-nums"
           />
           <DocumentLabels propertyId={propertyId} documentId={documentId} />
           <DocumentLinkedTasks
@@ -529,8 +534,48 @@ function EditorInner({
           <DocumentShare propertyId={propertyId} documentId={documentId} />
           <DocumentRoomAvatarStack max={5} size={24} />
         </div>
+        {/* <md (incl. the mobile app's WebView): presence stays glanceable,
+            everything else tucks into one overflow menu. The same components
+            render inside the popover — each owns its popover/sheet state, and
+            nested Base UI popups keep the parent open via the floating tree. */}
+        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
+          <DocumentRoomAvatarStack max={3} size={24} />
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  title="More actions"
+                  aria-label="More actions"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+                />
+              }
+            >
+              <MoreHorizontal className="size-4" />
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={6}
+              className="flex w-56 flex-col items-stretch gap-0.5 p-1.5"
+            >
+              <DocumentLastEdited
+                propertyId={propertyId}
+                lastEditedBy={lastEditedBy}
+                updatedAt={updatedAt}
+                className="px-2 py-1 text-xs text-faint-foreground tabular-nums"
+              />
+              <DocumentLabels propertyId={propertyId} documentId={documentId} />
+              <DocumentLinkedTasks
+                propertyId={propertyId}
+                documentId={documentId}
+              />
+              <DocumentHistory editor={editor} />
+              <DocumentShare propertyId={propertyId} documentId={documentId} />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
-      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1">
+      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1 max-md:justify-start max-md:overflow-x-auto max-md:px-2">
         {/* Default Liveblocks toolbar content, rebuilt so the AI section uses
             OUR "Explain" (→ bottom dock) instead of the built-in one that runs
             through the inline edit pipeline. */}

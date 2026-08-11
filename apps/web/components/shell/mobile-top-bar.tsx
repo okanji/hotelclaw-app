@@ -50,7 +50,9 @@ export function MobileTopBar({
   useEffect(() => setOpen(false), [pathname, section]);
 
   return (
-    <header className="flex h-11 shrink-0 items-center gap-2 px-3 md:hidden">
+    // `hc-mobile-top-bar`: hidden entirely inside the native app's WebView
+    // (html[data-hotelclaw-embed]) — the native header already owns nav there.
+    <header className="hc-mobile-top-bar flex h-11 shrink-0 items-center gap-2 px-3 md:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           render={

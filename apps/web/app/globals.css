@@ -669,6 +669,14 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Inside the native mobile app's WebView (attribute stamped by
+     apps/mobile/components/WebSurface.tsx before page scripts run): the
+     native screen header already owns navigation, so the web hamburger
+     top bar is redundant chrome. */
+  html[data-hotelclaw-embed] .hc-mobile-top-bar {
+    display: none;
+  }
   html {
     @apply font-sans;
     /* NO OpenType tuning. The old `"cv11","ss03","cv02"` triple was Inter

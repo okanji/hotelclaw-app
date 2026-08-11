@@ -40,14 +40,19 @@ export function DocumentBreadcrumbs({
       aria-label="Breadcrumb"
       className="flex min-w-0 items-center gap-0.5 text-xs text-faint-foreground"
     >
+      {/* On narrow screens (incl. the mobile app's WebView) the trail is
+          noise — only the leaf title survives. */}
       <Link
         href={`/p/${propertyId}/documents`}
-        className="shrink-0 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
+        className="shrink-0 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent max-md:hidden"
       >
         All documents
       </Link>
       {ancestors.map((crumb) => (
-        <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
+        <span
+          key={crumb.id}
+          className="flex min-w-0 items-center gap-0.5 max-md:hidden"
+        >
           <ChevronRight className="size-3 shrink-0 opacity-50" />
           <Link
             href={documentHref(propertyId, crumb.id)}
@@ -58,7 +63,7 @@ export function DocumentBreadcrumbs({
           </Link>
         </span>
       ))}
-      <ChevronRight className="size-3 shrink-0 opacity-50" />
+      <ChevronRight className="size-3 shrink-0 opacity-50 max-md:hidden" />
       <span className="truncate px-1.5 py-0.5 font-medium text-foreground">
         {currentTitle || "Untitled"}
       </span>

@@ -78,7 +78,19 @@ export function WebSurface({ path }: { path: string }) {
 
   const uri = `${apiBaseUrl}/auth/mobile-bridge?next=${encodeURIComponent(path)}`;
   // Runs before the page's own scripts, on every navigation in this WebView.
-  const injected = `window.__HOTELCLAW_MOBILE_SESSION__ = ${JSON.stringify(tokens)}; true;`;
+  // The `data-hotelclaw-embed` attribute tells the web app it's inside the
+  // native shell, so redundant chrome (the hamburger top bar — the native
+  // header already owns navigation) hides via CSS (globals.css).
+  const injected = `
+    window.__HOTELCLAW_MOBILE_SESSION__ = ${JSON.stringify(tokens)};
+    (function stamp() {
+      if (document.documentElement) {
+        document.documentElement.setAttribute("data-hotelclaw-embed", "1");
+      } else {
+        document.addEventListener("DOMContentLoaded", stamp, { once: true });
+      }
+    })();
+    true;`;
 
   return (
     <View style={styles.container}>

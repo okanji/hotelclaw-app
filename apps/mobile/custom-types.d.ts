@@ -19,6 +19,10 @@ declare module "stream-chat" {
     // channel is stamped with its tenant property.
     property_id?: string;
     is_private?: boolean;
+    // Per-channel AI reply settings, written by the web app's
+    // /api/stream/ai/mode route and read by the message-new webhook.
+    ai_mode?: string;
+    ai_sensitivity?: string;
   }
   interface CustomCommandData extends DefaultCommandData {}
   interface CustomEventData extends DefaultEventData {}
