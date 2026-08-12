@@ -101,6 +101,23 @@ export function optionsToText(options: CustomFieldOption[]): string {
 }
 
 /**
+ * A single new option with a collision-safe id — the structured editor's
+ * unit of work (the manager renames existing options IN PLACE by id, so the
+ * label-matching of `parseOptionsInput` only applies to create-time bulk
+ * entry, never to edits of a field that already has stored values).
+ */
+export function newOption(
+  label: string,
+  existing: CustomFieldOption[],
+): CustomFieldOption {
+  const usedIds = new Set(existing.map((o) => o.id));
+  let id = slugify(label);
+  let n = 2;
+  while (usedIds.has(id)) id = `${slugify(label)}-${n++}`;
+  return { id, label, color: nextOptionColor(existing) };
+}
+
+/**
  * Every option id currently set on a task, whatever the field type — a label
  * field stores an array, a dropdown a bare id. Callers that just want "which
  * chips do I draw" never have to branch on the type.

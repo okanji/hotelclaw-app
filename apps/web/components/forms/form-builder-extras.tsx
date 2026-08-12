@@ -24,6 +24,12 @@ import {
  * popover and the "Options from" data-source picker for choice fields.
  */
 
+/** A pre-configured new field from the Add-question menu — task-property
+ *  entries arrive with taskProperty / options / source already set. */
+export type FieldPreset = Partial<Omit<FormField, "id">> & {
+  type: FormFieldType;
+};
+
 export type BuilderShared = {
   propertyId: string;
   formId: string;
@@ -32,7 +38,7 @@ export type BuilderShared = {
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   patchField: (id: string, patch: Partial<FormField>) => void;
-  addField: (type: FormFieldType) => void;
+  addField: (preset: FieldPreset) => void;
   duplicateField: (id: string) => void;
   removeField: (id: string) => void;
   reorder: (activeId: string, overId: string) => void;

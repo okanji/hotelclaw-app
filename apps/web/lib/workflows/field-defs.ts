@@ -335,6 +335,20 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     },
     {
       kind: "template",
+      key: "assignee_id",
+      label: "Assignee (optional)",
+      placeholder: "User id, or {{trigger.task_properties.assignee_id}}",
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "template",
+      key: "due_at",
+      label: "Due date (optional)",
+      placeholder: "ISO date, or {{trigger.task_properties.due_at}}",
+      help: TEMPLATE_HELP,
+    },
+    {
+      kind: "template",
       key: "space_id",
       label: "Team (optional)",
       placeholder: "Space id, or {{trigger.new.space_id}}",

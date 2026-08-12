@@ -60,10 +60,13 @@ import {
   taskViewLayoutQueryOptions,
 } from "@/lib/query/task-view-queries";
 import {
+  CALC_LABEL,
+  computeColumnCalc,
   DEFAULT_COLUMNS,
   newColumnEntry,
   resolveColumns,
   sortTasks,
+  type ColumnCalc,
   type ResolvedColumn,
   type SortContext,
 } from "@/lib/tasks/list-columns";
@@ -224,6 +227,10 @@ export function ListView({
         void qc.invalidateQueries({
           queryKey: ["task-field-values-property", propertyId],
         });
+        // Per-task caches too (["task-field-values", <taskId>] — the prefix
+        // matches every task's key but not the property key above), so an
+        // open task drawer reflects a list-cell edit immediately.
+        void qc.invalidateQueries({ queryKey: ["task-field-values"] });
         onChanged();
       },
     }),
@@ -313,7 +320,14 @@ export function ListView({
     }),
   );
 
-  const sorted = sort !== null;
+  // Sorted only while the sort's column actually resolves — an archived
+  // field used to leave `sort` set but the column gone, which kept
+  // drag-to-reorder disabled with no SortNotice explaining why and no way
+  // to clear it.
+  const sortedColumn = sort
+    ? columns.find((c) => c.id === sort.columnId)
+    : undefined;
+  const sorted = sort !== null && sortedColumn !== undefined;
 
   function statusOf(
     map: Record<TaskStatus, string[]>,
@@ -436,14 +450,27 @@ export function ListView({
   }
 
   function resizeColumn(id: string, width: number) {
+    // clientX is fractional under browser zoom / fractional DPI, and the
+    // layout schema requires integer widths — a fractional width failed the
+    // whole save while the optimistic cache kept it, a lie until reload.
+    const rounded = Math.round(width);
     persist({
-      columns: stored.map((c) => (c.id === id ? { ...c, width } : c)),
+      columns: stored.map((c) => (c.id === id ? { ...c, width: rounded } : c)),
       sort,
     });
   }
 
   function setSort(columnId: string, dir: "asc" | "desc" | null) {
     persist({ columns: stored, sort: dir ? { columnId, dir } : null });
+  }
+
+  function setCalc(columnId: string, calc: ColumnCalc | null) {
+    persist({
+      columns: stored.map((c) =>
+        c.id === columnId ? { ...c, calc: calc ?? undefined } : c,
+      ),
+      sort,
+    });
   }
 
   /* ── Layout metrics ───────────────────────────────────────────────────── */
@@ -462,10 +489,6 @@ export function ListView({
     TITLE_MIN +
     columns.reduce((sum, c) => sum + c.width, 0) +
     TRAIL_WIDTH;
-
-  const sortedColumn = sort
-    ? columns.find((c) => c.id === sort.columnId)
-    : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -492,6 +515,7 @@ export function ListView({
             onReorder={reorderColumns}
             onResize={resizeColumn}
             onSort={setSort}
+            onCalc={setCalc}
           />
 
           <DndContext
@@ -580,6 +604,15 @@ export function ListView({
               ) : null}
             </PortalDragOverlay>
           </DndContext>
+
+          {columns.some((c) => c.calc) ? (
+            <CalcFooterRow
+              columns={columns}
+              tasks={tasks}
+              sortCtx={sortCtx}
+              gridTemplate={gridTemplate}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -609,6 +642,56 @@ function buildOrder(
   };
 }
 
+/* ── Calculation footer ──────────────────────────────────────────────────── */
+
+/**
+ * ClickUp's List-view calculation row: one sticky line under the table with
+ * each column's chosen aggregate over the VISIBLE (filtered) tasks. Only
+ * renders when at least one column has a calc picked.
+ */
+function CalcFooterRow({
+  columns,
+  tasks,
+  sortCtx,
+  gridTemplate,
+}: {
+  columns: ResolvedColumn[];
+  tasks: Task[];
+  sortCtx: SortContext;
+  gridTemplate: string;
+}) {
+  return (
+    <div
+      className="sticky bottom-0 z-20 mt-auto grid h-8 items-center border-t border-border bg-card px-2"
+      style={{ gridTemplateColumns: gridTemplate }}
+    >
+      <span />
+      <span className="px-1.5 text-xs text-faint-foreground tabular-nums">
+        {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+      </span>
+      {columns.map((column) => {
+        if (!column.calc) return <span key={column.id} />;
+        const value = computeColumnCalc(column.calc, column, tasks, sortCtx);
+        return (
+          <span
+            key={column.id}
+            className="flex min-w-0 items-baseline gap-1.5 px-1.5"
+            title={`${CALC_LABEL[column.calc]} of ${column.label}`}
+          >
+            <span className="shrink-0 text-xs text-faint-foreground">
+              {CALC_LABEL[column.calc]}
+            </span>
+            <span className="truncate text-sm font-medium text-foreground tabular-nums">
+              {value ?? "—"}
+            </span>
+          </span>
+        );
+      })}
+      <span />
+    </div>
+  );
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 function HeaderRow({
@@ -624,6 +707,7 @@ function HeaderRow({
   onReorder,
   onResize,
   onSort,
+  onCalc,
 }: {
   propertyId: string;
   columns: ResolvedColumn[];
@@ -637,6 +721,7 @@ function HeaderRow({
   onReorder: (activeId: string, overId: string) => void;
   onResize: (id: string, width: number) => void;
   onSort: (columnId: string, dir: "asc" | "desc" | null) => void;
+  onCalc: (columnId: string, calc: ColumnCalc | null) => void;
 }) {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
@@ -675,6 +760,7 @@ function HeaderRow({
               onMove={(to) => onMove(column.id, to)}
               onHide={() => onHide(column.id)}
               onResize={(w) => onResize(column.id, w)}
+              onCalc={(calc) => onCalc(column.id, calc)}
             />
           ))}
         </SortableContext>
@@ -700,6 +786,7 @@ function HeaderCell({
   onMove,
   onHide,
   onResize,
+  onCalc,
 }: {
   column: ResolvedColumn;
   sort: TaskViewSort;
@@ -709,6 +796,7 @@ function HeaderCell({
   onMove: (to: "start" | "end") => void;
   onHide: () => void;
   onResize: (width: number) => void;
+  onCalc: (calc: ColumnCalc | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useSortable({ id: column.id });
@@ -757,11 +845,23 @@ function HeaderCell({
         isDragging && "opacity-50",
       )}
     >
+      {/*
+        The grip is a SEPARATE element from the menu trigger on purpose. With
+        the drag listeners on the label, base-ui's menu takes the pointerdown
+        and opens before dnd-kit's sensor can start a drag, so the column
+        never moves — you just get the menu. A dedicated grip keeps both
+        gestures reachable (the menu also offers Move to start / end).
+      */}
       <span
         {...attributes}
         {...listeners}
-        className="flex min-w-0 flex-1 cursor-grab items-center active:cursor-grabbing"
+        role="button"
+        aria-label={`Reorder ${column.label} column`}
+        className="grid size-4 shrink-0 cursor-grab place-items-center rounded text-faint-foreground opacity-0 transition-opacity group-hover/header:opacity-100 active:cursor-grabbing"
       >
+        <GripVertical className="size-3" />
+      </span>
+      <span className="flex min-w-0 flex-1 items-center">
         <ColumnHeaderMenu
           column={column}
           sort={sort}
@@ -770,6 +870,7 @@ function HeaderCell({
           onSort={onSort}
           onMove={onMove}
           onHide={onHide}
+          onCalc={onCalc}
         >
           <span className="min-w-0 truncate">{column.label}</span>
           {active === "asc" ? (

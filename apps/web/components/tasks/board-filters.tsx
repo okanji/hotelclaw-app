@@ -341,15 +341,21 @@ export function matchesFacets(
       return false;
     }
   }
-  for (const [fieldId, selected] of Object.entries(filters.fieldValues)) {
-    if (selected.length === 0) continue;
-    const values = fieldIndex?.get(task.id)?.get(fieldId);
-    const ok = selected.some((v) => {
-      if (v === FIELD_EMPTY) return values === undefined;
-      if (v === FIELD_SET) return values !== undefined;
-      return values?.includes(v) ?? false;
-    });
-    if (!ok) return false;
+  // No index yet (the values query is still loading — it cold-starts the
+  // moment the first field filter is picked): don't judge field clauses
+  // against an empty index, which would flash the board to zero tasks and
+  // snap back. Skipping them shows the un-narrowed set for a beat instead.
+  if (fieldIndex) {
+    for (const [fieldId, selected] of Object.entries(filters.fieldValues)) {
+      if (selected.length === 0) continue;
+      const values = fieldIndex.get(task.id)?.get(fieldId);
+      const ok = selected.some((v) => {
+        if (v === FIELD_EMPTY) return values === undefined;
+        if (v === FIELD_SET) return values !== undefined;
+        return values?.includes(v) ?? false;
+      });
+      if (!ok) return false;
+    }
   }
   return true;
 }

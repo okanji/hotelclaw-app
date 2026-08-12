@@ -40,7 +40,7 @@ import {
   type Task,
 } from "./kanban";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
 
 type BoardState = {
   columns: Record<TaskStatus, string[]>;
@@ -80,6 +80,8 @@ type Props = {
   /** Already-filtered, already-sorted tasks. */
   tasks: Task[];
   assignees: Record<string, AssigneeInfo>;
+  /** taskId → label-field chips, resolved board-level. */
+  cardLabels: Record<string, CustomFieldOption[]>;
   hideDone: boolean;
   onOpenFullCreate: (status: TaskStatus) => void;
   /** Active team scope (`?space=`), threaded to inline quick-add. */
@@ -90,6 +92,7 @@ export function KanbanView({
   propertyId,
   tasks,
   assignees,
+  cardLabels,
   scopeSpaceId,
   hideDone,
   onOpenFullCreate,
@@ -419,6 +422,7 @@ export function KanbanView({
               taskIds={board.columns[column.id]}
               tasksById={board.byId}
               assignees={assignees}
+              cardLabels={cardLabels}
               propertyId={propertyId}
               dragActive={activeId !== null}
               activeDragId={activeId}
@@ -440,7 +444,11 @@ export function KanbanView({
         }}
       >
         {activeTask ? (
-          <TaskCardOverlay task={activeTask} assignee={activeAssignee} />
+          <TaskCardOverlay
+            task={activeTask}
+            assignee={activeAssignee}
+            labels={cardLabels[activeTask.id]}
+          />
         ) : null}
       </PortalDragOverlay>
     </DndContext>

@@ -18,6 +18,8 @@ export default defineConfig({
       "lib/chat/__tests__/**/*.test.ts",
       "lib/stream/__tests__/**/*.test.ts",
       "lib/documents/__tests__/**/*.test.ts",
+      "lib/tasks/__tests__/**/*.test.ts",
+      "lib/workflows/__tests__/**/*.test.ts",
     ],
     environment: "node",
     globals: true,

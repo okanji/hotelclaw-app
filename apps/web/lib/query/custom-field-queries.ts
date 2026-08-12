@@ -56,12 +56,27 @@ export function propertyTaskFieldValuesQueryOptions(propertyId: string) {
       { task_id: string; field_id: string; value: CustomFieldValue }[]
     > => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("task_field_values")
-        .select("task_id, field_id, value")
-        .eq("property_id", propertyId);
-      if (error) throw new Error(error.message);
-      return data ?? [];
+      // Paged: PostgREST silently truncates at its max-rows cap (1000 on
+      // Supabase by default) with NO error, and 300 tasks × 4 fields is
+      // already past it — blank cells and wrong filters with nothing in the
+      // console. Keyset-free .range() pages are fine here: the PK ordering
+      // is stable and the whole set is still one cache entry.
+      const PAGE = 1000;
+      const rows: { task_id: string; field_id: string; value: CustomFieldValue }[] =
+        [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("task_field_values")
+          .select("task_id, field_id, value")
+          .eq("property_id", propertyId)
+          .order("task_id", { ascending: true })
+          .order("field_id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        rows.push(...(data ?? []));
+        if (!data || data.length < PAGE) break;
+      }
+      return rows;
     },
     staleTime: 60_000,
   });

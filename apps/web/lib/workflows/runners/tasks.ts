@@ -7,13 +7,34 @@ type CreateTaskConfig = {
   description?: string;
   assignee_id?: string;
   due_at?: string;
-  labels?: string[];
+  /** After template resolution an item can be an array (a ref that resolved
+   *  to a list, e.g. {{trigger.task_properties.labels}}) or null/"" (an
+   *  unanswered mapped field) — flattenLabels normalizes all of it. */
+  labels?: unknown[];
   project_name?: string;
   space_id?: string;
   project_id?: string;
-  priority?: "none" | "low" | "medium" | "high" | "urgent";
+  priority?: string;
   parent_id?: string;
 };
+
+const TASK_PRIORITIES = ["none", "low", "medium", "high", "urgent"] as const;
+
+function normalizePriority(value: string | undefined): (typeof TASK_PRIORITIES)[number] {
+  return (TASK_PRIORITIES as readonly string[]).includes(value ?? "")
+    ? (value as (typeof TASK_PRIORITIES)[number])
+    : "none";
+}
+
+function flattenLabels(labels: unknown[] | undefined): string[] {
+  const out: string[] = [];
+  for (const item of labels ?? []) {
+    for (const label of Array.isArray(item) ? item : [item]) {
+      if (typeof label === "string" && label.trim()) out.push(label.trim());
+    }
+  }
+  return [...new Set(out)];
+}
 
 export const createTaskRunner: RunnerImpl<
   CreateTaskConfig,
@@ -25,6 +46,8 @@ export const createTaskRunner: RunnerImpl<
         id: `dry-${ctx.stepId}`,
         property_id: ctx.propertyId,
         ...config,
+        labels: flattenLabels(config.labels),
+        priority: normalizePriority(config.priority),
       },
     };
   }
@@ -35,13 +58,13 @@ export const createTaskRunner: RunnerImpl<
       property_id: ctx.propertyId,
       title: config.title,
       description: config.description ?? null,
-      assignee_id: config.assignee_id ?? null,
-      due_at: config.due_at ?? null,
-      labels: config.labels ?? [],
+      assignee_id: config.assignee_id || null,
+      due_at: config.due_at || null,
+      labels: flattenLabels(config.labels),
       project_name: config.project_name ?? null,
       space_id: config.space_id ?? null,
       project_id: config.project_id ?? null,
-      priority: config.priority ?? "none",
+      priority: normalizePriority(config.priority),
       parent_id: config.parent_id ?? null,
       created_by: ctx.workflowOwnerId,
       status: "todo",
@@ -247,15 +270,30 @@ export const setTaskFieldRunner: RunnerImpl<
   } else if (field.type === "select") {
     value = matchOption(raw);
   } else if (field.type === "multi_select") {
-    const ids = raw
+    const picked = raw
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
       .map(matchOption);
+    // Canonical order + dedupe, matching setTaskFieldValue: the trigger's
+    // `is not distinct from` no-op test compares arrays element-wise, so a
+    // workflow writing ["b","a"] over ["a","b"] must not emit a phantom
+    // task.field_changed.
+    const ids = options.map((o) => o.id).filter((id) => picked.includes(id));
     value = ids.length > 0 ? ids : null;
-  } else {
-    // text / date — stored as-is.
+  } else if (field.type === "date") {
+    // Same contract as the UI action: bare ISO date. Without this a workflow
+    // could store "tomorrow", which renders as a blank date input and
+    // string-sorts randomly.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      throw new Error(
+        `set_field: "${raw}" is not a date — use YYYY-MM-DD`,
+      );
+    }
     value = raw;
+  } else {
+    // text — same 500-char ceiling the UI action enforces.
+    value = raw.slice(0, 500);
   }
 
   if (ctx.dryRun) {

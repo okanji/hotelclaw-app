@@ -37,6 +37,20 @@ export function GuestFormFields({
             </p>
           );
         }
+        if (field.type === "info") {
+          return (
+            <div key={field.id}>
+              <p className="text-sm whitespace-pre-line text-guest-ink">
+                {field.label}
+              </p>
+              {field.description ? (
+                <p className="mt-1 text-xs whitespace-pre-line text-guest-ink-soft">
+                  {field.description}
+                </p>
+              ) : null}
+            </div>
+          );
+        }
         return (
           <div key={field.id} className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-guest-ink">

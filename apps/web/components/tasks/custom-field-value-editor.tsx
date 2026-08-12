@@ -133,7 +133,11 @@ export function CustomFieldValueEditor({
       return;
     }
     if (field.type === "number") {
-      const n = Number(trimmed);
+      // Plain decimal only — Number("0x10") is 16 and Number("1e999") is
+      // Infinity, neither of which anyone typed into a Cost field on purpose.
+      const n = /^[+-]?(\d+\.?\d*|\.\d+)$/.test(trimmed)
+        ? Number(trimmed)
+        : NaN;
       if (!Number.isFinite(n)) {
         toast.error("Not a number");
         return;

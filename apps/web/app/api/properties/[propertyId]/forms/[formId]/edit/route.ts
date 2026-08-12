@@ -154,6 +154,11 @@ export async function POST(
           : undefined,
       min: f.type === "number" ? (f.min ?? existing?.min) : undefined,
       max: f.type === "number" ? (f.max ?? existing?.max) : undefined,
+      // Config the model can't express survives on kept fields: task-property
+      // mappings and conditional-visibility rules ride along untouched
+      // (a condition whose controller was removed fails open at render).
+      taskProperty: existing?.taskProperty,
+      condition: existing?.condition,
       maxRating:
         f.type === "rating"
           ? f.maxRating !== undefined
@@ -165,7 +170,8 @@ export async function POST(
 
   let schema: FormSchema;
   try {
-    schema = FormSchemaZod.parse({ version: 1, fields });
+    // Presentation settings aren't part of the edit surface — carry them.
+    schema = FormSchemaZod.parse({ version: 1, fields, settings: current.settings });
   } catch {
     return NextResponse.json({ error: "edited schema was invalid" }, { status: 500 });
   }

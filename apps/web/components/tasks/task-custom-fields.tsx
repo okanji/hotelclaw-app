@@ -69,9 +69,17 @@ export function TaskCustomFields({
     startTransition(async () => {
       const res = await setTaskFieldValue({ propertyId, taskId, fieldId, value });
       if ("error" in res) toast.error(res.error);
-      await queryClient.invalidateQueries({
-        queryKey: ["task-field-values", taskId],
-      });
+      // Both value caches: the sidebar reads the per-task key, but the list
+      // cells and board chips behind this drawer read the property-wide one —
+      // invalidating only one left the other stale for up to 60s.
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["task-field-values", taskId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["task-field-values-property", propertyId],
+        }),
+      ]);
     });
   }
 

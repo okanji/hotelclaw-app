@@ -19,10 +19,11 @@ import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge
 import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
 import { TaskScopeChips } from "./task-scope-chips";
+import { OptionChip } from "./custom-field-chip";
 import { taskHref } from "@/lib/tasks/task-href";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
 
 /* -------------------------------------------------------------------------- */
 /* FLIP — animates a card sliding to a new position when the board changes    */
@@ -128,15 +129,18 @@ function AssigneeSlot({
 
 function CardPropertyRow({
   task,
+  labels,
   onChanged,
 }: {
   task: Task;
+  labels: CustomFieldOption[] | undefined;
   onChanged: () => void;
 }) {
   // Linear-style "properties" strip — the priority glyph rendered bare
   // (no chip border) so it reads as inline metadata rather than its own
-  // affordance. Other inline properties (labels, due-date pill, etc.)
-  // can be appended here over time.
+  // affordance. `labels` are the task's label-field (multi_select custom
+  // field) options, resolved board-level — same chips the list view cells
+  // draw, so a label looks identical across views.
   return (
     <div className="mt-2.5 flex flex-wrap items-center gap-1">
       <PriorityChip
@@ -146,6 +150,7 @@ function CardPropertyRow({
         appearance="bare"
       />
       <TaskScopeChips task={task} />
+      {labels?.map((o) => <OptionChip key={o.id} option={o} />)}
     </div>
   );
 }
@@ -205,9 +210,11 @@ const CARD_BASE = cn(
 export function TaskCardOverlay({
   task,
   assignee,
+  labels,
 }: {
   task: Task;
   assignee?: AssigneeInfo;
+  labels?: CustomFieldOption[];
 }) {
   const [now] = useState(() => Date.now());
   return (
@@ -219,7 +226,7 @@ export function TaskCardOverlay({
     >
       <CardHeader task={task} assignee={assignee} />
       <CardTitle title={task.title} status={task.status} />
-      <CardPropertyRow task={task} onChanged={() => undefined} />
+      <CardPropertyRow task={task} labels={labels} onChanged={() => undefined} />
       <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );
@@ -273,6 +280,8 @@ type Props = {
   task: Task;
   /** Resolved assignee info from the board-level lookup, if any. */
   assignee?: AssigneeInfo;
+  /** Label-field chips from the board-level lookup, if any. */
+  labels?: CustomFieldOption[];
   /** True while *any* card is being dragged on this client. */
   dragActive: boolean;
   /** Name of a teammate currently dragging this card, if any. */
@@ -290,6 +299,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({
   propertyId,
   task,
   assignee,
+  labels,
   dragActive,
   draggedByName,
   onChanged,
@@ -363,7 +373,7 @@ export const SortableTaskCard = memo(function SortableTaskCard({
         <CardTitle title={task.title} status={task.status} />
       </Link>
 
-      <CardPropertyRow task={task} onChanged={onChanged} />
+      <CardPropertyRow task={task} labels={labels} onChanged={onChanged} />
       <CardCreatedAt iso={task.created_at} now={now} />
     </div>
   );

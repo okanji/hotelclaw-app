@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { CheckCircle2, ClipboardList } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FormRenderer } from "./form-renderer";
+import { FORM_BACKGROUND_CLASSES } from "./backgrounds";
 import { submitFormResponse } from "./actions";
 import { parseFormSchema, type FormAnswers } from "@/lib/forms/schema";
 import type { FormStatus } from "@/lib/db/types";
@@ -35,16 +37,29 @@ export function FormFill({
 }) {
   const [submitted, setSubmitted] = useState(false);
   const schema = parseFormSchema(rawSchema);
+  const settings = schema.settings;
 
   async function submit(answers: FormAnswers) {
     const result = await submitFormResponse({ formId, answers, source: "direct" });
     if ("error" in result) return result;
+    // Redirect wins over the thank-you screen (http/https only — the schema
+    // deliberately stores the URL loosely so a bad value can't break parsing).
+    const redirect = settings?.redirectUrl?.trim();
+    if (redirect && /^https?:\/\//i.test(redirect)) {
+      window.location.assign(redirect);
+      return { ok: true as const };
+    }
     setSubmitted(true);
     return { ok: true as const };
   }
 
   return (
-    <div className="flex h-full w-full justify-center overflow-y-auto px-6 py-12 sm:py-16">
+    <div
+      className={cn(
+        "flex h-full w-full justify-center overflow-y-auto px-6 py-12 sm:py-16",
+        FORM_BACKGROUND_CLASSES[settings?.background ?? "default"],
+      )}
+    >
       <div className="w-full max-w-2xl">
         <header className="flex flex-col items-start gap-5">
           <div className="flex size-16 items-center justify-center rounded-md bg-muted text-4xl">
@@ -67,8 +82,9 @@ export function FormFill({
             <div className="flex flex-col items-center gap-3 py-14 text-center">
               <CheckCircle2 className="size-5 text-success" aria-hidden />
               <p className="text-sm font-medium">Response recorded</p>
-              <p className="text-sm text-muted-foreground">
-                Thanks — your answers have been submitted.
+              <p className="max-w-prose text-sm whitespace-pre-line text-muted-foreground">
+                {settings?.confirmationMessage?.trim() ||
+                  "Thanks — your answers have been submitted."}
               </p>
               {allowMultiple ? (
                 <Button

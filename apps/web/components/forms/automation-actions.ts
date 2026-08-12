@@ -7,6 +7,7 @@ import { saveWorkflow } from "@/lib/workflows/save";
 import { parseFormSchema, inputFields } from "@/lib/forms/schema";
 import {
   buildFormTaskAutomationSpec,
+  deriveTaskMappings,
   extractFormTaskAutomationConfig,
   specTargetsForm,
   FORM_AUTOMATION_PRIORITIES,
@@ -36,6 +37,24 @@ export type FormTaskAutomationState = {
    */
   config: FormTaskAutomationConfig | null;
 };
+
+/** Which task properties the form's questions currently map (from the form
+ *  schema, so the panel can show "Assignee comes from a question" chips). */
+export type FormTaskAutomationMappings = ReturnType<typeof deriveTaskMappings>;
+
+async function loadFormMappings(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  formId: string,
+): Promise<FormTaskAutomationMappings> {
+  const { data } = await supabase
+    .from("forms")
+    .select("schema")
+    .eq("id", formId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return deriveTaskMappings(inputFields(parseFormSchema(data?.schema)));
+}
 
 /** Find the workflow reacting to this form's submissions, newest first. */
 async function findFormAutomation(
@@ -79,7 +98,10 @@ async function findFormAutomation(
 export async function getFormTaskAutomation(input: {
   propertyId: string;
   formId: string;
-}): Promise<{ automation: FormTaskAutomationState | null } | ActionError> {
+}): Promise<
+  | { automation: FormTaskAutomationState | null; mappings: FormTaskAutomationMappings }
+  | ActionError
+> {
   const pid = Uuid.safeParse(input.propertyId);
   const fid = Uuid.safeParse(input.formId);
   if (!pid.success || !fid.success) return { error: "Invalid input" };
@@ -88,9 +110,11 @@ export async function getFormTaskAutomation(input: {
   if (!membership) return { error: "Not a member of this property" };
 
   const supabase = await createClient();
-  return {
-    automation: await findFormAutomation(supabase, pid.data, fid.data),
-  };
+  const [automation, mappings] = await Promise.all([
+    findFormAutomation(supabase, pid.data, fid.data),
+    loadFormMappings(supabase, pid.data, fid.data),
+  ]);
+  return { automation, mappings };
 }
 
 const SetSchema = z.object({
@@ -101,6 +125,8 @@ const SetSchema = z.object({
     spaceId: Uuid.nullable(),
     assigneeId: Uuid.nullable(),
     priority: z.enum(FORM_AUTOMATION_PRIORITIES),
+    labels: z.array(z.string().trim().min(1).max(60)).max(12).default([]),
+    includeAnswers: z.boolean().default(true),
   }),
 });
 
@@ -115,7 +141,10 @@ export async function setFormTaskAutomation(input: {
   formId: string;
   enabled: boolean;
   config: FormTaskAutomationConfig;
-}): Promise<{ automation: FormTaskAutomationState } | ActionError> {
+}): Promise<
+  | { automation: FormTaskAutomationState; mappings: FormTaskAutomationMappings }
+  | ActionError
+> {
   const parsed = SetSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid input" };
   const { propertyId, formId, enabled, config } = parsed.data;
@@ -146,12 +175,16 @@ export async function setFormTaskAutomation(input: {
     };
   }
 
+  const formFields = inputFields(parseFormSchema(form.schema));
   const spec = buildFormTaskAutomationSpec({
     formId,
     formTitle: form.title,
     formIcon: form.icon,
-    fieldLabels: inputFields(parseFormSchema(form.schema)).map((f) => f.label),
+    fieldLabels: formFields.map((f) => f.label),
     config,
+    // Task-property-mapped questions wire {{trigger.task_properties.*}} refs
+    // into the created task; re-derived from the CURRENT schema every save.
+    mappings: deriveTaskMappings(formFields),
   });
 
   let workflowId = existing?.workflowId ?? null;
@@ -196,5 +229,6 @@ export async function setFormTaskAutomation(input: {
       enabled,
       config,
     },
+    mappings: deriveTaskMappings(formFields),
   };
 }

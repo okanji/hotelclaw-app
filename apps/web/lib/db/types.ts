@@ -60,11 +60,18 @@ export type CustomFieldValue = string | number | boolean | string[];
 
 // ── List view column layout (migration 0099) ────────────────────────────────
 /**
- * One column in the tasks list view. `id` is a built-in key ("title",
- * "priority", …) or `field:<uuid>` for a custom field — the same addressing
- * the board's filter facets use.
+ * One column in the tasks list view. `id` is a built-in key ("priority",
+ * "due", …; the title column is fixed and never stored) or `field:<uuid>`
+ * for a custom field — the same addressing the board's filter facets use.
+ * `calc` is the ClickUp-style footer calculation for this column (sum, avg,
+ * count values, …) — ids live in lib/tasks/list-columns.ts.
  */
-export type TaskViewColumn = { id: string; width: number; hidden?: boolean };
+export type TaskViewColumn = {
+  id: string;
+  width: number;
+  hidden?: boolean;
+  calc?: string;
+};
 /** Active sort, or null for manual (drag-orderable) order. */
 export type TaskViewSort = { columnId: string; dir: "asc" | "desc" } | null;
 

@@ -105,6 +105,33 @@ export async function updateCustomField(
   if (!parsed.success) return { error: "Invalid input" };
 
   const supabase = await createClient();
+
+  // Rename gets the same duplicate check as create — the field NAME is also
+  // the workflow join key (`trigger.field_name`, `action.task.set_field`), so
+  // two same-named fields in one scope make automations ambiguous.
+  if (parsed.data.name !== undefined) {
+    const { data: current } = await supabase
+      .from("custom_fields")
+      .select("id, property_id, space_id")
+      .eq("id", parsed.data.fieldId)
+      .maybeSingle();
+    if (!current) return { error: "Field not found" };
+    const { data: existing } = await supabase
+      .from("custom_fields")
+      .select("id, name, space_id")
+      .eq("property_id", current.property_id)
+      .is("archived_at", null);
+    const clash = (existing ?? []).some(
+      (f) =>
+        f.id !== parsed.data.fieldId &&
+        f.name.toLowerCase() === parsed.data.name!.trim().toLowerCase() &&
+        (f.space_id ?? null) === (current.space_id ?? null),
+    );
+    if (clash) {
+      return { error: `A field named "${parsed.data.name}" already exists` };
+    }
+  }
+
   const patch: Database["public"]["Tables"]["custom_fields"]["Update"] = {};
   if (parsed.data.name !== undefined) patch.name = parsed.data.name.trim();
   if (parsed.data.options !== undefined) patch.options = parsed.data.options;
@@ -156,18 +183,25 @@ export async function setTaskFieldValue(
   const [{ data: field }, { data: task }] = await Promise.all([
     supabase
       .from("custom_fields")
-      .select("id, type, options")
+      .select("id, type, options, space_id")
       .eq("id", parsed.data.fieldId)
       .eq("property_id", parsed.data.propertyId)
       .maybeSingle(),
     supabase
       .from("tasks")
-      .select("id")
+      .select("id, space_id")
       .eq("id", parsed.data.taskId)
       .eq("property_id", parsed.data.propertyId)
       .maybeSingle(),
   ]);
   if (!field || !task) return { error: "Not found" };
+
+  // Scope: a team-scoped field only applies to that team's tasks. The task
+  // sidebar already filters by scope; this closes the list-cell / bulk-edit
+  // / API paths that previously accepted any field on any task.
+  if (field.space_id && field.space_id !== task.space_id) {
+    return { error: "This field is scoped to a different team" };
+  }
 
   // An emptied label field is a cleared field — drop the row rather than
   // storing `[]`, so "Empty" filters and the trigger's from/to stay honest.

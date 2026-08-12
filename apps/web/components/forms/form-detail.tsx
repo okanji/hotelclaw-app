@@ -6,15 +6,36 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  AlignLeft,
   ArrowLeft,
+  CalendarDays,
   ChevronDown,
   ChevronRight,
+  CircleDot,
+  Eye,
+  GitBranch,
   GripVertical,
+  Hash,
+  Heading,
+  Info,
+  Layers,
   Link2,
   Loader2,
+  Mail,
+  Paperclip,
+  PenLine,
+  Phone,
   Plus,
+  Search,
+  Star,
+  Tags,
+  ToggleLeft,
   Trash2,
+  Type,
+  UserRound,
+  Wand2,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import {
   closestCenter,
@@ -42,6 +63,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -51,34 +73,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FormRenderer } from "./form-renderer";
 import {
   AiEditPopover,
   SourcePicker,
   type BuilderShared,
+  type FieldPreset,
 } from "./form-builder-extras";
+import { FORM_BACKGROUND_CLASSES, FORM_BACKGROUND_LABELS } from "./backgrounds";
 import { FormStatusBadge } from "./status-badge";
 import { TaskAutomationCard } from "./task-automation-card";
 import { updateForm, deleteForm } from "./actions";
 import {
+  CONDITION_OPS,
   FIELD_TYPE_META,
-  FORM_FIELD_TYPES,
+  FORM_BACKGROUNDS,
   FormFileValueZod,
+  PRIORITY_FIELD_OPTIONS,
+  TASK_PROPERTY_META,
   formatAnswer,
   inputFields,
   newFieldId,
   parseFormSchema,
+  type ConditionOp,
   type FormAnswers,
   type FormAnswerValue,
   type FormField,
-  type FormFieldType,
+  type FormFieldCondition,
   type FormSchema,
+  type FormSettings,
+  type TaskPropertyKind,
 } from "@/lib/forms/schema";
 import type { FormResponseSource, FormStatus } from "@/lib/db/types";
 import { PageShell } from "@/components/ui/page-shell";
@@ -106,12 +131,32 @@ type ResponseRow = {
   respondent: { id: string; name: string | null } | null;
 };
 
+type ResponsesPayload = {
+  responses: ResponseRow[];
+  /** fieldId → (answer id → display label) for sourced choice/people fields. */
+  sourcedLabels: Record<string, Record<string, string>>;
+};
+
+function responsesQueryOptions(propertyId: string, formId: string) {
+  return {
+    queryKey: ["form-responses", formId],
+    queryFn: async (): Promise<ResponsesPayload> => {
+      const res = await fetch(`/api/properties/${propertyId}/forms/${formId}/responses`);
+      const body = (await res.json()) as Partial<ResponsesPayload> & { error?: string };
+      if (!res.ok || !body.responses) throw new Error(body.error ?? "Failed to load");
+      return { responses: body.responses, sourcedLabels: body.sourcedLabels ?? {} };
+    },
+  };
+}
+
 /**
- * Form detail — Build / Responses / Settings tabs under a shared header.
- * The builder edits a local copy of the schema and saves explicitly;
- * settings write through immediately. `canEdit` mirrors the RLS update
- * policy (creator or owner/manager) — without it the builder is read-only
- * preview and Settings is hidden.
+ * Form detail — ClickUp-style Build / Settings / Preview tabs plus a
+ * "N responses" chip, under a shared header. The schema working copy lives
+ * HERE (not in the Build tab) so Build edits, presentation Settings, and the
+ * Preview tab all see the same unsaved state and share one Save. Settings
+ * that are DB columns (status, allow multiple, anonymous) write through
+ * immediately as before. `canEdit` mirrors the RLS update policy (creator or
+ * owner/manager) — without it only Preview and Responses show.
  */
 export function FormDetail({
   propertyId,
@@ -123,10 +168,142 @@ export function FormDetail({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"build" | "responses" | "settings">("build");
+  const [tab, setTab] = useState<"build" | "responses" | "settings" | "preview">(
+    canEdit ? "build" : "preview",
+  );
   const [title, setTitle] = useState(form.title);
   const [status, setStatus] = useState<FormStatus>(form.status);
   const [savingStatus, startStatusTransition] = useTransition();
+
+  // The shared schema working copy (fields + presentation settings).
+  const [schema, setSchema] = useState<FormSchema>(() => parseFormSchema(form.schema));
+  const [savedJson, setSavedJson] = useState(() =>
+    JSON.stringify(parseFormSchema(form.schema)),
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, startSave] = useTransition();
+  const dirty = JSON.stringify(schema) !== savedJson;
+
+  const { data: responsesData } = useQuery(responsesQueryOptions(propertyId, form.id));
+  const responseCount = responsesData?.responses.length;
+
+  function patchField(id: string, patch: Partial<FormField>) {
+    setSchema((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+    }));
+  }
+
+  function addField(preset: FieldPreset) {
+    const isChoice = preset.type === "select" || preset.type === "multi_select";
+    const field: FormField = {
+      id: newFieldId(),
+      type: preset.type,
+      label: preset.label ?? FIELD_TYPE_META[preset.type].label,
+      ...(preset.description ? { description: preset.description } : {}),
+      ...(preset.placeholder ? { placeholder: preset.placeholder } : {}),
+      ...(preset.taskProperty ? { taskProperty: preset.taskProperty } : {}),
+      ...(preset.source ? { source: preset.source } : {}),
+      ...(preset.options
+        ? { options: preset.options }
+        : isChoice && !preset.source
+          ? {
+              options: [
+                { id: newFieldId(), label: "Option 1" },
+                { id: newFieldId(), label: "Option 2" },
+              ],
+            }
+          : {}),
+    };
+    setSchema((prev) => ({ ...prev, fields: [...prev.fields, field] }));
+    setSelectedId(field.id);
+  }
+
+  function duplicateField(id: string) {
+    setSchema((prev) => {
+      const index = prev.fields.findIndex((f) => f.id === id);
+      if (index < 0) return prev;
+      const original = prev.fields[index];
+      const copy: FormField = {
+        ...original,
+        id: newFieldId(),
+        // Task-property presets carry semantic option ids ("urgent") — only
+        // regenerate ids for plain custom lists.
+        options: original.taskProperty
+          ? original.options
+          : original.options?.map((o) => ({ ...o, id: newFieldId() })),
+      };
+      const fields = [...prev.fields];
+      fields.splice(index + 1, 0, copy);
+      return { ...prev, fields };
+    });
+  }
+
+  function removeField(id: string) {
+    setSchema((prev) => ({
+      ...prev,
+      // Conditions referencing a deleted field fail open at render time; drop
+      // them here so the builder never shows a stale rule.
+      fields: prev.fields
+        .filter((f) => f.id !== id)
+        .map((f) => (f.condition?.fieldId === id ? { ...f, condition: undefined } : f)),
+    }));
+    if (selectedId === id) setSelectedId(null);
+  }
+
+  function reorder(activeFieldId: string, overFieldId: string) {
+    setSchema((prev) => {
+      const oldIndex = prev.fields.findIndex((f) => f.id === activeFieldId);
+      const newIndex = prev.fields.findIndex((f) => f.id === overFieldId);
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return { ...prev, fields: arrayMove(prev.fields, oldIndex, newIndex) };
+    });
+  }
+
+  function patchSettings(patch: Partial<FormSettings>) {
+    setSchema((prev) => {
+      const settings = { ...(prev.settings ?? {}), ...patch };
+      // Drop empty keys so an untouched form keeps a clean schema.
+      for (const key of Object.keys(settings) as (keyof FormSettings)[]) {
+        if (settings[key] === undefined || settings[key] === "") delete settings[key];
+      }
+      return {
+        ...prev,
+        settings: Object.keys(settings).length > 0 ? settings : undefined,
+      };
+    });
+  }
+
+  function save() {
+    startSave(async () => {
+      const result = await updateForm({ formId: form.id, patch: { schema } });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setSavedJson(JSON.stringify(schema));
+      toast.success("Form saved");
+      router.refresh();
+    });
+  }
+
+  const shared: BuilderShared = {
+    propertyId,
+    formId: form.id,
+    canEdit,
+    schema,
+    selectedId,
+    setSelectedId,
+    patchField,
+    addField,
+    duplicateField,
+    removeField,
+    reorder,
+    applySchema: setSchema,
+    dirty,
+    saving,
+    save,
+  };
 
   function saveTitle() {
     const next = title.trim();
@@ -211,14 +388,29 @@ export function FormDetail({
         onValueChange={(t) => setTab(t as typeof tab)}
         className="mt-6 flex flex-1 flex-col"
       >
-        <TabsList>
-          <TabsTrigger value="build">Build</TabsTrigger>
-          <TabsTrigger value="responses">Responses</TabsTrigger>
-          {canEdit ? <TabsTrigger value="settings">Settings</TabsTrigger> : null}
-        </TabsList>
-        <TabsContent value="build" className="mt-4">
-          <BuildTab propertyId={propertyId} form={form} canEdit={canEdit} />
-        </TabsContent>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* ClickUp's "0 responses" chip — doubles as the Responses tab. */}
+          <TabsList>
+            <TabsTrigger value="responses">
+              {responseCount === undefined
+                ? "Responses"
+                : `${responseCount} ${responseCount === 1 ? "response" : "responses"}`}
+            </TabsTrigger>
+          </TabsList>
+          <TabsList className="mx-auto">
+            {canEdit ? <TabsTrigger value="build">Build</TabsTrigger> : null}
+            {canEdit ? <TabsTrigger value="settings">Settings</TabsTrigger> : null}
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+          {/* Spacer balances the chip so the tab strip sits centered. */}
+          <div className="hidden w-28 sm:block" aria-hidden />
+        </div>
+
+        {canEdit ? (
+          <TabsContent value="build" className="mt-4">
+            <BuildTab shared={shared} />
+          </TabsContent>
+        ) : null}
         <TabsContent value="responses" className="mt-4">
           <ResponsesTab propertyId={propertyId} form={form} />
         </TabsContent>
@@ -230,9 +422,20 @@ export function FormDetail({
               status={status}
               savingStatus={savingStatus}
               onStatusChange={setFormStatus}
+              shared={shared}
+              onPatchSettings={patchSettings}
             />
           </TabsContent>
         ) : null}
+        <TabsContent value="preview" className="mt-4">
+          <PreviewTab
+            title={title}
+            description={form.description}
+            icon={form.icon}
+            schema={schema}
+            propertyId={propertyId}
+          />
+        </TabsContent>
       </Tabs>
     </PageShell>
   );
@@ -240,158 +443,7 @@ export function FormDetail({
 
 /* ------------------------------- Build tab ------------------------------- */
 
-function BuildTab({
-  propertyId,
-  form,
-  canEdit,
-}: {
-  propertyId: string;
-  form: FormRow;
-  canEdit: boolean;
-}) {
-  const router = useRouter();
-  const [schema, setSchema] = useState<FormSchema>(() => parseFormSchema(form.schema));
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(parseFormSchema(form.schema)));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [saving, startSave] = useTransition();
-
-  const dirty = JSON.stringify(schema) !== savedJson;
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function patchField(id: string, patch: Partial<FormField>) {
-    setSchema((prev) => ({
-      ...prev,
-      fields: prev.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
-    }));
-  }
-
-  function addField(type: FormFieldType) {
-    const field: FormField = {
-      id: newFieldId(),
-      type,
-      label: FIELD_TYPE_META[type].label,
-      ...(type === "select" || type === "multi_select"
-        ? {
-            options: [
-              { id: newFieldId(), label: "Option 1" },
-              { id: newFieldId(), label: "Option 2" },
-            ],
-          }
-        : null),
-    };
-    setSchema((prev) => ({ ...prev, fields: [...prev.fields, field] }));
-    setSelectedId(field.id);
-  }
-
-  function duplicateField(id: string) {
-    setSchema((prev) => {
-      const index = prev.fields.findIndex((f) => f.id === id);
-      if (index < 0) return prev;
-      const original = prev.fields[index];
-      const copy: FormField = {
-        ...original,
-        id: newFieldId(),
-        options: original.options?.map((o) => ({ ...o, id: newFieldId() })),
-      };
-      const fields = [...prev.fields];
-      fields.splice(index + 1, 0, copy);
-      return { ...prev, fields };
-    });
-  }
-
-  function removeField(id: string) {
-    setSchema((prev) => ({ ...prev, fields: prev.fields.filter((f) => f.id !== id) }));
-    if (selectedId === id) setSelectedId(null);
-  }
-
-  function reorder(activeFieldId: string, overFieldId: string) {
-    setSchema((prev) => {
-      const oldIndex = prev.fields.findIndex((f) => f.id === activeFieldId);
-      const newIndex = prev.fields.findIndex((f) => f.id === overFieldId);
-      if (oldIndex < 0 || newIndex < 0) return prev;
-      return { ...prev, fields: arrayMove(prev.fields, oldIndex, newIndex) };
-    });
-  }
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    reorder(String(active.id), String(over.id));
-  }
-
-  function save() {
-    startSave(async () => {
-      const result = await updateForm({ formId: form.id, patch: { schema } });
-      if ("error" in result) {
-        toast.error(result.error);
-        return;
-      }
-      setSavedJson(JSON.stringify(schema));
-      toast.success("Form saved");
-      router.refresh();
-    });
-  }
-
-  const activeField = activeId ? schema.fields.find((f) => f.id === activeId) : null;
-
-  const shared: BuilderShared = {
-    propertyId,
-    formId: form.id,
-    canEdit,
-    schema,
-    selectedId,
-    setSelectedId,
-    patchField,
-    addField,
-    duplicateField,
-    removeField,
-    reorder,
-    applySchema: setSchema,
-    dirty,
-    saving,
-    save,
-  };
-
-  return (
-    <SplitPanesBuilder
-      shared={shared}
-      sensors={sensors}
-      activeField={activeField ?? null}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveId(null)}
-    />
-  );
-}
-
-/* ==================== Variant A — Split panes (current) =================== */
-
-function SplitPanesBuilder({
-  shared,
-  sensors,
-  activeField,
-  onDragStart,
-  onDragEnd,
-  onDragCancel,
-}: {
-  shared: BuilderShared;
-  sensors: ReturnType<typeof useSensors>;
-  activeField: FormField | null;
-  onDragStart: (event: DragStartEvent) => void;
-  onDragEnd: (event: DragEndEvent) => void;
-  onDragCancel: () => void;
-}) {
+function BuildTab({ shared }: { shared: BuilderShared }) {
   const {
     schema,
     canEdit,
@@ -404,6 +456,26 @@ function SplitPanesBuilder({
     saving,
     save,
   } = shared;
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    shared.reorder(String(active.id), String(over.id));
+  }
+
+  const activeField = activeId ? schema.fields.find((f) => f.id === activeId) : null;
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -412,7 +484,16 @@ function SplitPanesBuilder({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">Fields</h2>
             <div className="flex gap-2">
-              <AddFieldMenu onAdd={addField} />
+              <AddQuestionMenu
+                onAdd={addField}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Plus data-slot="icon" />
+                    Add question
+                    <ChevronDown className="size-3.5 opacity-50" />
+                  </Button>
+                }
+              />
               <AiEditPopover shared={shared} />
               <Button size="sm" onClick={save} disabled={!dirty || saving}>
                 {saving ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
@@ -423,15 +504,15 @@ function SplitPanesBuilder({
 
           {schema.fields.length === 0 ? (
             <div className="rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
-              No fields yet — add one to get started.
+              No questions yet — add one to get started.
             </div>
           ) : (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onDragCancel={onDragCancel}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => setActiveId(null)}
             >
               <SortableContext
                 items={schema.fields.map((f) => f.id)}
@@ -442,6 +523,7 @@ function SplitPanesBuilder({
                     <SortableFieldRow
                       key={field.id}
                       field={field}
+                      schema={schema}
                       propertyId={shared.propertyId}
                       selected={selectedId === field.id}
                       onSelect={() =>
@@ -462,15 +544,34 @@ function SplitPanesBuilder({
               </PortalDragOverlay>
             </DndContext>
           )}
+
+          {/* ClickUp's big bottom "Add question" bar. */}
+          <AddQuestionMenu
+            onAdd={addField}
+            trigger={
+              <button
+                type="button"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-muted px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                <Plus className="size-4" />
+                Add question
+              </button>
+            }
+          />
         </div>
       ) : null}
 
-      <div className={cn("flex flex-col gap-3", !canEdit && "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-xl")}>
+      <div
+        className={cn(
+          "flex flex-col gap-3",
+          !canEdit && "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-xl",
+        )}
+      >
         <h2 className="text-sm font-medium">Preview</h2>
         <div className="rounded-lg bg-background p-5">
           {schema.fields.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              The form preview appears here as you add fields.
+              The form preview appears here as you add questions.
             </p>
           ) : (
             <FormRenderer
@@ -486,32 +587,241 @@ function SplitPanesBuilder({
   );
 }
 
-function AddFieldMenu({ onAdd }: { onAdd: (type: FormFieldType) => void }) {
+/* -------------------------- Add-question menu ---------------------------- */
+
+type MenuLeaf = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  preset: FieldPreset;
+};
+
+type MenuEntry =
+  | MenuLeaf
+  | { key: string; label: string; icon: LucideIcon; children: MenuLeaf[] };
+
+const TASK_PROPERTY_LEAVES: MenuLeaf[] = [
+  {
+    key: "tp-assignee",
+    label: "Assignee",
+    icon: UserRound,
+    preset: { type: "people", label: "Assignee", taskProperty: "assignee" },
+  },
+  {
+    key: "tp-priority",
+    label: "Priority",
+    icon: Layers,
+    preset: {
+      type: "select",
+      label: "Priority",
+      taskProperty: "priority",
+      options: PRIORITY_FIELD_OPTIONS.map((o) => ({ ...o })),
+    },
+  },
+  {
+    key: "tp-due-date",
+    label: "Due date",
+    icon: CalendarDays,
+    preset: { type: "date", label: "Due date", taskProperty: "due_date" },
+  },
+  {
+    key: "tp-tags",
+    label: "Tags",
+    icon: Tags,
+    preset: {
+      type: "multi_select",
+      label: "Tags",
+      taskProperty: "labels",
+      source: { kind: "labels" },
+    },
+  },
+];
+
+const QUESTION_MENU: { section: string; entries: MenuEntry[] }[] = [
+  {
+    section: "Questions type",
+    entries: [
+      {
+        key: "task-property",
+        label: "Task property",
+        icon: Layers,
+        children: TASK_PROPERTY_LEAVES,
+      },
+      { key: "short_text", label: "Short text", icon: Type, preset: { type: "short_text" } },
+      { key: "long_text", label: "Long text", icon: AlignLeft, preset: { type: "long_text" } },
+      { key: "date", label: "Dates", icon: CalendarDays, preset: { type: "date" } },
+      { key: "select", label: "Single-select", icon: CircleDot, preset: { type: "select" } },
+      { key: "multi_select", label: "Multi-select", icon: Tags, preset: { type: "multi_select" } },
+      {
+        key: "contact",
+        label: "Contact info",
+        icon: Phone,
+        children: [
+          { key: "email", label: "Email", icon: Mail, preset: { type: "email" } },
+          { key: "phone", label: "Phone", icon: Phone, preset: { type: "phone" } },
+        ],
+      },
+      { key: "people", label: "People", icon: UserRound, preset: { type: "people" } },
+      { key: "file", label: "Uploads", icon: Paperclip, preset: { type: "file" } },
+      { key: "number", label: "Number", icon: Hash, preset: { type: "number" } },
+      { key: "rating", label: "Rating", icon: Star, preset: { type: "rating" } },
+      { key: "yes_no", label: "Yes / No", icon: ToggleLeft, preset: { type: "yes_no" } },
+      { key: "signature", label: "Signature", icon: PenLine, preset: { type: "signature" } },
+    ],
+  },
+  {
+    section: "Layout",
+    entries: [
+      {
+        key: "info",
+        label: "Information Block",
+        icon: Info,
+        preset: { type: "info", label: "Add your text here" },
+      },
+      { key: "section", label: "Section", icon: Heading, preset: { type: "section" } },
+    ],
+  },
+];
+
+/**
+ * ClickUp's add-question menu: search on top, categorized list below,
+ * "Task property" and "Contact info" expand inline. Searching flattens
+ * everything (submenu leaves included).
+ */
+function AddQuestionMenu({
+  onAdd,
+  trigger,
+}: {
+  onAdd: (preset: FieldPreset) => void;
+  trigger: React.ReactElement;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const q = query.trim().toLowerCase();
+  const flatMatches: MenuLeaf[] = q
+    ? QUESTION_MENU.flatMap((s) =>
+        s.entries.flatMap((e) =>
+          "children" in e
+            ? e.children.filter(
+                (c) =>
+                  c.label.toLowerCase().includes(q) ||
+                  e.label.toLowerCase().includes(q),
+              )
+            : e.label.toLowerCase().includes(q)
+              ? [e]
+              : [],
+        ),
+      )
+    : [];
+
+  function pick(preset: FieldPreset) {
+    onAdd(preset);
+    setOpen(false);
+    setQuery("");
+    setExpanded(null);
+  }
+
+  function LeafRow({ leaf, indent }: { leaf: MenuLeaf; indent?: boolean }) {
+    const IconComponent = leaf.icon;
+    return (
+      <button
+        type="button"
+        onClick={() => pick(leaf.preset)}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent",
+          indent && "pl-8",
+        )}
+      >
+        <IconComponent className="size-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 truncate">{leaf.label}</span>
+      </button>
+    );
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-        <Plus data-slot="icon" />
-        Add field
-        <ChevronDown className="size-3.5 opacity-50" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
-        {FORM_FIELD_TYPES.map((type) => (
-          <DropdownMenuItem key={type} onClick={() => onAdd(type)}>
-            <div>
-              <div className="text-sm font-medium">{FIELD_TYPE_META[type].label}</div>
-              <div className="text-xs text-muted-foreground">
-                {FIELD_TYPE_META[type].description}
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setQuery("");
+          setExpanded(null);
+        }
+      }}
+    >
+      <PopoverTrigger render={trigger} />
+      <PopoverContent align="start" className="w-72 p-2">
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search…"
+            autoFocus
+            className="h-8 pl-8"
+            aria-label="Search question types"
+          />
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {q ? (
+            flatMatches.length > 0 ? (
+              flatMatches.map((leaf) => <LeafRow key={leaf.key} leaf={leaf} />)
+            ) : (
+              <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+                No question types match &ldquo;{query}&rdquo;
+              </p>
+            )
+          ) : (
+            QUESTION_MENU.map((group) => (
+              <div key={group.section} className="mb-1">
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                  {group.section}
+                </p>
+                {group.entries.map((entry) =>
+                  "children" in entry ? (
+                    <div key={entry.key}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpanded(expanded === entry.key ? null : entry.key)
+                        }
+                        className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                      >
+                        <entry.icon className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 truncate">{entry.label}</span>
+                        <ChevronRight
+                          className={cn(
+                            "size-3.5 text-muted-foreground/60 transition-transform",
+                            expanded === entry.key && "rotate-90",
+                          )}
+                        />
+                      </button>
+                      {expanded === entry.key
+                        ? entry.children.map((leaf) => (
+                            <LeafRow key={leaf.key} leaf={leaf} indent />
+                          ))
+                        : null}
+                    </div>
+                  ) : (
+                    <LeafRow key={entry.key} leaf={entry} />
+                  ),
+                )}
               </div>
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
+/* ------------------------------ Field rows ------------------------------- */
+
 function SortableFieldRow({
   field,
+  schema,
   propertyId,
   selected,
   onSelect,
@@ -519,6 +829,7 @@ function SortableFieldRow({
   onRemove,
 }: {
   field: FormField;
+  schema: FormSchema;
   propertyId: string;
   selected: boolean;
   onSelect: () => void;
@@ -569,6 +880,18 @@ function SortableFieldRow({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {field.label || "Untitled field"}
         </span>
+        {field.taskProperty ? (
+          <Wand2
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-label={`Sets the task's ${TASK_PROPERTY_META[field.taskProperty].label.toLowerCase()}`}
+          />
+        ) : null}
+        {field.condition ? (
+          <GitBranch
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-label="Shown conditionally"
+          />
+        ) : null}
         {field.required ? (
           <span className="size-1.5 shrink-0 rounded-full bg-destructive" title="Required" />
         ) : null}
@@ -583,6 +906,7 @@ function SortableFieldRow({
       {selected ? (
         <FieldEditor
           field={field}
+          schema={schema}
           propertyId={propertyId}
           onPatch={onPatch}
           onRemove={onRemove}
@@ -592,34 +916,75 @@ function SortableFieldRow({
   );
 }
 
+/** Which task property a field type can map onto. */
+const MAPPABLE: Partial<Record<FormField["type"], TaskPropertyKind>> = {
+  people: "assignee",
+  select: "priority",
+  date: "due_date",
+  multi_select: "labels",
+};
+
 function FieldEditor({
   field,
+  schema,
   propertyId,
   onPatch,
   onRemove,
 }: {
   field: FormField;
+  schema: FormSchema;
   propertyId: string;
   onPatch: (patch: Partial<FormField>) => void;
   onRemove: () => void;
 }) {
   const isChoice = field.type === "select" || field.type === "multi_select";
+  const isLayout = field.type === "section" || field.type === "info";
   const hasPlaceholder = ["short_text", "long_text", "email", "phone", "number"].includes(
     field.type,
   );
+  const mappable = MAPPABLE[field.type];
+  const priorityMapped = field.taskProperty === "priority";
+
+  function setTaskProperty(next: string) {
+    if (!next) {
+      onPatch({ taskProperty: undefined });
+      return;
+    }
+    const kind = next as TaskPropertyKind;
+    if (kind === "priority") {
+      // Priority options are fixed — their ids ARE the task priority values.
+      onPatch({
+        taskProperty: kind,
+        source: undefined,
+        options: PRIORITY_FIELD_OPTIONS.map((o) => ({ ...o })),
+      });
+      return;
+    }
+    onPatch({ taskProperty: kind });
+  }
 
   return (
     <div className="space-y-3 border-t border-border px-3 py-3">
       <div className="space-y-1.5">
-        <Label className="text-xs">Label</Label>
-        <Input
-          value={field.label}
-          onChange={(e) => onPatch({ label: e.target.value })}
-          className="h-8"
-        />
+        <Label className="text-xs">{field.type === "info" ? "Text" : "Label"}</Label>
+        {field.type === "info" ? (
+          <Textarea
+            value={field.label}
+            onChange={(e) => onPatch({ label: e.target.value })}
+            rows={3}
+          />
+        ) : (
+          <Input
+            value={field.label}
+            onChange={(e) => onPatch({ label: e.target.value })}
+            className="h-8"
+          />
+        )}
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Description</Label>
+        <Label className="text-xs">
+          {field.type === "info" ? "Secondary text" : "Description"}
+        </Label>
         <Input
           value={field.description ?? ""}
           onChange={(e) => onPatch({ description: e.target.value || undefined })}
@@ -639,7 +1004,7 @@ function FieldEditor({
         </div>
       ) : null}
 
-      {isChoice ? (
+      {isChoice && !priorityMapped ? (
         <>
           <SourcePicker propertyId={propertyId} field={field} onPatch={onPatch} />
           {!field.source ? (
@@ -649,6 +1014,11 @@ function FieldEditor({
             />
           ) : null}
         </>
+      ) : null}
+      {priorityMapped ? (
+        <p className="text-xs text-muted-foreground">
+          Options are the task priorities (Urgent / High / Medium / Low).
+        </p>
       ) : null}
 
       {field.type === "number" ? (
@@ -699,8 +1069,31 @@ function FieldEditor({
         </div>
       ) : null}
 
+      {mappable ? (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Maps to task field</Label>
+          <NativeSelect
+            value={field.taskProperty ?? ""}
+            aria-label="Maps to task field"
+            onChange={(e) => setTaskProperty(e.target.value)}
+          >
+            <option value="">Not mapped</option>
+            <option value={mappable}>{TASK_PROPERTY_META[mappable].label}</option>
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            {field.taskProperty
+              ? `${TASK_PROPERTY_META[field.taskProperty].description} — when submissions create tasks.`
+              : "Feed this answer into the task created from each submission."}
+          </p>
+        </div>
+      ) : null}
+
+      {!isLayout || field.condition ? (
+        <LogicEditor field={field} schema={schema} onPatch={onPatch} />
+      ) : null}
+
       <div className="flex items-center justify-between pt-1">
-        {field.type !== "section" ? (
+        {!isLayout ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Switch
               checked={field.required ?? false}
@@ -720,6 +1113,216 @@ function FieldEditor({
     </div>
   );
 }
+
+/* --------------------------- Conditional logic --------------------------- */
+
+const OP_LABELS: Record<ConditionOp, string> = {
+  answered: "is answered",
+  not_answered: "is not answered",
+  equals: "is",
+  not_equals: "is not",
+  contains: "contains",
+};
+
+/** Ops that make sense for a given controller field type. */
+function opsForController(controller: FormField): ConditionOp[] {
+  switch (controller.type) {
+    case "select":
+    case "people":
+      return controller.source && controller.type === "select"
+        ? ["answered", "not_answered"]
+        : controller.type === "people"
+          ? ["answered", "not_answered"]
+          : ["answered", "not_answered", "equals", "not_equals"];
+    case "multi_select":
+      return controller.source
+        ? ["answered", "not_answered"]
+        : ["answered", "not_answered", "contains"];
+    case "yes_no":
+      return ["answered", "not_answered", "equals"];
+    case "short_text":
+    case "long_text":
+    case "email":
+    case "phone":
+      return ["answered", "not_answered", "equals", "not_equals", "contains"];
+    case "number":
+    case "rating":
+    case "date":
+      return ["answered", "not_answered", "equals", "not_equals"];
+    default:
+      return ["answered", "not_answered"];
+  }
+}
+
+/**
+ * "Show this question only when…" — the condition may only reference an
+ * EARLIER question (visibility is a single ordered pass), so the controller
+ * picker lists the fields above this one.
+ */
+function LogicEditor({
+  field,
+  schema,
+  onPatch,
+}: {
+  field: FormField;
+  schema: FormSchema;
+  onPatch: (patch: Partial<FormField>) => void;
+}) {
+  const index = schema.fields.findIndex((f) => f.id === field.id);
+  const candidates = schema.fields
+    .slice(0, Math.max(0, index))
+    .filter((f) => !["section", "info", "file", "signature"].includes(f.type));
+
+  const condition = field.condition;
+  const controller = condition
+    ? candidates.find((f) => f.id === condition.fieldId)
+    : undefined;
+
+  function setCondition(next: FormFieldCondition | undefined) {
+    onPatch({ condition: next });
+  }
+
+  if (candidates.length === 0) return null;
+
+  const ops = controller ? opsForController(controller) : CONDITION_OPS.slice();
+  const needsValue =
+    condition && ["equals", "not_equals", "contains"].includes(condition.op);
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">Logic</Label>
+      <div className="flex flex-col gap-1.5">
+        <NativeSelect
+          value={condition ? "when" : "always"}
+          aria-label="Visibility"
+          onChange={(e) => {
+            if (e.target.value === "always") {
+              setCondition(undefined);
+            } else {
+              const first = candidates[0];
+              setCondition({ fieldId: first.id, op: "answered" });
+            }
+          }}
+        >
+          <option value="always">Always visible</option>
+          <option value="when">Show only when…</option>
+        </NativeSelect>
+
+        {condition ? (
+          <div className="grid grid-cols-2 gap-1.5">
+            <NativeSelect
+              value={condition.fieldId}
+              aria-label="Condition question"
+              onChange={(e) => {
+                const next = candidates.find((f) => f.id === e.target.value);
+                if (!next) return;
+                const nextOps = opsForController(next);
+                setCondition({
+                  fieldId: next.id,
+                  op: nextOps.includes(condition.op) ? condition.op : nextOps[0],
+                  value: undefined,
+                });
+              }}
+            >
+              {candidates.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </NativeSelect>
+            <NativeSelect
+              value={condition.op}
+              aria-label="Condition operator"
+              onChange={(e) =>
+                setCondition({
+                  ...condition,
+                  op: e.target.value as ConditionOp,
+                  value: undefined,
+                })
+              }
+            >
+              {ops.map((op) => (
+                <option key={op} value={op}>
+                  {OP_LABELS[op]}
+                </option>
+              ))}
+            </NativeSelect>
+            {needsValue && controller ? (
+              <div className="col-span-2">
+                <ConditionValueInput
+                  controller={controller}
+                  value={condition.value ?? ""}
+                  onChange={(value) => setCondition({ ...condition, value })}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ConditionValueInput({
+  controller,
+  value,
+  onChange,
+}: {
+  controller: FormField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  if (
+    (controller.type === "select" || controller.type === "multi_select") &&
+    !controller.source
+  ) {
+    return (
+      <NativeSelect
+        value={value}
+        aria-label="Condition value"
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Pick an option…</option>
+        {(controller.options ?? []).map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+          </option>
+        ))}
+      </NativeSelect>
+    );
+  }
+  if (controller.type === "yes_no") {
+    return (
+      <NativeSelect
+        value={value}
+        aria-label="Condition value"
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Pick…</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </NativeSelect>
+    );
+  }
+  return (
+    <Input
+      value={value}
+      type={
+        controller.type === "number" || controller.type === "rating"
+          ? "number"
+          : controller.type === "date"
+            ? "date"
+            : "text"
+      }
+      aria-label="Condition value"
+      placeholder="Value…"
+      onChange={(e) => onChange(e.target.value)}
+      className="h-8"
+    />
+  );
+}
+
+/* ----------------------------- Options editor ---------------------------- */
 
 function OptionsEditor({
   options,
@@ -864,17 +1467,7 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
   const fields = useMemo(() => inputFields(schema), [schema]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const { data, isPending, error } = useQuery({
-    queryKey: ["form-responses", form.id],
-    queryFn: async (): Promise<ResponseRow[]> => {
-      const res = await fetch(
-        `/api/properties/${propertyId}/forms/${form.id}/responses`,
-      );
-      const body = (await res.json()) as { responses?: ResponseRow[]; error?: string };
-      if (!res.ok || !body.responses) throw new Error(body.error ?? "Failed to load");
-      return body.responses;
-    },
-  });
+  const { data, isPending, error } = useQuery(responsesQueryOptions(propertyId, form.id));
 
   if (isPending) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Loading responses…</p>;
@@ -887,7 +1480,8 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
     );
   }
 
-  const responses = data ?? [];
+  const responses = data?.responses ?? [];
+  const sourcedLabels = data?.sourcedLabels ?? {};
   if (responses.length === 0) {
     return (
       <div className="rounded-md p-12 text-center">
@@ -963,6 +1557,7 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
                 hasMore={hasMore}
                 expanded={expanded.has(r.id)}
                 onToggle={() => toggle(r.id)}
+                sourcedLabels={sourcedLabels}
               />
             ))}
           </tbody>
@@ -979,6 +1574,7 @@ function ResponseRows({
   hasMore,
   expanded,
   onToggle,
+  sourcedLabels,
 }: {
   response: ResponseRow;
   visible: FormField[];
@@ -986,6 +1582,7 @@ function ResponseRows({
   hasMore: boolean;
   expanded: boolean;
   onToggle: () => void;
+  sourcedLabels: Record<string, Record<string, string>>;
 }) {
   const colSpan = visible.length + 2 + (hasMore ? 1 : 0);
   return (
@@ -1014,7 +1611,11 @@ function ResponseRows({
             key={f.id}
             className="max-w-44 truncate border-r border-border px-2"
           >
-            <AnswerCell field={f} value={response.answers[f.id]} />
+            <AnswerCell
+              field={f}
+              value={response.answers[f.id]}
+              labels={sourcedLabels[f.id]}
+            />
           </td>
         ))}
         <td className="px-2 whitespace-nowrap text-muted-foreground">
@@ -1029,7 +1630,11 @@ function ResponseRows({
                 <div key={f.id}>
                   <dt className="text-xs text-muted-foreground">{f.label}</dt>
                   <dd className="text-sm">
-                    <AnswerCell field={f} value={response.answers[f.id]} />
+                    <AnswerCell
+                      field={f}
+                      value={response.answers[f.id]}
+                      labels={sourcedLabels[f.id]}
+                    />
                   </dd>
                 </div>
               ))}
@@ -1043,15 +1648,18 @@ function ResponseRows({
 
 /**
  * One answer in the responses view — file answers render as links to the
- * uploaded objects (the bucket is public); everything else goes through
- * formatAnswer().
+ * uploaded objects (the bucket is public), signatures render the drawn
+ * image, sourced choice / people answers map through the resolved labels;
+ * everything else goes through formatAnswer().
  */
 function AnswerCell({
   field,
   value,
+  labels,
 }: {
   field: FormField;
   value: FormAnswerValue | undefined;
+  labels?: Record<string, string>;
 }) {
   if (field.type === "file" && Array.isArray(value)) {
     const files = value
@@ -1074,6 +1682,27 @@ function AnswerCell({
         ))}
       </span>
     );
+  }
+  if (
+    field.type === "signature" &&
+    typeof value === "string" &&
+    value.startsWith("data:image/")
+  ) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={value} alt="Signature" className="h-8 w-auto max-w-32 object-contain" />
+    );
+  }
+  if (labels) {
+    if (typeof value === "string" && value) {
+      return <>{labels[value] ?? value}</>;
+    }
+    if (Array.isArray(value)) {
+      const names = value
+        .filter((v): v is string => typeof v === "string")
+        .map((v) => labels[v] ?? v);
+      if (names.length > 0) return <>{names.join(", ")}</>;
+    }
   }
   return <>{formatAnswer(field, value)}</>;
 }
@@ -1183,6 +1812,72 @@ function SummaryStrip({
   );
 }
 
+/* ------------------------------ Preview tab ------------------------------ */
+
+/**
+ * ClickUp's Preview tab: the real fill experience (interactive, background
+ * applied), fed by the WORKING schema so unsaved edits preview instantly.
+ * Submissions are simulated — nothing is stored.
+ */
+function PreviewTab({
+  title,
+  description,
+  icon,
+  schema,
+  propertyId,
+}: {
+  title: string;
+  description: string | null;
+  icon: string | null;
+  schema: FormSchema;
+  propertyId: string;
+}) {
+  const background = schema.settings?.background ?? "default";
+  return (
+    <div
+      className={cn(
+        "rounded-lg px-6 py-10 sm:px-10 sm:py-14",
+        FORM_BACKGROUND_CLASSES[background],
+      )}
+    >
+      <div className="mx-auto w-full max-w-2xl">
+        <header className="flex flex-col items-start gap-4">
+          {icon ? (
+            <div className="flex size-14 items-center justify-center rounded-md bg-background text-3xl shadow-ring">
+              {icon}
+            </div>
+          ) : null}
+          <div>
+            <h2 className="text-2xl font-semibold text-balance">{title}</h2>
+            {description ? (
+              <p className="mt-2 max-w-prose text-base leading-relaxed text-foreground/80">
+                {description}
+              </p>
+            ) : null}
+          </div>
+        </header>
+        <div className="mt-8">
+          {schema.fields.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Add questions in the Build tab to preview the form.
+            </p>
+          ) : (
+            <FormRenderer
+              schema={schema}
+              onSubmit={async () => {
+                toast.success("Preview only — nothing was submitted");
+                return { ok: true };
+              }}
+              mode="page"
+              propertyId={propertyId}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- Settings tab ------------------------------ */
 
 function SettingsTab({
@@ -1191,12 +1886,16 @@ function SettingsTab({
   status,
   savingStatus,
   onStatusChange,
+  shared,
+  onPatchSettings,
 }: {
   propertyId: string;
   form: FormRow;
   status: FormStatus;
   savingStatus: boolean;
   onStatusChange: (status: FormStatus) => void;
+  shared: BuilderShared;
+  onPatchSettings: (patch: Partial<FormSettings>) => void;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(form.title);
@@ -1207,6 +1906,8 @@ function SettingsTab({
   const [saving, startSave] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, startDelete] = useTransition();
+
+  const settings = shared.schema.settings ?? {};
 
   const metaDirty =
     title.trim() !== form.title ||
@@ -1292,6 +1993,131 @@ function SettingsTab({
         <Button size="sm" onClick={saveMeta} disabled={!metaDirty || saving}>
           {saving ? "Saving…" : "Save changes"}
         </Button>
+      </section>
+
+      <hr className="border-border" />
+
+      {/* Submission settings — ClickUp's right rail. These live in the schema
+          JSON, so they save with the same working copy as the Build tab. */}
+      <section className="space-y-4">
+        <div>
+          <p className="text-sm font-medium">Submission settings</p>
+          <p className="text-xs text-muted-foreground">
+            What respondents see while filling and after submitting.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-submit-label">Button label</Label>
+            <Input
+              id="settings-submit-label"
+              value={settings.submitLabel ?? ""}
+              maxLength={40}
+              placeholder="Submit"
+              onChange={(e) =>
+                onPatchSettings({ submitLabel: e.target.value || undefined })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-redirect">Redirect URL</Label>
+            <Input
+              id="settings-redirect"
+              value={settings.redirectUrl ?? ""}
+              placeholder="https://"
+              onChange={(e) =>
+                onPatchSettings({ redirectUrl: e.target.value || undefined })
+              }
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="settings-confirmation">Confirmation message</Label>
+          <Textarea
+            id="settings-confirmation"
+            value={settings.confirmationMessage ?? ""}
+            placeholder="Thanks — your answers have been submitted."
+            rows={2}
+            maxLength={500}
+            onChange={(e) =>
+              onPatchSettings({ confirmationMessage: e.target.value || undefined })
+            }
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Layout</Label>
+          <div className="flex gap-2">
+            {(
+              [
+                { value: "one", label: "One column" },
+                { value: "two", label: "Two column" },
+              ] as const
+            ).map((opt) => {
+              const active = (settings.layout ?? "one") === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onPatchSettings({
+                      layout: opt.value === "one" ? undefined : opt.value,
+                    })
+                  }
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-sm transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted hover:bg-accent",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Background</Label>
+          <div className="flex flex-wrap gap-2">
+            {FORM_BACKGROUNDS.map((bg) => {
+              const active = (settings.background ?? "default") === bg;
+              return (
+                <button
+                  key={bg}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={`Background ${FORM_BACKGROUND_LABELS[bg]}`}
+                  title={FORM_BACKGROUND_LABELS[bg]}
+                  onClick={() =>
+                    onPatchSettings({
+                      background: bg === "default" ? undefined : bg,
+                    })
+                  }
+                  className={cn(
+                    "size-8 rounded-md shadow-ring transition-transform",
+                    FORM_BACKGROUND_CLASSES[bg],
+                    active && "scale-110 shadow-focus",
+                  )}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button size="sm" onClick={shared.save} disabled={!shared.dirty || shared.saving}>
+            {shared.saving ? "Saving…" : shared.dirty ? "Save" : "Saved"}
+          </Button>
+          {shared.dirty ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Eye className="size-3.5" />
+              Check the Preview tab before saving
+            </span>
+          ) : null}
+        </div>
       </section>
 
       <hr className="border-border" />
@@ -1421,4 +2247,3 @@ function formatDate(iso: string): string {
     minute: "2-digit",
   });
 }
-

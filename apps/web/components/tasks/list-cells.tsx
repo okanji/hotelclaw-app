@@ -237,7 +237,10 @@ function PriorityCell({
         <span className="truncate">{meta.label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {PRIORITY_IDS.map((p) => (
+        {/* PRIORITY_IDS deliberately excludes "none" (the kanban group-by
+            has no No-priority column), so the clear entry is explicit here —
+            without it a prioritized task could never go back to none. */}
+        {[...PRIORITY_IDS, "none" as const].map((p) => (
           <DropdownMenuItem key={p} onClick={() => void set(p)}>
             <PriorityBars priority={p} />
             {PRIORITY_META[p].label}

@@ -118,9 +118,13 @@ export function FieldTriggerFilter({
                     key={o.id}
                     type="button"
                     onClick={() =>
+                      // multi_select "lands on" means "now includes" — the
+                      // built clause switches from equality on to_label to
+                      // membership in to_labels (see trigger-filter.ts).
                       onChange({
                         fieldName: field.name,
                         toValue: on ? null : o.label,
+                        multi: field.type === "multi_select",
                       })
                     }
                     className={cn(

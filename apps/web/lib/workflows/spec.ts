@@ -105,11 +105,18 @@ const CreateTaskStep = z.object({
     description: z.string().optional(),
     assignee_id: z.string().optional(),
     due_at: z.string().optional(),
+    // Items may be template refs; one resolving to an ARRAY (e.g.
+    // {{trigger.task_properties.labels}}) is flattened by the runner.
     labels: z.array(z.string()).optional(),
     project_name: z.string().optional(),
     space_id: z.string().optional(),
     project_id: z.string().optional(),
-    priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
+    // A template string is allowed so form task-property mappings can feed
+    // the priority ({{trigger.task_properties.priority}}); the runner
+    // falls back to "none" when the resolved value isn't a valid priority.
+    priority: z
+      .union([z.enum(["none", "low", "medium", "high", "urgent"]), TplString])
+      .optional(),
     parent_id: z.string().optional(),
   }),
 });

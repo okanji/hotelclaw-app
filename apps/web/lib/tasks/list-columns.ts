@@ -75,6 +75,8 @@ export type ResolvedColumn = {
   width: number;
   minWidth: number;
   sortable: boolean;
+  /** Footer calculation, when the user picked one for this column. */
+  calc?: ColumnCalc;
   /** Present when this column is a custom field. */
   field?: CustomFieldRow;
 };
@@ -108,6 +110,7 @@ export function resolveColumns(
         width: col.width || DEFAULT_FIELD_WIDTH,
         minWidth: 90,
         sortable: true,
+        calc: parseCalc(col.calc),
         field,
       });
       continue;
@@ -121,6 +124,7 @@ export function resolveColumns(
       width: col.width || def.width,
       minWidth: def.minWidth,
       sortable: def.sortable,
+      calc: parseCalc(col.calc),
     });
   }
   return out;
@@ -248,4 +252,139 @@ export function sortTasks(
   const column = columns.find((c) => c.id === sort.columnId);
   if (!column) return tasks;
   return [...tasks].sort((a, b) => compareBySort(a, b, column, sort.dir, ctx));
+}
+
+/* ── Column calculations (ClickUp's List-view footer) ────────────────────── */
+
+/**
+ * Per-column footer calculations. Numeric columns get the arithmetic set,
+ * date columns earliest/latest, and every column can count — the same menu
+ * ClickUp hangs off the bottom of each List column.
+ */
+export type ColumnCalc =
+  | "count_values"
+  | "count_empty"
+  | "pct_not_empty"
+  | "sum"
+  | "avg"
+  | "min"
+  | "max"
+  | "range"
+  | "earliest"
+  | "latest";
+
+export const CALC_LABEL: Record<ColumnCalc, string> = {
+  count_values: "Count values",
+  count_empty: "Count empty",
+  pct_not_empty: "% filled",
+  sum: "Sum",
+  avg: "Average",
+  min: "Min",
+  max: "Max",
+  range: "Range",
+  earliest: "Earliest",
+  latest: "Latest",
+};
+
+const COUNT_CALCS: ColumnCalc[] = ["count_values", "count_empty", "pct_not_empty"];
+const NUMBER_CALCS: ColumnCalc[] = ["sum", "avg", "min", "max", "range"];
+const DATE_CALCS: ColumnCalc[] = ["earliest", "latest"];
+
+const ALL_CALCS = new Set<string>([...COUNT_CALCS, ...NUMBER_CALCS, ...DATE_CALCS]);
+
+function parseCalc(raw: string | undefined): ColumnCalc | undefined {
+  return raw && ALL_CALCS.has(raw) ? (raw as ColumnCalc) : undefined;
+}
+
+function calcKind(column: ResolvedColumn): "number" | "date" | "other" {
+  if (column.field) {
+    if (column.field.type === "number") return "number";
+    if (column.field.type === "date") return "date";
+    return "other";
+  }
+  if (column.id === "due" || column.id === "created" || column.id === "updated") {
+    return "date";
+  }
+  return "other";
+}
+
+/** The calculations this column's type supports, arithmetic first. */
+export function calcsForColumn(column: ResolvedColumn): ColumnCalc[] {
+  const kind = calcKind(column);
+  if (kind === "number") return [...NUMBER_CALCS, ...COUNT_CALCS];
+  if (kind === "date") return [...DATE_CALCS, ...COUNT_CALCS];
+  return COUNT_CALCS;
+}
+
+function formatCalcNumber(n: number): string {
+  // Sums of clean integers stay integers; anything fractional gets 2 dp.
+  const rounded = Math.round(n * 100) / 100;
+  return rounded.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatCalcDate(key: string | number): string {
+  // Builtin date columns key as epoch ms; custom date fields as YYYY-MM-DD.
+  const d = typeof key === "number" ? new Date(key) : new Date(`${key}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return String(key);
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
+ * Compute one column's footer value over the visible tasks. Pure — the same
+ * `sortKey` the comparator uses supplies the cell values, so "empty" means
+ * exactly what sorting means by it (blanks bury last there, count as empty
+ * here). Returns null when the calc can't produce anything ("Sum" over no
+ * numbers), which the footer renders as "—".
+ */
+export function computeColumnCalc(
+  calc: ColumnCalc,
+  column: ResolvedColumn,
+  tasks: Task[],
+  ctx: SortContext,
+): string | null {
+  const keys = tasks.map((t) => sortKey(t, column, ctx));
+  const filled = keys.filter((k): k is string | number => k !== null);
+
+  switch (calc) {
+    case "count_values":
+      return String(filled.length);
+    case "count_empty":
+      return String(keys.length - filled.length);
+    case "pct_not_empty":
+      return keys.length === 0
+        ? null
+        : `${Math.round((filled.length / keys.length) * 100)}%`;
+    case "sum":
+    case "avg":
+    case "min":
+    case "max":
+    case "range": {
+      const nums = filled.filter((k): k is number => typeof k === "number");
+      if (nums.length === 0) return null;
+      if (calc === "sum") return formatCalcNumber(nums.reduce((a, b) => a + b, 0));
+      if (calc === "avg") {
+        return formatCalcNumber(nums.reduce((a, b) => a + b, 0) / nums.length);
+      }
+      if (calc === "min") return formatCalcNumber(Math.min(...nums));
+      if (calc === "max") return formatCalcNumber(Math.max(...nums));
+      return formatCalcNumber(Math.max(...nums) - Math.min(...nums));
+    }
+    case "earliest":
+    case "latest": {
+      if (filled.length === 0) return null;
+      // Epoch numbers and ISO date strings both order correctly with the
+      // default comparison within their own kind.
+      const sorted = [...filled].sort((a, b) =>
+        typeof a === "number" && typeof b === "number"
+          ? a - b
+          : String(a).localeCompare(String(b)),
+      );
+      const pick = calc === "earliest" ? sorted[0]! : sorted[sorted.length - 1]!;
+      return formatCalcDate(pick);
+    }
+  }
 }

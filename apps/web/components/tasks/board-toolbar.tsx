@@ -20,9 +20,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { isChoiceField } from "@/lib/tasks/custom-field-options";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
 import { SORT_LABELS } from "./kanban";
@@ -53,10 +55,13 @@ export type StatusPreset = "all" | "active" | "backlog";
 
 export type ViewMode = "board" | "list" | "timeline" | "workload";
 
-/** How the board view groups columns — by status (default), space, or project. */
-export type BoardGroupBy = "status" | "space" | "project";
+/**
+ * How the board view groups columns — by status (default), space, project,
+ * or a choice custom field (`field:<uuid>`, ClickUp's group-by-dropdown/label).
+ */
+export type BoardGroupBy = "status" | "space" | "project" | `field:${string}`;
 
-const GROUP_LABELS: Record<BoardGroupBy, string> = {
+const GROUP_LABELS: Record<"status" | "space" | "project", string> = {
   status: "Status",
   space: "Team",
   project: "Project",
@@ -185,15 +190,40 @@ export function BoardToolbar({
               }
             >
               <Columns3 className="size-3.5" />
-              Group: {GROUP_LABELS[groupBy]}
+              Group:{" "}
+              {groupBy.startsWith("field:")
+                ? (customFields.find((f) => `field:${f.id}` === groupBy)?.name ??
+                  "Field")
+                : GROUP_LABELS[groupBy as "status" | "space" | "project"]}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={6}>
-              {(["status", "space", "project"] as BoardGroupBy[]).map((g) => (
+              {(["status", "space", "project"] as const).map((g) => (
                 <DropdownMenuItem key={g} onClick={() => onChangeGroupBy(g)}>
                   <span className="flex-1">{GROUP_LABELS[g]}</span>
                   {g === groupBy ? <Check className="size-3.5" /> : null}
                 </DropdownMenuItem>
               ))}
+              {/* Choice custom fields group too (ClickUp's group-by-dropdown/
+                  label) — a column per option, None last. */}
+              {customFields.some((f) => isChoiceField(f.type)) ? (
+                <>
+                  <DropdownMenuSeparator />
+                  {customFields
+                    .filter((f) => isChoiceField(f.type))
+                    .map((f) => {
+                      const id = `field:${f.id}` as const;
+                      return (
+                        <DropdownMenuItem
+                          key={f.id}
+                          onClick={() => onChangeGroupBy(id)}
+                        >
+                          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                          {id === groupBy ? <Check className="size-3.5" /> : null}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

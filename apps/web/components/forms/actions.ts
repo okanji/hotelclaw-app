@@ -12,8 +12,10 @@ import {
   validateAnswers,
   formatAnswer,
   inputFields,
+  computeTaskProperties,
   type FormAnswers,
   type FormAnswerValue,
+  type FormField,
 } from "@/lib/forms/schema";
 import { resolveLabels } from "@/lib/forms/resolve-options";
 import type { FormResponseSource, FormStatus } from "@/lib/db/types";
@@ -221,16 +223,20 @@ export async function submitFormResponse(input: {
     .single();
   if (insErr || !response) return { error: insErr?.message ?? "Failed to submit" };
 
-  // Data-connected choice fields store raw ids; resolve them to display
-  // labels for the formatted payload. Fail-soft — on any resolver failure
-  // the formatted value falls back to formatAnswer below.
+  // Data-connected fields (sourced selects + people) store raw ids; resolve
+  // them to display labels for the formatted payload. Fail-soft — on any
+  // resolver failure the formatted value falls back to formatAnswer below.
+  const isSourced = (f: FormField) =>
+    ((f.type === "select" || f.type === "multi_select") && f.source) ||
+    f.type === "people";
   const labelsByField = new Map<string, Map<string, string>>();
   for (const f of inputFields(schema)) {
-    if ((f.type !== "select" && f.type !== "multi_select") || !f.source) continue;
+    if (!isSourced(f)) continue;
+    const source = f.source ?? { kind: "members" as const };
     const ids = answerIds(validated.answers[f.id]);
     if (ids.length === 0) continue;
     try {
-      const labels = await resolveLabels(supabase, form.property_id, f.source, ids);
+      const labels = await resolveLabels(supabase, form.property_id, source, ids);
       if (labels.size > 0) labelsByField.set(f.id, labels);
     } catch {
       // formatted falls back to formatAnswer
@@ -262,6 +268,15 @@ export async function submitFormResponse(input: {
     };
   });
 
+  // Task-property-mapped answers (assignee / priority / due date / labels)
+  // fold into a structured block the task automation references as
+  // {{trigger.task_properties.*}} — the ClickUp "map to task field" model.
+  const taskProperties = computeTaskProperties(
+    schema,
+    validated.answers,
+    labelsByField,
+  );
+
   after(async () => {
     await emitWorkflowEvent({
       propertyId: form.property_id,
@@ -277,6 +292,7 @@ export async function submitFormResponse(input: {
         submission_source: parsed.data.source,
         answers: validated.answers,
         fields,
+        task_properties: taskProperties,
       },
     });
   });

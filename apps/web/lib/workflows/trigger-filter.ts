@@ -93,13 +93,35 @@ export function mergeTriggerFilter(
  * what the generic condition builder could already express.
  */
 export const FIELD_NAME_PATH = "trigger.field_name";
-export const FIELD_TO_PATH = "trigger.to";
+/**
+ * The landing-value clause matches on trigger.to_LABEL, not trigger.to: the
+ * raw `to` is the stored jsonb (an option ID for select, an id ARRAY for
+ * multi_select, a real boolean for checkbox) while the UI stores the human
+ * label — `"lpo-created" == "LPO created"` never matched, so every "becomes
+ * X" filter was dead until 2026-08-12 (migration 0101 guarantees the
+ * enriched payload). `to_label` is the resolved label for select, "true"/
+ * "false" text for checkbox, and the raw scalar text for text/number/date —
+ * all string-comparable against what the picker stores.
+ */
+export const FIELD_TO_PATH = "trigger.to_label";
+/**
+ * multi_select needs membership, not equality: a task landing on
+ * ["VIP","Rush"] must still match "becomes VIP". `to_labels` is the resolved
+ * label array (0101); the clause serializes to `{in: [label, {var}]}`.
+ */
+export const FIELD_TO_LABELS_PATH = "trigger.to_labels";
+/** Pre-0101 filters pointed at the raw value — recognized on read so old
+ *  specs load into the picker, rewritten to the label paths on save. */
+const LEGACY_FIELD_TO_PATH = "trigger.to";
 
 export type FieldTriggerSelection = {
   /** Field NAME (the payload carries the name, so filters stay readable). */
   fieldName: string | null;
   /** Option label / value the field must land on; null = any change. */
   toValue: string | null;
+  /** True for multi_select fields — "lands on" means "includes", so the
+   *  clause is membership in to_labels rather than equality on to_label. */
+  multi?: boolean;
 };
 
 /**
@@ -111,17 +133,37 @@ function isFieldClause(c: CondNode, path: string): boolean {
   return c.kind === "clause" && c.path === path && c.op === "==";
 }
 
+/** Any shape the landing-value clause has ever taken (label equality,
+ *  multi-label membership, or the dead pre-0101 raw-value equality). */
+function isFieldToClause(c: CondNode): boolean {
+  if (c.kind !== "clause") return false;
+  if (c.op === "==" && (c.path === FIELD_TO_PATH || c.path === LEGACY_FIELD_TO_PATH)) {
+    return true;
+  }
+  return c.op === "is_any_of" && c.path === FIELD_TO_LABELS_PATH;
+}
+
 export function extractFieldTriggerFilter(expr: unknown): FieldTriggerSelection {
   const model = parseCondition(expr);
   if (!model) return { fieldName: null, toValue: null };
   let fieldName: string | null = null;
   let toValue: string | null = null;
+  let multi = false;
   for (const c of model.clauses) {
-    if (c.kind !== "clause" || c.op !== "==") continue;
-    if (c.path === FIELD_NAME_PATH) fieldName = c.value || null;
-    else if (c.path === FIELD_TO_PATH) toValue = c.value || null;
+    if (c.kind !== "clause") continue;
+    if (c.op === "==" && c.path === FIELD_NAME_PATH) {
+      fieldName = c.value || null;
+    } else if (
+      c.op === "==" &&
+      (c.path === FIELD_TO_PATH || c.path === LEGACY_FIELD_TO_PATH)
+    ) {
+      toValue = c.value || null;
+    } else if (c.op === "is_any_of" && c.path === FIELD_TO_LABELS_PATH) {
+      toValue = c.values[0] || null;
+      multi = true;
+    }
   }
-  return { fieldName, toValue };
+  return { fieldName, toValue, multi };
 }
 
 /** Filter with the field clauses removed — for the generic condition builder. */
@@ -129,8 +171,7 @@ export function stripFieldTriggerFilter(expr: unknown): unknown | undefined {
   const model = parseCondition(expr);
   if (!model) return expr === undefined ? undefined : expr;
   const rest = model.clauses.filter(
-    (c) =>
-      !isFieldClause(c, FIELD_NAME_PATH) && !isFieldClause(c, FIELD_TO_PATH),
+    (c) => !isFieldClause(c, FIELD_NAME_PATH) && !isFieldToClause(c),
   );
   if (rest.length === model.clauses.length) return serializeCondition(model);
   return serializeCondition({ ...model, clauses: rest });
@@ -153,14 +194,25 @@ export function buildFieldTriggerFilterExpr(
   // A landing value without a field would match that value on ANY field —
   // never what the author means, so it only counts alongside a field.
   if (selection.fieldName && selection.toValue) {
-    clauses.push({
-      kind: "clause",
-      path: FIELD_TO_PATH,
-      op: "==",
-      value: selection.toValue,
-      values: [],
-      type: "string",
-    });
+    clauses.push(
+      selection.multi
+        ? {
+            kind: "clause",
+            path: FIELD_TO_LABELS_PATH,
+            op: "is_any_of",
+            value: "",
+            values: [selection.toValue],
+            type: "string[]",
+          }
+        : {
+            kind: "clause",
+            path: FIELD_TO_PATH,
+            op: "==",
+            value: selection.toValue,
+            values: [],
+            type: "string",
+          },
+    );
   }
   if (clauses.length === 0) return undefined;
   return serializeCondition({ combine: "all", clauses });

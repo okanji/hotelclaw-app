@@ -142,7 +142,7 @@ const triggers: TriggerCatalogEntry[] = [
     category: "trigger",
     label: "When a custom field changes",
     description:
-      "Fires when a custom field's value on a task is set, changed, or cleared. The payload has field_name, field_type, and the from/to values — filter on field_name and to for things like 'when Material Status becomes LPO created'.",
+      "Fires when a custom field's value on a task is set, changed, or cleared. The payload has field_name, field_type, the raw from/to values, human-readable from_label/to_label (option labels for choice fields), to_labels (label array for label fields), and the full task row — filter on field_name and to_label for things like 'when Material Status becomes LPO created'.",
     examplePrompts: [
       "when Material Status changes to LPO created",
       "whenever the Cost field is set on a task",
@@ -154,6 +154,12 @@ const triggers: TriggerCatalogEntry[] = [
       field_type: z.string(),
       from: z.unknown().nullable(),
       to: z.unknown().nullable(),
+      // Enriched by the trigger fn (0081, restored + extended in 0101):
+      // resolved option labels, and the task row for templating.
+      from_label: z.string().nullable(),
+      to_label: z.string().nullable(),
+      to_labels: z.array(z.string()).nullable(),
+      task: z.record(z.string(), z.unknown()).nullable(),
     }),
     explain: (filter) =>
       explainTaskTrigger("task.field_changed", "When a custom field changes", filter),

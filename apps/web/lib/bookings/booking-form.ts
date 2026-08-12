@@ -38,7 +38,16 @@ export async function loadBookingForm(
     .maybeSingle();
   if (!form || form.status !== "published") return null;
   const schema = parseFormSchema(form.schema);
-  const fields = schema.fields.filter((f) => f.type !== "file" && !f.source);
+  // Guest-safe subset: no uploads, no data-connected options, and none of
+  // the staff-only types (people needs member options; signature isn't a
+  // guest flow; info/section render fine and stay).
+  const fields = schema.fields.filter(
+    (f) =>
+      f.type !== "file" &&
+      f.type !== "people" &&
+      f.type !== "signature" &&
+      !f.source,
+  );
   if (inputFields({ version: 1, fields }).length === 0) return null;
   return { formId: form.id, title: form.title, fields };
 }

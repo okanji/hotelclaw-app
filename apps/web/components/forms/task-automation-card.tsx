@@ -4,7 +4,9 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2, Plus, Wand2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -17,6 +19,7 @@ import {
 import {
   getFormTaskAutomation,
   setFormTaskAutomation,
+  type FormTaskAutomationMappings,
   type FormTaskAutomationState,
 } from "./automation-actions";
 
@@ -32,14 +35,26 @@ const DEFAULT_CONFIG: FormTaskAutomationConfig = {
   spaceId: null,
   assigneeId: null,
   priority: "medium",
+  labels: [],
+  includeAnswers: true,
+};
+
+const NO_MAPPINGS: FormTaskAutomationMappings = {
+  assignee: false,
+  priority: false,
+  dueDate: false,
+  labels: false,
 };
 
 /**
  * ClickUp-style "After submitting" panel (form Settings tab): a toggle that
- * turns every submission into a task, plus team / assignee / priority — all
- * write-through. Under the hood it manages a real workflow (form.submitted →
- * create task), so the automation also appears in the Workflows section; a
- * workflow that was customized there flips this panel to read-only.
+ * turns every submission into a task, plus team / assignee / priority /
+ * labels — all write-through. Task-property-mapped questions (Add question →
+ * Task property) take over their slot: the respondent's answer sets the
+ * value and the panel shows a "from a question" chip instead of a select.
+ * Under the hood it manages a real workflow (form.submitted → create task),
+ * so the automation also appears in the Workflows section; a workflow that
+ * was customized there flips this panel to read-only.
  */
 export function TaskAutomationCard({
   propertyId,
@@ -51,8 +66,10 @@ export function TaskAutomationCard({
   const [automation, setAutomation] = useState<FormTaskAutomationState | null>(
     null,
   );
+  const [mappings, setMappings] = useState<FormTaskAutomationMappings>(NO_MAPPINGS);
   const [loaded, setLoaded] = useState(false);
   const [saving, startSaving] = useTransition();
+  const [labelDraft, setLabelDraft] = useState("");
 
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: members = [] } = useQuery(
@@ -63,7 +80,10 @@ export function TaskAutomationCard({
     let cancelled = false;
     void getFormTaskAutomation({ propertyId, formId }).then((result) => {
       if (cancelled) return;
-      if (!("error" in result)) setAutomation(result.automation);
+      if (!("error" in result)) {
+        setAutomation(result.automation);
+        setMappings(result.mappings);
+      }
       setLoaded(true);
     });
     return () => {
@@ -88,8 +108,20 @@ export function TaskAutomationCard({
         return;
       }
       setAutomation(result.automation);
+      setMappings(result.mappings);
     });
   }
+
+  function addLabel() {
+    const label = labelDraft.trim();
+    if (!label) return;
+    setLabelDraft("");
+    if (config.labels.includes(label)) return;
+    apply({ enabled, config: { ...config, labels: [...config.labels, label] } });
+  }
+
+  const anyMapping =
+    mappings.assignee || mappings.priority || mappings.dueDate || mappings.labels;
 
   return (
     <section className="space-y-4">
@@ -125,8 +157,7 @@ export function TaskAutomationCard({
                 Create a task for each submission
               </span>
               <span className="block text-xs text-muted-foreground">
-                The first answer becomes the task title; every answer lands in
-                the description.
+                The first answer becomes the task title.
               </span>
             </span>
             <Switch
@@ -138,74 +169,180 @@ export function TaskAutomationCard({
           </label>
 
           {enabled ? (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="automation-team">Team</Label>
+                  <NativeSelect
+                    id="automation-team"
+                    value={config.spaceId ?? ""}
+                    disabled={saving}
+                    onChange={(e) =>
+                      apply({
+                        enabled,
+                        config: { ...config, spaceId: e.target.value || null },
+                      })
+                    }
+                  >
+                    <option value="">No team</option>
+                    {spaces.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="automation-assignee">Assign to</Label>
+                  {mappings.assignee ? (
+                    <MappedChip label="Assignee question" />
+                  ) : (
+                    <NativeSelect
+                      id="automation-assignee"
+                      value={config.assigneeId ?? ""}
+                      disabled={saving}
+                      onChange={(e) =>
+                        apply({
+                          enabled,
+                          config: { ...config, assigneeId: e.target.value || null },
+                        })
+                      }
+                    >
+                      <option value="">Unassigned</option>
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name ?? m.email ?? "Member"}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="automation-priority">Priority</Label>
+                  {mappings.priority ? (
+                    <MappedChip label="Priority question" />
+                  ) : (
+                    <NativeSelect
+                      id="automation-priority"
+                      value={config.priority}
+                      disabled={saving}
+                      onChange={(e) =>
+                        apply({
+                          enabled,
+                          config: {
+                            ...config,
+                            priority: e.target
+                              .value as FormTaskAutomationConfig["priority"],
+                          },
+                        })
+                      }
+                    >
+                      {FORM_AUTOMATION_PRIORITIES.map((p) => (
+                        <option key={p} value={p}>
+                          {PRIORITY_LABELS[p]}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="automation-team">Team</Label>
-                <NativeSelect
-                  id="automation-team"
-                  value={config.spaceId ?? ""}
+                <Label htmlFor="automation-labels">Labels</Label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {config.labels.map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                    >
+                      {label}
+                      <button
+                        type="button"
+                        aria-label={`Remove label ${label}`}
+                        disabled={saving}
+                        onClick={() =>
+                          apply({
+                            enabled,
+                            config: {
+                              ...config,
+                              labels: config.labels.filter((l) => l !== label),
+                            },
+                          })
+                        }
+                        className="rounded-sm text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {mappings.labels ? <MappedChip label="+ Tags question" /> : null}
+                  <div className="flex items-center gap-1">
+                    <Input
+                      id="automation-labels"
+                      value={labelDraft}
+                      disabled={saving}
+                      onChange={(e) => setLabelDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addLabel();
+                        }
+                      }}
+                      placeholder="e.g. maintenance"
+                      className="h-7 w-36 text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={addLabel}
+                      disabled={saving || !labelDraft.trim()}
+                      aria-label="Add label"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-faint-foreground">
+                  Applied to every task created from this form.
+                </p>
+              </div>
+
+              <label className="flex items-center justify-between gap-4">
+                <span>
+                  <span className="block text-sm font-medium">
+                    Add answers to the task description
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Every question and answer, listed in the description.
+                  </span>
+                </span>
+                <Switch
+                  checked={config.includeAnswers}
                   disabled={saving}
-                  onChange={(e) =>
+                  onCheckedChange={() =>
                     apply({
                       enabled,
-                      config: { ...config, spaceId: e.target.value || null },
+                      config: { ...config, includeAnswers: !config.includeAnswers },
                     })
                   }
-                >
-                  <option value="">No team</option>
-                  {spaces.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="automation-assignee">Assign to</Label>
-                <NativeSelect
-                  id="automation-assignee"
-                  value={config.assigneeId ?? ""}
-                  disabled={saving}
-                  onChange={(e) =>
-                    apply({
-                      enabled,
-                      config: { ...config, assigneeId: e.target.value || null },
-                    })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name ?? m.email ?? "Member"}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="automation-priority">Priority</Label>
-                <NativeSelect
-                  id="automation-priority"
-                  value={config.priority}
-                  disabled={saving}
-                  onChange={(e) =>
-                    apply({
-                      enabled,
-                      config: {
-                        ...config,
-                        priority: e.target
-                          .value as FormTaskAutomationConfig["priority"],
-                      },
-                    })
-                  }
-                >
-                  {FORM_AUTOMATION_PRIORITIES.map((p) => (
-                    <option key={p} value={p}>
-                      {PRIORITY_LABELS[p]}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-            </div>
+                  aria-label="Add answers to the task description"
+                />
+              </label>
+
+              {mappings.dueDate ? (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Wand2 className="size-3.5" />
+                  The due date comes from this form&rsquo;s due-date question.
+                </p>
+              ) : null}
+              {anyMapping ? (
+                <p className="text-xs text-faint-foreground">
+                  Task-property questions (added via Add question → Task
+                  property) override the defaults above with the
+                  respondent&rsquo;s answer.
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           {automation ? (
@@ -223,5 +360,15 @@ export function TaskAutomationCard({
         </>
       )}
     </section>
+  );
+}
+
+/** A slot whose value comes from a mapped question, not the panel. */
+function MappedChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2.5 text-xs font-medium text-muted-foreground">
+      <Wand2 className="size-3.5" />
+      From the {label.replace("+ ", "")}
+    </span>
   );
 }

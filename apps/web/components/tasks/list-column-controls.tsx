@@ -4,10 +4,12 @@ import { useState } from "react";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
+  Check,
   ChevronsLeft,
   ChevronsRight,
   EyeOff,
   Plus,
+  Sigma,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +20,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -29,7 +34,10 @@ import type { CustomFieldRow } from "@/lib/query/custom-field-queries";
 import { FIELD_TYPE_LABEL } from "@/lib/tasks/custom-field-options";
 import {
   availableColumns,
+  CALC_LABEL,
+  calcsForColumn,
   fieldColumnId,
+  type ColumnCalc,
   type ResolvedColumn,
 } from "@/lib/tasks/list-columns";
 import type { TaskViewColumn, TaskViewSort } from "@/lib/db/types";
@@ -49,6 +57,7 @@ export function ColumnHeaderMenu({
   onSort,
   onMove,
   onHide,
+  onCalc,
   children,
 }: {
   column: ResolvedColumn;
@@ -58,9 +67,11 @@ export function ColumnHeaderMenu({
   onSort: (dir: "asc" | "desc" | null) => void;
   onMove: (to: "start" | "end") => void;
   onHide: () => void;
+  onCalc: (calc: ColumnCalc | null) => void;
   children: React.ReactNode;
 }) {
   const active = sort?.columnId === column.id ? sort.dir : null;
+  const calcs = calcsForColumn(column);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -101,6 +112,42 @@ export function ColumnHeaderMenu({
             <ChevronsRight className="size-3.5" />
             Move to end
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* ClickUp's column calculation, as a submenu: pick an aggregate
+              and it renders in the sticky footer row over the visible tasks. */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Sigma className="size-3.5" />
+              Calculate
+              {column.calc ? (
+                <span className="ml-1 text-xs text-faint-foreground">
+                  {CALC_LABEL[column.calc]}
+                </span>
+              ) : null}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {calcs.map((calc) => (
+                <DropdownMenuItem
+                  key={calc}
+                  onClick={() => onCalc(column.calc === calc ? null : calc)}
+                >
+                  <span className="min-w-0 flex-1">{CALC_LABEL[calc]}</span>
+                  {column.calc === calc ? (
+                    <Check className="size-3.5 text-muted-foreground" />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
+              {column.calc ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onCalc(null)}>
+                    <X className="size-3.5" />
+                    Clear calculation
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onHide}>
             <EyeOff className="size-3.5" />

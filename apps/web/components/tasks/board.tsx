@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { useBroadcastEvent } from "@liveblocks/react";
 import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,12 @@ import {
   type BoardGroupBy,
   type ViewMode,
 } from "./board-toolbar";
-import { propertyTaskFieldValuesQueryOptions } from "@/lib/query/custom-field-queries";
+import {
+  customFieldsQueryOptions,
+  propertyTaskFieldValuesQueryOptions,
+} from "@/lib/query/custom-field-queries";
+import { selectedOptions } from "@/lib/tasks/custom-field-options";
+import type { CustomFieldOption } from "@/lib/db/types";
 import {
   ActiveFilterBar,
   buildFieldValueIndex,
@@ -67,6 +73,47 @@ export function TasksBoard({
 
   const { data, isPending } = useQuery(tasksQueryOptions(propertyId));
   const allTasks = data ?? EMPTY_TASKS;
+
+  // Custom-field definitions and values stream in over Realtime (published
+  // in 0101) — a teammate renaming an option or tagging a task shows up
+  // without waiting out the 30-60s staleTime. Random topic suffix: shared
+  // topics crash on double-mount.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`custom-fields-${propertyId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "custom_fields",
+          filter: `property_id=eq.${propertyId}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["custom-fields", propertyId] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "task_field_values",
+          filter: `property_id=eq.${propertyId}`,
+        },
+        () => {
+          void qc.invalidateQueries({
+            queryKey: ["task-field-values-property", propertyId],
+          });
+          void qc.invalidateQueries({ queryKey: ["task-field-values"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [propertyId, qc]);
 
   // Sub-issues live under their parent on the detail page — keep the board
   // to top-level work items only.
@@ -120,19 +167,61 @@ export function TasksBoard({
   }, [topLevelTasks, mineOnly, currentUserId, spaceFilter, projectFilter]);
 
   // Custom-field values for the whole property, indexed for match time. The
-  // query only runs while a field filter is active — boards without one pay
-  // nothing.
+  // query runs while a field filter is active OR the property has any label
+  // (multi_select) field — those render as chips on every card, ClickUp-style.
+  // Properties with neither pay nothing.
   const hasFieldFilter = Object.values(filters.fieldValues).some(
     (v) => v.length > 0,
   );
-  const { data: fieldValueRows = [] } = useQuery({
+  const { data: customFields = [] } = useQuery(
+    customFieldsQueryOptions(propertyId),
+  );
+  const labelFields = useMemo(
+    () => customFields.filter((f) => f.type === "multi_select"),
+    [customFields],
+  );
+  const { data: fieldValueRows } = useQuery({
     ...propertyTaskFieldValuesQueryOptions(propertyId),
-    enabled: hasFieldFilter,
+    enabled: hasFieldFilter || labelFields.length > 0,
   });
+  // undefined until the first fetch lands — matchesFacets skips field
+  // clauses for a missing index, so activating a filter doesn't flash the
+  // board to zero tasks while the cold fetch runs.
   const fieldIndex = useMemo(
-    () => buildFieldValueIndex(fieldValueRows),
+    () => (fieldValueRows ? buildFieldValueIndex(fieldValueRows) : undefined),
     [fieldValueRows],
   );
+
+  // taskId → resolved label chips (field position order, then option
+  // definition order within a field) for the board cards. Same OptionChip
+  // rendering as the list cells, resolved once for the whole board.
+  const cardLabels = useMemo(() => {
+    const out: Record<string, CustomFieldOption[]> = {};
+    if (labelFields.length === 0) return out;
+    const perTask = new Map<string, Map<string, CustomFieldOption[]>>();
+    const byField = new Map(labelFields.map((f) => [f.id, f]));
+    for (const row of fieldValueRows ?? []) {
+      const field = byField.get(row.field_id);
+      if (!field) continue;
+      const opts = selectedOptions(field, row.value);
+      if (opts.length === 0) continue;
+      let m = perTask.get(row.task_id);
+      if (!m) {
+        m = new Map();
+        perTask.set(row.task_id, m);
+      }
+      m.set(field.id, opts);
+    }
+    for (const [taskId, m] of perTask) {
+      const chips: CustomFieldOption[] = [];
+      for (const f of labelFields) {
+        const opts = m.get(f.id);
+        if (opts) chips.push(...opts);
+      }
+      out[taskId] = chips;
+    }
+    return out;
+  }, [labelFields, fieldValueRows]);
 
   // Resolve the active scope's name for the breadcrumb (cheap, cached).
   const { data: spaces = [] } = useQuery({
@@ -293,6 +382,7 @@ export function TasksBoard({
             propertyId={propertyId}
             tasks={filteredTasks}
             assignees={assignees}
+            cardLabels={cardLabels}
             hideDone={hideDone}
             onOpenFullCreate={openCreate}
             scopeSpaceId={spaceFilter}
@@ -302,6 +392,7 @@ export function TasksBoard({
             propertyId={propertyId}
             tasks={filteredTasks}
             assignees={assignees}
+            cardLabels={cardLabels}
             groupBy={groupBy}
           />
         )

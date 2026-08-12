@@ -65,12 +65,15 @@ export async function GET(
   if (form) {
     const schema = parseFormSchema(form.schema);
     for (const field of inputFields(schema)) {
-      if (
-        (field.type !== "select" && field.type !== "multi_select") ||
-        !field.source
-      ) {
-        continue;
-      }
+      // Sourced choice fields plus `people` (implicitly member-sourced).
+      const source =
+        field.type === "people"
+          ? (field.source ?? { kind: "members" as const })
+          : (field.type === "select" || field.type === "multi_select") &&
+              field.source
+            ? field.source
+            : null;
+      if (!source) continue;
       const ids = new Set<string>();
       for (const r of responses) {
         const value = (r.answers as Record<string, unknown> | null)?.[field.id];
@@ -81,9 +84,7 @@ export async function GET(
         }
       }
       if (ids.size === 0) continue;
-      const labels = await resolveLabels(supabase, propertyId, field.source, [
-        ...ids,
-      ]);
+      const labels = await resolveLabels(supabase, propertyId, source, [...ids]);
       if (labels.size > 0) sourcedLabels[field.id] = Object.fromEntries(labels);
     }
   }

@@ -18,8 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
-  inputFields,
+  computeVisibleFieldIds,
   validateFieldAnswer,
+  visibleInputFields,
   MAX_FILES_PER_FIELD,
   type FormAnswers,
   type FormAnswerValue,
@@ -29,6 +30,9 @@ import {
   type FormFileValue,
   type FormSchema,
 } from "@/lib/forms/schema";
+
+/** Stable source object for `people` fields (the hook key stringifies it). */
+const MEMBERS_SOURCE: FormFieldSource = { kind: "members" };
 
 /**
  * Live options for a data-connected choice field, fetched from the forms
@@ -126,7 +130,7 @@ export function FormRenderer({
   schema,
   onSubmit,
   mode = "page",
-  submitLabel = "Submit",
+  submitLabel,
   compact = false,
   disabled = false,
   upload,
@@ -137,8 +141,22 @@ export function FormRenderer({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
 
-  const fields = schema.fields;
-  const answerable = useMemo(() => inputFields(schema), [schema]);
+  const settings = schema.settings;
+  const effectiveSubmitLabel =
+    submitLabel ?? settings?.submitLabel?.trim() ?? "Submit";
+  const twoColumn = mode === "page" && settings?.layout === "two";
+
+  // Conditional logic: only fields whose "show when" condition currently
+  // holds are rendered — and only those are validated (hidden required
+  // fields never block; the server drops their answers the same way).
+  const visibleIds = useMemo(
+    () => computeVisibleFieldIds(schema, answers),
+    [schema, answers],
+  );
+  const fields = useMemo(
+    () => schema.fields.filter((f) => visibleIds.has(f.id)),
+    [schema.fields, visibleIds],
+  );
 
   function setAnswer(fieldId: string, value: FormAnswerValue) {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
@@ -152,7 +170,7 @@ export function FormRenderer({
 
   function validateAll(): boolean {
     const next: Record<string, string> = {};
-    for (const field of answerable) {
+    for (const field of visibleInputFields(schema, answers)) {
       const error = validateFieldAnswer(field, answers[field.id]);
       if (error) next[field.id] = error;
     }
@@ -180,7 +198,7 @@ export function FormRenderer({
         errors={errors}
         formError={formError}
         busy={busy || disabled}
-        submitLabel={submitLabel}
+        submitLabel={effectiveSubmitLabel}
         setAnswer={setAnswer}
         onFinish={submit}
         upload={upload}
@@ -191,6 +209,11 @@ export function FormRenderer({
 
   // Page mode: roomy ClickUp-style unless embedded compactly.
   const roomy = !compact;
+  // Two-column layout: wide blocks (headings, paragraphs, uploads, long
+  // answers, signatures) span both tracks; everything else flows into the
+  // grid. Falls back to one column on small screens.
+  const spansBoth = (field: FormField) =>
+    ["section", "info", "long_text", "file", "signature"].includes(field.type);
 
   return (
     <form
@@ -198,11 +221,18 @@ export function FormRenderer({
         e.preventDefault();
         submit();
       }}
-      className={cn("flex flex-col", roomy ? "gap-8" : "gap-4")}
+      className={cn(
+        twoColumn
+          ? cn("grid grid-cols-1 sm:grid-cols-2", roomy ? "gap-8 gap-x-6" : "gap-4")
+          : cn("flex flex-col", roomy ? "gap-8" : "gap-4"),
+      )}
     >
       {fields.map((field) =>
         field.type === "section" ? (
-          <div key={field.id} className={cn(roomy ? "pt-2" : "pt-1")}>
+          <div
+            key={field.id}
+            className={cn(roomy ? "pt-2" : "pt-1", twoColumn && "sm:col-span-2")}
+          >
             <h3 className={cn("font-semibold", roomy ? "text-base" : "text-sm")}>
               {field.label}
             </h3>
@@ -210,8 +240,26 @@ export function FormRenderer({
               <p className="mt-1 text-sm text-muted-foreground">{field.description}</p>
             ) : null}
           </div>
+        ) : field.type === "info" ? (
+          <div key={field.id} className={cn(twoColumn && "sm:col-span-2")}>
+            <p className={cn("whitespace-pre-line", roomy ? "text-base" : "text-sm")}>
+              {field.label}
+            </p>
+            {field.description ? (
+              <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">
+                {field.description}
+              </p>
+            ) : null}
+          </div>
         ) : (
-          <div key={field.id} className={cn("space-y-2", !roomy && "space-y-1.5")}>
+          <div
+            key={field.id}
+            className={cn(
+              "space-y-2",
+              !roomy && "space-y-1.5",
+              twoColumn && spansBoth(field) && "sm:col-span-2",
+            )}
+          >
             <Label
               htmlFor={`ff-${field.id}`}
               className={cn("gap-0.5", roomy ? "text-base font-semibold" : "text-sm")}
@@ -238,10 +286,14 @@ export function FormRenderer({
           </div>
         ),
       )}
-      {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-      <div className={cn(roomy && "pt-2")}>
+      {formError ? (
+        <p className={cn("text-sm text-destructive", twoColumn && "sm:col-span-2")}>
+          {formError}
+        </p>
+      ) : null}
+      <div className={cn(roomy && "pt-2", twoColumn && "sm:col-span-2")}>
         <Button type="submit" disabled={busy || disabled} size={roomy ? "lg" : "default"}>
-          {busy ? "Submitting…" : submitLabel}
+          {busy ? "Submitting…" : effectiveSubmitLabel}
         </Button>
       </div>
     </form>
@@ -283,9 +335,11 @@ function WizardRenderer({
   const last = index >= fields.length - 1;
   const progress = ((index + 1) / fields.length) * 100;
 
+  const isLayout = field.type === "section" || field.type === "info";
+
   function advance() {
     setStepError(null);
-    if (field.type !== "section") {
+    if (!isLayout) {
       const error = validateFieldAnswer(field, answers[field.id]);
       if (error) {
         setStepError(error);
@@ -327,16 +381,18 @@ function WizardRenderer({
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-balance">
             {field.label}
-            {field.required && field.type !== "section" ? (
+            {field.required && !isLayout ? (
               <span className="text-destructive"> *</span>
             ) : null}
           </h2>
           {field.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{field.description}</p>
+            <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">
+              {field.description}
+            </p>
           ) : null}
         </div>
 
-        {field.type !== "section" ? (
+        {!isLayout ? (
           <FormFieldInput
             field={field}
             value={answers[field.id]}
@@ -411,10 +467,13 @@ export function FormFieldInput({
   propertyId?: string;
 }) {
   // Data-connected fields resolve options live; static fields use the
-  // hand-typed list. The hook no-ops when the field has no source.
-  const sourced = useSourcedOptions(propertyId, field.source);
-  const options = field.source ? sourced.options : (field.options ?? []);
-  const optionsLoading = !!field.source && sourced.loading;
+  // hand-typed list. The hook no-ops when the field has no source. `people`
+  // fields are implicitly member-sourced.
+  const effectiveSource =
+    field.source ?? (field.type === "people" ? MEMBERS_SOURCE : undefined);
+  const sourced = useSourcedOptions(propertyId, effectiveSource);
+  const options = effectiveSource ? sourced.options : (field.options ?? []);
+  const optionsLoading = !!effectiveSource && sourced.loading;
 
   switch (field.type) {
     case "short_text":
@@ -480,6 +539,7 @@ export function FormFieldInput({
           />
         </div>
       );
+    case "people":
     case "select": {
       if (chips) {
         return (
@@ -600,9 +660,141 @@ export function FormFieldInput({
           upload={upload}
         />
       );
+    case "signature":
+      return (
+        <SignaturePad
+          value={typeof value === "string" ? value : null}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
     case "section":
+    case "info":
       return null;
   }
+}
+
+/**
+ * ClickUp-style signature question: draw in the box; the answer is a PNG
+ * data URL. Pointer events cover mouse, touch, and pen.
+ */
+function SignaturePad({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (value: FormAnswerValue) => void;
+  disabled?: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const hasInk = useRef(false);
+  // Mirrors hasInk for render (refs must not be read during render): once
+  // the user draws, a stored value's <img> overlay gets out of the way.
+  const [inked, setInked] = useState(false);
+
+  function ctx() {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    return { canvas, context };
+  }
+
+  function pointFromEvent(e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  }
+
+  function start(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (disabled) return;
+    const c = ctx();
+    if (!c) return;
+    drawing.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const { x, y } = pointFromEvent(e);
+    c.context.lineWidth = 2.5;
+    c.context.lineCap = "round";
+    c.context.lineJoin = "round";
+    c.context.strokeStyle = getComputedStyle(c.canvas).color;
+    c.context.beginPath();
+    c.context.moveTo(x, y);
+  }
+
+  function move(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) return;
+    const c = ctx();
+    if (!c) return;
+    const { x, y } = pointFromEvent(e);
+    c.context.lineTo(x, y);
+    c.context.stroke();
+    hasInk.current = true;
+    setInked(true);
+  }
+
+  function end() {
+    if (!drawing.current) return;
+    drawing.current = false;
+    const c = ctx();
+    if (!c || !hasInk.current) return;
+    onChange(c.canvas.toDataURL("image/png"));
+  }
+
+  function clear() {
+    const c = ctx();
+    if (c) c.context.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    hasInk.current = false;
+    setInked(false);
+    onChange(null);
+  }
+
+  // A previously-captured signature (e.g. after a failed submit re-render)
+  // shows as an image; drawing replaces it.
+  return (
+    <div className="space-y-1.5">
+      <div className="relative w-full max-w-md">
+        {value && !inked ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={value}
+            alt="Signature"
+            className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+          />
+        ) : null}
+        <canvas
+          ref={canvasRef}
+          width={640}
+          height={200}
+          onPointerDown={start}
+          onPointerMove={move}
+          onPointerUp={end}
+          onPointerCancel={end}
+          aria-label="Signature area"
+          className={cn(
+            "h-36 w-full touch-none rounded-md bg-muted text-foreground",
+            disabled ? "cursor-not-allowed opacity-60" : "cursor-crosshair",
+          )}
+        />
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground">Sign inside the box</span>
+        {value && !disabled ? (
+          <button
+            type="button"
+            onClick={clear}
+            className="text-xs font-medium underline underline-offset-2 hover:text-foreground"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 /**

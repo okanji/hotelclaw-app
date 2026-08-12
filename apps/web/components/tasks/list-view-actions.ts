@@ -17,6 +17,9 @@ const ColumnZ = z.object({
   id: z.string().min(1).max(80),
   width: z.number().int().min(60).max(800),
   hidden: z.boolean().optional(),
+  // Footer calculation id (lib/tasks/list-columns.ts). Free-form here —
+  // resolveColumns drops unknown ids, so an old client can't wedge a save.
+  calc: z.string().min(1).max(30).optional(),
 });
 
 const SaveLayoutSchema = z.object({

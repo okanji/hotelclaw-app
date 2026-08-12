@@ -44,6 +44,14 @@ const triggers: TriggerCatalogEntry[] = [
           formatted: z.string(),
         }),
       ),
+      // Answers from task-property-mapped questions (ClickUp-style): the
+      // structured values a create-task step can reference directly.
+      task_properties: z.object({
+        assignee_id: z.string().nullable(),
+        priority: z.string().nullable(),
+        due_at: z.string().nullable(),
+        labels: z.array(z.string()),
+      }),
     }),
     explain: () => "When a form is submitted",
   },

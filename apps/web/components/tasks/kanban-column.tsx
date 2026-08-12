@@ -27,7 +27,7 @@ import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
 import { COLUMN_PILL_CLASS, type Task } from "./kanban";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
 
 /**
  * Cards rendered per column before the scroll sentinel loads the next page.
@@ -50,6 +50,8 @@ type Props = {
   taskIds: string[];
   tasksById: Record<string, Task>;
   assignees: Record<string, AssigneeInfo>;
+  /** taskId → label-field chips, resolved board-level. */
+  cardLabels: Record<string, CustomFieldOption[]>;
   propertyId: string;
   dragActive: boolean;
   /** Id of the card this user is dragging, if any. */
@@ -73,6 +75,7 @@ export function KanbanColumn({
   taskIds,
   tasksById,
   assignees,
+  cardLabels,
   propertyId,
   dragActive,
   activeDragId,
@@ -310,6 +313,7 @@ export function KanbanColumn({
                 propertyId={propertyId}
                 task={task}
                 assignee={info}
+                labels={cardLabels[id]}
                 dragActive={dragActive}
                 draggedByName={remoteDragMap.get(id) ?? null}
                 onChanged={onChanged}
