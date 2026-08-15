@@ -385,9 +385,11 @@ export function TaskAutomationCard({
 /** A slot whose value comes from a mapped question, not the panel. */
 function MappedChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2.5 text-xs font-medium text-muted-foreground">
-      <Wand2 className="size-3.5" />
-      From the {label.replace("+ ", "")}
+    // min-h (not a fixed h-8): "From the Assignee question" wraps to two
+    // lines inside the narrow grid column, and a fixed height clipped it.
+    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs leading-tight font-medium text-muted-foreground">
+      <Wand2 className="size-3.5 shrink-0" />
+      <span>From the {label.replace("+ ", "")}</span>
     </span>
   );
 }
