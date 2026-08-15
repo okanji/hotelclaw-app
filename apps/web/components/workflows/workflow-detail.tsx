@@ -43,6 +43,7 @@ export function WorkflowDetail({
             isDurable={isDurable}
             initialVersionId={data.workflow.current_version_id ?? null}
             webhookToken={data.workflow.webhook_token ?? null}
+            initialEnabled={data.workflow.enabled ?? false}
             enableCoEditing
           />
         </WorkflowRoom>

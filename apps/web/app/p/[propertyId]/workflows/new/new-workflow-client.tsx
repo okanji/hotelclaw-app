@@ -141,10 +141,16 @@ const EXAMPLE_GROUPS: {
 ];
 
 // Decode the base64 ?prefill= JSON and pull out its `goal` string, if any.
+// The payload is UTF-8 bytes base64'd (see lib/workflows/features.ts), so we
+// decode the bytes rather than treating them as Latin-1 — otherwise a goal
+// carrying an en dash or an accented name arrives mojibake'd. ASCII payloads
+// (every ?prefill= link written before that encoder existed) are unaffected.
 function decodePrefillGoal(raw: string | null): string | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(atob(raw)) as { goal?: unknown };
+    const binary = atob(raw);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { goal?: unknown };
     return typeof parsed.goal === "string" ? parsed.goal : null;
   } catch {
     return null;

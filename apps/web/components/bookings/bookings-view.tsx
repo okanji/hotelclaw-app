@@ -46,6 +46,7 @@ import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { PageShell } from "@/components/ui/page-shell";
 
 export type ServiceListItem = {
@@ -319,6 +320,7 @@ export function BookingsView({
         description="Tables, tickets, rentals — chatbots and walk-ins book against the same live availability."
         actions={
           <>
+            <AutomationsButton propertyId={propertyId} feature="bookings" />
             {propertySlug ? (
               <Button
                 variant="ghost"

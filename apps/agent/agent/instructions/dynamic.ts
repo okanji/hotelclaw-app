@@ -2,7 +2,11 @@ import { defineDynamic, defineInstructions } from "eve/instructions";
 import { KNOWLEDGE_DISCIPLINE } from "@hotelclaw/brain";
 import { serviceClient } from "../lib/supabase";
 import { tenantCallerOrNull } from "../lib/tenant";
-import { CHANNEL_BOT_SLUG, resolveSessionAgent } from "../lib/agent-config";
+import {
+  ASSISTANT_BOT_SLUG,
+  CHANNEL_BOT_SLUG,
+  resolveSessionAgent,
+} from "../lib/agent-config";
 import { resolvePodContext } from "../lib/pods";
 import { getBrainPage } from "../lib/gbrain-http";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
@@ -106,7 +110,13 @@ export default defineDynamic({
           "",
           KNOWLEDGE_DISCIPLINE,
         ];
-        if (resolved.agentId === `virtual:${CHANNEL_BOT_SLUG}`) {
+        // The prompt-honesty contract: the two virtual bots (channel + the
+        // personal assistant) mount brain tools only when a binding resolves,
+        // so their instructions must state which world they woke up in.
+        if (
+          resolved.agentId === `virtual:${CHANNEL_BOT_SLUG}` ||
+          resolved.agentId === `virtual:${ASSISTANT_BOT_SLUG}`
+        ) {
           const binding = await resolvePropertyBrainBinding(caller.propertyId);
           markdown.push(
             "",

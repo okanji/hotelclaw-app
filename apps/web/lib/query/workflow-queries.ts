@@ -14,6 +14,10 @@ type WorkflowListItem = {
   /** The current version's trigger event type (e.g. "task.created"), or null
    *  for workflows with no saved version yet. */
   trigger_event_type: string | null;
+  /** Deduped step types from the current version's spec. With the trigger,
+   *  this is everything the feature lens (lib/workflows/features.ts) needs to
+   *  answer "does this automation touch Docs?" without fetching specs. */
+  step_types: string[];
   last_run_at: string | null;
   last_run_status: string | null;
   created_at: string;

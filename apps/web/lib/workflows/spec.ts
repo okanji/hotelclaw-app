@@ -359,6 +359,35 @@ const DelegateToOpenclawStep = z.object({
   }),
 });
 
+/**
+ * Run the personal assistant on a brief, as a real conversation.
+ *
+ * Unlike `ai.freeform` (a one-shot Tier-1 completion) and
+ * `action.external.delegate_to_openclaw` (a headless durable session that
+ * lands nowhere a human looks), this starts an ASSISTANT session — the same
+ * durable eve session the Assistant surface drives — and files it as a
+ * conversation the recipient can open, read, and REPLY to. When `project_id`
+ * is set the run inherits that project's instructions, memory, and context,
+ * which is what makes a scheduled brief specific rather than generic.
+ */
+const AssistantRunStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.assistant.run"),
+  config: z.object({
+    brief: TplString,
+    /** Assistant project whose persona the run inherits, and where the
+     *  conversation is filed. Omitted = an unfiled personal conversation. */
+    project_id: z.string().optional(),
+    /** Conversation title. Defaults to the step label at runtime. */
+    title: TplString.optional(),
+    /** Ask the assistant to send an in-app notification when it finishes.
+     *  Delivered by the assistant's own send_notification tool at the END of
+     *  the turn — a workflow step cannot notify accurately, because the eve
+     *  turn outlives it by design. */
+    notify: z.boolean().optional(),
+  }),
+});
+
 const CaptureToGbrainStep = z.object({
   ...StepCommon,
   type: z.literal("action.gbrain.capture"),
@@ -597,6 +626,7 @@ export const StepNode = z.discriminatedUnion("type", [
   ShareSummaryToChannelStep,
   NotifyUserStep,
   NotifyRoleStep,
+  AssistantRunStep,
   CreateEntityStep,
   UpdateEntityStep,
   FindEntityStep,

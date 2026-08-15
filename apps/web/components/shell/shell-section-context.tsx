@@ -25,7 +25,8 @@ export type ShellSection =
   | "workflows"
   | "chatbots"
   | "bookings"
-  | "agents";
+  | "agents"
+  | "assistant";
 
 /**
  * Map a pathname to a section. Returns `null` when the route doesn't pin a
@@ -33,6 +34,12 @@ export type ShellSection =
  * the route split, so both pin their sections directly.
  */
 function sectionFromPath(pathname: string): ShellSection | null {
+  // FIRST, before every other check. The Assistant section owns a subtree
+  // (`/assistant/projects/<id>`) whose segments collide with sections matched
+  // below by substring — `/projects` pins Home, and a section that matched
+  // there would swap the whole shell out from under the page. Same class of
+  // bug as `/chatbots` needing to beat `/chat`.
+  if (pathname.includes("/assistant")) return "assistant";
   // Insights is its own rail section, but still served from `/home/insights`
   // (so every existing deep link keeps working). Match it BEFORE `/home`,
   // which it contains as a substring.
@@ -106,6 +113,7 @@ const ALL_SECTIONS: ShellSection[] = [
   "workflows",
   "chatbots",
   "bookings",
+  "assistant",
 ];
 
 /** Narrow an untrusted string (e.g. a cookie value) to a ShellSection. */

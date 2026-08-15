@@ -62,8 +62,9 @@ export function AiThinkingIndicator({
   const [activity, setActivity] = useState<string | null>(null);
   // Steps of the CURRENT turn, oldest first (migration 0096). The last entry
   // is the live one; earlier ones stay visible so the user can see the path
-  // taken rather than just the current stop.
-  const [steps, setSteps] = useState<string[]>([]);
+  // taken rather than just the current stop. Keyed by row id so the mount-time
+  // backfill and the realtime feed can merge without duplicating a step.
+  const [steps, setSteps] = useState<{ id: string; label: string }[]>([]);
   const [jobs, setJobs] = useState<ActiveJob[]>([]);
   const [longRunning, setLongRunning] = useState(false);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
@@ -128,12 +129,35 @@ export function AiThinkingIndicator({
       // turn_activity is selected explicitly rather than with "*" so a
       // pre-0095 database fails this one query loudly instead of silently
       // dropping the column.
-      .select("id, kind, thread_key, turn_state, turn_activity")
+      .select("id, kind, thread_key, turn_state, turn_activity, turn_nonce")
       .eq("channel_id", streamChannelId)
       .eq("thread_key", "_root")
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) applyRow(data);
+        if (cancelled || !data) return;
+        applyRow(data);
+        // Backfill the steps already taken this turn. The realtime feed only
+        // delivers INSERTs from subscription onward, so a viewer who opens
+        // (or returns to) the channel mid-turn would otherwise see the turn
+        // restart from a bare "Thinking…" with its history gone.
+        if (data.turn_state === "running" && data.turn_nonce) {
+          supabase
+            .from("channel_bot_activity")
+            .select("id, label")
+            .eq("channel_id", streamChannelId)
+            .eq("thread_key", "_root")
+            .eq("turn_nonce", data.turn_nonce)
+            .order("created_at", { ascending: true })
+            .then(({ data: rows }) => {
+              if (cancelled || !rows?.length) return;
+              // Prepend history; keep any live inserts that raced this query
+              // (dedup by row id) in their arrival order after it.
+              setSteps((prev) => [
+                ...rows,
+                ...prev.filter((s) => !rows.some((r) => r.id === s.id)),
+              ]);
+            });
+        }
       });
 
     // Jobs already in flight when the channel opens — a job started before
@@ -151,9 +175,12 @@ export function AiThinkingIndicator({
         for (const row of data ?? []) applyRow(row);
       });
 
-    const pushStep = (label: unknown) => {
-      if (typeof label !== "string" || !label.trim()) return;
-      setSteps((prev) => (prev.at(-1) === label ? prev : [...prev, label]));
+    const pushStep = (id: unknown, label: unknown) => {
+      if (typeof id !== "string" || typeof label !== "string" || !label.trim())
+        return;
+      setSteps((prev) =>
+        prev.some((s) => s.id === id) ? prev : [...prev, { id, label }],
+      );
     };
 
     const channel = supabase
@@ -170,11 +197,12 @@ export function AiThinkingIndicator({
         },
         (payload) => {
           const inserted = payload.new as {
+            id?: string;
             thread_key?: string;
             label?: string;
           };
           if (inserted.thread_key !== "_root") return;
-          pushStep(inserted.label);
+          pushStep(inserted.id, inserted.label);
         },
       )
       .on(
@@ -325,13 +353,13 @@ export function AiThinkingIndicator({
                   {steps
                     .slice(0, -1)
                     .slice(-4)
-                    .map((step, i) => (
+                    .map((step) => (
                       <span
-                        key={`${step}-${i}`}
+                        key={step.id}
                         className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground/60"
                       >
                         <Check className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{step}</span>
+                        <span className="truncate">{step.label}</span>
                       </span>
                     ))}
                   <span className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground">

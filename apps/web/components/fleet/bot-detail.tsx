@@ -259,7 +259,7 @@ export function BotDetail({
               }}
               disabled={!canEdit}
               rows={5}
-              placeholder="e.g. You are the front-desk assistant for Kaya Villa…"
+              placeholder="e.g. You are the front-desk assistant for this property…"
               className="max-w-2xl"
             />
           </section>

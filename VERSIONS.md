@@ -18,7 +18,7 @@ be green before ANY bump of these. No bump without green.
 |---|---|---|
 | hotelclaw-brain | ~/Desktop/hotelclaw-brains/hotelclaw-brain | SOURCE `master` on the shared server (read-only to pod clients via OAuth scope+source binding) |
 | pod-brain-template | ~/Desktop/hotelclaw-brains/pod-brain-template | stamp per client |
-| pod-oamar-portfolio-brain | ~/Desktop/hotelclaw-brains/pod-oamar-portfolio-brain | SOURCE `pod-oamar` (pod #1: Kaya, Pinewood) |
+| pod-oamar-portfolio-brain | ~/Desktop/hotelclaw-brains/pod-oamar-portfolio-brain | SOURCE `pod-oamar` (pod #1: Watamu, Pinewood) |
 | canary-fixture | ~/Desktop/hotelclaw-brains/canary-fixture | permanent read-wall test fixture (own reader client) |
 
 ## Shared brain server (fleet v2, 2026-07-18)

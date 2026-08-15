@@ -3,7 +3,7 @@ import { defineEvalConfig } from "eve/evals";
 // Deterministic suite — no LLM judge. Auth comes from EVE_EVAL_AUTH_TOKEN
 // (composite service bearer: <serviceKey>:<propertyId>:<userId>:<botSlug>,
 // see agent/channels/eve.ts), so every eval session runs as the pod's
-// `bookings` bot at Kaya.
+// `bookings` bot at Watamu.
 //
 // BUILD THE TOKEN IN NODE, NOT THE SHELL — zsh mangles `"$SK:uuid:..."`
 // (it swallows the first colon after the expansion), which silently drops

@@ -43,6 +43,7 @@ import {
   shareSummaryToChannelRunner,
 } from "./meetings";
 import { gbrainCaptureRunner, delegateToOpenclawRunner } from "./system";
+import { assistantRunRunner } from "./assistant";
 import {
   httpRequestRunner,
   emailSendRunner,
@@ -96,6 +97,7 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
 
   // System / external
   "action.gbrain.capture": gbrainCaptureRunner as Runner,
+  "action.assistant.run": assistantRunRunner as Runner,
   "action.external.delegate_to_openclaw": delegateToOpenclawRunner as Runner,
 
   // Outbound integrations

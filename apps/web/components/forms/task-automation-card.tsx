@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -70,6 +70,16 @@ export function TaskAutomationCard({
   const [loaded, setLoaded] = useState(false);
   const [saving, startSaving] = useTransition();
   const [labelDraft, setLabelDraft] = useState("");
+  // Optimistic panel state: controls stay ENABLED while a save is in flight
+  // (disabling them mid-save silently swallowed rapid edits — a label typed
+  // right after picking a team never landed). Saves serialize through
+  // `saveChain`; each apply() snapshot is written in order, so the last
+  // interaction wins and nothing is dropped.
+  const [draft, setDraft] = useState<{
+    enabled: boolean;
+    config: FormTaskAutomationConfig;
+  } | null>(null);
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
 
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: members = [] } = useQuery(
@@ -91,24 +101,33 @@ export function TaskAutomationCard({
     };
   }, [propertyId, formId]);
 
-  const enabled = automation?.enabled ?? false;
+  const enabled = draft?.enabled ?? automation?.enabled ?? false;
   const custom = automation !== null && automation.config === null;
-  const config = automation?.config ?? DEFAULT_CONFIG;
+  const config = draft?.config ?? automation?.config ?? DEFAULT_CONFIG;
 
   function apply(next: { enabled: boolean; config: FormTaskAutomationConfig }) {
+    setDraft(next);
     startSaving(async () => {
-      const result = await setFormTaskAutomation({
-        propertyId,
-        formId,
-        enabled: next.enabled,
-        config: next.config,
+      const run = saveChain.current.then(async () => {
+        const result = await setFormTaskAutomation({
+          propertyId,
+          formId,
+          enabled: next.enabled,
+          config: next.config,
+        });
+        if ("error" in result) {
+          toast.error(result.error);
+          // Roll back to the server's truth so the panel doesn't lie.
+          setDraft(null);
+          return;
+        }
+        setAutomation(result.automation);
+        setMappings(result.mappings);
+        // Only clear the optimistic state when no newer edit superseded it.
+        setDraft((current) => (current === next ? null : current));
       });
-      if ("error" in result) {
-        toast.error(result.error);
-        return;
-      }
-      setAutomation(result.automation);
-      setMappings(result.mappings);
+      saveChain.current = run;
+      await run;
     });
   }
 
@@ -162,7 +181,7 @@ export function TaskAutomationCard({
             </span>
             <Switch
               checked={enabled}
-              disabled={!loaded || saving}
+              disabled={!loaded}
               onCheckedChange={() => apply({ enabled: !enabled, config })}
               aria-label="Create a task for each submission"
             />
@@ -176,7 +195,7 @@ export function TaskAutomationCard({
                   <NativeSelect
                     id="automation-team"
                     value={config.spaceId ?? ""}
-                    disabled={saving}
+                    
                     onChange={(e) =>
                       apply({
                         enabled,
@@ -200,7 +219,7 @@ export function TaskAutomationCard({
                     <NativeSelect
                       id="automation-assignee"
                       value={config.assigneeId ?? ""}
-                      disabled={saving}
+                      
                       onChange={(e) =>
                         apply({
                           enabled,
@@ -225,7 +244,7 @@ export function TaskAutomationCard({
                     <NativeSelect
                       id="automation-priority"
                       value={config.priority}
-                      disabled={saving}
+                      
                       onChange={(e) =>
                         apply({
                           enabled,
@@ -259,7 +278,7 @@ export function TaskAutomationCard({
                       <button
                         type="button"
                         aria-label={`Remove label ${label}`}
-                        disabled={saving}
+                        
                         onClick={() =>
                           apply({
                             enabled,
@@ -280,7 +299,7 @@ export function TaskAutomationCard({
                     <Input
                       id="automation-labels"
                       value={labelDraft}
-                      disabled={saving}
+                      
                       onChange={(e) => setLabelDraft(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -295,7 +314,7 @@ export function TaskAutomationCard({
                       variant="ghost"
                       size="icon-xs"
                       onClick={addLabel}
-                      disabled={saving || !labelDraft.trim()}
+                      disabled={!labelDraft.trim()}
                       aria-label="Add label"
                     >
                       <Plus className="size-3.5" />
@@ -318,7 +337,7 @@ export function TaskAutomationCard({
                 </span>
                 <Switch
                   checked={config.includeAnswers}
-                  disabled={saving}
+                  
                   onCheckedChange={() =>
                     apply({
                       enabled,

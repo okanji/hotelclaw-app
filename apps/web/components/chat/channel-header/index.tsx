@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HuddleButton } from "@/components/chat/huddle/huddle-button";
 import { MeetingButton } from "@/components/chat/meeting/meeting-button";
 import { AiButton } from "./ai-button";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 
 /**
  * Custom replacement for Stream's default <ChannelHeader>.
@@ -95,6 +96,17 @@ export function ChannelHeader() {
             divider — it's a different class of control (the assistant) from
             members/call/search. */}
         {channel.id ? <AiButton /> : null}
+        {/* Automations join AI on the assistant side of the divider — both are
+            "the app doing work for you" rather than channel utilities. Icon
+            only: this header is already a dense glyph row. */}
+        {channel.id && propertyId ? (
+          <AutomationsButton
+            propertyId={propertyId}
+            feature="chat"
+            showLabel={false}
+            className="h-8 px-2"
+          />
+        ) : null}
         {channel.id ? (
           <span aria-hidden className="mx-1 h-5 w-px bg-border" />
         ) : null}

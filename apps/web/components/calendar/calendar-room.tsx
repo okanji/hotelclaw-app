@@ -49,6 +49,7 @@ import {
 } from "./task-schedule-rail";
 import { useCalendarRealtime } from "./use-calendar-realtime";
 import { CalendarPresenceBar } from "./presence-bar";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { PresenceCursors } from "./presence-cursors";
 import { CalendarAiPanel } from "./calendar-ai-panel";
 import { CalendarAiKnowledge } from "./calendar-ai-knowledge";
@@ -357,6 +358,7 @@ export function CalendarRoom({
         </div>
         <div className="flex items-center gap-3">
           <CalendarPresenceBar />
+          <AutomationsButton propertyId={propertyId} feature="calendar" />
           <Button
             variant="outline"
             size="sm"

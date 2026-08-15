@@ -2734,6 +2734,118 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      // ── Personal assistant (migration 0102) ───────────────────────────
+      // Personal to one user inside one property; RLS enforces that, so no
+      // query in the app filters by user_id itself.
+      assistant_projects: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          instructions: string | null;
+          memory: string | null;
+          emoji: string;
+          tint: string;
+          pinned: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          instructions?: string | null;
+          memory?: string | null;
+          emoji?: string;
+          tint?: string;
+          pinned?: boolean;
+        };
+        Update: Partial<{
+          name: string;
+          description: string | null;
+          instructions: string | null;
+          memory: string | null;
+          emoji: string;
+          tint: string;
+          pinned: boolean;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      assistant_project_resources: {
+        Row: {
+          id: string;
+          project_id: string;
+          property_id: string;
+          user_id: string;
+          kind: "document" | "text";
+          document_id: string | null;
+          title: string;
+          body: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          property_id: string;
+          user_id: string;
+          kind: "document" | "text";
+          document_id?: string | null;
+          title: string;
+          body?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          body: string | null;
+        }>;
+        Relationships: [];
+      };
+      assistant_chats: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          project_id: string | null;
+          title: string;
+          eve_session_id: string | null;
+          continuation_token: string | null;
+          pinned: boolean;
+          /** 'scheduled' = produced by an action.assistant.run workflow step. */
+          source: "user" | "scheduled";
+          workflow_id: string | null;
+          archived_at: string | null;
+          last_message_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          project_id?: string | null;
+          title?: string;
+          eve_session_id?: string | null;
+          continuation_token?: string | null;
+          pinned?: boolean;
+          source?: "user" | "scheduled";
+          workflow_id?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          project_id: string | null;
+          eve_session_id: string | null;
+          continuation_token: string | null;
+          pinned: boolean;
+          archived_at: string | null;
+          last_message_at: string;
+        }>;
+        Relationships: [];
+      };
       chatbots: {
         Row: {
           id: string;

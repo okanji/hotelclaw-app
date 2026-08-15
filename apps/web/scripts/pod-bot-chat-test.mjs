@@ -10,10 +10,10 @@ import { StreamChat } from "stream-chat";
 import { createClient } from "@supabase/supabase-js";
 
 const ORIGIN = process.env.DEV_ORIGIN ?? "http://127.0.0.1:3000";
-const KAYA = "c63d28a6-b8fb-452e-8eee-ebe1e0e4a4fa";
+const WATAMU = "c63d28a6-b8fb-452e-8eee-ebe1e0e4a4fa";
 const OWNER = "33831554-d1a7-4f62-85a5-85952cbc11e4";
-const CH_A = `prop-${KAYA.slice(0, 8)}-podtest-a`;
-const CH_B = `prop-${KAYA.slice(0, 8)}-podtest-b`;
+const CH_A = `prop-${WATAMU.slice(0, 8)}-podtest-a`;
+const CH_B = `prop-${WATAMU.slice(0, 8)}-podtest-b`;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -39,7 +39,7 @@ async function trigger(channelId, text) {
       authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
-      propertyId: KAYA,
+      propertyId: WATAMU,
       channelId,
       senderId: OWNER,
       senderName: "Oamar",

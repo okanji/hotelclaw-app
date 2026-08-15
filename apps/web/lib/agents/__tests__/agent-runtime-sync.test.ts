@@ -75,6 +75,47 @@ describe("AGENT_TOOL_CATALOG ↔ eve executor sync", () => {
     }
   });
 
+  it("the personal assistant's grants are all real catalog ids", () => {
+    const block = agentConfigSrc.match(
+      /assistantConfig\(\)[\s\S]*?tools:\s*\[([\s\S]*?)\]/,
+    );
+    expect(block, "assistantConfig tools array not found").toBeTruthy();
+    const grants = [...block![1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+    expect(grants.length).toBeGreaterThanOrEqual(15);
+    for (const g of grants) {
+      expect(AGENT_TOOL_IDS.has(g), `assistant grants unknown tool "${g}"`).toBe(true);
+    }
+    // start_background_job self-gates on a Stream channel id, which assistant
+    // sessions never have — granting it would advertise a capability that can
+    // never mount (the persona claims exactly the tools it gets).
+    expect(
+      grants,
+      "assistant must not grant start_background_job — it has no channel to deliver into",
+    ).not.toContain("start_background_job");
+  });
+
+  it("both virtual bots reach the brain and render_ui", () => {
+    // The assistant is a second virtual bot on the channel bot's machinery.
+    // Its brain + rich-UI tools mount from slug-gated dynamics, so a gate
+    // that forgets the new slug silently ships a brainless assistant.
+    for (const [name, src] of [
+      ["channel-brain.ts", channelBrainSrc],
+      ["channel-render-ui.ts", read(agentDir, "tools", "channel-render-ui.ts")],
+    ] as const) {
+      expect(
+        src.includes("ASSISTANT_BOT_SLUG"),
+        `${name} does not admit ASSISTANT_BOT_SLUG — the assistant loses these tools`,
+      ).toBe(true);
+    }
+  });
+
+  it("the assistant's project header is stamped as a session attribute", () => {
+    // Project instructions/memory/context ride on this attribute; without the
+    // stamp every project chat silently runs the plain persona.
+    expect(eveChannelSrc).toContain('"x-hotelclaw-project"');
+    expect(eveChannelSrc).toContain("projectId");
+  });
+
   it("the auto-mode classifier advertises every channel-bot grant", () => {
     // Auto mode's rule B ("asks for something on the capability list") is one
     // of only two ALWAYS-respond rules, so a grant the blurb never mentions

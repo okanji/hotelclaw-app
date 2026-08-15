@@ -26,6 +26,11 @@ const AGENT_HEADER = "x-hotelclaw-agent";
 // against the property's client in lib/pods.ts; bogus slugs resolve to no
 // bot and the base runtime persona applies.
 const BOT_HEADER = "x-hotelclaw-bot";
+// Which assistant project (assistant_projects) an Assistant-section session
+// belongs to. Ownership + property are re-verified in agent-config.ts, so a
+// bogus or borrowed id resolves to no project and the plain assistant persona
+// applies — it can never widen scope.
+const PROJECT_HEADER = "x-hotelclaw-project";
 // Stream channel id the channel-bot session serves — lets resolvers look up
 // chatbot_channel_deployments. Deployment rows are re-verified against the
 // caller's property in agent-config.ts; a bogus id resolves to no deployment.
@@ -59,6 +64,7 @@ function principal(
   botSlug: string | null = null,
   channelId: string | null = null,
   senderId: string | null = null,
+  projectId: string | null = null,
 ) {
   return {
     authenticator,
@@ -73,6 +79,7 @@ function principal(
       ...(botSlug ? { botSlug } : {}),
       ...(channelId ? { channelId } : {}),
       ...(senderId ? { senderId } : {}),
+      ...(projectId ? { projectId } : {}),
     },
   };
 }
@@ -122,6 +129,7 @@ function supabaseCookieAuth(): AuthFn<Request> {
       request.headers.get(CHANNEL_HEADER),
       // Browser sessions ARE the sender.
       user.id,
+      request.headers.get(PROJECT_HEADER),
     );
   };
 }
@@ -168,6 +176,7 @@ function serviceBearerAuth(): AuthFn<Request> {
       compositeBot ?? request.headers.get(BOT_HEADER),
       request.headers.get(CHANNEL_HEADER),
       request.headers.get(SENDER_HEADER) ?? userId,
+      request.headers.get(PROJECT_HEADER),
     );
   };
 }

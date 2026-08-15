@@ -42,8 +42,8 @@ function assert(name, cond) {
 async function main() {
   const { data: pod } = await service
     .from("clients").select("id").eq("slug", CLIENT_SLUG).single();
-  const { data: kaya } = await service
-    .from("properties").select("id").eq("slug", "kaya-villa-watamu").single();
+  const { data: watamu } = await service
+    .from("properties").select("id").eq("slug", "watamu-villa").single();
 
   const email = `rls-probe-${Date.now().toString(36)}@villa.dev`;
   const { data: created, error: cErr } = await service.auth.admin.createUser({
@@ -65,7 +65,7 @@ async function main() {
 
     // 2. Membership in one pod property -> can read.
     await service.from("memberships").insert({
-      property_id: kaya.id, user_id: probeId, role: "manager",
+      property_id: watamu.id, user_id: probeId, role: "manager",
     });
     const c2 = await asUser.from("clients").select("id").eq("id", pod.id);
     assert("member can read clients row", (c2.data ?? []).length === 1);

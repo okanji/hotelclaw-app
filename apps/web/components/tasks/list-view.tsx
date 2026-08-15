@@ -1076,7 +1076,12 @@ function ListRow({
             {...attributes}
             {...listeners}
             aria-label={`Reorder ${task.title}`}
-            className="grid size-5 shrink-0 cursor-grab place-items-center rounded-md text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+            // `relative z-10` is load-bearing: the Checkbox next door extends
+            // an invisible touch target 12px past its box (after:-inset-x-3),
+            // and as a positioned later sibling it won hit-testing over this
+            // button — a real pointer pressing the grip landed on the checkbox
+            // and the drag never started.
+            className="relative z-10 grid size-5 shrink-0 cursor-grab place-items-center rounded-md text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
           >
             <GripVertical className="size-3.5" />
           </button>

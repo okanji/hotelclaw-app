@@ -155,6 +155,10 @@ export function fleetServiceHeaders(input: {
    * (earliest owner when the sender isn't a member) must never satisfy a
    * role gate on the sender's behalf. */
   senderId?: string;
+  /** Assistant project (assistant_projects) whose instructions, memory, and
+   * context the session inherits. Ownership + property are re-verified in the
+   * runtime, so a wrong id degrades to the plain persona rather than leaking. */
+  projectId?: string;
 }): Record<string, string> {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("service key missing");
@@ -166,5 +170,6 @@ export function fleetServiceHeaders(input: {
     ...(input.botSlug ? { "x-hotelclaw-bot": input.botSlug } : {}),
     ...(input.channelId ? { "x-hotelclaw-channel": input.channelId } : {}),
     ...(input.senderId ? { "x-hotelclaw-sender": input.senderId } : {}),
+    ...(input.projectId ? { "x-hotelclaw-project": input.projectId } : {}),
   };
 }

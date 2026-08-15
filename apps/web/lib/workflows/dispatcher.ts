@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { resumeHook } from "workflow/api";
 import { WorkflowSpec, classifyMode } from "@/lib/workflows/spec";
+import { hydrateTriggerPayload } from "@/lib/workflows/hydrate-payload";
 import { evaluatePredicate } from "@/lib/workflows/predicate";
 import { runWorkflowInstant } from "@/lib/workflows/instant-runtime";
 import { runWorkflowDurable } from "@/lib/workflows/durable-runtime";
@@ -119,6 +120,12 @@ export async function dispatchEvent(eventId: string): Promise<DispatchResult> {
     return { eventId, matched: 0, fired: 0, filtered: 0, skipped_reasons: {} };
   }
 
+  // Names beside the raw people ids, once for every workflow this event
+  // reaches — so filters and templates both see `assignee_name`.
+  const triggerPayload = await hydrateTriggerPayload(
+    (event.payload ?? {}) as Record<string, unknown>,
+  );
+
   const versionIds = workflows
     .map((w) => w.current_version_id)
     .filter((v): v is string => v !== null);
@@ -158,7 +165,7 @@ export async function dispatchEvent(eventId: string): Promise<DispatchResult> {
       const passed = (() => {
         try {
           return evaluatePredicate(filterExpr, {
-            trigger: event.payload as Record<string, unknown>,
+            trigger: triggerPayload,
             context: { property_id: event.property_id },
           });
         } catch {
@@ -175,7 +182,7 @@ export async function dispatchEvent(eventId: string): Promise<DispatchResult> {
     // Entity-trigger scoping: spec.trigger.entity_type filters to entities of
     // that type. The payload includes `type` for entity events.
     if (spec.trigger.entity_type) {
-      const payloadType = (event.payload as { type?: string }).type;
+      const payloadType = (triggerPayload as { type?: string }).type;
       if (payloadType !== spec.trigger.entity_type) {
         skippedReasons[w.id] = "predicate_false";
         filteredCount++;
@@ -191,7 +198,7 @@ export async function dispatchEvent(eventId: string): Promise<DispatchResult> {
       propertyId: event.property_id,
       workflowOwnerId: w.created_by ?? "",
       triggerEventId: event.id,
-      triggerPayload: event.payload as Record<string, unknown>,
+      triggerPayload,
     };
 
     try {

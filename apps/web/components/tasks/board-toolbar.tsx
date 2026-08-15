@@ -29,6 +29,7 @@ import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
 import { SORT_LABELS } from "./kanban";
 import { TriageDial } from "./triage-dial";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { CustomFieldManager } from "./custom-field-manager";
 import { useQuery } from "@tanstack/react-query";
 import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
@@ -231,6 +232,8 @@ export function BoardToolbar({
         <CustomFieldManager propertyId={propertyId} />
 
         <TriageDial propertyId={propertyId} />
+
+        <AutomationsButton propertyId={propertyId} feature="tasks" />
 
         {/* Search — compact input. `/` keyboard shortcut still focuses it. */}
         <div className="relative ml-1">

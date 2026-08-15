@@ -284,8 +284,14 @@ export function KanbanColumn({
         // block scrollHeight 7280 vs flex 1280 for identical children).
         // Cards feed dnd-kit's droppable rects, and dnd-kit measures those
         // once per drag — collapsed rects meant drops landed nowhere near
-        // the cursor. `space-y-1.5` replaces the old `gap-1.5`.
-        className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-2"
+        // the cursor. `space-y-2.5` replaces the old `gap-1.5`.
+        //
+        // `pt-1` is load-bearing, not decoration: this element scrolls, so it
+        // CLIPS, and a card's `shadow-card` ends in a 1px warm ring. With no
+        // top padding the first card in every column lost its top hairline
+        // (and the soft shadow above it) to the clip edge and read as
+        // beheaded.
+        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-2 pt-1 pb-2"
       >
         {adding ? (
           <InlineAddCard

@@ -32,6 +32,25 @@ export type ResolvedAgent = {
  */
 export const CHANNEL_BOT_SLUG = "hotelclaw";
 
+/**
+ * The PERSONAL ASSISTANT as a virtual agent config. Sessions arriving with
+ * `x-hotelclaw-bot: assistant` (the Assistant rail section — one durable eve
+ * session per conversation tab) resolve to this synthetic config, the same
+ * zero-parallel-plumbing trick the channel bot uses.
+ *
+ * It differs from the channel bot in TWO ways that matter:
+ *   1. Voice. The channel bot writes into a busy Slack-style channel, so its
+ *      persona forbids headings and tables. The assistant owns a full page —
+ *      it gets the whole markdown vocabulary and room to be thorough.
+ *   2. Audience. A channel reply is read by the whole team; an assistant
+ *      reply is read by exactly one person, whose own permissions the session
+ *      already carries. There is no acting-principal fallback here.
+ *
+ * An optional `x-hotelclaw-project` selects an assistant_projects row whose
+ * instructions, memory, and context are folded into the persona below.
+ */
+export const ASSISTANT_BOT_SLUG = "assistant";
+
 // Identity, tone, and standing rules ONLY (eve doctrine: instructions are
 // the always-on prompt; the knowledge-lookup PROCEDURE lives in
 // agent/skills/knowledge-lookup.md, and the knowledge-discipline standing
@@ -152,6 +171,180 @@ function channelBotConfig(): AgentConfig {
   });
 }
 
+// Identity, tone, and standing rules for the PERSONAL assistant. Deliberately
+// not a fork of CHANNEL_BOT_INSTRUCTIONS: the rules those two share (elicitation,
+// no placeholders, scope discipline, approval gates) are restated here in the
+// assistant's own voice rather than imported, because a shared constant would
+// force every future channel-tuning edit onto a surface with a different shape.
+const ASSISTANT_INSTRUCTIONS = [
+  "You are the personal assistant for one member of a hotel operations team. You live on your own full-page surface in their workspace — not in a team channel — and you are talking to exactly one person: whoever opened this conversation.",
+  "You have the run of their workspace. Tasks, projects, documents, spreadsheets, meetings, bookings, forms, workflows, chat history, the org chart, and the property's knowledge brain are all yours to read and act on. Everything you can reach is scoped to what THIS person can already see — you are not a way around anyone's permissions.",
+  // Voice. The single most-visible difference from the channel bot.
+  "Write for a page, not a chat bubble. Headings, tables, lists, and code blocks are all available and you should use them when they make an answer easier to read. Length follows the question: a one-line answer for a one-line question, a structured brief for a real piece of work. Never pad.",
+  "Lead with the answer. Open with the thing they'd repeat to a colleague, then the supporting detail beneath it. Caveats and open questions go at the end, briefly — never in front of the answer.",
+  "Answer EVERY question in the message. One message often carries two asks; a reply that covers one of them has failed however good that half is.",
+  "Answer from your tools for anything specific to this property — records, numbers, history, what's written down; never invent those, and before answering any knowledge, listing, or history question, load the knowledge-lookup skill and follow its ladder. General questions — what a term means, how something is normally done in hospitality — you answer from your own knowledge, plainly. Don't go hunting for a tool for those.",
+  "When your answer is a set of records — task lists, schedules, workloads, comparisons, metrics — call render_ui to display it as rich UI and keep your text to a short lead-in plus the conclusion in words. A card is EVIDENCE, never the answer itself: if you were asked which item is the biggest risk, name it in a sentence.",
+  // Scope + elicitation, same doctrine as the channel bot, restated.
+  "Deliver what was asked, at the scope intended. Words like short, quick, or rough are CONSTRAINTS, not starting points. Make routine judgement calls yourself — scope, window, format, and depth are yours. Before asking anything, apply the default test: could you state a sensible default? If yes, take it, do the work, and say in one line what you assumed. Only a missing fact you cannot derive, or a genuinely irreversible fork, earns a question — and batch those into one.",
+  "NEVER leave a placeholder in anything you produce. No 'TO CONFIRM', no 'TBD', no bracketed blanks — not in a document, task, form, or message. When a fact is missing: ask for it if the work truly can't proceed, otherwise write the parts you can, leave the unknown OUT, and create a task naming who owes the answer. Say which you did.",
+  // Doing, not just answering.
+  "You can DO things, not just look them up: update tasks, write and rewrite real document content, rename documents, schedule and move meetings, take and change bookings, read and edit spreadsheets, build and publish forms, create projects, label and escalate and delete tasks, notify people, post into channels, and run manually-triggered workflows. When someone asks you to fix or update something, do it with the tools and reply with the link — don't offer to draft text for them to paste. Editing an existing document: read_document FIRST, make the surgical change in the returned HTML, and send the full revised body back with mode=replace. Never say you can't read a document's contents.",
+  "Before REPLACING meaningful content the requester didn't ask you to touch, confirm. Requested edits, stub-filling, and renames need no confirmation. When ONE request will create more than about three records, list what you're about to create and get a yes first; a single task, document, or form just gets made.",
+  "Destructive or high-impact actions (deleting tasks, cancelling meetings or bookings, closing forms) need confirmation unless their message already named the exact target and asked for exactly that. Some tools are approval-gated by the system — call them normally, the surface shows an action preview and waits. Never work around a gate or claim an action is done before the decision comes back.",
+  "If a request maps to NO tool (billing, member invites, property settings), say so and point at where in the app to do it — never pretend.",
+].join("\n");
+
+function assistantConfig(): AgentConfig {
+  return parseAgentConfig({
+    version: 1,
+    instructions: ASSISTANT_INSTRUCTIONS,
+    modelTier: "advanced",
+    tools: [
+      // Tasks + projects
+      "list_open_tasks",
+      "search_tasks",
+      "create_task",
+      "update_task",
+      "delete_task",
+      "escalate_task",
+      "create_project",
+      // Documents
+      "search_documents",
+      "list_documents",
+      "read_document",
+      "create_document",
+      "update_document",
+      "rename_document",
+      "archive_document",
+      "restore_document_revision",
+      // Spreadsheets
+      "read_sheet",
+      "update_sheet_cells",
+      // Meetings + bookings
+      "list_meetings",
+      "schedule_meeting",
+      "update_meeting",
+      "cancel_meeting",
+      "list_bookings",
+      "create_booking",
+      "update_booking_status",
+      // Chat history + channel directory. Both are membership-scoped to the
+      // real sender, which on this surface is always the person reading —
+      // this is what makes "search my conversations" honest.
+      "search_chat_messages",
+      "list_channels",
+      // Forms
+      "list_forms",
+      "get_form_response_summaries",
+      "create_form",
+      "set_form_status",
+      "share_form_to_channel",
+      // Comms
+      "send_notification",
+      "post_to_channel",
+      // Workflows
+      "list_workflows",
+      "trigger_workflow",
+      // Guest chatbot activity
+      "guest_conversation_insights",
+      // Management surfaces (in-executor role gate on the real sender)
+      "get_insight_brief",
+      "get_weekly_report",
+      "list_handovers",
+      // Org
+      "get_org_chart",
+      // NOTE: start_background_job is deliberately absent — it delivers its
+      // result to a Stream channel, and assistant sessions have none. The
+      // executor self-gates on sessionChannelId, so granting it would only
+      // put a capability in the persona that never mounts.
+    ],
+  });
+}
+
+/**
+ * Fold an assistant project's instructions, memory, and context into the
+ * persona. Returns the base config unchanged when there is no project, or
+ * when the project doesn't belong to this caller — tenancy AND ownership are
+ * re-checked here, because the project id arrives as a client header.
+ */
+async function withAssistantProject(
+  base: AgentConfig,
+  projectId: string,
+  propertyId: string,
+  userId: string,
+): Promise<{ config: AgentConfig; name: string | null }> {
+  try {
+    const { data: project } = await serviceClient()
+      .from("assistant_projects")
+      .select("id, name, description, instructions, memory, archived_at, property_id, user_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (
+      !project ||
+      project.archived_at ||
+      project.property_id !== propertyId ||
+      project.user_id !== userId
+    ) {
+      return { config: base, name: null };
+    }
+
+    const { data: resources } = await serviceClient()
+      .from("assistant_project_resources")
+      .select("kind, title, body, document_id")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    const sections: string[] = [
+      base.instructions,
+      "",
+      `# Project: ${project.name}`,
+      project.description ? project.description.trim() : "",
+      "",
+      "Every message in this conversation belongs to that project. Its instructions, memory, and context below OVERRIDE your general defaults where they conflict — they are what this person has told you about how they want this particular work done.",
+    ];
+
+    if (project.instructions?.trim()) {
+      sections.push("", "## Project instructions", project.instructions.trim());
+    }
+    if (project.memory?.trim()) {
+      sections.push(
+        "",
+        "## Project memory",
+        "Durable notes this project carries between conversations. Treat them as established fact unless the person corrects you. You may PROPOSE an addition in your reply; never claim to have edited memory yourself — only the human writes it.",
+        "",
+        project.memory.trim(),
+      );
+    }
+
+    const docs = (resources ?? []).filter((r) => r.kind === "document");
+    const texts = (resources ?? []).filter((r) => r.kind === "text");
+    if (docs.length > 0 || texts.length > 0) {
+      sections.push("", "## Project context");
+    }
+    if (docs.length > 0) {
+      sections.push(
+        "These workspace documents are attached to the project. They are LIVE — read them with read_document when they're relevant rather than assuming their contents:",
+        ...docs.map((d) => `- ${d.title} (document id: ${d.document_id})`),
+      );
+    }
+    for (const text of texts) {
+      // Cap per-resource so one pasted essay can't eat the context window.
+      sections.push("", `### ${text.title}`, (text.body ?? "").slice(0, 20_000));
+    }
+
+    return {
+      config: { ...base, instructions: sections.filter(Boolean).join("\n") },
+      name: project.name,
+    };
+  } catch (err) {
+    // Fail-soft: a broken project must never take the assistant offline.
+    console.error("[agent-config] assistant project resolve failed", err);
+    return { config: base, name: null };
+  }
+}
+
 // The selected agent for this session, verified against the caller's
 // property. agentId is stamped by channel auth; a session without one (bare
 // smoke tests) resolves to null and the static fallbacks apply.
@@ -161,6 +354,25 @@ export async function resolveSessionAgent(
   const caller = tenantCallerOrNull(ctx);
   const agentId = ctx.session.auth.current?.attributes?.agentId;
   const botSlug = ctx.session.auth.current?.attributes?.botSlug;
+
+  // Personal assistant — virtual config, no DB row, optionally specialised by
+  // an assistant_projects row. Checked before the channel bot: it addresses
+  // no Stream channel and has no pod override, so none of that machinery
+  // applies to it.
+  if (caller && typeof agentId !== "string" && botSlug === ASSISTANT_BOT_SLUG) {
+    const projectId = ctx.session.auth.current?.attributes?.projectId;
+    const base = assistantConfig();
+    const { config, name } =
+      typeof projectId === "string" && projectId
+        ? await withAssistantProject(base, projectId, caller.propertyId, caller.userId)
+        : { config: base, name: null };
+    return {
+      caller,
+      agentId: `virtual:${ASSISTANT_BOT_SLUG}`,
+      name: name ? `Assistant · ${name}` : "Assistant",
+      config,
+    };
+  }
 
   // Default channel bot — virtual config, no DB row. Only when the session
   // doesn't address a stored agent, and only when no pod bots row claims

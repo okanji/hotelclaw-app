@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CornerDownLeft,
   MessageCircleQuestion,
@@ -97,10 +97,19 @@ export function AiCopilot({
   }, [busy]);
 
   // Consume an externally-pushed prompt exactly once, routing it through the
-  // normal send() path. Clearing it in the parent (via onPendingPromptConsumed)
-  // prevents a re-send when this effect re-runs.
+  // normal send() path.
+  //
+  // The latch is a ref, NOT the `busy` flag or the parent's clear callback:
+  // both of those take effect on the NEXT render, so React's StrictMode
+  // double-invoke (and any re-render racing the state update) re-entered this
+  // effect with `pendingPrompt` still set and `busy` still false — firing two
+  // identical author-bot turns and printing the goal twice in the transcript.
+  // A ref flips synchronously, so the second invoke bails.
+  const consumedPrompt = useRef<string | null>(null);
   useEffect(() => {
     if (!pendingPrompt || busy) return;
+    if (consumedPrompt.current === pendingPrompt) return;
+    consumedPrompt.current = pendingPrompt;
     onPendingPromptConsumed?.();
     void send(pendingPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps

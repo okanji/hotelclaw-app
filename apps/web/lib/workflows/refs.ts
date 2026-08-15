@@ -87,7 +87,17 @@ const TRIGGER_FIELDS: Record<
       sample: "todo",
       options: TASK_STATUS_OPTIONS,
     },
-    { path: "trigger.new.assignee_id", label: "Assigned to", type: "string" },
+    // Name first: it is what belongs in anything a person reads. The id stays
+    // available for steps that need to ASSIGN or match on a user, but putting
+    // it first is how "*Assignee:* 33831554-d1a7-…" ends up posted to a chat
+    // channel. Both are hydrated by `hydrate-payload.ts` at dispatch.
+    {
+      path: "trigger.new.assignee_name",
+      label: "Assigned to",
+      type: "string",
+      sample: "Maria Santos",
+    },
+    { path: "trigger.new.assignee_id", label: "Assignee ID", type: "string" },
     { path: "trigger.new.due_at", label: "Due date", type: "date" },
     { path: "trigger.new.id", label: "Task ID", type: "string" },
     { path: "trigger.new.labels", label: "Labels", type: "string[]", sample: "guest-complaint" },

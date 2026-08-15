@@ -4,7 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { StreamChat } from "stream-chat";
 const ORIGIN = "http://127.0.0.1:3000";
-const KAYA = "c63d28a6-b8fb-452e-8eee-ebe1e0e4a4fa";
+const WATAMU = "c63d28a6-b8fb-452e-8eee-ebe1e0e4a4fa";
 const OWNER = "33831554-d1a7-4f62-85a5-85952cbc11e4";
 const CH = "prop-c63d28a6-podtest-approvals";
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -16,15 +16,15 @@ const check = (name, cond, extra = "") => {
 };
 
 // Seed a FRESH confirmed booking for the probe — refunding a long-dead
-// fixture (the M4-era cancelled BKG-KAYA02) makes the model reasonably ask
+// fixture (the M4-era cancelled BKG-WTMU02) makes the model reasonably ask
 // for clarification instead of calling the gated tool.
 const probeRef = `BKG-PRB${Date.now().toString(36).slice(-4).toUpperCase()}`;
 const { data: anyBooking } = await supabase
-  .from("bookings").select("service_id").eq("property_id", KAYA).limit(1).single();
+  .from("bookings").select("service_id").eq("property_id", WATAMU).limit(1).single();
 const { data: probeBooking } = await supabase
   .from("bookings")
   .insert({
-    property_id: KAYA,
+    property_id: WATAMU,
     service_id: anyBooking.service_id,
     reference: probeRef,
     guest_name: "Probe Guest",
@@ -49,7 +49,7 @@ const trigger = (text) =>
   fetch(`${ORIGIN}/api/dev/pod-bot-test`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-    body: JSON.stringify({ propertyId: KAYA, channelId: CH, senderId: OWNER, senderName: "Oamar", text }),
+    body: JSON.stringify({ propertyId: WATAMU, channelId: CH, senderId: OWNER, senderName: "Oamar", text }),
   }).then((r) => r.json());
 
 const t = await trigger(`@bookings Please refund booking ${probeRef} — the guest cancelled within policy.`);

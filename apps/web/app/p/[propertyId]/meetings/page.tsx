@@ -5,6 +5,7 @@ import { getMeetings } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
 import { Video } from "lucide-react";
 import { ImportTranscriptDialog } from "@/components/chat/meeting/import-transcript-dialog";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageShell } from "@/components/ui/page-shell";
 
@@ -46,6 +47,7 @@ export default async function MeetingsPage({
             <p className="hidden text-xs text-muted-foreground sm:block">
               Recorded meetings, transcripts, and AI-generated notes
             </p>
+            <AutomationsButton propertyId={propertyId} feature="meetings" />
             <ImportTranscriptDialog propertyId={propertyId} />
           </div>
         }

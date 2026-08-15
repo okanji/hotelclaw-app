@@ -974,6 +974,35 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
     },
     { kind: "string-list", key: "tags", label: "Tags", itemPlaceholder: "e.g. vip" },
   ],
+  // `notify` is deliberately NOT exposed here. The kinds available are text /
+  // template / textarea / enum / number / duration / list — there is no boolean
+  // control, and faking one with an enum of "true"/"false" strings would fail
+  // the spec's `z.boolean()` on save. The project's Scheduled card owns that
+  // toggle; a workflow hand-built in the builder simply defaults to notifying.
+  "action.assistant.run": [
+    {
+      kind: "textarea",
+      key: "brief",
+      label: "What should the assistant do?",
+      placeholder:
+        "Review this week's open tasks and bookings, flag anything at risk of slipping, and list what needs my decision.",
+      help: TEMPLATE_HELP,
+      required: true,
+      rows: 4,
+    },
+    {
+      kind: "template",
+      key: "title",
+      label: "Conversation title",
+      placeholder: "Monday review",
+    },
+    {
+      kind: "text",
+      key: "project_id",
+      label: "Assistant project id",
+      help: "Optional. The run inherits this project's instructions, memory, and attached documents, and is filed under it.",
+    },
+  ],
   "action.external.delegate_to_openclaw": [
     {
       kind: "textarea",

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Dialog,
@@ -120,10 +121,17 @@ export function ChatbotsList({
         title="Chatbots"
         description="Build AI chatbots your guests talk to — a front desk that answers questions, room service that takes orders, a restaurant that books tables. They act on real requests: tickets for your team, channel pings, human handoff."
         actions={
-          <Button onClick={() => setNewOpen(true)}>
-            <Plus data-slot="icon" />
-            New chatbot
-          </Button>
+          <>
+            <AutomationsButton
+              propertyId={propertyId}
+              feature="chatbots"
+              variant="outline"
+            />
+            <Button onClick={() => setNewOpen(true)}>
+              <Plus data-slot="icon" />
+              New chatbot
+            </Button>
+          </>
         }
       />
 

@@ -43,11 +43,14 @@ export function BuilderShell({
   initialVersionId = null,
   webhookToken = null,
   enableCoEditing = false,
+  initialEnabled = false,
 }: {
   propertyId: string;
   workflowId: string;
   initialSpec: WorkflowSpec;
   isDurable: boolean;
+  /** Whether the workflow is live. Owned here so the builder can turn it on. */
+  initialEnabled?: boolean;
   /** current_version_id at load — used for optimistic-concurrency on save. */
   initialVersionId?: string | null;
   /** Per-workflow webhook token — shown in the trigger panel for webhook/form. */
@@ -68,6 +71,34 @@ export function BuilderShell({
   const [preAiSpec, setPreAiSpec] = useState<WorkflowSpec | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  // Live on/off, mirrored optimistically — the same PATCH the workflows list
+  // uses, so both surfaces agree on what "enabled" means.
+  const [liveEnabled, setLiveEnabled] = useState(initialEnabled);
+  const [togglingLive, setTogglingLive] = useState(false);
+
+  async function toggleLive() {
+    if (togglingLive) return;
+    const next = !liveEnabled;
+    setTogglingLive(true);
+    setLiveEnabled(next);
+    try {
+      const res = await fetch(
+        `/api/properties/${propertyId}/workflows/${workflowId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: next }),
+        },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      toast.success(next ? "Workflow is live" : "Workflow paused");
+    } catch {
+      setLiveEnabled(!next);
+      toast.error(`Couldn't ${next ? "turn on" : "pause"} this workflow`);
+    } finally {
+      setTogglingLive(false);
+    }
+  }
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [view, setView] = useState<"flow" | "map">("flow");
@@ -392,6 +423,40 @@ export function BuilderShell({
           >
             <FlaskConical className="size-3.5" aria-hidden />
             Test
+          </button>
+          {/*
+            Live switch. Creating a workflow lands you here with the toast
+            "turn it on when you're ready" — until this existed, there was
+            nothing here to turn on and you had to go find the row in the
+            workflows list.
+          */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={liveEnabled}
+            aria-label={liveEnabled ? "Turn workflow off" : "Turn workflow on"}
+            disabled={togglingLive}
+            onClick={() => void toggleLive()}
+            title={
+              liveEnabled
+                ? "Live — running on real events. Click to pause."
+                : "Off — this workflow ignores its trigger. Click to turn it on."
+            }
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors disabled:opacity-60",
+              liveEnabled
+                ? "bg-pill-green text-pill-green-ink"
+                : "bg-background text-muted-foreground hover:bg-accent",
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                liveEnabled ? "bg-pill-green-ink" : "bg-muted-foreground/40",
+              )}
+              aria-hidden
+            />
+            {liveEnabled ? "Live" : "Off"}
           </button>
           <div className="inline-flex rounded-md bg-background p-0.5 text-xs">
             <ViewTab

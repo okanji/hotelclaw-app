@@ -48,3 +48,12 @@ export function useArtifactPanel() {
   }
   return v;
 }
+
+/**
+ * Same context, but null outside the provider — for surfaces that render
+ * chat attachments and should degrade to plain links when no split panel
+ * is mounted.
+ */
+export function useOptionalArtifactPanel() {
+  return useContext(Ctx);
+}

@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkle,
   Sparkles,
   Ticket,
   Video,
@@ -67,7 +68,7 @@ import type { Membership } from "@/lib/auth/session";
 const railItemClass =
   "group/item flex w-full flex-col items-center gap-1 rounded-md py-1.5 outline-hidden";
 const railTileClass =
-  "relative flex size-8 items-center justify-center rounded-md text-sidebar-foreground transition-colors " +
+  "relative flex size-7 items-center justify-center rounded-md text-sidebar-foreground transition-colors " +
   "group-hover/item:bg-sidebar-accent group-hover/item:text-sidebar-accent-foreground " +
   "data-current:bg-sidebar-accent data-current:text-sidebar-accent-foreground " +
   "group-focus-visible/item:shadow-focus";
@@ -77,6 +78,12 @@ const railLabelClass =
 const railLabelActiveClass = "text-sidebar-accent-foreground";
 const railLabelIdleClass =
   "text-sidebar-foreground/70 group-hover/item:text-sidebar-accent-foreground";
+
+/**
+ * The rail glyph. 16px, not 18px — notion-spec §4 puts row icons at 12–16px,
+ * and the lighter mark reads quieter against the near-black plane.
+ */
+const railIconClass = "size-4";
 
 /** Quiet utility button used by the rail footer (collapse). Fill on hover
  *  only — no resting chrome (notion-spec §6). */
@@ -187,6 +194,9 @@ const CHATBOTS_ROUTE = /^\/p\/[^/]+\/chatbots(\/.*)?$/;
 const BOOKINGS_ROUTE = /^\/p\/[^/]+\/bookings(\/.*)?$/;
 /** Agents is server-rendered the same way chatbots is. */
 const AGENTS_ROUTE = /^\/p\/[^/]+\/agents(\/.*)?$/;
+
+/** The Assistant section is server-rendered like Agents. */
+const ASSISTANT_ROUTE = /^\/p\/[^/]+\/assistant(\/.*)?$/;
 /** Forms pages (list, builder, fill) are server-rendered routes reached
  *  from the Documents sidebar — same real-navigation requirement. */
 const FORMS_ROUTE = /^\/p\/[^/]+\/forms(\/.*)?$/;
@@ -278,6 +288,15 @@ export function AppRail({
         icon: Home,
         href: `/p/${propertyId}/home`,
         routeKey: "/home",
+      },
+      {
+        // The personal AI surface. Top-level, not in More: it is a place
+        // people go many times a day, not something they configure once.
+        section: "assistant",
+        label: "Assistant",
+        icon: Sparkle,
+        href: `/p/${propertyId}/assistant`,
+        routeKey: "/assistant",
       },
       {
         section: "insights",
@@ -499,6 +518,8 @@ export function AppRail({
       !CHATBOTS_ROUTE.test(pathname) &&
       !AGENTS_ROUTE.test(target) &&
       !AGENTS_ROUTE.test(pathname) &&
+      !ASSISTANT_ROUTE.test(target) &&
+      !ASSISTANT_ROUTE.test(pathname) &&
       !BOOKINGS_ROUTE.test(target) &&
       !BOOKINGS_ROUTE.test(pathname) &&
       !FORMS_ROUTE.test(target) &&
@@ -564,7 +585,7 @@ export function AppRail({
                       {...(isActive ? { "data-current": "" } : {})}
                       className={railTileClass}
                     >
-                      <Icon className="size-[18px]" strokeWidth={1.75} />
+                      <Icon className={railIconClass} strokeWidth={1.75} />
                       {showBadge ? (
                         // Lavender count badge punched onto the icon's
                         // top-right corner (unseen notifications). `ring-sidebar`
@@ -616,7 +637,10 @@ export function AppRail({
                         "group-data-[popup-open]/item:bg-sidebar-accent group-data-[popup-open]/item:text-sidebar-accent-foreground",
                       )}
                     >
-                      <MoreHorizontal className="size-[18px]" strokeWidth={1.75} />
+                      <MoreHorizontal
+                        className={railIconClass}
+                        strokeWidth={1.75}
+                      />
                       {moreAlert && !moreActive ? (
                         <span
                           aria-hidden="true"

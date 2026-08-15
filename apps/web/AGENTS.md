@@ -193,6 +193,23 @@ Property members define **bookable services** (tables, spa appointments, tours) 
 - **Demo data**: `node --env-file=.env.local --no-network-family-autoselection scripts/seed-bookings-demo.mjs` — re-runnable; 14-table restaurant (4 zones) + spa + kayak tour + a one-off beach party (17/120 tickets) + a 3-unit car rental (incl. a 24h van hire), ~40 bookings across yesterday→+5d covering every status/source. Agenda view opens with a 4-stat engine-pulse strip.
 - Deferred: table combinations + reflow, server sections, meal-stage statuses, drag-on-timetable (menu-move shipped instead), reminders/no-show automation, waitlists, deposits/payments, per-party-size turn times, multiple ranges per day in the hours editor, bookings lens in Insights metrics, reserved-seat event ticketing (GA-capacity covers small venues per research).
 
+## Automations everywhere — the lightning button (built 2026-08-14)
+
+Every feature page that a workflow can read from or act on carries a **⚡ Automations button** in its header, so automation is discovered from the surface you're standing on rather than only from the Workflows section.
+
+- **The lens** — `lib/workflows/features.ts` (client-safe, pure catalog metadata). An `AutomationFeature` is NOT a catalog `Surface`: surfaces include plumbing buckets (`ai`/`control`/`system`/`external`), and `chatbot.*` triggers are filed under `external` next to webhooks. So each feature declares the surfaces it claims **plus** optional id prefixes, and `workflowTouchesFeature()` matches a workflow's trigger + step ids against both. `featureRole()` splits "starts here" (trigger) from "ends up here" (action) — the modal labels the difference. Deliberately generous: one extra row beats hiding the one the user opened the modal to find. Drift-guarded in `lib/workflows/__tests__/features.test.ts` (every feature matches ≥1 real catalog entry; no two features claim the same surface).
+- **The data** — `GET /api/properties/:propertyId/workflows` returns `step_types` alongside `trigger_event_type`, so the lens runs client-side off the SHARED workflows list query with no new endpoint and no spec fetch. The modal's on/off switches write through that same cache, so toggling here and in the Workflows section stay consistent.
+- **The UI** — `components/workflows/automations-button.tsx` (`<AutomationsButton propertyId feature="docs" />`; `variant="toolbar"` for dense h-9 toolbars/icon rows, `variant="outline"` for SectionHeader mastheads; count badge = enabled workflows touching the feature) mounts `automations-dialog.tsx` ONLY once clicked, so an unclicked button costs nothing and never triggers a model call. Wired into tasks board toolbar, chat channel header, documents home, meetings, calendar, forms, bookings, chatbots.
+- **Suggestions** — `POST /api/properties/:propertyId/workflows/suggestions` (Haiku + `Output.object`). The model proposes plain-English GOALS, **never specs**: the goal is handed to the existing author copilot at `/workflows/new?prefill=`, which owns catalog discovery and validation, so a bad suggestion can at worst waste one copilot turn — it can never smuggle an invented trigger id into a saved workflow. **Four grounding layers**, in order of how much they constrain the answer:
+  1. **Deterministic signals** — `lib/workflows/suggestion-signals.ts`, one gather per feature, returning `{id, signal, evidence}` lines describing the property's REAL state ("3 tasks are blocked — 50% of open work", "8 documents haven't been edited in 90+ days", "31% of bookings cancelled"). **No model in the number path**: Tasks reuses `computeInsightsMetrics` / `computeTrendSignals` / `detectAnomalies` (the same functions the dashboards chart) rather than a second, quietly-diverging definition of "overdue"; the rest are bounded SQL. Every gather is `safe()`-wrapped and fail-soft. Each feature also gets a trimmed set of companion signals (most automations start in one surface and end in Tasks or Chat). `GATHERS` is a `Record<AutomationFeature, …>` so exhaustiveness is a compile-time guarantee — no drift test needed.
+  2. **The catalog** — the exact triggers/actions the feature supports, so the model can't propose what the engine can't build.
+  3. **gbrain** — institutional memory, with the query **steered by the top deterministic signals** (search "blocked work" only when work is actually blocked). This is what lets a suggestion cite a venue that exists only in a brain-mirrored document. Time-boxed (6s) and skipped entirely on cache hits and brainless properties.
+  4. **Industry prior** — hospitality-ops judgement in the system prompt, disciplined by 1–3.
+  Suggestions cite signal ids in `basis`; the route **resolves those ids to the evidence lines server-side and drops anything the model invented**, so the "Suggested because" list in the UI is measured fact, not the model's account of its own reasoning (same handshake as the insights brief's `basis`). Redis-cached 24h against a fingerprint that **includes the signal digest**, so suggestions refresh when the property's situation changes rather than merely when time passes. Fail-soft throughout (no Redis ⇒ regenerate, no `ANTHROPIC_API_KEY` ⇒ section hides).
+- **Suggestion length is clamped, never validated.** The `Suggestion` zod schema deliberately has NO `.max()` on title/why/goal — length guidance lives in the field descriptions and a server-side `clamp()`. The first live run produced three well-cited suggestions and threw all of them away on every retry because one `why` was 230 chars against a `max(200)`: in structured output a hard length cap turns a presentation nit into total generation failure.
+- **Adding a surface**: add the feature to `AUTOMATION_FEATURES` + `FEATURES` in `features.ts`, then drop `<AutomationsButton>` in that page's header. Nothing else — the modal, count, and suggestions all derive from the catalog.
+- **`?prefill=` is UTF-8-safe** as of this change: `builderPrefillHref()` base64s UTF-8 bytes and `decodePrefillGoal` reverses it (`btoa` throws on non-Latin1, so a suggestion title with an en dash used to break the link). ASCII payloads round-trip identically, so older prefill links still work.
+
 ## Forms & onboarding — one schema, four surfaces
 
 The Forms feature and the setup wizard share one persisted form definition: `lib/forms/schema.ts` (`FormSchema`, versioned JSON in `forms.schema`, migration 0057). We deliberately did NOT adopt `@json-render` for storage — it's pre-1.0 with breaking spec churn; we own the schema, AI fills it via `generateObject`-style `Output.object`. One renderer (`components/forms/form-renderer.tsx`, page + one-question-per-screen wizard modes; `FormFieldInput` exported for custom shells) serves every surface:
@@ -268,6 +285,126 @@ read-only transparency gallery of every built-in bot (`lib/agents/builtin.ts`
   output + Node 24 runtime + coexistence of eve's workflow routes with the
   app's own `withWorkflow` — verify before first deploy), production
   channel-auth hardening (drop `localDev()`).
+
+## Assistant section — the personal AI surface (built 2026-08-14)
+
+A **private, tabbed chat over the whole workspace**, plus Claude-style
+**Projects** that group conversations under shared instructions, memory, and
+context. Own rail section (`/p/[propertyId]/assistant`, top-level — it is a
+daily driver, not a config screen); `ASSISTANT_ROUTE` is a rail pushState
+exception like Agents.
+
+- **Data**: migration 0102 — `assistant_projects` (name/description/
+  instructions/memory/emoji/tint), `assistant_project_resources`
+  (`document` references — live, read through `read_document` so they never go
+  stale — or inline `text` notes), `assistant_chats` (title + eve session id +
+  continuation token). Everything is **personal**: RLS is `user_id = auth.uid()
+  and is_member(property_id)`, so no query filters by user itself and a missed
+  filter fails closed. Realtime on both chats and projects drives the sidebar.
+- **Runtime**: a second VIRTUAL bot on the channel bot's machinery —
+  `ASSISTANT_BOT_SLUG = "assistant"` in `apps/agent/agent/lib/agent-config.ts`.
+  Its persona differs from the channel bot's in two ways that matter: it writes
+  for a PAGE (headings, tables, length that follows the question) and it talks
+  to exactly one person whose permissions the session already carries. Same
+  catalog tool set **minus `start_background_job`** (that delivers to a Stream
+  channel, which assistant sessions do not have — the executor self-gates, so
+  granting it would only advertise a capability that never mounts).
+- **Projects → persona**: `x-hotelclaw-project` (stamped as a `projectId`
+  session attribute in `channels/eve.ts`) selects a row whose instructions,
+  memory, and context are folded into the persona by `withAssistantProject`.
+  The id arrives as a CLIENT header, so ownership + property + archival are all
+  re-checked runtime-side; a project that is not yours degrades silently to the
+  plain persona. Fail-soft — a broken project never takes the assistant down.
+- **Brain + rich UI**: `tools/channel-brain.ts` and `tools/channel-render-ui.ts`
+  admit both virtual slugs. `render_ui` specs come back in the tool RESULT as
+  `ai_ui_spec` and the transcript renders them inline with the same
+  `AiUiAttachment` the channel uses.
+- **UI** (`components/assistant/*`): `assistant-workspace.tsx` is a tab strip
+  over a set of **mounted** conversation panes — switching tabs is `pushState`,
+  never `router.push`, because a real navigation would tear down and re-attach
+  every pane's event stream (which is the whole point of tabs); a turn running
+  in a background tab keeps streaming. Which tabs are open rides in an
+  `assistant_tabs` **cookie** (not localStorage) so the server can restore the
+  strip on the first frame. `assistant-chat.tsx` owns one eve session;
+  `project-detail.tsx` is the two-column project home (composer + conversations
+  beside instructions / memory / context), split on a **container** query — the
+  shell eats ~364px, so a viewport breakpoint fires far too early.
+- **Gotchas, each one a bug that shipped and was caught**:
+  - `/assistant` must be matched **FIRST** in `sectionFromPath` — its subtree
+    (`/assistant/projects/<id>`) collides by substring with `/projects`, which
+    pins Home and swapped the entire shell out from under the page.
+  - The tabs cookie is written **un-encoded**. `encodeURIComponent` turns the
+    separators into `%2C`, the server's `split(",")` reads one unmatchable id,
+    and tabs silently vanish on any real navigation while surviving soft ones.
+  - Resume is **retried** and never discards the stored session on a read
+    failure. In dev the first `/eve/v1` request after a page load can 503 while
+    the route compiles; treating that as "session gone" emptied the transcript
+    AND made the next message fork a brand-new eve session.
+  - Don't set a cancellation flag in the resume effect's cleanup — React's dev
+    double-invoke fires it between passes and the pane sticks on "Loading this
+    conversation…" forever.
+  - Strip the `[Now: …]` framing line before rendering the user's own message
+    back to them.
+### Project schedules — "Scheduled" on a project (2026-08-14)
+
+Claude's Scheduled card, wired to the app's real automation engine. A schedule
+IS a workflow: `schedule.cron` trigger → one **`action.assistant.run`** step.
+Same write-through contract as the Forms task-automation panel — a schedule is
+visible and editable in Workflows, and one customized in the builder comes back
+`config: null` and the card goes read-only.
+
+- **The step** (`action.assistant.run`, surface `ai`): spec in
+  `lib/workflows/spec.ts`, catalog entry in `catalog/ai.ts`, fields in
+  `field-defs.ts`, runner in `runners/assistant.ts`. It creates an
+  `assistant_chats` row (`source: 'scheduled'`, `workflow_id`) and starts an
+  ASSISTANT eve session against it. That is the whole point: the output is a
+  conversation you can open and REPLY to, carrying the project's persona — not
+  an email. `delegate_to_openclaw` was not reusable because its session lands
+  in `channel_bot_sessions`, where no human surface shows it.
+- **It starts the turn and returns.** An eve turn routinely runs minutes; a
+  workflow step must not block on it. Completion is announced by the assistant
+  itself — when `notify` is set, the runner appends a `send_notification`
+  instruction plus the conversation's deep link to the brief. Only the model
+  knows when the work is actually done.
+- **Pure half**: `lib/assistant/schedule-automation.ts` (cron compile/parse,
+  spec build/extract/match) with tests in `lib/assistant/__tests__/`. The
+  day-of-month picker caps at 28 so a monthly schedule fires every month.
+- **THE bug this class of feature hides.** `TriggerFilter` is `.passthrough()`,
+  so a cron placed under `trigger.filter` type-checks, validates, and renders
+  correctly in the builder — and `reconcileCronSchedule` (lib/workflows/save.ts)
+  reads `trigger.schedule.cron`, finds nothing, and registers no pg_cron job.
+  The workflow saves and silently never fires. Validation cannot catch it; the
+  smoke test asks Postgres whether a job exists.
+- **`createServiceClient` now supplies a realtime transport** (`lib/supabase/
+  server.ts`). supabase-js always constructs a RealtimeClient, and realtime-js
+  resolves a WebSocket eagerly; inside the Vercel Workflow durable bundle there
+  is no global WebSocket AND no `process`, so it threw
+  "Unknown JavaScript runtime without WebSocket support". Since
+  `runWorkflowSpec` builds the org scope before the first step, EVERY durable
+  workflow died before doing anything — and `classifyMode` routes every
+  `schedule.cron` workflow to the durable runtime. This had never surfaced
+  because this codebase had never had a durable workflow.
+- **Archiving a project disables its schedules** (`disableSchedulesForProject`)
+  — otherwise they keep firing at a project nobody can open.
+- **Verify** with `node --env-file=.env.local --no-network-family-autoselection
+  scripts/assistant-schedule-smoke.mjs` — saves through `saveWorkflow` (via the
+  dev-only `/api/dev/save-workflow`, since the workflows API is cookie-authed),
+  asserts a pg_cron job exists, fires `workflows_emit_cron_event`, drains, then
+  asserts the conversation appeared in the project with the project's memory in
+  its answer, and that disabling unregisters the job. HARNESS NOTE: read the
+  session stream INCREMENTALLY and stop at `session.waiting` — `res.text()`
+  never resolves on a parked session, which reports an empty transcript for a
+  run that answered fine.
+
+- **Verify** with `node --env-file=.env.local --no-network-family-autoselection
+  scripts/assistant-smoke.mjs` — drives the real loop (session → stream → tools
+  → reply → follow-up on the continuation token → project injection → tenancy
+  fences) and ends with a **channel-bot regression probe**, since the assistant
+  shares that resolver and those tool gates. Two harness traps it now documents:
+  `assistant_projects.user_id` is a FK, so an ownership flip to a made-up UUID
+  silently fails and reports a correct runtime as leaking; and asserting the
+  channel persona on the literal word "channel" fails a bot that correctly says
+  "ops chat".
 
 ## Fleet views — pod-bot transparency + ops (built 2026-07-19, inside the Agents section)
 

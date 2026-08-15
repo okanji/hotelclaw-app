@@ -6,7 +6,7 @@ import {
   operatorReviewPage,
   resolveCaptureSlug,
 } from "@hotelclaw/brain";
-import { CHANNEL_BOT_SLUG } from "../lib/agent-config";
+import { ASSISTANT_BOT_SLUG, CHANNEL_BOT_SLUG } from "../lib/agent-config";
 import { tenantCallerOrNull } from "../lib/tenant";
 import { resolvePropertyBrainBinding } from "../lib/property-brain";
 import { callBrainToolDirect } from "../lib/gbrain-http";
@@ -31,7 +31,14 @@ export default defineDynamic({
       );
       const botSlug = ctx.session.auth.current?.attributes?.botSlug;
       const agentId = ctx.session.auth.current?.attributes?.agentId;
-      if (!caller || typeof agentId === "string" || botSlug !== CHANNEL_BOT_SLUG) {
+      // Both virtual bots get the brain: the channel bot and the personal
+      // assistant (whose whole premise is "knows everything you know").
+      // Stored agents keep granting brain tools through the catalog instead.
+      if (
+        !caller ||
+        typeof agentId === "string" ||
+        (botSlug !== CHANNEL_BOT_SLUG && botSlug !== ASSISTANT_BOT_SLUG)
+      ) {
         return null;
       }
       const binding = await resolvePropertyBrainBinding(caller.propertyId);

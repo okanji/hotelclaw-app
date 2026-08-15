@@ -24,6 +24,7 @@ import { GenerateDocumentDialog } from "./generate-document-dialog";
 import { DocBoardsSection } from "./doc-boards-section";
 import { DocBoardsBoard } from "./doc-boards-board";
 import { DocsActivitySheet } from "./docs-activity-panel";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { useDocsHomePresence } from "./docs-home-presence";
 import {
   DEFAULT_DIRECTORY_VIEW,
@@ -273,7 +274,14 @@ function Directory({
               <Stat label="Edits this week" value={editsThisWeek} />
             </dl>
           </div>
-          <DocsActivitySheet propertyId={propertyId} />
+          <div className="flex shrink-0 items-center gap-2">
+            <AutomationsButton
+              propertyId={propertyId}
+              feature="docs"
+              variant="outline"
+            />
+            <DocsActivitySheet propertyId={propertyId} />
+          </div>
         </header>
 
         {isEmptyProperty ? (

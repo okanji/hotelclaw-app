@@ -29,6 +29,7 @@ import {
   type ToolSet,
 } from "@/lib/ai/run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getPropertyChannels } from "@/lib/chat/channels";
 import {
   STEPS,
   TRIGGERS,
@@ -52,11 +53,12 @@ const PERSONA = [
   "Your output is a single call to `emit_workflow` with a complete WorkflowSpec JSON. Never invent action types — call `list_available_actions` / `describe_action` first and only use ids that appear there.",
   "Every step MUST include a fully populated `config` object. Empty configs or missing required keys fail validation. Call `describe_action` for each step type you use and copy the example_config shape.",
   "Template refs: `{{trigger.new.description}}`, `{{trigger.new.id}}`, `{{steps.<step_id>.output.summary}}`, `{{vars.name}}`. Never leave required string fields undefined — use a template ref or call `ask_clarification` / `list_property_members` for assignees.",
+  "NEVER put a raw id in text a person reads. `assignee_id` is a uuid — a chat message saying '*Assignee:* 33831554-d1a7-…' is a real bug we shipped once. In any human-facing string (chat text, notification body, doc content) use the `_name` companion: `{{trigger.new.assignee_name}}`. Reserve the `_id` form for fields that address a record — assignee_id on an assign step, task_id, channel_id.",
   "For task.label_added workflows, prefer putting label filters on `trigger.filter.expr` (not a separate control.filter step) unless you need mid-flow filtering.",
   "Prefer the fewest steps that achieve the goal. Don't add ceremony.",
   "For schedule.cron workflows: set trigger.schedule.cron and timezone; never emit empty trigger.filter. Step output refs must use real step ids from the spec (e.g. {{steps.fetch_tasks.output.text}}), never invented names.",
   "Hotel-domain reflex: housekeeping, F&B, front desk, escalations to GM are real categories — map vague language to them. If the workflow would benefit from a new entity type (rooms, guests, bookings), call `propose_entity_type` and explain the value.",
-  "When the goal is ambiguous (which channel? which assignee? how long to wait?), call `list_property_members` or `ask_clarification` with 2-3 suggested answers rather than guessing.",
+  "When the goal is ambiguous (which channel? which assignee? how long to wait?), RESOLVE IT YOURSELF FIRST: `list_channels` for a named channel, `list_property_members` for a named person. Both return the real ids. A channel id and a user id are opaque values the user cannot type from memory — asking for one is always the wrong move when a lookup would answer it. Fall back to `ask_clarification` (2-3 suggested answers) only when the lookup comes back empty or genuinely ambiguous.",
 ].join("\n\n");
 
 const AUTHOR_GUIDELINES = [
@@ -66,11 +68,17 @@ const AUTHOR_GUIDELINES = [
   "Your final reply to the user (the narration shown in the UI) must be one or two plain-English sentences a non-technical hotel manager understands. Describe what the workflow does in their words. NEVER expose template syntax ({{...}}), field paths (trigger.new.x, steps.x.output), JSON, step type ids, or tool names in that reply.",
 ].join(" ");
 
+// MUST stay in sync with `Surface` in lib/workflows/catalog/types.ts — this is
+// the enum the bot filters `list_available_actions` / `describe_action` by, so
+// a missing member means the bot can't narrow to that surface at all (it
+// omitted "bookings" until 2026-08-14, which made every bookings-scoped
+// authoring turn fail tool-input validation and fall back to the full catalog).
 const SURFACE_ENUM = z.enum([
   "tasks",
   "chat",
   "docs",
   "forms",
+  "bookings",
   "meetings",
   "calendar",
   "entities",
@@ -231,6 +239,27 @@ export async function runWorkflowAuthorBot(input: AuthorBotInput): Promise<Autho
             name: byId.get(row.user_id) ?? row.user_id,
           })),
         };
+      },
+    }),
+
+    list_channels: tool({
+      description:
+        "List this property's chat channels (name + the channel_id every chat step needs). Call this WHENEVER the goal names a channel — 'post to #ops', 'tell the F&B team' — and match the name yourself. Never ask the user for a channel id: it is an opaque Stream id they cannot know. Only ask if NO channel plausibly matches the name they used.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const supabase = createServiceClient();
+        try {
+          const channels = await getPropertyChannels(supabase, input.propertyId);
+          return {
+            count: channels.length,
+            channels: channels.map((c) => ({
+              name: c.name,
+              channel_id: c.streamChannelId,
+            })),
+          };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : "lookup failed" };
+        }
       },
     }),
 
@@ -455,6 +484,7 @@ export const AUTHOR_SURFACES: Surface[] = [
   "chat",
   "docs",
   "forms",
+  "bookings",
   "meetings",
   "calendar",
   "entities",

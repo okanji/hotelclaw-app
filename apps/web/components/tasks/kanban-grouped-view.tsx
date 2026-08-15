@@ -331,7 +331,7 @@ function Column({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1.5 transition-colors",
+          "flex min-h-24 flex-1 flex-col gap-2.5 rounded-md p-1.5 transition-colors",
           isOver && "bg-accent-pressed",
         )}
       >

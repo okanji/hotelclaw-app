@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AutomationsButton } from "@/components/workflows/automations-button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,11 @@ export function FormsList({
         description="Build intake and feedback forms for the team — maintenance requests, surveys, checklists. Publish one and share the fill link, or let a workflow react to submissions."
         actions={
           <>
+            <AutomationsButton
+              propertyId={propertyId}
+              feature="forms"
+              variant="outline"
+            />
             <Button variant="outline" onClick={() => setGenerateOpen(true)}>
               <Sparkles data-slot="icon" />
               Generate with AI

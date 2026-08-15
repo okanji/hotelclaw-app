@@ -7,7 +7,7 @@ import {
   validateChatUiSpec,
   type RawChatUiElement,
 } from "@hotelclaw/chat-ui";
-import { CHANNEL_BOT_SLUG } from "../lib/agent-config";
+import { ASSISTANT_BOT_SLUG, CHANNEL_BOT_SLUG } from "../lib/agent-config";
 import { tenantCallerOrNull } from "../lib/tenant";
 import { serviceClient } from "../lib/supabase";
 
@@ -28,7 +28,14 @@ export default defineDynamic({
       );
       const botSlug = ctx.session.auth.current?.attributes?.botSlug;
       const agentId = ctx.session.auth.current?.attributes?.agentId;
-      if (!caller || typeof agentId === "string" || botSlug !== CHANNEL_BOT_SLUG) {
+      // The assistant renders the same validated specs inline in its own
+      // transcript (it reads `ai_ui_spec` off the tool RESULT, exactly like
+      // the channel path does before posting a Stream attachment).
+      if (
+        !caller ||
+        typeof agentId === "string" ||
+        (botSlug !== CHANNEL_BOT_SLUG && botSlug !== ASSISTANT_BOT_SLUG)
+      ) {
         return null;
       }
       const propertyId = caller.propertyId;

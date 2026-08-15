@@ -41,6 +41,7 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -48,9 +49,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   arrayMove,
+  rectSortingStrategy,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -74,7 +78,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { FormRenderer } from "./form-renderer";
+import { FormFieldInput, FormRenderer } from "./form-renderer";
 import {
   AiEditPopover,
   SourcePicker,
@@ -408,7 +412,12 @@ export function FormDetail({
 
         {canEdit ? (
           <TabsContent value="build" className="mt-4">
-            <BuildTab shared={shared} />
+            <BuildTab
+              shared={shared}
+              title={title}
+              description={form.description}
+              icon={form.icon}
+            />
           </TabsContent>
         ) : null}
         <TabsContent value="responses" className="mt-4">
@@ -443,10 +452,27 @@ export function FormDetail({
 
 /* ------------------------------- Build tab ------------------------------- */
 
-function BuildTab({ shared }: { shared: BuilderShared }) {
+/**
+ * ClickUp-style WYSIWYG builder: ONE centered canvas where every question
+ * renders as its real preview (the same `FormFieldInput` the fill page
+ * uses). Hovering a question reveals the drag handle and an "Edit question"
+ * hint; clicking selects it and the editor expands inside the card. No
+ * separate fields-list/preview panes.
+ */
+function BuildTab({
+  shared,
+  title,
+  description,
+  icon,
+}: {
+  shared: BuilderShared;
+  title: string;
+  description: string | null;
+  icon: string | null;
+}) {
+  const router = useRouter();
   const {
     schema,
-    canEdit,
     selectedId,
     setSelectedId,
     patchField,
@@ -457,6 +483,8 @@ function BuildTab({ shared }: { shared: BuilderShared }) {
     save,
   } = shared;
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [desc, setDesc] = useState(description ?? "");
+  const twoColumn = schema.settings?.layout === "two";
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -466,6 +494,9 @@ function BuildTab({ shared }: { shared: BuilderShared }) {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
+    // An expanded editor mid-list makes drop targets jump around — collapse
+    // it for the duration of the drag.
+    setSelectedId(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -475,77 +506,143 @@ function BuildTab({ shared }: { shared: BuilderShared }) {
     shared.reorder(String(active.id), String(over.id));
   }
 
+  function saveDescription() {
+    const next = desc.trim();
+    if (next === (description ?? "")) return;
+    void updateForm({ formId: shared.formId, patch: { description: next || null } }).then(
+      (result) => {
+        if ("error" in result) {
+          toast.error(result.error);
+          setDesc(description ?? "");
+        } else {
+          router.refresh();
+        }
+      },
+    );
+  }
+
   const activeField = activeId ? schema.fields.find((f) => f.id === activeId) : null;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {canEdit ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium">Fields</h2>
-            <div className="flex gap-2">
+    // One centered measure for the whole tab — toolbar, header, questions and
+    // the add bar all share the same left edge. The horizontal padding is the
+    // margin the hover grip hangs into.
+    <div className="mx-auto w-full max-w-2xl px-8">
+      <div className="flex items-center justify-end gap-2 py-1">
+        <AddQuestionMenu
+          onAdd={addField}
+          trigger={
+            <Button variant="outline" size="sm">
+              <Plus data-slot="icon" />
+              Add question
+              <ChevronDown className="size-3.5 opacity-50" />
+            </Button>
+          }
+        />
+        <AiEditPopover shared={shared} />
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
+          {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+        </Button>
+      </div>
+
+      <div className="py-6">
+        {/* Header text shares the 16px inset the question cards give their
+            content, so the canvas reads as one column of blocks. */}
+        <header className="mb-6 flex flex-col items-start gap-3 px-4">
+          {icon ? (
+            <div className="flex size-14 items-center justify-center rounded-md bg-muted text-3xl">
+              {icon}
+            </div>
+          ) : null}
+          <h2 className="text-2xl font-semibold text-balance">{title}</h2>
+          <textarea
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onBlur={saveDescription}
+            rows={desc.length > 120 ? 3 : 1}
+            placeholder="Add a description for respondents…"
+            aria-label="Form description"
+            className="w-full resize-none bg-transparent text-base leading-relaxed text-foreground/80 outline-none placeholder:text-muted-foreground/70"
+          />
+        </header>
+
+        {schema.fields.length === 0 ? (
+          <EmptyState
+            title="No questions yet"
+            action={
               <AddQuestionMenu
                 onAdd={addField}
                 trigger={
                   <Button variant="outline" size="sm">
                     <Plus data-slot="icon" />
                     Add question
-                    <ChevronDown className="size-3.5 opacity-50" />
                   </Button>
                 }
               />
-              <AiEditPopover shared={shared} />
-              <Button size="sm" onClick={save} disabled={!dirty || saving}>
-                {saving ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
-                {saving ? "Saving…" : dirty ? "Save" : "Saved"}
-              </Button>
-            </div>
-          </div>
-
-          {schema.fields.length === 0 ? (
-            <div className="rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
-              No questions yet — add one to get started.
-            </div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => setActiveId(null)}
+            }
+          >
+            Every question you add shows here exactly as respondents will see
+            it.
+          </EmptyState>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            // Cards vary in height (sections vs dropzones vs signatures), so
+            // remeasure while dragging — stale rects are what made drops land
+            // one slot off.
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+            modifiers={twoColumn ? undefined : [restrictToVerticalAxis]}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <SortableContext
+              items={schema.fields.map((f) => f.id)}
+              strategy={twoColumn ? rectSortingStrategy : verticalListSortingStrategy}
             >
-              <SortableContext
-                items={schema.fields.map((f) => f.id)}
-                strategy={verticalListSortingStrategy}
+              <div
+                className={cn(
+                  twoColumn
+                    ? "grid grid-cols-1 gap-1 gap-x-4 sm:grid-cols-2"
+                    : "flex flex-col gap-1",
+                )}
               >
-                <div className="flex flex-col gap-1.5">
-                  {schema.fields.map((field) => (
-                    <SortableFieldRow
-                      key={field.id}
-                      field={field}
-                      schema={schema}
-                      propertyId={shared.propertyId}
-                      selected={selectedId === field.id}
-                      onSelect={() =>
-                        setSelectedId(selectedId === field.id ? null : field.id)
-                      }
-                      onPatch={(patch) => patchField(field.id, patch)}
-                      onRemove={() => removeField(field.id)}
-                    />
-                  ))}
+                {schema.fields.map((field) => (
+                  <CanvasFieldCard
+                    key={field.id}
+                    field={field}
+                    schema={schema}
+                    propertyId={shared.propertyId}
+                    twoColumn={twoColumn}
+                    selected={selectedId === field.id}
+                    onSelect={() =>
+                      setSelectedId(selectedId === field.id ? null : field.id)
+                    }
+                    onPatch={(patch) => patchField(field.id, patch)}
+                    onRemove={() => removeField(field.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+            {/* The overlay IS the card (same preview markup, floating-chrome
+                elevation); the in-list original hides so only one copy shows. */}
+            <PortalDragOverlay>
+              {activeField ? (
+                <div className="cursor-grabbing rounded-card bg-popover px-4 py-3 shadow-popover">
+                  <FieldPreviewBlock
+                    field={activeField}
+                    propertyId={shared.propertyId}
+                  />
                 </div>
-              </SortableContext>
-              <PortalDragOverlay>
-                {activeField ? (
-                  <div className="rounded-overlay bg-popover px-3 py-2 text-sm font-medium shadow-overlay">
-                    {activeField.label}
-                  </div>
-                ) : null}
-              </PortalDragOverlay>
-            </DndContext>
-          )}
+              ) : null}
+            </PortalDragOverlay>
+          </DndContext>
+        )}
 
-          {/* ClickUp's big bottom "Add question" bar. */}
+        {/* ClickUp's big bottom "Add question" bar. */}
+        <div className="mt-6">
           <AddQuestionMenu
             onAdd={addField}
             trigger={
@@ -558,29 +655,6 @@ function BuildTab({ shared }: { shared: BuilderShared }) {
               </button>
             }
           />
-        </div>
-      ) : null}
-
-      <div
-        className={cn(
-          "flex flex-col gap-3",
-          !canEdit && "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-xl",
-        )}
-      >
-        <h2 className="text-sm font-medium">Preview</h2>
-        <div className="rounded-lg bg-background p-5">
-          {schema.fields.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              The form preview appears here as you add questions.
-            </p>
-          ) : (
-            <FormRenderer
-              schema={schema}
-              onSubmit={async () => ({ ok: true })}
-              disabled
-              propertyId={shared.propertyId}
-            />
-          )}
         </div>
       </div>
     </div>
@@ -817,12 +891,24 @@ function AddQuestionMenu({
   );
 }
 
-/* ------------------------------ Field rows ------------------------------- */
+/* ------------------------------ Canvas cards ----------------------------- */
 
-function SortableFieldRow({
+/** Wide blocks span both tracks in two-column layout (mirrors the renderer). */
+function spansBothColumns(field: FormField): boolean {
+  return ["section", "info", "long_text", "file", "signature"].includes(field.type);
+}
+
+/**
+ * One question on the WYSIWYG canvas: the field's REAL preview, with a
+ * hover grip hanging in the left margin, an "Edit question" hint pill, and
+ * type badges. Selecting highlights the card and expands the editor inside
+ * it — the ClickUp build-tab interaction.
+ */
+function CanvasFieldCard({
   field,
   schema,
   propertyId,
+  twoColumn,
   selected,
   onSelect,
   onPatch,
@@ -831,6 +917,7 @@ function SortableFieldRow({
   field: FormField;
   schema: FormSchema;
   propertyId: string;
+  twoColumn: boolean;
   selected: boolean;
   onSelect: () => void;
   onPatch: (patch: Partial<FormField>) => void;
@@ -844,12 +931,16 @@ function SortableFieldRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "rounded-md bg-background",
-        isDragging && "opacity-50",
-        // Selected = the header and its editor read as ONE surface, drawn by
-        // the bare warm ring. (`border-ring` used to sit here with no border
-        // width beside it, so it painted nothing at all.)
-        selected && "shadow-ring",
+        "group relative",
+        // The drag overlay carries the visible copy — the in-list original
+        // goes fully transparent so exactly one card follows the cursor and
+        // the empty slot marks the drop position.
+        isDragging && "opacity-0",
+        // The selected card (preview + expanded editor) needs the full row.
+        twoColumn && (selected || spansBothColumns(field)) && "sm:col-span-2",
+        // Resting question = a Notion block (6px hover wash). Selected
+        // question = a surface: 10px radius drawn by the bare warm ring.
+        selected ? "rounded-card shadow-ring" : "rounded-md",
       )}
     >
       <div
@@ -862,45 +953,53 @@ function SortableFieldRow({
             onSelect();
           }
         }}
-        className="flex w-full cursor-pointer items-center gap-2 px-2 py-2 text-left"
+        aria-label={`Edit question: ${field.label || "Untitled field"}`}
+        className={cn(
+          "relative w-full cursor-pointer px-4 py-3 text-left transition-colors",
+          selected ? "rounded-t-card" : "rounded-md hover:bg-accent",
+        )}
       >
+        {/* ClickUp's hover hint — styled as the house tooltip (constant dark
+            slab on both planes, never bg-foreground which theme-inverts). */}
+        {!selected ? (
+          <span className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-tooltip-bg px-2 py-1 text-xs text-tooltip-foreground opacity-0 shadow-tooltip transition-opacity group-hover:opacity-100">
+            Edit question
+          </span>
+        ) : null}
+
+        {/* Drag grip hangs in the left margin, hover/selected only. */}
         <button
           type="button"
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
-          aria-label="Reorder field"
-          className="cursor-grab touch-none rounded-md p-0.5 text-muted-foreground/60 hover:text-foreground active:cursor-grabbing"
+          aria-label="Reorder question"
+          className={cn(
+            "absolute top-3 -left-7 flex size-6 cursor-grab touch-none items-center justify-center rounded-md text-faint-foreground opacity-0 transition-opacity",
+            "hover:bg-accent hover:text-foreground active:cursor-grabbing",
+            "group-hover:opacity-100 focus-visible:opacity-100",
+            selected && "opacity-100",
+          )}
         >
           <GripVertical className="size-4" />
         </button>
-        <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
-          {FIELD_TYPE_META[field.type].label}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {field.label || "Untitled field"}
-        </span>
-        {field.taskProperty ? (
-          <Wand2
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-label={`Sets the task's ${TASK_PROPERTY_META[field.taskProperty].label.toLowerCase()}`}
-          />
+
+        {/* Status badges: mapped / conditional — hover affordance rhythm. */}
+        {field.taskProperty || field.condition ? (
+          <span className="absolute top-3 right-3 flex items-center gap-1.5 text-faint-foreground">
+            {field.taskProperty ? (
+              <Wand2
+                className="size-3.5"
+                aria-label={`Sets the task's ${TASK_PROPERTY_META[field.taskProperty].label.toLowerCase()}`}
+              />
+            ) : null}
+            {field.condition ? (
+              <GitBranch className="size-3.5" aria-label="Shown conditionally" />
+            ) : null}
+          </span>
         ) : null}
-        {field.condition ? (
-          <GitBranch
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-label="Shown conditionally"
-          />
-        ) : null}
-        {field.required ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-destructive" title="Required" />
-        ) : null}
-        <ChevronRight
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground/60 transition-transform",
-            selected && "rotate-90",
-          )}
-        />
+
+        <FieldPreviewBlock field={field} propertyId={propertyId} />
       </div>
 
       {selected ? (
@@ -912,6 +1011,65 @@ function SortableFieldRow({
           onRemove={onRemove}
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The question exactly as respondents see it (same markup as the page-mode
+ * renderer, same `FormFieldInput`), inert: `pointer-events-none` lets every
+ * click select the card instead of focusing the control.
+ */
+function FieldPreviewBlock({
+  field,
+  propertyId,
+}: {
+  field: FormField;
+  propertyId: string;
+}) {
+  if (field.type === "section") {
+    return (
+      <div className="pt-1">
+        <h3 className="text-base font-semibold">{field.label}</h3>
+        {field.description ? (
+          <p className="mt-1 text-sm text-muted-foreground">{field.description}</p>
+        ) : null}
+      </div>
+    );
+  }
+  if (field.type === "info") {
+    return (
+      <div>
+        <p className="text-base whitespace-pre-line">{field.label}</p>
+        {field.description ? (
+          <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">
+            {field.description}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <span className="flex items-baseline gap-0.5 text-base leading-none font-semibold">
+        {field.label || (
+          <span className="text-muted-foreground">Untitled question</span>
+        )}
+        {field.required ? <span className="text-destructive">*</span> : null}
+      </span>
+      {field.description ? (
+        <p className="text-sm text-muted-foreground">{field.description}</p>
+      ) : null}
+      <div className="pointer-events-none" aria-hidden>
+        <FormFieldInput
+          field={field}
+          value={undefined}
+          onChange={() => {}}
+          disabled
+          large
+          propertyId={propertyId}
+        />
+      </div>
     </div>
   );
 }
@@ -964,7 +1122,9 @@ function FieldEditor({
   }
 
   return (
-    <div className="space-y-3 border-t border-border px-3 py-3">
+    // Shares the card's 16px content inset so the editor's controls sit on
+    // the same left edge as the preview above it.
+    <div className="space-y-3 border-t border-border px-4 py-4">
       <div className="space-y-1.5">
         <Label className="text-xs">{field.type === "info" ? "Text" : "Label"}</Label>
         {field.type === "info" ? (

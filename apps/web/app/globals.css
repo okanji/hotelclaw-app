@@ -193,12 +193,20 @@
        max-w-page    (960px)  THE DEFAULT for every index, list, detail and
                               settings page. Wide enough not to feel cramped,
                               narrow enough to keep a readable measure.
+       max-w-workspace(1180px) TWO-PANE working surfaces: a main working column
+                              PLUS a persistent context rail (the assistant
+                              project page). 960 has to fund both columns, so
+                              the rail either starves the composer or the
+                              composer starves the rail. Use only when the page
+                              genuinely has a second column — a one-column page
+                              at this width is just a long line of text.
        (no class)             canvas surfaces that ARE the data view — kanban
                               board, calendar grid, timetable, floor plan,
                               workload. Their masthead is full width too, so
                               the left edge still holds. */
   --container-content: var(--content-width);
   --container-page: var(--page-width);
+  --container-workspace: var(--workspace-width);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
      (onboarding wizard, welcome, public booking, guest chatbot, event pages,
      booking emails). NOT theme-switched: guest surfaces are always cream.
@@ -379,11 +387,18 @@
   --series-7: oklch(0.65 0.10 210);
   --series-8: oklch(0.60 0.10 140);
   --radius: 0.375rem;
-  /* Width of the icon rail (first sidebar). Sized so a 12px label ("Calendar",
-     "Activity") fits without ellipsis: 60px - 8px of px-1 padding = 52px of
-     row. It was 52px with 11px labels, which broke the spec's 12px floor
-     (notion-spec §3 — nothing goes below 12px). */
-  --rail-width: 3.75rem;
+  /* Width of the icon rail (first sidebar). Sized so the longest 12px label
+     ("Assistant", "Calendar") fits without ellipsis: 68px - 8px of px-1
+     padding = 60px of row.
+     Two prior values, both too narrow, and the reason is worth keeping: it was
+     52px with 11px labels, which broke the spec's 12px floor (notion-spec §3 —
+     nothing goes below 12px); raising the labels to 12px took it to 60px, but
+     that was measured against Inter on 2026-08-04 and the sans webfont was
+     dropped for the plain system stack the very next day (app/layout.tsx,
+     2026-08-05). SF Pro is wider than Inter at 12px, so "Assistant" went back
+     to ellipsising and "Calendar" sat flush to both edges.
+     RE-MEASURE THIS IF --font-sans EVER CHANGES AGAIN. */
+  --rail-width: 4.25rem;
   /* The icon rail's surface — warm near-black chrome, same in both themes.
      AppRail pins its local --sidebar to this so every sidebar-token consumer
      inside it (badge ring cutouts, washes) matches. */
@@ -469,6 +484,10 @@
      is the middle rung this app was already reaching for by hand with its old
      820px/920px/max-w-6xl one-offs. */
   --page-width: 960px;
+  /* Two-pane working surfaces → `max-w-workspace`. The pane is ~1170px at a
+     1456px viewport, so this fills it without going full-bleed, and leaves a
+     ~780px working column beside a 360px context rail — both usable. */
+  --workspace-width: 1180px;
   /* Modal tier fill — translucent so the page reads through the blur. */
   --modal-bg: rgb(255 255 255 / 90%);
 

@@ -24,7 +24,7 @@ const CLIENT = {
 
 // Slugs must match the pod brain's properties/<slug>/ pages.
 const PROPERTIES = [
-  { slug: "kaya-villa-watamu", name: "Kaya Villa Watamu", timezone: "Africa/Nairobi" },
+  { slug: "watamu-villa", name: "Watamu Villa", timezone: "Africa/Nairobi" },
   { slug: "pinewood", name: "Pinewood", timezone: "Africa/Nairobi" },
 ];
 

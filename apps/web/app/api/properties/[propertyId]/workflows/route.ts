@@ -34,29 +34,46 @@ export async function GET(
     .limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Surface each workflow's trigger event type (it lives in the version spec,
-  // not on the workflows row) so other surfaces can answer "which automations
-  // listen to tasks/docs/chat?" without loading full specs client-side.
+  // Surface each workflow's trigger event type AND its step types (both live in
+  // the version spec, not on the workflows row) so other surfaces can answer
+  // "which automations touch tasks/docs/chat?" without loading full specs
+  // client-side. The catalog turns those ids into surfaces — see
+  // lib/workflows/features.ts, which powers the per-feature Automations modal.
   const versionIds = (data ?? [])
     .map((w) => w.current_version_id)
     .filter((v): v is string => v !== null);
-  const triggerByVersion = new Map<string, string | null>();
+  const idsByVersion = new Map<
+    string,
+    { trigger: string | null; steps: string[] }
+  >();
   if (versionIds.length > 0) {
     const { data: versions } = await supabase
       .from("workflow_versions")
       .select("id, spec")
       .in("id", versionIds);
     for (const v of versions ?? []) {
-      const trigger = (v.spec as { trigger?: { event_type?: string } } | null)?.trigger;
-      triggerByVersion.set(v.id, trigger?.event_type ?? null);
+      const spec = v.spec as {
+        trigger?: { event_type?: string };
+        steps?: Record<string, { type?: string }>;
+      } | null;
+      const steps = Object.values(spec?.steps ?? {})
+        .map((s) => s?.type)
+        .filter((t): t is string => typeof t === "string");
+      idsByVersion.set(v.id, {
+        trigger: spec?.trigger?.event_type ?? null,
+        // Dedupe: a workflow posting to three channels is still just "chat".
+        steps: [...new Set(steps)],
+      });
     }
   }
-  const workflows = (data ?? []).map(({ current_version_id, ...rest }) => ({
-    ...rest,
-    trigger_event_type: current_version_id
-      ? (triggerByVersion.get(current_version_id) ?? null)
-      : null,
-  }));
+  const workflows = (data ?? []).map(({ current_version_id, ...rest }) => {
+    const ids = current_version_id ? idsByVersion.get(current_version_id) : undefined;
+    return {
+      ...rest,
+      trigger_event_type: ids?.trigger ?? null,
+      step_types: ids?.steps ?? [],
+    };
+  });
   return NextResponse.json({ workflows });
 }
 

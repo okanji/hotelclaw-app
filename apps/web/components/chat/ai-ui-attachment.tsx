@@ -1,8 +1,10 @@
 "use client";
 
-import { Children, useMemo } from "react";
+import { Children, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, ExternalLink, PanelRight } from "lucide-react";
 import { defineRegistry, JSONUIProvider, Renderer } from "@json-render/react";
 import {
   chatUiCatalog,
@@ -20,7 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { documentsTreeQueryOptions } from "@/lib/query/section-queries";
 import { cn } from "@/lib/utils";
+import { useOptionalArtifactPanel } from "./artifact-panel-context";
 
 /**
  * Renders the bot's `ai_ui` attachment — a json-render spec over the
@@ -40,6 +44,42 @@ const TONE_VARIANT: Record<ChatUiTone, "secondary" | "success" | "warning" | "in
   destructive: "destructive",
 };
 
+/**
+ * A document deep link (`/p/<pid>/documents/<id>`) can open in the chat's
+ * split-screen artifact panel instead of navigating away — same treatment
+ * as ArtifactCard: panel is the primary action, full page the secondary.
+ */
+const DOC_HREF_RX =
+  /^\/p\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/documents\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i;
+
+function parseDocumentHref(
+  href: string | null | undefined,
+): { propertyId: string; documentId: string } | null {
+  if (!href) return null;
+  const m = DOC_HREF_RX.exec(href);
+  return m ? { propertyId: m[1], documentId: m[2] } : null;
+}
+
+/**
+ * Resolves whether a document record is a sheet (mounts SheetEditor in the
+ * panel) from the warm documents-tree cache — the same effectively-sync
+ * branch documents-surface uses. Cold cache falls back to "document"; the
+ * rich-text editor handles its own loading/404.
+ */
+function useDocumentKind(propertyId: string | null) {
+  const { data } = useQuery({
+    ...documentsTreeQueryOptions(propertyId ?? ""),
+    enabled: propertyId != null,
+  });
+  return useCallback(
+    (documentId: string): "document" | "sheet" =>
+      data?.find((d) => d.id === documentId)?.kind === "sheet"
+        ? "sheet"
+        : "document",
+    [data],
+  );
+}
+
 const { registry } = defineRegistry(chatUiCatalog, {
   components: {
     Stack: ({ children }) => (
@@ -47,6 +87,17 @@ const { registry } = defineRegistry(chatUiCatalog, {
     ),
     DataTable: ({ props }) => {
       const router = useRouter();
+      const panel = useOptionalArtifactPanel();
+      const docTargets = useMemo(
+        () => (props.rowHrefs ?? []).map((h) => parseDocumentHref(h)),
+        [props.rowHrefs],
+      );
+      const kindOf = useDocumentKind(
+        docTargets.find((d) => d != null)?.propertyId ?? null,
+      );
+      // Trailing affordance column whenever any row is clickable — makes
+      // link rows legible at a glance instead of hover-only.
+      const hasLinks = (props.rowHrefs ?? []).some((h) => h != null);
       return (
         // A rendered table is a distinct embedded object in the message
         // stream, so the card framing is warranted — kept light: soft radius,
@@ -77,21 +128,37 @@ const { registry } = defineRegistry(chatUiCatalog, {
                     {c}
                   </TableHead>
                 ))}
+                {hasLinks ? <TableHead aria-hidden className="h-9 w-10 px-2" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {props.rows.map((row, ri) => {
                 const href = props.rowHrefs?.[ri] ?? null;
+                const doc = docTargets[ri] ?? null;
+                // Document rows open the split-screen artifact panel (the
+                // conversation stays put); everything else navigates.
+                const openArtifact =
+                  doc && panel
+                    ? () =>
+                        panel.open({
+                          kind: kindOf(doc.documentId),
+                          documentId: doc.documentId,
+                          title: row[0] || "Document",
+                        })
+                    : null;
                 return (
                   <TableRow
                     key={ri}
                     className={cn(
                       "group border-border",
-                      // Hover highlight only when the row navigates (base
+                      // Hover highlight only when the row acts (base
                       // TableRow hovers unconditionally — suppress it otherwise).
                       href ? "cursor-pointer hover:bg-accent" : "hover:bg-transparent",
                     )}
-                    onClick={href ? () => router.push(href) : undefined}
+                    onClick={
+                      openArtifact ??
+                      (href ? () => router.push(href) : undefined)
+                    }
                   >
                     {props.columns.map((_, ci) => (
                       <TableCell
@@ -112,10 +179,25 @@ const { registry } = defineRegistry(chatUiCatalog, {
                           // onClick covers the rest of the surface. No link
                           // color — the row hover + underline is the
                           // affordance (house style, not a blue web link).
+                          // For document rows a plain click opens the side
+                          // panel instead; modified clicks keep the anchor's
+                          // native open-in-new-tab.
                           <Link
                             href={href}
                             className="text-foreground underline-offset-2 group-hover:underline"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (
+                                openArtifact &&
+                                !e.metaKey &&
+                                !e.ctrlKey &&
+                                !e.shiftKey &&
+                                !e.altKey
+                              ) {
+                                e.preventDefault();
+                                openArtifact();
+                              }
+                            }}
                           >
                             {row[ci] ?? ""}
                           </Link>
@@ -124,6 +206,38 @@ const { registry } = defineRegistry(chatUiCatalog, {
                         )}
                       </TableCell>
                     ))}
+                    {hasLinks ? (
+                      <TableCell className="w-10 px-2 py-2.5">
+                        {openArtifact && href ? (
+                          // Document row: visible split-view affordance +
+                          // an explicit full-page escape hatch.
+                          <span className="flex items-center justify-end gap-0.5">
+                            <span
+                              className="flex size-6 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors group-hover:text-foreground"
+                              title="Open in side panel"
+                            >
+                              <PanelRight className="size-3.5" />
+                            </span>
+                            <Link
+                              href={href}
+                              onClick={(e) => e.stopPropagation()}
+                              title="Open full page"
+                              className="flex size-6 items-center justify-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              <span className="sr-only">Open full page</span>
+                            </Link>
+                          </span>
+                        ) : href ? (
+                          // Plain link row: the arrow says "this navigates".
+                          <span className="flex items-center justify-end">
+                            <span className="flex size-6 items-center justify-center text-muted-foreground/50 transition-colors group-hover:text-foreground">
+                              <ArrowUpRight className="size-3.5" />
+                            </span>
+                          </span>
+                        ) : null}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })}
@@ -136,6 +250,9 @@ const { registry } = defineRegistry(chatUiCatalog, {
       <div className="grid gap-2 sm:grid-cols-2">{children}</div>
     ),
     Card: ({ props }) => {
+      const panel = useOptionalArtifactPanel();
+      const doc = useMemo(() => parseDocumentHref(props.href), [props.href]);
+      const kindOf = useDocumentKind(doc?.propertyId ?? null);
       const body = (
         <>
           <div className="flex items-start justify-between gap-2">
@@ -167,6 +284,43 @@ const { registry } = defineRegistry(chatUiCatalog, {
           ) : null}
         </>
       );
+      if (doc && panel && props.href) {
+        // Document card: clicking opens the split-screen artifact panel
+        // (ArtifactCard pattern); the divided right rail is the explicit
+        // full-page action.
+        const href = props.href;
+        return (
+          <div className="group flex items-stretch overflow-hidden rounded-md bg-background">
+            <button
+              type="button"
+              title="Open in side panel"
+              className="min-w-0 flex-1 cursor-pointer p-3.5 text-left transition-colors hover:bg-accent focus-visible:bg-muted focus-visible:outline-none"
+              onClick={() =>
+                panel.open({
+                  kind: kindOf(doc.documentId),
+                  documentId: doc.documentId,
+                  title: props.title || "Document",
+                })
+              }
+            >
+              {body}
+              <span className="mt-2 flex items-center gap-1 text-xs font-medium text-muted-foreground/60 transition-colors group-hover:text-foreground">
+                <PanelRight className="size-3.5" />
+                Open in side panel
+              </span>
+            </button>
+            <Link
+              href={href}
+              onClick={(e) => e.stopPropagation()}
+              title="Open full page"
+              className="flex shrink-0 items-center border-l border-border px-2.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-muted focus-visible:outline-none"
+            >
+              <ExternalLink className="size-4" />
+              <span className="sr-only">Open full page</span>
+            </Link>
+          </div>
+        );
+      }
       return props.href ? (
         <Link
           href={props.href}

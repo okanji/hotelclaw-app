@@ -124,6 +124,33 @@ const actions: StepCatalogEntry[] = [
       return `AI: ${what.length > 70 ? `${what.slice(0, 70)}…` : what}`;
     },
   },
+  {
+    // The assistant, on a schedule. Produces a real conversation in the
+    // Assistant surface rather than a value for the next step to consume —
+    // which is why its output is a chat/session id, not text.
+    id: "action.assistant.run",
+    surface: "ai",
+    category: "action",
+    label: "Run the assistant",
+    description:
+      "Runs the personal assistant on a brief and files the result as a conversation the recipient can open and reply to. Point it at an Assistant project to inherit that project's instructions, memory, and attached documents. Pair with a schedule trigger for recurring briefings — a Monday review, a nightly check.",
+    examplePrompts: [
+      "every Monday, review the villa's open tasks and flag what is at risk",
+      "each morning, brief me on today's bookings and arrivals",
+      "weekly summary of what changed in this project",
+    ],
+    outputSchema: z.object({
+      chat_id: z.string(),
+      session_id: z.string().optional(),
+      started: z.boolean(),
+      skipped_reason: z.string().optional(),
+    }),
+    explain: (config) => {
+      const c = config as { title?: string; brief?: string };
+      const title = explainTemplateValue(c.title) || explainTemplateValue(c.brief);
+      return title ? `Run the assistant: ${title}` : "Run the assistant";
+    },
+  },
 ];
 
 export const AI_ACTIONS = actions;

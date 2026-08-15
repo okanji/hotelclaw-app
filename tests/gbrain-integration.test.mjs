@@ -69,10 +69,10 @@ async function main() {
   check("1b tools listed", Array.isArray(tools) && tools.length > 20, `got ${tools?.length}`);
 
   // 1c plumbing: pod fact query cites the right pod page.
-  const podQ = await call(podTok, "query", { query: "Kaya pool system history" });
+  const podQ = await call(podTok, "query", { query: "Watamu pool system history" });
   check(
     "1c pod query cites pod page",
-    !podQ.isError && JSON.stringify(podQ.body).includes("properties/kaya-villa-watamu/systems/pool"),
+    !podQ.isError && JSON.stringify(podQ.body).includes("properties/watamu-villa/systems/pool"),
     JSON.stringify(podQ.body).slice(0, 120),
   );
 
