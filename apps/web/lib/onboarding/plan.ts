@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { selectSopTemplates, sopTemplateById } from "./templates";
 import {
   FORM_FIELD_TYPES,
   newFieldId,
@@ -31,7 +32,7 @@ export const ENTITY_COLORS = [
 
 export const AnswersSchema = z.object({
   propertyName: z.string().min(1).max(120),
-  /** One of the wizard's type chips ("boutique-hotel", "restaurant", …). */
+  /** One of the wizard's type chips ("hotel", "restaurant", …). */
   propertyType: z.string().min(1).max(40),
   teamSize: z.string().min(1).max(20),
   departments: z
@@ -47,13 +48,18 @@ export const AnswersSchema = z.object({
   priorities: z.array(z.string().max(60)).max(12),
   /** What the property runs on-site ("rooms", "restaurant", "spa", "tours",
    *  "rentals"…) — drives bookings/chatbot/form generation. */
-  operations: z.array(z.string().max(40)).max(12).default([]),
+  // Cap must exceed the wizard's option count (OPERATION_GROUPS, 17 as of
+  // 2026-08-16) — a resort that genuinely runs everything would otherwise fail
+  // validation at the last step with nothing actionable to tell them.
+  operations: z.array(z.string().max(40)).max(24).default([]),
   /** How guests reach the property ("walk_in", "phone", "whatsapp", "email",
    *  "ota", "website") — drives chatbot channels + intake forms. */
   guestContact: z.array(z.string().max(40)).max(10).default([]),
   /** Optional free-text: "how does your property run day-to-day" — fed to the
-   *  AI planner to customize the build. */
+   *  AI planner to customize the build. Website enrichment seeds it. */
   notes: z.string().max(1000).default(""),
+  /** The property's public website, when they shared one. */
+  website: z.string().max(200).default(""),
   invites: z
     .array(
       z.object({
@@ -131,13 +137,19 @@ export const PlanSchema = z.object({
   /** Published, ready-to-share forms derived from the property's priorities /
    *  operations (maintenance request, guest feedback, incident report…). */
   forms: z.array(PlanFormSchema).max(4).default([]),
-  /** Starter SOP / playbook documents (titled stubs the team fills in) drawn
-   *  from their departments + priorities. */
+  /** Starter SOP / playbook documents drawn from their departments +
+   *  priorities. With a `templateId` (from lib/onboarding/templates.ts) the
+   *  doc is seeded with the template's REAL written content — personalized
+   *  by the optional one-line `intro` — otherwise it's a titled stub. */
   docs: z
     .array(
       z.object({
         title: z.string().min(1).max(120),
         icon: z.string().max(8).optional(),
+        templateId: z.string().max(60).optional(),
+        /** One property-specific sentence the AI may add under the heading.
+         *  Clamped, escaped, and purely additive — never structural. */
+        intro: z.string().max(400).optional(),
       }),
     )
     .max(6)
@@ -166,27 +178,14 @@ export function slugifyChannel(s: string): string {
   );
 }
 
-const DEPT_ICONS: Array<[RegExp, string]> = [
-  [/front\s*office|reception|front\s*desk/i, "🛎️"],
-  [/housekeep|clean/i, "🧹"],
-  [/food|beverage|f&b|restaurant|dining/i, "🍽️"],
-  [/kitchen|culinary|chef/i, "👨‍🍳"],
-  [/bar|drinks|beverage/i, "🍸"],
-  [/engineer|mainten|facilit/i, "🔧"],
-  [/sales|event|banquet|marketing/i, "📅"],
-  [/front\s*of\s*house|service|floor/i, "🤝"],
-  [/management|admin|office/i, "📋"],
-  [/spa|wellness|pool/i, "💆"],
-  [/security/i, "🛡️"],
-  [/hr|people/i, "👥"],
-];
-
-export function defaultDeptIcon(name: string): string {
-  for (const [re, icon] of DEPT_ICONS) {
-    if (re.test(name)) return icon;
-  }
-  return "🏷️";
-}
+// Department icons come from the shared taxonomy (lib/onboarding/taxonomy.ts),
+// which also answers "are these two team names the same team?" for the
+// wizard's dedupe and "who works here?" for its job-title suggestions. This
+// used to be a second regex table living here; it had drifted from the one the
+// wizard reasoned with (its `management` pattern matched "office", so
+// "Front Office" could land on 📋 instead of 🛎️ depending on order).
+import { defaultDeptIcon } from "./taxonomy";
+export { defaultDeptIcon };
 
 /** Round-robin EntityColor assignment, stable by index. */
 export function colorAt(i: number): EntityColor {
@@ -265,12 +264,28 @@ export function sanitizePlan(plan: OnboardingPlan): OnboardingPlan {
     });
 
   const seenDocTitles = new Set<string>();
+  const seenTemplateIds = new Set<string>();
   const docs = plan.docs
     .slice(0, 6)
-    .map((d) => ({
-      title: d.title.trim().slice(0, 120),
-      ...(d.icon ? { icon: clampIcon(d.icon, "📄") } : {}),
-    }))
+    .map((d) => {
+      // Unknown/duplicate template ids are dropped (doc degrades to a titled
+      // stub) — the model can only ever point at the hardcoded catalog.
+      const templateId =
+        d.templateId &&
+        sopTemplateById(d.templateId) &&
+        !seenTemplateIds.has(d.templateId)
+          ? d.templateId
+          : undefined;
+      if (templateId) seenTemplateIds.add(templateId);
+      return {
+        title: d.title.trim().slice(0, 120),
+        ...(d.icon ? { icon: clampIcon(d.icon, "📄") } : {}),
+        ...(templateId ? { templateId } : {}),
+        ...(templateId && d.intro?.trim()
+          ? { intro: d.intro.trim().slice(0, 400) }
+          : {}),
+      };
+    })
     .filter((d) => {
       const key = d.title.toLowerCase();
       if (!d.title || seenDocTitles.has(key)) return false;
@@ -311,6 +326,9 @@ export function planFormToFormSchema(fields: PlanFormField[]): FormSchema {
 // ─── Deterministic fallback ─────────────────────────────────────────────────
 
 const HOTEL_TYPES = new Set([
+  "hotel",
+  // Legacy ids from before the type chips were consolidated (stored in
+  // property_profiles rows created by older wizard sessions).
   "boutique-hotel",
   "full-service-hotel",
   "resort",
@@ -437,22 +455,12 @@ export function deterministicPlan(answers: OnboardingAnswers): OnboardingPlan {
   // Never leave a new workspace with zero forms — seed the maintenance one.
   if (forms.length === 0) forms.push(MAINTENANCE_FORM);
 
-  // Starter SOP / playbook docs — titled stubs the team fills in, drawn from
-  // their priorities and property type.
-  const docs: OnboardingPlan["docs"] = [];
-  if (priorities.has("Shift handovers")) {
-    docs.push({ title: "Shift handover playbook", icon: "🔁" });
-  }
-  if (priorities.has("Daily checklists")) {
-    docs.push({ title: "Opening checklist", icon: "🌅" });
-    docs.push({ title: "Closing checklist", icon: "🌙" });
-  }
-  if (priorities.has("Guest feedback") || isHotel || isRestaurant) {
-    docs.push({ title: "Guest complaint handling SOP", icon: "🤝" });
-  }
-  if (isHotel && docs.length < 6) {
-    docs.push({ title: "Emergency & incident procedures", icon: "🚨" });
-  }
+  // Starter SOP / playbook docs — every one backed by a hardcoded template
+  // (lib/onboarding/templates.ts), so they seed with real written content
+  // rather than empty stubs.
+  const docs: OnboardingPlan["docs"] = selectSopTemplates(answers)
+    .slice(0, 6)
+    .map((t) => ({ title: t.title, icon: t.icon, templateId: t.id }));
   if (docs.length === 0) {
     docs.push({ title: "Standard operating procedures", icon: "📄" });
   }

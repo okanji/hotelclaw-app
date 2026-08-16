@@ -14,7 +14,13 @@ import {
   GuestInput,
   GuestPrimaryButton as PrimaryButton,
   GuestQuestion as Question,
+  GuestSelect,
 } from "@/components/guest/ui";
+import {
+  departmentFamily,
+  isSameDepartment,
+  titlesForDepartment,
+} from "@/lib/onboarding/taxonomy";
 import type { EntityColor } from "@/lib/db/types";
 import {
   PlanSchema,
@@ -58,8 +64,7 @@ function Eyebrow({
 // ─── Step data ──────────────────────────────────────────────────────────────
 
 const PROPERTY_TYPES = [
-  { id: "boutique-hotel", label: "Boutique hotel" },
-  { id: "full-service-hotel", label: "Full-service hotel" },
+  { id: "hotel", label: "Hotel" },
   { id: "resort", label: "Resort" },
   { id: "hostel", label: "Hostel" },
   { id: "restaurant", label: "Restaurant" },
@@ -67,17 +72,10 @@ const PROPERTY_TYPES = [
   { id: "other", label: "Other" },
 ] as const;
 
-const TEAM_SIZES = ["Just me", "2–10", "11–50", "51–200", "200+"] as const;
+const TEAM_SIZES = ["Just me", "2–4", "5–10", "11–20", "21+"] as const;
 
 const DEPARTMENT_PRESETS: Record<string, string[]> = {
-  "boutique-hotel": [
-    "Front Office",
-    "Housekeeping",
-    "Food & Beverage",
-    "Engineering & Maintenance",
-    "Sales & Events",
-  ],
-  "full-service-hotel": [
+  hotel: [
     "Front Office",
     "Housekeeping",
     "Food & Beverage",
@@ -98,6 +96,22 @@ const DEPARTMENT_PRESETS: Record<string, string[]> = {
   other: ["Operations", "Front of House", "Maintenance", "Management"],
 };
 
+// Teams that exist in real properties but aren't any type's default. They ride
+// at the end of the suggestion list so a security team or a groundskeeping
+// team is one tap rather than a typing exercise.
+const EXTRA_DEPARTMENT_SUGGESTIONS = [
+  "Spa & Wellness",
+  "Security",
+  "Reservations",
+  "Concierge",
+  "Grounds & Gardens",
+  "Laundry",
+  "Transport",
+  "Stores & Purchasing",
+  "Finance",
+  "People & Training",
+];
+
 const ROLE_SUGGESTIONS = [
   "General Manager",
   "Operations Manager",
@@ -106,6 +120,11 @@ const ROLE_SUGGESTIONS = [
   "F&B Manager",
   "Head Housekeeper",
 ];
+
+// Job-title suggestions are no longer one flat list — they come from
+// `titlesForDepartment()` per invite row, keyed off that person's team, so a
+// kitchen hire is offered chef titles and a property-wide hire is offered the
+// leadership ladder. See lib/onboarding/taxonomy.ts.
 
 const PRIORITY_OPTIONS = [
   "Shift handovers",
@@ -118,18 +137,171 @@ const PRIORITY_OPTIONS = [
   "Reporting & insights",
 ];
 
-// What the property runs on-site — drives bookings services, chatbot, and
-// operation-specific forms in the build plan.
-const OPERATIONS_OPTIONS: { id: string; label: string }[] = [
-  { id: "rooms", label: "Rooms / stays" },
-  { id: "restaurant", label: "Restaurant" },
-  { id: "bar", label: "Bar" },
-  { id: "spa", label: "Spa / wellness" },
-  { id: "events", label: "Events / venue" },
-  { id: "tours", label: "Tours / activities" },
-  { id: "rentals", label: "Rentals" },
-  { id: "retail", label: "Retail / shop" },
+// What the property runs on-site — drives bookings services, chatbot actions,
+// and operation-specific forms in the build plan.
+//
+// Each option carries a `blurb` saying what WE will set up, not what the thing
+// is: the user knows what a spa is, what they can't know is that ticking it
+// creates an appointment service with therapists and durations. Bare labels
+// made this the one step people guessed at.
+//
+// Unknown ids are safe to add — `starterBookingServices()` matches only the
+// handful it has templates for and everything else flows to the AI planner as
+// context, so widening this list can't break the build.
+type OperationOption = {
+  id: string;
+  label: string;
+  emoji: string;
+  blurb: string;
+};
+
+const OPERATION_GROUPS: { group: string; options: OperationOption[] }[] = [
+  {
+    group: "Stays",
+    options: [
+      {
+        id: "rooms",
+        label: "Rooms / stays",
+        emoji: "🛏️",
+        blurb: "Guest rooms, check-in and check-out, housekeeping rounds.",
+      },
+      {
+        id: "rentals",
+        label: "Rentals",
+        emoji: "🚗",
+        blurb: "Kit or vehicles guests take out by the hour or the day.",
+      },
+      {
+        id: "parking",
+        label: "Parking / valet",
+        emoji: "🅿️",
+        blurb: "Spaces guests reserve, or keys your team takes in.",
+      },
+    ],
+  },
+  {
+    group: "Food & drink",
+    options: [
+      {
+        id: "restaurant",
+        label: "Restaurant",
+        emoji: "🍽️",
+        blurb: "Table reservations with party sizes and turn times.",
+      },
+      {
+        id: "bar",
+        label: "Bar",
+        emoji: "🍸",
+        blurb: "Walk-ins, tabs, and last orders.",
+      },
+      {
+        id: "cafe",
+        label: "Café / counter",
+        emoji: "☕",
+        blurb: "Quick counter service and takeaway orders.",
+      },
+      {
+        id: "room_service",
+        label: "Room service",
+        emoji: "🛎️",
+        blurb: "In-room orders routed straight to the kitchen.",
+      },
+      {
+        id: "catering",
+        label: "Catering",
+        emoji: "🧁",
+        blurb: "Private and off-site catering enquiries and quotes.",
+      },
+    ],
+  },
+  {
+    group: "Wellness & leisure",
+    options: [
+      {
+        id: "spa",
+        label: "Spa / wellness",
+        emoji: "💆",
+        blurb: "Treatment appointments booked against therapists and rooms.",
+      },
+      {
+        id: "gym",
+        label: "Gym / fitness",
+        emoji: "🏋️",
+        blurb: "Classes and equipment slots guests sign up for.",
+      },
+      {
+        id: "pool",
+        label: "Pool / beach",
+        emoji: "🏖️",
+        blurb: "Loungers, cabanas, and towel and safety checks.",
+      },
+    ],
+  },
+  {
+    group: "Experiences",
+    options: [
+      {
+        id: "tours",
+        label: "Tours / activities",
+        emoji: "🥾",
+        blurb: "Guided departures with a capacity per time slot.",
+      },
+      {
+        id: "events",
+        label: "Events / venue hire",
+        emoji: "🎉",
+        blurb: "Weddings, conferences, and private hire of your spaces.",
+      },
+      {
+        id: "transport",
+        label: "Transport / transfers",
+        emoji: "🚐",
+        blurb: "Airport runs, shuttles, and driver scheduling.",
+      },
+    ],
+  },
+  {
+    group: "Other services",
+    options: [
+      {
+        id: "retail",
+        label: "Retail / shop",
+        emoji: "🛍️",
+        blurb: "A shop or boutique selling to guests.",
+      },
+      {
+        id: "laundry",
+        label: "Guest laundry",
+        emoji: "🧺",
+        blurb: "Laundry and dry-cleaning requests with turnaround times.",
+      },
+      {
+        id: "coworking",
+        label: "Coworking / meeting rooms",
+        emoji: "🖥️",
+        blurb: "Desks and meeting rooms booked by the hour.",
+      },
+    ],
+  },
 ];
+
+const OPERATIONS_OPTIONS: OperationOption[] = OPERATION_GROUPS.flatMap(
+  (g) => g.options,
+);
+
+// Operations that follow with near-certainty from the property type — used to
+// pre-seed the "What do you run" step so we don't ask a restaurant whether it
+// runs a restaurant. Deliberately only tautologies: a wrong preselection here
+// creates real artifacts downstream (booking services, chatbot actions), so
+// anything merely LIKELY (hotel → restaurant, sales dept → events venue) stays
+// an unticked chip for the user to confirm.
+const OPS_BY_TYPE: Record<string, string[]> = {
+  hotel: ["rooms"],
+  resort: ["rooms"],
+  hostel: ["rooms"],
+  restaurant: ["restaurant"],
+  "cafe-bar": ["bar", "cafe"],
+};
 
 // How guests reach the property — drives chatbot channels + intake forms.
 const GUEST_CONTACT_OPTIONS: { id: string; label: string }[] = [
@@ -142,7 +314,15 @@ const GUEST_CONTACT_OPTIONS: { id: string; label: string }[] = [
 ];
 
 type Dept = { name: string; icon: string; color: EntityColor };
-type InviteRow = { email: string; role: "manager" | "staff"; department?: string };
+type InviteRow = {
+  email: string;
+  role: "manager" | "staff";
+  department?: string;
+  /** Pre-fill carried onto the invite (0072): applied to their profile on
+   *  accept, editable by them during invited-user onboarding. */
+  name?: string;
+  title?: string;
+};
 
 type Answers = {
   propertyName: string;
@@ -154,6 +334,10 @@ type Answers = {
   operations: string[];
   guestContact: string[];
   invites: InviteRow[];
+  /** Optional website — scraped server-side to prefill answers. */
+  website: string;
+  /** Free-text "how the property runs" — seeded by website enrichment. */
+  notes: string;
 };
 
 const TOTAL_STEPS = 7;
@@ -186,11 +370,57 @@ export function OnboardingWizard({
     operations: [],
     guestContact: GUEST_CONTACT_OPTIONS.map((o) => o.id),
     invites: [],
+    website: "",
+    notes: "",
   });
+  // Website enrichment: fired once per pasted URL when leaving step 1; the
+  // result merges ONLY into still-empty answers (a user choice always wins,
+  // and results landing mid-wizard never overwrite ticked chips).
+  const enrichRequestedFor = useRef<string | null>(null);
+  const startEnrichment = (rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url || enrichRequestedFor.current === url) return;
+    enrichRequestedFor.current = url;
+    void fetch("/api/onboarding/enrich", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = (await res.json().catch(() => null)) as {
+          enrichment?: {
+            summary?: string;
+            operations?: string[];
+            propertyType?: string | null;
+          } | null;
+        } | null;
+        const e = json?.enrichment;
+        if (!e) return;
+        const validOps = new Set(OPERATIONS_OPTIONS.map((o) => o.id));
+        setAnswers((a) => ({
+          ...a,
+          propertyType:
+            a.propertyType ||
+            (e.propertyType &&
+            PROPERTY_TYPES.some((t) => t.id === e.propertyType)
+              ? e.propertyType
+              : ""),
+          operations: a.operations.length
+            ? a.operations
+            : (e.operations ?? []).filter((o) => validOps.has(o)),
+          notes: a.notes.trim() ? a.notes : (e.summary ?? "").slice(0, 1000),
+        }));
+      })
+      .catch(() => {
+        // Fail-soft: enrichment is purely additive.
+      });
+  };
   // The property type whose department preset is currently applied — so
   // switching type on step 2 refreshes step 3's defaults, but the user's
   // own edits survive going back and forth without a type change.
   const [presetFor, setPresetFor] = useState<string | null>(null);
+  const [opsSeededFor, setOpsSeededFor] = useState<string | null>(null);
   const [deptDraft, setDeptDraft] = useState("");
   // Inline department rename (click a selected chip; X removes it).
   const [renamingDept, setRenamingDept] = useState<string | null>(null);
@@ -221,6 +451,48 @@ export function OnboardingWizard({
     setPresetFor(answers.propertyType);
   };
 
+  // Same contract as applyDeptPreset, for the operations step: seed the chips
+  // that are certain from the type + chosen departments when advancing into
+  // step 5; the user's own ticks survive going back unless they change type.
+  const applyOpsPreset = () => {
+    if (opsSeededFor === answers.propertyType && answers.operations.length > 0) {
+      return;
+    }
+    // Union, not replace — website enrichment (and any prior ticks) survive.
+    const seeded = new Set([
+      ...answers.operations,
+      ...(OPS_BY_TYPE[answers.propertyType] ?? []),
+    ]);
+    // A team that exists is near-proof the operation exists. Keyed off the
+    // shared taxonomy so "Wellness", "Spa & Wellness" and "Spa" all count —
+    // the old inline regexes only caught some of the spellings the presets
+    // and the AI plan actually produce.
+    for (const d of answers.departments) {
+      switch (departmentFamily(d.name)) {
+        case "spa":
+          seeded.add("spa");
+          break;
+        case "bar":
+          seeded.add("bar");
+          break;
+        case "fitness":
+          seeded.add("gym");
+          break;
+        case "pool":
+          seeded.add("pool");
+          break;
+        case "transport":
+          seeded.add("transport");
+          break;
+        case "laundry":
+          seeded.add("laundry");
+          break;
+      }
+    }
+    set("operations", [...seeded]);
+    setOpsSeededFor(answers.propertyType);
+  };
+
   const commitRename = (oldName: string) => {
     const name = renameDraft.trim();
     setRenamingDept(null);
@@ -242,20 +514,28 @@ export function OnboardingWizard({
 
   // Everything in the preset catalog (all property types) the user hasn't
   // selected — one tap toggles a department on instead of typing it.
+  // Deduped by MEANING, not by string. The presets disagree with each other
+  // across property types — hotel says "Front Office", hostel says "Front
+  // Desk", hotel says "Engineering & Maintenance", hostel says "Maintenance" —
+  // so a lowercase-exact filter offered a hotel "Front Desk" as something new
+  // to add when it already had Front Office. `departmentFamily` collapses
+  // synonyms; genuinely distinct teams (Kitchen vs Bar vs Food & Beverage)
+  // keep their own families and stay on offer.
   const deptSuggestions = useMemo(() => {
-    const selected = new Set(
-      answers.departments.map((d) => d.name.toLowerCase()),
-    );
-    const seen = new Set<string>();
+    const taken = new Set(answers.departments.map((d) => departmentFamily(d.name)));
     const out: string[] = [];
     const preferred = DEPARTMENT_PRESETS[answers.propertyType] ?? [];
-    for (const name of [...preferred, ...Object.values(DEPARTMENT_PRESETS).flat()]) {
-      const key = name.toLowerCase();
-      if (seen.has(key) || selected.has(key)) continue;
-      seen.add(key);
+    for (const name of [
+      ...preferred,
+      ...Object.values(DEPARTMENT_PRESETS).flat(),
+      ...EXTRA_DEPARTMENT_SUGGESTIONS,
+    ]) {
+      const family = departmentFamily(name);
+      if (taken.has(family)) continue;
+      taken.add(family);
       out.push(name);
     }
-    return out.slice(0, 10);
+    return out.slice(0, 12);
   }, [answers.departments, answers.propertyType]);
 
   const canContinue = useMemo(() => {
@@ -301,16 +581,24 @@ export function OnboardingWizard({
         </button>
       )}
 
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
+      {/* `m-auto`, NOT `items-center`. Flex centering overflows a too-tall
+          child EQUALLY in both directions, and the part that overflows above
+          the container's top edge cannot be scrolled to — the review step
+          (step 7) grew past the viewport and its top was unreachable. Auto
+          margins center the same way but collapse to zero rather than going
+          negative, so a tall step just scrolls. */}
+      <main className="flex flex-1 flex-col justify-center px-6 py-16">
         <div
           key={step}
-          className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className="m-auto w-full max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-300"
         >
           {step === 0 && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (canContinue) next();
+                if (!canContinue) return;
+                startEnrichment(answers.website);
+                next();
               }}
             >
               <Eyebrow>
@@ -329,6 +617,21 @@ export function OnboardingWizard({
                 maxLength={120}
                 className="mt-10"
               />
+              <div className="mt-6">
+                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                  Website (optional) — we&rsquo;ll read it and prefill what we
+                  can
+                </span>
+                <GuestInput
+                  type="text"
+                  inputMode="url"
+                  value={answers.website}
+                  onChange={(e) => set("website", e.target.value)}
+                  placeholder="thegrandhotel.com"
+                  maxLength={200}
+                  className="w-full max-w-sm"
+                />
+              </div>
               <div className="mt-10 flex items-center gap-3">
                 <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
                 <span className="text-xs text-guest-ink-faint">
@@ -361,7 +664,7 @@ export function OnboardingWizard({
                 ))}
               </div>
               <Eyebrow className="mt-10 mb-0">
-                And how big is the team?
+                And how big is the management team?
               </Eyebrow>
               <div className="mt-3 flex flex-wrap gap-2">
                 {TEAM_SIZES.map((s) => (
@@ -480,9 +783,13 @@ export function OnboardingWizard({
                       e.preventDefault();
                       const name = deptDraft.trim();
                       if (!name) return;
+                      // Same family check as the suggestion list: typing
+                      // "Reception" when Front Office already exists should
+                      // no-op rather than create a duplicate team with its
+                      // own space and channel.
                       if (
-                        answers.departments.some(
-                          (d) => d.name.toLowerCase() === name.toLowerCase(),
+                        answers.departments.some((d) =>
+                          isSameDepartment(d.name, name),
                         ) ||
                         answers.departments.length >= 12
                       ) {
@@ -519,6 +826,7 @@ export function OnboardingWizard({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                applyOpsPreset();
                 next();
               }}
             >
@@ -561,25 +869,65 @@ export function OnboardingWizard({
               <Eyebrow>Step 5 of {TOTAL_STEPS}</Eyebrow>
               <Question>What do you run at {propertyName}?</Question>
               <GuestHint>
-                Pick everything that applies — we&rsquo;ll set up booking,
-                ordering, and the right forms for each.
+                We&rsquo;ve ticked what you&rsquo;ve already told us — add
+                anything else. We&rsquo;ll set up booking, ordering, and the
+                right forms for each.
               </GuestHint>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {OPERATIONS_OPTIONS.map((o) => (
-                  <Chip
-                    key={o.id}
-                    selected={answers.operations.includes(o.id)}
-                    onClick={() =>
-                      set(
-                        "operations",
-                        answers.operations.includes(o.id)
-                          ? answers.operations.filter((x) => x !== o.id)
-                          : [...answers.operations, o.id],
-                      )
-                    }
-                  >
-                    {o.label}
-                  </Chip>
+              {/* Cards, not chips. A chip can only carry a label, and the
+                  label alone ("Rentals") doesn't tell you what ticking it
+                  DOES. At 17 options they're grouped, because an
+                  undifferentiated wall of seventeen is worse than eight. */}
+              <div className="mt-8 space-y-6">
+                {OPERATION_GROUPS.map(({ group, options }) => (
+                  <div key={group}>
+                    <p className="mb-2 text-xs text-guest-ink-faint">{group}</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {options.map((o) => {
+                        const on = answers.operations.includes(o.id);
+                        return (
+                          <button
+                            key={o.id}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() =>
+                              set(
+                                "operations",
+                                on
+                                  ? answers.operations.filter((x) => x !== o.id)
+                                  : [...answers.operations, o.id],
+                              )
+                            }
+                            className={cn(
+                              "flex items-start gap-2.5 rounded-2xl border p-3 text-left transition-colors",
+                              on
+                                ? "border-guest-accent bg-guest-accent/10"
+                                : "border-guest-line bg-guest-card hover:border-guest-line-strong",
+                            )}
+                          >
+                            <span aria-hidden className="mt-px text-base leading-5">
+                              {o.emoji}
+                            </span>
+                            <span className="min-w-0">
+                              <span
+                                className={cn(
+                                  "block text-sm",
+                                  on
+                                    ? "text-guest-accent-ink"
+                                    : "text-guest-ink",
+                                )}
+                              >
+                                {o.label}
+                              </span>
+                              <span className="mt-0.5 block text-xs leading-snug text-pretty text-guest-ink-faint">
+                                {o.blurb}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
               <div className="mt-10 flex items-center gap-3">
@@ -660,6 +1008,8 @@ function InviteStep({
           validRows.map((r) => ({
             email: r.email.trim().toLowerCase(),
             role: r.role,
+            name: r.name?.trim() || undefined,
+            title: r.title?.trim() || undefined,
             department: r.department,
           })),
         );
@@ -669,60 +1019,120 @@ function InviteStep({
       <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
       <Question>Bring the {propertyName} team along?</Question>
       <GuestHint>You can always invite people later from Settings.</GuestHint>
-      <div className="mt-8 space-y-3">
+      <div className="mt-8 space-y-4">
         {rows.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <GuestInput
-              type="email"
-              value={row.email}
-              onChange={(e) => update(i, { email: e.target.value })}
-              placeholder="teammate@example.com"
-              className="flex-1"
-            />
-            <div className="flex rounded-full border border-guest-line bg-guest-card p-0.5">
-              {(["manager", "staff"] as const).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => update(i, { role })}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-xs capitalize transition-colors",
-                    row.role === role
-                      ? "bg-guest-accent/10 text-guest-accent-ink"
-                      : "text-guest-ink-faint hover:text-guest-ink",
-                  )}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-            {departments.length > 0 ? (
-              <select
-                value={row.department ?? ""}
-                onChange={(e) =>
-                  update(i, { department: e.target.value || undefined })
-                }
-                aria-label="Team"
-                className="h-9 max-w-36 truncate rounded-full border border-guest-line bg-guest-card px-3 text-xs text-guest-ink outline-none"
-              >
-                <option value="">No team yet</option>
-                {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            ) : null}
+          <div
+            key={i}
+            className="relative rounded-2xl border border-guest-line bg-guest-card/60 p-4 sm:p-5"
+          >
             {rows.length > 1 ? (
               <button
                 type="button"
                 aria-label="Remove"
                 onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-                className="text-sm text-guest-ink-faint hover:text-guest-ink"
+                className="absolute right-4 top-4 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink"
               >
                 ×
               </button>
             ) : null}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                  Name
+                </span>
+                <GuestInput
+                  value={row.name ?? ""}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                  placeholder="Alex Rivera"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                  Email
+                </span>
+                <GuestInput
+                  type="email"
+                  value={row.email}
+                  onChange={(e) => update(i, { email: e.target.value })}
+                  placeholder="teammate@example.com"
+                  className="w-full"
+                />
+              </div>
+              {/* Team comes BEFORE job title: the team narrows what the title
+                  can sensibly be, so asking in the other order makes the
+                  title's suggestions arrive too late to help. */}
+              {departments.length > 0 ? (
+                <div>
+                  <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                    Team
+                  </span>
+                  <GuestSelect
+                    value={row.department ?? ""}
+                    onChange={(e) =>
+                      update(i, { department: e.target.value || undefined })
+                    }
+                    aria-label="Team"
+                  >
+                    {/* Not "No team yet" — for a GM or an owner this IS the
+                        answer, not a blank. See LEADERSHIP_TITLES. */}
+                    <option value="">Property-wide (no single team)</option>
+                    {departments.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </GuestSelect>
+                </div>
+              ) : null}
+              <div>
+                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                  Job title
+                </span>
+                <GuestInput
+                  list={`invite-titles-${i}`}
+                  value={row.title ?? ""}
+                  onChange={(e) => update(i, { title: e.target.value })}
+                  placeholder={titlesForDepartment(row.department)[0]}
+                  className="w-full"
+                />
+                {/* Per-row datalist: the options depend on this row's team, so
+                    a single shared list would offer chefs to receptionists. */}
+                <datalist id={`invite-titles-${i}`}>
+                  {titlesForDepartment(row.department).map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                Access
+              </span>
+              <div className="inline-flex h-11 items-center rounded-full border border-guest-line bg-guest-card p-1">
+                {(["manager", "staff"] as const).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => update(i, { role })}
+                    className={cn(
+                      "rounded-full px-4 py-1.5 text-xs capitalize transition-colors",
+                      row.role === role
+                        ? "bg-guest-accent/10 text-guest-accent-ink"
+                        : "text-guest-ink-faint hover:text-guest-ink",
+                    )}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-guest-ink-faint">
+              {row.role === "manager"
+                ? "Managers can change settings, automations, and see reports."
+                : "Staff can chat, work on tasks, and fill forms — no admin settings."}
+            </p>
           </div>
         ))}
       </div>
@@ -730,9 +1140,9 @@ function InviteStep({
         type="button"
         onClick={() => onChange([...rows, { email: "", role: "staff" }])}
         disabled={rows.length >= 20}
-        className="mt-3 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink disabled:opacity-40"
+        className="mt-4 rounded-full border border-dashed border-guest-line px-4 py-2 text-sm text-guest-ink-faint transition-colors hover:border-guest-ink-faint hover:text-guest-ink disabled:opacity-40"
       >
-        Add another
+        + Add another person
       </button>
       {hasPartial ? (
         <GuestError className="mt-3">
@@ -755,6 +1165,115 @@ function InviteStep({
 // ─── Step 6: build ──────────────────────────────────────────────────────────
 
 type BuildPhase = "planning" | "review" | "building" | "done" | "error";
+
+// ─── Review cards ───────────────────────────────────────────────────────────
+// The review gate groups the plan into explanatory sub-cards so the user
+// understands WHAT each artifact is, not just that it exists. Item lists and
+// on/off notes mirror the seeding conditions in actions.ts — keep in sync.
+
+type ReviewGroup = {
+  icon: string;
+  title: string;
+  blurb: string;
+  items: { text: string; note?: string }[];
+};
+
+function planGroups(plan: OnboardingPlan | null, answers: Answers): ReviewGroup[] {
+  if (!plan) return [];
+  const propertyName = answers.propertyName.trim() || "your property";
+  const groups: ReviewGroup[] = [];
+
+  const extraSlugs = plan.extraChannels
+    .filter((c) => c.slug !== "general")
+    .map((c) => `#${c.slug}`);
+  groups.push({
+    icon: "🏡",
+    title: "Teams & chat",
+    blurb:
+      "Each team gets its own space for tasks and a chat channel; #general holds everyone.",
+    items: [
+      ...plan.spaces.map((s) => ({ text: `${s.icon} ${s.name}` })),
+      {
+        text: ["#general", ...extraSlugs].join("  ·  "),
+        note: "shared channels",
+      },
+    ],
+  });
+
+  if (plan.forms.length > 0) {
+    groups.push({
+      icon: "📋",
+      title: "Forms",
+      blurb:
+        "Published and ready to use — share them in chat, by link, or pin them to a team.",
+      items: plan.forms.map((f) => ({ text: `${f.icon ?? "📋"} ${f.title}` })),
+    });
+  }
+
+  if (plan.docs.length > 0) {
+    groups.push({
+      icon: "📚",
+      title: "SOPs & playbooks",
+      blurb: `Docs marked “written for you” arrive with full starter content adapted to ${propertyName} — edit anything.`,
+      items: plan.docs.map((d) => ({
+        text: `${d.icon ?? "📄"} ${d.title}`,
+        note: d.templateId ? "written for you" : "titled, ready to fill",
+      })),
+    });
+  }
+
+  const bookingSvcs = starterBookingServices(answers.operations);
+  const autoItems: ReviewGroup["items"] = [];
+  if (plan.forms.some((f) => /maintenance/i.test(f.title))) {
+    autoItems.push({
+      text: "🔧 Maintenance form submissions become tasks",
+      note: "on",
+    });
+  }
+  autoItems.push({
+    text: "🙋 Chatbot escalations become high-priority tasks",
+    note: "on",
+  });
+  if (bookingSvcs.length > 0) {
+    autoItems.push({
+      text: "✅ Auto-confirm small bookings (parties of 4 or fewer)",
+      note: "off until you enable it",
+    });
+  }
+  if (answers.priorities.includes("Task tracking")) {
+    autoItems.push({
+      text: "🚧 Blocked tasks get called out in #general",
+      note: "on",
+    });
+  }
+  groups.push({
+    icon: "⚡",
+    title: "Automations",
+    blurb:
+      "Live under Workflows from day one — every one can be edited or switched off.",
+    items: autoItems,
+  });
+
+  if (bookingSvcs.length > 0) {
+    groups.push({
+      icon: "🗓️",
+      title: "Bookable services",
+      blurb:
+        "Starter services with sensible hours — refine them and go public when you're ready.",
+      items: bookingSvcs.map((s) => ({ text: `${s.emoji} ${s.name}` })),
+    });
+  }
+
+  groups.push({
+    icon: "💬",
+    title: "Guest chatbot",
+    blurb:
+      "A draft guest-facing bot tailored to your operations appears under Chatbots shortly after you land — review it before sharing.",
+    items: [],
+  });
+
+  return groups;
+}
 
 function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] {
   if (!plan) {
@@ -797,10 +1316,11 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
     );
   }
   if (plan.docs.length > 0) {
+    const written = plan.docs.filter((d) => d.templateId).length;
     lines.push(
-      `${plan.docs.length} starter SOP doc${plan.docs.length === 1 ? "" : "s"} — ${plan.docs
-        .map((d) => d.title)
-        .join(", ")}`,
+      `${plan.docs.length} starter SOP doc${plan.docs.length === 1 ? "" : "s"}${
+        written > 0 ? ` (${written} arriving fully written)` : ""
+      } — ${plan.docs.map((d) => d.title).join(", ")}`,
     );
   }
   const bookingSvcs = starterBookingServices(answers.operations);
@@ -819,6 +1339,9 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
       "A live automation — maintenance form submissions become tasks automatically",
     );
   }
+  lines.push(
+    "Starter automations — chatbot escalations become tasks, and more under Workflows",
+  );
   lines.push(
     "Default alerts — overdue pile-ups, blocked work, unassigned urgent tasks, at-risk projects",
   );
@@ -864,6 +1387,8 @@ function BuildStep({
     operations: answers.operations,
     guestContact: answers.guestContact,
     invites: answers.invites,
+    website: answers.website.trim(),
+    notes: answers.notes.trim(),
   };
 
   // Confirm handler — only runs once the user approves the review.
@@ -942,6 +1467,7 @@ function BuildStep({
   }, [attempt]);
 
   const propertyName = answers.propertyName.trim() || "your property";
+  const groups = phase === "review" ? planGroups(plan, answers) : [];
 
   if (phase === "done") {
     return (
@@ -984,14 +1510,52 @@ function BuildStep({
           Nothing&rsquo;s been created yet — have a look, then build it. You can
           reshape any of this later.
         </GuestHint>
-        <ul role="list" className="mt-8 space-y-2.5">
-          {lines.map((line) => (
-            <li key={line} className="flex items-center gap-3 text-sm">
-              <Check />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
+        {groups.length > 0 ? (
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {groups.map((g) => (
+              <div
+                key={g.title}
+                className="rounded-2xl border border-guest-line bg-guest-card/60 p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{g.icon}</span>
+                  <span className="text-sm font-medium text-guest-ink">
+                    {g.title}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-guest-ink-faint">
+                  {g.blurb}
+                </p>
+                {g.items.length > 0 ? (
+                  <ul role="list" className="mt-3 space-y-1.5">
+                    {g.items.map((item) => (
+                      <li
+                        key={item.text}
+                        className="flex items-baseline justify-between gap-3 text-sm text-guest-ink-soft"
+                      >
+                        <span className="min-w-0">{item.text}</span>
+                        {item.note ? (
+                          <span className="shrink-0 text-[11px] text-guest-ink-faint">
+                            {item.note}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ul role="list" className="mt-8 space-y-2.5">
+            {lines.map((line) => (
+              <li key={line} className="flex items-center gap-3 text-sm">
+                <Check />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-10 flex items-center gap-3">
           <PrimaryButton type="button" onClick={runBuild}>
             Build my workspace

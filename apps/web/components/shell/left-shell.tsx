@@ -9,15 +9,15 @@ import { LastPathRecorder } from "./last-path-recorder";
 import type { Membership } from "@/lib/auth/session";
 
 /**
- * Secondary-sidebar width bounds. The default is the measured Notion sidebar
- * width (docs/notion-spec.md §4): 8px inner padding on each side leaves
- * 254px-wide rows. The user can drag the right edge between MIN and MAX;
+ * Secondary-sidebar width bounds. The default sits a touch under the measured
+ * Notion sidebar width of 270 (docs/notion-spec.md §4) — per user preference,
+ * 2026-08-15. The user can drag the right edge between MIN and MAX;
  * dragging well past MIN collapses the sidebar (Notion behavior), and the
  * chosen width persists in the `sidebar_width` cookie so the server can
  * restore it on first paint.
  */
-export const DEFAULT_SIDEBAR_WIDTH = 270;
-export const MIN_SIDEBAR_WIDTH = 220;
+export const DEFAULT_SIDEBAR_WIDTH = 250;
+export const MIN_SIDEBAR_WIDTH = 200;
 export const MAX_SIDEBAR_WIDTH = 480;
 /** Raw drag position below this (unclamped) collapses instead of resizing. */
 const COLLAPSE_BELOW = 150;

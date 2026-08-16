@@ -140,7 +140,7 @@ export function DocumentHeader({
     <div className="document-header group/header">
       {/* Cover image — full-width strip, with hover replace/remove controls. */}
       {cover ? (
-        <div className="group/cover relative -mx-6 mb-3 h-44 overflow-hidden md:-mx-12">
+        <div className="group/cover relative -mx-6 mb-3 h-44 overflow-hidden @3xl/doceditor:-mx-12">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={cover}

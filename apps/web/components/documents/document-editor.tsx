@@ -501,18 +501,24 @@ function EditorInner({
     // #ffffff light / #191919 dark) rather than the chrome plane — the ~2%
     // delta between the two is what separates the doc from the shell
     // (docs/notion-spec.md §2).
-    <div className="relative flex h-full min-h-0 flex-col bg-card">
+    //
+    // Named CONTAINER, not viewport breakpoints: the editor also mounts inside
+    // the chat's artifact side panel, where the pane is ~400–700px on a wide
+    // desktop viewport — viewport `md:` gating rendered the full action row
+    // into the narrow pane and the header collided with itself. `@3xl` (48rem)
+    // matches the old `md` cutoff, so the full documents page is unchanged.
+    <div className="@container/doceditor relative flex h-full min-h-0 flex-col bg-card">
       {/* Top row: breadcrumbs (left) + document metadata (right). Keeping
           "Edited by" / History / presence up here lets the formatting toolbar
           below stay a single slim band. */}
-      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6 max-md:gap-2 max-md:px-3">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6 @max-3xl/doceditor:gap-2 @max-3xl/doceditor:px-3">
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}
           currentTitle={liveTitle}
         />
-        {/* ≥md: the full action row. */}
-        <div className="hidden shrink-0 items-center gap-2.5 md:flex">
+        {/* Wide container: the full action row. */}
+        <div className="hidden shrink-0 items-center gap-2.5 @3xl/doceditor:flex">
           <WorkflowProvenanceBadge
             propertyId={propertyId}
             source={source}
@@ -534,11 +540,12 @@ function EditorInner({
           <DocumentShare propertyId={propertyId} documentId={documentId} />
           <DocumentRoomAvatarStack max={5} size={24} />
         </div>
-        {/* <md (incl. the mobile app's WebView): presence stays glanceable,
-            everything else tucks into one overflow menu. The same components
-            render inside the popover — each owns its popover/sheet state, and
-            nested Base UI popups keep the parent open via the floating tree. */}
-        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
+        {/* Narrow container (mobile WebView AND the artifact side panel):
+            presence stays glanceable, everything else tucks into one overflow
+            menu. The same components render inside the popover — each owns its
+            popover/sheet state, and nested Base UI popups keep the parent open
+            via the floating tree. */}
+        <div className="flex shrink-0 items-center gap-1.5 @3xl/doceditor:hidden">
           <DocumentRoomAvatarStack max={3} size={24} />
           <Popover>
             <PopoverTrigger
@@ -575,7 +582,7 @@ function EditorInner({
           </Popover>
         </div>
       </div>
-      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1 max-md:justify-start max-md:overflow-x-auto max-md:px-2">
+      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1 @max-3xl/doceditor:justify-start @max-3xl/doceditor:overflow-x-auto @max-3xl/doceditor:px-2">
         {/* Default Liveblocks toolbar content, rebuilt so the AI section uses
             OUR "Explain" (→ bottom dock) instead of the built-in one that runs
             through the inline edit pipeline. */}

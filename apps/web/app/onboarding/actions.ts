@@ -12,8 +12,11 @@ import { provisionPropertyBrain } from "@/lib/brain/provision";
 import { startGuestChatbotBuild } from "@/lib/onboarding/chatbot-workflow";
 import {
   seedStarterAutomation,
+  seedExtraAutomations,
   seedDefaultAlertRules,
 } from "@/lib/onboarding/automations";
+import { renderSopTemplate } from "@/lib/onboarding/template-bodies";
+import { writeDocumentBody } from "@/lib/documents/write-body";
 import {
   AnswersSchema,
   PlanSchema,
@@ -183,6 +186,7 @@ export async function createWorkspace(input: {
         operations: answers.operations,
         guestContact: answers.guestContact,
         notes: answers.notes,
+        website: answers.website,
         inviteCount: answers.invites.length,
       },
     });
@@ -359,20 +363,52 @@ export async function createWorkspace(input: {
     }
   }
 
-  // ── Starter SOP docs (titled stubs, ready to fill in) ────────────────────
+  // ── Starter SOP docs ─────────────────────────────────────────────────────
+  // Template-backed docs (plan.docs[].templateId) get REAL written bodies —
+  // the hardcoded SOP text filled with the property name plus the AI's
+  // one-line intro — via the same write pipeline the channel bot uses
+  // (Liveblocks room + Postgres snapshot + brain mirror). Docs without a
+  // template stay titled stubs. Per-doc fail-soft: a Liveblocks hiccup on
+  // one SOP leaves the stub, never blocks the build.
   if (plan.docs.length > 0) {
     try {
-      const { error } = await supabase.from("documents").insert(
-        plan.docs.map((d, i) => ({
-          property_id: propertyId,
-          title: d.title,
-          kind: "doc" as const,
-          icon: d.icon ?? "📄",
-          position: i * 1024,
-          created_by: user.id,
-        })),
-      );
+      const { data: docRows, error } = await supabase
+        .from("documents")
+        .insert(
+          plan.docs.map((d, i) => ({
+            property_id: propertyId,
+            title: d.title,
+            kind: "doc" as const,
+            icon: d.icon ?? "📄",
+            position: i * 1024,
+            created_by: user.id,
+          })),
+        )
+        .select("id, title");
       if (error) throw error;
+
+      for (const planDoc of plan.docs) {
+        if (!planDoc.templateId) continue;
+        const row = (docRows ?? []).find((r) => r.title === planDoc.title);
+        if (!row) continue;
+        const html = renderSopTemplate({
+          templateId: planDoc.templateId,
+          propertyName: answers.propertyName,
+          intro: planDoc.intro,
+        });
+        if (!html) continue;
+        try {
+          const result = await writeDocumentBody({
+            propertyId,
+            documentId: row.id,
+            html,
+            mode: "replace",
+          });
+          if (!result.ok) throw new Error(result.error);
+        } catch (e) {
+          warn(`doc body "${planDoc.title}"`, e);
+        }
+      }
     } catch (e) {
       warn("docs", e);
     }
@@ -418,10 +454,11 @@ export async function createWorkspace(input: {
       ownerId: user.id,
       propertyName: answers.propertyName,
       description: [
-        `A guest-facing chatbot for ${answers.propertyName}, a ${answers.propertyType.replace(/-/g, " ")} (${answers.teamSize} staff).`,
+        `A guest-facing chatbot for ${answers.propertyName}, a ${answers.propertyType.replace(/-/g, " ")} (management team of ${answers.teamSize}).`,
         `On-site operations: ${opsList}.`,
         `Guests typically reach the property via: ${contactList}.`,
         `The bot should answer common guest questions, take simple requests, and hand off to staff when needed.`,
+        answers.website ? `Website: ${answers.website}.` : "",
         answers.notes ? `How the property runs day-to-day: ${answers.notes}` : "",
       ]
         .filter(Boolean)
@@ -451,6 +488,26 @@ export async function createWorkspace(input: {
     } catch (e) {
       warn("starter automation", e);
     }
+  }
+
+  // ── Template-library automations (beyond the maintenance starter) ───────
+  try {
+    const frontSpace = plan.spaces.find((s) =>
+      /front|reception|desk/i.test(s.name),
+    );
+    const failures = await seedExtraAutomations({
+      propertyId,
+      userId: user.id,
+      frontSpaceId: frontSpace
+        ? (spaceIdBySlug.get(frontSpace.channelSlug) ?? null)
+        : null,
+      generalChannelId: generalStreamId,
+      hasBookings: bookingServices.length > 0,
+      wantsBlockedAlerts: answers.priorities.includes("Task tracking"),
+    });
+    for (const f of failures) warn(f, "seed failed");
+  } catch (e) {
+    warn("extra automations", e);
   }
 
   // ── Default insight alert rules for the owner ────────────────────────────

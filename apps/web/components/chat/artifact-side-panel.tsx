@@ -18,10 +18,10 @@ const CHAT_FLOOR = 560;
 // split area) — NOT window.innerWidth. Measuring against the whole window let
 // the panel eat the conversation (a 46vw panel counted the rail + channel
 // sidebar, leaving the chat at ~half the *content* area). As CSS `min()`:
-// ≤42% of the split, capped at 720px, but never so wide the conversation drops
+// ≤52% of the split, capped at 880px, but never so wide the conversation drops
 // below CHAT_FLOOR — floored at MIN_WIDTH. The conversation stays primary with
 // zero JS, so no measurement/effect is needed until the user resizes.
-const DEFAULT_CSS_WIDTH = `max(${MIN_WIDTH}px, min(42%, calc(100% - ${CHAT_FLOOR}px), 720px))`;
+const DEFAULT_CSS_WIDTH = `max(${MIN_WIDTH}px, min(52%, calc(100% - ${CHAT_FLOOR}px), 880px))`;
 
 // Drag/expand produce explicit px widths; clamp them the same way (relative to
 // the measured chat container, keeping the conversation ≥ CHAT_FLOOR).

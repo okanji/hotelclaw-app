@@ -15,7 +15,16 @@ import { cn } from "@/lib/utils"
  * `<Eyebrow tone="guest">` from components/ui/eyebrow.tsx alongside these.
  */
 
-/** Full-viewport cream canvas that centers a single column of content. */
+/**
+ * Full-viewport cream canvas that centers a single column of content.
+ *
+ * Centering is `m-auto` on an inner wrapper, NOT `items-center` on the flex
+ * container. `align-items: center` overflows a too-tall child equally in both
+ * directions, and the half that overflows ABOVE the container's top edge
+ * cannot be scrolled to — content simply becomes unreachable. Auto margins
+ * center identically while collapsing to zero instead of going negative, so a
+ * screen taller than the viewport scrolls normally.
+ */
 function GuestShell({
   className,
   children,
@@ -26,11 +35,14 @@ function GuestShell({
   return (
     <main
       className={cn(
-        "flex min-h-svh items-center justify-center bg-guest-bg px-6 py-16 text-guest-ink",
+        "flex min-h-svh flex-col justify-center bg-guest-bg px-6 py-16 text-guest-ink",
         className
       )}
     >
-      {children}
+      {/* `items-center` here is safe (it centers the CROSS axis — horizontal
+          in a column — which never overflows); the vertical centering that
+          did overflow is the `m-auto`. Consumers keep their own `max-w-*`. */}
+      <div className="m-auto flex w-full flex-col items-center">{children}</div>
     </main>
   )
 }
@@ -48,6 +60,49 @@ function GuestQuestion({
       )}
       {...props}
     />
+  )
+}
+
+/**
+ * A native `<select>` wearing the guest pill. Native is deliberate — it gets
+ * the platform picker on mobile and real keyboard semantics for free — but
+ * the browser's own arrow sits outside our padding and collides with the
+ * pill's radius, so `appearance-none` removes it and we draw our own chevron
+ * in reserved right padding. Without that reservation a long option ("Front
+ * Office Manager") truncates INTO the arrow.
+ */
+function GuestSelect({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"select">) {
+  return (
+    <div className="relative w-full">
+      <select
+        className={cn(
+          "h-11 w-full appearance-none truncate rounded-full border border-guest-line bg-guest-card py-0 pl-4 pr-10 text-sm text-guest-ink",
+          "outline-none transition-colors hover:border-guest-line-strong focus-visible:border-guest-accent",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <svg
+        aria-hidden
+        viewBox="0 0 20 20"
+        fill="none"
+        className="pointer-events-none absolute right-4 top-1/2 size-3.5 -translate-y-1/2 text-guest-ink-faint"
+      >
+        <path
+          d="M5 7.5 10 12.5 15 7.5"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   )
 }
 
@@ -150,5 +205,6 @@ export {
   GuestGhostButton,
   GuestBigInput,
   GuestInput,
+  GuestSelect,
   GuestError,
 }
