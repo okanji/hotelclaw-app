@@ -4,6 +4,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { assertFetchableUrl } from "@/lib/chatbots/custom-actions";
+import { OPERATION_IDS } from "@/lib/onboarding/operations";
 
 /**
  * POST /api/onboarding/enrich — read the property's public website and
@@ -27,16 +28,10 @@ const MAX_HTML_BYTES = 600_000;
 const MAX_TEXT_CHARS = 8_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
-const OPERATION_IDS = [
-  "rooms",
-  "restaurant",
-  "bar",
-  "spa",
-  "events",
-  "tours",
-  "rentals",
-  "retail",
-] as const;
+// Imported, NOT re-declared: this list is the wizard's step-5 option set, and
+// the local copy silently fell behind when that set grew from 8 ids to 17 —
+// the model could not suggest "cafe" or "room_service" because the enum it
+// was handed had never heard of them.
 const CONTACT_IDS = [
   "walk_in",
   "phone",

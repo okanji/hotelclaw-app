@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Chip as ChipBase } from "@/components/ui/chip";
 import { Eyebrow as EyebrowBase } from "@/components/ui/eyebrow";
 import {
@@ -21,6 +22,11 @@ import {
   isSameDepartment,
   titlesForDepartment,
 } from "@/lib/onboarding/taxonomy";
+import {
+  DEPARTMENT_FOR_OPERATION,
+  OPERATIONS_OPTIONS,
+  OPERATION_GROUPS,
+} from "@/lib/onboarding/operations";
 import type { EntityColor } from "@/lib/db/types";
 import {
   PlanSchema,
@@ -31,6 +37,7 @@ import {
   type OnboardingPlan,
 } from "@/lib/onboarding/plan";
 import { createWorkspace } from "./actions";
+import { ReviewPlan, buildReviewSections } from "./review-plan";
 
 /**
  * The setup wizard — a full-screen, one-question-per-screen takeover in
@@ -137,157 +144,9 @@ const PRIORITY_OPTIONS = [
   "Reporting & insights",
 ];
 
-// What the property runs on-site — drives bookings services, chatbot actions,
-// and operation-specific forms in the build plan.
-//
-// Each option carries a `blurb` saying what WE will set up, not what the thing
-// is: the user knows what a spa is, what they can't know is that ticking it
-// creates an appointment service with therapists and durations. Bare labels
-// made this the one step people guessed at.
-//
-// Unknown ids are safe to add — `starterBookingServices()` matches only the
-// handful it has templates for and everything else flows to the AI planner as
-// context, so widening this list can't break the build.
-type OperationOption = {
-  id: string;
-  label: string;
-  emoji: string;
-  blurb: string;
-};
-
-const OPERATION_GROUPS: { group: string; options: OperationOption[] }[] = [
-  {
-    group: "Stays",
-    options: [
-      {
-        id: "rooms",
-        label: "Rooms / stays",
-        emoji: "🛏️",
-        blurb: "Guest rooms, check-in and check-out, housekeeping rounds.",
-      },
-      {
-        id: "rentals",
-        label: "Rentals",
-        emoji: "🚗",
-        blurb: "Kit or vehicles guests take out by the hour or the day.",
-      },
-      {
-        id: "parking",
-        label: "Parking / valet",
-        emoji: "🅿️",
-        blurb: "Spaces guests reserve, or keys your team takes in.",
-      },
-    ],
-  },
-  {
-    group: "Food & drink",
-    options: [
-      {
-        id: "restaurant",
-        label: "Restaurant",
-        emoji: "🍽️",
-        blurb: "Table reservations with party sizes and turn times.",
-      },
-      {
-        id: "bar",
-        label: "Bar",
-        emoji: "🍸",
-        blurb: "Walk-ins, tabs, and last orders.",
-      },
-      {
-        id: "cafe",
-        label: "Café / counter",
-        emoji: "☕",
-        blurb: "Quick counter service and takeaway orders.",
-      },
-      {
-        id: "room_service",
-        label: "Room service",
-        emoji: "🛎️",
-        blurb: "In-room orders routed straight to the kitchen.",
-      },
-      {
-        id: "catering",
-        label: "Catering",
-        emoji: "🧁",
-        blurb: "Private and off-site catering enquiries and quotes.",
-      },
-    ],
-  },
-  {
-    group: "Wellness & leisure",
-    options: [
-      {
-        id: "spa",
-        label: "Spa / wellness",
-        emoji: "💆",
-        blurb: "Treatment appointments booked against therapists and rooms.",
-      },
-      {
-        id: "gym",
-        label: "Gym / fitness",
-        emoji: "🏋️",
-        blurb: "Classes and equipment slots guests sign up for.",
-      },
-      {
-        id: "pool",
-        label: "Pool / beach",
-        emoji: "🏖️",
-        blurb: "Loungers, cabanas, and towel and safety checks.",
-      },
-    ],
-  },
-  {
-    group: "Experiences",
-    options: [
-      {
-        id: "tours",
-        label: "Tours / activities",
-        emoji: "🥾",
-        blurb: "Guided departures with a capacity per time slot.",
-      },
-      {
-        id: "events",
-        label: "Events / venue hire",
-        emoji: "🎉",
-        blurb: "Weddings, conferences, and private hire of your spaces.",
-      },
-      {
-        id: "transport",
-        label: "Transport / transfers",
-        emoji: "🚐",
-        blurb: "Airport runs, shuttles, and driver scheduling.",
-      },
-    ],
-  },
-  {
-    group: "Other services",
-    options: [
-      {
-        id: "retail",
-        label: "Retail / shop",
-        emoji: "🛍️",
-        blurb: "A shop or boutique selling to guests.",
-      },
-      {
-        id: "laundry",
-        label: "Guest laundry",
-        emoji: "🧺",
-        blurb: "Laundry and dry-cleaning requests with turnaround times.",
-      },
-      {
-        id: "coworking",
-        label: "Coworking / meeting rooms",
-        emoji: "🖥️",
-        blurb: "Desks and meeting rooms booked by the hour.",
-      },
-    ],
-  },
-];
-
-const OPERATIONS_OPTIONS: OperationOption[] = OPERATION_GROUPS.flatMap(
-  (g) => g.options,
-);
+// Operations catalog (ids, labels, blurbs, groups) lives in
+// lib/onboarding/operations.ts — shared with the website-enrichment route so
+// its whitelist can't drift behind this list again.
 
 // Operations that follow with near-certainty from the property type — used to
 // pre-seed the "What do you run" step so we don't ask a restaurant whether it
@@ -312,6 +171,19 @@ const GUEST_CONTACT_OPTIONS: { id: string; label: string }[] = [
   { id: "ota", label: "OTAs (Booking.com, Airbnb…)" },
   { id: "website", label: "Website" },
 ];
+
+/**
+ * Is this typed-so-far string worth spending a scrape on? Users paste bare
+ * domains ("pinewood.co.ke") as often as full URLs, so we can't lean on URL
+ * parsing. Requires a dotted host with a 2+ char TLD and no spaces — enough
+ * to skip the half-typed states a debounce would otherwise fire on.
+ */
+function looksLikeDomain(raw: string): boolean {
+  const value = raw.trim().replace(/^https?:\/\//i, "");
+  if (!value || /\s/.test(value)) return false;
+  const host = value.split(/[/?#]/)[0];
+  return /^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(host);
+}
 
 type Dept = { name: string; icon: string; color: EntityColor };
 type InviteRow = {
@@ -373,21 +245,48 @@ export function OnboardingWizard({
     website: "",
     notes: "",
   });
-  // Website enrichment: fired once per pasted URL when leaving step 1; the
-  // result merges ONLY into still-empty answers (a user choice always wins,
-  // and results landing mid-wizard never overwrite ticked chips).
+  // Website enrichment.
+  //
+  // TIMING: fired as soon as the URL looks like a domain (debounced while
+  // typing, and on blur), not on Continue. The scrape + model round-trip takes
+  // a few seconds, and the answers it prefills live two to four steps later —
+  // starting at submit meant the result often landed after the user had
+  // already answered the questions it was meant to fill in. Starting at entry
+  // buys those seconds back. The submit path still calls it as a backstop for
+  // the paste-and-immediately-Enter case; `enrichRequestedFor` dedupes all
+  // three entry points to one request per URL.
+  //
+  // MERGE: only into still-EMPTY answers. A user choice always wins, so a
+  // result landing mid-wizard can never overwrite a chip they've ticked.
   const enrichRequestedFor = useRef<string | null>(null);
+  const [enrichState, setEnrichState] = useState<
+    "idle" | "loading" | "done" | "empty"
+  >("idle");
+  // Teams the website evidenced. Kept OUT of `answers.departments` until the
+  // preset runs, because `applyDeptPreset` replaces that list wholesale when
+  // the property type is chosen — writing straight into it would lose the
+  // enriched teams whenever the result landed before step 3.
+  const [enrichedDepartments, setEnrichedDepartments] = useState<string[]>([]);
   const startEnrichment = (rawUrl: string) => {
     const url = rawUrl.trim();
     if (!url || enrichRequestedFor.current === url) return;
     enrichRequestedFor.current = url;
+    setEnrichState("loading");
     void fetch("/api/onboarding/enrich", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
     })
       .then(async (res) => {
-        if (!res.ok) return;
+        // Discard a stale response. Someone typing slowly can pause on a
+        // valid-looking prefix ("pinewood.co" is a real TLD), firing a request
+        // for a URL they didn't mean; the real one fires on the next keystroke
+        // but may resolve FIRST, letting the wrong answer land last and win.
+        if (enrichRequestedFor.current !== url) return;
+        if (!res.ok) {
+          setEnrichState("empty");
+          return;
+        }
         const json = (await res.json().catch(() => null)) as {
           enrichment?: {
             summary?: string;
@@ -396,8 +295,19 @@ export function OnboardingWizard({
           } | null;
         } | null;
         const e = json?.enrichment;
-        if (!e) return;
+        if (!e) {
+          setEnrichState("empty");
+          return;
+        }
         const validOps = new Set(OPERATIONS_OPTIONS.map((o) => o.id));
+        const ops = (e.operations ?? []).filter((o) => validOps.has(o));
+        // A spa page on the website is good evidence of a spa TEAM, not just a
+        // spa service — carry the implication through to step 3.
+        setEnrichedDepartments(
+          ops
+            .map((o) => DEPARTMENT_FOR_OPERATION[o])
+            .filter((d): d is string => Boolean(d)),
+        );
         setAnswers((a) => ({
           ...a,
           propertyType:
@@ -406,16 +316,26 @@ export function OnboardingWizard({
             PROPERTY_TYPES.some((t) => t.id === e.propertyType)
               ? e.propertyType
               : ""),
-          operations: a.operations.length
-            ? a.operations
-            : (e.operations ?? []).filter((o) => validOps.has(o)),
+          operations: a.operations.length ? a.operations : ops,
           notes: a.notes.trim() ? a.notes : (e.summary ?? "").slice(0, 1000),
         }));
+        setEnrichState(
+          ops.length > 0 || e.propertyType || e.summary ? "done" : "empty",
+        );
       })
       .catch(() => {
         // Fail-soft: enrichment is purely additive.
+        if (enrichRequestedFor.current === url) setEnrichState("empty");
       });
   };
+  // Kick enrichment off while they're still on step 1. The guard matters: a
+  // debounce alone would fire on "pinewood.c" and burn the one-shot dedupe on
+  // a URL that can't resolve, so we wait for something shaped like a domain.
+  const debouncedWebsite = useDebouncedValue(answers.website, 900);
+  useEffect(() => {
+    if (looksLikeDomain(debouncedWebsite)) startEnrichment(debouncedWebsite);
+  }, [debouncedWebsite]);
+
   // The property type whose department preset is currently applied — so
   // switching type on step 2 refreshes step 3's defaults, but the user's
   // own edits survive going back and forth without a type change.
@@ -438,8 +358,15 @@ export function OnboardingWizard({
     if (presetFor === answers.propertyType && answers.departments.length > 0) {
       return;
     }
-    const names =
-      DEPARTMENT_PRESETS[answers.propertyType] ?? DEPARTMENT_PRESETS.other;
+    // Type preset, widened by whatever the website evidenced. Deduped by
+    // taxonomy FAMILY so an enriched "Restaurant" doesn't sit next to the
+    // hotel preset's "Food & Beverage" as a second, near-identical team.
+    const names = [
+      ...(DEPARTMENT_PRESETS[answers.propertyType] ?? DEPARTMENT_PRESETS.other),
+    ];
+    for (const extra of enrichedDepartments) {
+      if (!names.some((n) => isSameDepartment(n, extra))) names.push(extra);
+    }
     set(
       "departments",
       names.map((name, i) => ({
@@ -590,7 +517,15 @@ export function OnboardingWizard({
       <main className="flex flex-1 flex-col justify-center px-6 py-16">
         <div
           key={step}
-          className="m-auto w-full max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className={cn(
+            "m-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
+            // Every step but the last asks ONE question, and a narrow column
+            // is what makes that feel like a conversation. The review is a
+            // different kind of screen — an inventory of ~40 artifacts — so it
+            // gets the width to lay them out two-up instead of in one long
+            // ribbon the user has to scroll past.
+            step === TOTAL_STEPS - 1 ? "max-w-3xl" : "max-w-xl",
+          )}
         >
           {step === 0 && (
             <form
@@ -627,10 +562,26 @@ export function OnboardingWizard({
                   inputMode="url"
                   value={answers.website}
                   onChange={(e) => set("website", e.target.value)}
+                  // Blur beats the debounce when they tab straight out.
+                  onBlur={() => startEnrichment(answers.website)}
                   placeholder="thegrandhotel.com"
                   maxLength={200}
                   className="w-full max-w-sm"
                 />
+                {/* Say what's happening. Answers quietly appearing two steps
+                    later reads as a glitch unless the reading was visible. */}
+                {enrichState !== "idle" ? (
+                  <p
+                    aria-live="polite"
+                    className="mt-2 text-xs text-guest-ink-faint"
+                  >
+                    {enrichState === "loading"
+                      ? "Reading your site…"
+                      : enrichState === "done"
+                        ? "Read your site — we've prefilled what we could."
+                        : "Couldn't read that site. No problem — carry on."}
+                  </p>
+                ) : null}
               </div>
               <div className="mt-10 flex items-center gap-3">
                 <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
@@ -1166,114 +1117,7 @@ function InviteStep({
 
 type BuildPhase = "planning" | "review" | "building" | "done" | "error";
 
-// ─── Review cards ───────────────────────────────────────────────────────────
-// The review gate groups the plan into explanatory sub-cards so the user
-// understands WHAT each artifact is, not just that it exists. Item lists and
-// on/off notes mirror the seeding conditions in actions.ts — keep in sync.
-
-type ReviewGroup = {
-  icon: string;
-  title: string;
-  blurb: string;
-  items: { text: string; note?: string }[];
-};
-
-function planGroups(plan: OnboardingPlan | null, answers: Answers): ReviewGroup[] {
-  if (!plan) return [];
-  const propertyName = answers.propertyName.trim() || "your property";
-  const groups: ReviewGroup[] = [];
-
-  const extraSlugs = plan.extraChannels
-    .filter((c) => c.slug !== "general")
-    .map((c) => `#${c.slug}`);
-  groups.push({
-    icon: "🏡",
-    title: "Teams & chat",
-    blurb:
-      "Each team gets its own space for tasks and a chat channel; #general holds everyone.",
-    items: [
-      ...plan.spaces.map((s) => ({ text: `${s.icon} ${s.name}` })),
-      {
-        text: ["#general", ...extraSlugs].join("  ·  "),
-        note: "shared channels",
-      },
-    ],
-  });
-
-  if (plan.forms.length > 0) {
-    groups.push({
-      icon: "📋",
-      title: "Forms",
-      blurb:
-        "Published and ready to use — share them in chat, by link, or pin them to a team.",
-      items: plan.forms.map((f) => ({ text: `${f.icon ?? "📋"} ${f.title}` })),
-    });
-  }
-
-  if (plan.docs.length > 0) {
-    groups.push({
-      icon: "📚",
-      title: "SOPs & playbooks",
-      blurb: `Docs marked “written for you” arrive with full starter content adapted to ${propertyName} — edit anything.`,
-      items: plan.docs.map((d) => ({
-        text: `${d.icon ?? "📄"} ${d.title}`,
-        note: d.templateId ? "written for you" : "titled, ready to fill",
-      })),
-    });
-  }
-
-  const bookingSvcs = starterBookingServices(answers.operations);
-  const autoItems: ReviewGroup["items"] = [];
-  if (plan.forms.some((f) => /maintenance/i.test(f.title))) {
-    autoItems.push({
-      text: "🔧 Maintenance form submissions become tasks",
-      note: "on",
-    });
-  }
-  autoItems.push({
-    text: "🙋 Chatbot escalations become high-priority tasks",
-    note: "on",
-  });
-  if (bookingSvcs.length > 0) {
-    autoItems.push({
-      text: "✅ Auto-confirm small bookings (parties of 4 or fewer)",
-      note: "off until you enable it",
-    });
-  }
-  if (answers.priorities.includes("Task tracking")) {
-    autoItems.push({
-      text: "🚧 Blocked tasks get called out in #general",
-      note: "on",
-    });
-  }
-  groups.push({
-    icon: "⚡",
-    title: "Automations",
-    blurb:
-      "Live under Workflows from day one — every one can be edited or switched off.",
-    items: autoItems,
-  });
-
-  if (bookingSvcs.length > 0) {
-    groups.push({
-      icon: "🗓️",
-      title: "Bookable services",
-      blurb:
-        "Starter services with sensible hours — refine them and go public when you're ready.",
-      items: bookingSvcs.map((s) => ({ text: `${s.emoji} ${s.name}` })),
-    });
-  }
-
-  groups.push({
-    icon: "💬",
-    title: "Guest chatbot",
-    blurb:
-      "A draft guest-facing bot tailored to your operations appears under Chatbots shortly after you land — review it before sharing.",
-    items: [],
-  });
-
-  return groups;
-}
+// Review-gate UI + its data model live in ./review-plan.tsx.
 
 function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] {
   if (!plan) {
@@ -1467,7 +1311,12 @@ function BuildStep({
   }, [attempt]);
 
   const propertyName = answers.propertyName.trim() || "your property";
-  const groups = phase === "review" ? planGroups(plan, answers) : [];
+  // Derived from the answers when the AI plan is null, so a plan failure
+  // thins this screen out rather than collapsing it to a bare checklist.
+  const review =
+    phase === "review"
+      ? buildReviewSections(plan, answers)
+      : { sections: [], summary: [] };
 
   if (phase === "done") {
     return (
@@ -1510,52 +1359,7 @@ function BuildStep({
           Nothing&rsquo;s been created yet — have a look, then build it. You can
           reshape any of this later.
         </GuestHint>
-        {groups.length > 0 ? (
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {groups.map((g) => (
-              <div
-                key={g.title}
-                className="rounded-2xl border border-guest-line bg-guest-card/60 p-4"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{g.icon}</span>
-                  <span className="text-sm font-medium text-guest-ink">
-                    {g.title}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-guest-ink-faint">
-                  {g.blurb}
-                </p>
-                {g.items.length > 0 ? (
-                  <ul role="list" className="mt-3 space-y-1.5">
-                    {g.items.map((item) => (
-                      <li
-                        key={item.text}
-                        className="flex items-baseline justify-between gap-3 text-sm text-guest-ink-soft"
-                      >
-                        <span className="min-w-0">{item.text}</span>
-                        {item.note ? (
-                          <span className="shrink-0 text-[11px] text-guest-ink-faint">
-                            {item.note}
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <ul role="list" className="mt-8 space-y-2.5">
-            {lines.map((line) => (
-              <li key={line} className="flex items-center gap-3 text-sm">
-                <Check />
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ReviewPlan sections={review.sections} summary={review.summary} />
         <div className="mt-10 flex items-center gap-3">
           <PrimaryButton type="button" onClick={runBuild}>
             Build my workspace
