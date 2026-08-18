@@ -92,6 +92,10 @@ function readSensitivity(
  * through the same web API routes (Bearer-authed via lib/api.ts), stored as
  * Stream channel custom fields the message-new webhook reads. Settings here
  * apply to the whole channel, on every client.
+ *
+ * The body only mounts while the sheet is open, so each open re-reads the
+ * channel's current state in the initializers (another client may have
+ * changed the mode since last time) — no reset-on-open effect needed.
  */
 export function AiModeSheet({
   channel,
@@ -102,6 +106,25 @@ export function AiModeSheet({
   visible: boolean;
   onClose: () => void;
 }) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      {visible ? <AiModeBody channel={channel} onClose={onClose} /> : null}
+    </Modal>
+  );
+}
+
+function AiModeBody({
+  channel,
+  onClose,
+}: {
+  channel: ChannelType;
+  onClose: () => void;
+}) {
   const [botMember, setBotMember] = useState(() => isBotMember(channel));
   const [mode, setMode] = useState<AiMode>(() => readMode(channel.data));
   const [sensitivity, setSensitivity] = useState<AiSensitivity>(() =>
@@ -110,13 +133,9 @@ export function AiModeSheet({
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Re-read on open (another client may have changed the mode) and follow
-  // live channel events while mounted — mirrors the web button's listeners.
+  // Follow live channel events while open — mirrors the web button's
+  // listeners, so a change made on another client shows up immediately.
   useEffect(() => {
-    if (!visible) return;
-    setBotMember(isBotMember(channel));
-    setMode(readMode(channel.data));
-    setSensitivity(readSensitivity(channel.data));
     const onMembers = () => setBotMember(isBotMember(channel));
     const sub1 = channel.on("member.added", onMembers);
     const sub2 = channel.on("member.removed", onMembers);
@@ -129,7 +148,7 @@ export function AiModeSheet({
       sub2.unsubscribe();
       sub3.unsubscribe();
     };
-  }, [visible, channel]);
+  }, [channel]);
 
   async function activate() {
     if (!channel.id || busy) return;
@@ -181,14 +200,8 @@ export function AiModeSheet({
   }
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.sheet}>
-        <View style={styles.bar}>
+    <View style={styles.sheet}>
+      <View style={styles.bar}>
           <View style={styles.barTitle}>
             <Ionicons name="sparkles" size={16} color="#111827" />
             <Text style={styles.title}>AI assistant</Text>
@@ -264,8 +277,7 @@ export function AiModeSheet({
             </View>
           )}
         </ScrollView>
-      </View>
-    </Modal>
+    </View>
   );
 }
 

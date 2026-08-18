@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 // SDK 56: import react-navigation APIs via expo-router, not @react-navigation/*
@@ -35,17 +35,21 @@ export default function ChannelScreen() {
     loading: propertiesLoading,
     setActivePropertyId,
   } = usePropertyContext();
-  const [channel, setChannel] = useState<ChannelType | undefined>(
-    contextChannel,
+  // Only adopt the context channel when it matches the route param — with a
+  // warm app, a deep link to channel X can arrive while the context still
+  // holds channel Y from an earlier visit, and rendering Y under X's URL is
+  // wrong. A mismatch falls through to the cid fetch below.
+  const [channel, setChannel] = useState<ChannelType | undefined>(() =>
+    contextChannel?.cid === cid ? contextChannel : undefined,
   );
   const [error, setError] = useState<string | null>(null);
   const [aiSheetOpen, setAiSheetOpen] = useState(false);
   const headerHeight = useHeaderHeight();
-  const headerHeightRef = useRef(headerHeight);
 
   // If we land here via a cold deep-link (no channel handed through context),
   // recreate the Channel instance from the cid param — per Stream's navigation
   // guidance, never pass Channel objects through navigation params.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (channel || !cid) return;
     // cid is "<type>:<id>" (e.g. "team:abc"); derive both so this works for
@@ -64,6 +68,7 @@ export default function ChannelScreen() {
         // Without this the screen spins forever on a deleted channel or a
         // channel the user isn't a member of (Stream rejects the watch).
         if (!active) return;
+        console.warn("[channel] watch failed", cid, err);
         const message = err instanceof Error ? err.message : String(err);
         setError(
           /not allowed|permission/i.test(message)
@@ -74,7 +79,7 @@ export default function ChannelScreen() {
     return () => {
       active = false;
     };
-  }, [cid, channel, client]);
+  }, [cid, channel, client, attempt]);
 
   // Tenancy: a deep link can point at a channel in a different property than
   // the one currently selected. Follow the channel rather than showing its
@@ -111,8 +116,21 @@ export default function ChannelScreen() {
           <Text style={styles.body}>
             {error ?? "It belongs to a property you're not a member of."}
           </Text>
-          <Pressable style={styles.button} onPress={() => router.back()}>
-            <Text style={styles.buttonText}>Go back</Text>
+          {/* A deep link can race app startup (client still connecting) —
+              offer a retry rather than only a way out. */}
+          {error ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => {
+                setError(null);
+                setAttempt((a) => a + 1);
+              }}
+            >
+              <Text style={styles.buttonText}>Try again</Text>
+            </Pressable>
+          ) : null}
+          <Pressable style={styles.linkButton} onPress={() => router.back()}>
+            <Text style={styles.linkText}>Go back</Text>
           </Pressable>
         </View>
       </>
@@ -158,8 +176,8 @@ export default function ChannelScreen() {
       <CustomAttachmentProvider>
       <Channel
         channel={channel}
-        keyboardVerticalOffset={headerHeightRef.current}
-        topInset={headerHeightRef.current}
+        keyboardVerticalOffset={headerHeight}
+        topInset={headerHeight}
         thread={thread}
         // Same clustering as web — shared rules, not a reimplementation.
         getMessageGroupStyle={slackGetMessageGroupStyle}
@@ -228,5 +246,12 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
+  },
+  linkButton: {
+    paddingVertical: 10,
+  },
+  linkText: {
+    color: "#6b7280",
+    fontSize: 14,
   },
 });

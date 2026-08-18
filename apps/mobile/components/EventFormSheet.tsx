@@ -1,5 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Platform,
@@ -24,6 +24,10 @@ function roundToNextHalfHour(d = new Date()): Date {
  * Create / edit a calendar event. Posts to the meetings REST routes, which run
  * the same `saveMeetingFor` as the web event dialog — so organizer handling and
  * attendee syncing are identical.
+ *
+ * The form body only mounts while the sheet is open, so every open starts from
+ * a fresh initial state (a create never inherits the last edit) without any
+ * reset-on-open effect.
  */
 export function EventFormSheet({
   visible,
@@ -41,54 +45,82 @@ export function EventFormSheet({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [allDay, setAllDay] = useState(false);
-  const [start, setStart] = useState<Date>(roundToNextHalfHour());
-  const [end, setEnd] = useState<Date>(
-    new Date(roundToNextHalfHour().getTime() + 30 * 60000),
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      {visible ? (
+        <EventFormBody
+          propertyId={propertyId}
+          meeting={meeting}
+          initialDate={initialDate}
+          onClose={onClose}
+          onSaved={onSaved}
+        />
+      ) : null}
+    </Modal>
   );
+}
+
+function initialWindow(
+  meeting: ApiMeeting | null | undefined,
+  initialDate: Date | undefined,
+): { start: Date; end: Date } {
+  if (meeting) {
+    const start = meeting.scheduled_start
+      ? new Date(meeting.scheduled_start)
+      : roundToNextHalfHour();
+    const end = meeting.scheduled_end
+      ? new Date(meeting.scheduled_end)
+      : new Date(start.getTime() + 30 * 60000);
+    return { start, end };
+  }
+  const base = initialDate ? new Date(initialDate) : new Date();
+  const now = new Date();
+  base.setHours(now.getHours(), now.getMinutes(), 0, 0);
+  const start = roundToNextHalfHour(base);
+  return { start, end: new Date(start.getTime() + 30 * 60000) };
+}
+
+function EventFormBody({
+  propertyId,
+  meeting,
+  initialDate,
+  onClose,
+  onSaved,
+}: {
+  propertyId: string | undefined;
+  meeting?: ApiMeeting | null;
+  initialDate?: Date;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(meeting?.title ?? "");
+  const [location, setLocation] = useState(meeting?.location ?? "");
+  const [description, setDescription] = useState(meeting?.description ?? "");
+  const [allDay, setAllDay] = useState(meeting?.all_day ?? false);
+  const [initial] = useState(() => initialWindow(meeting, initialDate));
+  const [start, setStart] = useState<Date>(initial.start);
+  const [end, setEnd] = useState<Date>(initial.end);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset whenever the sheet opens, so a create never inherits the last edit.
-  useEffect(() => {
-    if (!visible) return;
-    setError(null);
-    if (meeting) {
-      setTitle(meeting.title ?? "");
-      setLocation(meeting.location ?? "");
-      setDescription(meeting.description ?? "");
-      setAllDay(meeting.all_day);
-      const s = meeting.scheduled_start
-        ? new Date(meeting.scheduled_start)
-        : roundToNextHalfHour();
-      const e = meeting.scheduled_end
-        ? new Date(meeting.scheduled_end)
-        : new Date(s.getTime() + 30 * 60000);
-      setStart(s);
-      setEnd(e);
-    } else {
-      const base = initialDate ? new Date(initialDate) : new Date();
-      const now = new Date();
-      base.setHours(now.getHours(), now.getMinutes(), 0, 0);
-      const s = roundToNextHalfHour(base);
-      setTitle("");
-      setLocation("");
-      setDescription("");
-      setAllDay(false);
-      setStart(s);
-      setEnd(new Date(s.getTime() + 30 * 60000));
-    }
-  }, [visible, meeting, initialDate]);
-
-  // Keep end after start — dragging start past end otherwise produces a
-  // validation error from the server instead of doing the obvious thing.
+  // Keep the window ordered from either direction — dragging start past end
+  // (or end before start) otherwise produces a server validation error
+  // instead of doing the obvious thing.
   const updateStart = (next: Date) => {
     setStart(next);
     if (end.getTime() <= next.getTime()) {
       setEnd(new Date(next.getTime() + 30 * 60000));
+    }
+  };
+  const updateEnd = (next: Date) => {
+    setEnd(next);
+    if (next.getTime() <= start.getTime()) {
+      setStart(new Date(next.getTime() - 30 * 60000));
     }
   };
 
@@ -131,98 +163,91 @@ export function EventFormSheet({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.sheet}>
-        <View style={styles.bar}>
-          <Pressable onPress={onClose} hitSlop={10}>
-            <Text style={styles.cancel}>Cancel</Text>
-          </Pressable>
-          <Text style={styles.barTitle}>
-            {meeting ? "Edit event" : "New event"}
+    <View style={styles.sheet}>
+      <View style={styles.bar}>
+        <Pressable onPress={onClose} hitSlop={10}>
+          <Text style={styles.cancel}>Cancel</Text>
+        </Pressable>
+        <Text style={styles.barTitle}>
+          {meeting ? "Edit event" : "New event"}
+        </Text>
+        <Pressable onPress={submit} hitSlop={10} disabled={saving}>
+          <Text style={[styles.save, saving && styles.disabled]}>
+            {saving ? "Saving…" : "Save"}
           </Text>
-          <Pressable onPress={submit} hitSlop={10} disabled={saving}>
-            <Text style={[styles.save, saving && styles.disabled]}>
-              {saving ? "Saving…" : "Save"}
-            </Text>
-          </Pressable>
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <TextInput
+          style={styles.titleInput}
+          placeholder="Title"
+          placeholderTextColor="#9ca3af"
+          value={title}
+          onChangeText={setTitle}
+          autoFocus={!meeting}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Location"
+          placeholderTextColor="#9ca3af"
+          value={location}
+          onChangeText={setLocation}
+        />
+
+        <View style={styles.rowBetween}>
+          <Text style={styles.label}>All-day</Text>
+          <Switch value={allDay} onValueChange={setAllDay} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <TextInput
-            style={styles.titleInput}
-            placeholder="Title"
-            placeholderTextColor="#9ca3af"
-            value={title}
-            onChangeText={setTitle}
-            autoFocus={!meeting}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Location"
-            placeholderTextColor="#9ca3af"
-            value={location}
-            onChangeText={setLocation}
-          />
-
-          <View style={styles.rowBetween}>
-            <Text style={styles.label}>All-day</Text>
-            <Switch value={allDay} onValueChange={setAllDay} />
-          </View>
-
-          <View style={styles.pickerRow}>
-            <Text style={styles.label}>Starts</Text>
-            <View style={styles.pickers}>
+        <View style={styles.pickerRow}>
+          <Text style={styles.label}>Starts</Text>
+          <View style={styles.pickers}>
+            <DateTimePicker
+              value={start}
+              mode="date"
+              onChange={(_, d) => d && updateStart(d)}
+            />
+            {!allDay ? (
               <DateTimePicker
                 value={start}
-                mode="date"
+                mode="time"
                 onChange={(_, d) => d && updateStart(d)}
               />
-              {!allDay ? (
-                <DateTimePicker
-                  value={start}
-                  mode="time"
-                  onChange={(_, d) => d && updateStart(d)}
-                />
-              ) : null}
-            </View>
+            ) : null}
           </View>
+        </View>
 
-          <View style={styles.pickerRow}>
-            <Text style={styles.label}>Ends</Text>
-            <View style={styles.pickers}>
+        <View style={styles.pickerRow}>
+          <Text style={styles.label}>Ends</Text>
+          <View style={styles.pickers}>
+            <DateTimePicker
+              value={end}
+              mode="date"
+              onChange={(_, d) => d && updateEnd(d)}
+            />
+            {!allDay ? (
               <DateTimePicker
                 value={end}
-                mode="date"
-                onChange={(_, d) => d && setEnd(d)}
+                mode="time"
+                onChange={(_, d) => d && updateEnd(d)}
               />
-              {!allDay ? (
-                <DateTimePicker
-                  value={end}
-                  mode="time"
-                  onChange={(_, d) => d && setEnd(d)}
-                />
-              ) : null}
-            </View>
+            ) : null}
           </View>
+        </View>
 
-          <TextInput
-            style={styles.notes}
-            placeholder="Notes"
-            placeholderTextColor="#9ca3af"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-          />
+        <TextInput
+          style={styles.notes}
+          placeholder="Notes"
+          placeholderTextColor="#9ca3af"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+        />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </ScrollView>
-      </View>
-    </Modal>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
+    </View>
   );
 }
 

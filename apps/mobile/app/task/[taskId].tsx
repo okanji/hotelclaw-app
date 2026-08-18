@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -41,25 +41,31 @@ export default function TaskDetailScreen() {
   );
   const { data: members } = useApi<ApiMember[]>(base ? `${base}/members` : null);
 
-  // Local echo of the row so a tap feels instant; the server response is still
-  // the source of truth (refetch on settle).
-  const [task, setTask] = useState<ApiTask | null>(null);
-  useEffect(() => setTask(data), [data]);
+  // Local echo so a tap feels instant: optimistic field overrides layered on
+  // top of the fetched row (the server response stays the source of truth —
+  // refetch on settle replaces the base row underneath the overrides). The
+  // API body and the row use different keys for assignee (`assigneeId` vs
+  // `assignee_id`), so the local patch is passed separately from the body.
+  const [overrides, setOverrides] = useState<Partial<ApiTask>>({});
+  const task: ApiTask | null = data ? { ...data, ...overrides } : null;
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const patch = async (body: Record<string, unknown>) => {
+  const patch = async (
+    body: Record<string, unknown>,
+    local: Partial<ApiTask>,
+  ) => {
     if (!base || !taskId || saving) return;
-    const previous = task;
-    setTask((t) => (t ? ({ ...t, ...body } as ApiTask) : t));
+    const previous = overrides;
+    setOverrides((o) => ({ ...o, ...local }));
     setSaving(true);
     setSaveError(null);
     try {
       await apiFetch(`${base}/tasks/${taskId}`, { method: "PATCH", body });
       refetch();
     } catch (err) {
-      setTask(previous ?? null);
+      setOverrides(previous);
       setSaveError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
@@ -111,7 +117,7 @@ export default function TaskDetailScreen() {
         {task.status !== "done" ? (
           <Pressable
             style={styles.complete}
-            onPress={() => patch({ status: "done" })}
+            onPress={() => patch({ status: "done" }, { status: "done" })}
             disabled={saving}
           >
             <Text style={styles.completeText}>Mark complete</Text>
@@ -119,7 +125,7 @@ export default function TaskDetailScreen() {
         ) : (
           <Pressable
             style={styles.reopen}
-            onPress={() => patch({ status: "todo" })}
+            onPress={() => patch({ status: "todo" }, { status: "todo" })}
             disabled={saving}
           >
             <Text style={styles.reopenText}>Reopen</Text>
@@ -136,7 +142,7 @@ export default function TaskDetailScreen() {
                 label={STATUS_LABEL[s]}
                 color={STATUS_COLOR[s]}
                 selected={task.status === s}
-                onPress={() => patch({ status: s })}
+                onPress={() => patch({ status: s }, { status: s })}
               />
             ))}
           </View>
@@ -150,7 +156,7 @@ export default function TaskDetailScreen() {
                 label={PRIORITY_LABEL[p]}
                 color={PRIORITY_COLOR[p]}
                 selected={task.priority === p}
-                onPress={() => patch({ priority: p })}
+                onPress={() => patch({ priority: p }, { priority: p })}
               />
             ))}
           </View>
@@ -162,7 +168,7 @@ export default function TaskDetailScreen() {
               label="Unassigned"
               color="#6b7280"
               selected={!task.assignee_id}
-              onPress={() => patch({ assigneeId: null })}
+              onPress={() => patch({ assigneeId: null }, { assignee_id: null })}
             />
             {(members ?? []).map((m) => (
               <Option
@@ -170,7 +176,7 @@ export default function TaskDetailScreen() {
                 label={m.name ?? m.email ?? m.id.slice(0, 8)}
                 color="#2563eb"
                 selected={task.assignee_id === m.id}
-                onPress={() => patch({ assigneeId: m.id })}
+                onPress={() => patch({ assigneeId: m.id }, { assignee_id: m.id })}
               />
             ))}
           </View>

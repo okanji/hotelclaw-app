@@ -6,9 +6,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=web",
-    "dev:mobile": "turbo run dev --filter=mobile",
-    "dev:all": "turbo run dev",
+    "dev": "node scripts/dev-doctor.mjs && turbo run dev --filter=web",
+    "dev:mobile": "node scripts/dev-doctor.mjs && turbo run dev --filter=mobile",
+    "dev:all": "node scripts/dev-doctor.mjs && turbo run dev",
+    "dev:stop": "node scripts/dev-doctor.mjs --stop",
+    "dev:doctor": "node scripts/dev-doctor.mjs --check",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

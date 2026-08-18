@@ -19,6 +19,14 @@ import { createClient } from "@/lib/supabase/client";
  */
 declare global {
   interface Window {
+    /** One-time magic-link hash from /api/auth/mobile-session (current). */
+    __HOTELCLAW_MOBILE_OTP__?: {
+      token_hash?: string;
+    };
+    /** Legacy token handoff from older app builds. Sharing the native
+     * refresh token lets the WebView rotate it out from under the app
+     * (refresh-token families), eventually signing the app out — kept only
+     * so an outdated native build still opens documents. */
     __HOTELCLAW_MOBILE_SESSION__?: {
       access_token?: string;
       refresh_token?: string;
@@ -38,19 +46,23 @@ export default function MobileBridgePage() {
 
   useEffect(() => {
     const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+    const otp = window.__HOTELCLAW_MOBILE_OTP__;
     const tokens = window.__HOTELCLAW_MOBILE_SESSION__;
 
-    if (!tokens?.access_token || !tokens?.refresh_token) {
-      setError("No session was handed to the app view.");
-      return;
-    }
-
     const supabase = createClient();
-    supabase.auth
-      .setSession({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-      })
+
+    // Preferred path: exchange the one-time hash for a session of its own —
+    // a separate refresh-token family from the native app's session.
+    const establish = otp?.token_hash
+      ? supabase.auth.verifyOtp({ type: "magiclink", token_hash: otp.token_hash })
+      : tokens?.access_token && tokens?.refresh_token
+        ? supabase.auth.setSession({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+          })
+        : Promise.reject(new Error("No session was handed to the app view."));
+
+    establish
       .then(({ error: sessionError }) => {
         if (sessionError) {
           setError(sessionError.message);

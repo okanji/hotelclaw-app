@@ -6,7 +6,9 @@ threads). Tasks come next.
 
 ## Stack
 
-- **Expo SDK 56**, React Native 0.85, **New Architecture** (required by Stream).
+- **Expo SDK 57**, React Native 0.86, **New Architecture** (required by Stream).
+  Upgraded from SDK 56 on 2026-08-17 to pick up the fixed Hermes V1 (the
+  bundled Hermes in SDK 56 / RN 0.85 has a known memory regression).
 - **Expo Router** (file-based routing under `app/`). Entry is `expo-router/entry`.
 - **stream-chat-expo** for all chat UI.
 - pnpm workspace with `node-linker=hoisted` (see root `.npmrc`) — required so
@@ -15,7 +17,7 @@ threads). Tasks come next.
 ## Read the real docs first
 
 Expo and Stream both ship breaking changes between versions. Before writing code:
-- Expo: https://docs.expo.dev/versions/v56.0.0/
+- Expo: https://docs.expo.dev/versions/v57.0.0/
 - Stream Chat Expo tutorial: https://getstream.io/chat/sdk/react-native/tutorial/expo/
 
 ## Run
@@ -147,11 +149,29 @@ text editor. Every alternative (`@10play/tentap-editor` et al) is also a WebView
 just with a *different* Tiptap that would have none of our nodes.
 
 Auth: the WebView has no cookies but the app has a Bearer session, so
-`WebSurface` injects the tokens with `injectedJavaScriptBeforeContentLoaded`
-and `/auth/mobile-bridge` (web) calls `supabase.auth.setSession` to mint the
-cookie session, then redirects. Tokens go through injected JS, never a query
-param — a URL would leak them into server logs, Referer, and history. `/auth`
+`WebSurface` POSTs `/api/auth/mobile-session` (Bearer) for a ONE-TIME
+magic-link hash and injects it with `injectedJavaScriptBeforeContentLoaded`;
+`/auth/mobile-bridge` (web) exchanges it via `verifyOtp` for a cookie session
+OF ITS OWN, then redirects. The hash goes through injected JS, never a query
+param — a URL would leak it into server logs, Referer, and history. `/auth`
 is already in the middleware's public allowlist.
+
+**Never hand the WebView the native refresh token** (the original design).
+Supabase rotates refresh tokens as a family: the bridged web client refreshed
+the shared token, the native app's copy became a stale ancestor, and its next
+refresh tore the family down — the app signed itself out just because a
+document had been opened (caught live in the 2026-08-18 smoke test). The
+one-time-hash design gives the WebView an independent session family; the
+bridge keeps a legacy `setSession` fallback only for outdated app builds.
+
+**Token containment (2026-08-17):** the injected script runs on EVERY
+main-frame navigation in the WebView, at any origin — so two layers keep the
+session tokens on our origin: the script only defines the global when
+`location.origin` matches the API origin, and `onShouldStartLoadWithRequest`
+refuses off-origin main-frame navigations (external links open in the system
+browser; iframes for doc embeds pass through). Don't loosen either layer —
+before them, tapping any external link inside a document handed the page both
+Supabase tokens.
 - `EXPO_PUBLIC_API_URL` must point at a running web server or every one of these
   screens shows its error state.
 
@@ -165,7 +185,12 @@ offer a way out. Regressions here look exactly like a slow network:
   strands the whole app on a spinner. It now shows the failing endpoint with
   Retry / Sign out, and names the URL after 8s of silence.
 - `channel/[cid]` — a rejected `watch()` (deleted channel, non-member) used to
-  spin forever; it now renders an error with Go back.
+  spin forever; it now renders an error with Go back. The thread screen has the
+  same guard, plus a cold-deep-link path that loads the parent message by the
+  route's `messageId` (`client.getMessage` + `formatMessage`) — without it a
+  thread link into a cold app could never render. Both screens also only adopt
+  the AppContext channel when its cid matches the route param, so a warm deep
+  link can't show another channel's messages under the linked URL.
 - `PropertyContext` — a failed memberships fetch used to render as "No
   properties yet", which reads as an account problem. It now carries a distinct
   `error` + `reload()`.
@@ -192,6 +217,14 @@ offer a way out. Regressions here look exactly like a slow network:
   `additionalFlatListProps` is spread AFTER it, so the typing indicator is
   re-rendered there explicitly — dropping it would silently undo human typing
   indicators.
+- **Never nest a horizontal ScrollView inside the message list.** On the RN
+  new architecture, a `<ScrollView horizontal>` inside Stream's inverted
+  `MessageList` grows to unbounded height: the cell ballooned to fill the
+  viewport invisibly and pushed the rest of the channel history off screen —
+  every "ghost message" in the 2026-08-18 smoke test traced back to ONE
+  3-column `ai_ui` DataTable rendered through it. `AiUiAttachment` now lays
+  out every table with flex cells + wrapping text instead; keep it that way,
+  and apply the same rule to any future custom attachment renderer.
 - **Message clustering is SHARED with web**, not reimplemented:
   `@hotelclaw/chat-grouping` (pure, dependency-free, unit-tested in
   `apps/web/lib/chat/__tests__/message-grouping.test.ts`) holds the rules —
@@ -203,7 +236,7 @@ offer a way out. Regressions here look exactly like a slow network:
   Pass BOTH `getMessageGroupStyle` and `maxTimeBetweenGroupedMessages` on
   `Channel`, on the thread screen too. These rules have drifted twice; a second
   implementation would guarantee a third.
-- SDK 56: `Tabs` from the expo-router root export is **deprecated**. Use
+- SDK 56+: `Tabs` from the expo-router root export is **deprecated**. Use
   `NativeTabs` from `expo-router/unstable-native-tabs` — a real UIKit tab bar
   that takes SF Symbols via `<NativeTabs.Trigger.Icon sf="…" />`, so it needs no
   icon package (this app has no `@expo/vector-icons`). It rides on

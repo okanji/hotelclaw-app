@@ -2,7 +2,6 @@ import type { Session } from "@supabase/supabase-js";
 import React, {
   useCallback,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -29,6 +28,15 @@ const chatTheme = {
 // How long to wait before telling the user which endpoint we're stuck on. The
 // usual cause is EXPO_PUBLIC_API_URL pointing at a port nothing is serving.
 const SLOW_CONNECT_MS = 8000;
+
+// stream-chat's default HTTP timeout is 3000ms — aggressive for mobile
+// networks. A send that exceeds it is marked FAILED (red exclamation on the
+// bubble) even though the request usually lands server-side, and the mark
+// only clears when the websocket echoes the delivered message back. Ten
+// seconds keeps slow-but-successful sends in "sending" instead of flashing
+// a false failure. Module-level constant: useCreateChatClient caches its
+// options on first render, so the identity must never change.
+const CHAT_CLIENT_OPTIONS = { timeout: 10_000 };
 
 /**
  * Connects Stream as the signed-in Supabase user. Tokens are minted by the web
@@ -59,10 +67,8 @@ const AuthedChat = ({
     userId;
 
   // Keep the provider identity stable — Stream re-invokes it on token expiry,
-  // and a changing function would churn the client.
-  const setTokenErrorRef = useRef(setTokenError);
-  setTokenErrorRef.current = setTokenError;
-
+  // and a changing function would churn the client. `setTokenError` has stable
+  // identity (useState setter), so the empty dep list is sound.
   const tokenProvider = useCallback(async () => {
     try {
       // Always read the freshest access token — the session prop may be stale
@@ -83,13 +89,13 @@ const AuthedChat = ({
         );
       }
       const { token } = (await res.json()) as { token: string };
-      setTokenErrorRef.current(null);
+      setTokenError(null);
       return token;
     } catch (err) {
       // fetch() rejects with a bare "Network request failed" — name the target
       // so a wrong EXPO_PUBLIC_API_URL is obvious rather than mysterious.
       const message = err instanceof Error ? err.message : String(err);
-      setTokenErrorRef.current(
+      setTokenError(
         /network request failed/i.test(message)
           ? `Can't reach the backend at ${apiBaseUrl}`
           : message,
@@ -100,6 +106,7 @@ const AuthedChat = ({
 
   const chatClient = useCreateChatClient({
     apiKey: chatApiKey,
+    options: CHAT_CLIENT_OPTIONS,
     userData: { id: userId, name: userName },
     tokenOrProvider: tokenProvider,
   });

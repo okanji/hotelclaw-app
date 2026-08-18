@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -67,14 +66,14 @@ function DataTableView({
   };
 }) {
   const router = useRouter();
-  // ≤2 columns fit the chat column; wider tables scroll horizontally
-  // inside their own container (fixed cell widths give them a natural
-  // width for the ScrollView to pan).
-  const wide = props.columns.length > 2;
-  const cellStyle = (ci: number) =>
-    wide
-      ? [styles.cell, { width: ci === 0 ? 150 : 110 }]
-      : [styles.cell, { flex: ci === 0 ? 1.4 : 1 }];
+  // Every table lays out with flex cells and wrapping text — NEVER a
+  // horizontal ScrollView. A nested horizontal ScrollView inside Stream's
+  // inverted message list grows to unbounded height on the RN new
+  // architecture: the cell ballooned to fill the viewport invisibly and
+  // pushed the rest of the channel history off screen (found in the
+  // 2026-08-18 simulator smoke test — every "ghost message" traced back
+  // to one 3-column DataTable).
+  const cellStyle = (ci: number) => [styles.cell, { flex: ci === 0 ? 1.4 : 1 }];
 
   const table = (
     <View>
@@ -129,13 +128,7 @@ function DataTableView({
           ) : null}
         </View>
       ) : null}
-      {wide ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {table}
-        </ScrollView>
-      ) : (
-        table
-      )}
+      {table}
     </View>
   );
 }
