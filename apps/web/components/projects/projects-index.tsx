@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CalendarRange, Columns3, Plus, Table2 } from "lucide-react";
-import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -25,6 +24,13 @@ import {
 import { ProjectsBoardView } from "./tracking/board-view";
 import { ProjectsTableView } from "./tracking/table-view";
 import { ProjectsTimelineView } from "./tracking/timeline-view";
+import {
+  EMPTY_PROJECT_FILTERS,
+  ProjectsFilterBar,
+  hasAnyProjectFacet,
+  matchesProjectFilters,
+  type ProjectsFilters,
+} from "./projects-filters";
 
 const VIEW_TABS: {
   id: ProjectsViewMode;
@@ -40,7 +46,7 @@ const VIEW_STORAGE_KEY = "projects:view";
 
 export function ProjectsIndex({ propertyId }: { propertyId: string }) {
   const searchParams = useSearchParams();
-  const spaceFilter = searchParams.get("space");
+  const spaceParam = searchParams.get("space");
   const qc = useQueryClient();
 
   const { data: projects = [], isPending } = useQuery(
@@ -52,6 +58,33 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
   );
   const [createOpen, setCreateOpen] = useState(false);
   const [view, setView] = useState<ProjectsViewMode>("table");
+
+  // Deep links from the sidebar (`?space=<id>`) seed the Team facet, so a
+  // linked-in scope shows up as a removable chip like any other filter.
+  const [filters, setFilters] = useState<ProjectsFilters>(() =>
+    spaceParam
+      ? { ...EMPTY_PROJECT_FILTERS, spaceIds: [spaceParam] }
+      : EMPTY_PROJECT_FILTERS,
+  );
+  useEffect(() => {
+    if (!spaceParam) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilters((f) =>
+      f.spaceIds.includes(spaceParam)
+        ? f
+        : { ...f, spaceIds: [...f.spaceIds, spaceParam] },
+    );
+  }, [spaceParam]);
+  function changeFilters(next: ProjectsFilters) {
+    setFilters(next);
+    // Dropping the linked-in team from the facet also strips the URL param —
+    // otherwise a reload silently re-applies the filter the user just removed.
+    if (spaceParam && !next.spaceIds.includes(spaceParam)) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("space");
+      window.history.replaceState(null, "", url);
+    }
+  }
 
   // Restore the last-used view (client-only; avoids a hydration mismatch).
   useEffect(() => {
@@ -66,25 +99,8 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     window.localStorage.setItem(VIEW_STORAGE_KEY, next);
   }
 
-  // When filtering by space, fetch that space's project ids.
-  const { data: spaceProjectIds } = useQuery({
-    queryKey: ["space-project-ids", spaceFilter] as const,
-    enabled: !!spaceFilter,
-    queryFn: async (): Promise<string[]> => {
-      const supabase = createBrowserClient();
-      const { data } = await supabase
-        .from("project_spaces")
-        .select("project_id")
-        .eq("space_id", spaceFilter as string);
-      return (data ?? []).map((r) => r.project_id);
-    },
-  });
-
-  const spaceName = spaceFilter
-    ? spaces.find((t) => t.id === spaceFilter)?.name
-    : null;
-
-  // Teams involved per project — chips on every view's rows/cards.
+  // Teams involved per project — chips on every view's rows/cards, and the
+  // Team facet's matching input.
   const { data: projectSpacePairs = [] } = useQuery(
     projectSpacesQueryOptions(propertyId),
   );
@@ -100,12 +116,26 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
     }
     return map;
   }, [projectSpacePairs, spaces]);
+  const spaceIdsByProject = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const pair of projectSpacePairs) {
+      const list = map.get(pair.project_id) ?? [];
+      list.push(pair.space_id);
+      map.set(pair.project_id, list);
+    }
+    return map;
+  }, [projectSpacePairs]);
 
+  // Reference "now" for the target-date buckets — captured once (day-grain
+  // buckets don't need a ticking clock), same as the tasks board.
+  const [now] = useState(() => Date.now());
+  const filtering = hasAnyProjectFacet(filters);
   const shown = useMemo(() => {
-    if (!spaceFilter) return projects;
-    const ids = new Set(spaceProjectIds ?? []);
-    return projects.filter((p) => ids.has(p.id));
-  }, [projects, spaceFilter, spaceProjectIds]);
+    if (!filtering) return projects;
+    return projects.filter((p) =>
+      matchesProjectFilters(p, filters, spaceIdsByProject, now),
+    );
+  }, [projects, filters, filtering, spaceIdsByProject, now]);
 
   const memberList: ProjectMember[] = members;
 
@@ -155,20 +185,33 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
         />
 
         <div className="flex items-center justify-between gap-4">
-          <TabNav variant="pill" aria-label="Project views">
-            {VIEW_TABS.map((t) => (
-              <TabNavItem
-                key={t.id}
-                active={view === t.id}
-                onClick={() => changeView(t.id)}
-              >
-                <t.Icon />
-                {t.label}
-              </TabNavItem>
-            ))}
-          </TabNav>
-          <span className="text-sm tabular-nums text-muted-foreground">
-            {shown.length} {shown.length === 1 ? "project" : "projects"}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <TabNav variant="pill" aria-label="Project views">
+              {VIEW_TABS.map((t) => (
+                <TabNavItem
+                  key={t.id}
+                  active={view === t.id}
+                  onClick={() => changeView(t.id)}
+                >
+                  <t.Icon />
+                  {t.label}
+                </TabNavItem>
+              ))}
+            </TabNav>
+            <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+            <ProjectsFilterBar
+              filters={filters}
+              onChange={changeFilters}
+              data={{ spaces, members: memberList }}
+            />
+          </div>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+            {filtering
+              ? `${shown.length} of ${projects.length}`
+              : shown.length}{" "}
+            {(filtering ? projects.length : shown.length) === 1
+              ? "project"
+              : "projects"}
           </span>
         </div>
       </div>
@@ -182,19 +225,30 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
           <div className="px-8 pt-10 sm:px-14">
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <p className="text-sm text-muted-foreground">
-                {spaceName
-                  ? `No projects involve ${spaceName} yet.`
+                {filtering
+                  ? "No projects match the current filters."
                   : "No projects yet."}
               </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="size-4" />
-                New project
-              </Button>
+              {filtering ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => changeFilters(EMPTY_PROJECT_FILTERS)}
+                >
+                  Clear filters
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  New project
+                </Button>
+              )}
             </div>
           </div>
         ) : view === "board" ? (

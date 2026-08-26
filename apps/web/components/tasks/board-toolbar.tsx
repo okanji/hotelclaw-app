@@ -158,6 +158,15 @@ export function BoardToolbar({
         ))}
       </TabNav>
 
+      {/* Filter — Linear puts this at the LEFT so filtering is discoverable
+          from the toolbar itself, not tucked behind an icon at the far end. */}
+      <span aria-hidden className="mx-1 h-4 w-px bg-border" />
+      <FilterMenu
+        filters={filters}
+        onPick={onPickFacet}
+        customFields={customFields}
+      />
+
       <div className="ml-auto flex items-center gap-1">
         {/* Visible / total hint — only when filters are actively narrowing. */}
         {(activeFilterCount > 0 || filters.search.length > 0) && total > 0 ? (
@@ -280,11 +289,6 @@ export function BoardToolbar({
           )}
         </div>
 
-        <FilterMenu
-          filters={filters}
-          onPick={onPickFacet}
-          customFields={customFields}
-        />
         <SortMenu
           filters={filters}
           onChange={onChange}

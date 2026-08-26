@@ -242,6 +242,27 @@ offer a way out. Regressions here look exactly like a slow network:
   icon package (this app has no `@expo/vector-icons`). It rides on
   react-native-screens, already in the native build — no rebuild to adopt it.
 
+## Android (first supported 2026-08-24)
+
+The app builds and runs on Android via EAS (`eas build -p android --profile
+preview` → installable APK; config in `eas.json`, package
+`com.hotelclaw.mobile`). The 2026-08-24 emulator smoke test against PROD
+verified login, Stream connect, property-scoped channel list, the message
+list (history + ai_ui tables render — the no-horizontal-ScrollView rule
+holds on Android too), Tasks/Calendar/You, deep links, and the document
+WebView through the one-time-hash auth bridge. Two Android-specific forks
+exist — keep them when touching these files:
+
+- **Tab bar**: `app/(tabs)/_layout.tsx` is platform-forked. On Android,
+  `NativeTabs` renders ONLY THE ACTIVE TRIGGER (four of five tabs simply
+  missing) and SF Symbols don't exist — Android uses the classic JS `Tabs`
+  with Ionicons instead. iOS keeps NativeTabs.
+- **Date/time pickers**: `@react-native-community/datetimepicker` is a
+  DIALOG on Android, not a view — rendering it inline mounts the dialog
+  immediately. `EventFormSheet`'s `PickerField` shows a tappable value chip
+  on Android and opens the dialog on demand; iOS keeps the inline compact
+  picker.
+
 ## Credentials
 
 `chatConfig.ts` reads `EXPO_PUBLIC_*` from `.env.local` (gitignored) — see

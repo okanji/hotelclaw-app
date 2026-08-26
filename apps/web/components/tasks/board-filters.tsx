@@ -386,7 +386,7 @@ export function buildFieldValueIndex(
 /* Option shape                                                               */
 /* -------------------------------------------------------------------------- */
 
-type Option = {
+export type Option = {
   value: string;
   label: string;
   /** Search keywords (name + email etc.) for the Command filter. */
@@ -611,7 +611,7 @@ function buildFieldOptions(facet: FacetKey, data: FacetData): Option[] {
 /* Value picker (multi-select)                                                */
 /* -------------------------------------------------------------------------- */
 
-function ValuePicker({
+export function ValuePicker({
   options,
   selected,
   onToggle,
@@ -666,7 +666,7 @@ function ValuePicker({
 /* Facet chip                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function summaryFor(selected: string[], options: Option[]): string {
+export function summaryFor(selected: string[], options: Option[]): string {
   const byValue = new Map(options.map((o) => [o.value, o.label] as const));
   const first = (byValue.get(selected[0]!) ?? "").replace(/ · you$/, "");
   return selected.length === 1 ? first : `${first} +${selected.length - 1}`;
@@ -791,8 +791,10 @@ function FacetControl({
 /* -------------------------------------------------------------------------- */
 
 /**
- * The toolbar entry point. Lists only facets that aren't active yet; picking
- * one calls `onPick`, which the board renders as an auto-opened chip.
+ * The toolbar entry point — a Linear-style always-labeled "Filter" button at
+ * the LEFT of the toolbar, with a count badge while facets are narrowing.
+ * Lists only facets that aren't active yet; picking one calls `onPick`, which
+ * the board renders as an auto-opened chip.
  */
 export function FilterMenu({
   filters,
@@ -809,6 +811,7 @@ export function FilterMenu({
   const inactiveFields = customFields.filter(
     (f) => (filters.fieldValues[f.id] ?? []).length === 0,
   );
+  const activeCount = activeFacetCount(filters);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -819,19 +822,27 @@ export function FilterMenu({
             aria-label="Add filter"
             title="Add filter"
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-faint-foreground transition-colors",
+              "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
+              activeCount > 0
+                ? "text-foreground"
+                : "text-secondary-ink",
               "hover:bg-accent",
               "focus-visible:outline-none focus-visible:shadow-focus",
-              "aria-expanded:bg-foreground/[0.06] aria-expanded:text-foreground",
-              "data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground",
+              "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
+              "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
             )}
           />
         }
       >
         <ListFilter className="size-3.5" />
-        <span className="max-sm:sr-only">Filter</span>
+        <span>Filter</span>
+        {activeCount > 0 ? (
+          <span className="rounded-md bg-accent-pressed px-1 text-xs tabular-nums text-foreground">
+            {activeCount}
+          </span>
+        ) : null}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-52 p-0">
+      <PopoverContent align="start" className="w-52 p-0">
         <Command>
           <CommandList className="max-h-72">
             <CommandEmpty>All filters added.</CommandEmpty>

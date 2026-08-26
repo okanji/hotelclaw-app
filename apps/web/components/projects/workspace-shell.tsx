@@ -145,7 +145,7 @@ export function WorkspaceShell({
         </PageShell>
 
         {rightRail && !railCollapsed ? (
-          <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-12 pb-20 md:flex">
+          <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-12 pb-20 md:flex">
             {rightRail}
           </aside>
         ) : null}

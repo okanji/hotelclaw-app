@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { apiFetch, type ApiCalendarEvent, type ApiMeeting } from "../lib/api";
-import { timeOfDay } from "./ui";
+import { SheetSurface, timeOfDay } from "./ui";
 
 const SOURCE_LABEL: Record<ApiCalendarEvent["source"], string> = {
   meeting: "Meeting",
@@ -105,7 +105,7 @@ export function EventDetailSheet({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.sheet}>
+      <SheetSurface>
         <View style={styles.bar}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={styles.close}>Close</Text>
@@ -154,7 +154,7 @@ export function EventDetailSheet({
             </Pressable>
           ) : null}
         </ScrollView>
-      </View>
+      </SheetSurface>
     </Modal>
   );
 }
@@ -169,7 +169,6 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: "#ffffff" },
   bar: {
     flexDirection: "row",
     alignItems: "center",

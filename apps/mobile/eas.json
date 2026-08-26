@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 22.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_STREAM_API_KEY": "qskc7r8wa65n",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
+        "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_STREAM_API_KEY": "qskc7r8wa65n",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
+        "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_STREAM_API_KEY": "qskc7r8wa65n",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
+        "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

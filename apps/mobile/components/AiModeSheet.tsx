@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import type { Channel as ChannelType } from "stream-chat";
 import { apiFetch } from "../lib/api";
+import { SheetSurface } from "./ui";
 
 /** Keep in sync with apps/web/lib/ai/bot-identity.ts (client-safe defaults). */
 const BOT_USER_ID = "hotelclaw-ai";
@@ -200,7 +201,7 @@ function AiModeBody({
   }
 
   return (
-    <View style={styles.sheet}>
+    <SheetSurface>
       <View style={styles.bar}>
           <View style={styles.barTitle}>
             <Ionicons name="sparkles" size={16} color="#111827" />
@@ -277,7 +278,7 @@ function AiModeBody({
             </View>
           )}
         </ScrollView>
-    </View>
+    </SheetSurface>
   );
 }
 
@@ -316,7 +317,6 @@ function OptionRow({
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: "#ffffff" },
   bar: {
     flexDirection: "row",
     alignItems: "center",

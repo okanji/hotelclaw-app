@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { apiFetch, type ApiMeeting, type SaveMeetingBody } from "../lib/api";
+import { SheetSurface } from "./ui";
 
 function roundToNextHalfHour(d = new Date()): Date {
   const out = new Date(d);
@@ -64,6 +65,73 @@ export function EventFormSheet({
     </Modal>
   );
 }
+
+/**
+ * One date-or-time picker control. iOS renders the system's inline compact
+ * picker. Android's picker is a modal dialog, not a view — rendering it
+ * inline mounts the dialog immediately, so Android shows a tappable value
+ * chip and opens the dialog on demand instead.
+ */
+function PickerField({
+  value,
+  mode,
+  onChange,
+}: {
+  value: Date;
+  mode: "date" | "time";
+  onChange: (next: Date) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (Platform.OS === "ios") {
+    return (
+      <DateTimePicker
+        value={value}
+        mode={mode}
+        onChange={(_, d) => d && onChange(d)}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Pressable style={androidPickerStyles.chip} onPress={() => setOpen(true)}>
+        <Text style={androidPickerStyles.chipText}>
+          {mode === "date"
+            ? value.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : value.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+        </Text>
+      </Pressable>
+      {open ? (
+        <DateTimePicker
+          value={value}
+          mode={mode}
+          onChange={(event, d) => {
+            setOpen(false);
+            if (event.type === "set" && d) onChange(d);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const androidPickerStyles = StyleSheet.create({
+  chip: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipText: { fontSize: 15, color: "#111827", fontWeight: "500" },
+});
 
 function initialWindow(
   meeting: ApiMeeting | null | undefined,
@@ -163,7 +231,7 @@ function EventFormBody({
   };
 
   return (
-    <View style={styles.sheet}>
+    <SheetSurface>
       <View style={styles.bar}>
         <Pressable onPress={onClose} hitSlop={10}>
           <Text style={styles.cancel}>Cancel</Text>
@@ -203,17 +271,9 @@ function EventFormBody({
         <View style={styles.pickerRow}>
           <Text style={styles.label}>Starts</Text>
           <View style={styles.pickers}>
-            <DateTimePicker
-              value={start}
-              mode="date"
-              onChange={(_, d) => d && updateStart(d)}
-            />
+            <PickerField value={start} mode="date" onChange={updateStart} />
             {!allDay ? (
-              <DateTimePicker
-                value={start}
-                mode="time"
-                onChange={(_, d) => d && updateStart(d)}
-              />
+              <PickerField value={start} mode="time" onChange={updateStart} />
             ) : null}
           </View>
         </View>
@@ -221,17 +281,9 @@ function EventFormBody({
         <View style={styles.pickerRow}>
           <Text style={styles.label}>Ends</Text>
           <View style={styles.pickers}>
-            <DateTimePicker
-              value={end}
-              mode="date"
-              onChange={(_, d) => d && updateEnd(d)}
-            />
+            <PickerField value={end} mode="date" onChange={updateEnd} />
             {!allDay ? (
-              <DateTimePicker
-                value={end}
-                mode="time"
-                onChange={(_, d) => d && updateEnd(d)}
-              />
+              <PickerField value={end} mode="time" onChange={updateEnd} />
             ) : null}
           </View>
         </View>
@@ -247,12 +299,11 @@ function EventFormBody({
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
-    </View>
+    </SheetSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: "#ffffff" },
   bar: {
     flexDirection: "row",
     alignItems: "center",

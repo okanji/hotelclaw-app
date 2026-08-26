@@ -388,17 +388,18 @@
   --series-8: oklch(0.60 0.10 140);
   --radius: 0.375rem;
   /* Width of the icon rail (first sidebar). Sized so the longest 12px label
-     ("Assistant", "Calendar") fits without ellipsis: 68px - 8px of px-1
-     padding = 60px of row.
-     Two prior values, both too narrow, and the reason is worth keeping: it was
-     52px with 11px labels, which broke the spec's 12px floor (notion-spec §3 —
-     nothing goes below 12px); raising the labels to 12px took it to 60px, but
-     that was measured against Inter on 2026-08-04 and the sans webfont was
-     dropped for the plain system stack the very next day (app/layout.tsx,
-     2026-08-05). SF Pro is wider than Inter at 12px, so "Assistant" went back
-     to ellipsising and "Calendar" sat flush to both edges.
+     fits without ellipsis: 60px - 4px of px-0.5 padding = 56px of row.
+     History worth keeping: it was 52px with 11px labels, which broke the
+     spec's 12px floor (notion-spec §3 — nothing goes below 12px); raising
+     the labels to 12px took it to 68px, measured against SF Pro at weight
+     500 with "Assistant" as the longest string. The 2026-08-26 island
+     restyle trimmed it twice: padding slack (px-1 → px-0.5), then the
+     labels dropped to weight 400 and the "Assistant" rail label became
+     "AI", leaving "Calendar" / "My week" (~54px at 12px/400) as the
+     binding strings inside the 56px row. Going thinner than this means
+     shortening those labels — not shaving padding.
      RE-MEASURE THIS IF --font-sans EVER CHANGES AGAIN. */
-  --rail-width: 4.25rem;
+  --rail-width: 3.75rem;
   /* The icon rail's surface — warm near-black chrome, same in both themes.
      AppRail pins its local --sidebar to this so every sidebar-token consumer
      inside it (badge ring cutouts, washes) matches. */
@@ -406,7 +407,10 @@
   /* Sidebar and chrome are the SAME plane as --background (Notion's sidebar
      is not a separate card). */
   --sidebar: #f9f8f7;
-  --sidebar-foreground: #5f5e59;
+  /* Idle row ink — darkened from #5f5e59 (2026-08-26, user request): idle
+     rows should read comfortably, with the active row's #2c2c2b still a
+     clear step above. */
+  --sidebar-foreground: #4f4d49;
   --sidebar-primary: #2c2c2b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgb(33 27 23 / 5%);

@@ -71,9 +71,19 @@ const railTileClass =
   "relative flex size-7 items-center justify-center rounded-md text-sidebar-foreground transition-colors " +
   "group-hover/item:bg-sidebar-accent group-hover/item:text-sidebar-accent-foreground " +
   "data-current:bg-sidebar-accent data-current:text-sidebar-accent-foreground " +
+  // Slack-style current marker: a rounded bar hugging the item's left edge
+  // (the size-7 tile is centered in the rail item, so -left-3.5 lands the bar
+  // at the item's edge). `inset-y-0` pins it to exactly the tile's height so
+  // bar and tile read as one aligned unit; active ink so it tracks the
+  // sidebar tokens rather than a hardcoded white.
+  "data-current:before:absolute data-current:before:inset-y-0 data-current:before:-left-3.5 " +
+  "data-current:before:w-[3px] data-current:before:rounded-full " +
+  "data-current:before:bg-sidebar-accent-foreground " +
   "group-focus-visible/item:shadow-focus";
+// Weight 400, not 500 — the labels read quieter on the near-black pill, and
+// one weight across idle/active keeps the nav rule (state = color only).
 const railLabelClass =
-  "block w-full truncate text-center text-xs leading-none font-medium transition-colors";
+  "block w-full truncate text-center text-xs leading-none font-normal transition-colors";
 // Active vs inactive label color — applied via cn() in the markup.
 const railLabelActiveClass = "text-sidebar-accent-foreground";
 const railLabelIdleClass =
@@ -292,8 +302,10 @@ export function AppRail({
       {
         // The personal AI surface. Top-level, not in More: it is a place
         // people go many times a day, not something they configure once.
+        // Rail label is "AI", not "Assistant" — the full word is the rail's
+        // longest string and single-handedly forced the old 68px width.
         section: "assistant",
-        label: "Assistant",
+        label: "AI",
         icon: Sparkle,
         href: `/p/${propertyId}/assistant`,
         routeKey: "/assistant",
@@ -538,16 +550,20 @@ export function AppRail({
   return (
     <TooltipProvider delay={0}>
       <aside
-        // A FLUSH near-black rail pinned to the screen edge — no margin, no
-        // radius, no detached-card look (notion-spec §1: the shell is planes
-        // separated by fill, not floating cards). The scoped `dark` class
-        // flips the token set for this subtree only, so the rail gets the
-        // dark-plane treatment (warm white-alpha washes) even in light mode;
-        // the inline style then pins the subtree's --sidebar to the warm
+        // A FLOATING near-black island (user override of notion-spec §1's
+        // flush-planes rule, 2026-08-26): inset from every edge by an m-2
+        // gutter that shows the chrome plane (`LeftShell` paints bg-sidebar
+        // behind it, the SAME color as the section sidebar beside it), with
+        // the ladder's 10px card-tier radius and the resting `shadow-card`
+        // elevation — whose dark-scoped recipe ends in the white-alpha rim
+        // ring, so the pill keeps a lit edge in both themes. The scoped `dark`
+        // class flips the token set for this subtree only, so the rail gets
+        // the dark-plane treatment (warm white-alpha washes) even in light
+        // mode; the inline style then pins the subtree's --sidebar to the warm
         // near-black --rail token (inline so it beats the unlayered `.dark`
         // token block), so the surface AND every sidebar-token consumer
         // inside (hover fills, badge ring cutouts) read off the rail.
-        className="dark flex w-(--rail-width) shrink-0 flex-col items-center bg-sidebar px-1 pt-2 pb-3"
+        className="dark m-2 flex w-(--rail-width) shrink-0 flex-col items-center rounded-card bg-sidebar px-0.5 pt-2 pb-3 shadow-card"
         style={{ "--sidebar": "var(--rail)" } as React.CSSProperties}
         aria-label="Sections"
       >
@@ -590,8 +606,9 @@ export function AppRail({
                         // Lavender count badge punched onto the icon's
                         // top-right corner (unseen notifications). `ring-sidebar`
                         // resolves to the rail surface, giving the cutout look;
-                        // the ink is that same surface so it reads on the tint.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-brand-accent px-1 text-xs leading-none font-medium text-sidebar tabular-nums ring-2 ring-sidebar duration-200">
+                        // the ink is the constant tint-fill ink (`--cover-ink`),
+                        // which stays dark-on-lavender in both themes.
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-brand-accent px-1 text-xs leading-none font-medium text-cover-ink tabular-nums ring-2 ring-sidebar duration-200">
                           {unseenCount > 9 ? "9+" : unseenCount}
                         </span>
                       ) : null}
@@ -604,7 +621,7 @@ export function AppRail({
                       {showPendingBookings ? (
                         // Same cutout treatment as the activity count,
                         // amber: bookings waiting on a staff yes.
-                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-warning px-1 text-xs leading-none font-medium text-sidebar tabular-nums ring-2 ring-sidebar duration-200">
+                        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-4 animate-in zoom-in-50 items-center justify-center rounded-full bg-warning px-1 text-xs leading-none font-medium text-cover-ink tabular-nums ring-2 ring-sidebar duration-200">
                           {pendingBookings > 9 ? "9+" : pendingBookings}
                         </span>
                       ) : null}

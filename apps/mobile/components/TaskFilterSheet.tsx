@@ -12,6 +12,7 @@ import {
   PRIORITY_LABEL,
   STATUS_COLOR,
   STATUS_LABEL,
+  SheetSurface,
 } from "./ui";
 import type {
   ApiMember,
@@ -83,7 +84,7 @@ export function TaskFilterSheet({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.sheet}>
+      <SheetSurface>
         <View style={styles.bar}>
           <Pressable
             onPress={() => onChange({ ...EMPTY_TASK_FILTERS, search: filters.search })}
@@ -344,7 +345,7 @@ export function TaskFilterSheet({
             ))}
           </Facet>
         </ScrollView>
-      </View>
+      </SheetSurface>
     </Modal>
   );
 }
@@ -391,7 +392,6 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: "#ffffff" },
   bar: {
     flexDirection: "row",
     alignItems: "center",

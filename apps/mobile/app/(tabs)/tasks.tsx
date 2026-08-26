@@ -21,6 +21,7 @@ import {
   Row,
   STATUS_COLOR,
   STATUS_LABEL,
+  SheetSurface,
   relativeDay,
 } from "../../components/ui";
 import { TaskFilterSheet } from "../../components/TaskFilterSheet";
@@ -324,7 +325,7 @@ function NewTaskSheet({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.sheet}>
+      <SheetSurface style={styles.sheetPad}>
         <View style={styles.sheetBar}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={styles.sheetCancel}>Cancel</Text>
@@ -355,7 +356,7 @@ function NewTaskSheet({
           Added to your home team. Assignee and priority get suggested
           automatically.
         </Text>
-      </View>
+      </SheetSurface>
     </Modal>
   );
 }
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
   meta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
   due: { fontSize: 13, color: "#6b7280" },
   overdue: { color: "#dc2626", fontWeight: "600" },
-  sheet: { flex: 1, backgroundColor: "#ffffff", padding: 16, gap: 12 },
+  sheetPad: { padding: 16, gap: 12 },
   sheetBar: {
     flexDirection: "row",
     alignItems: "center",

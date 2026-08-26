@@ -1,16 +1,65 @@
 import React from "react";
+import { Platform } from "react-native";
+import { Tabs } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
 /**
  * Bottom tab bar, following Slack's mobile model: Home / DMs / You, with the
  * workspace (property) switcher living inside You rather than the header —
  * switching org is rare, so it shouldn't occupy prime navigation space.
  *
- * SDK 56 note: `Tabs` from the expo-router root export is deprecated.
- * `NativeTabs` renders a real UIKit tab bar and takes SF Symbols directly, so
- * it needs no icon dependency (this app has none installed).
+ * PLATFORM FORK. iOS keeps `NativeTabs` (a real UIKit tab bar taking SF
+ * Symbols directly). Android does NOT get NativeTabs: SF Symbols don't exist
+ * there, and in the 2026-08-24 Android smoke test NativeTabs rendered only
+ * the FIRST trigger — four of five tabs simply missing. Android uses the
+ * classic JS `Tabs` with Ionicons instead (deprecated on iOS in favor of
+ * NativeTabs, still fully supported as a cross-platform tab bar).
  */
-export default function TabsLayout() {
+
+const ANDROID_TABS: {
+  name: string;
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconFocused: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { name: "index", title: "Channels", icon: "chatbubbles-outline", iconFocused: "chatbubbles" },
+  { name: "dms", title: "DMs", icon: "paper-plane-outline", iconFocused: "paper-plane" },
+  { name: "tasks", title: "Tasks", icon: "checkmark-circle-outline", iconFocused: "checkmark-circle" },
+  { name: "calendar", title: "Calendar", icon: "calendar-outline", iconFocused: "calendar" },
+  { name: "you", title: "You", icon: "person-circle-outline", iconFocused: "person-circle" },
+];
+
+function AndroidTabsLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#111827",
+        tabBarInactiveTintColor: "#9ca3af",
+      }}
+    >
+      {ANDROID_TABS.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? tab.iconFocused : tab.icon}
+                size={size}
+                color={color}
+              />
+            ),
+          }}
+        />
+      ))}
+    </Tabs>
+  );
+}
+
+function IosTabsLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -49,4 +98,8 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
     </NativeTabs>
   );
+}
+
+export default function TabsLayout() {
+  return Platform.OS === "ios" ? <IosTabsLayout /> : <AndroidTabsLayout />;
 }

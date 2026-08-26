@@ -1,12 +1,50 @@
 import React, { type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { TaskPriority, TaskStatus } from "../lib/api";
+
+/**
+ * Root container for a full-screen Modal sheet.
+ *
+ * On iOS, `presentationStyle="pageSheet"` floats the modal as a card below
+ * the status bar, so no inset is needed. Android IGNORES presentationStyle
+ * and renders the modal edge-to-edge behind the system bars — without
+ * padding, the sheet's header bar sits under the status-bar clock and the
+ * camera punch-hole, and its bottom row under the gesture nav (seen live on
+ * the 2026-08-25 Android pass: "Cancel"/"Save" overlapped by white
+ * status-bar text). Every Modal sheet must use this as its root.
+ */
+export function SheetSurface({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.sheetSurface,
+        Platform.OS === "android"
+          ? { paddingTop: insets.top, paddingBottom: insets.bottom }
+          : null,
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
 
 /** Loading / error / empty, so no screen invents its own (and none of them can
  *  fail silently by showing an empty list when the fetch actually broke). */
@@ -163,6 +201,10 @@ export function dayHeading(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  sheetSurface: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
   center: {
     flex: 1,
     alignItems: "center",

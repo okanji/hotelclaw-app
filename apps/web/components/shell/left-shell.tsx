@@ -129,13 +129,12 @@ export function LeftShell({
   return (
     // `data-sidebar-open` lets the main pane (a following sibling styled with
     // `peer-data-[sidebar-open]:…`) react to the sidebar being attached.
-    // Transparent root: the rail and the sidebar each paint their own plane
-    // and sit flush against one another (no gutters, no rounded cards — see
-    // docs/notion-spec.md §1); the mobile drawer's SheetContent paints its
-    // own bg-sidebar.
+    // The root paints bg-sidebar so the m-2 gutter around the floating icon
+    // rail (see AppRail) reads as the chrome plane, continuous with the
+    // section sidebar beside it — not a white strip cut out of the shell.
     <div
       data-sidebar-open={showSidebar ? "" : undefined}
-      className={cn("relative flex shrink-0 flex-col", className)}
+      className={cn("relative flex shrink-0 flex-col bg-sidebar", className)}
     >
       {/* Records each section's last route to localStorage so the rail and
           property switcher can jump straight back to it. Renders nothing. */}
