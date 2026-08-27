@@ -29,6 +29,13 @@ function AuthedStack() {
               // route's name — literally "(tabs)". react-navigation 7 replaced
               // `headerBackTitleVisible` with this.
               headerBackButtonDisplayMode: "minimal",
+              // The navigator's default content background is a light grey.
+              // Stream's KeyboardCompatibleView leaves a ~2pt rounding gap
+              // between the message list and the composer while the keyboard
+              // is open, and that grey showed through as a fat separator line
+              // above the input. White chat surfaces on a white screen make
+              // the gap invisible.
+              contentStyle: { backgroundColor: "#ffffff" },
             }}
           >
             <Stack.Protected guard={!!session}>

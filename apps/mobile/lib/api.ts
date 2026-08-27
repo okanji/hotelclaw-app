@@ -156,6 +156,8 @@ export type ApiDocument = {
   id: string;
   title: string;
   kind: "doc" | "sheet";
+  /** The doc's emoji icon (Notion-style page mark), if the page has one. */
+  icon: string | null;
   updated_at: string;
   body_text: string;
 };

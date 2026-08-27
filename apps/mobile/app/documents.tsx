@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { fadeUpEntering } from "../components/AiLoader";
 import {
@@ -12,6 +13,41 @@ import {
 } from "../components/ui";
 import { usePropertyContext } from "../contexts/PropertyContext";
 import { useApi, type ApiDocument } from "../lib/api";
+
+/** "Today" / "Yesterday" for the recent stuff, a short date beyond a week —
+ *  "137 days ago" is noise in a list that's mostly archivalia. */
+function docDate(iso: string): string {
+  const rel = relativeDay(iso);
+  if (rel === "Today" || rel === "Yesterday") return rel;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const days = Math.round((Date.now() - d.getTime()) / 86400000);
+  if (days < 7 && rel) return rel;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+/** The page's own emoji mark when it has one (Notion-style), else a neutral
+ *  kind glyph in an inset tile. */
+function DocIcon({ doc }: { doc: ApiDocument }) {
+  return (
+    <View style={styles.iconTile}>
+      {doc.icon ? (
+        <Text style={styles.iconEmoji}>{doc.icon}</Text>
+      ) : (
+        <Ionicons
+          name={doc.kind === "sheet" ? "grid-outline" : "document-text-outline"}
+          size={15}
+          color="#6b7280"
+        />
+      )}
+    </View>
+  );
+}
 
 export default function DocumentsScreen() {
   const router = useRouter();
@@ -38,17 +74,25 @@ export default function DocumentsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Documents" }} />
+      <Stack.Screen
+        options={{
+          title: "Documents",
+          // Platform-native search instead of a permanently-visible input
+          // row: iOS tucks it above the list (pull down to reveal — the
+          // Notes/Files pattern), Android puts a magnifier in the app bar.
+          // The list gets the reclaimed row.
+          headerSearchBarOptions: {
+            placeholder: "Search documents",
+            autoCapitalize: "none",
+            hideWhenScrolling: true,
+            onChangeText: (e) => setQuery(e.nativeEvent.text),
+          },
+          // Large title that collapses on scroll — the standard iOS shape
+          // for a browsable index screen. Android ignores it.
+          ...(Platform.OS === "ios" ? { headerLargeTitle: true } : null),
+        }}
+      />
       <View style={styles.container}>
-        <TextInput
-          style={styles.search}
-          placeholder="Search documents"
-          placeholderTextColor="#9ca3af"
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          clearButtonMode="while-editing"
-        />
         {loading && !data ? (
           <Loading />
         ) : error ? (
@@ -65,6 +109,10 @@ export default function DocumentsScreen() {
             keyExtractor={(d) => d.id}
             refreshing={loading}
             onRefresh={refetch}
+            // Lets the native header (large title + search bar) drive the
+            // top inset — required for headerSearchBarOptions on iOS.
+            contentInsetAdjustmentBehavior="automatic"
+            keyboardDismissMode="on-drag"
             renderItem={({ item, index }) => (
               <Animated.View entering={fadeUpEntering(index)}>
                 <Row
@@ -76,26 +124,28 @@ export default function DocumentsScreen() {
                     })
                   }
                 >
-                  {/* Card-bar anatomy (ContextCards): icon · title · meta,
-                      preview body below. */}
-                  <View style={styles.bar}>
-                    <Text style={styles.kindIcon}>
-                      {item.kind === "sheet" ? "▦" : "📄"}
-                    </Text>
-                    <Text style={styles.title} numberOfLines={1}>
-                      {item.title || "Untitled"}
-                    </Text>
-                    {item.updated_at ? (
-                      <Text style={styles.meta} numberOfLines={1}>
-                        {relativeDay(item.updated_at) ?? ""}
-                      </Text>
-                    ) : null}
+                  {/* Icon tile · (title + meta) over preview — preview
+                      indents past the icon so text keeps one left edge. */}
+                  <View style={styles.itemRow}>
+                    <DocIcon doc={item} />
+                    <View style={styles.itemBody}>
+                      <View style={styles.bar}>
+                        <Text style={styles.title} numberOfLines={1}>
+                          {item.title || "Untitled"}
+                        </Text>
+                        {item.updated_at ? (
+                          <Text style={styles.meta} numberOfLines={1}>
+                            {docDate(item.updated_at)}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {item.body_text ? (
+                        <Text style={styles.preview} numberOfLines={2}>
+                          {item.body_text.slice(0, 200)}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
-                  {item.body_text ? (
-                    <Text style={styles.preview} numberOfLines={2}>
-                      {item.body_text.slice(0, 200)}
-                    </Text>
-                  ) : null}
                 </Row>
               </Animated.View>
             )}
@@ -108,25 +158,32 @@ export default function DocumentsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#ffffff" },
-  search: {
-    margin: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#f3f4f6",
-    fontSize: 16,
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
   },
+  iconTile: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  iconEmoji: { fontSize: 15 },
+  itemBody: { flex: 1, minWidth: 0 },
   bar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  kindIcon: { fontSize: 14 },
   title: { fontSize: 16, fontWeight: "500", flex: 1, minWidth: 0 },
   meta: {
     fontSize: 12,
     color: "#9ca3af",
     fontVariant: ["tabular-nums"],
   },
-  preview: { fontSize: 14, color: "#6b7280", marginTop: 4 },
+  preview: { fontSize: 14, color: "#6b7280", marginTop: 3, lineHeight: 19 },
 });

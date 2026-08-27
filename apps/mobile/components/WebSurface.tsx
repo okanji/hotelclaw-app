@@ -1,5 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { WebView } from "react-native-webview";
 import { apiBaseUrl } from "../chatConfig";
 import { apiFetch } from "../lib/api";
@@ -39,7 +46,19 @@ const API_ORIGIN = new URL(apiBaseUrl).origin;
  *     no injection happens. Iframes (doc embeds: YouTube, Figma, …) are
  *     allowed through; the injection is main-frame-only.
  */
-export function WebSurface({ path }: { path: string }) {
+export function WebSurface({
+  path,
+  onRequestBack,
+}: {
+  path: string;
+  /**
+   * When set, the embedded page may post `{type:"back"}` (the doc editor's
+   * embed-only back chevron does) and it lands here — the web page can't pop
+   * the native stack itself. Also gives the pre-WebView states (spinner /
+   * error) a native way out.
+   */
+  onRequestBack?: () => void;
+}) {
   const [tokenHash, setTokenHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,24 +90,45 @@ export function WebSurface({ path }: { path: string }) {
     };
   }, [attempt]);
 
+  // The document screen hides the native stack header (the embedded page
+  // carries its own bar), so the states rendered BEFORE that bar exists need
+  // their own way back.
+  const backRow = onRequestBack ? (
+    <Pressable
+      onPress={onRequestBack}
+      hitSlop={8}
+      style={styles.backRow}
+      accessibilityRole="button"
+      accessibilityLabel="Back"
+    >
+      <Ionicons name="chevron-back" size={24} color="#111827" />
+    </Pressable>
+  ) : null;
+
   if (error) {
     return (
-      <ErrorState
-        message={error}
-        onRetry={() => {
-          setError(null);
-          setLoading(true);
-          setTokenHash(null);
-          setAttempt((a) => a + 1);
-        }}
-      />
+      <View style={styles.container}>
+        {backRow}
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setError(null);
+            setLoading(true);
+            setTokenHash(null);
+            setAttempt((a) => a + 1);
+          }}
+        />
+      </View>
     );
   }
 
   if (!tokenHash) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
+      <View style={styles.container}>
+        {backRow}
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
       </View>
     );
   }
@@ -108,6 +148,48 @@ export function WebSurface({ path }: { path: string }) {
         document.documentElement.setAttribute("data-hotelclaw-embed", "1");
       } else {
         document.addEventListener("DOMContentLoaded", stamp, { once: true });
+      }
+    })();
+    // Pin the page scale (Notion-app behavior). Without maximum-scale,
+    // WebKit auto-zooms the whole page when a tap focuses editable text
+    // rendered under 16px — "tap a doc and it zooms" — and double-tap
+    // smart-zoom is live too. Scoped to the native shell only, so real
+    // browsers keep pinch/accessibility zoom. The meta doesn't exist yet
+    // when this runs (before content loads), so apply on DOMContentLoaded;
+    // mutating the tag re-triggers viewport processing.
+    (function pinViewport() {
+      var PIN =
+        "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no";
+      function apply() {
+        if (!document.head) return;
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement("meta");
+          meta.setAttribute("name", "viewport");
+          document.head.appendChild(meta);
+        }
+        // Guard against loops: only write when the pin is actually gone.
+        if (meta.getAttribute("content") !== PIN) {
+          meta.setAttribute("content", PIN);
+        }
+      }
+      function start() {
+        apply();
+        // Next's metadata reconciler can rewrite the viewport tag on
+        // client-side navigations (restoring its unpinned default), which
+        // would quietly re-enable tap-to-zoom mid-session — re-apply
+        // whenever the head's meta set changes.
+        new MutationObserver(apply).observe(document.head, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["content"],
+        });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start, { once: true });
+      } else {
+        start();
       }
     })();
     true;`;
@@ -149,6 +231,19 @@ export function WebSurface({ path }: { path: string }) {
         keyboardDisplayRequiresUserAction={false}
         hideKeyboardAccessoryView={false}
         allowsBackForwardNavigationGestures={false}
+        onMessage={(event) => {
+          // Only shape we accept from the page; anything else is ignored.
+          // Worst case for a hostile frame is a back-navigation — harmless.
+          if (!onRequestBack) return;
+          try {
+            const data = JSON.parse(event.nativeEvent.data) as {
+              type?: string;
+            };
+            if (data.type === "back") onRequestBack();
+          } catch {
+            // Non-JSON messages aren't ours.
+          }
+        }}
         onLoadEnd={() => setLoading(false)}
         onError={({ nativeEvent }) =>
           setError(nativeEvent.description || "Failed to load")
@@ -173,6 +268,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#ffffff" },
   web: { flex: 1, backgroundColor: "#ffffff" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  backRow: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   overlay: {
     position: "absolute",
     top: 0,

@@ -34,8 +34,11 @@ cd apps/mobile && npx expo run:ios      # or run:android (needs Xcode / Android 
 
 Two release paths; pick by what changed:
 
-- **JS/TS-only change** (screens, styling, logic — most changes): publish OTA,
-  no Apple involved, live on next app launch:
+- **JS/TS-only change** (screens, styling, logic — most changes): pushing to
+  main auto-publishes OTA via `.github/workflows/eas-update.yml` (repo secret
+  `EXPO_TOKEN`; path-filtered to apps/mobile + the chat-grouping/chat-ui
+  workspace packages). Manual equivalent, no Apple involved, live on next app
+  launch:
   ```bash
   cd apps/mobile
   env $(grep EXPO_TOKEN .env.local) NODE_OPTIONS=--no-network-family-autoselection \
@@ -171,6 +174,34 @@ shell. `document/[documentId]` points it at
 `/p/<pid>/documents/<id>` — so mobile gets Tiptap + Liveblocks collaboration,
 presence, and every custom block, fully editable, with no second editor to
 maintain.
+
+**Viewport is PINNED in the shell (2026-08-27):** the injected script rewrites
+the viewport meta to `maximum-scale=1, user-scalable=no` on DOMContentLoaded —
+without it WKWebKit auto-zooms the whole page when a tap focuses editable text
+under 16px ("tap a doc and it zooms"), plus double-tap smart-zoom. This is the
+Notion-app behavior; it's scoped to the WebView so real browsers keep
+pinch/accessibility zoom. A MutationObserver re-applies the pin because Next's
+metadata reconciler can rewrite the tag on client-side navigations.
+
+**The doc screen has NO native stack header (2026-08-27)** — Notion/Apple
+Notes/Craft all use ONE compact static top bar, and we had three (native
+header + in-page breadcrumb row + formatting toolbar). In embed mode the
+editor's own top row (title · presence · ⋯ overflow) IS the bar: it grows a
+back chevron (`EmbedBackButton` in `document-breadcrumbs.tsx`, doc + sheet
+editors) that posts `{type:"back"}` — handled by `WebSurface.onMessage` →
+`onRequestBack` — and the persistent formatting toolbar hides (the selection
+FloatingToolbar still covers formatting). The screen pads `insets.top` itself.
+**Embed CSS rules must be UNLAYERED in globals.css**: the top bar/toolbar
+carry Tailwind's `flex` utility, and a `display:none` inside `@layer base`
+loses to the utilities layer — the original hamburger-hide rule had regressed
+this way, silently visible in the app. Auto-hide-on-scroll was considered and
+rejected: it's browser/feed behavior, no document app does it, and it fights
+the keyboard while editing.
+
+The Documents LIST screen is native: iOS large title + native
+`headerSearchBarOptions` (pull down to reveal; magnifier in the app bar on
+Android), per-doc emoji icons (`documents.icon` now returned by the list API),
+short dates, previews.
 
 **This is not laziness, it's the only option.** ProseMirror requires a browser
 DOM (contenteditable + DOM observers), so Tiptap cannot run natively in RN, and
