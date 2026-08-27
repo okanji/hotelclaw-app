@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 // SDK 56: import react-navigation APIs via expo-router, not @react-navigation/*
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -191,6 +198,12 @@ export default function ChannelScreen() {
           // additionalFlatListProps is spread after it, so re-render the typing
           // indicator here too rather than silently dropping it.
           additionalFlatListProps={{
+            // Dismiss-the-keyboard-by-scrolling, like Slack/WhatsApp: on iOS
+            // "interactive" slides the keyboard down with the drag; Android has
+            // no interactive tracking, so "on-drag" (close on scroll start) is
+            // the platform convention.
+            keyboardDismissMode:
+              Platform.OS === "ios" ? "interactive" : "on-drag",
             ListHeaderComponent: (
               <>
                 <AiThinkingIndicator streamChannelId={channel.id ?? ""} />

@@ -6,8 +6,11 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import Animated from "react-native-reanimated";
 import { useChannelContext, useMessageContext } from "stream-chat-expo";
+import { fadeUpEntering, statusFadeIn } from "../AiLoader";
 import {
   validateChatUiSpec,
   type AiUiAttachmentPayload,
@@ -242,7 +245,7 @@ function OptionsView({
   const [sending, setSending] = React.useState(false);
 
   const choose = async (index: number) => {
-    if (sending) return;
+    if (sending || sentIndex !== null) return;
     const option = props.options[index];
     setSending(true);
     try {
@@ -259,30 +262,57 @@ function OptionsView({
     }
   };
 
+  // ApprovalCard grammar (Beautiful UI): question-as-heading over radio
+  // option rows; answering settles the card to a green "Answer sent" line
+  // instead of leaving a wall of dead chips.
+  if (sentIndex !== null) {
+    const chosen = props.options[sentIndex];
+    return (
+      <Animated.View entering={statusFadeIn()} style={styles.optionsCard}>
+        {props.prompt ? (
+          <Text style={styles.optionsPrompt}>{props.prompt}</Text>
+        ) : null}
+        <View style={styles.optionsSentRow}>
+          <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+          <Text style={styles.optionsSentText} numberOfLines={1}>
+            Answer sent · {chosen.label}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
   return (
-    <View>
-      {props.prompt ? <Text style={styles.optionsPrompt}>{props.prompt}</Text> : null}
-      {/* flexWrap row — NEVER a horizontal ScrollView (see DataTableView). */}
-      <View style={styles.optionsRow}>
+    <View style={styles.optionsCard}>
+      {props.prompt ? (
+        <Text style={styles.optionsPrompt}>{props.prompt}</Text>
+      ) : null}
+      <View style={styles.optionsList}>
         {props.options.map((option, i) => (
-          <Pressable
-            key={i}
-            disabled={sending}
-            onPress={() => void choose(i)}
-            style={({ pressed }) => [
-              styles.optionChip,
-              sentIndex === i && styles.optionChipSent,
-              (pressed || sending) && styles.pressed,
-            ]}
-          >
-            <Text
-              style={[styles.optionLabel, sentIndex === i && styles.optionLabelSent]}
-              numberOfLines={1}
+          <Animated.View key={i} entering={fadeUpEntering(i)}>
+            <Pressable
+              disabled={sending}
+              onPress={() => void choose(i)}
+              accessibilityRole="radio"
+              style={({ pressed }) => [
+                styles.optionRow,
+                pressed && styles.optionRowPressed,
+                sending && styles.pressed,
+              ]}
             >
-              {sentIndex === i ? "✓ " : ""}
-              {option.label}
-            </Text>
-          </Pressable>
+              <View style={styles.optionRadio} />
+              <View style={styles.optionText}>
+                <Text style={styles.optionLabel} numberOfLines={2}>
+                  {option.label}
+                </Text>
+                {option.description ? (
+                  <Text style={styles.optionDesc} numberOfLines={2}>
+                    {option.description}
+                  </Text>
+                ) : null}
+              </View>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
     </View>
@@ -302,9 +332,32 @@ function renderElement(spec: ChatUiSpec, key: string): React.ReactElement | null
       return <View style={styles.stack}>{children}</View>;
     case "CardGrid":
       // Phone column: cards stack vertically (web's 2-col grid collapses).
-      return <View style={styles.stack}>{children}</View>;
+      // Cards enter with the house staggered fade-up, like every BUI group.
+      return (
+        <View style={styles.stack}>
+          {(el.children ?? []).map((c, i) => (
+            <Animated.View key={c} entering={fadeUpEntering(i)}>
+              {renderElement(spec, c)}
+            </Animated.View>
+          ))}
+        </View>
+      );
     case "StatRow":
-      return <View style={[styles.block, styles.statRow]}>{children}</View>;
+      return (
+        <View style={[styles.block, styles.statRow]}>
+          {(el.children ?? []).map((c, i) => (
+            // Wrapper must carry the stat cell's flex behavior, or the
+            // row's grow/wrap layout collapses to content width.
+            <Animated.View
+              key={c}
+              entering={fadeUpEntering(i)}
+              style={styles.statCellWrap}
+            >
+              {renderElement(spec, c)}
+            </Animated.View>
+          ))}
+        </View>
+      );
     case "DataTable":
       return <DataTableView props={el.props as React.ComponentProps<typeof DataTableView>["props"]} />;
     case "Card":
@@ -461,6 +514,10 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   // Stats
+  statCellWrap: {
+    minWidth: 84,
+    flexGrow: 1,
+  },
   statRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -487,35 +544,66 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#9ca3af",
   },
-  // Options quick replies
-  optionsPrompt: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginBottom: 6,
-  },
-  optionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  optionChip: {
+  // Options quick replies — ApprovalCard anatomy
+  optionsCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#d1d5db",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderColor: "#e5e7eb",
+    padding: 10,
+    marginVertical: 4,
   },
-  optionChipSent: {
+  optionsPrompt: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  optionsList: {
+    gap: 2,
+  },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  optionRowPressed: {
     backgroundColor: "#f3f4f6",
-    borderColor: "#9ca3af",
+  },
+  optionRadio: {
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#d1d5db",
+    marginTop: 1.5,
+  },
+  optionText: {
+    flex: 1,
+    minWidth: 0,
   },
   optionLabel: {
     fontSize: 13,
     fontWeight: "500",
     color: "#111827",
   },
-  optionLabelSent: {
-    color: "#374151",
+  optionDesc: {
+    marginTop: 1,
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  optionsSentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  optionsSentText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#16a34a",
+    flexShrink: 1,
   },
 });

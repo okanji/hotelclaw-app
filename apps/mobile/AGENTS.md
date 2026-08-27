@@ -30,6 +30,36 @@ pnpm dev:mobile            # from repo root — expo start (dev client)
 cd apps/mobile && npx expo run:ios      # or run:android (needs Xcode / Android Studio)
 ```
 
+## Ship / update (iOS via EAS + TestFlight, OTA via EAS Update — set up 2026-08-27)
+
+Two release paths; pick by what changed:
+
+- **JS/TS-only change** (screens, styling, logic — most changes): publish OTA,
+  no Apple involved, live on next app launch:
+  ```bash
+  cd apps/mobile
+  env $(grep EXPO_TOKEN .env.local) NODE_OPTIONS=--no-network-family-autoselection \
+    eas update --channel production --message "<what changed>"
+  ```
+- **Native change** (new native module, SDK upgrade, permissions, app.json
+  native config): full build + TestFlight cycle, both non-interactive (ASC API
+  key lives on EAS servers):
+  ```bash
+  eas build --platform ios --profile production --non-interactive
+  eas submit --platform ios --latest --non-interactive
+  ```
+  TestFlight auto-updates installed apps after Apple processes (~10 min).
+
+Wiring: `expo-updates` installed; `runtimeVersion: {policy: "appVersion"}` +
+`updates.url` in app.json; per-profile `channel` in eas.json (production /
+preview / development). **The appVersion policy means an OTA update only
+reaches builds with the same `version` in app.json** — bump the version ⇒
+old builds stop receiving updates until they install the new binary.
+`EXPO_TOKEN` is in `.env.local` (gitignored; eas-cli does not auto-read it —
+inject via `env $(grep …)`). Run all eas commands **from `apps/mobile`** — a
+repo-root run scaffolds a stray new EAS project. ASC App ID 6805854542;
+EAS project `@okanjis-team/hotelclaw` (44766015-c288-4987-a593-e89d6c625f41).
+
 ## Layout
 
 ```

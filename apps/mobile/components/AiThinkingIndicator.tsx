@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { supabase } from "../lib/supabase";
+import {
+  AiElapsed,
+  AiPixelGrid,
+  AiShimmerLabel,
+  fadeUpEntering,
+} from "./AiLoader";
 
 /**
  * "Hotelclaw is thinking…" row for the channel bot — the mobile twin of
@@ -127,24 +134,34 @@ export function AiThinkingIndicator({
       </View>
       <View style={styles.body}>
         <Text style={styles.name}>Hotelclaw</Text>
-        {/* The path taken so far, capped so a 20-tool turn can't push the
-            conversation off screen. */}
-        {steps
-          .slice(0, -1)
-          .slice(-4)
-          .map((step, i) => (
-            <View key={`${step}-${i}`} style={styles.stepRow}>
-              <Ionicons name="checkmark" size={13} color="#9ca3af" />
-              <Text style={styles.stepDone} numberOfLines={1}>
-                {step}
-              </Text>
-            </View>
-          ))}
-        <View style={styles.stepRow}>
-          <ActivityIndicator size="small" />
-          <Text style={styles.stepLive} numberOfLines={1}>
+        {/* The path taken so far — Beautiful UI detail rail (indented behind
+            a 1px hairline), capped so a 20-tool turn can't push the
+            conversation off screen. Each step fades up as it lands. */}
+        {steps.length > 1 ? (
+          <View style={styles.rail}>
+            {steps
+              .slice(0, -1)
+              .slice(-4)
+              .map((step, i) => (
+                <Animated.View
+                  key={`${step}-${i}`}
+                  entering={fadeUpEntering(0)}
+                  style={styles.stepRow}
+                >
+                  <Ionicons name="checkmark" size={13} color="#9ca3af" />
+                  <Text style={styles.stepDone} numberOfLines={1}>
+                    {step}
+                  </Text>
+                </Animated.View>
+              ))}
+          </View>
+        ) : null}
+        <View style={styles.liveRow}>
+          <AiPixelGrid />
+          <AiShimmerLabel style={styles.liveLabel}>
             {activity ?? (longRunning ? "Still working on it…" : "Thinking…")}
-          </Text>
+          </AiShimmerLabel>
+          <AiElapsed />
         </View>
       </View>
     </View>
@@ -170,6 +187,12 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 14, fontWeight: "700", color: "#374151" },
   body: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: "600" },
+  rail: {
+    marginTop: 2,
+    paddingLeft: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: "#e5e7eb",
+  },
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -177,5 +200,11 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   stepDone: { fontSize: 13, color: "#9ca3af", flexShrink: 1 },
-  stepLive: { fontSize: 13, color: "#6b7280", flexShrink: 1 },
+  liveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 4,
+  },
+  liveLabel: { fontSize: 13, flexShrink: 1 },
 });

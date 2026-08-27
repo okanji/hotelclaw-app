@@ -5,14 +5,9 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Chat, OverlayProvider, useCreateChatClient } from "stream-chat-expo";
+import { AiPixelGrid, AiShimmerLabel } from "./AiLoader";
 import { apiBaseUrl, chatApiKey } from "../chatConfig";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
@@ -21,6 +16,15 @@ const chatTheme = {
   channelPreview: {
     container: {
       backgroundColor: "transparent",
+    },
+  },
+  messageComposer: {
+    // The SDK hardcodes borderTopWidth: 1 on the composer wrapper, which
+    // renders 2-3 physical px on retina — visibly heavier than the rest of
+    // the chrome. The theme wrapper is applied after the inline style, so a
+    // hairline here wins.
+    wrapper: {
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
   },
 };
@@ -141,8 +145,10 @@ const AuthedChat = ({
 
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={styles.body}>Connecting to chat…</Text>
+        <View style={styles.connectRow}>
+          <AiPixelGrid />
+          <AiShimmerLabel>Connecting to chat…</AiShimmerLabel>
+        </View>
         {slow ? (
           <>
             <Text style={styles.hint}>
@@ -193,6 +199,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
+    gap: 10,
+  },
+  connectRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   title: {

@@ -9,6 +9,7 @@ import {
 import { AiUiAttachment } from "./AiUiAttachment";
 import { ArtifactCard } from "./ArtifactCard";
 import { FormAttachmentCard } from "./FormAttachmentCard";
+import { BotSteps, isAiSteps } from "../BotSteps";
 import { asCustomAttachment, isCustomAttachment } from "./guards";
 
 /**
@@ -50,7 +51,12 @@ const CustomAttachmentList = () => {
   const custom = (message.attachments ?? [])
     .map(asCustomAttachment)
     .filter(<T,>(a: T | null): a is T => a !== null);
-  if (custom.length === 0) return null;
+  // The runtime stamps the finished turn's steps onto the delivered reply as
+  // `eve_steps` — render the collapsed "N steps · 12s" audit trail here, in
+  // the same bottom slot (it must not depend on custom attachments existing).
+  const steps = (message as unknown as { eve_steps?: unknown }).eve_steps;
+  const hasSteps = isAiSteps(steps);
+  if (custom.length === 0 && !hasSteps) return null;
   return (
     <View style={styles.container}>
       {custom.map((attachment, i) => {
@@ -67,6 +73,7 @@ const CustomAttachmentList = () => {
             return null;
         }
       })}
+      {hasSteps ? <BotSteps steps={steps} /> : null}
     </View>
   );
 };

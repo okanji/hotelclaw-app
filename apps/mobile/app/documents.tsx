@@ -1,7 +1,15 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
-import { EmptyState, ErrorState, Loading, Row } from "../components/ui";
+import Animated from "react-native-reanimated";
+import { fadeUpEntering } from "../components/AiLoader";
+import {
+  EmptyState,
+  ErrorState,
+  Loading,
+  Row,
+  relativeDay,
+} from "../components/ui";
 import { usePropertyContext } from "../contexts/PropertyContext";
 import { useApi, type ApiDocument } from "../lib/api";
 
@@ -47,6 +55,7 @@ export default function DocumentsScreen() {
           <ErrorState message={error} onRetry={refetch} />
         ) : docs.length === 0 ? (
           <EmptyState
+            icon={query ? "search" : "document-text-outline"}
             title={query ? "No matches" : "No documents"}
             body={query ? undefined : "Documents created on web show up here."}
           />
@@ -56,26 +65,39 @@ export default function DocumentsScreen() {
             keyExtractor={(d) => d.id}
             refreshing={loading}
             onRefresh={refetch}
-            renderItem={({ item }) => (
-              <Row
-                onPress={() =>
-                  // navigate (not push) so a double-tap can't stack the screen
-                  router.navigate({
-                    pathname: "/document/[documentId]",
-                    params: { documentId: item.id },
-                  })
-                }
-              >
-                <Text style={styles.title} numberOfLines={1}>
-                  {item.kind === "sheet" ? "▦  " : "📄  "}
-                  {item.title || "Untitled"}
-                </Text>
-                {item.body_text ? (
-                  <Text style={styles.preview} numberOfLines={2}>
-                    {item.body_text.slice(0, 200)}
-                  </Text>
-                ) : null}
-              </Row>
+            renderItem={({ item, index }) => (
+              <Animated.View entering={fadeUpEntering(index)}>
+                <Row
+                  onPress={() =>
+                    // navigate (not push) so a double-tap can't stack the screen
+                    router.navigate({
+                      pathname: "/document/[documentId]",
+                      params: { documentId: item.id },
+                    })
+                  }
+                >
+                  {/* Card-bar anatomy (ContextCards): icon · title · meta,
+                      preview body below. */}
+                  <View style={styles.bar}>
+                    <Text style={styles.kindIcon}>
+                      {item.kind === "sheet" ? "▦" : "📄"}
+                    </Text>
+                    <Text style={styles.title} numberOfLines={1}>
+                      {item.title || "Untitled"}
+                    </Text>
+                    {item.updated_at ? (
+                      <Text style={styles.meta} numberOfLines={1}>
+                        {relativeDay(item.updated_at) ?? ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {item.body_text ? (
+                    <Text style={styles.preview} numberOfLines={2}>
+                      {item.body_text.slice(0, 200)}
+                    </Text>
+                  ) : null}
+                </Row>
+              </Animated.View>
             )}
           />
         )}
@@ -94,6 +116,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
     fontSize: 16,
   },
-  title: { fontSize: 16, fontWeight: "500" },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  kindIcon: { fontSize: 14 },
+  title: { fontSize: 16, fontWeight: "500", flex: 1, minWidth: 0 },
+  meta: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontVariant: ["tabular-nums"],
+  },
   preview: { fontSize: 14, color: "#6b7280", marginTop: 4 },
 });

@@ -2,16 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  FlatList,
   Modal,
   Pressable,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
+import { fadeUpEntering } from "../../components/AiLoader";
 import { initialsFor, ScreenHeader } from "../../components/ScreenHeader";
 import {
+  CountBadge,
   EmptyState,
   ErrorState,
   Loading,
@@ -20,7 +23,6 @@ import {
   Pill,
   Row,
   STATUS_COLOR,
-  STATUS_LABEL,
   SheetSurface,
   relativeDay,
 } from "../../components/ui";
@@ -28,7 +30,13 @@ import { TaskFilterSheet } from "../../components/TaskFilterSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePropertyContext } from "../../contexts/PropertyContext";
-import { apiFetch, useApi, type ApiMember, type ApiTask } from "../../lib/api";
+import {
+  apiFetch,
+  useApi,
+  type ApiMember,
+  type ApiTask,
+  type TaskStatus,
+} from "../../lib/api";
 import { useCatalogues } from "../../lib/catalogues";
 import { useTaskListState, type Scope } from "../../lib/task-filter-store";
 import { useDayStart } from "../../lib/use-day-start";
@@ -45,6 +53,71 @@ const SCOPES: { value: Scope; label: string }[] = [
   { value: "open", label: "Open" },
   { value: "all", label: "All" },
 ];
+
+type TaskSection = {
+  key: string;
+  title: string;
+  overdue?: boolean;
+  /** Running item offset, so entrance stagger is global across sections. */
+  startIndex: number;
+  data: ApiTask[];
+};
+
+/** Group into scannable due-date sections (the filter sheet's bucket names),
+ *  done tasks last. Within-section order is the filtered order, so the sort
+ *  facet still applies. Day boundaries match web's `taskDueBuckets`. */
+function sectionTasks(tasks: ApiTask[], now: number): TaskSection[] {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const t0 = start.getTime();
+  const day = 86_400_000;
+
+  const buckets: Record<string, ApiTask[]> = {
+    overdue: [],
+    today: [],
+    tomorrow: [],
+    week: [],
+    later: [],
+    none: [],
+    done: [],
+  };
+  for (const t of tasks) {
+    if (t.status === "done") {
+      buckets.done.push(t);
+      continue;
+    }
+    const ts = t.due_at ? Date.parse(t.due_at) : NaN;
+    if (Number.isNaN(ts)) buckets.none.push(t);
+    else if (ts < t0) buckets.overdue.push(t);
+    else if (ts < t0 + day) buckets.today.push(t);
+    else if (ts < t0 + 2 * day) buckets.tomorrow.push(t);
+    else if (ts < t0 + 7 * day) buckets.week.push(t);
+    else buckets.later.push(t);
+  }
+
+  const order: { key: string; title: string; overdue?: boolean }[] = [
+    { key: "overdue", title: "Overdue", overdue: true },
+    { key: "today", title: "Today" },
+    { key: "tomorrow", title: "Tomorrow" },
+    { key: "week", title: "This week" },
+    { key: "later", title: "Later" },
+    { key: "none", title: "No due date" },
+    { key: "done", title: "Done" },
+  ];
+  const sections: TaskSection[] = [];
+  let offset = 0;
+  for (const o of order) {
+    const data = buckets[o.key];
+    if (data.length === 0) continue;
+    sections.push({ ...o, startIndex: offset, data });
+    offset += data.length;
+  }
+  // A lone "No due date" header over the whole list is noise — drop it.
+  if (sections.length === 1 && sections[0].key === "none") {
+    sections[0].title = "";
+  }
+  return sections;
+}
 
 export default function TasksTab() {
   const router = useRouter();
@@ -82,6 +155,23 @@ export default function TasksTab() {
 
   const facetCount = activeFacetCount(filters);
   const labels = useMemo(() => labelOptions(data ?? []), [data]);
+  // Per-scope counts for the chip badges (FilterTable pattern) — computed
+  // from the unfiltered rows so a facet doesn't change what each scope holds.
+  const scopeCounts = useMemo(() => {
+    const all = data ?? [];
+    const open = all.filter((t) => t.status !== "done");
+    return {
+      mine: open.filter((t) => t.assignee_id === userId).length,
+      open: open.length,
+      all: all.length,
+    };
+  }, [data, userId]);
+  const sections = useMemo(() => sectionTasks(tasks, now), [tasks, now]);
+  const memberNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of members ?? []) if (m.name) map.set(m.id, m.name);
+    return map;
+  }, [members]);
 
   const name = activeProperty?.property.name;
 
@@ -130,7 +220,11 @@ export default function TasksTab() {
           <Pressable
             key={s.value}
             onPress={() => setScope(s.value)}
-            style={[styles.chip, scope === s.value && styles.chipActive]}
+            style={[
+              styles.chip,
+              styles.chipWithCount,
+              scope === s.value && styles.chipActive,
+            ]}
           >
             <Text
               style={[
@@ -140,17 +234,30 @@ export default function TasksTab() {
             >
               {s.label}
             </Text>
+            {data ? (
+              <CountBadge
+                count={scopeCounts[s.value]}
+                tone={scope === s.value ? "onDark" : "default"}
+              />
+            ) : null}
           </Pressable>
         ))}
         <Pressable
           onPress={() => setFiltering(true)}
-          style={[styles.chip, facetCount > 0 && styles.chipActive]}
+          style={[
+            styles.chip,
+            styles.chipWithCount,
+            facetCount > 0 && styles.chipActive,
+          ]}
         >
           <Text
             style={[styles.chipText, facetCount > 0 && styles.chipTextActive]}
           >
-            {facetCount > 0 ? `Filters · ${facetCount}` : "Filters"}
+            Filters
           </Text>
+          {facetCount > 0 ? (
+            <CountBadge count={facetCount} tone="onDark" />
+          ) : null}
         </Pressable>
       </View>
 
@@ -162,6 +269,7 @@ export default function TasksTab() {
         <ErrorState message={error} onRetry={refetch} />
       ) : tasks.length === 0 ? (
         <EmptyState
+          icon={facetCount > 0 || filters.search ? "search" : "checkmark-done"}
           title={
             facetCount > 0 || filters.search
               ? "No matching tasks"
@@ -178,14 +286,39 @@ export default function TasksTab() {
           }
         />
       ) : (
-        <FlatList
-          data={tasks}
+        <SectionList
+          sections={sections}
           keyExtractor={(t) => t.id}
           refreshing={loading}
           onRefresh={refetch}
-          renderItem={({ item }) => (
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={styles.listContent}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <View style={styles.sectionHeader}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    section.overdue && styles.sectionTitleOverdue,
+                  ]}
+                >
+                  {section.title}
+                </Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countText}>{section.data.length}</Text>
+                </View>
+              </View>
+            ) : null
+          }
+          renderItem={({ item, index, section }) => (
             <TaskRow
               task={item}
+              index={section.startIndex + index}
+              assigneeName={
+                item.assignee_id
+                  ? memberNames.get(item.assignee_id)
+                  : undefined
+              }
               onPress={() =>
                 // navigate (not push) so a double-tap can't stack the screen
                 router.navigate({
@@ -253,35 +386,101 @@ function TaskSearchBar({
   );
 }
 
-function TaskRow({ task, onPress }: { task: ApiTask; onPress: () => void }) {
+/** Leading status glyph — status reads at a glance without a pill shouting on
+ *  every row (the section + glyph carry it; pills are saved for priority). */
+function StatusGlyph({ status }: { status: TaskStatus }) {
+  if (status === "done") {
+    return (
+      <Ionicons name="checkmark-circle" size={22} color={STATUS_COLOR.done} />
+    );
+  }
+  if (status === "blocked") {
+    return (
+      <Ionicons name="remove-circle" size={22} color={STATUS_COLOR.blocked} />
+    );
+  }
+  const inProgress = status === "in_progress";
+  return (
+    <View
+      style={[
+        styles.glyphRing,
+        inProgress && { borderColor: STATUS_COLOR.in_progress },
+      ]}
+    >
+      {inProgress ? <View style={styles.glyphDot} /> : null}
+    </View>
+  );
+}
+
+function TaskRow({
+  task,
+  index,
+  assigneeName,
+  onPress,
+}: {
+  task: ApiTask;
+  index: number;
+  assigneeName?: string;
+  onPress: () => void;
+}) {
   const due = relativeDay(task.due_at);
+  // Inside the Today/Tomorrow sections the due text just repeats the section
+  // title — drop it there; elsewhere ("3 days ago", "In 12 days") it earns
+  // its place.
+  const dueText = due === "Today" || due === "Tomorrow" ? null : due;
   const overdue =
     !!task.due_at && new Date(task.due_at) < new Date() && task.status !== "done";
+  const urgent = task.priority === "urgent" || task.priority === "high";
+  const hasMeta = !!dueText || urgent || !!task.project_name;
 
   return (
-    <Row onPress={onPress}>
-      <Text
-        style={[styles.taskTitle, task.status === "done" && styles.taskDone]}
-        numberOfLines={2}
-      >
-        {task.title}
-      </Text>
-      <View style={styles.meta}>
-        <Pill
-          label={STATUS_LABEL[task.status]}
-          color={STATUS_COLOR[task.status]}
-        />
-        {task.priority !== "none" ? (
-          <Pill
-            label={PRIORITY_LABEL[task.priority]}
-            color={PRIORITY_COLOR[task.priority]}
-          />
-        ) : null}
-        {due ? (
-          <Text style={[styles.due, overdue && styles.overdue]}>{due}</Text>
-        ) : null}
-      </View>
-    </Row>
+    // Staggered fade-up on first paint (capped, so rows past the fold and
+    // scroll-mounted rows enter without a crawl).
+    <Animated.View entering={fadeUpEntering(index)}>
+      <Row onPress={onPress}>
+        <View style={styles.rowInner}>
+          <View style={styles.glyphSlot}>
+            <StatusGlyph status={task.status} />
+          </View>
+          <View style={styles.rowMain}>
+            <Text
+              style={[
+                styles.taskTitle,
+                task.status === "done" && styles.taskDone,
+              ]}
+              numberOfLines={2}
+            >
+              {task.title}
+            </Text>
+            {hasMeta ? (
+              <View style={styles.meta}>
+                {dueText ? (
+                  <Text style={[styles.due, overdue && styles.overdue]}>
+                    {dueText}
+                  </Text>
+                ) : null}
+                {urgent ? (
+                  <Pill
+                    label={PRIORITY_LABEL[task.priority]}
+                    color={PRIORITY_COLOR[task.priority]}
+                  />
+                ) : null}
+                {task.project_name ? (
+                  <Text style={styles.project} numberOfLines={1}>
+                    {task.project_name}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+          {assigneeName ? (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initialsFor(assigneeName)}</Text>
+            </View>
+          ) : null}
+        </View>
+      </Row>
+    </Animated.View>
   );
 }
 
@@ -405,14 +604,77 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#f3f4f6",
   },
+  chipWithCount: { flexDirection: "row", alignItems: "center", gap: 6 },
   chipActive: { backgroundColor: "#111827" },
   chipText: { fontSize: 14, fontWeight: "500", color: "#374151" },
   chipTextActive: { color: "#ffffff" },
-  taskTitle: { fontSize: 16, fontWeight: "500" },
+  listContent: { paddingBottom: 32 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+    backgroundColor: "#ffffff",
+  },
+  sectionTitle: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
+  sectionTitleOverdue: { color: "#dc2626" },
+  countBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6b7280",
+    fontVariant: ["tabular-nums"],
+  },
+  rowInner: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  // Sized to the title's first line so the glyph optically centers on it.
+  glyphSlot: {
+    width: 22,
+    height: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  glyphRing: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  glyphDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: STATUS_COLOR.in_progress,
+  },
+  rowMain: { flex: 1 },
+  taskTitle: { fontSize: 16, fontWeight: "500", lineHeight: 21 },
   taskDone: { color: "#9ca3af", textDecorationLine: "line-through" },
-  meta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-  due: { fontSize: 13, color: "#6b7280" },
+  meta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  due: { fontSize: 13, color: "#6b7280", fontVariant: ["tabular-nums"] },
   overdue: { color: "#dc2626", fontWeight: "600" },
+  project: { fontSize: 13, color: "#9ca3af", flexShrink: 1 },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -1,
+  },
+  avatarText: { fontSize: 10, fontWeight: "600", color: "#4b5563" },
   sheetPad: { padding: 16, gap: 12 },
   sheetBar: {
     flexDirection: "row",

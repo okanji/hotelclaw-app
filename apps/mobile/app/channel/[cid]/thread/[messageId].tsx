@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -129,6 +130,13 @@ export default function ThreadScreen() {
       >
         <Thread
           onThreadDismount={() => setThread(null)}
+          // Same scroll-to-dismiss-keyboard behavior as the channel screen.
+          additionalMessageListProps={{
+            additionalFlatListProps: {
+              keyboardDismissMode:
+                Platform.OS === "ios" ? "interactive" : "on-drag",
+            },
+          }}
           // Same mention-aware input as the channel composer.
           additionalMessageComposerProps={{
             TextInputComponent: MentionTextInput,

@@ -74,6 +74,12 @@
         "projectId": "44766015-c288-4987-a593-e89d6c625f41"
       }
     },
-    "owner": "okanjis-team"
+    "owner": "okanjis-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/44766015-c288-4987-a593-e89d6c625f41"
+    }
   }
 }

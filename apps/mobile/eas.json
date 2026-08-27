@@ -12,7 +12,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
         "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -21,7 +22,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
         "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -30,10 +32,15 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://uoeaapdeyhmplxyswrqo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_RpkMVIgQTkoQO6HYKK5VeQ_w7yA4I2i",
         "EXPO_PUBLIC_API_URL": "https://hotelclaw-app.vercel.app"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6805854542"
+      }
+    }
   }
 }

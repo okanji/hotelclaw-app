@@ -1,6 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { type ReactNode } from "react";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { TaskPriority, TaskStatus } from "../lib/api";
+import { AiPixelGrid, AiShimmerLabel } from "./AiLoader";
 
 /**
  * Root container for a full-screen Modal sheet.
@@ -47,11 +48,16 @@ export function SheetSurface({
 }
 
 /** Loading / error / empty, so no screen invents its own (and none of them can
- *  fail silently by showing an empty list when the fetch actually broke). */
-export function Loading() {
+ *  fail silently by showing an empty list when the fetch actually broke).
+ *  Never a bare spinner (Beautiful UI rule) — the house pixel grid + a
+ *  shimmering label, same visual as every AI wait. */
+export function Loading({ label = "Loading…" }: { label?: string }) {
   return (
     <View style={styles.center}>
-      <ActivityIndicator />
+      <View style={styles.loadingRow}>
+        <AiPixelGrid />
+        <AiShimmerLabel style={styles.loadingLabel}>{label}</AiShimmerLabel>
+      </View>
     </View>
   );
 }
@@ -79,17 +85,50 @@ export function ErrorState({
 export function EmptyState({
   title,
   body,
+  icon,
 }: {
   title: string;
   body?: string;
+  /** Inset icon tile above the title — the SearchList empty-state recipe.
+   *  Pass for search/filter "no results" states. */
+  icon?: keyof typeof Ionicons.glyphMap;
 }) {
   return (
     <View style={styles.center}>
+      {icon ? (
+        <View style={styles.emptyTile}>
+          <Ionicons name={icon} size={22} color="#9ca3af" />
+        </View>
+      ) : null}
       <Text style={styles.title}>{title}</Text>
       {body ? <Text style={styles.body}>{body}</Text> : null}
     </View>
   );
 }
+
+/** Count badge — Beautiful UI recipe: inset fill, hairline, tabular figures.
+ *  `tone="onDark"` inverts it for use inside a dark active chip. */
+export function CountBadge({
+  count,
+  tone = "default",
+}: {
+  count: number;
+  tone?: "default" | "onDark";
+}) {
+  return (
+    <View style={[styles.countBadge, tone === "onDark" && styles.countBadgeOnDark]}>
+      <Text
+        style={[
+          styles.countBadgeText,
+          tone === "onDark" && styles.countBadgeTextOnDark,
+        ]}
+      >
+        {count}
+      </Text>
+    </View>
+  );
+}
+
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "To do",
@@ -123,6 +162,9 @@ export const PRIORITY_COLOR: Record<TaskPriority, string> = {
   urgent: "#dc2626",
 };
 
+/** Status pill — Beautiful UI grammar: hue TINT fill + same-hue ink
+ *  (never an outline border). `filled` keeps the solid variant for the rare
+ *  emphasized case. */
 export function Pill({
   label,
   color,
@@ -136,9 +178,8 @@ export function Pill({
     <View
       style={[
         styles.pill,
-        filled
-          ? { backgroundColor: color }
-          : { borderWidth: 1, borderColor: color },
+        // 6-digit hex + "1F" = ~12% alpha tint of the same hue.
+        filled ? { backgroundColor: color } : { backgroundColor: `${color}1F` },
       ]}
     >
       <Text style={[styles.pillText, { color: filled ? "#ffffff" : color }]}>
@@ -215,6 +256,39 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: "600" },
   body: { fontSize: 15, color: "#6b7280", textAlign: "center" },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  loadingLabel: { fontSize: 13 },
+  emptyTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  countBadge: {
+    height: 18,
+    minWidth: 18,
+    paddingHorizontal: 5,
+    borderRadius: 5,
+    backgroundColor: "#f3f4f6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e5e7eb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBadgeOnDark: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderColor: "transparent",
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6b7280",
+    fontVariant: ["tabular-nums"],
+  },
+  countBadgeTextOnDark: { color: "#ffffff" },
   button: {
     marginTop: 8,
     backgroundColor: "#111827",

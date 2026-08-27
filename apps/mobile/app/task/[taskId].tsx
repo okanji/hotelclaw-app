@@ -1,13 +1,14 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { AiPixelGrid, AiShimmerLabel } from "../../components/AiLoader";
+import { TriageSuggestions } from "../../components/TriageSuggestions";
 import {
   ErrorState,
   Loading,
@@ -134,6 +135,16 @@ export default function TaskDetailScreen() {
 
         {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
 
+        {/* AI triage suggestions (RecommendationCard) — accepting applies the
+            field server-side, then the row refetches underneath. */}
+        {propertyId && taskId ? (
+          <TriageSuggestions
+            propertyId={propertyId}
+            taskId={taskId}
+            onApplied={refetch}
+          />
+        ) : null}
+
         <Section title="Status">
           <View style={styles.options}>
             {STATUSES.map((s) => (
@@ -184,8 +195,8 @@ export default function TaskDetailScreen() {
 
         {saving ? (
           <View style={styles.savingRow}>
-            <ActivityIndicator size="small" />
-            <Text style={styles.savingText}>Saving…</Text>
+            <AiPixelGrid />
+            <AiShimmerLabel style={styles.savingText}>Saving…</AiShimmerLabel>
           </View>
         ) : null}
       </ScrollView>

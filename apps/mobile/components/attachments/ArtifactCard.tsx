@@ -1,7 +1,9 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import type { AppArtifactAttachment } from "@hotelclaw/chat-ui";
+import { AiPixelGrid, AiShimmerLabel, statusFadeIn } from "../AiLoader";
 
 /**
  * Artifact card for `app_artifact` Stream attachments — "the AI is working
@@ -39,7 +41,7 @@ export function ArtifactCard({
     <>
       <View style={[styles.iconPlate, isSheet ? styles.plateSheet : styles.plateDoc]}>
         {writing ? (
-          <ActivityIndicator size="small" color="#6b7280" />
+          <AiPixelGrid />
         ) : (
           <Text style={styles.icon}>{isSheet ? "🧾" : "📄"}</Text>
         )}
@@ -48,9 +50,19 @@ export function ArtifactCard({
         <Text style={styles.title} numberOfLines={1}>
           {attachment.title}
         </Text>
-        <Text style={[styles.subtitle, writing && styles.subtitleWriting]} numberOfLines={1}>
-          {status}
-        </Text>
+        {writing ? (
+          <AiShimmerLabel style={styles.subtitle}>{status}</AiShimmerLabel>
+        ) : (
+          // Keyed so the writing→done flip fades in instead of snapping.
+          <Animated.Text
+            key={status}
+            entering={statusFadeIn()}
+            style={styles.subtitle}
+            numberOfLines={1}
+          >
+            {status}
+          </Animated.Text>
+        )}
       </View>
       {canOpen ? <Text style={styles.chevron}>›</Text> : null}
     </>
@@ -115,9 +127,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontSize: 12,
     color: "#6b7280",
-  },
-  subtitleWriting: {
-    color: "#2563eb",
   },
   chevron: {
     fontSize: 20,
