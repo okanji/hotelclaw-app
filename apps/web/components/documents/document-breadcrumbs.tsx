@@ -1,11 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 
 export type DocumentCrumb = { id: string; title: string };
+
+/**
+ * Back chevron for the native mobile shell only — hidden everywhere else
+ * (`.hc-embed-back`, globals.css). The app's document screen hides its native
+ * stack header and promotes the editor's top row to be THE bar, so that row
+ * needs a way to pop the native stack: the shell's WebSurface listens for
+ * this message in `onMessage`. Rendered by both the doc and sheet editors,
+ * immediately before their breadcrumbs.
+ */
+export function EmbedBackButton() {
+  return (
+    <button
+      type="button"
+      aria-label="Back"
+      onClick={() =>
+        (
+          window as unknown as {
+            ReactNativeWebView?: { postMessage(msg: string): void };
+          }
+        ).ReactNativeWebView?.postMessage(JSON.stringify({ type: "back" }))
+      }
+      className="hc-embed-back -ml-1.5 size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+    >
+      <ChevronLeft className="size-5" />
+    </button>
+  );
+}
 
 /**
  * Ancestor trail shown at the top of a document. `All documents` → each

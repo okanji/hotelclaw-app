@@ -77,6 +77,7 @@ import { DocumentHeader } from "./document-header";
 import { DocumentRoomAvatarStack } from "./document-presence-stack";
 import {
   DocumentBreadcrumbs,
+  EmbedBackButton,
   type DocumentCrumb,
 } from "./document-breadcrumbs";
 import { ComposerCloseContext, DocumentComposer } from "./document-composer";
@@ -512,11 +513,14 @@ function EditorInner({
           "Edited by" / History / presence up here lets the formatting toolbar
           below stay a single slim band. */}
       <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6 @max-3xl/doceditor:gap-2 @max-3xl/doceditor:px-3">
-        <DocumentBreadcrumbs
-          propertyId={propertyId}
-          ancestors={ancestors}
-          currentTitle={liveTitle}
-        />
+        <div className="flex min-w-0 items-center gap-1">
+          <EmbedBackButton />
+          <DocumentBreadcrumbs
+            propertyId={propertyId}
+            ancestors={ancestors}
+            currentTitle={liveTitle}
+          />
+        </div>
         {/* Wide container: the full action row. */}
         <div className="hidden shrink-0 items-center gap-2.5 @3xl/doceditor:flex">
           <WorkflowProvenanceBadge

@@ -1,0 +1,37 @@
+name: eas-update
+
+# OTA-publish the mobile app's JS on every push to main that touches it.
+# Native changes (new native module, SDK upgrade, permissions) must NOT ship
+# this way — bump `version` in apps/mobile/app.json in the same commit: the
+# appVersion runtime policy then keeps this update away from old binaries,
+# and the change ships via eas build + submit (TestFlight) instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/chat-grouping/**"
+      - "packages/chat-ui/**"
+
+concurrency:
+  group: eas-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Publish OTA update
+        working-directory: apps/mobile
+        run: eas update --channel production --environment production --auto --non-interactive

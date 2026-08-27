@@ -29,6 +29,7 @@ import {
 } from "@/lib/query/section-queries";
 import {
   DocumentBreadcrumbs,
+  EmbedBackButton,
   type DocumentCrumb,
 } from "../documents/document-breadcrumbs";
 import { DocumentLastEdited } from "../documents/document-last-edited";
@@ -142,7 +143,10 @@ function SheetInner({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-card">
-      <div className="flex h-11 shrink-0 items-center px-6">
+      <div className="flex h-11 shrink-0 items-center gap-1 px-6">
+        {/* The native shell hides its stack header on this screen — the
+            embed-only chevron (hidden elsewhere) is its way back. */}
+        <EmbedBackButton />
         <DocumentBreadcrumbs
           propertyId={propertyId}
           ancestors={ancestors}

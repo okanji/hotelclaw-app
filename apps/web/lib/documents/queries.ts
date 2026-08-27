@@ -24,8 +24,10 @@ export async function getDocuments(supabase: ServerClient, propertyId: string) {
     // `kind` lets the Directory list lead each row with the right icon — a
     // spreadsheet and a document are otherwise indistinguishable in a list of
     // "Untitled" rows.
+    // `icon` (the doc's emoji, 0037) lets lists lead with the page's own
+    // mark the way Notion does — the mobile app's Documents screen reads it.
     .select(
-      "id, title, kind, updated_at, body_text, created_at, created_by, last_edited_by, space_id",
+      "id, title, kind, icon, updated_at, body_text, created_at, created_by, last_edited_by, space_id",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

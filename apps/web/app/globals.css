@@ -685,6 +685,36 @@
   --sidebar-edge-shadow: inset -1px 0 0 #2c2c2b;
 }
 
+/* ---- Native mobile shell (WebView embed) chrome swaps -------------------
+   The attribute is stamped by apps/mobile/components/WebSurface.tsx before
+   page scripts run. DELIBERATELY UNLAYERED: these fight Tailwind display
+   utilities on the same elements (`flex` on the top bar / toolbar), and
+   `@layer base` LOSES to the utilities layer — inside a layer these rules
+   silently never apply (that's exactly how the hamburger-hide regressed
+   unnoticed). Unlayered author styles beat every layer. */
+
+/* The native screen header owns navigation → the web hamburger top bar is
+   redundant chrome. */
+html[data-hotelclaw-embed] .hc-mobile-top-bar {
+  display: none;
+}
+/* Document/sheet editors inside the native shell: the doc screen hides its
+   native stack header and promotes the editor's own top row (title ·
+   presence · overflow) to be THE bar — so it gains a back chevron that
+   posts {type:"back"} to the shell (`.hc-embed-back`, rendered next to the
+   breadcrumbs, hidden everywhere else), and the persistent formatting
+   toolbar band goes away like Notion's app (the selection FloatingToolbar
+   still covers formatting; the slash menu still inserts blocks). */
+.hc-embed-back {
+  display: none;
+}
+html[data-hotelclaw-embed] .hc-embed-back {
+  display: inline-flex;
+}
+html[data-hotelclaw-embed] .documents-toolbar {
+  display: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -693,13 +723,6 @@
     @apply bg-background text-foreground;
   }
 
-  /* Inside the native mobile app's WebView (attribute stamped by
-     apps/mobile/components/WebSurface.tsx before page scripts run): the
-     native screen header already owns navigation, so the web hamburger
-     top bar is redundant chrome. */
-  html[data-hotelclaw-embed] .hc-mobile-top-bar {
-    display: none;
-  }
   html {
     @apply font-sans;
     /* NO OpenType tuning. The old `"cv11","ss03","cv02"` triple was Inter
