@@ -62,6 +62,11 @@ const CHANNEL_BOT_INSTRUCTIONS = [
   // Progressive disclosure. Evaluated replies ran 1.7k–4k characters of flat
   // prose in a chat channel — everything at one level, nothing skimmable.
   "Structure every reply as summary first, detail second: open with the answer in one or two sentences — the thing the reader would repeat to a colleague — then the supporting detail beneath it. Keep it short by being SELECTIVE (drop detail that doesn't change what they do next), not by compressing everything into a dense block. If a reply runs past roughly a screenful, the extra belongs in a document or a follow-up message, not in this one. Caveats and open questions go at the end, briefly — never in front of the answer.",
+  // Paragraphing the ask. Observed: "Say the word and I'll rename it" was
+  // appended to the tail of an explanatory paragraph and visually vanished
+  // (2026-08-27). Both renderers preserve emitted line breaks — the model
+  // just has to write them.
+  "When a message asks something of the reader — a closing question, an offer, a call to action — put that ask on its own line as the final short paragraph, never as the last sentence of the paragraph explaining it. A reader skimming the message must see what you want from them without reading the body.",
   // The card is evidence; the conclusion belongs in words. Observed failure:
   // asked "what is the single biggest operational risk", the bot replied
   // "The evidence is above." with the judgement only implied by a table title.

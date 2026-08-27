@@ -54,6 +54,40 @@ these files again).
   Without it the serve generates a random token per boot (hidden on
   non-TTY) and the admin surface is effectively unusable.
 
+## 2026-08-27 post-credits-outage audit (hobby plan)
+
+The credits lapse only paused the serve — no state damage (locks clean,
+embeds current, 48 OAuth clients intact). Doctor went 25 → 65 ("All checks
+OK") after three fixes, all now live:
+
+1. **`each_source` now includes `master`, `pod-*`, and `canary-fixture`**
+   (was prop-* only) — doctor FAILED cycle_freshness because those sources
+   had never had a dream cycle. Patched in MAINTENANCE_SCRIPT + the repo
+   mirror.
+2. **Never pass `--timeout` to `gbrain sync`** (≤0.42): any --timeout routes
+   sync into the read-only command wrapper — a bare number is taken as
+   MILLISECONDS ("gbrain sync: connect timed out." instantly), a unit
+   suffix dies on `dispatchReadOnlyCommand: unsupported command "sync"`.
+   The shell `timeout 600` wrapper + sync's own non-TTY hard deadline
+   (3600s) are the bounds.
+3. **`GBRAIN_DIRECT_DATABASE_URL`** (session pooler, :5432 on the pooler
+   host) is now set on BOTH services. Per gbrain's GBRAIN_VERIFY.md: sync
+   transactions/DDL route to the derived `db.<ref>.supabase.co:5432`,
+   which is IPv6-only — unreachable from IPv4-only Railway AND this
+   laptop, causing silently skipped pages.
+
+**`master`/`pod-oamar`/`canary-fixture` can only repo-sync FROM THE
+LAPTOP** — they are federated sources rooted at
+`~/Desktop/hotelclaw-brains/*`; the container has no copy of those repos.
+Run occasionally on the Mac (env: GBRAIN_HOME=
+`~/Desktop/hotelclaw-brains/.gbrain-homes/shared`, GBRAIN_DIRECT_DATABASE_URL,
+OPENAI_API_KEY): `gbrain sync --source <id>` per source. The cron keeps
+their dream/embed/extract fresh; only repo-content sync is laptop-bound.
+
+Remaining advisory warnings (not broken): entity-link coverage (upstream
+slug-whitelist story), timeline density, pack upgrade available
+(gbrain-base → v2 via `gbrain onboard --check`), takes bootstrap opt-in.
+
 ## Deploy / bump procedure
 
 1. Update the pin in the Dockerfile (and the three mirrors above).

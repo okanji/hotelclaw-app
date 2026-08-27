@@ -27,17 +27,24 @@ break_stale_locks() {
 }
 
 each_source() {
-  # Per-PROPERTY sources only (prop-<hex> — single-token, so column parsing
-  # is safe). Multi-word curated sources would be mangled by $1 and are
-  # human-maintained; the dream cycle targets bot-evidence sources.
-  gbrain sources list --timeout=45s 2>/dev/null | awk '{print $1}' | grep -E '^prop-' || true
+  # Single-token sources only ($1 column parsing is safe for them):
+  # per-property (prop-<hex>), per-pod (pod-*), the master playbook, and
+  # the canary fixture. Multi-word curated sources would be mangled by $1
+  # and are human-maintained. master/pod/canary were added 2026-08-27:
+  # doctor FAILED cycle_freshness because they had never completed a dream
+  # cycle — its own prescription is `gbrain dream --source <id>` for each.
+  gbrain sources list --timeout=45s 2>/dev/null | awk '{print $1}' | grep -E '^(prop-|pod-|master$|canary-fixture$)' || true
 }
 
 case "$MODE" in
   sync)
     break_stale_locks
     for src in $(each_source); do
-      timeout 600 gbrain sync --source "$src" --timeout 540 || true
+      # NO --timeout flag on sync: in gbrain <=0.42 any --timeout routes
+      # sync into the read-only command wrapper — a bare number is taken as
+      # MILLISECONDS ("connect timed out" instantly), a unit-suffixed one
+      # dies on "unsupported command". The shell `timeout 600` is the bound.
+      timeout 600 gbrain sync --source "$src" || true
     done
     gbrain embed --stale || true
     # Edge extraction — gbrain's self-wiring knowledge graph, and the
