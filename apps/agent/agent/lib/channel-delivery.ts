@@ -460,11 +460,21 @@ function renderQuestion(request: PendingRequest): string {
   const lines = options.map(
     (o, i) => `${i + 1}. **${o.label}**${o.description ? ` — ${o.description}` : ""}`,
   );
+  // ≥2 options ⇒ deliverReply also ships a tappable ai_ui Options card
+  // (same threshold, keep in sync) — the hint offers the tap first, and the
+  // numbered list stays as the fallback for surfaces without the card.
+  const hasCard = options.length >= 2;
   const hint = isApproval
-    ? "_Reply with a number or the option name to decide. Nothing happens until you do._"
+    ? hasCard
+      ? "_Tap an option to decide — or reply with a number or the option name. Nothing happens until you do._"
+      : "_Reply with a number or the option name to decide. Nothing happens until you do._"
     : request.allowFreeform
-      ? "_Reply with a number, or answer in your own words._"
-      : "_Reply with a number or the option name._";
+      ? hasCard
+        ? "_Tap an option below, or answer in your own words._"
+        : "_Reply with a number, or answer in your own words._"
+      : hasCard
+        ? "_Tap an option below, or reply with a number._"
+        : "_Reply with a number or the option name._";
   return [head, "", ...lines, "", hint].join("\n");
 }
 
@@ -571,10 +581,58 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // render_ui spec was validated + link-rewritten by the tool runtime-side;
   // revalidate defensively before attaching (same discipline the web glue
   // applied).
-  let attachments: Array<{ type: string; spec: unknown }> | undefined;
+  let attachments:
+    | Array<{ type: string; spec: unknown; reply_to_self?: boolean }>
+    | undefined;
   if (row.ui_spec) {
     const validated = validateChatUiSpec(row.ui_spec);
     if (validated.ok) attachments = [{ type: "ai_ui", spec: validated.spec }];
+  }
+
+  // Tappable park options (2026-08-27): a question park with ≥2 real options
+  // ALSO ships an ai_ui Options card — the same quick-reply chips the model
+  // can render deliberately via render_ui — so the reader taps instead of
+  // typing "2". The numbered list stays in the text as the fallback for
+  // surfaces without the card. A tap sends the option LABEL as the user's
+  // own message, which the web answer parser already matches (label / id /
+  // 1-based index), so the parse path needs no change. Job parks flag the
+  // card `reply_to_self`: their answer must be a THREAD REPLY under this
+  // very message — the only route back to a job session (0098) — and the
+  // web sender honors the flag by threading the tap under the card's
+  // message instead of posting at top level.
+  if (isQuestionPark) {
+    const optionCards: NonNullable<typeof attachments> = [];
+    for (const request of questions) {
+      const options = (request.options ?? []).slice(0, 6);
+      if (options.length < 2) continue;
+      const spec = {
+        root: "options",
+        elements: {
+          options: {
+            type: "Options",
+            props: {
+              options: options.map((o) => ({
+                label: o.label.slice(0, 80),
+                value: o.label.slice(0, 200),
+                ...(o.description
+                  ? { description: o.description.slice(0, 120) }
+                  : {}),
+              })),
+            },
+          },
+        },
+      };
+      const validated = validateChatUiSpec(spec);
+      if (!validated.ok) continue;
+      optionCards.push({
+        type: "ai_ui",
+        spec: validated.spec,
+        ...(row.kind === "job" ? { reply_to_self: true } : {}),
+      });
+    }
+    if (optionCards.length > 0) {
+      attachments = [...(attachments ?? []), ...optionCards];
+    }
   }
 
   // A background job's question is answered by REPLYING IN ITS THREAD — the

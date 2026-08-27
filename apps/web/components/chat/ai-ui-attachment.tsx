@@ -1,10 +1,11 @@
 "use client";
 
-import { Children, useCallback, useMemo } from "react";
+import { Children, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ExternalLink, PanelRight } from "lucide-react";
+import { ArrowUpRight, Check, ExternalLink, PanelRight } from "lucide-react";
+import { toast } from "sonner";
 import { defineRegistry, JSONUIProvider, Renderer } from "@json-render/react";
 import {
   chatUiCatalog,
@@ -25,11 +26,14 @@ import {
 import { documentsTreeQueryOptions } from "@/lib/query/section-queries";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactPanel } from "./artifact-panel-context";
+import { useOptionalChatUiSend } from "./chat-ui-send-context";
 
 /**
  * Renders the bot's `ai_ui` attachment — a json-render spec over the
  * chat-UI catalog (`lib/ai/chat-ui/catalog.ts`), drawn with house
- * primitives. Display-only: no state, no actions.
+ * primitives. Display-first: the one interactive piece is `Options`
+ * (quick-reply chips), whose tap sends the chosen text as the user's own
+ * message via the surface's ChatUiSendProvider.
  *
  * The spec is re-validated before rendering so an old message written
  * under a future catalog revision degrades to nothing (the bot's text
@@ -346,6 +350,76 @@ const { registry } = defineRegistry(chatUiCatalog, {
     Stat: ({ props }) => (
       <Stat label={props.label} value={props.value} delta={props.hint} />
     ),
+    Options: ({ props }) => {
+      const send = useOptionalChatUiSend();
+      // Local-only selection memory — persisting "chosen" would mean editing
+      // the BOT's message, which the tapping user can't do. Chips stay live
+      // (the Slack convention, not Messenger's disappearing quick replies):
+      // the conversation moves on around them, and re-tapping just sends
+      // again, which is exactly what re-typing would do.
+      const [sentIndex, setSentIndex] = useState<number | null>(null);
+      const [sending, setSending] = useState(false);
+      const choose = useCallback(
+        async (index: number) => {
+          if (!send || sending) return;
+          const option = props.options[index];
+          setSending(true);
+          try {
+            await send(option.value ?? option.label);
+            setSentIndex(index);
+          } catch (e) {
+            console.error("quick reply failed", e);
+            toast.error(
+              e instanceof Error ? e.message : "Couldn't send that reply",
+            );
+          } finally {
+            setSending(false);
+          }
+        },
+        [send, sending, props.options],
+      );
+      return (
+        <div>
+          {props.prompt ? (
+            <div className="mb-2 text-sm text-muted-foreground">
+              {props.prompt}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-1.5">
+            {props.options.map((option, i) =>
+              send ? (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={sending}
+                  title={option.description}
+                  onClick={() => choose(i)}
+                  className={cn(
+                    "inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-60",
+                    sentIndex === i
+                      ? "border-foreground/30 bg-accent text-foreground"
+                      : "border-border bg-background text-foreground hover:bg-accent",
+                  )}
+                >
+                  {sentIndex === i ? <Check className="size-3.5" /> : null}
+                  {option.label}
+                </button>
+              ) : (
+                // No sender on this surface (or an old transcript render):
+                // the choices still read fine as static chips.
+                <span
+                  key={i}
+                  title={option.description}
+                  className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground"
+                >
+                  {option.label}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+      );
+    },
   },
 });
 

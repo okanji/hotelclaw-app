@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Wrench } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { ShieldAlert } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ChatMarkdown } from "@/components/chatbots/chat-markdown";
-import { cn } from "@/lib/utils";
+import { ToolTrace } from "@/components/ai/tool-trace";
 import {
   createTranscriptReducer,
   type TranscriptItem,
@@ -24,6 +24,11 @@ import { SESSION_STATUS_UI } from "@/lib/fleet/status-colors";
  * (never /eve/v1 directly) — the eve stream replays from index 0, so the
  * whole history renders from the event log; reading stops once the replay
  * goes quiet (deadline-raced reads; the stream itself never closes).
+ *
+ * Tool calls render through the shared ToolTrace (mono variant — same as
+ * agent-chat) so every transcript surface reads identically. input.requested
+ * events (approval parks) are recorded against their position in the item
+ * list and rendered as quiet amber marker rows.
  */
 export function SessionTranscriptSheet({
   propertyId,
@@ -35,6 +40,9 @@ export function SessionTranscriptSheet({
   onClose: () => void;
 }) {
   const [items, setItems] = useState<TranscriptItem[]>([]);
+  // Item-list lengths at the moment each approval park replayed — a park
+  // recorded at length L happened right after items[L - 1].
+  const [parks, setParks] = useState<number[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -46,6 +54,7 @@ export function SessionTranscriptSheet({
     abortRef.current?.abort();
     abortRef.current = controller;
     setItems([]);
+    setParks([]);
     setState("loading");
 
     (async () => {
@@ -57,7 +66,12 @@ export function SessionTranscriptSheet({
         if (!controller.signal.aborted) setState("error");
         return;
       }
-      const reducer = createTranscriptReducer();
+      const parkMarks: number[] = [];
+      const reducer = createTranscriptReducer({
+        onInputRequested: () => {
+          parkMarks.push(reducer.items.length);
+        },
+      });
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -84,6 +98,7 @@ export function SessionTranscriptSheet({
             }
           }
           setItems([...reducer.items]);
+          setParks([...parkMarks]);
           setState("ready");
         }
       } catch {
@@ -132,57 +147,51 @@ export function SessionTranscriptSheet({
             </p>
           ) : (
             <ul role="list" className="flex flex-col gap-4">
-              {items.map((item, index) => (
-                <li key={index}>
-                  {item.kind === "user" ? (
-                    <div className="ml-8 rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap">
-                      {item.text}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {item.toolCalls.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {item.toolCalls.map((call) => (
-                            <details
-                              key={call.callId}
-                              className="rounded-md bg-muted px-2.5 py-1.5 text-xs"
-                            >
-                              <summary className="flex cursor-pointer items-center gap-1.5 text-muted-foreground">
-                                <Wrench className="size-3 shrink-0" />
-                                <code className="font-mono">{call.toolName}</code>
-                                <span
-                                  className={cn(
-                                    "ml-auto",
-                                    call.done ? "text-success" : "text-muted-foreground",
-                                  )}
-                                >
-                                  {call.done ? "done" : "pending"}
-                                </span>
-                              </summary>
-                              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-background/80 p-2 font-mono text-xs leading-snug">
-                                {JSON.stringify(
-                                  { input: call.input, output: call.output },
-                                  null,
-                                  2,
-                                )}
-                              </pre>
-                            </details>
-                          ))}
-                        </div>
-                      ) : null}
-                      {item.text ? (
-                        <div className="text-sm">
-                          <ChatMarkdown>{item.text}</ChatMarkdown>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
+              {parks.includes(0) ? (
+                <li>
+                  <ParkMarker />
                 </li>
+              ) : null}
+              {items.map((item, index) => (
+                <Fragment key={index}>
+                  <li>
+                    {item.kind === "user" ? (
+                      <div className="ml-8 rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap">
+                        {item.text}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <ToolTrace calls={item.toolCalls} mono />
+                        {item.text ? (
+                          <div className="text-sm">
+                            <ChatMarkdown>{item.text}</ChatMarkdown>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </li>
+                  {parks.includes(index + 1) ? (
+                    <li>
+                      <ParkMarker />
+                    </li>
+                  ) : null}
+                </Fragment>
               ))}
             </ul>
           )}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Quiet amber row marking where the session parked on input.requested —
+ * an approval boundary in the event log, past or still pending. */
+function ParkMarker() {
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+      <ShieldAlert className="size-3.5 shrink-0" aria-hidden />
+      Parked for approval here
+    </div>
   );
 }

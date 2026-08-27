@@ -1,7 +1,13 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ChartData } from "@/lib/documents/nodes/chart";
+
+/** Non-empty text that won't parse as a number — charts as 0, so warn. */
+function isInvalidNumber(value: string) {
+  return value.trim() !== "" && !Number.isFinite(Number(value));
+}
 
 /**
  * Inline grid editor for the Chart node's data. Pure controlled component:
@@ -80,7 +86,7 @@ export function ChartDataEditor({
                     value={h}
                     aria-label={`Column ${i + 1} name`}
                     onChange={(e) => setHeader(i, e.target.value)}
-                    className="w-full min-w-[6ch] bg-transparent text-xs font-medium focus:outline-none"
+                    className="w-full min-w-[6ch] rounded-[4px] bg-transparent px-1 text-xs font-medium outline-none focus-visible:bg-background focus-visible:shadow-focus"
                   />
                   {i > 0 && data.headers.length > 2 ? (
                     <button
@@ -110,19 +116,55 @@ export function ChartDataEditor({
         <tbody>
           {data.rows.map((row, ri) => (
             <tr key={ri} className="hover:bg-accent">
-              {row.map((cell, ci) => (
-                <td
-                  key={ci}
-                  className="border-b border-border px-1.5 py-1"
-                >
-                  <input
-                    value={cell}
-                    aria-label={`Row ${ri + 1}, ${data.headers[ci] || `column ${ci + 1}`}`}
-                    onChange={(e) => setCell(ri, ci, e.target.value)}
-                    className="w-full bg-transparent text-xs focus:outline-none"
-                  />
-                </td>
-              ))}
+              {row.map((cell, ci) => {
+                // Column 0 is the X-axis label; everything after is numeric.
+                const numeric = ci > 0;
+                const invalid = numeric && isInvalidNumber(cell);
+                return (
+                  <td
+                    key={ci}
+                    className="border-b border-border px-1.5 py-1"
+                  >
+                    <input
+                      value={cell}
+                      inputMode={numeric ? "decimal" : undefined}
+                      aria-label={`Row ${ri + 1}, ${data.headers[ci] || `column ${ci + 1}`}`}
+                      aria-invalid={invalid || undefined}
+                      title={
+                        invalid
+                          ? "Not a number — will chart as 0"
+                          : undefined
+                      }
+                      onChange={(e) => setCell(ri, ci, e.target.value)}
+                      onKeyDown={
+                        numeric
+                          ? (e) => {
+                              if (
+                                e.key !== "ArrowUp" &&
+                                e.key !== "ArrowDown"
+                              )
+                                return;
+                              e.preventDefault();
+                              const parsed = Number(cell);
+                              const base = Number.isFinite(parsed)
+                                ? parsed
+                                : 0;
+                              const delta =
+                                (e.key === "ArrowUp" ? 1 : -1) *
+                                (e.shiftKey ? 10 : 1);
+                              setCell(ri, ci, String(base + delta));
+                            }
+                          : undefined
+                      }
+                      className={cn(
+                        "w-full rounded-[4px] bg-transparent px-1 text-xs outline-none focus-visible:bg-background focus-visible:shadow-focus",
+                        numeric && "tabular-nums",
+                        invalid && "text-destructive",
+                      )}
+                    />
+                  </td>
+                );
+              })}
               <td className="border-b border-border px-1 text-center">
                 <button
                   type="button"

@@ -11,9 +11,14 @@
  * `useUIStream`) — the bot supplies a complete spec as a tool argument,
  * documented compactly in `CHAT_UI_TOOL_DESCRIPTION`.
  *
- * Display-only by design: no state, no actions, no visibility conditions.
- * Anything interactive (fill a form, confirm a booking) should be a real
- * custom attachment with a real handler, like the `form` attachment.
+ * Display-first by design: no state, no json-render actions, no visibility
+ * conditions. The single interactive component is `Options` — quick-reply
+ * chips whose tap sends the option as the USER's next message (the
+ * Messenger/Slack quick-reply convention). That behavior is baked into the
+ * renderers, never authored by the model, so it's equivalent to the user
+ * typing: no ids, no writes. Anything richer (fill a form, confirm a
+ * booking) should be a real custom attachment with a real handler, like
+ * the `form` attachment.
  *
  * Shared by the server tool (`lib/ai/tools/render-ui.ts`) and the client
  * renderer (`components/chat/ai-ui-attachment.tsx`) — keep it free of
@@ -111,7 +116,25 @@ export const CHAT_UI_PROPS = {
     value: z.string().max(40),
     hint: z.string().max(80).optional(),
   }),
+  Options: z.object({
+    prompt: z.string().max(200).optional(),
+    options: z
+      .array(
+        z.object({
+          label: z.string().max(80),
+          /** The exact message sent on tap; defaults to `label`. */
+          value: z.string().max(200).optional(),
+          description: z.string().max(120).optional(),
+        }),
+      )
+      .min(2)
+      .max(6),
+  }),
 } as const;
+
+export type ChatUiOption = z.infer<
+  (typeof CHAT_UI_PROPS)["Options"]
+>["options"][number];
 
 export type ChatUiComponentType = keyof typeof CHAT_UI_PROPS;
 
@@ -147,6 +170,11 @@ export const chatUiCatalog = defineCatalog(schema, {
     Stat: {
       props: CHAT_UI_PROPS.Stat,
       description: "One headline metric.",
+    },
+    Options: {
+      props: CHAT_UI_PROPS.Options,
+      description:
+        "Tappable quick-reply chips; a tap sends the option as the user's message.",
     },
   },
   actions: {},
@@ -203,16 +231,20 @@ export type ChatUiValidation =
  * runtime's write tools: once with status "writing" the moment work starts
  * (so people can open the live split panel and WATCH the edit — Liveblocks
  * renders the bot's transactional writes in realtime), then upserted (same
- * deterministic message id) to status "done" with the href.
+ * deterministic message id) to status "done" with the href. Instant writes
+ * (kind "task") post once, already "done" — there's no in-progress state
+ * to watch, the card is the artifact link itself.
  */
 export type AppArtifactAttachment = {
   type: "app_artifact";
-  kind: "document" | "sheet";
+  kind: "document" | "sheet" | "task";
   status: "writing" | "done";
   title: string;
   property_id: string;
   action?: string;
   document_id?: string;
+  /** kind "task" only — the created/updated task row. */
+  task_id?: string;
   href?: string;
 };
 
@@ -223,7 +255,7 @@ export function isAppArtifactAttachment(
   const a = input as Record<string, unknown>;
   return (
     a.type === "app_artifact" &&
-    (a.kind === "document" || a.kind === "sheet") &&
+    (a.kind === "document" || a.kind === "sheet" || a.kind === "task") &&
     (a.status === "writing" || a.status === "done") &&
     typeof a.title === "string" &&
     typeof a.property_id === "string" &&
@@ -332,9 +364,10 @@ export const CHAT_UI_TOOL_DESCRIPTION = [
   '- Card — props { title, subtitle?, link?: {kind,id}, badge?: { label, tone?: "neutral"|"success"|"warning"|"info"|"destructive" }, fields?: [{ label, value }] (≤8) }.',
   '- StatRow — container for Stat children; props {}.',
   '- Stat — props { label, value, hint? } — one headline number.',
+  '- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS EVERY time your reply asks the user to decide anything: pick one of N, yes/no, this-or-that, and EVERY confirmation — a reply ending "say go and I\'ll build it" MUST carry Options like ["Go ahead — build it", "Adjust something first"]. Tapping sends the option as the user\'s next message: `value` is the exact message sent (defaults to label), so make it a complete, self-contained reply ("Go ahead as-is", not "1"). The chips ARE the list of choices: NEVER also write the choices in your text as a numbered/bulleted list, and never write "reply with a number" or "tap an option below" — end your text with the question itself and let the chips carry the choices. The user can always type their own answer instead, so don\'t add a catch-all "something else" option.',
   'Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: "task"|"project"|"document"|"meeting"|"form"|"space", id: "<uuid>" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.',
   "Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
-  "Call at most once per reply — a second call replaces the first. After calling, keep your text to a one-line lead-in; never repeat the data in text.",
+  "Placement: the rendered spec appears directly BELOW your message text, so write your reply to read into it (context and question last when using Options). Call at most once per reply — a second call replaces the first. Never repeat rendered data in your text: for tables/cards/stats keep the text to a one-line lead-in; for Options write your reply normally and end with the question.",
 ].join("\n");
 
 // ─── Deep-link resolution (shared by the web render_ui tool and the eve

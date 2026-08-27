@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   BookOpen,
+  Check,
   ChevronDown,
   FileText,
   Globe,
@@ -13,6 +14,7 @@ import {
   RefreshCw,
   Trash2,
   Type,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -192,9 +194,18 @@ export function KnowledgePanel({
           Train and test a question in the console.
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-border">
+        <ul role="list" className="divide-y divide-border">
           {sources.map((source) => (
-            <SourceRow key={source.id} source={source} />
+            <SourceRow
+              key={source.id}
+              source={source}
+              // A train run processes the pending batch; a bare Retrain
+              // (no pending) re-chunks everything — spin the rows the run
+              // is actually touching.
+              training={
+                training && (pendingCount === 0 || source.status === "pending")
+              }
+            />
           ))}
         </ul>
       )}
@@ -222,14 +233,96 @@ export function KnowledgePanel({
   );
 }
 
-function SourceRow({ source }: { source: KnowledgeSourceRow }) {
+/**
+ * Leading status affordance (TaskRows pattern): a spinner ring while the
+ * training batch is in flight, a passive ring for untrained, a solid
+ * success/destructive dot once the run settles.
+ */
+function SourceStatusMark({
+  status,
+  training,
+}: {
+  status: ChatbotKnowledgeStatus;
+  training: boolean;
+}) {
+  if (training) {
+    return (
+      <span className="inline-flex size-5 shrink-0 items-center justify-center">
+        <svg viewBox="0 0 20 20" className="size-5 animate-spin" aria-hidden>
+          <circle
+            cx="10"
+            cy="10"
+            r="8"
+            fill="none"
+            stroke="var(--border)"
+            strokeWidth="2"
+          />
+          <circle
+            cx="10"
+            cy="10"
+            r="8"
+            fill="none"
+            stroke="var(--faint-foreground)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray="14 36"
+          />
+        </svg>
+      </span>
+    );
+  }
+  if (status === "trained") {
+    return (
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-white">
+        <Check className="size-3" strokeWidth={3} aria-hidden />
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-white">
+        <X className="size-3" strokeWidth={3} aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex size-5 shrink-0 items-center justify-center">
+      <svg viewBox="0 0 20 20" className="size-5" aria-hidden>
+        <circle
+          cx="10"
+          cy="10"
+          r="8"
+          fill="none"
+          stroke="var(--border)"
+          strokeWidth="2"
+        />
+      </svg>
+    </span>
+  );
+}
+
+const DETAIL_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+};
+
+function SourceRow({
+  source,
+  training,
+}: {
+  source: KnowledgeSourceRow;
+  training: boolean;
+}) {
   const router = useRouter();
   const [deleting, startDelete] = useTransition();
-  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const Icon = KIND_ICONS[source.kind];
+  const editable = source.kind === "text" || source.kind === "qa";
 
-  function remove(e: React.MouseEvent) {
-    e.stopPropagation();
+  function remove() {
     startDelete(async () => {
       const result = await deleteKnowledgeSource(source.id);
       if ("error" in result) {
@@ -240,41 +333,132 @@ function SourceRow({ source }: { source: KnowledgeSourceRow }) {
     });
   }
 
+  // Only fields that exist on the row — there is no per-source chunk count
+  // in chatbot_knowledge_sources (0061), so none is shown.
+  const details: { label: string; meta: string }[] = [
+    {
+      label: "Characters",
+      meta: source.char_count.toLocaleString(),
+    },
+    {
+      label: "Last trained",
+      meta: source.last_trained_at
+        ? new Date(source.last_trained_at).toLocaleString(
+            undefined,
+            DETAIL_DATE_FORMAT,
+          )
+        : "Never",
+    },
+    {
+      label: "Added",
+      meta: new Date(source.created_at).toLocaleString(
+        undefined,
+        DETAIL_DATE_FORMAT,
+      ),
+    },
+  ];
+  // Snapshot state — the info that used to live only in the edit dialog's
+  // label: document/url content is captured at train time.
+  if (source.kind === "document" || source.kind === "url") {
+    details.push({
+      label: source.last_trained_at ? "Last trained snapshot" : "Snapshot",
+      meta: source.content
+        ? "Captured — refreshed on retrain"
+        : "None yet — fetched on retrain",
+    });
+  }
+
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="min-w-0 flex-1 rounded-md text-left transition-colors hover:opacity-80 focus:outline-none focus-visible:shadow-focus"
+    <li>
+      <div className="flex items-center gap-2 px-2 py-1.5 transition-colors hover:bg-accent">
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 text-left focus:outline-none focus-visible:shadow-focus"
+        >
+          <SourceStatusMark status={source.status} training={training} />
+          <Icon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm">{source.title}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {source.kind === "qa"
+                ? source.question
+                : source.kind === "url"
+                  ? source.url
+                  : `${Math.max(1, Math.round(source.char_count / 1000))}k characters`}
+            </span>
+          </span>
+          {source.status === "trained" ? (
+            <StatusBadge tone="success">Trained</StatusBadge>
+          ) : source.status === "failed" ? (
+            <StatusBadge tone="danger">Failed</StatusBadge>
+          ) : (
+            <Badge variant="secondary">Not trained</Badge>
+          )}
+          <ChevronDown
+            aria-hidden
+            className={`size-4 shrink-0 text-faint-foreground transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Delete source"
+          onClick={remove}
+          disabled={deleting}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* Expandable detail — the TaskRows dropdown grammar. */}
+      <div
+        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out"
+        style={{
+          gridTemplateRows: expanded ? "1fr" : "0fr",
+          opacity: expanded ? 1 : 0,
+        }}
       >
-        <p className="truncate text-sm">{source.title}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {source.kind === "qa"
-            ? source.question
-            : source.kind === "url"
-              ? source.url
-              : `${Math.max(1, Math.round(source.char_count / 1000))}k characters`}
-          {source.error ? ` — ${source.error}` : ""}
-        </p>
-      </button>
-      {source.status === "trained" ? (
-        <StatusBadge tone="success">Trained</StatusBadge>
-      ) : source.status === "failed" ? (
-        <StatusBadge tone="danger">Failed</StatusBadge>
-      ) : (
-        <Badge variant="secondary">Not trained</Badge>
-      )}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Delete source"
-        onClick={remove}
-        disabled={deleting}
-      >
-        <Trash2 className="size-3.5" />
-      </Button>
-      <SourceDetailDialog source={source} open={open} onOpenChange={setOpen} />
+        <div className="overflow-hidden">
+          <div className="grid grid-cols-[20px_1fr] gap-3 px-4 pb-3">
+            <span aria-hidden className="mx-auto h-full w-px bg-border" />
+            <div className="flex flex-col gap-1.5 pt-1">
+              {details.map((d) => (
+                <div
+                  key={d.label}
+                  className="flex items-center justify-between gap-3 text-xs"
+                >
+                  <span className="text-muted-foreground">{d.label}</span>
+                  <span className="truncate text-right tabular-nums text-faint-foreground">
+                    {d.meta}
+                  </span>
+                </div>
+              ))}
+              {source.status === "failed" && source.error ? (
+                <p className="text-xs text-destructive">{source.error}</p>
+              ) : null}
+              <div className="pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  {editable ? "Edit source" : "View snapshot"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <SourceDetailDialog
+        source={source}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </li>
   );
 }

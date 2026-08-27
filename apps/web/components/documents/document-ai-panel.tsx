@@ -34,6 +34,7 @@ import {
   Copy,
   CornerDownLeft,
 } from "lucide-react";
+import { AiLoader } from "@/components/ui/ai-loader";
 import { toast } from "sonner";
 import type { Editor } from "@tiptap/react";
 import {
@@ -433,9 +434,8 @@ export const DocumentAiPanel = forwardRef<
                 </div>
               ))}
               {busy ? (
-                <div className="mr-10 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Thinking…
+                <div className="mr-10 px-3 py-2">
+                  <AiLoader label="Thinking…" />
                 </div>
               ) : null}
             </div>

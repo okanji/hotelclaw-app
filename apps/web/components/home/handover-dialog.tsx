@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightLeft, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { SelectionActionsBar } from "@/components/ai/selection-actions-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,6 +38,7 @@ export function HandoverDialog({
     "drafting",
   );
   const [draft, setDraft] = useState("");
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
   const [window, setWindow] = useState<{ start: string; end: string } | null>(
     null,
   );
@@ -144,7 +146,37 @@ export function HandoverDialog({
           </p>
         ) : (
           <div className="flex flex-col gap-3">
+            {/* Select any part of the draft → one-tap AI rewrites of just
+                that span. The human sign-off stays the point: every rewrite
+                lands back in the editable draft, nothing publishes itself. */}
+            <SelectionActionsBar
+              textareaRef={draftRef}
+              value={draft}
+              onChange={setDraft}
+              disabled={phase === "publishing"}
+              rewrite={async ({ selection, before, after, instruction }) => {
+                const res = await fetch(
+                  `/api/properties/${propertyId}/handover/rewrite`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      prompt: instruction,
+                      context: {
+                        beforeSelection: before.slice(-3000),
+                        selection,
+                        afterSelection: after.slice(0, 3000),
+                      },
+                    }),
+                  },
+                );
+                if (!res.ok) throw new Error(`Rewrite failed (${res.status})`);
+                const body = (await res.json()) as { text?: string };
+                return body.text ?? "";
+              }}
+            />
             <Textarea
+              ref={draftRef}
               name="handoverDraft"
               aria-label="Handover draft"
               value={draft}

@@ -9,6 +9,7 @@ import {
 } from "stream-chat-react";
 import type { Thread, ThreadState } from "stream-chat";
 import { Hash, Lock, MessageSquare, MessageSquareText } from "lucide-react";
+import { JumpToLatestOverride } from "../jump-to-latest";
 import { SlackThread } from "./slack-thread";
 
 /**
@@ -51,7 +52,7 @@ export function ThreadsFeed() {
   }
 
   return (
-    <div className="flex w-full flex-col divide-y divide-border">
+    <div className="threads-feed flex w-full flex-col divide-y divide-border">
       {threads.map((thread) => (
         <ThreadCard key={thread.id} thread={thread} />
       ))}
@@ -65,7 +66,9 @@ function ThreadCard({ thread }: { thread: Thread }) {
   // need to read parent/replies and send replies attached to this thread.
   return (
     <ThreadProvider thread={thread}>
-      <ThreadCardContent />
+      <JumpToLatestOverride>
+        <ThreadCardContent />
+      </JumpToLatestOverride>
     </ThreadProvider>
   );
 }

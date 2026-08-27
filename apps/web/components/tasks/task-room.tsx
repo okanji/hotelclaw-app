@@ -23,9 +23,12 @@ import { TaskDetailSkeleton } from "./task-detail-skeleton";
 export function TaskRoom({
   propertyId,
   taskId,
+  variant,
 }: {
   propertyId: string;
   taskId: string;
+  /** Passed through to TaskDetail — "embedded" for hosts with their own chrome. */
+  variant?: "page" | "embedded";
 }) {
   const { data: tasks, isPending } = useQuery(tasksQueryOptions(propertyId));
 
@@ -64,7 +67,7 @@ export function TaskRoom({
       }}
     >
       <Suspense fallback={<TaskDetailSkeleton />}>
-        <TaskDetail propertyId={propertyId} task={task} />
+        <TaskDetail propertyId={propertyId} task={task} variant={variant} />
       </Suspense>
     </RoomProvider>
   );

@@ -18,6 +18,7 @@ import { ArrowRight, ThumbsDown, ThumbsUp, User } from "lucide-react";
  */
 import { ChatMarkdown } from "@/components/chatbots/chat-markdown";
 import { ChatCards } from "@/components/chatbots/chat-cards";
+import { StreamingText } from "@/components/guest-chat/streaming-text";
 
 type GuestMeta = {
   displayName: string;
@@ -314,6 +315,29 @@ export function GuestChatPage({
   const showSuggestions =
     ready && !paused && messages.filter((m) => m.role === "guest").length === 0;
 
+  // After a completed bot reply, resurface up to 3 unused suggested
+  // questions as quieter follow-up chips. Only while the conversation is
+  // idle and still with the bot — never mid-stream or while escalated.
+  const lastMessage = messages.at(-1);
+  const askedQuestions = new Set(
+    messages
+      .filter((m) => m.role === "guest")
+      .map((m) => m.content.trim().toLowerCase()),
+  );
+  const followUps =
+    ready &&
+    !paused &&
+    !busy &&
+    token &&
+    status === "bot" &&
+    askedQuestions.size > 0 &&
+    lastMessage?.role === "bot" &&
+    !lastMessage.streaming
+      ? meta.suggestedQuestions
+          .filter((q) => !askedQuestions.has(q.trim().toLowerCase()))
+          .slice(0, 3)
+      : [];
+
   // Embed + mobile: fill the viewport/iframe edge-to-edge. Standalone on
   // desktop: a soft branded backdrop with the chat centered in a capped,
   // rounded card so the public link reads as a destination, not a bare frame.
@@ -389,6 +413,7 @@ export function GuestChatPage({
                     accent={accent}
                     staffLabel={`${meta.propertyName} team`}
                     attachments={m.role === "bot" ? m.attachments : undefined}
+                    streaming={m.role === "bot" && m.streaming}
                     onSend={busy || !token ? undefined : (t) => void send(t)}
                     footer={
                       m.role === "bot" && !m.streaming && !m.id.startsWith("local-") ? (
@@ -400,7 +425,7 @@ export function GuestChatPage({
                       ) : undefined
                     }
                   >
-                    {m.content || (m.streaming ? "…" : "")}
+                    {m.content}
                   </Bubble>
                 ),
               )}
@@ -415,6 +440,28 @@ export function GuestChatPage({
                       disabled={busy || !token}
                       className="rounded-full border bg-white/70 px-3.5 py-2 text-left text-sm transition-colors disabled:opacity-40"
                       style={{ borderColor: "rgba(31,30,27,0.12)", color: INK }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {followUps.length > 0 ? (
+                // Keyed to the reply that produced it so the row blur-fades
+                // in fresh after each turn instead of persisting silently.
+                <div
+                  key={lastMessage?.id}
+                  className="ai-blur-in flex flex-wrap gap-1.5 pt-1 pl-8"
+                >
+                  {followUps.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => void send(q)}
+                      disabled={busy || !token}
+                      className="rounded-full border bg-white/60 px-3 py-1.5 text-left text-[13px] transition-colors disabled:opacity-40"
+                      style={{ borderColor: "rgba(31,30,27,0.10)", color: INK_SOFT }}
                     >
                       {q}
                     </button>
@@ -509,6 +556,7 @@ function Bubble({
   staffLabel,
   footer,
   attachments,
+  streaming = false,
   onSend,
   children,
 }: {
@@ -519,6 +567,9 @@ function Bubble({
   footer?: React.ReactNode;
   /** Bot-only: structured cards rendered beneath the bubble. */
   attachments?: unknown;
+  /** Bot-only: still receiving stream chunks — words blur in as they
+   *  arrive; markdown waits until the reply settles. */
+  streaming?: boolean;
   /** Bot-only: drives a Book affordance back into the chat. */
   onSend?: (text: string) => void;
   children: React.ReactNode;
@@ -552,7 +603,15 @@ function Bubble({
           className={`rounded-2xl rounded-bl-md border bg-white px-4 py-2.5 text-base leading-relaxed ${isBot ? "" : "whitespace-pre-wrap"}`}
           style={{ borderColor: "rgba(31,30,27,0.1)", color: INK }}
         >
-          {isBot && typeof children === "string" && children ? (
+          {isBot && streaming ? (
+            typeof children === "string" && children ? (
+              <StreamingText text={children} />
+            ) : (
+              // Waiting on the first byte — dots inside the bubble instead
+              // of a literal "…" string.
+              <Dots accent={accent} className="py-1.5" />
+            )
+          ) : isBot && typeof children === "string" && children ? (
             <ChatMarkdown>{children}</ChatMarkdown>
           ) : (
             children
@@ -613,6 +672,20 @@ function CenterNote({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Dots({ accent, className }: { accent: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 ${className ?? ""}`}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 animate-bounce rounded-full"
+          style={{ backgroundColor: accent, animationDelay: `${i * 150}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function TypingDots({ accent, emoji }: { accent: string; emoji: string }) {
   return (
     <div className="flex items-end gap-2">
@@ -620,16 +693,10 @@ function TypingDots({ accent, emoji }: { accent: string; emoji: string }) {
         {emoji}
       </span>
       <div
-        className="flex items-center gap-1 rounded-2xl rounded-bl-md border bg-white px-4 py-3"
+        className="flex items-center rounded-2xl rounded-bl-md border bg-white px-4 py-3"
         style={{ borderColor: "rgba(31,30,27,0.1)" }}
       >
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="size-1.5 animate-bounce rounded-full"
-            style={{ backgroundColor: accent, animationDelay: `${i * 150}ms` }}
-          />
-        ))}
+        <Dots accent={accent} />
       </div>
     </div>
   );

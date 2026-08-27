@@ -5,15 +5,14 @@ import Link from "next/link";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
-  ChevronRight,
   Loader2,
   Plus,
   RefreshCw,
-  Sparkles,
   Workflow,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { RecommendationCard } from "@/components/ai/recommendation-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -126,9 +125,6 @@ export function AutomationsDialog({
   );
 
   const [pending, setPending] = useState<Set<string>>(new Set());
-  // Which suggestion is showing its full builder prompt (title = key; one at a
-  // time keeps the modal from growing past its scroll on a 4-suggestion set).
-  const [openPrompt, setOpenPrompt] = useState<string | null>(null);
 
   async function toggle(id: string, name: string, next: boolean) {
     if (pending.has(id)) return;
@@ -264,99 +260,30 @@ export function AutomationsDialog({
                 </button>
               ) : null}
             </div>
-            <div className="mt-2 flex flex-col gap-1.5">
+            <div className="mt-2 flex flex-col gap-2">
               {suggestPending ? (
                 <SuggestionSkeleton />
               ) : (
-                suggestions.map((s) => {
-                  const shown = openPrompt === s.title;
-                  return (
-                    <div
-                      key={s.title}
-                      className="rounded-md px-3 py-2.5 transition-colors hover:bg-accent"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <Sparkles
-                          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-                          aria-hidden
-                        />
-                        <div className="min-w-0 flex-1">
-                          {/* The title/blurb is the click target. The prompt
-                              toggle CANNOT live inside it — a <button> nested
-                              in an <a> is invalid and breaks keyboard nav. */}
-                          <Link
-                            href={builderPrefillHref(propertyId, s.goal, {
-                              source: "automations-modal",
-                              feature,
-                            })}
-                            className="group block text-left"
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span className="text-sm font-medium text-foreground">
-                                {s.title}
-                              </span>
-                              <span className="shrink-0 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                                Build →
-                              </span>
-                            </span>
-                            <span className="block text-xs leading-relaxed text-muted-foreground">
-                              {s.why}
-                            </span>
-                          </Link>
-                          <button
-                            type="button"
-                            aria-expanded={shown}
-                            onClick={() => setOpenPrompt(shown ? null : s.title)}
-                            className="mt-1.5 inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <ChevronRight
-                              aria-hidden
-                              className={cn(
-                                "size-3 transition-transform",
-                                shown && "rotate-90",
-                              )}
-                            />
-                            {shown ? "Hide prompt" : "Show prompt"}
-                          </button>
-                          {shown ? (
-                            <div className="mt-1.5 flex flex-col gap-2 rounded-md bg-muted px-2.5 py-2">
-                              <div>
-                                <Eyebrow>Prompt sent to the builder</Eyebrow>
-                                <p className="mt-1 text-xs leading-relaxed text-foreground">
-                                  {s.goal}
-                                </p>
-                              </div>
-                              {/* Provenance. Every line here was resolved
-                                  server-side from a deterministic signal the
-                                  model cited, so it's measured fact — not the
-                                  model's account of its own reasoning. */}
-                              {s.basis && s.basis.length > 0 ? (
-                                <div>
-                                  <Eyebrow>Suggested because</Eyebrow>
-                                  <ul className="mt-1 flex flex-col gap-0.5">
-                                    {s.basis.map((b) => (
-                                      <li
-                                        key={b}
-                                        className="text-xs leading-relaxed text-muted-foreground"
-                                      >
-                                        · {b}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ) : null}
-                              <p className="text-xs leading-relaxed text-faint-foreground">
-                                Building sends the prompt to the workflow
-                                builder, which picks the trigger and steps. You
-                                review the result before anything saves.
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+                suggestions.map((s) => (
+                  // Provenance in the "Why" disclosure: every basis line was
+                  // resolved server-side from a deterministic signal the model
+                  // cited, so it's measured fact — not the model's account of
+                  // its own reasoning. "Build this" hands the goal to the
+                  // author copilot, which owns catalog discovery + validation.
+                  <RecommendationCard
+                    key={s.title}
+                    title={s.title}
+                    description={s.why}
+                    basis={s.basis}
+                    primaryCta={{
+                      label: "Build this",
+                      href: builderPrefillHref(propertyId, s.goal, {
+                        source: "automations-modal",
+                        feature,
+                      }),
+                    }}
+                  />
+                ))
               )}
             </div>
           </section>

@@ -8,6 +8,7 @@ import type { ChatbotConfig } from "@/lib/chatbots/schema";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
 import { PlaygroundDialog } from "./playground-dialog";
+import { RetrievedKnowledge } from "./retrieved-knowledge";
 import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
 
 /**
@@ -19,7 +20,7 @@ import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
 type Turn = {
   role: "user" | "assistant";
   content: string;
-  toolCalls?: { name: string; input: unknown }[];
+  toolCalls?: { name: string; input: unknown; output?: unknown }[];
   attachments?: unknown;
 };
 
@@ -74,7 +75,7 @@ export function TestConsole({
       }
       const data = (await res.json()) as {
         reply: string;
-        toolCalls: { name: string; input: unknown }[];
+        toolCalls: { name: string; input: unknown; output?: unknown }[];
         attachments?: unknown;
       };
       setTurns((t) => [
@@ -177,10 +178,11 @@ export function TestConsole({
               </ChatBubble>
             </div>
           ) : (
-            <div key={i} className="space-y-1">
+            <div key={i} className="space-y-1.5">
               {t.toolCalls && t.toolCalls.length > 0 ? (
                 <ToolCallList calls={t.toolCalls} />
               ) : null}
+              <RetrievedKnowledge toolCalls={t.toolCalls} />
               <BotBubble emoji={avatarEmoji}>{t.content}</BotBubble>
               <div className="pl-7">
                 <ChatCards

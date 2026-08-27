@@ -53,7 +53,7 @@ export default async function ChatbotDetailPage({
       supabase
         .from("chatbot_conversations")
         .select(
-          "id, guest_name, room_number, status, outcome, message_count, last_message_at, created_at",
+          "id, guest_name, room_number, status, outcome, message_count, last_message_at, created_at, topic, sentiment",
         )
         .eq("chatbot_id", chatbotId)
         .eq("channel", "web")

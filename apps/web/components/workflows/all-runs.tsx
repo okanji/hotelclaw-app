@@ -5,45 +5,17 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { History, Workflow } from "lucide-react";
 import { allPropertyRunsQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { RunStatusRing } from "@/components/workflows/run-status-ring";
+import {
+  formatDuration,
+  formatRelative,
+  runStatusLabelClass,
+} from "@/components/workflows/run-format";
 import { WorkflowsTabs } from "./workflows-tabs";
-
-const STATUS_TONES: Record<
-  string,
-  React.ComponentProps<typeof StatusBadge>["tone"]
-> = {
-  succeeded: "success",
-  failed: "danger",
-  filtered: "neutral",
-  running: "info",
-  queued: "neutral",
-  waiting: "warning",
-  cancelled: "neutral",
-};
-
-function formatRelative(iso: string | null) {
-  if (!iso) return "";
-  const ms = Date.now() - Date.parse(iso);
-  if (isNaN(ms)) return "";
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function formatDuration(start: string, end: string | null) {
-  if (!end) return "—";
-  const ms = Date.parse(end) - Date.parse(start);
-  if (isNaN(ms) || ms < 0) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.round(ms / 60_000)}m`;
-}
 
 export function AllRunsList({ propertyId }: { propertyId: string }) {
   useWorkflowsRealtime(propertyId);
@@ -70,9 +42,15 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                     href={`/p/${propertyId}/workflows/${r.workflow_id}/runs/${r.id}`}
                     className="flex h-[37px] items-center gap-3 px-4 hover:bg-accent"
                   >
-                    <StatusBadge tone={STATUS_TONES[r.status] ?? "neutral"} dot={false}>
+                    <RunStatusRing status={r.status} />
+                    <span
+                      className={cn(
+                        "w-16 shrink-0 truncate text-xs",
+                        runStatusLabelClass(r.status),
+                      )}
+                    >
                       {r.status}
-                    </StatusBadge>
+                    </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {r.workflow_name}
                     </span>

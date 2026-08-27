@@ -88,6 +88,7 @@ import {
   type ClusterRole,
 } from "@/lib/chat/message-grouping";
 import { useTimeFormat } from "@/lib/preferences/time-format-context";
+import { isAiUiAttachment } from "@/lib/ai/chat-ui/catalog";
 
 /**
  * Clustering rules live in `lib/chat/message-grouping.ts` (pure + unit
@@ -258,6 +259,20 @@ const SlackMessageUIWithContext = ({
           : [message.shared_location, ...(message.attachments ?? [])],
     [message],
   );
+
+  // `ai_ui` attachments (rich AI cards + Options quick-reply chips) render
+  // BELOW the message text — the bot writes its reply, the UI follows, which
+  // is where the tool description tells the model its spec will appear
+  // ("Tap an option below" must actually be below). Everything else keeps
+  // the default above-text slot. Mobile already matches: its custom
+  // attachments mount via MessageContentBottomView.
+  const [leadingAttachments, aiUiBelowText] = useMemo(() => {
+    const all = finalAttachments ?? [];
+    return [
+      all.filter((a): boolean => !isAiUiAttachment(a)),
+      all.filter((a): boolean => isAiUiAttachment(a)),
+    ] as const;
+  }, [finalAttachments]);
 
   const clusterRole = useMemo(
     () => resolveClusterRole(message.id, processedMessages),
@@ -474,10 +489,10 @@ const SlackMessageUIWithContext = ({
                 <div className="str-chat__message-bubble">
                   {poll && <Poll poll={poll} />}
                   {message.quoted_message && <QuotedMessage />}
-                  {finalAttachments?.length ? (
+                  {leadingAttachments.length ? (
                     <Attachment
                       actionHandler={handleAction}
-                      attachments={finalAttachments}
+                      attachments={leadingAttachments}
                     />
                   ) : null}
                   {isAIGenerated ? (
@@ -485,6 +500,12 @@ const SlackMessageUIWithContext = ({
                   ) : (
                     <MessageText message={message} renderText={renderText} />
                   )}
+                  {aiUiBelowText.length ? (
+                    <Attachment
+                      actionHandler={handleAction}
+                      attachments={aiUiBelowText}
+                    />
+                  ) : null}
                   {/* What the bot did to produce this reply, collapsed.
                       `eve_steps` is stamped by the runtime at delivery. */}
                   {isAiSteps((message as unknown as { eve_steps?: unknown }).eve_steps) ? (

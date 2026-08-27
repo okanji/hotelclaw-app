@@ -146,9 +146,20 @@ export async function POST(
     // Consume the stream server-side — the console is request/response.
     const text = await result.text;
     const steps = await result.steps;
-    const toolCalls = steps.flatMap((step) =>
-      step.toolCalls.map((tc) => ({ name: tc.toolName, input: tc.input })),
-    );
+    // Per-call `output` (matched by toolCallId) rides along so the sandbox
+    // console can show what each tool returned — search_knowledge hits,
+    // simulated side effects. Member-gated route; additive, so the shape
+    // stays backward compatible.
+    const toolCalls = steps.flatMap((step) => {
+      const outputByCall = new Map<string, unknown>(
+        step.toolResults.map((tr) => [tr.toolCallId, tr.output as unknown]),
+      );
+      return step.toolCalls.map((tc) => ({
+        name: tc.toolName,
+        input: tc.input,
+        output: outputByCall.get(tc.toolCallId),
+      }));
+    });
     const attachments = cardsFromToolResults(
       steps.flatMap((step) =>
         step.toolResults.map((tr) => ({

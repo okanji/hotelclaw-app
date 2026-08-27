@@ -1,11 +1,13 @@
 import React from "react";
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useChannelContext, useMessageContext } from "stream-chat-expo";
 import {
   validateChatUiSpec,
   type AiUiAttachmentPayload,
@@ -19,8 +21,8 @@ import {
  * json-render spec the web renders in
  * `apps/web/components/chat/ai-ui-attachment.tsx`, drawn with plain RN
  * views. The catalog is tiny (Stack / DataTable / CardGrid / Card /
- * StatRow / Stat) and display-only, so we walk the validated spec with a
- * ~40-line recursive renderer instead of pulling `@json-render/react`'s
+ * StatRow / Stat / Options), so we walk the validated spec with a
+ * small recursive renderer instead of pulling `@json-render/react`'s
  * `Renderer` into the RN bundle (the shared `@hotelclaw/chat-ui` package
  * deliberately uses only its react-free `/schema` subpath).
  *
@@ -220,6 +222,73 @@ function StatView({
   );
 }
 
+function OptionsView({
+  props,
+}: {
+  props: {
+    prompt?: string;
+    options: { label: string; value?: string; description?: string }[];
+  };
+}) {
+  // Quick-reply chips: a tap sends the option as the USER's own message,
+  // so the reply travels the normal message.new → classifier → eve pipeline
+  // (same wiring as web's Options in ai-ui-attachment.tsx). Both contexts
+  // are guaranteed here — this component only mounts inside <Channel> via
+  // CustomAttachments' MessageContentBottomView.
+  const { channel } = useChannelContext();
+  const { message } = useMessageContext();
+  const parentId = message.parent_id;
+  const [sentIndex, setSentIndex] = React.useState<number | null>(null);
+  const [sending, setSending] = React.useState(false);
+
+  const choose = async (index: number) => {
+    if (sending) return;
+    const option = props.options[index];
+    setSending(true);
+    try {
+      await channel.sendMessage({
+        text: option.value ?? option.label,
+        // A bot message living in a thread gets its reply in that thread.
+        ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
+      });
+      setSentIndex(index);
+    } catch {
+      Alert.alert("Couldn't send", "That reply didn't go through — try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View>
+      {props.prompt ? <Text style={styles.optionsPrompt}>{props.prompt}</Text> : null}
+      {/* flexWrap row — NEVER a horizontal ScrollView (see DataTableView). */}
+      <View style={styles.optionsRow}>
+        {props.options.map((option, i) => (
+          <Pressable
+            key={i}
+            disabled={sending}
+            onPress={() => void choose(i)}
+            style={({ pressed }) => [
+              styles.optionChip,
+              sentIndex === i && styles.optionChipSent,
+              (pressed || sending) && styles.pressed,
+            ]}
+          >
+            <Text
+              style={[styles.optionLabel, sentIndex === i && styles.optionLabelSent]}
+              numberOfLines={1}
+            >
+              {sentIndex === i ? "✓ " : ""}
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ─── Recursive walk ──────────────────────────────────────────────────────
 
 function renderElement(spec: ChatUiSpec, key: string): React.ReactElement | null {
@@ -242,6 +311,8 @@ function renderElement(spec: ChatUiSpec, key: string): React.ReactElement | null
       return <CardView props={el.props as React.ComponentProps<typeof CardView>["props"]} />;
     case "Stat":
       return <StatView props={el.props as React.ComponentProps<typeof StatView>["props"]} />;
+    case "Options":
+      return <OptionsView props={el.props as React.ComponentProps<typeof OptionsView>["props"]} />;
     default:
       return null;
   }
@@ -415,5 +486,36 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontSize: 11,
     color: "#9ca3af",
+  },
+  // Options quick replies
+  optionsPrompt: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 6,
+  },
+  optionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  optionChip: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  optionChipSent: {
+    backgroundColor: "#f3f4f6",
+    borderColor: "#9ca3af",
+  },
+  optionLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  optionLabelSent: {
+    color: "#374151",
   },
 });

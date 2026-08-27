@@ -2,19 +2,24 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { cn } from "@/lib/utils";
+import { RecommendationCard } from "@/components/ai/recommendation-card";
 
 /**
  * Intake-triage suggestions on the task detail — the visible rung of the
- * trust ladder. Each row names the field, the value it would set, the bot's
- * confidence, and its one-line reasoning out in the open (not buried in a
- * tooltip), then accept applies the field / dismiss records the rejection.
- * Auto-applied fields drop to a quiet provenance line, so graduated autonomy
- * stays inspectable.
+ * trust ladder, presented through the house RecommendationCard: one card per
+ * suggested field, the bot's confidence as the segmented meter, and its
+ * deterministic reasoning (similar-task overlap) behind the quiet "Why"
+ * disclosure. Accept/dismiss keep their exact server actions. Auto-applied
+ * fields drop to a quiet provenance line, so graduated autonomy stays
+ * inspectable.
+ *
+ * No alternatives drawer here, deliberately: the suggestions API returns only
+ * the validated pick (candidate lists live server-side in the triage bot),
+ * and the accept action applies the stored suggested_value — it takes no
+ * value override — so there is nothing a promoted alternative could apply
+ * through the existing path.
  */
 
 type Suggestion = {
@@ -36,7 +41,7 @@ const FIELD_LABEL: Record<Suggestion["field"], string> = {
 const CONFIDENCE_LABEL: Record<Suggestion["confidence"], string> = {
   high: "High confidence",
   medium: "Medium confidence",
-  low: "Low confidence",
+  low: "Needs review",
 };
 
 export function taskSuggestionsQueryOptions(propertyId: string, taskId: string) {
@@ -103,143 +108,60 @@ export function TaskTriageSuggestions({
   const applied = suggestions.filter((s) => s.status === "auto_applied");
 
   return (
-    <div className="overflow-hidden rounded-md bg-muted">
-      <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5 text-xs/[1] font-medium text-faint-foreground">
-        <Sparkles className="size-3 shrink-0" />
-        Suggested for this task
-      </div>
+    <div className="flex flex-col gap-2">
+      {pending.length > 0 ? (
+        <div className="flex items-center gap-1.5 text-xs/[1] font-medium text-faint-foreground">
+          <Sparkles className="size-3 shrink-0" aria-hidden />
+          Suggested for this task
+        </div>
+      ) : null}
 
-      <div className="flex flex-col">
-        {pending.map((s, i) => (
-          <div
-            key={s.id}
-            className={cn(
-              "flex items-start gap-2.5 px-3 py-2.5",
-              i > 0 && "border-t border-border",
-            )}
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
-                <span className="text-muted-foreground">
-                  Set {FIELD_LABEL[s.field]} to
-                </span>
-                <span className="font-semibold text-foreground">
-                  {s.display_value}
-                </span>
-                <ConfidenceTag confidence={s.confidence} />
-              </div>
-              <p className="text-xs leading-snug text-pretty text-muted-foreground">
-                {s.reasoning}
-              </p>
+      {pending.map((s) => (
+        <RecommendationCard
+          key={s.id}
+          title={`Set ${FIELD_LABEL[s.field].toLowerCase()} to`}
+          recommended={{ label: s.display_value }}
+          confidence={{ level: s.confidence, label: CONFIDENCE_LABEL[s.confidence] }}
+          basis={[s.reasoning]}
+          primaryCta={{
+            label: "Accept",
+            busy:
+              resolve.isPending &&
+              resolve.variables?.suggestionId === s.id &&
+              resolve.variables?.action === "accept",
+            onClick: () => {
+              if (resolve.isPending) return;
+              resolve.mutate({ suggestionId: s.id, action: "accept" });
+            },
+          }}
+          secondaryCta={{
+            label: "Dismiss",
+            onClick: () => {
+              if (resolve.isPending) return;
+              resolve.mutate({ suggestionId: s.id, action: "dismiss" });
+            },
+          }}
+        />
+      ))}
+
+      {applied.length > 0 ? (
+        <div className="flex flex-col gap-1 rounded-md bg-muted px-3 py-2">
+          {applied.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-baseline gap-1.5 text-xs text-faint-foreground"
+            >
+              <Check className="size-3 shrink-0 translate-y-0.5 text-success" />
+              <span>
+                <span className="font-medium text-foreground">
+                  {FIELD_LABEL[s.field]}
+                </span>{" "}
+                set automatically — {s.reasoning}
+              </span>
             </div>
-
-            <div className="flex shrink-0 items-center gap-1">
-              <ActionButton
-                tone="dismiss"
-                label={`Dismiss ${FIELD_LABEL[s.field]} suggestion`}
-                disabled={resolve.isPending}
-                onClick={() =>
-                  resolve.mutate({ suggestionId: s.id, action: "dismiss" })
-                }
-              >
-                <X className="size-3.5 shrink-0" />
-              </ActionButton>
-              <ActionButton
-                tone="accept"
-                label={`Accept ${FIELD_LABEL[s.field]} suggestion`}
-                disabled={resolve.isPending}
-                onClick={() =>
-                  resolve.mutate({ suggestionId: s.id, action: "accept" })
-                }
-              >
-                <Check className="size-3.5 shrink-0" />
-                Accept
-              </ActionButton>
-            </div>
-          </div>
-        ))}
-
-        {applied.length > 0 ? (
-          <div
-            className={cn(
-              "flex flex-col gap-1 bg-muted px-3 py-2",
-              pending.length > 0 && "border-t border-border",
-            )}
-          >
-            {applied.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-baseline gap-1.5 text-xs text-faint-foreground"
-              >
-                <Check className="size-3 shrink-0 translate-y-0.5 text-success" />
-                <span>
-                  <span className="font-medium text-foreground">
-                    {FIELD_LABEL[s.field]}
-                  </span>{" "}
-                  set automatically — {s.reasoning}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
-  );
-}
-
-function ConfidenceTag({
-  confidence,
-}: {
-  confidence: Suggestion["confidence"];
-}) {
-  return (
-    <StatusBadge
-      tone={
-        confidence === "high"
-          ? "success"
-          : confidence === "medium"
-            ? "warning"
-            : "neutral"
-      }
-    >
-      {CONFIDENCE_LABEL[confidence]}
-    </StatusBadge>
-  );
-}
-
-function ActionButton({
-  tone,
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  tone: "accept" | "dismiss";
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="xs"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "relative",
-        tone === "accept"
-          ? "bg-success/10 text-success hover:bg-success/20 hover:text-success"
-          : "px-1.5 text-muted-foreground",
-      )}
-    >
-      {children}
-      <span
-        aria-hidden="true"
-        className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
-      />
-    </Button>
   );
 }

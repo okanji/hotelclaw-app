@@ -21,8 +21,9 @@ import "server-only";
  */
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { samplingParams } from "@/lib/ai/model-settings";
 
-const MODEL_ID = process.env.AI_DOC_CONTEXTUAL_MODEL ?? "claude-sonnet-4-6";
+const MODEL_ID = process.env.AI_DOC_CONTEXTUAL_MODEL ?? "claude-sonnet-5";
 
 // Cap so a misread prompt can't dump a huge block into the editor. Internal
 // newlines are preserved (multi-paragraph rewrites are valid output).
@@ -141,10 +142,9 @@ export async function runDocContextualEdit(
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserMessage(input) }],
       // No tools → single turn; the default stopWhen is correct here.
-      // temperature 0.4: natural prose while staying faithful to the source
-      // (the tool-using bots run at 0 for reproducible tool-args; this is
-      // free-form writing, so a little warmth reads better).
-      temperature: 0.4,
+      // temperature 0.4 (a little warmth for free-form prose) only on models
+      // that still accept sampling params — see lib/ai/model-settings.ts.
+      ...samplingParams(MODEL_ID, 0.4),
     });
     const cleaned = cleanOutput(text ?? "");
     if (!cleaned) return { type: "other", text: "" };

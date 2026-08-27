@@ -18,6 +18,10 @@ export type ConversationListRow = {
   message_count: number;
   last_message_at: string | null;
   created_at: string;
+  /** Haiku-labeled (0063), classified lazily by the Analytics tab loader —
+   *  null until that classification pass has covered this conversation. */
+  topic?: string | null;
+  sentiment?: "positive" | "neutral" | "negative" | null;
 };
 
 /**
@@ -89,7 +93,7 @@ export function ConversationsTab({
                   <span className="text-muted-foreground"> · Room {c.room_number}</span>
                 ) : null}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="truncate text-xs text-muted-foreground">
                 {c.message_count} message{c.message_count === 1 ? "" : "s"}
                 {c.last_message_at
                   ? ` · ${new Date(c.last_message_at).toLocaleString(undefined, {
@@ -99,8 +103,26 @@ export function ConversationsTab({
                       minute: "2-digit",
                     })}`
                   : ""}
+                {c.topic ? ` · ${c.topic}` : ""}
               </p>
             </div>
+            {/* AI-labeled columns (records-grid pattern): the Haiku topic +
+                sentiment already cached on the row by the Analytics pass —
+                surfaced here so the list is scannable without opening each
+                transcript. Unclassified rows simply omit them. */}
+            {c.sentiment ? (
+              <span
+                aria-label={`Sentiment: ${c.sentiment}`}
+                title={`Sentiment: ${c.sentiment}`}
+                className={
+                  c.sentiment === "positive"
+                    ? "size-2 shrink-0 rounded-full bg-success"
+                    : c.sentiment === "negative"
+                      ? "size-2 shrink-0 rounded-full bg-destructive"
+                      : "size-2 shrink-0 rounded-full bg-border"
+                }
+              />
+            ) : null}
             {c.status === "human" ? (
               <StatusBadge tone="info">With staff</StatusBadge>
             ) : null}

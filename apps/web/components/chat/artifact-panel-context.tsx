@@ -2,11 +2,17 @@
 
 import { createContext, useContext, useState } from "react";
 
-type ArtifactTarget = {
-  kind: "document" | "sheet";
-  documentId: string;
-  title: string;
-};
+type ArtifactTarget =
+  | {
+      kind: "document" | "sheet";
+      documentId: string;
+      title: string;
+    }
+  | {
+      kind: "task";
+      taskId: string;
+      title: string;
+    };
 
 type ArtifactPanelContextValue = {
   target: ArtifactTarget | null;

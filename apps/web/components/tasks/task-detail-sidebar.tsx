@@ -102,6 +102,7 @@ function formatRelative(iso: string) {
 }
 
 export function TaskDetailSidebar({
+  className,
   propertyId,
   taskId,
   status,
@@ -124,6 +125,8 @@ export function TaskDetailSidebar({
   onAddSubIssue,
   onAutomate,
 }: {
+  /** Extra classes for the aside — the artifact panel repositions it as an overlay drawer. */
+  className?: string;
   propertyId: string;
   taskId: string;
   status: TaskStatus;
@@ -151,7 +154,12 @@ export function TaskDetailSidebar({
     labelCatalog.find((l) => l.name.toLowerCase() === name.toLowerCase())
       ?.color ?? "slate";
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border">
+    <aside
+      className={cn(
+        "flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border",
+        className,
+      )}
+    >
       <SidebarSection title="Properties" defaultOpen>
         <StatusPicker status={status} onSelect={onStatusChange} />
         <PriorityPicker priority={priority} onSelect={onPriorityChange} />

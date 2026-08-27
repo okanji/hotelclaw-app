@@ -28,9 +28,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+import { AiRevisionsPanel } from "./ai-revisions-panel";
 
-export function DocumentHistory({ editor }: { editor: Editor | null }) {
+export function DocumentHistory({
+  editor,
+  propertyId,
+  documentId,
+}: {
+  editor: Editor | null;
+  /** When provided, the sheet grows an "AI edits" tab over the 0094
+   *  revision stash beside the Liveblocks version history. */
+  propertyId?: string;
+  documentId?: string;
+}) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"versions" | "ai">("versions");
+  const hasAiTab = Boolean(propertyId && documentId);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -53,8 +67,37 @@ export function DocumentHistory({ editor }: { editor: Editor | null }) {
       >
         <SheetHeader className="border-b border-border">
           <SheetTitle>Version history</SheetTitle>
+          {hasAiTab ? (
+            <div className="flex gap-1 pt-1">
+              {(
+                [
+                  ["versions", "Versions"],
+                  ["ai", "AI edits"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={cn(
+                    "h-7 rounded-md px-2.5 text-sm font-medium transition-colors",
+                    tab === key
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </SheetHeader>
-        {open && editor ? (
+        {open && tab === "ai" && hasAiTab ? (
+          <AiRevisionsPanel
+            propertyId={propertyId!}
+            documentId={documentId!}
+          />
+        ) : open && editor ? (
           <HistoryContents editor={editor} onRestored={() => setOpen(false)} />
         ) : null}
       </SheetContent>

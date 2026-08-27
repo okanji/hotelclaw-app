@@ -9,6 +9,7 @@ import { Chip } from "@/components/ui/chip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrubField } from "@/components/ui/scrub-field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -507,30 +508,26 @@ export function FloorPlanView({
                       placeholder="Patio"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label>Seats (max)</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={String(selected.seats)}
-                      onChange={(e) =>
-                        patchSelected({
-                          seats: Math.max(1, Math.min(50, Number(e.target.value) || 1)),
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Min party</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={String(selected.min_party)}
-                      onChange={(e) =>
-                        patchSelected({
-                          min_party: Math.max(1, Number(e.target.value) || 1),
-                        })
-                      }
-                    />
-                  </div>
+                  <ScrubField
+                    label="Seats (max)"
+                    value={selected.seats}
+                    min={1}
+                    max={50}
+                    onChange={(seats) =>
+                      patchSelected({
+                        seats,
+                        // Min party can never exceed the table's seats.
+                        min_party: Math.min(selected.min_party, seats),
+                      })
+                    }
+                  />
+                  <ScrubField
+                    label="Min party"
+                    value={selected.min_party}
+                    min={1}
+                    max={selected.seats}
+                    onChange={(min_party) => patchSelected({ min_party })}
+                  />
                 </div>
                 <div className="flex gap-2">
                   {(["rect", "round"] as const).map((shape) => (

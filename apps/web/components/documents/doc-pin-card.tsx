@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import Link from "next/link";
-import { FileText, Pin, Plus, Search, X } from "lucide-react";
+import { FileText, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,8 +37,7 @@ const CARD_SHELL: Record<
 > = {
   // A gallery card IS a page: 10px `rounded-card` rung + `shadow-card`, and
   // its TITLE is content (16px/24, weight 400) rather than a 14px UI label
-  // (notion-spec-v2 §2/§5). The compact rung is a thumbnail, so it keeps the
-  // UI rung — but never drops below 14px.
+  // (notion-spec-v2 §2/§5).
   default: {
     shell: "h-48 w-40 rounded-card",
     pad: "px-2.5 py-2",
@@ -47,15 +46,27 @@ const CARD_SHELL: Record<
     footer: "px-2.5 py-2 text-sm",
     snippetLines: 500,
   },
+  // Compact (team overviews) follows the Beautiful UI card anatomy
+  // (.claude/skills/beautiful-ui-style, §2): a header BAR carrying the
+  // accent dot, a tiny stroke icon, and right-aligned tabular meta over a
+  // hairline — then the title + snippet as the body. Wider than the old
+  // 6.75rem tile so titles stop wrapping into confetti; the thumbnail rung
+  // keeps the 14px UI title (never below the 12px floor anywhere).
   compact: {
-    shell: "h-[7.5rem] w-[6.75rem] rounded-card",
-    pad: "p-2",
-    title: "pr-5 text-sm leading-snug font-medium",
-    body: "text-sm line-clamp-2",
-    footer: "px-2 py-1 text-sm",
+    shell: "h-[7.5rem] w-44 rounded-card",
+    pad: "px-2.5 py-1.5",
+    title: "text-sm leading-snug font-medium",
+    body: "text-xs line-clamp-2",
+    footer: "",
     snippetLines: 120,
   },
 };
+
+/** Capped entrance stagger (skill §1.3): items after the 7th share a beat. */
+function entranceStyle(index: number | undefined): React.CSSProperties | undefined {
+  if (index === undefined) return undefined;
+  return { animationDelay: `${Math.min(index, 7) * 70}ms` };
+}
 
 /** Page-thumbnail card — shared by docs-home boards and space resource pins. */
 export function DocPinCard({
@@ -65,6 +76,8 @@ export function DocPinCard({
   onUnpin,
   showPresence = true,
   size = "default",
+  /** Position in its group — drives the staggered fade-up entrance. */
+  index,
   draggable = false,
   isDragging = false,
   wrapperRef,
@@ -78,6 +91,7 @@ export function DocPinCard({
   onUnpin: (documentId: string) => void;
   showPresence?: boolean;
   size?: DocPinCardSize;
+  index?: number;
   draggable?: boolean;
   isDragging?: boolean;
   wrapperRef?: (node: HTMLElement | null) => void;
@@ -103,11 +117,108 @@ export function DocPinCard({
     onUnpin(doc.id);
   }
 
+  const linkClass = cn(
+    "flex flex-col overflow-hidden bg-card text-left shadow-card transition-colors",
+    s.shell,
+    draggable
+      ? "cursor-grab active:cursor-grabbing group-hover/card:bg-accent"
+      : "hover:bg-accent",
+  );
+
+  const unpinButton = (
+    <button
+      type="button"
+      aria-label="Unpin"
+      title="Unpin"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={handleUnpinClick}
+      className={cn(
+        "absolute flex items-center justify-center rounded-md text-faint-foreground opacity-0 transition-colors",
+        size === "compact"
+          ? "top-1 right-1 size-5 bg-card"
+          : "top-1.5 right-1.5 size-6 bg-card",
+        "group-hover/card:opacity-100 focus-visible:opacity-100",
+        "hover:bg-destructive/10 hover:text-destructive",
+        "focus-visible:outline-none focus-visible:shadow-focus",
+      )}
+    >
+      <X strokeWidth={2} className={size === "compact" ? "size-3" : "size-3.5"} />
+    </button>
+  );
+
+  if (size === "compact") {
+    // Beautiful UI card anatomy: header bar (accent dot · icon · tabular
+    // time over a hairline) + title/snippet body. The bar's time yields to
+    // the unpin control on hover — one corner, two states, no overlap.
+    return (
+      <div
+        ref={wrapperRef}
+        style={{ ...wrapperStyle, ...entranceStyle(index) }}
+        className={cn(
+          "group/card relative shrink-0",
+          index !== undefined && "ai-fade-up",
+          isDragging && "opacity-40",
+        )}
+        {...dragAttributes}
+        {...dragListeners}
+      >
+        <Link
+          href={documentHref(propertyId, doc.id)}
+          onClick={handleClick}
+          onMouseEnter={() => prewarm(doc.id)}
+          draggable={false}
+          className={linkClass}
+        >
+          <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-border px-2">
+            {/* Blue document mark — the tint palette is the sanctioned
+                decorative blue (primary blue stays reserved for actions).
+                Same tiny-square-badge grammar as Beautiful UI's chips. */}
+            <span
+              className="flex size-4.5 shrink-0 items-center justify-center rounded-[4px] bg-tint-blue text-tint-blue-ink"
+              aria-hidden="true"
+            >
+              <FileText className="size-3" strokeWidth={2.25} />
+            </span>
+            <span
+              className={cn("size-1.5 shrink-0 rounded-full", accentDotClass)}
+              aria-hidden="true"
+            />
+            <span className="ml-auto truncate text-xs text-faint-foreground tabular-nums transition-opacity group-hover/card:opacity-0">
+              {doc.updated_at ? relativeTime(doc.updated_at) : "—"}
+            </span>
+          </div>
+          <div className={cn("min-h-0 flex-1 overflow-hidden", s.pad)}>
+            <h3 className={cn("line-clamp-2 text-foreground", s.title)}>
+              {doc.title || "Untitled"}
+            </h3>
+            {snippet ? (
+              <p
+                className={cn(
+                  "mt-1 whitespace-pre-line text-muted-foreground",
+                  s.body,
+                )}
+              >
+                {snippet}
+              </p>
+            ) : (
+              <p className={cn("mt-1 text-faint-foreground", s.body)}>Empty</p>
+            )}
+          </div>
+        </Link>
+        {unpinButton}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={wrapperRef}
-      style={wrapperStyle}
-      className={cn("group/card relative shrink-0", isDragging && "opacity-40")}
+      style={{ ...wrapperStyle, ...entranceStyle(index) }}
+      className={cn(
+        "group/card relative shrink-0",
+        index !== undefined && "ai-fade-up",
+        isDragging && "opacity-40",
+      )}
       {...dragAttributes}
       {...dragListeners}
     >
@@ -116,19 +227,13 @@ export function DocPinCard({
         onClick={handleClick}
         onMouseEnter={() => prewarm(doc.id)}
         draggable={false}
-        className={cn(
-          "flex flex-col overflow-hidden bg-card text-left shadow-card transition-colors",
-          s.shell,
-          draggable
-            ? "cursor-grab active:cursor-grabbing group-hover/card:bg-accent"
-            : "hover:bg-accent",
-        )}
+        className={linkClass}
       >
         <div className={cn("flex-1 overflow-hidden", s.pad)}>
-          <h3 className={cn("line-clamp-2 text-foreground", s.title)}>
+          <h3 className={cn("line-clamp-2 pr-6 text-foreground", s.title)}>
             {doc.title || "Untitled"}
           </h3>
-          <div className={cn("bg-border", size === "compact" ? "my-1 h-px" : "my-2 h-px")} />
+          <div className="my-2 h-px bg-border" />
           {snippet ? (
             <p className={cn("whitespace-pre-line text-muted-foreground", s.body)}>
               {snippet}
@@ -152,30 +257,12 @@ export function DocPinCard({
               {doc.updated_at ? relativeTime(doc.updated_at) : "—"}
             </span>
           </span>
-          {showPresence && size === "default" ? (
+          {showPresence ? (
             <DocumentViewerAvatarStack users={viewers} size={18} />
           ) : null}
         </div>
       </Link>
-
-      <button
-        type="button"
-        aria-label="Unpin"
-        title="Unpin"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={handleUnpinClick}
-        className={cn(
-          "absolute flex items-center justify-center rounded-md bg-card text-faint-foreground opacity-0 transition-colors",
-          size === "compact"
-            ? "top-1 right-1 size-5"
-            : "top-1.5 right-1.5 size-6",
-          "group-hover/card:opacity-100 focus-visible:opacity-100",
-          "hover:bg-destructive/10 hover:text-destructive",
-          "focus-visible:outline-none focus-visible:shadow-focus",
-        )}
-      >
-        <X strokeWidth={2} className={size === "compact" ? "size-3" : "size-3.5"} />
-      </button>
+      {unpinButton}
     </div>
   );
 }

@@ -551,10 +551,132 @@ function channelBotConfig() {
 		]
 	});
 }
+const ASSISTANT_INSTRUCTIONS = [
+	"You are the personal assistant for one member of a hotel operations team. You live on your own full-page surface in their workspace — not in a team channel — and you are talking to exactly one person: whoever opened this conversation.",
+	"You have the run of their workspace. Tasks, projects, documents, spreadsheets, meetings, bookings, forms, workflows, chat history, the org chart, and the property's knowledge brain are all yours to read and act on. Everything you can reach is scoped to what THIS person can already see — you are not a way around anyone's permissions.",
+	"Write for a page, not a chat bubble. Headings, tables, lists, and code blocks are all available and you should use them when they make an answer easier to read. Length follows the question: a one-line answer for a one-line question, a structured brief for a real piece of work. Never pad.",
+	"Lead with the answer. Open with the thing they'd repeat to a colleague, then the supporting detail beneath it. Caveats and open questions go at the end, briefly — never in front of the answer.",
+	"Answer EVERY question in the message. One message often carries two asks; a reply that covers one of them has failed however good that half is.",
+	"Answer from your tools for anything specific to this property — records, numbers, history, what's written down; never invent those, and before answering any knowledge, listing, or history question, load the knowledge-lookup skill and follow its ladder. General questions — what a term means, how something is normally done in hospitality — you answer from your own knowledge, plainly. Don't go hunting for a tool for those.",
+	"When your answer is a set of records — task lists, schedules, workloads, comparisons, metrics — call render_ui to display it as rich UI and keep your text to a short lead-in plus the conclusion in words. A card is EVIDENCE, never the answer itself: if you were asked which item is the biggest risk, name it in a sentence.",
+	"Deliver what was asked, at the scope intended. Words like short, quick, or rough are CONSTRAINTS, not starting points. Make routine judgement calls yourself — scope, window, format, and depth are yours. Before asking anything, apply the default test: could you state a sensible default? If yes, take it, do the work, and say in one line what you assumed. Only a missing fact you cannot derive, or a genuinely irreversible fork, earns a question — and batch those into one.",
+	"NEVER leave a placeholder in anything you produce. No 'TO CONFIRM', no 'TBD', no bracketed blanks — not in a document, task, form, or message. When a fact is missing: ask for it if the work truly can't proceed, otherwise write the parts you can, leave the unknown OUT, and create a task naming who owes the answer. Say which you did.",
+	"You can DO things, not just look them up: update tasks, write and rewrite real document content, rename documents, schedule and move meetings, take and change bookings, read and edit spreadsheets, build and publish forms, create projects, label and escalate and delete tasks, notify people, post into channels, and run manually-triggered workflows. When someone asks you to fix or update something, do it with the tools and reply with the link — don't offer to draft text for them to paste. Editing an existing document: read_document FIRST, make the surgical change in the returned HTML, and send the full revised body back with mode=replace. Never say you can't read a document's contents.",
+	"Before REPLACING meaningful content the requester didn't ask you to touch, confirm. Requested edits, stub-filling, and renames need no confirmation. When ONE request will create more than about three records, list what you're about to create and get a yes first; a single task, document, or form just gets made.",
+	"Destructive or high-impact actions (deleting tasks, cancelling meetings or bookings, closing forms) need confirmation unless their message already named the exact target and asked for exactly that. Some tools are approval-gated by the system — call them normally, the surface shows an action preview and waits. Never work around a gate or claim an action is done before the decision comes back.",
+	"If a request maps to NO tool (billing, member invites, property settings), say so and point at where in the app to do it — never pretend."
+].join("\n");
+function assistantConfig() {
+	return parseAgentConfig({
+		version: 1,
+		instructions: ASSISTANT_INSTRUCTIONS,
+		modelTier: "advanced",
+		tools: [
+			"list_open_tasks",
+			"search_tasks",
+			"create_task",
+			"update_task",
+			"delete_task",
+			"escalate_task",
+			"create_project",
+			"search_documents",
+			"list_documents",
+			"read_document",
+			"create_document",
+			"update_document",
+			"rename_document",
+			"archive_document",
+			"restore_document_revision",
+			"read_sheet",
+			"update_sheet_cells",
+			"list_meetings",
+			"schedule_meeting",
+			"update_meeting",
+			"cancel_meeting",
+			"list_bookings",
+			"create_booking",
+			"update_booking_status",
+			"search_chat_messages",
+			"list_channels",
+			"list_forms",
+			"get_form_response_summaries",
+			"create_form",
+			"set_form_status",
+			"share_form_to_channel",
+			"send_notification",
+			"post_to_channel",
+			"list_workflows",
+			"trigger_workflow",
+			"guest_conversation_insights",
+			"get_insight_brief",
+			"get_weekly_report",
+			"list_handovers",
+			"get_org_chart"
+		]
+	});
+}
+/**
+* Fold an assistant project's instructions, memory, and context into the
+* persona. Returns the base config unchanged when there is no project, or
+* when the project doesn't belong to this caller — tenancy AND ownership are
+* re-checked here, because the project id arrives as a client header.
+*/
+async function withAssistantProject(base, projectId, propertyId, userId) {
+	try {
+		const { data: project } = await serviceClient().from("assistant_projects").select("id, name, description, instructions, memory, archived_at, property_id, user_id").eq("id", projectId).maybeSingle();
+		if (!project || project.archived_at || project.property_id !== propertyId || project.user_id !== userId) return {
+			config: base,
+			name: null
+		};
+		const { data: resources } = await serviceClient().from("assistant_project_resources").select("kind, title, body, document_id").eq("project_id", project.id).order("created_at", { ascending: true }).limit(50);
+		const sections = [
+			base.instructions,
+			"",
+			`# Project: ${project.name}`,
+			project.description ? project.description.trim() : "",
+			"",
+			"Every message in this conversation belongs to that project. Its instructions, memory, and context below OVERRIDE your general defaults where they conflict — they are what this person has told you about how they want this particular work done."
+		];
+		if (project.instructions?.trim()) sections.push("", "## Project instructions", project.instructions.trim());
+		if (project.memory?.trim()) sections.push("", "## Project memory", "Durable notes this project carries between conversations. Treat them as established fact unless the person corrects you. You may PROPOSE an addition in your reply; never claim to have edited memory yourself — only the human writes it.", "", project.memory.trim());
+		const docs = (resources ?? []).filter((r) => r.kind === "document");
+		const texts = (resources ?? []).filter((r) => r.kind === "text");
+		if (docs.length > 0 || texts.length > 0) sections.push("", "## Project context");
+		if (docs.length > 0) sections.push("These workspace documents are attached to the project. They are LIVE — read them with read_document when they're relevant rather than assuming their contents:", ...docs.map((d) => `- ${d.title} (document id: ${d.document_id})`));
+		for (const text of texts) sections.push("", `### ${text.title}`, (text.body ?? "").slice(0, 2e4));
+		return {
+			config: {
+				...base,
+				instructions: sections.filter(Boolean).join("\n")
+			},
+			name: project.name
+		};
+	} catch (err) {
+		console.error("[agent-config] assistant project resolve failed", err);
+		return {
+			config: base,
+			name: null
+		};
+	}
+}
 async function resolveSessionAgent(ctx) {
 	const caller = tenantCallerOrNull(ctx);
 	const agentId = ctx.session.auth.current?.attributes?.agentId;
 	const botSlug = ctx.session.auth.current?.attributes?.botSlug;
+	if (caller && typeof agentId !== "string" && botSlug === "assistant") {
+		const projectId = ctx.session.auth.current?.attributes?.projectId;
+		const base = assistantConfig();
+		const { config, name } = typeof projectId === "string" && projectId ? await withAssistantProject(base, projectId, caller.propertyId, caller.userId) : {
+			config: base,
+			name: null
+		};
+		return {
+			caller,
+			agentId: `virtual:assistant`,
+			name: name ? `Assistant · ${name}` : "Assistant",
+			config
+		};
+	}
 	if (caller && typeof agentId !== "string" && botSlug === "hotelclaw") {
 		const { data: property } = await serviceClient().from("properties").select("client_id").eq("id", caller.propertyId).maybeSingle();
 		if (property?.client_id) {
@@ -722,9 +844,14 @@ var import_index_node = require_index_node();
 * `useUIStream`) — the bot supplies a complete spec as a tool argument,
 * documented compactly in `CHAT_UI_TOOL_DESCRIPTION`.
 *
-* Display-only by design: no state, no actions, no visibility conditions.
-* Anything interactive (fill a form, confirm a booking) should be a real
-* custom attachment with a real handler, like the `form` attachment.
+* Display-first by design: no state, no json-render actions, no visibility
+* conditions. The single interactive component is `Options` — quick-reply
+* chips whose tap sends the option as the USER's next message (the
+* Messenger/Slack quick-reply convention). That behavior is baked into the
+* renderers, never authored by the model, so it's equivalent to the user
+* typing: no ids, no writes. Anything richer (fill a form, confirm a
+* booking) should be a real custom attachment with a real handler, like
+* the `form` attachment.
 *
 * Shared by the server tool (`lib/ai/tools/render-ui.ts`) and the client
 * renderer (`components/chat/ai-ui-attachment.tsx`) — keep it free of
@@ -811,6 +938,15 @@ const CHAT_UI_PROPS = {
 		label: string().max(60),
 		value: string().max(40),
 		hint: string().max(80).optional()
+	}),
+	Options: object({
+		prompt: string().max(200).optional(),
+		options: array(object({
+			label: string().max(80),
+			/** The exact message sent on tap; defaults to `label`. */
+			value: string().max(200).optional(),
+			description: string().max(120).optional()
+		})).min(2).max(6)
 	})
 };
 defineCatalog(schema, {
@@ -841,6 +977,10 @@ defineCatalog(schema, {
 		Stat: {
 			props: CHAT_UI_PROPS.Stat,
 			description: "One headline metric."
+		},
+		Options: {
+			props: CHAT_UI_PROPS.Options,
+			description: "Tappable quick-reply chips; a tap sends the option as the user's message."
 		}
 	},
 	actions: {}
@@ -939,6 +1079,7 @@ const CHAT_UI_TOOL_DESCRIPTION = [
 	"- Card — props { title, subtitle?, link?: {kind,id}, badge?: { label, tone?: \"neutral\"|\"success\"|\"warning\"|\"info\"|\"destructive\" }, fields?: [{ label, value }] (≤8) }.",
 	"- StatRow — container for Stat children; props {}.",
 	"- Stat — props { label, value, hint? } — one headline number.",
+	"- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS whenever you offer the user a choice or ask for confirmation (proceed / trim / cancel, yes / no, pick one of N) — never a numbered list in text. Tapping sends the option as the user's next message: `value` is the exact message sent (defaults to label), so make it a complete, self-contained reply (\"Go ahead as-is\", not \"1\"). The user can always type their own answer instead, so don't add a catch-all \"something else\" option.",
 	"Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: \"task\"|\"project\"|\"document\"|\"meeting\"|\"form\"|\"space\", id: \"<uuid>\" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.",
 	"Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
 	"Call at most once per reply — a second call replaces the first. After calling, keep your text to a one-line lead-in; never repeat the data in text."
@@ -2032,13 +2173,14 @@ const PROPERTY_HEADER = "x-hotelclaw-property";
 const USER_HEADER = "x-hotelclaw-user";
 const AGENT_HEADER = "x-hotelclaw-agent";
 const BOT_HEADER = "x-hotelclaw-bot";
+const PROJECT_HEADER = "x-hotelclaw-project";
 const CHANNEL_HEADER = "x-hotelclaw-channel";
 const SENDER_HEADER = "x-hotelclaw-sender";
 async function verifyMembership(userId, propertyId) {
 	const { data } = await serviceClient().from("memberships").select("role").eq("property_id", propertyId).eq("user_id", userId).maybeSingle();
 	return data ?? null;
 }
-function principal(authenticator, userId, propertyId, role, agentId, botSlug = null, channelId = null, senderId = null) {
+function principal(authenticator, userId, propertyId, role, agentId, botSlug = null, channelId = null, senderId = null, projectId = null) {
 	return {
 		authenticator,
 		issuer: "hotelclaw",
@@ -2051,7 +2193,8 @@ function principal(authenticator, userId, propertyId, role, agentId, botSlug = n
 			...agentId ? { agentId } : {},
 			...botSlug ? { botSlug } : {},
 			...channelId ? { channelId } : {},
-			...senderId ? { senderId } : {}
+			...senderId ? { senderId } : {},
+			...projectId ? { projectId } : {}
 		}
 	};
 }
@@ -2078,7 +2221,7 @@ function supabaseCookieAuth() {
 		if (!user) return null;
 		const membership = await verifyMembership(user.id, propertyId);
 		if (!membership) return null;
-		return principal("supabase-session", user.id, propertyId, membership.role, request.headers.get(AGENT_HEADER), request.headers.get(BOT_HEADER), request.headers.get(CHANNEL_HEADER), user.id);
+		return principal("supabase-session", user.id, propertyId, membership.role, request.headers.get(AGENT_HEADER), request.headers.get(BOT_HEADER), request.headers.get(CHANNEL_HEADER), user.id, request.headers.get(PROJECT_HEADER));
 	};
 }
 function serviceBearerAuth() {
@@ -2102,7 +2245,7 @@ function serviceBearerAuth() {
 		if (!propertyId || !userId) return null;
 		const membership = await verifyMembership(userId, propertyId);
 		if (!membership) return null;
-		return principal("service-bearer", userId, propertyId, membership.role, request.headers.get(AGENT_HEADER), compositeBot ?? request.headers.get(BOT_HEADER), request.headers.get(CHANNEL_HEADER), request.headers.get(SENDER_HEADER) ?? userId);
+		return principal("service-bearer", userId, propertyId, membership.role, request.headers.get(AGENT_HEADER), compositeBot ?? request.headers.get(BOT_HEADER), request.headers.get(CHANNEL_HEADER), request.headers.get(SENDER_HEADER) ?? userId, request.headers.get(PROJECT_HEADER));
 	};
 }
 const authChain = [supabaseCookieAuth(), serviceBearerAuth()];
@@ -2445,7 +2588,7 @@ var dynamic_default$1 = defineDynamic({ events: { "session.started": async (_eve
 			"",
 			KNOWLEDGE_DISCIPLINE
 		];
-		if (resolved.agentId === `virtual:hotelclaw`) {
+		if (resolved.agentId === `virtual:hotelclaw` || resolved.agentId === `virtual:assistant`) {
 			const binding = await resolvePropertyBrainBinding(caller.propertyId);
 			markdown.push("", "## Knowledge brain", binding ? [
 				"- This property has a shared knowledge brain — your brain_search, brain_get, brain_list, brain_think, and brain_capture tools.",
@@ -2521,11 +2664,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			]).optional(),
 			limit: number().int().min(1).max(20).default(10)
 		}),
-		execute: async ({ status, limit }) => await __eve_dynamic_exec_22({ propertyId }, {
+		execute: async ({ status, limit }) => await __eve_dynamic_exec_2({ propertyId }, {
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_22,
+		__executeStepFn: __eve_dynamic_exec_2,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("create_task")) tools.create_task = defineTool({
@@ -2542,20 +2685,24 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			team: string().max(120).optional().describe("Team (space) name to file the task under."),
 			due_at: datetime({ offset: true }).optional().describe("Due date-time, ISO 8601 with offset.")
 		}),
-		execute: async ({ title, description, priority, team, due_at }) => await __eve_dynamic_exec_23({
+		execute: async ({ title, description, priority, team, due_at }, toolCtx) => await __eve_dynamic_exec_3({
 			propertyId,
-			userId
+			userId,
+			sessionChannelId,
+			eveSessionId
 		}, {
 			title,
 			description,
 			priority,
 			team,
 			due_at
-		}),
-		__executeStepFn: __eve_dynamic_exec_23,
+		}, toolCtx),
+		__executeStepFn: __eve_dynamic_exec_3,
 		__closureVars: {
 			propertyId,
-			userId
+			userId,
+			sessionChannelId,
+			eveSessionId
 		}
 	});
 	if (grants.has("search_documents")) tools.search_documents = defineTool({
@@ -2564,11 +2711,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			query: string().min(1).max(200),
 			limit: number().int().min(1).max(10).default(5)
 		}),
-		execute: async ({ query, limit }) => await __eve_dynamic_exec_24({ propertyId }, {
+		execute: async ({ query, limit }) => await __eve_dynamic_exec_4({ propertyId }, {
 			query,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_24,
+		__executeStepFn: __eve_dynamic_exec_4,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_upcoming_meetings")) tools.list_upcoming_meetings = defineTool({
@@ -2577,35 +2724,35 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			days: number().int().min(1).max(60).default(7),
 			limit: number().int().min(1).max(20).default(10)
 		}),
-		execute: async ({ days, limit }) => await __eve_dynamic_exec_25({ propertyId }, {
+		execute: async ({ days, limit }) => await __eve_dynamic_exec_5({ propertyId }, {
 			days,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_25,
+		__executeStepFn: __eve_dynamic_exec_5,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_today_bookings")) tools.list_today_bookings = defineTool({
 		description: "List this property's bookings in the next 24 hours across all services (service, time, party size, status, reference). Use for questions about tonight's covers, arrivals, or capacity.",
 		inputSchema: object({ limit: number().int().min(1).max(50).default(25) }),
-		execute: async ({ limit }) => await __eve_dynamic_exec_26({ propertyId }, { limit }),
-		__executeStepFn: __eve_dynamic_exec_26,
+		execute: async ({ limit }) => await __eve_dynamic_exec_6({ propertyId }, { limit }),
+		__executeStepFn: __eve_dynamic_exec_6,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("get_org_chart")) tools.get_org_chart = defineTool({
 		description: "Get the property's org structure: teams, leads, and members with roles. Use when a request depends on who owns what or who to route work to.",
 		inputSchema: object({}),
-		execute: async () => await __eve_dynamic_exec_27({ propertyId }),
-		__executeStepFn: __eve_dynamic_exec_27,
+		execute: async () => await __eve_dynamic_exec_7({ propertyId }),
+		__executeStepFn: __eve_dynamic_exec_7,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("read_resource") && resourceIds.length > 0) tools.read_resource = defineTool({
 		description: "Read the full text of a document attached to this agent as a resource. Call list mode first (no id) to see what's attached, then read by id.",
 		inputSchema: object({ document_id: string().optional().describe("Omit to list attached resources; pass an id to read one.") }),
-		execute: async ({ document_id }) => await __eve_dynamic_exec_28({
+		execute: async ({ document_id }) => await __eve_dynamic_exec_8({
 			propertyId,
 			resourceIds
 		}, { document_id }),
-		__executeStepFn: __eve_dynamic_exec_28,
+		__executeStepFn: __eve_dynamic_exec_8,
 		__closureVars: {
 			propertyId,
 			resourceIds
@@ -2636,7 +2783,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			labels_remove: array(string().min(1).max(40)).max(10).optional(),
 			project_name: string().max(200).optional().describe("Project to move the task into (fuzzy name match); empty string to remove from its project.")
 		}),
-		execute: async ({ task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) => await __eve_dynamic_exec_29({
+		execute: async ({ task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) => await __eve_dynamic_exec_9({
 			propertyId,
 			senderId
 		}, {
@@ -2651,7 +2798,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			labels_remove,
 			project_name
 		}),
-		__executeStepFn: __eve_dynamic_exec_29,
+		__executeStepFn: __eve_dynamic_exec_9,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -2660,8 +2807,8 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("read_document")) tools.read_document = defineTool({
 		description: "Read a document's FULL body as clean HTML (faithful structure: headings, lists, tables). Use before answering detailed questions about a doc's contents, and ALWAYS before update_document on an existing doc — edit the returned HTML surgically and send the whole revised body back, preserving everything you didn't change. Get the id from list_documents/search_documents.",
 		inputSchema: object({ document_id: string().uuid() }),
-		execute: async ({ document_id }) => await __eve_dynamic_exec_30({ propertyId }, { document_id }),
-		__executeStepFn: __eve_dynamic_exec_30,
+		execute: async ({ document_id }) => await __eve_dynamic_exec_10({ propertyId }, { document_id }),
+		__executeStepFn: __eve_dynamic_exec_10,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("create_document")) tools.create_document = defineTool({
@@ -2670,7 +2817,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			title: string().min(1).max(200),
 			content_html: string().min(20).max(1e5)
 		}),
-		execute: async ({ title, content_html }, toolCtx) => await __eve_dynamic_exec_31({
+		execute: async ({ title, content_html }, toolCtx) => await __eve_dynamic_exec_11({
 			propertyId,
 			userId,
 			sessionChannelId,
@@ -2679,7 +2826,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			title,
 			content_html
 		}, toolCtx),
-		__executeStepFn: __eve_dynamic_exec_31,
+		__executeStepFn: __eve_dynamic_exec_11,
 		__closureVars: {
 			propertyId,
 			userId,
@@ -2695,7 +2842,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			new_title: string().min(1).max(200).optional().describe("Also rename the record to this title."),
 			mode: _enum(["replace", "append"]).default("replace").describe("replace = new body; append = add to the end")
 		}),
-		execute: async ({ document_id, content_html, new_title, mode }, toolCtx) => await __eve_dynamic_exec_32({
+		execute: async ({ document_id, content_html, new_title, mode }, toolCtx) => await __eve_dynamic_exec_12({
 			propertyId,
 			userId,
 			sessionChannelId,
@@ -2706,7 +2853,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			new_title,
 			mode
 		}, toolCtx),
-		__executeStepFn: __eve_dynamic_exec_32,
+		__executeStepFn: __eve_dynamic_exec_12,
 		__closureVars: {
 			propertyId,
 			userId,
@@ -2720,14 +2867,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			document_id: string().uuid(),
 			new_title: string().min(1).max(200)
 		}),
-		execute: async ({ document_id, new_title }) => await __eve_dynamic_exec_33({
+		execute: async ({ document_id, new_title }) => await __eve_dynamic_exec_13({
 			propertyId,
 			userId
 		}, {
 			document_id,
 			new_title
 		}),
-		__executeStepFn: __eve_dynamic_exec_33,
+		__executeStepFn: __eve_dynamic_exec_13,
 		__closureVars: {
 			propertyId,
 			userId
@@ -2740,11 +2887,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			document_id: string().uuid(),
 			reason: string().min(5).max(300)
 		}),
-		execute: async ({ document_id, reason }) => await __eve_dynamic_exec_34({ propertyId }, {
+		execute: async ({ document_id, reason }) => await __eve_dynamic_exec_14({ propertyId }, {
 			document_id,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_34,
+		__executeStepFn: __eve_dynamic_exec_14,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("search_tasks")) tools.search_tasks = defineTool({
@@ -2754,12 +2901,12 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			include_done: boolean().default(true),
 			limit: number().int().min(1).max(20).default(10)
 		}),
-		execute: async ({ query, include_done, limit }) => await __eve_dynamic_exec_35({ propertyId }, {
+		execute: async ({ query, include_done, limit }) => await __eve_dynamic_exec_15({ propertyId }, {
 			query,
 			include_done,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_35,
+		__executeStepFn: __eve_dynamic_exec_15,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_documents")) tools.list_documents = defineTool({
@@ -2768,11 +2915,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			title_contains: string().max(100).optional().describe("Case-insensitive title filter, e.g. 'SOP'"),
 			limit: number().int().min(1).max(50).default(25)
 		}),
-		execute: async ({ title_contains, limit }) => await __eve_dynamic_exec_36({ propertyId }, {
+		execute: async ({ title_contains, limit }) => await __eve_dynamic_exec_16({ propertyId }, {
 			title_contains,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_36,
+		__executeStepFn: __eve_dynamic_exec_16,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_meetings")) tools.list_meetings = defineTool({
@@ -2782,12 +2929,12 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			next_days: number().int().min(0).max(60).default(7),
 			limit: number().int().min(1).max(30).default(15)
 		}),
-		execute: async ({ past_days, next_days, limit }) => await __eve_dynamic_exec_37({ propertyId }, {
+		execute: async ({ past_days, next_days, limit }) => await __eve_dynamic_exec_17({ propertyId }, {
 			past_days,
 			next_days,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_37,
+		__executeStepFn: __eve_dynamic_exec_17,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_bookings")) tools.list_bookings = defineTool({
@@ -2805,13 +2952,13 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			]).optional(),
 			limit: number().int().min(1).max(50).default(25)
 		}),
-		execute: async ({ past_days, next_days, status, limit }) => await __eve_dynamic_exec_38({ propertyId }, {
+		execute: async ({ past_days, next_days, status, limit }) => await __eve_dynamic_exec_18({ propertyId }, {
 			past_days,
 			next_days,
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_38,
+		__executeStepFn: __eve_dynamic_exec_18,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("search_chat_messages")) tools.search_chat_messages = defineTool({
@@ -2820,14 +2967,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			query: string().min(2).max(200),
 			limit: number().int().min(1).max(20).default(10)
 		}),
-		execute: async ({ query, limit }) => await __eve_dynamic_exec_39({
+		execute: async ({ query, limit }) => await __eve_dynamic_exec_19({
 			propertyId,
 			senderId
 		}, {
 			query,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_39,
+		__executeStepFn: __eve_dynamic_exec_19,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -2836,8 +2983,8 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("list_forms")) tools.list_forms = defineTool({
 		description: "List the property's forms (title, status, response count). Use to answer 'what forms do we have' and to find a form id for get_form_response_summaries.",
 		inputSchema: object({ limit: number().int().min(1).max(50).default(25) }),
-		execute: async ({ limit }) => await __eve_dynamic_exec_40({ propertyId }, { limit }),
-		__executeStepFn: __eve_dynamic_exec_40,
+		execute: async ({ limit }) => await __eve_dynamic_exec_20({ propertyId }, { limit }),
+		__executeStepFn: __eve_dynamic_exec_20,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("get_form_response_summaries")) tools.get_form_response_summaries = defineTool({
@@ -2846,11 +2993,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			form_id: string().uuid(),
 			limit: number().int().min(1).max(500).default(200)
 		}),
-		execute: async ({ form_id, limit }) => await __eve_dynamic_exec_41({ propertyId }, {
+		execute: async ({ form_id, limit }) => await __eve_dynamic_exec_21({ propertyId }, {
 			form_id,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_41,
+		__executeStepFn: __eve_dynamic_exec_21,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("guest_conversation_insights")) tools.guest_conversation_insights = defineTool({
@@ -2859,11 +3006,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			days: number().int().min(1).max(90).default(7),
 			limit: number().int().min(1).max(200).default(100)
 		}),
-		execute: async ({ days, limit }) => await __eve_dynamic_exec_42({ propertyId }, {
+		execute: async ({ days, limit }) => await __eve_dynamic_exec_22({ propertyId }, {
 			days,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_42,
+		__executeStepFn: __eve_dynamic_exec_22,
 		__closureVars: { propertyId }
 	});
 	{
@@ -2871,12 +3018,12 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("get_insight_brief")) tools.get_insight_brief = defineTool({
 			description: "The property's cached intelligence brief (Insights cards: pace flags, anomalies, watch items). Owner/manager only — refuse politely for anyone else. Never generates; reads the cache.",
 			inputSchema: object({}),
-			execute: async () => await __eve_dynamic_exec_43({
+			execute: async () => await __eve_dynamic_exec_23({
 				propertyId,
 				senderId,
 				ROLE_DENIED
 			}),
-			__executeStepFn: __eve_dynamic_exec_43,
+			__executeStepFn: __eve_dynamic_exec_23,
 			__closureVars: {
 				propertyId,
 				senderId,
@@ -2886,12 +3033,12 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("get_weekly_report")) tools.get_weekly_report = defineTool({
 			description: "The latest cached weekly report (management or staff audience). Owner/manager only — refuse politely for anyone else. Never generates; reads the cache.",
 			inputSchema: object({ audience: _enum(["management", "staff"]).default("management") }),
-			execute: async ({ audience }) => await __eve_dynamic_exec_44({
+			execute: async ({ audience }) => await __eve_dynamic_exec_24({
 				propertyId,
 				senderId,
 				ROLE_DENIED
 			}, { audience }),
-			__executeStepFn: __eve_dynamic_exec_44,
+			__executeStepFn: __eve_dynamic_exec_24,
 			__closureVars: {
 				propertyId,
 				senderId,
@@ -2901,11 +3048,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("list_handovers")) tools.list_handovers = defineTool({
 			description: "Recent published shift handovers (author, window, content). Owner/manager only — refuse politely for anyone else.",
 			inputSchema: object({ limit: number().int().min(1).max(10).default(5) }),
-			execute: async ({ limit }) => await __eve_dynamic_exec_45({
+			execute: async ({ limit }) => await __eve_dynamic_exec_25({
 				propertyId,
 				senderId
 			}, { limit }),
-			__executeStepFn: __eve_dynamic_exec_45,
+			__executeStepFn: __eve_dynamic_exec_25,
 			__closureVars: {
 				propertyId,
 				senderId
@@ -2918,7 +3065,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			headline: string().min(5).max(120).describe("Short label shown when results post, e.g. 'Weekly SOP coverage audit'"),
 			brief: string().min(20).max(4e3).describe("Self-contained task brief: goal, scope, what the final answer must contain, and every decision already settled with the requester (so the job doesn't have to stop and re-ask).")
 		}),
-		execute: async ({ headline, brief }, toolCtx) => await __eve_dynamic_exec_46({
+		execute: async ({ headline, brief }, toolCtx) => await __eve_dynamic_exec_26({
 			propertyId,
 			senderId,
 			sessionChannelId
@@ -2926,7 +3073,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			headline,
 			brief
 		}, toolCtx),
-		__executeStepFn: __eve_dynamic_exec_46,
+		__executeStepFn: __eve_dynamic_exec_26,
 		__closureVars: {
 			propertyId,
 			senderId,
@@ -2940,11 +3087,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			task_id: string().uuid(),
 			reason: string().min(5).max(300)
 		}),
-		execute: async ({ task_id, reason }) => await __eve_dynamic_exec_47({ propertyId }, {
+		execute: async ({ task_id, reason }) => await __eve_dynamic_exec_27({ propertyId }, {
 			task_id,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_47,
+		__executeStepFn: __eve_dynamic_exec_27,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("escalate_task")) tools.escalate_task = defineTool({
@@ -2953,14 +3100,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			task_id: string().uuid(),
 			note: string().min(5).max(500)
 		}),
-		execute: async ({ task_id, note }) => await __eve_dynamic_exec_48({
+		execute: async ({ task_id, note }) => await __eve_dynamic_exec_28({
 			propertyId,
 			senderId
 		}, {
 			task_id,
 			note
 		}),
-		__executeStepFn: __eve_dynamic_exec_48,
+		__executeStepFn: __eve_dynamic_exec_28,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -2982,7 +3129,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			]).default("blue"),
 			status: _enum(["active", "planned"]).default("active")
 		}),
-		execute: async ({ name, description, team_name, color, status }) => await __eve_dynamic_exec_49({
+		execute: async ({ name, description, team_name, color, status }) => await __eve_dynamic_exec_29({
 			propertyId,
 			userId
 		}, {
@@ -2992,7 +3139,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			color,
 			status
 		}),
-		__executeStepFn: __eve_dynamic_exec_49,
+		__executeStepFn: __eve_dynamic_exec_29,
 		__closureVars: {
 			propertyId,
 			userId
@@ -3006,7 +3153,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			ends_at: datetime({ offset: true }).optional(),
 			location: string().max(300).optional()
 		}),
-		execute: async ({ title, starts_at, ends_at, location }) => await __eve_dynamic_exec_50({
+		execute: async ({ title, starts_at, ends_at, location }) => await __eve_dynamic_exec_30({
 			propertyId,
 			userId,
 			senderId
@@ -3016,7 +3163,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			ends_at,
 			location
 		}),
-		__executeStepFn: __eve_dynamic_exec_50,
+		__executeStepFn: __eve_dynamic_exec_30,
 		__closureVars: {
 			propertyId,
 			userId,
@@ -3032,22 +3179,22 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			ends_at: datetime({ offset: true }).nullish(),
 			location: string().max(300).nullish()
 		}),
-		execute: async ({ meeting_id, title, starts_at, ends_at, location }) => await __eve_dynamic_exec_51({ propertyId }, {
+		execute: async ({ meeting_id, title, starts_at, ends_at, location }) => await __eve_dynamic_exec_31({ propertyId }, {
 			meeting_id,
 			title,
 			starts_at,
 			ends_at,
 			location
 		}),
-		__executeStepFn: __eve_dynamic_exec_51,
+		__executeStepFn: __eve_dynamic_exec_31,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("cancel_meeting")) tools.cancel_meeting = defineTool({
 		approval: always(),
 		description: "Cancel (delete) an UPCOMING meeting from the calendar. Confirm with the requester before calling — this removes the meeting for everyone. Meetings that already happened can't be cancelled.",
 		inputSchema: object({ meeting_id: string().uuid() }),
-		execute: async ({ meeting_id }) => await __eve_dynamic_exec_52({ propertyId }, { meeting_id }),
-		__executeStepFn: __eve_dynamic_exec_52,
+		execute: async ({ meeting_id }) => await __eve_dynamic_exec_32({ propertyId }, { meeting_id }),
+		__executeStepFn: __eve_dynamic_exec_32,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("create_booking")) tools.create_booking = defineTool({
@@ -3061,7 +3208,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			notes: string().max(1e3).optional(),
 			duration_minutes: number().int().min(15).max(1440).optional()
 		}),
-		execute: async ({ service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) => await __eve_dynamic_exec_53({ propertyId }, {
+		execute: async ({ service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) => await __eve_dynamic_exec_33({ propertyId }, {
 			service_name,
 			starts_at,
 			party_size,
@@ -3070,7 +3217,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			notes,
 			duration_minutes
 		}),
-		__executeStepFn: __eve_dynamic_exec_53,
+		__executeStepFn: __eve_dynamic_exec_33,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("update_booking_status")) tools.update_booking_status = defineTool({
@@ -3086,11 +3233,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 				"cancelled"
 			])
 		}),
-		execute: async ({ reference, status }) => await __eve_dynamic_exec_54({ propertyId }, {
+		execute: async ({ reference, status }) => await __eve_dynamic_exec_34({ propertyId }, {
 			reference,
 			status
 		}),
-		__executeStepFn: __eve_dynamic_exec_54,
+		__executeStepFn: __eve_dynamic_exec_34,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("read_sheet")) tools.read_sheet = defineTool({
@@ -3099,11 +3246,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			document_id: string().uuid(),
 			sheet_title: string().max(120).optional()
 		}),
-		execute: async ({ document_id, sheet_title }) => await __eve_dynamic_exec_55({ propertyId }, {
+		execute: async ({ document_id, sheet_title }) => await __eve_dynamic_exec_35({ propertyId }, {
 			document_id,
 			sheet_title
 		}),
-		__executeStepFn: __eve_dynamic_exec_55,
+		__executeStepFn: __eve_dynamic_exec_35,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("update_sheet_cells")) tools.update_sheet_cells = defineTool({
@@ -3116,7 +3263,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 				value: string().max(2e3)
 			})).min(1).max(200)
 		}),
-		execute: async ({ document_id, sheet_title, cells }, toolCtx) => await __eve_dynamic_exec_56({
+		execute: async ({ document_id, sheet_title, cells }, toolCtx) => await __eve_dynamic_exec_36({
 			propertyId,
 			sessionChannelId,
 			eveSessionId
@@ -3125,7 +3272,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			sheet_title,
 			cells
 		}, toolCtx),
-		__executeStepFn: __eve_dynamic_exec_56,
+		__executeStepFn: __eve_dynamic_exec_36,
 		__closureVars: {
 			propertyId,
 			sessionChannelId,
@@ -3157,7 +3304,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 				options: array(string().min(1).max(120)).max(20).optional()
 			})).min(1).max(30)
 		}),
-		execute: async ({ title, description, publish, fields }) => await __eve_dynamic_exec_57({
+		execute: async ({ title, description, publish, fields }) => await __eve_dynamic_exec_37({
 			propertyId,
 			userId
 		}, {
@@ -3166,7 +3313,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			publish,
 			fields
 		}),
-		__executeStepFn: __eve_dynamic_exec_57,
+		__executeStepFn: __eve_dynamic_exec_37,
 		__closureVars: {
 			propertyId,
 			userId
@@ -3182,11 +3329,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 				"closed"
 			])
 		}),
-		execute: async ({ form_id, status }) => await __eve_dynamic_exec_58({ propertyId }, {
+		execute: async ({ form_id, status }) => await __eve_dynamic_exec_38({ propertyId }, {
 			form_id,
 			status
 		}),
-		__executeStepFn: __eve_dynamic_exec_58,
+		__executeStepFn: __eve_dynamic_exec_38,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("share_form_to_channel") && sessionChannelId) tools.share_form_to_channel = defineTool({
@@ -3195,7 +3342,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			form_id: string().uuid(),
 			message: string().max(300).optional().describe("Optional line above the card.")
 		}),
-		execute: async ({ form_id, message }) => await __eve_dynamic_exec_59({
+		execute: async ({ form_id, message }) => await __eve_dynamic_exec_39({
 			propertyId,
 			sessionChannelId,
 			eveSessionId
@@ -3203,7 +3350,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			form_id,
 			message
 		}),
-		__executeStepFn: __eve_dynamic_exec_59,
+		__executeStepFn: __eve_dynamic_exec_39,
 		__closureVars: {
 			propertyId,
 			sessionChannelId,
@@ -3218,7 +3365,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			team_name: string().max(120).optional(),
 			message: string().min(3).max(500)
 		}),
-		execute: async ({ person_name, team_name, message }) => await __eve_dynamic_exec_60({
+		execute: async ({ person_name, team_name, message }) => await __eve_dynamic_exec_40({
 			propertyId,
 			senderId
 		}, {
@@ -3226,7 +3373,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			team_name,
 			message
 		}),
-		__executeStepFn: __eve_dynamic_exec_60,
+		__executeStepFn: __eve_dynamic_exec_40,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -3238,14 +3385,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			name_contains: string().max(80).optional().describe("Optional filter on the channel name, e.g. 'announce'"),
 			limit: number().int().min(1).max(50).default(25)
 		}),
-		execute: async ({ name_contains, limit }) => await __eve_dynamic_exec_61({
+		execute: async ({ name_contains, limit }) => await __eve_dynamic_exec_41({
 			propertyId,
 			senderId
 		}, {
 			name_contains,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_61,
+		__executeStepFn: __eve_dynamic_exec_41,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -3258,28 +3405,28 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			channel_id: string().min(6).max(120),
 			message: string().min(1).max(3e3)
 		}),
-		execute: async ({ channel_id, message }) => await __eve_dynamic_exec_62({ propertyId }, {
+		execute: async ({ channel_id, message }) => await __eve_dynamic_exec_42({ propertyId }, {
 			channel_id,
 			message
 		}),
-		__executeStepFn: __eve_dynamic_exec_62,
+		__executeStepFn: __eve_dynamic_exec_42,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("list_workflows")) tools.list_workflows = defineTool({
 		description: "List the property's workflow automations: name, enabled, trigger, last run. Workflows whose trigger is 'Manual run' can be started with trigger_workflow.",
 		inputSchema: object({}),
-		execute: async () => await __eve_dynamic_exec_63({ propertyId }),
-		__executeStepFn: __eve_dynamic_exec_63,
+		execute: async () => await __eve_dynamic_exec_43({ propertyId }),
+		__executeStepFn: __eve_dynamic_exec_43,
 		__closureVars: { propertyId }
 	});
 	if (grants.has("trigger_workflow")) tools.trigger_workflow = defineTool({
 		description: "Start a workflow whose trigger is 'Manual run' (check list_workflows — only enabled + manual.run workflows can be triggered). The run is queued through the same dispatcher the app's Run button uses.",
 		inputSchema: object({ workflow_name: string().min(2).max(200) }),
-		execute: async ({ workflow_name }) => await __eve_dynamic_exec_64({
+		execute: async ({ workflow_name }) => await __eve_dynamic_exec_44({
 			propertyId,
 			senderId
 		}, { workflow_name }),
-		__executeStepFn: __eve_dynamic_exec_64,
+		__executeStepFn: __eve_dynamic_exec_44,
 		__closureVars: {
 			propertyId,
 			senderId
@@ -3291,14 +3438,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			document_id: string().uuid(),
 			revision_id: string().uuid().optional()
 		}),
-		execute: async ({ document_id, revision_id }) => await __eve_dynamic_exec_65({
+		execute: async ({ document_id, revision_id }) => await __eve_dynamic_exec_45({
 			propertyId,
 			userId
 		}, {
 			document_id,
 			revision_id
 		}),
-		__executeStepFn: __eve_dynamic_exec_65,
+		__executeStepFn: __eve_dynamic_exec_45,
 		__closureVars: {
 			propertyId,
 			userId
@@ -3314,14 +3461,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("brain_search")) tools.brain_search = defineTool({
 			description: brainToolDescriptions.brain_search,
 			inputSchema: brainToolSchemas.brain_search,
-			execute: async ({ query, limit }) => await __eve_dynamic_exec_66({
+			execute: async ({ query, limit }) => await __eve_dynamic_exec_46({
 				brainMcpUrl,
 				brainCred
 			}, {
 				query,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_66,
+			__executeStepFn: __eve_dynamic_exec_46,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -3330,11 +3477,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("brain_think")) tools.brain_think = defineTool({
 			description: brainToolDescriptions.brain_think,
 			inputSchema: brainToolSchemas.brain_think,
-			execute: async ({ question }) => await __eve_dynamic_exec_67({
+			execute: async ({ question }) => await __eve_dynamic_exec_47({
 				brainMcpUrl,
 				brainCred
 			}, { question }),
-			__executeStepFn: __eve_dynamic_exec_67,
+			__executeStepFn: __eve_dynamic_exec_47,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -3343,11 +3490,11 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("brain_get")) tools.brain_get = defineTool({
 			description: brainToolDescriptions.brain_get,
 			inputSchema: brainToolSchemas.brain_get,
-			execute: async ({ slug }) => await __eve_dynamic_exec_68({
+			execute: async ({ slug }) => await __eve_dynamic_exec_48({
 				brainMcpUrl,
 				brainCred
 			}, { slug }),
-			__executeStepFn: __eve_dynamic_exec_68,
+			__executeStepFn: __eve_dynamic_exec_48,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -3356,14 +3503,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("brain_list")) tools.brain_list = defineTool({
 			description: brainToolDescriptions.brain_list,
 			inputSchema: brainToolSchemas.brain_list,
-			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_69({
+			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_49({
 				brainMcpUrl,
 				brainCred
 			}, {
 				prefix,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_69,
+			__executeStepFn: __eve_dynamic_exec_49,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -3372,7 +3519,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		if (grants.has("brain_capture")) tools.brain_capture = defineTool({
 			description: brainToolDescriptions.brain_capture,
 			inputSchema: brainToolSchemas.brain_capture,
-			execute: async ({ slug: requestedSlug, page_title, observation, source }) => await __eve_dynamic_exec_70({
+			execute: async ({ slug: requestedSlug, page_title, observation, source }) => await __eve_dynamic_exec_50({
 				tools,
 				brainMcpUrl,
 				brainCred
@@ -3382,7 +3529,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 				observation,
 				source
 			}),
-			__executeStepFn: __eve_dynamic_exec_70,
+			__executeStepFn: __eve_dynamic_exec_50,
 			__closureVars: {
 				tools,
 				brainMcpUrl,
@@ -3392,7 +3539,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	}
 	return tools;
 } } });
-async function __eve_dynamic_exec_22(__vars, { status, limit }) {
+async function __eve_dynamic_exec_2(__vars, { status, limit }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	let query = supabase.from("tasks").select("id, title, status, priority, due_at, assignee_id").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
@@ -3418,8 +3565,8 @@ async function __eve_dynamic_exec_22(__vars, { status, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_23(__vars, { title, description, priority, team, due_at }) {
-	const { propertyId, userId } = __vars;
+async function __eve_dynamic_exec_3(__vars, { title, description, priority, team, due_at }, toolCtx) {
+	const { propertyId, userId, sessionChannelId, eveSessionId } = __vars;
 	const supabase = serviceClient();
 	let spaceId = null;
 	if (team) {
@@ -3444,13 +3591,36 @@ async function __eve_dynamic_exec_23(__vars, { title, description, priority, tea
 		...due_at ? { due_at } : {}
 	}).select("id, title, space_id").single();
 	if (error) return { error: error.message };
+	const cardId = `eve-artifact-${toolCtx.callId}`;
+	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+	const streamSecret = process.env.STREAM_API_SECRET;
+	if (apiKey && streamSecret && sessionChannelId) {
+		const { data: chatRow } = await supabase.from("channel_bot_sessions").select("channel_type, turn_nonce").eq("eve_session_id", eveSessionId).maybeSingle();
+		await import_index_node.StreamChat.getInstance(apiKey, streamSecret, { timeout: 15e3 }).channel(chatRow?.channel_type ?? "team", sessionChannelId).sendMessage({
+			id: cardId,
+			text: "",
+			user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+			ai_generated: true,
+			eve_turn: chatRow?.turn_nonce ?? void 0,
+			attachments: [{
+				type: "app_artifact",
+				kind: "task",
+				status: "done",
+				action: "created",
+				title: data.title,
+				task_id: data.id,
+				href: `/p/${propertyId}/tasks/${data.id}`,
+				property_id: propertyId
+			}]
+		}).catch(() => {});
+	}
 	return {
 		created: true,
 		task: data,
 		url: `/p/${propertyId}/tasks/${data.id}`
 	};
 }
-async function __eve_dynamic_exec_24(__vars, { query, limit }) {
+async function __eve_dynamic_exec_4(__vars, { query, limit }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().rpc("search_documents_keyword", {
 		property_id_param: propertyId,
@@ -3467,7 +3637,7 @@ async function __eve_dynamic_exec_24(__vars, { query, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_25(__vars, { days, limit }) {
+async function __eve_dynamic_exec_5(__vars, { days, limit }) {
 	const { propertyId } = __vars;
 	const now = /* @__PURE__ */ new Date();
 	const until = new Date(now.getTime() + days * 864e5);
@@ -3484,7 +3654,7 @@ async function __eve_dynamic_exec_25(__vars, { days, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_26(__vars, { limit }) {
+async function __eve_dynamic_exec_6(__vars, { limit }) {
 	const { propertyId } = __vars;
 	const now = /* @__PURE__ */ new Date();
 	const { data, error } = await serviceClient().from("bookings").select("id, reference, guest_name, party_size, status, starts_at, service_id, bookable_services(name)").eq("property_id", propertyId).gte("starts_at", now.toISOString()).lte("starts_at", new Date(now.getTime() + 864e5).toISOString()).not("status", "in", "(cancelled,no_show)").order("starts_at", { ascending: true }).limit(limit);
@@ -3501,7 +3671,7 @@ async function __eve_dynamic_exec_26(__vars, { limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_27(__vars) {
+async function __eve_dynamic_exec_7(__vars) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const [{ data: teams }, { data: members }] = await Promise.all([supabase.from("spaces").select("id, name, parent_space_id, lead_user_id").eq("property_id", propertyId), supabase.from("memberships").select("user_id, role, title, primary_space_id, manager_id").eq("property_id", propertyId)]);
@@ -3524,7 +3694,7 @@ async function __eve_dynamic_exec_27(__vars) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_28(__vars, { document_id }) {
+async function __eve_dynamic_exec_8(__vars, { document_id }) {
 	const { propertyId, resourceIds } = __vars;
 	const supabase = serviceClient();
 	if (!document_id) {
@@ -3540,7 +3710,7 @@ async function __eve_dynamic_exec_28(__vars, { document_id }) {
 		content: (data.body_text ?? "").slice(0, 3e4)
 	};
 }
-async function __eve_dynamic_exec_29(__vars, { task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
+async function __eve_dynamic_exec_9(__vars, { task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
 	const { propertyId, senderId } = __vars;
 	const supabase = serviceClient();
 	const { data: task } = await supabase.from("tasks").select("id, title, assignee_id, labels").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
@@ -3611,7 +3781,7 @@ async function __eve_dynamic_exec_29(__vars, { task_id, status, priority, due_at
 		link: `/p/${propertyId}/tasks/${task_id}`
 	};
 }
-async function __eve_dynamic_exec_30(__vars, { document_id }) {
+async function __eve_dynamic_exec_10(__vars, { document_id }) {
 	const { propertyId } = __vars;
 	const response = await fetch(`${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}`, {
 		headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` },
@@ -3626,7 +3796,7 @@ async function __eve_dynamic_exec_30(__vars, { document_id }) {
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-async function __eve_dynamic_exec_31(__vars, { title, content_html }, toolCtx) {
+async function __eve_dynamic_exec_11(__vars, { title, content_html }, toolCtx) {
 	const { propertyId, userId, sessionChannelId, eveSessionId } = __vars;
 	const reserved = await fetch(`${eveSelfOrigin()}/api/internal/documents/write`, {
 		method: "POST",
@@ -3702,7 +3872,7 @@ async function __eve_dynamic_exec_31(__vars, { title, content_html }, toolCtx) {
 		link: body.url
 	};
 }
-async function __eve_dynamic_exec_32(__vars, { document_id, content_html, new_title, mode }, toolCtx) {
+async function __eve_dynamic_exec_12(__vars, { document_id, content_html, new_title, mode }, toolCtx) {
 	const { propertyId, userId, sessionChannelId, eveSessionId } = __vars;
 	const supabase = serviceClient();
 	const { data: docRow } = await supabase.from("documents").select("title, body_text").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
@@ -3782,7 +3952,7 @@ async function __eve_dynamic_exec_32(__vars, { document_id, content_html, new_ti
 		} : {}
 	};
 }
-async function __eve_dynamic_exec_33(__vars, { document_id, new_title }) {
+async function __eve_dynamic_exec_13(__vars, { document_id, new_title }) {
 	const { propertyId, userId } = __vars;
 	const { data: docRow } = await serviceClient().from("documents").select("title").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
 	if (!docRow) return { error: "Document not found in this property." };
@@ -3810,7 +3980,7 @@ async function __eve_dynamic_exec_33(__vars, { document_id, new_title }) {
 		link: body.url
 	};
 }
-async function __eve_dynamic_exec_34(__vars, { document_id, reason }) {
+async function __eve_dynamic_exec_14(__vars, { document_id, reason }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: doc } = await supabase.from("documents").select("id, title").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
@@ -3823,7 +3993,7 @@ async function __eve_dynamic_exec_34(__vars, { document_id, reason }) {
 		reason
 	};
 }
-async function __eve_dynamic_exec_35(__vars, { query, include_done, limit }) {
+async function __eve_dynamic_exec_15(__vars, { query, include_done, limit }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().rpc("search_tasks_keyword", {
 		property_id_param: propertyId,
@@ -3846,7 +4016,7 @@ async function __eve_dynamic_exec_35(__vars, { query, include_done, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_36(__vars, { title_contains, limit }) {
+async function __eve_dynamic_exec_16(__vars, { title_contains, limit }) {
 	const { propertyId } = __vars;
 	let query = serviceClient().from("documents").select("id, title, kind, updated_at").eq("property_id", propertyId).is("archived_at", null).order("updated_at", { ascending: false }).limit(limit);
 	if (title_contains) query = query.ilike("title", `%${title_contains}%`);
@@ -3862,7 +4032,7 @@ async function __eve_dynamic_exec_36(__vars, { title_contains, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_37(__vars, { past_days, next_days, limit }) {
+async function __eve_dynamic_exec_17(__vars, { past_days, next_days, limit }) {
 	const { propertyId } = __vars;
 	const now = Date.now();
 	const from = /* @__PURE__ */ new Date(now - past_days * 864e5);
@@ -3880,7 +4050,7 @@ async function __eve_dynamic_exec_37(__vars, { past_days, next_days, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_38(__vars, { past_days, next_days, status, limit }) {
+async function __eve_dynamic_exec_18(__vars, { past_days, next_days, status, limit }) {
 	const { propertyId } = __vars;
 	const now = Date.now();
 	let query = serviceClient().from("bookings").select("id, reference, guest_name, party_size, status, starts_at, bookable_services(name)").eq("property_id", propertyId).gte("starts_at", (/* @__PURE__ */ new Date(now - past_days * 864e5)).toISOString()).lte("starts_at", new Date(now + next_days * 864e5).toISOString()).order("starts_at", { ascending: true }).limit(limit);
@@ -3899,7 +4069,7 @@ async function __eve_dynamic_exec_38(__vars, { past_days, next_days, status, lim
 		}))
 	};
 }
-async function __eve_dynamic_exec_39(__vars, { query, limit }) {
+async function __eve_dynamic_exec_19(__vars, { query, limit }) {
 	const { propertyId, senderId } = __vars;
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const secret = process.env.STREAM_API_SECRET;
@@ -3926,7 +4096,7 @@ async function __eve_dynamic_exec_39(__vars, { query, limit }) {
 		return { error: e instanceof Error ? e.message : "chat search failed" };
 	}
 }
-async function __eve_dynamic_exec_40(__vars, { limit }) {
+async function __eve_dynamic_exec_20(__vars, { limit }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: forms, error } = await supabase.from("forms").select("id, title, description, status, updated_at").eq("property_id", propertyId).is("archived_at", null).order("updated_at", { ascending: false }).limit(limit);
@@ -3948,7 +4118,7 @@ async function __eve_dynamic_exec_40(__vars, { limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_41(__vars, { form_id, limit }) {
+async function __eve_dynamic_exec_21(__vars, { form_id, limit }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: form } = await supabase.from("forms").select("id, title, schema").eq("id", form_id).eq("property_id", propertyId).maybeSingle();
@@ -3985,7 +4155,7 @@ async function __eve_dynamic_exec_41(__vars, { form_id, limit }) {
 		fields: summaries
 	};
 }
-async function __eve_dynamic_exec_42(__vars, { days, limit }) {
+async function __eve_dynamic_exec_22(__vars, { days, limit }) {
 	const { propertyId } = __vars;
 	const since = (/* @__PURE__ */ new Date(Date.now() - days * 864e5)).toISOString();
 	const { data, error } = await serviceClient().from("chatbot_conversations").select("id, chatbot_id, channel, status, outcome, topic, sentiment, guest_name, message_count, created_at, chatbots(name)").eq("property_id", propertyId).gte("created_at", since).order("created_at", { ascending: false }).limit(limit);
@@ -4026,7 +4196,7 @@ async function __eve_dynamic_exec_42(__vars, { days, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_43(__vars) {
+async function __eve_dynamic_exec_23(__vars) {
 	const { propertyId, senderId, ROLE_DENIED } = __vars;
 	const { data: sender } = await serviceClient().from("memberships").select("role").eq("property_id", propertyId).eq("user_id", senderId).maybeSingle();
 	if (!sender || !["owner", "manager"].includes(sender.role)) return { denied: ROLE_DENIED };
@@ -4041,7 +4211,7 @@ async function __eve_dynamic_exec_43(__vars) {
 		insights: JSON.parse(JSON.stringify(data.insights).slice(0, 12e3))
 	};
 }
-async function __eve_dynamic_exec_44(__vars, { audience }) {
+async function __eve_dynamic_exec_24(__vars, { audience }) {
 	const { propertyId, senderId, ROLE_DENIED } = __vars;
 	const { data: sender } = await serviceClient().from("memberships").select("role").eq("property_id", propertyId).eq("user_id", senderId).maybeSingle();
 	if (!sender || !["owner", "manager"].includes(sender.role)) return { denied: ROLE_DENIED };
@@ -4057,7 +4227,7 @@ async function __eve_dynamic_exec_44(__vars, { audience }) {
 		report_md: data.summary_md.slice(0, 8e3)
 	};
 }
-async function __eve_dynamic_exec_45(__vars, { limit }) {
+async function __eve_dynamic_exec_25(__vars, { limit }) {
 	const { propertyId, senderId } = __vars;
 	const { data: sender } = await serviceClient().from("memberships").select("role").eq("property_id", propertyId).eq("user_id", senderId).maybeSingle();
 	if (!sender || !["owner", "manager"].includes(sender.role)) return { denied: "This is a management surface — only property owners and managers can ask for it. Tell the requester that, plainly." };
@@ -4080,7 +4250,7 @@ async function __eve_dynamic_exec_45(__vars, { limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_46(__vars, { headline, brief }, toolCtx) {
+async function __eve_dynamic_exec_26(__vars, { headline, brief }, toolCtx) {
 	const { propertyId, senderId, sessionChannelId } = __vars;
 	const supabase = serviceClient();
 	const selfSessionId = toolCtx?.session?.id;
@@ -4132,7 +4302,7 @@ async function __eve_dynamic_exec_46(__vars, { headline, brief }, toolCtx) {
 		note: "Job is running detached. Tell the requester results will be posted to this channel when it finishes."
 	};
 }
-async function __eve_dynamic_exec_47(__vars, { task_id, reason }) {
+async function __eve_dynamic_exec_27(__vars, { task_id, reason }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: task } = await supabase.from("tasks").select("id, title").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
@@ -4145,7 +4315,7 @@ async function __eve_dynamic_exec_47(__vars, { task_id, reason }) {
 		reason
 	};
 }
-async function __eve_dynamic_exec_48(__vars, { task_id, note }) {
+async function __eve_dynamic_exec_28(__vars, { task_id, note }) {
 	const { propertyId, senderId } = __vars;
 	const supabase = serviceClient();
 	const { data: task } = await supabase.from("tasks").select("id, title, assignee_id, space_id").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
@@ -4189,7 +4359,7 @@ async function __eve_dynamic_exec_48(__vars, { task_id, note }) {
 		link: `/p/${propertyId}/tasks/${task_id}`
 	};
 }
-async function __eve_dynamic_exec_49(__vars, { name, description, team_name, color, status }) {
+async function __eve_dynamic_exec_29(__vars, { name, description, team_name, color, status }) {
 	const { propertyId, userId } = __vars;
 	const supabase = serviceClient();
 	let teamId = null;
@@ -4225,7 +4395,7 @@ async function __eve_dynamic_exec_49(__vars, { name, description, team_name, col
 		link: `/p/${propertyId}/projects/${proj.id}`
 	};
 }
-async function __eve_dynamic_exec_50(__vars, { title, starts_at, ends_at, location }) {
+async function __eve_dynamic_exec_30(__vars, { title, starts_at, ends_at, location }) {
 	const { propertyId, userId, senderId } = __vars;
 	const supabase = serviceClient();
 	const { data: senderMember } = await supabase.from("memberships").select("user_id").eq("property_id", propertyId).eq("user_id", senderId).maybeSingle();
@@ -4248,7 +4418,7 @@ async function __eve_dynamic_exec_50(__vars, { title, starts_at, ends_at, locati
 		link: `/p/${propertyId}/meetings/${meeting.id}`
 	};
 }
-async function __eve_dynamic_exec_51(__vars, { meeting_id, title, starts_at, ends_at, location }) {
+async function __eve_dynamic_exec_31(__vars, { meeting_id, title, starts_at, ends_at, location }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: meeting } = await supabase.from("meetings").select("id, title, scheduled_start, ended_at").eq("id", meeting_id).eq("property_id", propertyId).maybeSingle();
@@ -4272,7 +4442,7 @@ async function __eve_dynamic_exec_51(__vars, { meeting_id, title, starts_at, end
 		link: `/p/${propertyId}/meetings/${meeting_id}`
 	};
 }
-async function __eve_dynamic_exec_52(__vars, { meeting_id }) {
+async function __eve_dynamic_exec_32(__vars, { meeting_id }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: meeting } = await supabase.from("meetings").select("id, title, ended_at").eq("id", meeting_id).eq("property_id", propertyId).maybeSingle();
@@ -4285,7 +4455,7 @@ async function __eve_dynamic_exec_52(__vars, { meeting_id }) {
 		title: meeting.title
 	};
 }
-async function __eve_dynamic_exec_53(__vars, { service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
+async function __eve_dynamic_exec_33(__vars, { service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
 	const { propertyId } = __vars;
 	const { data: services } = await serviceClient().from("bookable_services").select("id, name").eq("property_id", propertyId).eq("active", true);
 	const svcNeedle = service_name.trim().toLowerCase();
@@ -4325,7 +4495,7 @@ async function __eve_dynamic_exec_53(__vars, { service_name, starts_at, party_si
 		link: `/p/${propertyId}/bookings`
 	};
 }
-async function __eve_dynamic_exec_54(__vars, { reference, status }) {
+async function __eve_dynamic_exec_34(__vars, { reference, status }) {
 	const { propertyId } = __vars;
 	const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
 		method: "PATCH",
@@ -4350,7 +4520,7 @@ async function __eve_dynamic_exec_54(__vars, { reference, status }) {
 		link: `/p/${propertyId}/bookings`
 	};
 }
-async function __eve_dynamic_exec_55(__vars, { document_id, sheet_title }) {
+async function __eve_dynamic_exec_35(__vars, { document_id, sheet_title }) {
 	const { propertyId } = __vars;
 	const response = await fetch(`${eveSelfOrigin()}/api/internal/sheets?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}`, {
 		headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` },
@@ -4398,7 +4568,7 @@ async function __eve_dynamic_exec_55(__vars, { document_id, sheet_title }) {
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-async function __eve_dynamic_exec_56(__vars, { document_id, sheet_title, cells }, toolCtx) {
+async function __eve_dynamic_exec_36(__vars, { document_id, sheet_title, cells }, toolCtx) {
 	const { propertyId, sessionChannelId, eveSessionId } = __vars;
 	const supabase = serviceClient();
 	const { data: doc } = await supabase.from("documents").select("id, title, kind").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
@@ -4459,7 +4629,7 @@ async function __eve_dynamic_exec_56(__vars, { document_id, sheet_title, cells }
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-async function __eve_dynamic_exec_57(__vars, { title, description, publish, fields }) {
+async function __eve_dynamic_exec_37(__vars, { title, description, publish, fields }) {
 	const { propertyId, userId } = __vars;
 	const supabase = serviceClient();
 	for (const f of fields) if ((f.type === "select" || f.type === "multi_select") && (!f.options || f.options.length < 2)) return { error: `Field "${f.label}" is a ${f.type} and needs at least 2 options.` };
@@ -4493,7 +4663,7 @@ async function __eve_dynamic_exec_57(__vars, { title, description, publish, fiel
 		link: `/p/${propertyId}/forms/${form.id}`
 	};
 }
-async function __eve_dynamic_exec_58(__vars, { form_id, status }) {
+async function __eve_dynamic_exec_38(__vars, { form_id, status }) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: form } = await supabase.from("forms").select("id, title, status").eq("id", form_id).eq("property_id", propertyId).is("archived_at", null).maybeSingle();
@@ -4512,7 +4682,7 @@ async function __eve_dynamic_exec_58(__vars, { form_id, status }) {
 		link: `/p/${propertyId}/forms/${form_id}`
 	};
 }
-async function __eve_dynamic_exec_59(__vars, { form_id, message }) {
+async function __eve_dynamic_exec_39(__vars, { form_id, message }) {
 	const { propertyId, sessionChannelId, eveSessionId } = __vars;
 	const supabase = serviceClient();
 	const { data: form } = await supabase.from("forms").select("id, title, description, status, schema").eq("id", form_id).eq("property_id", propertyId).is("archived_at", null).maybeSingle();
@@ -4545,7 +4715,7 @@ async function __eve_dynamic_exec_59(__vars, { form_id, message }) {
 		field_count: fieldTotal
 	};
 }
-async function __eve_dynamic_exec_60(__vars, { person_name, team_name, message }) {
+async function __eve_dynamic_exec_40(__vars, { person_name, team_name, message }) {
 	const { propertyId, senderId } = __vars;
 	if (!person_name && !team_name) return { error: "Pass person_name or team_name." };
 	const supabase = serviceClient();
@@ -4596,7 +4766,7 @@ async function __eve_dynamic_exec_60(__vars, { person_name, team_name, message }
 		recipients: targetIds.size
 	};
 }
-async function __eve_dynamic_exec_61(__vars, { name_contains, limit }) {
+async function __eve_dynamic_exec_41(__vars, { name_contains, limit }) {
 	const { propertyId, senderId } = __vars;
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const secret = process.env.STREAM_API_SECRET;
@@ -4624,7 +4794,7 @@ async function __eve_dynamic_exec_61(__vars, { name_contains, limit }) {
 		return { error: e instanceof Error ? e.message : "channel list failed" };
 	}
 }
-async function __eve_dynamic_exec_62(__vars, { channel_id, message }) {
+async function __eve_dynamic_exec_42(__vars, { channel_id, message }) {
 	const { propertyId } = __vars;
 	if (!channel_id.startsWith(`prop-${propertyId.slice(0, 8)}`)) return { error: "That channel doesn't belong to this property." };
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
@@ -4643,7 +4813,7 @@ async function __eve_dynamic_exec_62(__vars, { channel_id, message }) {
 		channel_id
 	};
 }
-async function __eve_dynamic_exec_63(__vars) {
+async function __eve_dynamic_exec_43(__vars) {
 	const { propertyId } = __vars;
 	const supabase = serviceClient();
 	const { data: rows, error } = await supabase.from("workflows").select("id, name, description, enabled, current_version_id, last_run_at, last_run_status").eq("property_id", propertyId).is("archived_at", null).order("updated_at", { ascending: false }).limit(40);
@@ -4664,7 +4834,7 @@ async function __eve_dynamic_exec_63(__vars) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_64(__vars, { workflow_name }) {
+async function __eve_dynamic_exec_44(__vars, { workflow_name }) {
 	const { propertyId, senderId } = __vars;
 	const supabase = serviceClient();
 	const { data: rows } = await supabase.from("workflows").select("id, name, enabled, current_version_id").eq("property_id", propertyId).is("archived_at", null);
@@ -4698,7 +4868,7 @@ async function __eve_dynamic_exec_64(__vars, { workflow_name }) {
 		link: `/p/${propertyId}/workflows/${wf.id}`
 	};
 }
-async function __eve_dynamic_exec_65(__vars, { document_id, revision_id }) {
+async function __eve_dynamic_exec_45(__vars, { document_id, revision_id }) {
 	const { propertyId, userId } = __vars;
 	const listResponse = await fetch(`${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}&revisions=1`, {
 		headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` },
@@ -4743,7 +4913,7 @@ async function __eve_dynamic_exec_65(__vars, { document_id, revision_id }) {
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-async function __eve_dynamic_exec_66(__vars, { query, limit }) {
+async function __eve_dynamic_exec_46(__vars, { query, limit }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
 		query,
@@ -4754,7 +4924,7 @@ async function __eve_dynamic_exec_66(__vars, { query, limit }) {
 		reason: result.reason
 	};
 }
-async function __eve_dynamic_exec_67(__vars, { question }) {
+async function __eve_dynamic_exec_47(__vars, { question }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "think", { question }, { timeoutMs: 6e4 });
 	return result.ok ? { answer: result.content } : {
@@ -4762,7 +4932,7 @@ async function __eve_dynamic_exec_67(__vars, { question }) {
 		reason: result.reason
 	};
 }
-async function __eve_dynamic_exec_68(__vars, { slug }) {
+async function __eve_dynamic_exec_48(__vars, { slug }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", { slug });
 	if (!result.ok) return {
@@ -4780,7 +4950,7 @@ async function __eve_dynamic_exec_68(__vars, { slug }) {
 		markdown: page.slice(0, 2e4)
 	};
 }
-async function __eve_dynamic_exec_69(__vars, { prefix, limit }) {
+async function __eve_dynamic_exec_49(__vars, { prefix, limit }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
 		...prefix ? { prefix } : {},
@@ -4798,7 +4968,7 @@ async function __eve_dynamic_exec_69(__vars, { prefix, limit }) {
 		pages: pages.slice(0, limit)
 	};
 }
-async function __eve_dynamic_exec_70(__vars, { slug: requestedSlug, page_title, observation, source }) {
+async function __eve_dynamic_exec_50(__vars, { slug: requestedSlug, page_title, observation, source }) {
 	const { tools, brainMcpUrl, brainCred } = __vars;
 	const slugCheck = resolveCaptureSlug(requestedSlug);
 	if (!slugCheck.ok) return {
@@ -4833,6 +5003,46 @@ async function __eve_dynamic_exec_70(__vars, { slug: requestedSlug, page_title, 
 		...slugCheck.coercedFrom ? { note: `Filed under '${slug}' — '${slugCheck.coercedFrom}' is not a namespace the brain's knowledge graph indexes.` } : {}
 	};
 }
+__eve_dynamic_exec_2.stepId = "eve:dynamic-tool//__eve_dynamic_exec_2";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_2", __eve_dynamic_exec_2);
+__eve_dynamic_exec_3.stepId = "eve:dynamic-tool//__eve_dynamic_exec_3";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_3", __eve_dynamic_exec_3);
+__eve_dynamic_exec_4.stepId = "eve:dynamic-tool//__eve_dynamic_exec_4";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_4", __eve_dynamic_exec_4);
+__eve_dynamic_exec_5.stepId = "eve:dynamic-tool//__eve_dynamic_exec_5";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_5", __eve_dynamic_exec_5);
+__eve_dynamic_exec_6.stepId = "eve:dynamic-tool//__eve_dynamic_exec_6";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_6", __eve_dynamic_exec_6);
+__eve_dynamic_exec_7.stepId = "eve:dynamic-tool//__eve_dynamic_exec_7";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_7", __eve_dynamic_exec_7);
+__eve_dynamic_exec_8.stepId = "eve:dynamic-tool//__eve_dynamic_exec_8";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_8", __eve_dynamic_exec_8);
+__eve_dynamic_exec_9.stepId = "eve:dynamic-tool//__eve_dynamic_exec_9";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_9", __eve_dynamic_exec_9);
+__eve_dynamic_exec_10.stepId = "eve:dynamic-tool//__eve_dynamic_exec_10";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_10", __eve_dynamic_exec_10);
+__eve_dynamic_exec_11.stepId = "eve:dynamic-tool//__eve_dynamic_exec_11";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_11", __eve_dynamic_exec_11);
+__eve_dynamic_exec_12.stepId = "eve:dynamic-tool//__eve_dynamic_exec_12";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_12", __eve_dynamic_exec_12);
+__eve_dynamic_exec_13.stepId = "eve:dynamic-tool//__eve_dynamic_exec_13";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_13", __eve_dynamic_exec_13);
+__eve_dynamic_exec_14.stepId = "eve:dynamic-tool//__eve_dynamic_exec_14";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_14", __eve_dynamic_exec_14);
+__eve_dynamic_exec_15.stepId = "eve:dynamic-tool//__eve_dynamic_exec_15";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_15", __eve_dynamic_exec_15);
+__eve_dynamic_exec_16.stepId = "eve:dynamic-tool//__eve_dynamic_exec_16";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_16", __eve_dynamic_exec_16);
+__eve_dynamic_exec_17.stepId = "eve:dynamic-tool//__eve_dynamic_exec_17";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_17", __eve_dynamic_exec_17);
+__eve_dynamic_exec_18.stepId = "eve:dynamic-tool//__eve_dynamic_exec_18";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_18", __eve_dynamic_exec_18);
+__eve_dynamic_exec_19.stepId = "eve:dynamic-tool//__eve_dynamic_exec_19";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_19", __eve_dynamic_exec_19);
+__eve_dynamic_exec_20.stepId = "eve:dynamic-tool//__eve_dynamic_exec_20";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_20", __eve_dynamic_exec_20);
+__eve_dynamic_exec_21.stepId = "eve:dynamic-tool//__eve_dynamic_exec_21";
+__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_21", __eve_dynamic_exec_21);
 __eve_dynamic_exec_22.stepId = "eve:dynamic-tool//__eve_dynamic_exec_22";
 __eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_22", __eve_dynamic_exec_22);
 __eve_dynamic_exec_23.stepId = "eve:dynamic-tool//__eve_dynamic_exec_23";
@@ -4891,46 +5101,6 @@ __eve_dynamic_exec_49.stepId = "eve:dynamic-tool//__eve_dynamic_exec_49";
 __eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_49", __eve_dynamic_exec_49);
 __eve_dynamic_exec_50.stepId = "eve:dynamic-tool//__eve_dynamic_exec_50";
 __eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_50", __eve_dynamic_exec_50);
-__eve_dynamic_exec_51.stepId = "eve:dynamic-tool//__eve_dynamic_exec_51";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_51", __eve_dynamic_exec_51);
-__eve_dynamic_exec_52.stepId = "eve:dynamic-tool//__eve_dynamic_exec_52";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_52", __eve_dynamic_exec_52);
-__eve_dynamic_exec_53.stepId = "eve:dynamic-tool//__eve_dynamic_exec_53";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_53", __eve_dynamic_exec_53);
-__eve_dynamic_exec_54.stepId = "eve:dynamic-tool//__eve_dynamic_exec_54";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_54", __eve_dynamic_exec_54);
-__eve_dynamic_exec_55.stepId = "eve:dynamic-tool//__eve_dynamic_exec_55";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_55", __eve_dynamic_exec_55);
-__eve_dynamic_exec_56.stepId = "eve:dynamic-tool//__eve_dynamic_exec_56";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_56", __eve_dynamic_exec_56);
-__eve_dynamic_exec_57.stepId = "eve:dynamic-tool//__eve_dynamic_exec_57";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_57", __eve_dynamic_exec_57);
-__eve_dynamic_exec_58.stepId = "eve:dynamic-tool//__eve_dynamic_exec_58";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_58", __eve_dynamic_exec_58);
-__eve_dynamic_exec_59.stepId = "eve:dynamic-tool//__eve_dynamic_exec_59";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_59", __eve_dynamic_exec_59);
-__eve_dynamic_exec_60.stepId = "eve:dynamic-tool//__eve_dynamic_exec_60";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_60", __eve_dynamic_exec_60);
-__eve_dynamic_exec_61.stepId = "eve:dynamic-tool//__eve_dynamic_exec_61";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_61", __eve_dynamic_exec_61);
-__eve_dynamic_exec_62.stepId = "eve:dynamic-tool//__eve_dynamic_exec_62";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_62", __eve_dynamic_exec_62);
-__eve_dynamic_exec_63.stepId = "eve:dynamic-tool//__eve_dynamic_exec_63";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_63", __eve_dynamic_exec_63);
-__eve_dynamic_exec_64.stepId = "eve:dynamic-tool//__eve_dynamic_exec_64";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_64", __eve_dynamic_exec_64);
-__eve_dynamic_exec_65.stepId = "eve:dynamic-tool//__eve_dynamic_exec_65";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_65", __eve_dynamic_exec_65);
-__eve_dynamic_exec_66.stepId = "eve:dynamic-tool//__eve_dynamic_exec_66";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_66", __eve_dynamic_exec_66);
-__eve_dynamic_exec_67.stepId = "eve:dynamic-tool//__eve_dynamic_exec_67";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_67", __eve_dynamic_exec_67);
-__eve_dynamic_exec_68.stepId = "eve:dynamic-tool//__eve_dynamic_exec_68";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_68", __eve_dynamic_exec_68);
-__eve_dynamic_exec_69.stepId = "eve:dynamic-tool//__eve_dynamic_exec_69";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_69", __eve_dynamic_exec_69);
-__eve_dynamic_exec_70.stepId = "eve:dynamic-tool//__eve_dynamic_exec_70";
-__eveStepRegistry$4.set("eve:dynamic-tool//__eve_dynamic_exec_70", __eve_dynamic_exec_70);
 //#endregion
 //#region agent/lib/brain-citations.ts
 /**
@@ -4986,7 +5156,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 	const caller = tenantCallerOrNull(ctx);
 	const botSlug = ctx.session.auth.current?.attributes?.botSlug;
 	const agentId = ctx.session.auth.current?.attributes?.agentId;
-	if (!caller || typeof agentId === "string" || botSlug !== "hotelclaw") return null;
+	if (!caller || typeof agentId === "string" || botSlug !== "hotelclaw" && botSlug !== "assistant") return null;
 	const binding = await resolvePropertyBrainBinding(caller.propertyId);
 	if (!binding) return null;
 	const brainMcpUrl = binding.url;
@@ -4999,7 +5169,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_search: defineTool({
 			description: brainToolDescriptions.brain_search,
 			inputSchema: brainToolSchemas.brain_search,
-			execute: async ({ query, limit }) => await __eve_dynamic_exec_17({
+			execute: async ({ query, limit }) => await __eve_dynamic_exec_52({
 				brainMcpUrl,
 				brainPropertyId,
 				brainCred
@@ -5007,7 +5177,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 				query,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_17,
+			__executeStepFn: __eve_dynamic_exec_52,
 			__closureVars: {
 				brainMcpUrl,
 				brainPropertyId,
@@ -5017,12 +5187,12 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_think: defineTool({
 			description: brainToolDescriptions.brain_think,
 			inputSchema: brainToolSchemas.brain_think,
-			execute: async ({ question }) => await __eve_dynamic_exec_18({
+			execute: async ({ question }) => await __eve_dynamic_exec_53({
 				brainMcpUrl,
 				brainPropertyId,
 				brainCred
 			}, { question }),
-			__executeStepFn: __eve_dynamic_exec_18,
+			__executeStepFn: __eve_dynamic_exec_53,
 			__closureVars: {
 				brainMcpUrl,
 				brainPropertyId,
@@ -5032,12 +5202,12 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_get: defineTool({
 			description: brainToolDescriptions.brain_get,
 			inputSchema: brainToolSchemas.brain_get,
-			execute: async ({ slug }) => await __eve_dynamic_exec_19({
+			execute: async ({ slug }) => await __eve_dynamic_exec_54({
 				brainMcpUrl,
 				brainPropertyId,
 				brainCred
 			}, { slug }),
-			__executeStepFn: __eve_dynamic_exec_19,
+			__executeStepFn: __eve_dynamic_exec_54,
 			__closureVars: {
 				brainMcpUrl,
 				brainPropertyId,
@@ -5047,7 +5217,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_list: defineTool({
 			description: brainToolDescriptions.brain_list,
 			inputSchema: brainToolSchemas.brain_list,
-			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_20({
+			execute: async ({ prefix, limit }) => await __eve_dynamic_exec_55({
 				brainMcpUrl,
 				brainPropertyId,
 				brainCred
@@ -5055,7 +5225,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 				prefix,
 				limit
 			}),
-			__executeStepFn: __eve_dynamic_exec_20,
+			__executeStepFn: __eve_dynamic_exec_55,
 			__closureVars: {
 				brainMcpUrl,
 				brainPropertyId,
@@ -5065,7 +5235,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		brain_capture: defineTool({
 			description: brainToolDescriptions.brain_capture,
 			inputSchema: brainToolSchemas.brain_capture,
-			execute: async ({ slug: requestedSlug, page_title, observation, source }) => await __eve_dynamic_exec_21({
+			execute: async ({ slug: requestedSlug, page_title, observation, source }) => await __eve_dynamic_exec_56({
 				brainMcpUrl,
 				brainCred
 			}, {
@@ -5074,7 +5244,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 				observation,
 				source
 			}),
-			__executeStepFn: __eve_dynamic_exec_21,
+			__executeStepFn: __eve_dynamic_exec_56,
 			__closureVars: {
 				brainMcpUrl,
 				brainCred
@@ -5082,7 +5252,7 @@ var channel_brain_default = defineDynamic({ events: { "session.started": async (
 		})
 	};
 } } });
-async function __eve_dynamic_exec_17(__vars, { query, limit }) {
+async function __eve_dynamic_exec_52(__vars, { query, limit }) {
 	const { brainMcpUrl, brainPropertyId, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
 		query,
@@ -5098,7 +5268,7 @@ async function __eve_dynamic_exec_17(__vars, { query, limit }) {
 		sources
 	} : { results: result.content };
 }
-async function __eve_dynamic_exec_18(__vars, { question }) {
+async function __eve_dynamic_exec_53(__vars, { question }) {
 	const { brainMcpUrl, brainPropertyId, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "think", { question }, { timeoutMs: 6e4 });
 	if (!result.ok) return {
@@ -5111,7 +5281,7 @@ async function __eve_dynamic_exec_18(__vars, { question }) {
 		sources
 	} : { answer: result.content };
 }
-async function __eve_dynamic_exec_19(__vars, { slug }) {
+async function __eve_dynamic_exec_54(__vars, { slug }) {
 	const { brainMcpUrl, brainPropertyId, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", { slug });
 	if (!result.ok) return {
@@ -5142,7 +5312,7 @@ async function __eve_dynamic_exec_19(__vars, { slug }) {
 		...sources.length > 0 ? { sources } : {}
 	};
 }
-async function __eve_dynamic_exec_20(__vars, { prefix, limit }) {
+async function __eve_dynamic_exec_55(__vars, { prefix, limit }) {
 	const { brainMcpUrl, brainPropertyId, brainCred } = __vars;
 	const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
 		...prefix ? { prefix } : {},
@@ -5174,7 +5344,7 @@ async function __eve_dynamic_exec_20(__vars, { prefix, limit }) {
 		pages
 	};
 }
-async function __eve_dynamic_exec_21(__vars, { slug: requestedSlug, page_title, observation, source }) {
+async function __eve_dynamic_exec_56(__vars, { slug: requestedSlug, page_title, observation, source }) {
 	const { brainMcpUrl, brainCred } = __vars;
 	const slugCheck = resolveCaptureSlug(requestedSlug);
 	if (!slugCheck.ok) return {
@@ -5209,16 +5379,16 @@ async function __eve_dynamic_exec_21(__vars, { slug: requestedSlug, page_title, 
 		...slugCheck.coercedFrom ? { note: `Filed under '${slug}' — '${slugCheck.coercedFrom}' is not a namespace the brain's knowledge graph indexes.` } : {}
 	};
 }
-__eve_dynamic_exec_17.stepId = "eve:dynamic-tool//__eve_dynamic_exec_17";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_17", __eve_dynamic_exec_17);
-__eve_dynamic_exec_18.stepId = "eve:dynamic-tool//__eve_dynamic_exec_18";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_18", __eve_dynamic_exec_18);
-__eve_dynamic_exec_19.stepId = "eve:dynamic-tool//__eve_dynamic_exec_19";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_19", __eve_dynamic_exec_19);
-__eve_dynamic_exec_20.stepId = "eve:dynamic-tool//__eve_dynamic_exec_20";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_20", __eve_dynamic_exec_20);
-__eve_dynamic_exec_21.stepId = "eve:dynamic-tool//__eve_dynamic_exec_21";
-__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_21", __eve_dynamic_exec_21);
+__eve_dynamic_exec_52.stepId = "eve:dynamic-tool//__eve_dynamic_exec_52";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_52", __eve_dynamic_exec_52);
+__eve_dynamic_exec_53.stepId = "eve:dynamic-tool//__eve_dynamic_exec_53";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_53", __eve_dynamic_exec_53);
+__eve_dynamic_exec_54.stepId = "eve:dynamic-tool//__eve_dynamic_exec_54";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_54", __eve_dynamic_exec_54);
+__eve_dynamic_exec_55.stepId = "eve:dynamic-tool//__eve_dynamic_exec_55";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_55", __eve_dynamic_exec_55);
+__eve_dynamic_exec_56.stepId = "eve:dynamic-tool//__eve_dynamic_exec_56";
+__eveStepRegistry$3.set("eve:dynamic-tool//__eve_dynamic_exec_56", __eve_dynamic_exec_56);
 //#endregion
 //#region agent/lib/action-crypto.ts
 /**
@@ -5538,7 +5708,7 @@ var channel_render_ui_default = defineDynamic({ events: { "session.started": asy
 	const caller = tenantCallerOrNull(ctx);
 	const botSlug = ctx.session.auth.current?.attributes?.botSlug;
 	const agentId = ctx.session.auth.current?.attributes?.agentId;
-	if (!caller || typeof agentId === "string" || botSlug !== "hotelclaw") return null;
+	if (!caller || typeof agentId === "string" || botSlug !== "hotelclaw" && botSlug !== "assistant") return null;
 	const propertyId = caller.propertyId;
 	return { render_ui: defineTool({
 		description: CHAT_UI_TOOL_DESCRIPTION,
@@ -5550,12 +5720,12 @@ var channel_render_ui_default = defineDynamic({ events: { "session.started": asy
 				children: array(string()).optional()
 			}))
 		}) }),
-		execute: async ({ spec }) => await __eve_dynamic_exec_2({ propertyId }, { spec }),
-		__executeStepFn: __eve_dynamic_exec_2,
+		execute: async ({ spec }) => await __eve_dynamic_exec_51({ propertyId }, { spec }),
+		__executeStepFn: __eve_dynamic_exec_51,
 		__closureVars: { propertyId }
 	}) };
 } } });
-async function __eve_dynamic_exec_2(__vars, { spec }) {
+async function __eve_dynamic_exec_51(__vars, { spec }) {
 	const { propertyId } = __vars;
 	try {
 		await resolveChatUiLinkRefs(spec.elements, propertyId, async (kind, ids) => {
@@ -5575,8 +5745,8 @@ async function __eve_dynamic_exec_2(__vars, { spec }) {
 		note: "UI attached — it renders beneath your reply. Keep your text to a one-line lead-in and do not repeat the data."
 	};
 }
-__eve_dynamic_exec_2.stepId = "eve:dynamic-tool//__eve_dynamic_exec_2";
-__eveStepRegistry$1.set("eve:dynamic-tool//__eve_dynamic_exec_2", __eve_dynamic_exec_2);
+__eve_dynamic_exec_51.stepId = "eve:dynamic-tool//__eve_dynamic_exec_51";
+__eveStepRegistry$1.set("eve:dynamic-tool//__eve_dynamic_exec_51", __eve_dynamic_exec_51);
 //#endregion
 //#region agent/tools/morning_ops_run.ts
 var morning_ops_run_exports = /* @__PURE__ */ __exportAll({ default: () => morning_ops_run_default });
@@ -5701,11 +5871,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			]).optional(),
 			limit: number().int().min(1).max(30).default(15)
 		}),
-		execute: async ({ status, limit }) => await __eve_dynamic_exec_3({ propertyId }, {
+		execute: async ({ status, limit }) => await __eve_dynamic_exec_57({ propertyId }, {
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_3,
+		__executeStepFn: __eve_dynamic_exec_57,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("create_task")) tools.create_task = defineTool({
@@ -5720,7 +5890,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 				"urgent"
 			]).default("medium")
 		}),
-		execute: async ({ title, description, priority }) => await __eve_dynamic_exec_4({
+		execute: async ({ title, description, priority }) => await __eve_dynamic_exec_58({
 			propertyId,
 			userId
 		}, {
@@ -5728,7 +5898,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description,
 			priority
 		}),
-		__executeStepFn: __eve_dynamic_exec_4,
+		__executeStepFn: __eve_dynamic_exec_58,
 		__closureVars: {
 			propertyId,
 			userId
@@ -5751,12 +5921,12 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 				"urgent"
 			]).optional()
 		}),
-		execute: async ({ task_id, status, priority }) => await __eve_dynamic_exec_5({ propertyId }, {
+		execute: async ({ task_id, status, priority }) => await __eve_dynamic_exec_59({ propertyId }, {
 			task_id,
 			status,
 			priority
 		}),
-		__executeStepFn: __eve_dynamic_exec_5,
+		__executeStepFn: __eve_dynamic_exec_59,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("search_docs")) tools.search_docs = defineTool({
@@ -5765,18 +5935,18 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			query: string().min(1).max(200),
 			limit: number().int().min(1).max(10).default(5)
 		}),
-		execute: async ({ query, limit }) => await __eve_dynamic_exec_6({ propertyId }, {
+		execute: async ({ query, limit }) => await __eve_dynamic_exec_60({ propertyId }, {
 			query,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_6,
+		__executeStepFn: __eve_dynamic_exec_60,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("read_doc")) tools.read_doc = defineTool({
 		description: "Read an app document's full text by id (from search_docs results).",
 		inputSchema: object({ document_id: string().uuid() }),
-		execute: async ({ document_id }) => await __eve_dynamic_exec_7({ propertyId }, { document_id }),
-		__executeStepFn: __eve_dynamic_exec_7,
+		execute: async ({ document_id }) => await __eve_dynamic_exec_61({ propertyId }, { document_id }),
+		__executeStepFn: __eve_dynamic_exec_61,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("get_bookings")) tools.get_bookings = defineTool({
@@ -5794,20 +5964,20 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			]).optional(),
 			limit: number().int().min(1).max(50).default(25)
 		}),
-		execute: async ({ from, days, status, limit }) => await __eve_dynamic_exec_8({ propertyId }, {
+		execute: async ({ from, days, status, limit }) => await __eve_dynamic_exec_62({ propertyId }, {
 			from,
 			days,
 			status,
 			limit
 		}),
-		__executeStepFn: __eve_dynamic_exec_8,
+		__executeStepFn: __eve_dynamic_exec_62,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("get_booking")) tools.get_booking = defineTool({
 		description: "Fetch one booking by its reference (BKG-XXXXXX).",
 		inputSchema: object({ reference: string().min(4).max(20) }),
-		execute: async ({ reference }) => await __eve_dynamic_exec_9({ propertyId }, { reference }),
-		__executeStepFn: __eve_dynamic_exec_9,
+		execute: async ({ reference }) => await __eve_dynamic_exec_63({ propertyId }, { reference }),
+		__executeStepFn: __eve_dynamic_exec_63,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("notify_channel")) tools.notify_channel = defineTool({
@@ -5816,11 +5986,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			channel_id: string().min(1).max(120),
 			text: string().min(1).max(4e3)
 		}),
-		execute: async ({ channel_id, text }) => await __eve_dynamic_exec_10({ propertyId }, {
+		execute: async ({ channel_id, text }) => await __eve_dynamic_exec_64({ propertyId }, {
 			channel_id,
 			text
 		}),
-		__executeStepFn: __eve_dynamic_exec_10,
+		__executeStepFn: __eve_dynamic_exec_64,
 		__closureVars: { propertyId }
 	});
 	if (allowed.has("refund_booking")) tools.refund_booking = defineTool({
@@ -5830,7 +6000,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			reference: string().min(4).max(20),
 			reason: string().min(5).max(500)
 		}),
-		execute: async ({ reference, reason }) => await __eve_dynamic_exec_11({
+		execute: async ({ reference, reason }) => await __eve_dynamic_exec_65({
 			bot,
 			propertyId,
 			userId
@@ -5838,7 +6008,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			reference,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_11,
+		__executeStepFn: __eve_dynamic_exec_65,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -5853,7 +6023,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description: string().min(10).max(500),
 			new_rate: string().min(1).max(60).describe("The overridden rate, as quoted")
 		}),
-		execute: async ({ booking_reference, description, new_rate }) => await __eve_dynamic_exec_12({
+		execute: async ({ booking_reference, description, new_rate }) => await __eve_dynamic_exec_66({
 			bot,
 			propertyId,
 			userId
@@ -5862,7 +6032,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			description,
 			new_rate
 		}),
-		__executeStepFn: __eve_dynamic_exec_12,
+		__executeStepFn: __eve_dynamic_exec_66,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -5876,7 +6046,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			booking_reference: string().min(4).max(20),
 			reason: string().min(10).max(500)
 		}),
-		execute: async ({ booking_reference, reason }) => await __eve_dynamic_exec_13({
+		execute: async ({ booking_reference, reason }) => await __eve_dynamic_exec_67({
 			bot,
 			propertyId,
 			userId
@@ -5884,7 +6054,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			booking_reference,
 			reason
 		}),
-		__executeStepFn: __eve_dynamic_exec_13,
+		__executeStepFn: __eve_dynamic_exec_67,
 		__closureVars: {
 			bot,
 			propertyId,
@@ -5894,11 +6064,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	if (allowed.has("brain_query")) tools.brain_query = defineTool({
 		description: `Query the ${clientSlug} knowledge brain (institutional memory: property systems, guests, suppliers, playbooks, local area). ALWAYS try this before answering property-specific questions. Cite returned page paths as [brain: <path>].`,
 		inputSchema: object({ query: string().min(2).max(300) }),
-		execute: async ({ query }) => await __eve_dynamic_exec_14({
+		execute: async ({ query }) => await __eve_dynamic_exec_68({
 			brainUrl,
 			brainTokenRef
 		}, { query }),
-		__executeStepFn: __eve_dynamic_exec_14,
+		__executeStepFn: __eve_dynamic_exec_68,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -5907,11 +6077,11 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	if (allowed.has("brain_get")) tools.brain_get = defineTool({
 		description: `Fetch a full page from the ${clientSlug} knowledge brain by path (e.g. properties/${propertySlug}/welcome-book).`,
 		inputSchema: object({ path: string().min(2).max(300) }),
-		execute: async ({ path }) => await __eve_dynamic_exec_15({
+		execute: async ({ path }) => await __eve_dynamic_exec_69({
 			brainUrl,
 			brainTokenRef
 		}, { path }),
-		__executeStepFn: __eve_dynamic_exec_15,
+		__executeStepFn: __eve_dynamic_exec_69,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -5925,7 +6095,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			observation: string().min(10).max(1e3).describe("The durable outcome/learning, one to three sentences"),
 			source: string().max(140).describe("Where this came from (channel, person, date)")
 		}),
-		execute: async ({ path, page_title, observation, source }) => await __eve_dynamic_exec_16({
+		execute: async ({ path, page_title, observation, source }) => await __eve_dynamic_exec_70({
 			brainUrl,
 			brainTokenRef
 		}, {
@@ -5934,7 +6104,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 			observation,
 			source
 		}),
-		__executeStepFn: __eve_dynamic_exec_16,
+		__executeStepFn: __eve_dynamic_exec_70,
 		__closureVars: {
 			brainUrl,
 			brainTokenRef
@@ -5942,7 +6112,7 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	});
 	return tools;
 } } });
-async function __eve_dynamic_exec_3(__vars, { status, limit }) {
+async function __eve_dynamic_exec_57(__vars, { status, limit }) {
 	const { propertyId } = __vars;
 	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
 	if (status) query = query.eq("status", status);
@@ -5959,7 +6129,7 @@ async function __eve_dynamic_exec_3(__vars, { status, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_4(__vars, { title, description, priority }) {
+async function __eve_dynamic_exec_58(__vars, { title, description, priority }) {
 	const { propertyId, userId } = __vars;
 	const { data, error } = await serviceClient().from("tasks").insert({
 		property_id: propertyId,
@@ -5976,7 +6146,7 @@ async function __eve_dynamic_exec_4(__vars, { title, description, priority }) {
 		task: data
 	};
 }
-async function __eve_dynamic_exec_5(__vars, { task_id, status, priority }) {
+async function __eve_dynamic_exec_59(__vars, { task_id, status, priority }) {
 	const { propertyId } = __vars;
 	if (!status && !priority) return { error: "Nothing to update." };
 	const { data, error } = await serviceClient().from("tasks").update({
@@ -5990,7 +6160,7 @@ async function __eve_dynamic_exec_5(__vars, { task_id, status, priority }) {
 		task: data
 	};
 }
-async function __eve_dynamic_exec_6(__vars, { query, limit }) {
+async function __eve_dynamic_exec_60(__vars, { query, limit }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().rpc("search_documents_keyword", {
 		property_id_param: propertyId,
@@ -6007,7 +6177,7 @@ async function __eve_dynamic_exec_6(__vars, { query, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_7(__vars, { document_id }) {
+async function __eve_dynamic_exec_61(__vars, { document_id }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().from("documents").select("id, title, body_text").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
 	if (error || !data) return { error: "Document not found." };
@@ -6017,7 +6187,7 @@ async function __eve_dynamic_exec_7(__vars, { document_id }) {
 		content: (data.body_text ?? "").slice(0, 3e4)
 	};
 }
-async function __eve_dynamic_exec_8(__vars, { from, days, status, limit }) {
+async function __eve_dynamic_exec_62(__vars, { from, days, status, limit }) {
 	const { propertyId } = __vars;
 	const start = from ? /* @__PURE__ */ new Date(`${from}T00:00:00Z`) : /* @__PURE__ */ new Date();
 	const end = new Date(start.getTime() + days * 864e5);
@@ -6037,14 +6207,14 @@ async function __eve_dynamic_exec_8(__vars, { from, days, status, limit }) {
 		}))
 	};
 }
-async function __eve_dynamic_exec_9(__vars, { reference }) {
+async function __eve_dynamic_exec_63(__vars, { reference }) {
 	const { propertyId } = __vars;
 	const { data, error } = await serviceClient().from("bookings").select("reference, guest_name, guest_email, party_size, status, starts_at, ends_at, notes, bookable_services(name)").eq("property_id", propertyId).eq("reference", reference.toUpperCase()).maybeSingle();
 	if (error) return { error: error.message };
 	if (!data) return { error: "No booking with that reference here." };
 	return { booking: data };
 }
-async function __eve_dynamic_exec_10(__vars, { channel_id, text }) {
+async function __eve_dynamic_exec_64(__vars, { channel_id, text }) {
 	const { propertyId } = __vars;
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const secret = process.env.STREAM_API_SECRET;
@@ -6061,7 +6231,7 @@ async function __eve_dynamic_exec_10(__vars, { channel_id, text }) {
 		})).message.id
 	};
 }
-async function __eve_dynamic_exec_11(__vars, { reference, reason }) {
+async function __eve_dynamic_exec_65(__vars, { reference, reason }) {
 	const { bot, propertyId, userId } = __vars;
 	const supabase = serviceClient();
 	const { data: booking } = await supabase.from("bookings").select("id, reference, status, guest_name").eq("property_id", propertyId).eq("reference", reference.toUpperCase()).maybeSingle();
@@ -6084,7 +6254,7 @@ async function __eve_dynamic_exec_11(__vars, { reference, reason }) {
 		refund_task_created: true
 	};
 }
-async function __eve_dynamic_exec_12(__vars, { booking_reference, description, new_rate }) {
+async function __eve_dynamic_exec_66(__vars, { booking_reference, description, new_rate }) {
 	const { bot, propertyId, userId } = __vars;
 	const { data, error } = await serviceClient().from("tasks").insert({
 		property_id: propertyId,
@@ -6101,7 +6271,7 @@ async function __eve_dynamic_exec_12(__vars, { booking_reference, description, n
 		follow_up_task: data.id
 	};
 }
-async function __eve_dynamic_exec_13(__vars, { booking_reference, reason }) {
+async function __eve_dynamic_exec_67(__vars, { booking_reference, reason }) {
 	const { bot, propertyId, userId } = __vars;
 	const { data: booking } = await serviceClient().from("bookings").select("id, reference, guest_name").eq("property_id", propertyId).eq("reference", booking_reference.toUpperCase()).maybeSingle();
 	if (!booking) return { error: "No booking with that reference here." };
@@ -6121,7 +6291,7 @@ async function __eve_dynamic_exec_13(__vars, { booking_reference, reason }) {
 		follow_up_task: data.id
 	};
 }
-async function __eve_dynamic_exec_14(__vars, { query }) {
+async function __eve_dynamic_exec_68(__vars, { query }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	const result = await brainQuery(brainUrl, brainTokenRef, query);
 	if (!result.ok) return {
@@ -6131,7 +6301,7 @@ async function __eve_dynamic_exec_14(__vars, { query }) {
 	};
 	return { result: result.content };
 }
-async function __eve_dynamic_exec_15(__vars, { path }) {
+async function __eve_dynamic_exec_69(__vars, { path }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	const page = await getBrainPage(brainUrl, brainTokenRef, path);
 	const result = page ? {
@@ -6147,7 +6317,7 @@ async function __eve_dynamic_exec_15(__vars, { path }) {
 	};
 	return { page: result.content };
 }
-async function __eve_dynamic_exec_16(__vars, { path, page_title, observation, source }) {
+async function __eve_dynamic_exec_70(__vars, { path, page_title, observation, source }) {
 	const { brainUrl, brainTokenRef } = __vars;
 	if (await getBrainPage(brainUrl, brainTokenRef, path) === null) {
 		const created = await putBrainPage(brainUrl, brainTokenRef, path, `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`);
@@ -6171,34 +6341,34 @@ async function __eve_dynamic_exec_16(__vars, { path, page_title, observation, so
 		path
 	};
 }
-__eve_dynamic_exec_3.stepId = "eve:dynamic-tool//__eve_dynamic_exec_3";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_3", __eve_dynamic_exec_3);
-__eve_dynamic_exec_4.stepId = "eve:dynamic-tool//__eve_dynamic_exec_4";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_4", __eve_dynamic_exec_4);
-__eve_dynamic_exec_5.stepId = "eve:dynamic-tool//__eve_dynamic_exec_5";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_5", __eve_dynamic_exec_5);
-__eve_dynamic_exec_6.stepId = "eve:dynamic-tool//__eve_dynamic_exec_6";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_6", __eve_dynamic_exec_6);
-__eve_dynamic_exec_7.stepId = "eve:dynamic-tool//__eve_dynamic_exec_7";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_7", __eve_dynamic_exec_7);
-__eve_dynamic_exec_8.stepId = "eve:dynamic-tool//__eve_dynamic_exec_8";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_8", __eve_dynamic_exec_8);
-__eve_dynamic_exec_9.stepId = "eve:dynamic-tool//__eve_dynamic_exec_9";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_9", __eve_dynamic_exec_9);
-__eve_dynamic_exec_10.stepId = "eve:dynamic-tool//__eve_dynamic_exec_10";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_10", __eve_dynamic_exec_10);
-__eve_dynamic_exec_11.stepId = "eve:dynamic-tool//__eve_dynamic_exec_11";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_11", __eve_dynamic_exec_11);
-__eve_dynamic_exec_12.stepId = "eve:dynamic-tool//__eve_dynamic_exec_12";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_12", __eve_dynamic_exec_12);
-__eve_dynamic_exec_13.stepId = "eve:dynamic-tool//__eve_dynamic_exec_13";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_13", __eve_dynamic_exec_13);
-__eve_dynamic_exec_14.stepId = "eve:dynamic-tool//__eve_dynamic_exec_14";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_14", __eve_dynamic_exec_14);
-__eve_dynamic_exec_15.stepId = "eve:dynamic-tool//__eve_dynamic_exec_15";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_15", __eve_dynamic_exec_15);
-__eve_dynamic_exec_16.stepId = "eve:dynamic-tool//__eve_dynamic_exec_16";
-__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_16", __eve_dynamic_exec_16);
+__eve_dynamic_exec_57.stepId = "eve:dynamic-tool//__eve_dynamic_exec_57";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_57", __eve_dynamic_exec_57);
+__eve_dynamic_exec_58.stepId = "eve:dynamic-tool//__eve_dynamic_exec_58";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_58", __eve_dynamic_exec_58);
+__eve_dynamic_exec_59.stepId = "eve:dynamic-tool//__eve_dynamic_exec_59";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_59", __eve_dynamic_exec_59);
+__eve_dynamic_exec_60.stepId = "eve:dynamic-tool//__eve_dynamic_exec_60";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_60", __eve_dynamic_exec_60);
+__eve_dynamic_exec_61.stepId = "eve:dynamic-tool//__eve_dynamic_exec_61";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_61", __eve_dynamic_exec_61);
+__eve_dynamic_exec_62.stepId = "eve:dynamic-tool//__eve_dynamic_exec_62";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_62", __eve_dynamic_exec_62);
+__eve_dynamic_exec_63.stepId = "eve:dynamic-tool//__eve_dynamic_exec_63";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_63", __eve_dynamic_exec_63);
+__eve_dynamic_exec_64.stepId = "eve:dynamic-tool//__eve_dynamic_exec_64";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_64", __eve_dynamic_exec_64);
+__eve_dynamic_exec_65.stepId = "eve:dynamic-tool//__eve_dynamic_exec_65";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_65", __eve_dynamic_exec_65);
+__eve_dynamic_exec_66.stepId = "eve:dynamic-tool//__eve_dynamic_exec_66";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_66", __eve_dynamic_exec_66);
+__eve_dynamic_exec_67.stepId = "eve:dynamic-tool//__eve_dynamic_exec_67";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_67", __eve_dynamic_exec_67);
+__eve_dynamic_exec_68.stepId = "eve:dynamic-tool//__eve_dynamic_exec_68";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_68", __eve_dynamic_exec_68);
+__eve_dynamic_exec_69.stepId = "eve:dynamic-tool//__eve_dynamic_exec_69";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_69", __eve_dynamic_exec_69);
+__eve_dynamic_exec_70.stepId = "eve:dynamic-tool//__eve_dynamic_exec_70";
+__eveStepRegistry.set("eve:dynamic-tool//__eve_dynamic_exec_70", __eve_dynamic_exec_70);
 //#endregion
 //#region agent/subagents/bookings/agent.ts
 var agent_exports$1 = /* @__PURE__ */ __exportAll({ default: () => agent_default$1 });
@@ -6283,7 +6453,7 @@ var list_tasks_default = defineTool({
 	}
 });
 //#endregion
-//#region .eve/builds/msol9uq7-bc051dd0-55b9-437f-867e-2a917ffc7b5c/host/compiled-artifacts-bootstrap.mjs
+//#region .eve/builds/mtaboohu-549f0435-0f76-4f27-b13a-b97e80df84ca/host/compiled-artifacts-bootstrap.mjs
 installEveWorkflowQueueNamespace("agent");
 const moduleMap = Object.freeze({ "nodes": Object.freeze({
 	"__root__": Object.freeze({ "modules": Object.freeze({
@@ -6779,7 +6949,7 @@ const POST = ba(Buffer.from([
 	"VTBzUTBGQlF5eERRVUZETzBOQlFVVXNSMEZCUlN4VlFVRlBMRTFCUVVjN1JVRkJReXhGUVVGRkxGVkJRVkVzUTBGQlF5eEhRVUZGTEVWQlFVVXNZVUZCVnl4TFFVRkxMRXRCUVVjc1VVRkJVU3hGUVVGRkxGRkJRVkU3UTBGQlF5eEhRVUZGTEdGQlFWY3NXVUZCVXp0RlFVRkRMRWxCUVVjc1RVRkJTU3hOUVVGTExFdEJRVWtzVFVGQlRTeFJRVUZSTEZGQlFWRXNSMEZCUlN4RlFVRkZMRk5CUVU4c1NVRkJSenRIUVVGRExFbEJRVWtzU1VGQlJTeEZRVUZGTEUxQlFVMDdSMEZCUlN4RlFVRkZMRTFCUVUwc1ZVRkJVU3hEUVVGRExFZEJRVVVzUlVGQlJTeE5RVUZOTEZkQlFWTXNTMEZCU3l4SFFVRkZMRVZCUVVVc1QwRkJUeXhQUVVGTExFVkJRVVVzVFVGQlRTeFRRVUZQTEVOQlFVTXNTVUZCUlN4RlFVRkZMRTlCUVU4c1RVRkJUU3hUUVVGUExHRkJRVmNzUlVGQlJTeExRVUZMTEVWQlFVVXNUMEZCVHl4TFFVRkxMRWRCUVVVc1NVRkJTU3hGUVVGRkxFdEJRVXNzUjBGQlJTeE5RVUZOTEZGQlFWRXNVVUZCVVR0RlFVRkRPME5CUVVNN1EwRkJSU3hQUVVGTk8wVkJRVU1zWTBGQllUdEhRVUZETEVsQlFVY3NUVUZCU1N4TFFVRkxMRWRCUVVVc1RVRkJUU3hOUVVGTkxITkVRVUZ6UkR0SFFVRkZMRVZCUVVVc1RVRkJUU3hWUVVGUkxFTkJRVU1zUjBGQlJTeEZRVUZGTEUxQlFVMHNWMEZCVXl4TFFVRkxMRWRCUVVVc1JVRkJSU3hQUVVGUExGTkJRVThzUlVGQlJTeE5RVUZOTEZOQlFVOHNRMEZCUXl4SlFVRkhMRWxCUVVVc1MwRkJTeXhIUVVGRkxFbEJRVVU3UlVGQlNUdEZRVUZGTEUxQlFVMHNWVUZCVXp0SFFVRkRMRTFCUVVrc1MwRkJTeXhOUVVGSkxFMUJRVTBzV1VGQldTeEZRVUZGTEVsQlFVa3NSMEZCUlN4SlFVRkZMRXRCUVVzN1JVRkJSVHRGUVVGRkxFOUJRVTA3UjBGQlF5eEpRVUZITEUxQlFVa3NTMEZCU3l4SFFVRkZMRTFCUVUwc1RVRkJUU3h6UlVGQmMwVTdSMEZCUlN4SlFVRkhMRTFCUVVrc1RVRkJTeXhQUVVGUE8wZEJRVVVzU1VGQlNTeERRVUZETzBkQlFVVXNTMEZCU1N4SlFVRkpMRXRCUVVzc1IwRkJSU3hKUVVGSkxFTkJRVU03UjBGQlJTeFBRVUZQTEVWQlFVVXNWVUZCVVN4RlFVRkZMRTlCUVUwc1RVRkJSeXhGUVVGRkxFMUJRVTBzUzBGQlJ5eEpRVUZGTzBsQlFVTXNUMEZCVFR0SlFVRkpMRkZCUVU4N1MwRkJReXhOUVVGTExFTkJRVU03UzBGQlJTeFBRVUZOTEV0QlFVczdTVUZCUXp0SlFVRkZMRTlCUVUwN1IwRkJReXhIUVVGRkxFbEJRVVVzVVVGQlVTeFJRVUZSTEVWQlFVVXNUVUZCVFN4SFFVRkZMRTFCUVVrc1MwRkJSeXhaUVVGVE8wbEJRVU1zVDBGQlN5eEZRVUZGTEZkQlFWTXNTVUZCUnl4TlFVRk5MRWxCUVVrc1UwRkJVU3hOUVVGSE8wdEJRVU1zU1VGQlJUdEpRVUZETEVOQlFVTTdTVUZCUlN4SlFVRkpMRWxCUVVVc1JVRkJSU3hOUVVGTk8wbEJRVVVzVDBGQlR5eEpRVUZGTEVkQlFVVXNSVUZCUlR0SFFVRk5MRVZCUVVFc1EwRkJSeXhIUVVGRk8wVkJRVVU3UlVGQlJTeE5RVUZOTEUxQlFVMHNSMEZCUlR0SFFVRkRMRWxCUVVjc1EwRkJReXhMUVVGSExFZEJRVWNzUzBGQlN5eFZRVUZSTEVkQlFVVTdSMEZCVHl4SlFVRkpMRWxCUVVVc1YwRkJWeXhGUVVGRExFOUJRVTBzUlVGQlF5eERRVUZETEVkQlFVVXNTVUZCUlR0SlFVRkRMRkZCUVU4c1EwRkJRenRKUVVGRkxGTkJRVkVzUTBGQlF6dEpRVUZGTEUxQlFVczdTVUZCUlN4VlFVRlRMRVZCUVVVc1QwRkJUeXhqUVVGakxFTkJRVU03U1VGQlJTeFRRVUZSTEVOQlFVTTdTVUZCUlN4VFFVRlJMRU5CUVVNN1IwRkJRenRIUVVGRkxFbEJRVWNzVFVGQlNTeExRVUZMTEVkQlFVVTdTVUZCUXl4TlFVRk5MRzFDUVVGdFFpeEZRVUZGTEVsQlFVa3NSMEZCUlN4UFFVRlBMRU5CUVVNc1IwRkJSU3hKUVVGRk8wbEJRVVU3UjBGQlRUdEhRVUZETEVsQlFVa3NTVUZCUlR0SFFVRkZMRWxCUVVrc1EwRkJReXhIUVVGRkxFbEJRVWtzUTBGQlF5eEhRVUZGTEUxQlFVMHNiVUpCUVcxQ0xFVkJRVVVzU1VGQlNTeEhRVUZGTEU5QlFVOHNRMEZCUXl4SFFVRkZMRTFCUVUwc1YwRkJWenRIUVVGRkxFbEJRVWM3U1VGQlF5eE5RVUZOTEZsQlFWa3NSVUZCUlN4SlFVRkpPMGRCUVVNc1UwRkJUeXhIUVVGRk8wbEJRVU1zU1VGQlJTeExRVUZMTzBsQlFVVXNTVUZCUnp0TFFVRkRMRTFCUVUwc1dVRkJXU3hGUVVGRkxFbEJRVWs3U1VGQlF5eFJRVUZOTEVOQlFVTTdTVUZCUXl4TlFVRk5PMGRCUVVNN1IwRkJReXhGUVVGRkxGVkJRVkVzUTBGQlF5eEhRVUZGTEVWQlFVVXNTMEZCU3l4RFFVRkRMRWRCUVVVc1NVRkJSU3hIUVVGRkxFMUJRVTBzVjBGQlZ6dEZRVUZETzBOQlFVTTdRVUZCUXpzN08wRkRRM0o0UWl4bFFVRmxMR05CUVdNc1IwRkJSVHREUVVGRExFbEJRVWNzUlVGQlF5eGxRVUZqTEUxQlFVY3NiMEpCUVc5Q0xFZEJRVVVzU1VGQlJTeEZRVUZGTEd0Q1FVRnJRaXcwUWtGQk1FSXNTVUZCUnl4SlFVRkZMRVZCUVVVc2EwSkJRV3RDTEdGQlFWa3NTVUZCUlN4RlFVRkZMR3RDUVVGclFpeHhRa0ZCYjBJc1NVRkJSU3hGUVVGRkxHdENRVUZyUWp0RFFVRmpMRVZCUVVVc2EwSkJRV3RDTEcxQ1FVRnBRanREUVVGRkxFbEJRVWtzU1VGQlJTeFpRVUZaTzBOQlFVVXNTVUZCUnp0RlFVRkRMRWxCUVVrc1NVRkJSU3hyUWtGQmEwSXNSVUZCUlN4cFFrRkJhVUlzUjBGQlJTeEpRVUZGTERSQ1FVRTBRaXhGUVVGRkxHbENRVUZwUWl4SFFVRkZMRVZCUVVNc1QwRkJUU3hOUVVGSExFMUJRVTBzYTBKQlFXdENPMGRCUVVNc2VVSkJRWGRDTEVWQlFVVTdSMEZCVHl4dFFrRkJhMEk3UjBGQlJTeHBRa0ZCWjBJc1JVRkJSVHRIUVVGUExGRkJRVThzUlVGQlJUdEhRVUZQTEdOQlFXRXNSVUZCUlN4TlFVRk5PMGRCUVdFc1pVRkJZenRIUVVGRkxGZEJRVlU3UjBGQlJTeGxRVUZqTzBWQlFVTXNRMEZCUXp0RlFVRkZMRTlCUVU4c1RVRkJUU3hqUVVGak8wZEJRVU1zWTBGQllUdEhRVUZGTEdkQ1FVRmxPMGRCUVVVc1kwRkJZVHRKUVVGRExFMUJRVXM3U1VGQlZTeFZRVUZUTEVOQlFVTTdTMEZCUXl4VFFVRlJMRVZCUVVVc1RVRkJUVHRMUVVGUkxGTkJRVkVzUlVGQlJTeE5RVUZOTzB0QlFWRXNZMEZCWVN4RlFVRkZMRTFCUVUwN1NVRkJXU3hEUVVGRE8wbEJRVVVzVjBGQlZTeHhRa0ZCY1VJc1JVRkJSU3hwUWtGQmFVSTdSMEZCUXp0SFFVRkZMRTFCUVVzN1IwRkJSU3h0UWtGQmEwSXNSVUZCUlR0SFFVRnJRaXhqUVVGaE8wVkJRVU1zUTBGQlF6dERRVUZETEZOQlFVOHNSMEZCUlR0RlFVRkRMRTFCUVUwc1RVRkJUU3dyUWtGQkswSTdSMEZCUXl4UFFVRk5MREpDUVVFeVFpeERRVUZETzBkQlFVVXNaMEpCUVdVN1IwRkJSU3h0UWtGQmEwSXNSVUZCUlR0RlFVRnBRaXhEUVVGRExFZEJRVVVzVFVGQlRTeDNRa0ZCZDBJN1IwRkJReXhQUVVGTkxESkNRVUV5UWl4RFFVRkRPMGRCUVVVc2JVSkJRV3RDTEVWQlFVVTdSMEZCYTBJc1VVRkJUenRGUVVGUkxFTkJRVU1zUjBGQlJTeE5RVUZOTERCQ1FVRXdRanRIUVVGRExGRkJRVThzYlVOQlFXMURMRVZCUVVVc2JVSkJRV3RDTEVOQlFVTTdSMEZCUlN4dFFrRkJhMElzUlVGQlJUdEZRVUZwUWl4RFFVRkRMRWRCUVVVN1EwRkJRenRCUVVGRE8wRkJRVU1zWlVGQlpTeGpRVUZqTEVkQlFVVTdRMEZCUXl4SlFVRkpMRWxCUVVVc1YwRkJWeXhGUVVGRExFOUJRVTBzUjBGQlJ5eEZRVUZGTEdGQlFXRXNWVUZCVlN4UFFVRk5MRU5CUVVNc1IwRkJSU3hKUVVGRkxFVkJRVVVzVDBGQlR5eGpRVUZqTEVOQlFVTXNSMEZCUlN4SlFVRkZMRWRCUVVVc05rSkJRWGxDTEVkQlFVY3NSVUZCUlN4aFFVRmhMRlZCUVZVc1owSkJRV2RDTEU5QlFVOHNSMEZCUnl4TFFVRkpMRWxCUVVVc1EwRkJReXhIUVVGRkxFbEJRVVVzTUVKQlFUQkNMRU5CUVVNc1IwRkJSU3hIUVVGRkxGVkJRVkVzVDBGQlRTeE5RVUZITzBWQlFVTXNTVUZCU1N4SlFVRkZMRTFCUVUwc2NVSkJRWEZDTzBkQlFVTXNiMEpCUVcxQ08wZEJRVVVzWTBGQllTeEZRVUZGTzBkQlFXRXNZMEZCWVN4eFFrRkJjVUk3UjBGQlJTeFZRVUZUTEVWQlFVVTdSMEZCVXl4alFVRmhPMGRCUVVVc1RVRkJTeXhGUVVGRk8wZEJRVXNzWjBKQlFXVXNSVUZCUlR0SFFVRmxMRzFDUVVGclFpeEZRVUZGTzBkQlFXdENMR05CUVdFc1JVRkJSVHRGUVVGWkxFTkJRVU03UlVGQlJTeFBRVUZQTEUxQlFVMHNTVUZCU1N4SFFVRkZMRWxCUVVVc1JVRkJSU3hUUVVGUkxFVkJRVVU3UTBGQlRUdERRVUZGTEVsQlFVYzdSVUZCUXl4RlFVRkZMR0ZCUVdFc2NVSkJRVzFDTEUxQlFVMHNSVUZCUlN4TlFVRk5MRVZCUVVVc1lVRkJZU3hwUWtGQmFVSTdSVUZCUlN4SlFVRkpMRWxCUVVVc1RVRkJUU3hSUVVGUk8wZEJRVU1zVlVGQlV5eEZRVUZGTzBkQlFXRXNiVUpCUVd0Q0xFVkJRVVU3UjBGQmEwSXNZMEZCWVN4RlFVRkZPMFZCUVZrc1EwRkJRenRGUVVGRkxGTkJRVTg3UjBGQlF5eEpRVUZITEVWQlFVVXNVMEZCVHl4UlFVRlBMRTlCUVU4c1RVRkJUU3hoUVVGaE8wbEJRVU1zVVVGQlR6dEpRVUZGTEdkQ1FVRmxMRVZCUVVVN1IwRkJZeXhEUVVGRE8wZEJRVVVzU1VGQlJ5eEZRVUZGTEZOQlFVOHNVVUZCVHl4TlFVRk5MRTFCUVUwc01rTkJRVEpETEVWQlFVVXNTMEZCU3l4SFFVRkhPMGRCUVVVc1NVRkJSeXhGUVVGRkxHTkJRVmtzUTBGQlF5eEhRVUZGTzBsQlFVTXNTVUZCU1N4SlFVRkZMRTFCUVUwc2QwSkJRWGRDTzB0QlFVTXNaMEpCUVdVc1JVRkJSVHRMUVVGbExHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTEVOQlFVTTdTVUZCUlN4SlFVRkZPMHRCUVVNc1IwRkJSenRMUVVGRkxHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTzBkQlFVTTdSMEZCUXl4SlFVRkhMRU5CUVVNc1JVRkJSU3hoUVVGaExHMUNRVUZyUWl4TlFVRk5MRTFCUVUwc2MwMUJRWE5OTzBkQlFVVXNTVUZCUnl4TlFVRk5MRVZCUVVVc1RVRkJUU3hGUVVGRkxHRkJRV0VzYVVKQlFXbENMRWRCUVVVc1JVRkJSU3h6UWtGQmIwSXNSVUZCUlN4dFFrRkJiVUlzVTBGQlR5eEhRVUZGTzBsQlFVTXNTVUZCU1N4SlFVRkZMRVZCUVVVc2JVSkJRVzFDTEZGQlFVOHNTVUZCUlN4RFFVRkRPMGxCUVVVc1QwRkJTeXhGUVVGRkxGTkJRVThzU1VGQlJ6dExRVUZETEVsQlFVa3NTVUZCUlN4TlFVRk5MRVZCUVVVc1MwRkJTenRMUVVGRkxFbEJRVWNzUlVGQlJTeE5RVUZMTzB0QlFVMHNSVUZCUlN4TlFVRk5MRk5CUVU4c1lVRkJWeXhGUVVGRkxFdEJRVXNzUjBGQlJ5eEZRVUZGTEUxQlFVMHNVVUZCVVR0SlFVRkRPMGxCUVVNc1NVRkJSU3hOUVVGTkxGRkJRVkU3UzBGQlF5eFZRVUZUTzAxQlFVTXNUVUZCU3p0TlFVRlZMRlZCUVZNN1MwRkJRenRMUVVGRkxHMUNRVUZyUWl4RlFVRkZPMHRCUVd0Q0xHTkJRV0VzUlVGQlJUdEpRVUZaTEVOQlFVTTdTVUZCUlR0SFFVRlJPMGRCUVVNc1NVRkJTU3hKUVVGRkxFMUJRVTBzYlVKQlFXMUNPMGxCUVVNc2IwSkJRVzFDTzBsQlFVVXNZMEZCWVR0SFFVRkRMRU5CUVVNN1IwRkJSU3hKUVVGSExFMUJRVWtzVFVGQlN5eFBRVUZOTEVWQlFVTXNVVUZCVHl4SFFVRkZPMGRCUVVVc1NVRkJTU3hKUVVGRkxFMUJRVTBzZFVKQlFYVkNPMGxCUVVNc1RVRkJTeXhGUVVGRk8wbEJRVXNzWjBKQlFXVXNSVUZCUlR0SlFVRmxMRlZCUVZNc1JVRkJSVHRKUVVGVExHTkJRV0VzUlVGQlJUdEhRVUZaTEVOQlFVTTdSMEZCUlN4TlFVRkpMRXRCUVVzc1RVRkJTU3hKUVVGRkxFMUJRVTBzVVVGQlVUdEpRVUZETEZWQlFWTTdTMEZCUXl4TlFVRkxMRVZCUVVVN1MwRkJTeXhOUVVGTE8wdEJRVlVzVlVGQlV5eERRVUZETEVOQlFVTTdTMEZCUlN4WFFVRlZMRVZCUVVVN1NVRkJVenRKUVVGRkxHMUNRVUZyUWl4RlFVRkZPMGxCUVd0Q0xHTkJRV0VzUlVGQlJUdEhRVUZaTEVOQlFVTTdSVUZCUlR0RFFVRkRMRlZCUVZFN1JVRkJReXhOUVVGTkxFbEJRVWtzUjBGQlJTeE5RVUZOTEVWQlFVVXNVVUZCVVN4SFFVRkZMRTFCUVUwc1dVRkJXU3hEUVVGRE8wTkJRVU03UVVGQlF6dEJRVUZETEdWQlFXVXNZVUZCWVN4SFFVRkZPME5CUVVNc1NVRkJSeXhGUVVGRExGRkJRVThzUjBGQlJTeHRRa0ZCYTBJc1RVRkJSeXhGUVVGRkxGRkJRVThzU1VGQlJTeEZRVUZGTEU5QlFVOHNXVUZCVlN4RFFVRkRPME5CUVVVc1QwRkJUeXhOUVVGTkxIZENRVUYzUWp0RlFVRkRMRTlCUVUwc1NVRkJSU3hKUVVGRkxFdEJRVXM3UlVGQlJTeFJRVUZQTEVsQlFVVXNTMEZCU3l4SlFVRkZPMFZCUVVVc2JVSkJRV3RDTzBWQlFVVXNVVUZCVHl4SlFVRkZMRmRCUVZNN1JVRkJXU3hQUVVGTkxFbEJRVVVzUzBGQlN5eEpRVUZGTEVWQlFVVXNUMEZCVHp0RFFVRkxMRU5CUVVNc1IwRkJSU3hOUVVGTkxEQkNRVUV3UWp0RlFVRkRMRkZCUVU4c1NVRkJSU3h0UTBGQmJVTXNSMEZCUlN4RFFVRkRMRWxCUVVVc2NVTkJRWEZETEVkQlFVVXNRMEZCUXp0RlFVRkZMRzFDUVVGclFqdEZRVUZGTEU5QlFVMHNTVUZCUlN4TFFVRkxMRWxCUVVVc1JVRkJSU3hQUVVGUE8wTkJRVXNzUTBGQlF5eEhRVUZGTEVWQlFVTXNVVUZCVHl4RlFVRkRPMEZCUVVNN1FVRkJReXhsUVVGbExHMUNRVUZ0UWl4SFFVRkZPME5CUVVNc1NVRkJSeXhGUVVGRkxHMUNRVUZ0UWl4VFFVRlBMRWRCUVVVc1QwRkJUeXh0UWtGQmJVSXNSVUZCUlN4dFFrRkJiVUlzVDBGQlR5eERRVUZETEVOQlFVTTdRMEZCUlN4VFFVRlBPMFZCUVVNc1NVRkJTU3hKUVVGRkxFMUJRVTBzUlVGQlJTeGhRVUZoTEV0QlFVczdSVUZCUlN4SlFVRkhMRVZCUVVVc1lVRkJZU3haUVVGWkxFZEJRVVVzUlVGQlJTeE5RVUZMTEU5QlFVODdSVUZCU3l4SlFVRkhMRVZCUVVVc1RVRkJUU3hUUVVGUExGZEJRVlU3UlVGQlV5eEpRVUZKTEVsQlFVVXNSVUZCUlR0RlFVRk5MRk5CUVU4N1IwRkJReXhKUVVGSkxFbEJRVVVzVFVGQlRTeHBRa0ZCYVVJc1JVRkJSU3hoUVVGaExFdEJRVXNzUTBGQlF6dEhRVUZGTEVsQlFVY3NUVUZCU1N4eFFrRkJiVUlzUlVGQlJTeGhRVUZoTEZsQlFWa3NSMEZCUlN4RlFVRkZMRTlCUVUwN1IwRkJUU3hGUVVGRkxFMUJRVTBzVTBGQlR5eGpRVUZaTEVsQlFVVXNiVUpCUVcxQ0xFTkJRVU1zUjBGQlJTeEZRVUZGTEV0QlFVc3NRMEZCUXp0RlFVRkZPMFZCUVVNc1QwRkJUenREUVVGRE8wRkJRVU03UVVGQlF5eE5RVUZOTEcxQ1FVRnBRaXhQUVVGUExHdENRVUZyUWp0QlFVRkZMR1ZCUVdVc2FVSkJRV2xDTEVkQlFVVTdRMEZCUXl4UFFVRlBMRTFCUVUwc1VVRkJVU3hSUVVGUkxFZEJRVVVzVFVGQlRTeFJRVUZSTEV0QlFVc3NRMEZCUXl4SFFVRkZMRkZCUVZFc1VVRkJVU3huUWtGQlowSXNRMEZCUXl4RFFVRkRPMEZCUVVNN1FVRkRhbk5NTEdOQlFXTXNZVUZCWVR0QlFVTXpRaXhYUVVGWExHOUNRVUZ2UWl4SlFVRkpMR2REUVVGblF5eGhRVUZoSW4wPQo="
 ].join(""), "base64").toString("utf8"), { namespace: "eve6167656e74" });
 //#endregion
-//#region .eve/builds/msol9uq7-bc051dd0-55b9-437f-867e-2a917ffc7b5c/nitro/workflow/workflows-handler.mjs
+//#region .eve/builds/mtaboohu-549f0435-0f76-4f27-b13a-b97e80df84ca/nitro/workflow/workflows-handler.mjs
 var workflows_handler_default = async ({ req }) => {
 	return await POST(req);
 };
@@ -7034,7 +7204,7 @@ async function error_handler_default(error, event) {
 	}
 }
 //#endregion
-//#region .eve/builds/msol9uq7-bc051dd0-55b9-437f-867e-2a917ffc7b5c/host/compiled-artifacts-workflow-world.mjs
+//#region .eve/builds/mtaboohu-549f0435-0f76-4f27-b13a-b97e80df84ca/host/compiled-artifacts-workflow-world.mjs
 const workflowWorld = await br({ dataDir: resolveLocalWorkflowWorldDataDirectory(process.cwd()) });
 validateWorkflowWorld({
 	packageName: void 0,

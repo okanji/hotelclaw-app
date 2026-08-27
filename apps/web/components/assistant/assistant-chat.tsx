@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, ChevronRight, Loader2 } from "lucide-react";
 import {
   createTranscriptReducer,
   type ToolCall,
   type TranscriptItem,
 } from "@/lib/fleet/transcript";
+import { AiLoader } from "@/components/ui/ai-loader";
+import { ToolTrace } from "@/components/ai/tool-trace";
 import { assistantChatsKey } from "@/lib/query/assistant-queries";
 import { SILENT_TOOLS, toolLabel } from "@/lib/assistant/tool-labels";
 import { STARTER_PROMPTS } from "@/lib/assistant/types";
 import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
+import { ChatUiSendProvider } from "@/components/chat/chat-ui-send-context";
 import { cn } from "@/lib/utils";
 import { AssistantComposer } from "./assistant-composer";
 import { AssistantMarkdown } from "./assistant-markdown";
@@ -344,6 +346,10 @@ export function AssistantChat({
               onPick={(prompt) => void send(prompt)}
             />
           ) : (
+            // The sender behind ai_ui Options quick-reply chips — tapping
+            // one sends the option through the pane's normal `send`, exactly
+            // like typing it.
+            <ChatUiSendProvider send={send}>
             <ol role="list" className="flex flex-col gap-7">
               {transcript.map((item, index) =>
                 item.kind === "user" ? (
@@ -363,12 +369,17 @@ export function AssistantChat({
                 ),
               )}
               {busy || resuming ? (
-                <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  {resuming ? "Loading this conversation…" : "Working on it…"}
+                <li>
+                  <AiLoader
+                    label={
+                      resuming ? "Loading this conversation…" : "Working on it…"
+                    }
+                    showElapsed={!resuming}
+                  />
                 </li>
               ) : null}
             </ol>
+            </ChatUiSendProvider>
           )}
         </div>
       </div>
@@ -379,6 +390,7 @@ export function AssistantChat({
             value={input}
             onChange={setInput}
             onSubmit={() => void send(input)}
+            propertyId={propertyId}
             busy={busy}
             autoFocus={active}
             placeholder={
@@ -439,38 +451,15 @@ function EmptyState({
 }
 
 /**
- * What the assistant did, as readable rows. The raw name and payload live one
- * disclosure away — a personal assistant with this much reach has to be
- * auditable, but not at the cost of a wall of JSON in the reading column.
+ * What the assistant did, as one grouped trace per turn ("Working… / Used N
+ * tools"). The raw name and payload live one disclosure away — a personal
+ * assistant with this much reach has to be auditable, but not at the cost of
+ * a wall of JSON in the reading column.
  */
 function ToolActivity({ calls }: { calls: ToolCall[] }) {
   const shown = calls.filter((call) => !SILENT_TOOLS.has(call.toolName));
   if (shown.length === 0) return null;
-  return (
-    <ul role="list" className="flex flex-col gap-1">
-      {shown.map((call) => (
-        <li key={call.callId}>
-          <details className="group rounded-md text-sm">
-            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-accent">
-              <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" />
-              <span className="min-w-0 truncate">{toolLabel(call.toolName)}</span>
-              {call.done ? (
-                <Check className="size-3.5 shrink-0 text-success" />
-              ) : (
-                <Loader2 className="size-3.5 shrink-0 animate-spin" />
-              )}
-            </summary>
-            <div className="mt-1 ml-7 flex flex-col gap-1.5">
-              <code className="text-xs text-faint-foreground">{call.toolName}</code>
-              <pre className="max-h-64 overflow-auto rounded-md bg-muted p-2.5 font-mono text-xs leading-5">
-                {JSON.stringify({ input: call.input, output: call.output }, null, 2)}
-              </pre>
-            </div>
-          </details>
-        </li>
-      ))}
-    </ul>
-  );
+  return <ToolTrace calls={shown} labelFor={(call) => toolLabel(call.toolName)} />;
 }
 
 /**

@@ -2,7 +2,7 @@ import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
 __eveDirname(__eveFileURLToPath(import.meta.url));
 import { i as __require, t as __commonJSMin } from "../_runtime.mjs";
-//#region ../../node_modules/ws/lib/constants.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/constants.js
 var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const BINARY_TYPES = [
 		"nodebuffer",
@@ -25,7 +25,7 @@ var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/buffer-util.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { EMPTY_BUFFER } = require_constants();
 	const FastBuffer = Buffer[Symbol.species];
@@ -125,7 +125,7 @@ var require_buffer_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	} catch (e) {}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/limiter.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/limiter.js
 var require_limiter = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const kDone = Symbol("kDone");
 	const kRun = Symbol("kRun");
@@ -176,7 +176,7 @@ var require_limiter = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = Limiter;
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/permessage-deflate.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const zlib = __require("zlib");
 	const bufferUtil = require_buffer_util();
@@ -512,7 +512,7 @@ var require_permessage_deflate = /* @__PURE__ */ __commonJSMin(((exports, module
 	}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/validation.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/validation.js
 var require_validation = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { isUtf8 } = __require("buffer");
 	const { hasBlob } = require_constants();
@@ -708,7 +708,7 @@ var require_validation = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	} catch (e) {}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/receiver.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/receiver.js
 var require_receiver = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { Writable } = __require("stream");
 	const PerMessageDeflate = require_permessage_deflate();
@@ -1155,7 +1155,7 @@ var require_receiver = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = Receiver;
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/sender.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/sender.js
 var require_sender = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { Duplex: Duplex$3 } = __require("stream");
 	const { randomFillSync } = __require("crypto");
@@ -1649,7 +1649,7 @@ var require_sender = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/event-target.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/event-target.js
 var require_event_target = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { kForOnEventAttribute, kListener } = require_constants();
 	const kCode = Symbol("kCode");
@@ -1880,7 +1880,7 @@ var require_event_target = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/extension.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/extension.js
 var require_extension = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { tokenChars } = require_validation();
 	/**
@@ -2023,7 +2023,7 @@ var require_extension = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/websocket.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/websocket.js
 var require_websocket = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const EventEmitter$1 = __require("events");
 	const https = __require("https");
@@ -2998,7 +2998,7 @@ var require_websocket = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/stream.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/stream.js
 var require_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	require_websocket();
 	const { Duplex: Duplex$1 } = __require("stream");
@@ -3114,7 +3114,7 @@ var require_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = createWebSocketStream;
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/subprotocol.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const { tokenChars } = require_validation();
 	/**
@@ -3153,7 +3153,7 @@ var require_subprotocol = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = { parse };
 }));
 //#endregion
-//#region ../../node_modules/ws/lib/websocket-server.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const EventEmitter = __require("events");
 	const http = __require("http");
@@ -3531,7 +3531,7 @@ var require_websocket_server = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	}
 }));
 //#endregion
-//#region ../../node_modules/ws/index.js
+//#region ../../node_modules/isomorphic-ws/node_modules/ws/index.js
 var require_ws = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	const createWebSocketStream = require_stream();
 	const extension = require_extension();

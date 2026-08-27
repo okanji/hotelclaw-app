@@ -2,10 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { ChartNoAxesColumn, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+} from "recharts";
 import type { ChatbotAnalytics } from "@/lib/chatbots/analytics";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ChartTooltipContent } from "./chart-tooltip";
+
+/** `YYYY-MM-DD` → "Aug 12" without a timezone shift. */
+function formatDay(day: string) {
+  const parsed = new Date(`${day}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return day;
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 /**
  * Analytics tab — deterministic counts with Haiku-labeled topics/sentiment
@@ -55,8 +72,20 @@ export function AnalyticsTab({
   }
 
   const { totals, topics, sentiment, volume } = data;
-  const maxVolume = Math.max(1, ...volume.map((v) => v.messages));
   const sentimentTotal = sentiment.positive + sentiment.neutral + sentiment.negative;
+  const maxTopicCount = Math.max(1, ...topics.map((t) => t.count));
+  // Faint date labels at first / midpoint / last — enough to anchor the axis
+  // without turning a sparkline-sized chart into a labeled grid.
+  const axisTicks =
+    volume.length > 0
+      ? [
+          ...new Set([
+            volume[0].day,
+            volume[Math.floor(volume.length / 2)].day,
+            volume[volume.length - 1].day,
+          ]),
+        ]
+      : [];
 
   if (totals.conversations === 0) {
     return (
@@ -85,15 +114,35 @@ export function AnalyticsTab({
         {volume.length === 0 ? (
           <p className="text-xs text-muted-foreground">No traffic yet.</p>
         ) : (
-          <div className="flex h-20 items-end gap-1">
-            {volume.map((v) => (
-              <div
-                key={v.day}
-                title={`${v.day}: ${v.messages}`}
-                className="flex-1 rounded-t-sm bg-chart-4"
-                style={{ height: `${Math.max(4, (v.messages / maxVolume) * 100)}%` }}
-              />
-            ))}
+          <div className="h-32 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={volume}
+                margin={{ top: 4, right: 2, bottom: 0, left: 2 }}
+                barCategoryGap="25%"
+              >
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  ticks={axisTicks}
+                  tickFormatter={formatDay}
+                  tick={{ fontSize: 12, fill: "var(--color-faint-foreground)" }}
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
+                  content={<ChartTooltipContent formatLabel={formatDay} />}
+                  wrapperStyle={{ outline: "none" }}
+                />
+                {/* Bars mean more/less, so the monochrome value ramp. */}
+                <Bar
+                  dataKey="messages"
+                  name="replies"
+                  fill="var(--chart-4)"
+                  radius={[2, 2, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </section>
@@ -116,10 +165,23 @@ export function AnalyticsTab({
               style={{ width: `${(sentiment.negative / sentimentTotal) * 100}%` }}
             />
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {sentiment.positive} positive · {sentiment.neutral} neutral ·{" "}
-            {sentiment.negative} negative
-          </p>
+          <ul
+            role="list"
+            className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+          >
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-success" />
+              <span className="tabular-nums">{sentiment.positive}</span> positive
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-chart-1" />
+              <span className="tabular-nums">{sentiment.neutral}</span> neutral
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-destructive" />
+              <span className="tabular-nums">{sentiment.negative}</span> negative
+            </li>
+          </ul>
         </section>
       ) : null}
 
@@ -136,23 +198,30 @@ export function AnalyticsTab({
             Nothing labeled yet — check back after a few conversations.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul role="list" className="divide-y divide-border">
             {topics.map((t) => {
               const negShare = t.count > 0 ? t.sentiment.negative / t.count : 0;
               return (
-                <li key={t.topic} className="flex items-center gap-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{t.topic}</span>
-                  {negShare >= 0.34 ? (
-                    <StatusBadge tone="danger">trending negative</StatusBadge>
-                  ) : null}
-                  <span
-                    className={cn(
-                      "w-10 text-right text-sm tabular-nums",
-                      "text-muted-foreground",
-                    )}
-                  >
-                    {t.count}
-                  </span>
+                <li key={t.topic} className="py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {t.topic}
+                    </span>
+                    {negShare >= 0.34 ? (
+                      <StatusBadge tone="danger">trending negative</StatusBadge>
+                    ) : null}
+                    <span className="w-10 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                      {t.count}
+                    </span>
+                  </div>
+                  {/* Count-proportional meter (SummaryStrip pattern) — a
+                      VALUE, so warm ink, never `--primary`. */}
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-secondary-ink"
+                      style={{ width: `${(t.count / maxTopicCount) * 100}%` }}
+                    />
+                  </div>
                 </li>
               );
             })}

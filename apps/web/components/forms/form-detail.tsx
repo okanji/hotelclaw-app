@@ -63,6 +63,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -1622,12 +1623,129 @@ function OptionsEditor({
 
 const MAX_VISIBLE_COLUMNS = 5;
 
+const EMPTY_RESPONSES: ResponseRow[] = [];
+const EMPTY_SOURCED_LABELS: Record<string, Record<string, string>> = {};
+
+const YES_NO_OPTIONS = [
+  { id: "yes", label: "Yes" },
+  { id: "no", label: "No" },
+] as const;
+
+/** The option ids an answer picked, for chip filtering. */
+function answerOptionIds(
+  field: FormField,
+  value: FormAnswerValue | undefined,
+): string[] {
+  if (field.type === "yes_no") {
+    return value === true ? ["yes"] : value === false ? ["no"] : [];
+  }
+  if (typeof value === "string") return value ? [value] : [];
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string");
+  }
+  return [];
+}
+
+/** Lowercased haystack for the responses search: respondent name + every
+ *  answer's display text (sourced ids map through their resolved labels). */
+function responseSearchText(
+  response: ResponseRow,
+  fields: FormField[],
+  sourcedLabels: Record<string, Record<string, string>>,
+): string {
+  const parts: string[] = [response.respondent?.name ?? "Anonymous"];
+  for (const field of fields) {
+    const value = response.answers[field.id];
+    const labels = sourcedLabels[field.id];
+    if (labels && typeof value === "string" && value) {
+      parts.push(labels[value] ?? value);
+    } else if (labels && Array.isArray(value)) {
+      parts.push(
+        value
+          .filter((v): v is string => typeof v === "string")
+          .map((v) => labels[v] ?? v)
+          .join(" "),
+      );
+    } else {
+      parts.push(formatAnswer(field, value));
+    }
+  }
+  return parts.join(" ").toLowerCase();
+}
+
 function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow }) {
   const schema = useMemo(() => parseFormSchema(form.schema), [form.schema]);
   const fields = useMemo(() => inputFields(schema), [schema]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  /** fieldId → selected option id (absent/null = "All"). Single-select. */
+  const [chipFilters, setChipFilters] = useState<Record<string, string | null>>({});
+  const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
 
   const { data, isPending, error } = useQuery(responsesQueryOptions(propertyId, form.id));
+  const responses = data?.responses ?? EMPTY_RESPONSES;
+  const sourcedLabels = data?.sourcedLabels ?? EMPTY_SOURCED_LABELS;
+
+  // Chip rows for the first 2 select / yes-no fields that have any answers
+  // (the same fields that earn a SummaryStrip tile) — more would be chip soup.
+  const chipFields = useMemo(() => {
+    const out: {
+      field: FormField;
+      options: { id: string; label: string }[];
+      counts: Map<string, number>;
+    }[] = [];
+    for (const field of fields) {
+      if (out.length >= 2) break;
+      if (field.type !== "select" && field.type !== "yes_no") continue;
+      const options =
+        field.type === "yes_no" ? [...YES_NO_OPTIONS] : (field.options ?? []);
+      if (options.length === 0) continue; // sourced selects have no stored options
+      const counts = new Map<string, number>(options.map((o) => [o.id, 0]));
+      let total = 0;
+      for (const r of responses) {
+        for (const id of answerOptionIds(field, r.answers[field.id])) {
+          if (counts.has(id)) {
+            counts.set(id, (counts.get(id) ?? 0) + 1);
+            total += 1;
+          }
+        }
+      }
+      if (total === 0) continue;
+      out.push({ field, options, counts });
+    }
+    return out;
+  }, [fields, responses]);
+
+  const searchTexts = useMemo(
+    () =>
+      new Map(
+        responses.map((r) => [r.id, responseSearchText(r, fields, sourcedLabels)]),
+      ),
+    [responses, fields, sourcedLabels],
+  );
+
+  const shownResponses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = responses.filter((r) => {
+      if (q && !(searchTexts.get(r.id) ?? "").includes(q)) return false;
+      for (const cf of chipFields) {
+        const picked = chipFilters[cf.field.id];
+        if (
+          picked &&
+          !answerOptionIds(cf.field, r.answers[cf.field.id]).includes(picked)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+    rows.sort((a, b) =>
+      sortDir === "newest"
+        ? Date.parse(b.created_at) - Date.parse(a.created_at)
+        : Date.parse(a.created_at) - Date.parse(b.created_at),
+    );
+    return rows;
+  }, [responses, search, searchTexts, chipFields, chipFilters, sortDir]);
 
   if (isPending) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Loading responses…</p>;
@@ -1640,8 +1758,6 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
     );
   }
 
-  const responses = data?.responses ?? [];
-  const sourcedLabels = data?.sourcedLabels ?? {};
   if (responses.length === 0) {
     return (
       <div className="rounded-md p-12 text-center">
@@ -1658,6 +1774,9 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
   const visible = fields.slice(0, MAX_VISIBLE_COLUMNS);
   const hasMore = fields.length > MAX_VISIBLE_COLUMNS;
   const latest = responses[0]?.created_at;
+  const filtering =
+    search.trim() !== "" || chipFields.some((cf) => chipFilters[cf.field.id]);
+  const colSpan = visible.length + 2 + (hasMore ? 1 : 0);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -1674,6 +1793,11 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
         <span className="font-semibold">
           {responses.length} {responses.length === 1 ? "response" : "responses"}
         </span>
+        {filtering ? (
+          <span className="text-xs text-muted-foreground">
+            {shownResponses.length} shown
+          </span>
+        ) : null}
         {latest ? (
           <span className="text-xs text-muted-foreground">
             Latest {formatDate(latest)}
@@ -1682,6 +1806,65 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
       </div>
 
       <SummaryStrip fields={fields} responses={responses} />
+
+      {/* Filter toolbar — search across answers + respondent, and option
+          chips for the leading choice fields. All client-side. */}
+      <div className="flex flex-col gap-2">
+        <div className="relative w-64 max-w-full">
+          <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-faint-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search responses…"
+            aria-label="Search responses"
+            className="h-8 pl-7"
+          />
+        </div>
+        {chipFields.map(({ field, options, counts }) => {
+          const active = chipFilters[field.id] ?? null;
+          return (
+            <div key={field.id} className="flex flex-wrap items-center gap-1.5">
+              <span className="max-w-40 truncate text-xs font-medium text-faint-foreground">
+                {field.label}
+              </span>
+              <Chip
+                size="sm"
+                selected={active === null}
+                onClick={() =>
+                  setChipFilters((prev) => ({ ...prev, [field.id]: null }))
+                }
+              >
+                All
+                <span className="tabular-nums opacity-70">{responses.length}</span>
+              </Chip>
+              {options.map((opt) => {
+                const count = counts.get(opt.id) ?? 0;
+                // Zero-count chips stay (disabled) so the row doesn't reflow
+                // as answers arrive — the bookings agenda pattern.
+                const empty = count === 0;
+                return (
+                  <Chip
+                    key={opt.id}
+                    size="sm"
+                    selected={active === opt.id}
+                    disabled={empty}
+                    onClick={() =>
+                      setChipFilters((prev) => ({
+                        ...prev,
+                        [field.id]: active === opt.id ? null : opt.id,
+                      }))
+                    }
+                    className={cn(empty && "opacity-40")}
+                  >
+                    {opt.label}
+                    <span className="tabular-nums opacity-70">{count}</span>
+                  </Chip>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Notion database table (notion-spec-v2 §6): 36px header of 14px w400
           tertiary labels, 37px rows, BOTH dividers, no zebra, no outer
@@ -1704,22 +1887,52 @@ function ResponsesTab({ propertyId, form }: { propertyId: string; form: FormRow 
                   {f.label}
                 </th>
               ))}
-              <th className="px-2 font-normal">Submitted</th>
+              <th className="px-2 font-normal">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortDir((d) => (d === "newest" ? "oldest" : "newest"))
+                  }
+                  aria-label={`Sort by submitted date, ${
+                    sortDir === "newest" ? "newest" : "oldest"
+                  } first`}
+                  className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 hover:bg-accent"
+                >
+                  Submitted
+                  <ChevronDown
+                    className={cn(
+                      "size-3.5 transition-transform",
+                      sortDir === "oldest" && "rotate-180",
+                    )}
+                  />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {responses.map((r) => (
-              <ResponseRows
-                key={r.id}
-                response={r}
-                visible={visible}
-                allFields={fields}
-                hasMore={hasMore}
-                expanded={expanded.has(r.id)}
-                onToggle={() => toggle(r.id)}
-                sourcedLabels={sourcedLabels}
-              />
-            ))}
+            {shownResponses.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={colSpan}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  No responses match your filters.
+                </td>
+              </tr>
+            ) : (
+              shownResponses.map((r) => (
+                <ResponseRows
+                  key={r.id}
+                  response={r}
+                  visible={visible}
+                  allFields={fields}
+                  hasMore={hasMore}
+                  expanded={expanded.has(r.id)}
+                  onToggle={() => toggle(r.id)}
+                  sourcedLabels={sourcedLabels}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>

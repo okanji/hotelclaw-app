@@ -234,6 +234,7 @@ export function ProjectDetail({
             <AssistantComposer
               size="hero"
               autoFocus
+              propertyId={propertyId}
               value={input}
               onChange={setInput}
               onSubmit={() => {

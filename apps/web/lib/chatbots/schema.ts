@@ -15,7 +15,7 @@ export type ChatbotModelTier = (typeof CHATBOT_MODEL_TIERS)[number];
 /** Model ids per tier — standard for FAQ/RAG bots, advanced for action-heavy. */
 export const CHATBOT_TIER_MODELS: Record<ChatbotModelTier, string> = {
   standard: "claude-haiku-4-5-20251001",
-  advanced: "claude-sonnet-4-6",
+  advanced: "claude-sonnet-5",
 };
 
 export const TICKET_KINDS = ["order", "request", "maintenance"] as const;

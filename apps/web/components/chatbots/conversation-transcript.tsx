@@ -203,8 +203,10 @@ export function ConversationTranscript({
             </p>
           ) : (
             <div key={m.id} className="space-y-1">
+              {/* Tool outputs aren't persisted on this surface — chips
+                  expand to show the call's input only. */}
               {m.tool_calls && m.tool_calls.length > 0 ? (
-                <ToolCallList calls={m.tool_calls} className="justify-start" />
+                <ToolCallList calls={m.tool_calls} />
               ) : null}
               <div
                 className={cn(

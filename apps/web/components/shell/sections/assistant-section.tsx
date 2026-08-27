@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, MessageSquare, Plus, SquarePen } from "lucide-react";
+import { FolderOpen, MessageSquare, Plus, Search, SquarePen } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   assistantChatsKey,
@@ -40,6 +40,14 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
 
   const { data: chats = [] } = useQuery(assistantChatsQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(assistantProjectsQueryOptions(propertyId));
+  // Searchable history (Beautiful UI SidebarNav pattern): the filter input
+  // appears once the list is long enough that scanning beats scrolling.
+  const [chatFilter, setChatFilter] = useState("");
+  const filteredChats = chatFilter.trim()
+    ? chats.filter((chat) =>
+        chat.title.toLowerCase().includes(chatFilter.trim().toLowerCase()),
+      )
+    : chats;
 
   useEffect(() => {
     const supabase = createClient();
@@ -142,13 +150,30 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
       <SidebarGroup>
         <SidebarGroupLabel>Recents</SidebarGroupLabel>
         <SidebarGroupContent>
+          {chats.length > 8 ? (
+            <div className="relative mb-1 px-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-faint-foreground" />
+              <input
+                type="search"
+                value={chatFilter}
+                onChange={(e) => setChatFilter(e.target.value)}
+                placeholder="Filter conversations…"
+                aria-label="Filter conversations"
+                className="h-7 w-full rounded-md bg-muted pr-2 pl-7 text-sm outline-none placeholder:text-faint-foreground focus-visible:shadow-ring"
+              />
+            </div>
+          ) : null}
           <SidebarMenu>
             {chats.length === 0 ? (
               <p className="px-2 py-1 text-xs text-faint-foreground">
                 No conversations yet.
               </p>
+            ) : filteredChats.length === 0 ? (
+              <p className="px-2 py-1 text-xs text-faint-foreground">
+                Nothing matches.
+              </p>
             ) : (
-              chats.slice(0, 25).map((chat) => (
+              filteredChats.slice(0, 25).map((chat) => (
                 <SidebarMenuItem key={chat.id}>
                   <SidebarMenuButton
                     // A real navigation here, not the workspace's pushState:

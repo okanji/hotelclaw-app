@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { RotateCcw, Send, Wrench } from "lucide-react";
+import { RotateCcw, Send } from "lucide-react";
+import { AiLoader } from "@/components/ui/ai-loader";
+import { ToolTrace } from "@/components/ai/tool-trace";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TintIcon } from "@/components/ui/tint-card";
 import { ChatMarkdown } from "@/components/chatbots/chat-markdown";
-import { cn } from "@/lib/utils";
 import {
   createTranscriptReducer,
   type TranscriptItem,
@@ -305,36 +306,7 @@ export function AgentChat({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {item.toolCalls.length > 0 ? (
-                      <div className="flex flex-col gap-1">
-                        {item.toolCalls.map((call) => (
-                          <details
-                            key={call.callId}
-                            className="rounded-md bg-muted px-2.5 py-1.5 text-xs"
-                          >
-                            <summary className="flex cursor-pointer items-center gap-1.5 text-muted-foreground">
-                              <Wrench className="size-3 shrink-0" />
-                              <code className="font-mono">{call.toolName}</code>
-                              <span
-                                className={cn(
-                                  "ml-auto",
-                                  call.done ? "text-success" : "animate-pulse",
-                                )}
-                              >
-                                {call.done ? "done" : "running…"}
-                              </span>
-                            </summary>
-                            <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-background/80 p-2 font-mono text-xs leading-snug">
-                              {JSON.stringify(
-                                { input: call.input, output: call.output },
-                                null,
-                                2,
-                              )}
-                            </pre>
-                          </details>
-                        ))}
-                      </div>
-                    ) : null}
+                    <ToolTrace calls={item.toolCalls} mono />
                     {item.text ? (
                       <div className="text-sm">
                         <ChatMarkdown>{item.text}</ChatMarkdown>
@@ -345,8 +317,8 @@ export function AgentChat({
               </li>
             ))}
             {busy ? (
-              <li className="text-xs text-muted-foreground animate-pulse">
-                {agentName} is working…
+              <li>
+                <AiLoader label={`${agentName} is working…`} />
               </li>
             ) : null}
           </ul>

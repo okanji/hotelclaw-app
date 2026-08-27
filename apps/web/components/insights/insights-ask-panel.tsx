@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, Loader2, Pin, Send, Sparkles } from "lucide-react";
+import { ChevronDown, Pin, Send, Sparkles } from "lucide-react";
+import { AiLoader } from "@/components/ui/ai-loader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -166,12 +167,7 @@ export function InsightsAskPanel({
               ),
             )
           )}
-          {busy ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              Reading the numbers…
-            </p>
-          ) : null}
+          {busy ? <AiLoader label="Reading the numbers…" /> : null}
         </div>
 
         <form

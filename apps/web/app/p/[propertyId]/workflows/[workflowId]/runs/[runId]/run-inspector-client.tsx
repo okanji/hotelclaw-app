@@ -11,6 +11,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { getStep } from "@/lib/workflows/catalog";
 import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
+import { RunStatusRing } from "@/components/workflows/run-status-ring";
+import { STATUS_TONES, formatDuration } from "@/components/workflows/run-format";
+import { AiShimmerLabel } from "@/components/ui/ai-loader";
 
 // Read-only run inspector. Subscribes to workflow_runs + workflow_step_runs
 // via Supabase Realtime so in-flight runs live-tail without polling.
@@ -43,30 +46,6 @@ type StepRow = {
   started_at: string;
   finished_at: string | null;
 };
-
-/** Run/step lifecycle status → house StatusBadge tone. */
-const STATUS_TONES: Record<
-  string,
-  React.ComponentProps<typeof StatusBadge>["tone"]
-> = {
-  succeeded: "success",
-  failed: "danger",
-  running: "info",
-  queued: "neutral",
-  skipped: "neutral",
-  filtered: "neutral",
-  waiting: "warning",
-  cancelled: "neutral",
-};
-
-function formatDuration(start: string, end: string | null) {
-  if (!end) return "running…";
-  const ms = Date.parse(end) - Date.parse(start);
-  if (isNaN(ms) || ms < 0) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.round(ms / 60_000)}m`;
-}
 
 export function RunInspectorClient({
   propertyId,
@@ -204,7 +183,8 @@ export function RunInspectorClient({
           ) : null}
           <span className="text-xs text-muted-foreground">
             Triggered by {run.trigger_kind ?? "—"} ·{" "}
-            {formatDuration(run.started_at, run.finished_at)} · {run.mode}
+            {formatDuration(run.started_at, run.finished_at, "running…")} ·{" "}
+            {run.mode}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -267,23 +247,31 @@ export function RunInspectorClient({
 function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
   const entry = getStep(step.step_type as never);
   const [open, setOpen] = useState(false);
+  const running = step.status === "running";
 
   return (
     <li className="rounded-md bg-card shadow-ring">
       <button
         type="button"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm"
       >
-        <span className="w-5 text-right font-mono text-xs text-muted-foreground tabular-nums">
+        <RunStatusRing status={step.status} size={22}>
           {ordinal}
-        </span>
+        </RunStatusRing>
         <SurfaceBadge surface={entry?.surface ?? "system"} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-foreground">
-              {entry?.label ?? step.step_type}
-            </span>
+            {running ? (
+              <AiShimmerLabel className="truncate">
+                {entry?.label ?? step.step_type}
+              </AiShimmerLabel>
+            ) : (
+              <span className="truncate font-medium text-foreground">
+                {entry?.label ?? step.step_type}
+              </span>
+            )}
           </div>
           <div className="truncate text-xs text-muted-foreground">
             {step.step_id}
@@ -302,7 +290,7 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
           </StatusBadge>
         ) : null}
         <span className="text-xs text-muted-foreground tabular-nums">
-          {formatDuration(step.started_at, step.finished_at)}
+          {formatDuration(step.started_at, step.finished_at, "running…")}
         </span>
         <StatusBadge tone={STATUS_TONES[step.status] ?? "neutral"}>
           {step.status}
@@ -316,34 +304,39 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
         />
       </button>
       {open ? (
-        <div className="border-t border-border p-3 text-xs">
-          {step.error ? (
-            <Section title="What went wrong" tone="destructive">
-              <p className="font-sans">{humanizeStepError(step.error)}</p>
-              <details className="mt-2">
-                <summary className="cursor-pointer font-sans text-xs text-faint-foreground select-none">
-                  Technical details
-                </summary>
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(step.error, null, 2)}
+        <div className="grid grid-cols-[22px_1fr] gap-x-3 border-t border-border px-3 pt-2.5 pb-3 text-xs">
+          <span aria-hidden className="mx-auto h-full w-px bg-border" />
+          <div className="flex min-w-0 flex-col gap-3">
+            {step.error ? (
+              <Section title="What went wrong" tone="destructive">
+                <p className="text-sm text-foreground">
+                  {humanizeStepError(step.error)}
+                </p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs text-faint-foreground select-none">
+                    Technical details
+                  </summary>
+                  <pre className="mt-1.5 max-h-64 overflow-auto rounded-md bg-destructive/10 p-2 font-mono whitespace-pre-wrap text-destructive">
+                    {JSON.stringify(step.error, null, 2)}
+                  </pre>
+                </details>
+              </Section>
+            ) : null}
+            {step.output !== null ? (
+              <Section title="Output">
+                <pre className="max-h-64 overflow-auto rounded-md bg-muted p-2 font-mono whitespace-pre-wrap text-foreground">
+                  {JSON.stringify(step.output, null, 2)}
                 </pre>
-              </details>
-            </Section>
-          ) : null}
-          {step.output !== null ? (
-            <Section title="Output">
-              <pre className="overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify(step.output, null, 2)}
-              </pre>
-            </Section>
-          ) : null}
-          {step.ai_trace ? (
-            <Section title="AI trace">
-              <pre className="overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify(step.ai_trace, null, 2)}
-              </pre>
-            </Section>
-          ) : null}
+              </Section>
+            ) : null}
+            {step.ai_trace ? (
+              <Section title="AI trace">
+                <pre className="max-h-64 overflow-auto rounded-md bg-muted p-2 font-mono whitespace-pre-wrap text-foreground">
+                  {JSON.stringify(step.ai_trace, null, 2)}
+                </pre>
+              </Section>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </li>
@@ -407,23 +400,16 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 last:mb-0">
+    <div className="min-w-0">
       <div
         className={cn(
           "mb-1 text-xs font-medium",
-          tone === "destructive" ? "text-destructive" : "text-muted-foreground",
+          tone === "destructive" ? "text-destructive" : "text-faint-foreground",
         )}
       >
         {title}
       </div>
-      <div
-        className={cn(
-          "rounded-md bg-muted p-2 font-mono text-xs text-foreground",
-          tone === "destructive" && "bg-destructive/10 text-destructive",
-        )}
-      >
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

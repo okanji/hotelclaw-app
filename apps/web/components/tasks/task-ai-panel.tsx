@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { AiLoader } from "@/components/ui/ai-loader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,9 +116,8 @@ export function TaskAiPanel({
             </div>
           ))}
           {busy ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-faint-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              Thinking…
+            <div className="px-3 py-2">
+              <AiLoader label="Thinking…" />
             </div>
           ) : null}
         </div>

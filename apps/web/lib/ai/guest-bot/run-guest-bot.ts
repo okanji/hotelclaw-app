@@ -12,6 +12,7 @@ import "server-only";
  */
 import { stepCountIs, streamText, type ModelMessage, type ToolSet } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { samplingParams } from "@/lib/ai/model-settings";
 import {
   CHATBOT_TIER_MODELS,
   type ChatbotConfig,
@@ -141,7 +142,9 @@ export function runGuestBot(opts: RunGuestBotOptions) {
     messages: opts.messages,
     tools: opts.tools,
     stopWhen: stepCountIs(MAX_TOOL_STEPS),
-    temperature: 0,
+    // temperature 0 on the Haiku tier only — Sonnet 5 rejects sampling
+    // params (lib/ai/model-settings.ts).
+    ...samplingParams(CHATBOT_TIER_MODELS[opts.config.modelTier], 0),
     maxRetries: 2,
     abortSignal: opts.abortSignal,
     // Stream errors don't throw — without this they'd vanish into an empty

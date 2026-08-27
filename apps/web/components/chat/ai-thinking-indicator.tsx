@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, MessageCircleQuestion } from "lucide-react";
+import { Check, MessageCircleQuestion } from "lucide-react";
+import {
+  AiElapsed,
+  AiPixelGrid,
+  AiShimmerLabel,
+} from "@/components/ui/ai-loader";
 import { createClient } from "@/lib/supabase/client";
 
 /** A background job currently worth showing: still working, or parked on a
@@ -307,10 +312,7 @@ export function AiThinkingIndicator({
                       aria-hidden
                     />
                   ) : (
-                    <Loader2
-                      className="mt-0.5 size-3.5 shrink-0 animate-spin text-muted-foreground"
-                      aria-hidden
-                    />
+                    <AiPixelGrid className="mt-1" />
                   )}
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-medium">
@@ -362,10 +364,16 @@ export function AiThinkingIndicator({
                         <span className="truncate">{step.label}</span>
                       </span>
                     ))}
-                  <span className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground">
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    {activity ??
-                      (longRunning ? "Still working on it…" : "Thinking…")}
+                  {/* The live step: pixel-grid wavefront + shimmer + a turn
+                  timer that starts when the turn claims and unmounts (resets)
+                  when it delivers. Long eve turns read as deliberate work. */}
+                  <span className="flex items-center gap-2.5 pt-0.5 text-sm">
+                    <AiPixelGrid />
+                    <AiShimmerLabel className="min-w-0 truncate">
+                      {activity ??
+                        (longRunning ? "Still working on it…" : "Thinking…")}
+                    </AiShimmerLabel>
+                    <AiElapsed />
                   </span>
                 </div>
               </div>

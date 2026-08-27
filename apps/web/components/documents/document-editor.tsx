@@ -536,7 +536,7 @@ function EditorInner({
             propertyId={propertyId}
             documentId={documentId}
           />
-          <DocumentHistory editor={editor} />
+          <DocumentHistory editor={editor} propertyId={propertyId} documentId={documentId} />
           <DocumentShare propertyId={propertyId} documentId={documentId} />
           <DocumentRoomAvatarStack max={5} size={24} />
         </div>
@@ -576,7 +576,7 @@ function EditorInner({
                 propertyId={propertyId}
                 documentId={documentId}
               />
-              <DocumentHistory editor={editor} />
+              <DocumentHistory editor={editor} propertyId={propertyId} documentId={documentId} />
               <DocumentShare propertyId={propertyId} documentId={documentId} />
             </PopoverContent>
           </Popover>

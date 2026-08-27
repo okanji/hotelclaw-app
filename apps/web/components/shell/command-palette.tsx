@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/avatar";
 import {
   Hash,
+  History,
   ListChecks,
   Lock,
   MessageSquareText,
@@ -32,6 +33,14 @@ import {
 } from "lucide-react";
 import { useOpenChannel } from "@/lib/chat/use-open-channel";
 import { cn } from "@/lib/utils";
+import {
+  loadRecents,
+  matchesAction,
+  paletteActions,
+  recordRecent,
+  type PaletteAction,
+  type RecentEntry,
+} from "./command-palette-actions";
 
 /**
  * Palette chrome — the canonical MODAL tier (docs/notion-spec-v2.md §5/§6).
@@ -83,6 +92,13 @@ type Task = {
  *   - Tasks (this property's tasks)
  *   - Messages (Stream search)
  *
+ * Plus two non-search groups (`command-palette-actions.ts`):
+ *   - Recent — the last 5 selections, per property in localStorage,
+ *     shown only while the query is empty.
+ *   - Actions — navigation/creation commands over real routes; shown when
+ *     the query is empty or matches an action's label/keywords (this file
+ *     runs cmdk with `shouldFilter={false}`, so actions filter themselves).
+ *
  * Mounted once at the property layout — the global keyboard listener owns
  * the open state, so any keyboard event in the app can open it.
  */
@@ -103,6 +119,25 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
   const me = client?.user?.id;
   const trimmed = query.trim();
   const hasQuery = trimmed.length > 0;
+
+  // Recents re-read from localStorage each time the palette opens — the
+  // palette closes on every selection, so an open-keyed memo is always
+  // current (and `loadRecents` self-guards on the server, returning []).
+  const recents = useMemo(
+    () => (open ? loadRecents(propertyId) : []),
+    [open, propertyId],
+  );
+
+  const remember = useCallback(
+    (entry: RecentEntry) => recordRecent(propertyId, entry),
+    [propertyId],
+  );
+
+  const actions = useMemo(() => paletteActions(propertyId), [propertyId]);
+  const visibleActions = useMemo(
+    () => actions.filter((a) => matchesAction(a, trimmed)),
+    [actions, trimmed],
+  );
 
   const go = useCallback(
     (path: string) => {
@@ -247,7 +282,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
       open={open}
       onOpenChange={setOpen}
       title="Search"
-      description="Search channels, people, tasks, and messages"
+      description="Search channels, people, tasks, and messages, or jump to a section"
       className={PALETTE_PANEL}
     >
       {/* This shadcn build of CommandDialog doesn't wrap children in
@@ -266,6 +301,52 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
             {hasQuery ? "No results." : "Start typing to search."}
           </CommandEmpty>
 
+        {!hasQuery && recents.length > 0 ? (
+          <CommandGroup heading="Recent" className={PALETTE_GROUP}>
+            {recents.map((entry) => {
+              const Icon = recentIcon(entry, actions);
+              return (
+                <CommandItem
+                  key={`recent-${entry.type}-${entry.id ?? entry.href ?? entry.label}`}
+                  value={`recent-${entry.type}-${entry.id ?? entry.href ?? entry.label}`}
+                  onSelect={() => openRecent(entry)}
+                  className={PALETTE_ITEM}
+                >
+                  <Icon className="size-4 text-faint-foreground" />
+                  <span className="truncate">{entry.label}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        ) : null}
+
+        {/* No per-row shortcut hints here: none of these actions has a real
+            global shortcut (the shell registers only Cmd+K and Cmd+\), and
+            the footer already carries the palette's own hints. */}
+        {visibleActions.length > 0 ? (
+          <CommandGroup heading="Actions" className={PALETTE_GROUP}>
+            {visibleActions.map((action) => (
+              <CommandItem
+                key={action.id}
+                value={`action-${action.id}`}
+                onSelect={() => {
+                  remember({
+                    type: "action",
+                    id: action.id,
+                    label: action.label,
+                    href: action.href,
+                  });
+                  go(action.href);
+                }}
+                className={PALETTE_ITEM}
+              >
+                <action.icon className="size-4 text-faint-foreground" />
+                <span className="truncate">{action.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+
         {teamChannels.length > 0 ? (
           <CommandGroup heading="Channels" className={PALETTE_GROUP}>
             {teamChannels.map((c) => {
@@ -277,7 +358,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 <CommandItem
                   key={c.cid}
                   value={`channel-${c.cid}-${data?.name ?? c.id}`}
-                  onSelect={() => goChannel(c.type, c.id ?? "")}
+                  onSelect={() => {
+                    remember({
+                      type: "channel",
+                      id: `${c.type}:${c.id ?? ""}`,
+                      label: data?.name ?? c.id ?? "",
+                    });
+                    goChannel(c.type, c.id ?? "");
+                  }}
                   className={PALETTE_ITEM}
                 >
                   <Icon className="size-4 text-faint-foreground" />
@@ -294,7 +382,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={c.cid}
                 value={`dm-${c.cid}-${dmTitle(c, me)}`}
-                onSelect={() => goChannel(c.type, c.id ?? "")}
+                onSelect={() => {
+                  remember({
+                    type: "dm",
+                    id: `${c.type}:${c.id ?? ""}`,
+                    label: dmTitle(c, me),
+                  });
+                  goChannel(c.type, c.id ?? "");
+                }}
                 className={PALETTE_ITEM}
               >
                 <DmIcon channel={c} currentUserId={me} />
@@ -310,7 +405,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={m.id}
                 value={`person-${m.id}-${m.name ?? m.id}`}
-                onSelect={() => openOrCreateDm(m.id)}
+                onSelect={() => {
+                  remember({
+                    type: "person",
+                    id: m.id,
+                    label: m.name ?? m.id,
+                  });
+                  void openOrCreateDm(m.id);
+                }}
                 className={PALETTE_ITEM}
               >
                 <Avatar className="size-5">
@@ -334,7 +436,11 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
               <CommandItem
                 key={t.id}
                 value={`task-${t.id}-${t.title}`}
-                onSelect={() => go(`/p/${propertyId}/tasks/${t.id}`)}
+                onSelect={() => {
+                  const href = `/p/${propertyId}/tasks/${t.id}`;
+                  remember({ type: "task", id: t.id, label: t.title, href });
+                  go(href);
+                }}
                 className={PALETTE_ITEM}
               >
                 <ListChecks className="size-4 text-faint-foreground" />
@@ -355,7 +461,13 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 value={`msg-${message.id}-${message.text}`}
                 onSelect={() => {
                   if (channelId) {
-                    goChannel(message.cid?.split(":")[0], channelId, {
+                    const channelType = message.cid?.split(":")[0];
+                    remember({
+                      type: "message",
+                      id: `${channelType ?? ""}:${channelId}:${message.id}`,
+                      label: message.text || "(attachment)",
+                    });
+                    goChannel(channelType, channelId, {
                       messageId: message.id,
                     });
                   }
@@ -420,6 +532,42 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
   );
 
   /**
+   * Re-run a recent selection through the same path the original item used
+   * (router push, `openChannel`, or DM create) — and re-record it so it
+   * moves back to the top of the list.
+   */
+  function openRecent(entry: RecentEntry) {
+    remember(entry);
+    switch (entry.type) {
+      case "action":
+      case "task":
+        if (entry.href) go(entry.href);
+        break;
+      case "channel":
+      case "dm": {
+        // id is `<channelType>:<channelId>`.
+        const sep = (entry.id ?? "").indexOf(":");
+        if (sep > 0) {
+          goChannel(entry.id!.slice(0, sep), entry.id!.slice(sep + 1));
+        }
+        break;
+      }
+      case "message": {
+        // id is `<channelType>:<channelId>:<messageId>`.
+        const parts = (entry.id ?? "").split(":");
+        if (parts.length >= 3) {
+          const messageId = parts[parts.length - 1];
+          goChannel(parts[0], parts.slice(1, -1).join(":"), { messageId });
+        }
+        break;
+      }
+      case "person":
+        if (entry.id) void openOrCreateDm(entry.id);
+        break;
+    }
+  }
+
+  /**
    * Selecting a person from the palette opens an existing DM with them or
    * creates a new one. Mirrors the DM dialog's create logic.
    */
@@ -436,6 +584,29 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
     } catch (e) {
       console.error("openOrCreateDm failed", e);
     }
+  }
+}
+
+/**
+ * Icon for a Recent row, derived from the entry type. Action recents reuse
+ * the action's own icon (looked up by id, since we only persist minimal
+ * data); anything unresolvable falls back to the History glyph.
+ */
+function recentIcon(entry: RecentEntry, actions: PaletteAction[]) {
+  switch (entry.type) {
+    case "action":
+      return actions.find((a) => a.id === entry.id)?.icon ?? History;
+    case "channel":
+      return Hash;
+    case "dm":
+    case "person":
+      return UserIcon;
+    case "task":
+      return ListChecks;
+    case "message":
+      return MessageSquareText;
+    default:
+      return History;
   }
 }
 

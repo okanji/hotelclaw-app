@@ -94,7 +94,9 @@ export function ChartView({ node, updateAttributes, editor }: NodeViewProps) {
                 title={label}
                 className={cn(
                   "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent",
-                  type === t && "bg-muted text-foreground",
+                  // The toolbar sits on bg-muted, so an active state of
+                  // bg-muted is invisible — lift to the content plane + ring.
+                  type === t && "bg-background text-foreground shadow-ring hover:bg-background",
                 )}
               >
                 <Icon className="size-3.5" />
@@ -107,7 +109,7 @@ export function ChartView({ node, updateAttributes, editor }: NodeViewProps) {
                 title={editing ? "View" : "Edit data"}
                 className={cn(
                   "ml-1 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent",
-                  editing && "bg-muted text-foreground",
+                  editing && "bg-background text-foreground shadow-ring hover:bg-background",
                 )}
               >
                 {editing ? (

@@ -34,6 +34,7 @@ import {
 } from "@liveblocks/chat-sdk-adapter";
 import { generateText, stepCountIs, type ModelMessage } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { samplingParams } from "@/lib/ai/model-settings";
 import { createMemoryState } from "./memory-state";
 import { buildPropertyTools } from "./tools";
 import { runBot } from "./run-bot";
@@ -43,7 +44,7 @@ type Bot = Chat<{ liveblocks: LiveblocksAdapter }>;
 
 let _bot: Bot | null = null;
 
-const MODEL_ID_DEFAULT = "claude-sonnet-4-6";
+const MODEL_ID_DEFAULT = "claude-sonnet-5";
 const HISTORY_LIMIT = 20;
 
 function getBotUserId(): string {
@@ -304,13 +305,14 @@ async function postReply(args: {
   // stopWhen: default is stepCountIs(1) which means tool calls execute but
   // the model never gets a synthesis pass with the results. Need ≥2; 5
   // allows chained tool calls without unbounded loops.
-  // temperature: 0 for deterministic tool-arg generation (AI SDK rec).
+  // temperature 0 only where the model accepts it (Sonnet 5+ rejects
+  // sampling params — see lib/ai/model-settings.ts).
   const { text } = await generateText({
     model: anthropic(getBotModelId()),
     system: args.systemPrompt,
     messages: args.history,
     tools: args.tools,
-    temperature: 0,
+    ...samplingParams(getBotModelId(), 0),
     stopWhen: stepCountIs(5),
   });
   await args.thread.post(text.trim() || "(no reply)");

@@ -49,7 +49,11 @@ export function ArtifactAutoOpen() {
         ? message.attachments
         : [];
       const artifact = attachments.find(isAppArtifactAttachment);
-      if (!artifact || typeof artifact.document_id !== "string") return;
+      // Task cards never auto-open: a task insert is instant, so there's no
+      // live write to watch — and a turn creating many tasks would otherwise
+      // pop the panel on the first of them.
+      if (!artifact || artifact.kind === "task") return;
+      if (typeof artifact.document_id !== "string") return;
 
       const turnKey =
         typeof message.eve_turn === "string" && message.eve_turn

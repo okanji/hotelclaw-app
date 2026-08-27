@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
 import { DocumentEditor } from "@/components/documents/document-editor";
 import { SheetEditor } from "@/components/spreadsheet/sheet-editor";
+import { TaskRoom } from "@/components/tasks/task-room";
+import { TaskDetailSkeleton } from "@/components/tasks/task-detail-skeleton";
+import { tasksQueryOptions } from "@/lib/query/section-queries";
 import { Button } from "@/components/ui/button";
 import { useArtifactPanel } from "./artifact-panel-context";
 
@@ -111,8 +115,16 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
 
   if (!target) return null;
 
-  const fullHref = `/p/${propertyId}/documents/${target.documentId}`;
-  const typeLabel = target.kind === "sheet" ? "Spreadsheet" : "Document";
+  const fullHref =
+    target.kind === "task"
+      ? `/p/${propertyId}/tasks/${target.taskId}`
+      : `/p/${propertyId}/documents/${target.documentId}`;
+  const typeLabel =
+    target.kind === "task"
+      ? "Task"
+      : target.kind === "sheet"
+        ? "Spreadsheet"
+        : "Document";
 
   return (
     <aside
@@ -169,7 +181,13 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {target.kind === "document" ? (
+        {target.kind === "task" ? (
+          <TaskPanelBody
+            key={target.taskId}
+            propertyId={propertyId}
+            taskId={target.taskId}
+          />
+        ) : target.kind === "document" ? (
           <DocumentEditor
             key={target.documentId}
             propertyId={propertyId}
@@ -185,4 +203,37 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
       </div>
     </aside>
   );
+}
+
+/**
+ * TaskRoom reads the task out of the shared `["tasks", propertyId]` list
+ * cache — which has no realtime invalidation, so a task the AI created
+ * seconds ago is usually NOT in the viewer's stale copy yet and TaskRoom
+ * would declare it "no longer available". Refetch once when the id is
+ * missing, holding the skeleton until that refetch settles; if the task is
+ * still absent afterwards, TaskRoom's not-found state is telling the truth.
+ */
+function TaskPanelBody({
+  propertyId,
+  taskId,
+}: {
+  propertyId: string;
+  taskId: string;
+}) {
+  const qc = useQueryClient();
+  const { data: tasks, isFetching } = useQuery(tasksQueryOptions(propertyId));
+  const inCache = tasks?.some((t) => t.id === taskId) ?? false;
+  const refetched = useRef(false);
+
+  useEffect(() => {
+    if (tasks && !inCache && !refetched.current) {
+      refetched.current = true;
+      void qc.refetchQueries({ queryKey: ["tasks", propertyId] });
+    }
+  }, [tasks, inCache, qc, propertyId]);
+
+  if (!inCache && (isFetching || !refetched.current)) {
+    return <TaskDetailSkeleton />;
+  }
+  return <TaskRoom propertyId={propertyId} taskId={taskId} variant="embedded" />;
 }

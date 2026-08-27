@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThreads } from "@liveblocks/react/suspense";
 import { Composer, Thread } from "@liveblocks/react-ui";
 import "@liveblocks/react-ui/styles.css";
-import { ListChecks, Paperclip, Smile } from "lucide-react";
+import { ListChecks, Paperclip, PanelRight, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask, escalateTask, updateTask } from "./actions";
@@ -64,9 +64,19 @@ function formatRelative(iso: string) {
 export function TaskDetail({
   propertyId,
   task,
+  variant = "page",
 }: {
   propertyId: string;
   task: Task;
+  /**
+   * "page" is the full tasks-route view: breadcrumb header + the utility
+   * rail as a permanent flex sibling. "embedded" is for hosts that already
+   * provide their own chrome and width (the chat's artifact side panel):
+   * no breadcrumbs, compact gutters, and the rail stays CLOSED by default —
+   * at panel widths a 300px flex sibling would squeeze the task itself, so
+   * it opens as a floating drawer OVER the content instead.
+   */
+  variant?: "page" | "embedded";
 }) {
   const qc = useQueryClient();
   const router = useRouter();
@@ -78,9 +88,27 @@ export function TaskDetail({
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId);
   const [dueAt, setDueAt] = useState<string | null>(task.dueAt);
   const [addingSubIssue, setAddingSubIssue] = useState(false);
+  const embedded = variant === "embedded";
+  // Embedded-only: the utility rail as a dismissible overlay drawer.
+  const [railOpen, setRailOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const savedTitle = useRef(task.title);
   const savedDescription = useRef(task.description ?? "");
+
+  // The artifact panel closes ITSELF on Escape (window-level listener in
+  // artifact-side-panel.tsx). While the drawer is open, consume Escape in
+  // the capture phase so it closes the drawer first, not the whole panel.
+  useEffect(() => {
+    if (!railOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopImmediatePropagation();
+        setRailOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [railOpen]);
 
   const assignees = useAssigneesMap([assigneeId, task.createdBy]);
   const assignee = assigneeId ? assignees[assigneeId] : undefined;
@@ -213,25 +241,71 @@ export function TaskDetail({
     });
   }
 
+  const sidebarProps = {
+    propertyId,
+    taskId: task.id,
+    status,
+    priority,
+    assigneeId,
+    assignee,
+    dueAt,
+    members,
+    meta: mutations.meta,
+    openers: mutations.openers,
+    removers: mutations.removers,
+    onStatusChange: saveStatus,
+    onPriorityChange: savePriority,
+    onAssigneeChange: saveAssignee,
+    onDueAtChange: saveDueAt,
+    onCopyTitle: copyTitle,
+    onCopyLink: copyTaskLink,
+    onDelete: removeTask,
+    onEscalate: escalate,
+    onAddSubIssue: () => setAddingSubIssue(true),
+    onAutomate: automateFromTask,
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
-        breadcrumbs={[
-          {
-            label: "Tasks",
-            href: `/p/${propertyId}/tasks`,
-            icon: <ListChecks />,
-          },
-          { label: taskShortId(task.id) },
-        ]}
-      />
-      <div className="flex min-h-0 flex-1">
+      {embedded ? null : (
+        <PageHeader
+          breadcrumbs={[
+            {
+              label: "Tasks",
+              href: `/p/${propertyId}/tasks`,
+              icon: <ListChecks />,
+            },
+            { label: taskShortId(task.id) },
+          ]}
+        />
+      )}
+      <div className="relative flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto">
             {/* One page width for the whole column (PageShell owns it), pushed
                 down from the top so the title gets the same "page header"
-                breathing room Linear gives its work item view. */}
-            <PageShell className="px-10 pt-16 pb-12">
+                breathing room Linear gives its work item view. Embedded hosts
+                bring their own header, so the gutters tighten and the short id
+                moves into a slim row that also carries the rail toggle. */}
+            <PageShell
+              className={cn(
+                "px-10 pt-16 pb-12",
+                embedded && "px-6 pt-5 pb-10",
+              )}
+            >
+            {embedded ? (
+              <div className="mb-5 flex items-center justify-between">
+                <span className="font-mono text-xs font-medium text-faint-foreground">
+                  {taskShortId(task.id)}
+                </span>
+                <IconGhostButton
+                  label="Task details & actions"
+                  onClick={() => setRailOpen(true)}
+                >
+                  <PanelRight className="size-4" />
+                </IconGhostButton>
+              </div>
+            ) : null}
             <textarea
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -356,29 +430,26 @@ export function TaskDetail({
           </div>
         </div>
 
-        <TaskDetailSidebar
-          propertyId={propertyId}
-          taskId={task.id}
-          status={status}
-          priority={priority}
-          assigneeId={assigneeId}
-          assignee={assignee}
-          dueAt={dueAt}
-          members={members}
-          meta={mutations.meta}
-          openers={mutations.openers}
-          removers={mutations.removers}
-          onStatusChange={saveStatus}
-          onPriorityChange={savePriority}
-          onAssigneeChange={saveAssignee}
-          onDueAtChange={saveDueAt}
-          onCopyTitle={copyTitle}
-          onCopyLink={copyTaskLink}
-          onDelete={removeTask}
-          onEscalate={escalate}
-          onAddSubIssue={() => setAddingSubIssue(true)}
-          onAutomate={automateFromTask}
-        />
+        {embedded ? (
+          railOpen ? (
+            <>
+              {/* Click-away layer: a whisper of tint so the drawer reads as a
+                  layer, and any click on the task beneath dismisses it. */}
+              <button
+                type="button"
+                aria-label="Close task details"
+                onClick={() => setRailOpen(false)}
+                className="absolute inset-0 z-10 cursor-default bg-black/5 duration-300 animate-in fade-in motion-reduce:animate-none"
+              />
+              <TaskDetailSidebar
+                {...sidebarProps}
+                className="absolute inset-y-2 right-2 z-20 max-w-[calc(100%-1rem)] rounded-card border-l-0 bg-popover shadow-popover duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-right-4 motion-reduce:animate-none"
+              />
+            </>
+          ) : null
+        ) : (
+          <TaskDetailSidebar {...sidebarProps} />
+        )}
       </div>
 
       {mutations.dialogs}

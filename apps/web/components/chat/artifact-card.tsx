@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Loader2, ExternalLink, PanelRight, Table2 } from "lucide-react";
+import { FileText, ListChecks, Loader2, ExternalLink, PanelRight, Table2 } from "lucide-react";
 import type { AppArtifactAttachment } from "@hotelclaw/chat-ui";
 import { cn } from "@/lib/utils";
 import { TintIcon } from "@/components/ui/tint-card";
@@ -20,9 +20,12 @@ import { useArtifactPanel } from "./artifact-panel-context";
 export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment }) {
   const { open } = useArtifactPanel();
   const writing = attachment.status === "writing";
-  const canOpen = typeof attachment.document_id === "string";
+  const isTask = attachment.kind === "task";
+  const canOpen = isTask
+    ? typeof attachment.task_id === "string"
+    : typeof attachment.document_id === "string";
   const isSheet = attachment.kind === "sheet";
-  const noun = isSheet ? "Spreadsheet" : "Document";
+  const noun = isTask ? "Task" : isSheet ? "Spreadsheet" : "Document";
 
   const status = writing
     ? attachment.action === "appending"
@@ -37,8 +40,8 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
       <Loader2 data-slot="icon" className="size-[1.15rem] animate-spin text-muted-foreground" />
     </span>
   ) : (
-    <TintIcon tone={isSheet ? "sage" : "blue"}>
-      {isSheet ? <Table2 /> : <FileText />}
+    <TintIcon tone={isTask ? "honey" : isSheet ? "sage" : "blue"}>
+      {isTask ? <ListChecks /> : isSheet ? <Table2 /> : <FileText />}
     </TintIcon>
   );
 
@@ -93,11 +96,19 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
           type="button"
           className={cn(rowClass, "cursor-pointer")}
           onClick={() =>
-            open({
-              kind: isSheet ? "sheet" : "document",
-              documentId: attachment.document_id as string,
-              title: attachment.title,
-            })
+            open(
+              isTask
+                ? {
+                    kind: "task",
+                    taskId: attachment.task_id as string,
+                    title: attachment.title,
+                  }
+                : {
+                    kind: isSheet ? "sheet" : "document",
+                    documentId: attachment.document_id as string,
+                    title: attachment.title,
+                  },
+            )
           }
         >
           {body}

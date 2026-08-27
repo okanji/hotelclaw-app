@@ -14,8 +14,9 @@ import "server-only";
  *      (activation reason), to break in-context deferral patterns.
  *   2. Every bot has access to shared-brain memory tools and durable-agent
  *      delegation tool (Tier 2 fallbacks), automatically wired.
- *   3. Consistent model settings (Sonnet 4.6, temperature 0, stepCountIs 5)
- *      — proven via the bot-chat-test harness.
+ *   3. Consistent model settings (Sonnet 5, stepCountIs 5; temperature 0
+ *      only on models that still accept it) — proven via the bot-chat-test
+ *      harness.
  */
 import {
   generateText,
@@ -28,10 +29,11 @@ import {
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { KNOWLEDGE_DISCIPLINE } from "@hotelclaw/brain";
+import { samplingParams } from "@/lib/ai/model-settings";
 import { buildGbrainTools } from "@/lib/ai/tools/gbrain";
 import { buildDelegateTool } from "@/lib/ai/tools/delegate";
 
-const MODEL_ID = process.env.AI_BOT_MODEL ?? "claude-sonnet-4-6";
+const MODEL_ID = process.env.AI_BOT_MODEL ?? "claude-sonnet-5";
 
 /**
  * Why the bot is being invoked. Used to compose the system prompt so the
@@ -258,9 +260,9 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
       // never synthesize a reply with the result. 5 leaves headroom for
       // chained tool calls without unbounded loops.
       stopWhen: stepCountIs(opts.maxToolSteps ?? 5),
-      // temperature 0 — tool-arg generation is much more reliable, and
-      // classifier-style "should I respond" decisions become reproducible.
-      temperature: 0,
+      // temperature 0 where the model still accepts it (Haiku overrides) —
+      // Sonnet 5+ rejects sampling params, see lib/ai/model-settings.ts.
+      ...samplingParams(opts.modelId ?? MODEL_ID, 0),
       maxRetries: opts.maxRetries ?? 3,
     });
     const text = (result.text ?? "").trim() || "(no reply)";

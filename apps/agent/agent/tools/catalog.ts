@@ -143,7 +143,7 @@ export default defineDynamic({
               .optional()
               .describe("Due date-time, ISO 8601 with offset."),
           }),
-          async execute({ title, description, priority, team, due_at }) {
+          async execute({ title, description, priority, team, due_at }, toolCtx) {
             const supabase = serviceClient();
             let spaceId: string | null = null;
             if (team) {
@@ -181,6 +181,51 @@ export default defineDynamic({
               .select("id, title, space_id")
               .single();
             if (error) return { error: error.message };
+
+            // Artifact card — a task insert is instant, so unlike the
+            // document writers this posts ONCE, already "done"
+            // (deterministic id per call: Stream upserts on id, so step
+            // replays can't duplicate it). The card opens the task in the
+            // chat's split panel, same as document artifacts. NB the eve
+            // build capture is token-naive — comments here must not mention
+            // resolver-scope variable names this executor doesn't use.
+            const cardId = `eve-artifact-${toolCtx.callId}`;
+            const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+            const streamSecret = process.env.STREAM_API_SECRET;
+            if (apiKey && streamSecret && sessionChannelId) {
+              const { data: chatRow } = await supabase
+                .from("channel_bot_sessions")
+                .select("channel_type, turn_nonce")
+                .eq("eve_session_id", eveSessionId)
+                .maybeSingle();
+              const server = StreamChat.getInstance(apiKey, streamSecret, {
+                timeout: 15_000,
+              });
+              await server
+                .channel(chatRow?.channel_type ?? "team", sessionChannelId)
+                .sendMessage({
+                  id: cardId,
+                  text: "",
+                  user_id: process.env.STREAM_BOT_USER_ID ?? "hotelclaw-ai",
+                  ai_generated: true,
+                  // Groups this card with the rest of the turn (see eveSessionId).
+                  eve_turn: chatRow?.turn_nonce ?? undefined,
+                  attachments: [
+                    {
+                      type: "app_artifact",
+                      kind: "task",
+                      status: "done",
+                      action: "created",
+                      title: data.title,
+                      task_id: data.id,
+                      href: `/p/${propertyId}/tasks/${data.id}`,
+                      property_id: propertyId,
+                    },
+                  ],
+                } as unknown as Parameters<ReturnType<StreamChat["channel"]>["sendMessage"]>[0])
+                .catch(() => {});
+            }
+
             return {
               created: true,
               task: data,

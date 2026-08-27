@@ -311,6 +311,12 @@ export function AppRail({
         routeKey: "/assistant",
       },
       {
+        section: "chat",
+        label: "Chat",
+        icon: MessagesSquare,
+        href: `/p/${propertyId}/chat`,
+      },
+      {
         section: "insights",
         // Management reads the property; staff get their personal "My week".
         label: isManagement ? "Insights" : "My week",
@@ -326,12 +332,6 @@ export function AppRail({
         icon: Bell,
         href: `/p/${propertyId}/activity`,
         routeKey: "/activity",
-      },
-      {
-        section: "chat",
-        label: "Chat",
-        icon: MessagesSquare,
-        href: `/p/${propertyId}/chat`,
       },
       {
         section: "dms",

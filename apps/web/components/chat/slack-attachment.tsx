@@ -1,9 +1,16 @@
 "use client";
 
-import { Attachment as DefaultAttachment, type AttachmentProps } from "stream-chat-react";
+import { useCallback } from "react";
+import {
+  Attachment as DefaultAttachment,
+  useChannelStateContext,
+  useMessageContext,
+  type AttachmentProps,
+} from "stream-chat-react";
 import type { Attachment as StreamAttachment } from "stream-chat";
 import { isAppArtifactAttachment } from "@hotelclaw/chat-ui";
 import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
+import { ChatUiSendProvider } from "@/components/chat/chat-ui-send-context";
 import { ArtifactCard } from "@/components/chat/artifact-card";
 import { SlackGallery } from "@/components/chat/slack-gallery";
 import { SlackMessageImage } from "@/components/chat/slack-message-image";
@@ -21,6 +28,38 @@ import { isAiUiAttachment } from "@/lib/ai/chat-ui/catalog";
  */
 export function SlackAttachment(props: AttachmentProps) {
   const { Image: ImageFromProps, attachments, ...rest } = props;
+
+  // Quick-reply sender for ai_ui Options chips: tapping sends the option as
+  // the user's own message, so the reply travels the normal message.new →
+  // classifier → eve pipeline (the "continues a conversation with the bot"
+  // rule answers it without a fresh @-mention). A bot message living in a
+  // thread gets its reply in that thread.
+  const { channel } = useChannelStateContext("SlackAttachment");
+  const { message } = useMessageContext("SlackAttachment");
+  const parentId = message?.parent_id;
+  const messageId = message?.id;
+  const sendQuickReply = useCallback(
+    async (text: string) => {
+      await channel.sendMessage({
+        text,
+        ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
+      });
+    },
+    [channel, parentId],
+  );
+  // `reply_to_self` cards (background-job question parks) must answer in
+  // THIS message's thread — the question message id is the only route back
+  // to the job's session (0098); a top-level tap would leave the job
+  // waiting forever.
+  const sendSelfThreadReply = useCallback(
+    async (text: string) => {
+      await channel.sendMessage({
+        text,
+        ...(messageId ? { parent_id: messageId, show_in_channel: false } : {}),
+      });
+    },
+    [channel, messageId],
+  );
 
   const isForm = (a: unknown): a is FormAttachmentPayload =>
     typeof a === "object" &&
@@ -57,9 +96,20 @@ export function SlackAttachment(props: AttachmentProps) {
       {formAttachments.map((a) => (
         <FormAttachmentCard key={a.form_id} attachment={a} />
       ))}
-      {aiUiAttachments.map((a, i) => (
-        <AiUiAttachment key={i} attachment={a} />
-      ))}
+      <ChatUiSendProvider send={sendQuickReply}>
+        {aiUiAttachments
+          .filter((a) => (a as { reply_to_self?: unknown }).reply_to_self !== true)
+          .map((a, i) => (
+            <AiUiAttachment key={i} attachment={a} />
+          ))}
+      </ChatUiSendProvider>
+      <ChatUiSendProvider send={sendSelfThreadReply}>
+        {aiUiAttachments
+          .filter((a) => (a as { reply_to_self?: unknown }).reply_to_self === true)
+          .map((a, i) => (
+            <AiUiAttachment key={`self-${i}`} attachment={a} />
+          ))}
+      </ChatUiSendProvider>
       {artifactAttachments.map((a, i) => (
         <ArtifactCard key={a.document_id ?? i} attachment={a} />
       ))}

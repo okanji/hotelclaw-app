@@ -19,6 +19,7 @@ import "server-only";
 import { generateText, Output } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { runBot, tool, z, type ToolSet } from "@/lib/ai/run-bot";
+import { samplingParams } from "@/lib/ai/model-settings";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createNotifications } from "@/lib/notifications/server";
 import {
@@ -433,7 +434,7 @@ export async function annotateAtRiskProjects(
 
 /* ── Automatic intelligence briefs: structured insights, not chat ─────────── */
 
-const BRIEF_MODEL = process.env.AI_BOT_MODEL ?? "claude-sonnet-4-6";
+const BRIEF_MODEL = process.env.AI_BOT_MODEL ?? "claude-sonnet-5";
 
 const InsightCardSchema = z.object({
   kind: z.enum(["trend", "risk", "anomaly", "win", "watch"]),
@@ -670,7 +671,7 @@ export async function generateInsightsBrief(opts: {
     const result = await generateText({
       model: anthropic(BRIEF_MODEL),
       output: Output.object({ schema: BriefSchema }),
-      temperature: 0,
+      ...samplingParams(BRIEF_MODEL, 0),
       maxRetries: 3,
       system: [
         `You are the operations analyst for a hotel/restaurant team workspace. You are analyzing ${lens}. Turn its metrics into at most 4 ranked insight cards a manager acts on.`,

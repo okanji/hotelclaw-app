@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  applySchemaDiff,
+  diffFormSchemas,
+  type FieldDiffEntry,
+} from "@/lib/forms/ai-edit-diff";
+import {
+  FIELD_TYPE_META,
   FORM_SOURCE_KINDS,
   SOURCE_KIND_META,
   newFieldId,
@@ -50,14 +57,27 @@ export type BuilderShared = {
 };
 
 /**
- * Propose-then-apply AI editing: describe a change, the model returns a
- * revised schema (stable field ids preserved server-side), and it lands in
- * the working copy — visible on the canvas but not persisted until Save.
+ * Propose-then-review-then-apply AI editing: describe a change, the model
+ * returns a revised schema (stable field ids preserved server-side), and a
+ * field-level diff renders for review — each added/removed/modified row is a
+ * toggle to include or exclude that specific change. Apply builds the final
+ * schema from only the included changes; it lands in the working copy,
+ * visible on the canvas but not persisted until Save.
  */
 export function AiEditPopover({ shared }: { shared: BuilderShared }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [busy, startTransition] = useTransition();
+  // The proposal awaiting review + the change ids the user toggled OFF.
+  const [proposal, setProposal] = useState<FormSchema | null>(null);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+
+  // Recomputed against the LIVE working schema, so manual edits made while
+  // the popover is closed never apply against a stale base.
+  const diff = useMemo(
+    () => (proposal ? diffFormSchemas(shared.schema, proposal) : null),
+    [shared.schema, proposal],
+  );
 
   function run() {
     const instruction = prompt.trim();
@@ -77,15 +97,55 @@ export function AiEditPopover({ shared }: { shared: BuilderShared }) {
           toast.error(json.error ?? "AI edit failed");
           return;
         }
-        shared.applySchema(parseFormSchema(json.schema));
-        toast.success("Changes applied — review and Save");
-        setPrompt("");
-        setOpen(false);
+        const next = parseFormSchema(json.schema);
+        const nextDiff = diffFormSchemas(shared.schema, next);
+        if (nextDiff.entries.length === 0 && !nextDiff.orderChanged) {
+          toast.info("The AI proposed no changes");
+          return;
+        }
+        setProposal(next);
+        setExcluded(new Set());
       } catch {
         toast.error("AI edit failed");
       }
     });
   }
+
+  function toggleChange(id: string) {
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function discardProposal() {
+    setProposal(null);
+    setExcluded(new Set());
+  }
+
+  const includedCount = diff
+    ? diff.entries.filter((e) => !excluded.has(e.id)).length
+    : 0;
+
+  function apply() {
+    if (!proposal || !diff) return;
+    const included = new Set(
+      diff.entries.filter((e) => !excluded.has(e.id)).map((e) => e.id),
+    );
+    shared.applySchema(applySchemaDiff(shared.schema, proposal, included));
+    toast.success(
+      includedCount > 0
+        ? `${includedCount} ${includedCount === 1 ? "change" : "changes"} applied — review and Save`
+        : "Question order updated — review and Save",
+    );
+    setPrompt("");
+    discardProposal();
+    setOpen(false);
+  }
+
+  const reviewing = proposal !== null && diff !== null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -93,29 +153,145 @@ export function AiEditPopover({ shared }: { shared: BuilderShared }) {
         <Sparkles data-slot="icon" />
         Edit with AI
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-2">
-        <p className="text-sm font-medium">Describe a change</p>
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={3}
-          placeholder="e.g. add a priority dropdown after the description, and make the room field required"
-          disabled={busy}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              run();
-            }
-          }}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={run} disabled={busy || !prompt.trim()}>
-            {busy ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
-            {busy ? "Thinking…" : "Apply"}
-          </Button>
-        </div>
+      <PopoverContent align="end" className={cn("space-y-2", reviewing ? "w-96" : "w-80")}>
+        {!reviewing ? (
+          <>
+            <p className="text-sm font-medium">Describe a change</p>
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+              placeholder="e.g. add a priority dropdown after the description, and make the room field required"
+              disabled={busy}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  run();
+                }
+              }}
+            />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={run} disabled={busy || !prompt.trim()}>
+                {busy ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
+                {busy ? "Thinking…" : "Propose changes"}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="ai-fade-up space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium">Review changes</p>
+              {diff.entries.length > 0 ? (
+                <p className="text-xs text-faint-foreground">Click a row to include or exclude</p>
+              ) : null}
+            </div>
+            {diff.entries.length > 0 ? (
+              <div className="divide-y divide-border overflow-hidden rounded-md shadow-ring">
+                {diff.entries.map((entry) => (
+                  <DiffChangeRow
+                    key={entry.id}
+                    entry={entry}
+                    included={!excluded.has(entry.id)}
+                    onToggle={() => toggleChange(entry.id)}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {diff.orderChanged ? (
+              <p className="text-xs text-muted-foreground">Question order updated</p>
+            ) : null}
+            {diff.unchangedCount > 0 ? (
+              <p className="text-xs text-faint-foreground">
+                {diff.unchangedCount} unchanged
+              </p>
+            ) : null}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button size="sm" variant="ghost" onClick={discardProposal}>
+                Back
+              </Button>
+              <Button
+                size="sm"
+                onClick={apply}
+                disabled={includedCount === 0 && !diff.orderChanged}
+              >
+                {includedCount > 0
+                  ? `Apply ${includedCount} ${includedCount === 1 ? "change" : "changes"}`
+                  : "Apply new order"}
+              </Button>
+            </div>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Per-kind row treatment: green added / red removed / amber modified via the
+ *  diff + warning token pairs; excluded rows drop to plain muted rows. */
+const DIFF_ROW_CLASSES = {
+  added: "bg-diff-insert-bg text-diff-insert-ink",
+  removed: "bg-diff-delete-bg text-diff-delete-ink",
+  modified: "bg-pill-warning text-pill-warning-ink",
+} as const;
+
+const DIFF_KIND_LABEL = {
+  added: "Added",
+  removed: "Removed",
+  modified: "Changed",
+} as const;
+
+/**
+ * One changed field in the AI-edit review — the row IS the control (DiffTable
+ * pattern): clicking toggles whether this specific change is applied.
+ */
+function DiffChangeRow({
+  entry,
+  included,
+  onToggle,
+}: {
+  entry: FieldDiffEntry;
+  included: boolean;
+  onToggle: () => void;
+}) {
+  const field = entry.kind === "modified" ? entry.after : entry.field;
+  const meta =
+    entry.kind === "modified"
+      ? `${DIFF_KIND_LABEL.modified} ${entry.changed.join(", ")}${
+          entry.changed.includes("label") ? ` · was “${entry.before.label}”` : ""
+        }`
+      : `${DIFF_KIND_LABEL[entry.kind]} · ${FIELD_TYPE_META[field.type].label}`;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={included}
+      aria-label={`Include change: ${meta} — ${field.label}`}
+      onClick={onToggle}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left transition-colors outline-none focus-visible:shadow-focus",
+        included
+          ? DIFF_ROW_CLASSES[entry.kind]
+          : "text-muted-foreground hover:bg-accent",
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            "block truncate text-sm font-medium",
+            entry.kind === "removed" && included && "line-through",
+          )}
+        >
+          {field.label}
+        </span>
+        <span className="block truncate text-xs opacity-80">{meta}</span>
+      </span>
+      <span
+        aria-hidden
+        className="flex size-4 shrink-0 items-center justify-center rounded-pill bg-card shadow-ring"
+      >
+        {included ? <Check className="size-3" /> : null}
+      </span>
+    </button>
   );
 }
 

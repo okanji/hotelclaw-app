@@ -23,6 +23,7 @@ import { ChannelSkeleton } from "./channel-skeleton";
 import { SlackComposer } from "./slack-composer";
 import { AiThinkingIndicator } from "./ai-thinking-indicator";
 import { MessageJumper } from "./search/message-jumper";
+import { JumpToLatestOverride } from "./jump-to-latest";
 import { slackRenderText } from "./slack-render-text";
 import { CLUSTER_TIME_GAP_MS, slackGroupStyles } from "./slack-message-ui";
 
@@ -140,6 +141,10 @@ export function ChannelView({
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <ChatView>
         <Channel channel={channel}>
+          {/* Swap Stream's stock scroll-down UI (grey label + circle/badge)
+              for the house JumpToLatest pill — covers the main list AND the
+              thread panel, both under this Channel. */}
+          <JumpToLatestOverride>
           <Window>
             {/* Group consecutive rows from the same user (`noGroupByUser` unset).
                 Stream marks cluster segments as top / middle / bottom; globals.css + SlackMessageUI
@@ -183,6 +188,7 @@ export function ChannelView({
               this turn, so the live edit is visible without clicking. */}
           <ArtifactAutoOpen />
           <MessageJumper messageId={messageId} />
+          </JumpToLatestOverride>
         </Channel>
       </ChatView>
     </div>
