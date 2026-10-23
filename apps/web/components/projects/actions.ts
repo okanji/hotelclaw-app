@@ -251,6 +251,8 @@ const ProjectPatch = z.object({
   status: z.enum(["active", "planned", "completed", "archived"]).optional(),
   start_date: z.string().nullable().optional(),
   target_date: z.string().nullable().optional(),
+  /** The accountable person (migration 0106). */
+  lead_user_id: Uuid.nullable().optional(),
 });
 
 export async function updateProject(

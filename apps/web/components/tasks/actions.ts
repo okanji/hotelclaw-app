@@ -41,6 +41,13 @@ const MoveSchema = z.object({
   position: z.number().finite(),
 });
 
+const RescheduleSchema = z.object({
+  taskId: z.string().uuid(),
+  dueAt: z.string().datetime({ offset: true }).nullable().optional(),
+  scheduledStart: z.string().datetime({ offset: true }).nullable().optional(),
+  scheduledEnd: z.string().datetime({ offset: true }).nullable().optional(),
+});
+
 export async function createTask(
   input: z.input<typeof CreateSchema>,
 ): Promise<{ taskId: string } | { error: string }> {
@@ -109,6 +116,44 @@ export async function moveTask(
   // ENTIRE property layout server tree (all 14 mounted surfaces + its data
   // fetches) on every drag — the dev "Rendering…" flash — for zero benefit,
   // since nothing server-rendered consumes this write.
+  return { ok: true };
+}
+
+/**
+ * Persist a Gantt drag: shift a task's due date and/or its scheduled window.
+ * Like `moveTask`, deliberately no `revalidatePath` — the timeline is
+ * client-rendered off the React Query cache and updates optimistically; the
+ * `activity_log` trigger records the reschedule with the actor.
+ */
+export async function rescheduleTask(
+  input: z.input<typeof RescheduleSchema>,
+): Promise<{ ok: true } | { error: string }> {
+  const parsed = RescheduleSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const patch: {
+    due_at?: string | null;
+    scheduled_start?: string | null;
+    scheduled_end?: string | null;
+  } = {};
+  if (parsed.data.dueAt !== undefined) patch.due_at = parsed.data.dueAt;
+  if (parsed.data.scheduledStart !== undefined)
+    patch.scheduled_start = parsed.data.scheduledStart;
+  if (parsed.data.scheduledEnd !== undefined)
+    patch.scheduled_end = parsed.data.scheduledEnd;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update(patch)
+    .eq("id", parsed.data.taskId);
+  if (error) return { error: error.message };
   return { ok: true };
 }
 

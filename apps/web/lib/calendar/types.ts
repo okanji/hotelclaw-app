@@ -58,9 +58,16 @@ export type MeetingEvent = BaseEvent & {
 export type TaskEvent = BaseEvent & {
   source: "task";
   status: "todo" | "in_progress" | "blocked" | "done";
-  priority: "low" | "medium" | "high" | "urgent";
+  priority: "none" | "low" | "medium" | "high" | "urgent";
   assignee_id: string | null;
   due_at: string | null;
+  /**
+   * A DEADLINE chip synthesised client-side from a task that has a due date
+   * but no scheduled window (gr8r shows every due date on the calendar; we
+   * only showed time blocks). All-day on the due date; draggable to another
+   * day to move the due date.
+   */
+  due_only?: boolean;
 };
 
 export type ExternalEvent = BaseEvent & {

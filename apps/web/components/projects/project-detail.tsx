@@ -42,7 +42,14 @@ import {
   setTaskProject,
   updateProject,
 } from "./actions";
-import { activityQuery } from "@/lib/query/activity-queries";
+import { activityLogQueryOptions } from "@/lib/query/activity-log-queries";
+import {
+  ActivityLogFeed,
+  ActivityLogList,
+  useActivityLogRealtime,
+  useActivityLookup,
+  useViewerId,
+} from "@/components/activity/activity-log";
 import {
   MetadataItem,
   MetadataRow,
@@ -61,13 +68,15 @@ import { ScopeStatStrip } from "@/components/insights/scope-stat-strip";
 import { CatchUpBanner } from "@/components/insights/catch-up-banner";
 import { WorkspaceDescription } from "./workspace-description";
 import {
-  ActivityFeed,
   DocsPanel,
   ProgressOverview,
   TasksPanel,
   type ScopedTask,
 } from "./workspace-panels";
 import { HEALTH_META, projectHealth } from "./tracking/tracking-shared";
+import { MilestonesPanel } from "./milestones-panel";
+import { TimelineView } from "@/components/tasks/timeline-view";
+import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -97,6 +106,7 @@ type ProjectDetailData = {
     start_date: string | null;
     target_date: string | null;
     created_at: string | null;
+    lead_user_id: string | null;
   } | null;
   spaceIds: string[];
   tasks: DetailTask[];
@@ -112,7 +122,7 @@ function projectDetailQuery(projectId: string) {
         supabase
           .from("projects")
           .select(
-            "id, name, description, color, icon, status, start_date, target_date, created_at",
+            "id, name, description, color, icon, status, start_date, target_date, created_at, lead_user_id",
           )
           .eq("id", projectId)
           .maybeSingle(),
@@ -149,8 +159,11 @@ export function ProjectDetail({
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isPending } = useQuery(projectDetailQuery(projectId));
+  const meId = useViewerId();
+  const activityLookup = useActivityLookup(propertyId, meId);
+  useActivityLogRealtime(propertyId);
   const { data: activity = [], isPending: activityPending } = useQuery(
-    activityQuery(propertyId, { project: projectId }),
+    activityLogQueryOptions(propertyId, { kind: "project", id: projectId }, 60),
   );
   const { data: allSpaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
@@ -167,6 +180,15 @@ export function ProjectDetail({
     if (project) setName(project.name);
   }, [project]);
 
+  // Full task rows for this project — the Gantt needs dates, parents and
+  // assignees, which the lightweight `tasks` select above doesn't carry.
+  const projectTasks = useMemo(
+    () => allTasks.filter((t) => t.project_id === projectId),
+    [allTasks, projectId],
+  );
+  const timelineAssignees = useAssigneesMap(
+    useMemo(() => projectTasks.map((t) => t.assignee_id), [projectTasks]),
+  );
   const taskCandidates = useMemo(() => {
     const assigned = new Set(tasks.map((t) => t.id));
     return allTasks
@@ -219,6 +241,11 @@ export function ProjectDetail({
   }
   async function setStatus(status: ProjectStatus) {
     const res = await updateProject(projectId, { status });
+    if ("error" in res) toast.error(res.error);
+    else refresh();
+  }
+  async function setLead(leadId: string | null) {
+    const res = await updateProject(projectId, { lead_user_id: leadId });
     if ("error" in res) toast.error(res.error);
     else refresh();
   }
@@ -410,6 +437,7 @@ export function ProjectDetail({
       content: (
         <div className="flex flex-col gap-10">
           <ProgressOverview tasks={tasks} />
+          <MilestonesPanel projectId={projectId} />
           {linkedSpaces.length > 0 ? (
             <OverviewSection
               title="Spaces"
@@ -492,6 +520,22 @@ export function ProjectDetail({
       ),
     },
     {
+      id: "timeline",
+      label: "Timeline",
+      content: (
+        <div className="flex h-[36rem] flex-col overflow-hidden rounded-card border border-border bg-card">
+          <TimelineView
+            propertyId={propertyId}
+            tasks={projectTasks}
+            assignees={timelineAssignees}
+            hideDone={false}
+            milestoneScope={{ kind: "project", id: projectId }}
+            onChanged={refresh}
+          />
+        </div>
+      ),
+    },
+    {
       id: "docs",
       label: "Docs",
       count: docs.length,
@@ -511,6 +555,18 @@ export function ProjectDetail({
       count: contributors.length,
       content: <Contributors people={contributors} />,
     },
+    {
+      id: "activity",
+      label: "Activity",
+      content: (
+        <ActivityLogFeed
+          propertyId={propertyId}
+          scope={{ kind: "project", id: projectId }}
+          meId={meId}
+          showProject={false}
+        />
+      ),
+    },
   ];
 
   const rightRail = (
@@ -525,6 +581,13 @@ export function ProjectDetail({
             targetDate={project.target_date}
             done={counts.done}
             total={tasks.length}
+          />
+        </PropertyRow>
+        <PropertyRow label="Lead">
+          <LeadPicker
+            people={people}
+            leadId={project.lead_user_id}
+            onSelect={setLead}
           />
         </PropertyRow>
         <PropertyRow label="Members">
@@ -569,7 +632,12 @@ export function ProjectDetail({
       </RailGroup>
 
       <RailGroup label="Activity">
-        <ActivityFeed events={activity.slice(0, 6)} pending={activityPending} />
+        <ActivityLogList
+          rows={activity.slice(0, 6)}
+          lookup={activityLookup}
+          pending={activityPending}
+          dense
+        />
       </RailGroup>
     </div>
   );
@@ -718,6 +786,60 @@ function Contributors({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The project lead — one accountable person, picked from the property's
+ * members (gr8r's "Lead" row). Clearing is a menu item, not a separate control.
+ */
+function LeadPicker({
+  people,
+  leadId,
+  onSelect,
+}: {
+  people: { id: string; name: string | null; avatarUrl: string | null }[];
+  leadId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const lead = leadId ? people.find((p) => p.id === leadId) : undefined;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<button type="button" className={railValueClass} />}>
+        {lead ? (
+          <>
+            <Avatar className="size-4">
+              {lead.avatarUrl ? <AvatarImage src={lead.avatarUrl} alt="" /> : null}
+              <AvatarFallback className="text-[9px]">
+                {(lead.name ?? "?").slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate">{lead.name ?? "Member"}</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">No lead</span>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="max-h-72 overflow-y-auto">
+        {people.map((p) => (
+          <DropdownMenuItem key={p.id} onClick={() => onSelect(p.id)}>
+            <Avatar className="size-4">
+              {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
+              <AvatarFallback className="text-[9px]">
+                {(p.name ?? "?").slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="flex-1 truncate">{p.name ?? "Member"}</span>
+            {p.id === leadId ? <Check className="size-3.5" /> : null}
+          </DropdownMenuItem>
+        ))}
+        {leadId ? (
+          <DropdownMenuItem onClick={() => onSelect(null)}>
+            <span className="flex-1 text-muted-foreground">Clear lead</span>
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

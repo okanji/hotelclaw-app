@@ -55,14 +55,20 @@ import {
   type WorkspaceTab,
 } from "@/components/projects/workspace-shell";
 import {
-  ActivityFeed,
   DocsPanel,
   ProgressOverview,
   ProjectProgressList,
   TasksPanel,
   type ScopedTask,
 } from "@/components/projects/workspace-panels";
-import { activityQuery } from "@/lib/query/activity-queries";
+import { activityLogQueryOptions } from "@/lib/query/activity-log-queries";
+import {
+  ActivityLogFeed,
+  ActivityLogList,
+  useActivityLogRealtime,
+  useActivityLookup,
+  useViewerId,
+} from "@/components/activity/activity-log";
 import { SpaceMembersPanel } from "./space-members-panel";
 import { SpaceChannelsPanel } from "./space-channels-panel";
 import { SpacePinnedResources } from "./space-pinned-resources";
@@ -204,8 +210,11 @@ export function SpaceDetail({
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isPending } = useQuery(spaceDetailQuery(spaceId));
+  const meId = useViewerId();
+  const activityLookup = useActivityLookup(propertyId, meId);
+  useActivityLogRealtime(propertyId);
   const { data: activity = [], isPending: activityPending } = useQuery(
-    activityQuery(propertyId, { space: spaceId }),
+    activityLogQueryOptions(propertyId, { kind: "space", id: spaceId }, 60),
   );
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
@@ -557,7 +566,14 @@ export function SpaceDetail({
     {
       id: "activity",
       label: "Activity",
-      content: <ActivityFeed events={activity} pending={activityPending} />,
+      content: (
+        <ActivityLogFeed
+          propertyId={propertyId}
+          scope={{ kind: "space", id: spaceId }}
+          meId={meId}
+          showProject
+        />
+      ),
     },
     {
       // Historical id (kept stable for saved tab state) — the label follows
@@ -694,9 +710,12 @@ export function SpaceDetail({
           ) : null
         }
       >
-        <ActivityFeed
-          events={activity.slice(0, 6)}
+        <ActivityLogList
+          rows={activity.slice(0, 6)}
+          lookup={activityLookup}
           pending={activityPending}
+          showProject
+          dense
         />
       </RailGroup>
     </div>

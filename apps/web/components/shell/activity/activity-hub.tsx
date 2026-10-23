@@ -173,6 +173,7 @@ function FeedRow({
 const EMPTY_COPY: Record<ActivityViewId, string> = {
   inbox: "You're all caught up. Mentions, tasks, and alerts land here.",
   unread: "Nothing unread — you're all caught up.",
+  workspace: "No changes recorded yet.",
   mentions: "No mentions yet. When someone @-mentions you, it shows up here.",
   tasks: "No task activity. Assignments and reassignments appear here.",
   channels: "No channel activity. Channel adds show up here.",

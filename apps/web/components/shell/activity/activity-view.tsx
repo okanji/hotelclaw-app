@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shell/page-header";
 import { useNotifications } from "@/components/shell/use-notifications";
+import { PageShell } from "@/components/ui/page-shell";
+import { ActivityLogFeed } from "@/components/activity/activity-log";
 import { ActivityFeed } from "./activity-hub";
 import { viewDef, viewFromParam } from "./views";
 
@@ -35,8 +37,11 @@ export function ActivityView({
       <PageHeader
         title={view === "inbox" ? "Activity" : def.label}
         icon={<Icon />}
+        meta={
+          view === "workspace" ? "Everything that changed, and who changed it" : undefined
+        }
         actions={
-          unseenCount > 0 ? (
+          view !== "workspace" && unseenCount > 0 ? (
             <span className="text-sm text-faint-foreground tabular-nums">
               {unseenCount} unread
             </span>
@@ -44,7 +49,18 @@ export function ActivityView({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <ActivityFeed propertyId={propertyId} userId={userId} view={view} />
+        {view === "workspace" ? (
+          <PageShell className="px-6 py-6 sm:px-10 sm:py-8">
+            <ActivityLogFeed
+              propertyId={propertyId}
+              scope={{ kind: "property" }}
+              meId={userId}
+              showProject
+            />
+          </PageShell>
+        ) : (
+          <ActivityFeed propertyId={propertyId} userId={userId} view={view} />
+        )}
       </div>
     </div>
   );

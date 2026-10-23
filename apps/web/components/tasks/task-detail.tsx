@@ -21,6 +21,7 @@ import {
 import { TaskDetailInlineProperties } from "./task-detail-inline-properties";
 import { TaskAiPanel } from "./task-ai-panel";
 import { TaskTriageSuggestions } from "./task-triage-suggestions";
+import { TaskHistory } from "@/components/activity/task-history";
 import { useTaskDetailMutations } from "./task-detail-mutations";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
@@ -413,6 +414,8 @@ export function TaskDetail({
                   </p>
                 </div>
               ) : null}
+
+              <TaskHistory propertyId={propertyId} taskId={task.id} />
 
               <div className="space-y-3">
                 {threads.map((thread) => (

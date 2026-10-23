@@ -22,10 +22,13 @@ type RailTask = {
 /** Drag payload a rail chip carries — the room's DragOverlay renders the
  *  ghost from this, so it needs the display fields, not just the id. */
 export type TaskDragData = {
-  kind: "task";
+  /** "task" = unscheduled rail chip; "task-due" = a deadline chip on the grid. */
+  kind: "task" | "task-due";
   taskId: string;
   title: string;
   priority: keyof typeof PRIORITY_META;
+  /** The deadline chip's current due date (ISO), so a day-drop keeps its time. */
+  dueAt?: string;
 };
 
 /**

@@ -1,464 +1,877 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Diamond } from "lucide-react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Crosshair, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import { COLUMNS, PRIORITY_META, STATUS_IDS, type Task } from "./kanban";
+import { COLUMNS, COLUMN_PILL_CLASS, STATUS_IDS, type Task } from "./kanban";
 import { StatusIcon } from "./task-icons";
+import { rescheduleTask } from "./actions";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
-import type { TaskStatus } from "@/lib/db/types";
+import { taskDependenciesQueryOptions } from "@/lib/query/task-dependency-queries";
+import {
+  projectMilestonesQueryOptions,
+  propertyMilestonesQueryOptions,
+} from "@/lib/query/milestone-queries";
+import { useMilestonesRealtime } from "@/components/projects/milestones-panel";
 
-type Props = {
-  propertyId: string;
-  tasks: Task[];
-  assignees: Record<string, AssigneeInfo>;
-  hideDone: boolean;
-};
+/* -------------------------------------------------------------------------- */
+/* Geometry                                                                   */
+/* -------------------------------------------------------------------------- */
 
-const DAY_WIDTH = 44; // px per day
+/** Days-per-pixel zoom levels — gr8r's Weeks (32px/day) and Months (11px/day). */
+const ZOOM = {
+  weeks: { dayWidth: 32, label: "Weeks" },
+  months: { dayWidth: 11, label: "Months" },
+} as const;
+type Zoom = keyof typeof ZOOM;
+
+type GroupBy = "status" | "assignee" | "none";
+
 const ROW_HEIGHT = 34; // px per task lane — the house data-row rhythm
-const BAR_HEIGHT = 20; // px — leaves a 7px gutter above/below in a 34px lane
-const LABEL_WIDTH = 256; // px for the left label pane
-const VISIBLE_DAYS = 28; // four-week window
-const HINT_HEIGHT = 30; // px chrome row for the "No date" / "Off window" rows
-/**
- * Status band height. 32px is `h-8` — the exact height list-view uses for its
- * status group header, so the three task views share one band.
- */
+const BAR_HEIGHT = 22;
+const LABEL_WIDTH = 288; // left pane
+/** 32px is `h-8` — the list view's status group header, so the views share one band. */
 const GROUP_HEIGHT = 32;
-const AXIS_MONTH_HEIGHT = 20; // month strip
-const AXIS_DAY_HEIGHT = 30; // day-tick strip — chrome row
+const HINT_HEIGHT = 30;
+const AXIS_MONTH_HEIGHT = 22;
+const AXIS_DAY_HEIGHT = 26;
 const AXIS_HEIGHT = AXIS_MONTH_HEIGHT + AXIS_DAY_HEIGHT;
 const MS_PER_DAY = 86_400_000;
+/** Title fits inside the bar once it's this wide; narrower bars label to the right. */
+const INSIDE_LABEL_MIN = 110;
 
 function startOfDay(d: Date) {
   const out = new Date(d);
   out.setHours(0, 0, 0, 0);
   return out;
 }
-
 /** Monday of the week containing `d`. */
 function startOfWeek(d: Date) {
   const out = startOfDay(d);
-  const day = out.getDay();
-  // ISO week: Monday = 1. JS getDay: Sun=0,Mon=1,...,Sat=6.
-  const shift = (day + 6) % 7;
-  out.setDate(out.getDate() - shift);
+  out.setDate(out.getDate() - ((out.getDay() + 6) % 7));
   return out;
 }
-
 function addDays(d: Date, n: number) {
   const out = new Date(d);
   out.setDate(out.getDate() + n);
   return out;
 }
-
 function diffDays(a: Date, b: Date) {
-  return Math.round(
-    (startOfDay(a).getTime() - startOfDay(b).getTime()) / MS_PER_DAY,
-  );
+  return Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / MS_PER_DAY);
 }
-
+function parseDateOnly(s: string) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1);
+}
+function fmtShort(d: Date) {
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
 
-type Schedulable =
-  | { task: Task; kind: "bar"; startDay: number; endDay: number }
-  | { task: Task; kind: "milestone"; day: number };
+/* -------------------------------------------------------------------------- */
+/* Placement                                                                  */
+/* -------------------------------------------------------------------------- */
 
 /**
- * A dated task that sits outside the visible window. Carries the date so the
- * section can offer a jump to it — without this the task would be invisible
- * AND uncounted, which reads as "this task doesn't exist".
+ * A task's span in whole-day offsets from the window start. A scheduled
+ * window spans its days; a due-only task is a one-day bar on its due date
+ * (gr8r's convention — every dated task is a draggable bar, so the diamond
+ * glyph is free to mean "milestone" and nothing else).
  */
-type OffWindow = { task: Task; dir: "before" | "after"; date: Date };
+type Span = { startDay: number; endDay: number; kind: "range" | "due" };
 
-type Placement = Schedulable | OffWindow | null;
-
-const isOffWindow = (p: Placement): p is OffWindow =>
-  p !== null && "dir" in p;
-
-/**
- * Decide how a single task renders on the timeline given the visible window.
- * Returns null only for tasks with nothing plottable.
- *
- * Comparisons are in whole-day offsets, not raw timestamps: the window bounds
- * are midnights, so comparing a `due_at` of 14:00 on the final day against
- * `windowEnd` would drop it a day early.
- */
-function place(task: Task, windowStart: Date): Placement {
-  const lastDay = VISIBLE_DAYS - 1;
-
-  if (task.scheduled_start && task.scheduled_end) {
-    const startDate = new Date(task.scheduled_start);
-    const start = diffDays(startDate, windowStart);
-    const end = diffDays(new Date(task.scheduled_end), windowStart);
-    if (end < 0) return { task, dir: "before", date: startDate };
-    if (start > lastDay) return { task, dir: "after", date: startDate };
-    return {
-      task,
-      kind: "bar",
-      startDay: Math.max(start, 0),
-      endDay: Math.min(end, lastDay),
-    };
+function spanOf(task: Task, windowStart: Date): Span | null {
+  if (task.scheduled_start) {
+    const start = diffDays(new Date(task.scheduled_start), windowStart);
+    // A block ending at exactly midnight belongs to the previous day.
+    const endMs = task.scheduled_end
+      ? new Date(task.scheduled_end).getTime() - 1
+      : new Date(task.scheduled_start).getTime();
+    const end = Math.max(start, diffDays(new Date(endMs), windowStart));
+    return { startDay: start, endDay: end, kind: "range" };
   }
-
   if (task.due_at) {
-    const dueDate = new Date(task.due_at);
-    const day = diffDays(dueDate, windowStart);
-    if (day < 0) return { task, dir: "before", date: dueDate };
-    if (day > lastDay) return { task, dir: "after", date: dueDate };
-    return { task, kind: "milestone", day };
+    const day = diffDays(new Date(task.due_at), windowStart);
+    return { startDay: day, endDay: day, kind: "due" };
   }
-
   return null;
 }
 
+type Group = {
+  key: string;
+  label: string;
+  tone: keyof typeof COLUMN_PILL_CLASS;
+  icon: React.ReactNode;
+  tasks: Task[];
+};
+
+type Row =
+  | { type: "milestones"; y: number; h: number }
+  | { type: "group"; y: number; h: number; group: Group }
+  | { type: "task"; y: number; h: number; task: Task; span: Span; group: Group }
+  | { type: "hint"; y: number; h: number; text: string };
+
+export type TimelineMilestone = {
+  id: string;
+  name: string;
+  /** `YYYY-MM-DD`. */
+  date: string;
+  done: boolean;
+  /** Project name for cross-project lanes; null inside one project. */
+  project: string | null;
+};
+
+type Props = {
+  propertyId: string;
+  tasks: Task[];
+  assignees: Record<string, AssigneeInfo>;
+  hideDone: boolean;
+  /** Where the milestone lane reads from. Omit to hide the lane. */
+  milestoneScope?: { kind: "property" } | { kind: "project"; id: string };
+  defaultGroup?: GroupBy;
+  /** Called after a drag persisted, so hosts can refresh their own caches. */
+  onChanged?: () => void;
+  className?: string;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Gantt timeline — the gr8r model ported onto our data: a wide scrollable
+ * canvas (not a fixed 4-week window), Weeks/Months zoom, group by status or
+ * assignee, every dated task a draggable bar (drag moves it by whole days,
+ * the right edge resizes a scheduled window), sub-issue progress filled into
+ * the bar, `blocks` relations drawn as dependency arrows (dashed when the
+ * blocked task starts before its blocker ends), and a milestone lane on top.
+ * One scroll container: the left label pane is sticky so vertical scroll
+ * stays in lockstep, and the axis is sticky-top.
+ */
 export function TimelineView({
   propertyId,
   tasks,
   assignees,
   hideDone,
+  milestoneScope,
+  defaultGroup = "status",
+  onChanged,
+  className,
 }: Props) {
-  const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
-  const windowStart = anchor;
-  const windowEnd = addDays(windowStart, VISIBLE_DAYS - 1);
-  const today = startOfDay(new Date());
-  const todayOffset = diffDays(today, windowStart);
+  const qc = useQueryClient();
+  const openTask = useOpenTask(propertyId);
+  const [zoom, setZoom] = useState<Zoom>("weeks");
+  const [groupBy, setGroupBy] = useState<GroupBy>(defaultGroup);
+  const dayWidth = ZOOM[zoom].dayWidth;
 
-  const days = useMemo(
-    () => Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(windowStart, i)),
-    [windowStart],
+  const { data: deps = [] } = useQuery(taskDependenciesQueryOptions(propertyId));
+
+  // Milestones — property-wide or one project.
+  const projectScopeId = milestoneScope?.kind === "project" ? milestoneScope.id : "";
+  useMilestonesRealtime(projectScopeId);
+  const { data: projectMs = [] } = useQuery({
+    ...projectMilestonesQueryOptions(projectScopeId),
+    enabled: milestoneScope?.kind === "project",
+  });
+  const { data: propertyMs = [] } = useQuery({
+    ...propertyMilestonesQueryOptions(propertyId),
+    enabled: milestoneScope?.kind === "property",
+  });
+  const milestones = useMemo<TimelineMilestone[]>(() => {
+    if (!milestoneScope) return [];
+    if (milestoneScope.kind === "project")
+      return projectMs.map((m) => ({
+        id: m.id,
+        name: m.name,
+        date: m.due_date,
+        done: Boolean(m.completed_at),
+        project: null,
+      }));
+    return propertyMs.map((m) => ({
+      id: m.id,
+      name: m.name,
+      date: m.due_date,
+      done: Boolean(m.completed_at),
+      project: m.project?.name ?? null,
+    }));
+  }, [milestoneScope, projectMs, propertyMs]);
+
+  const visible = useMemo(
+    () => (hideDone ? tasks.filter((t) => t.status !== "done") : tasks),
+    [tasks, hideDone],
   );
 
-  const placedByStatus = useMemo(() => {
-    const byStatus = <T,>(): Record<TaskStatus, T[]> => ({
-      todo: [],
-      in_progress: [],
-      blocked: [],
-      done: [],
-    });
-    const out = byStatus<{ row: Schedulable }>();
-    const unscheduled = byStatus<Task>();
-    const before = byStatus<OffWindow>();
-    const after = byStatus<OffWindow>();
-
+  // Sub-issue progress: children present in the board's task set.
+  const progress = useMemo(() => {
+    const total = new Map<string, number>();
+    const done = new Map<string, number>();
     for (const t of tasks) {
-      const p = place(t, windowStart);
-      if (p === null) unscheduled[t.status].push(t);
-      else if (isOffWindow(p)) {
-        (p.dir === "before" ? before : after)[t.status].push(p);
-      } else out[t.status].push({ row: p });
+      if (!t.parent_id) continue;
+      total.set(t.parent_id, (total.get(t.parent_id) ?? 0) + 1);
+      if (t.status === "done") done.set(t.parent_id, (done.get(t.parent_id) ?? 0) + 1);
     }
+    return { total, done };
+  }, [tasks]);
 
-    // Nearest off-window task in each direction, so the jump lands on the
-    // closest week that actually has something rather than a blank one.
-    const nearest = (rows: OffWindow[], dir: "before" | "after") =>
-      rows.length === 0
-        ? null
-        : rows.reduce((best, r) =>
-            dir === "before"
-              ? r.date > best.date
-                ? r
-                : best
-              : r.date < best.date
-                ? r
-                : best,
-          ).date;
+  /* ── Window: today-centred, widened to cover every dated task ───────────── */
+  const today = startOfDay(new Date());
+  const todayKey = today.getTime();
+  const { windowStart, nDays } = useMemo(() => {
+    const back = zoom === "weeks" ? 21 : 56;
+    const span = zoom === "weeks" ? 7 * 13 : 7 * 34;
+    let start = startOfWeek(addDays(today, -back));
+    let end = addDays(start, span - 1);
+    for (const t of visible) {
+      const a = t.scheduled_start ? new Date(t.scheduled_start) : t.due_at ? new Date(t.due_at) : null;
+      const b = t.scheduled_end ? new Date(t.scheduled_end) : a;
+      if (a && a < start) start = startOfWeek(addDays(a, -7));
+      if (b && b > end) end = addDays(b, 14);
+    }
+    for (const m of milestones) {
+      const d = parseDateOnly(m.date);
+      if (d < start) start = startOfWeek(addDays(d, -7));
+      if (d > end) end = addDays(d, 14);
+    }
+    // Cap at ~2 years so one stray 2099 date can't make a 30k-px canvas.
+    const n = Math.min(Math.max(diffDays(end, start) + 1, span), 730);
+    return { windowStart: start, nDays: Math.ceil(n / 7) * 7 };
+    // `today` is derived each render; `todayKey` is its stable day value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, milestones, zoom, todayKey]);
+  const todayOffset = diffDays(today, windowStart);
+  const canvasWidth = nDays * dayWidth;
 
-    return { out, unscheduled, before, after, nearest };
-  }, [tasks, windowStart]);
+  /* ── Groups ─────────────────────────────────────────────────────────────── */
+  const groups = useMemo<Group[]>(() => {
+    if (groupBy === "status") {
+      return STATUS_IDS.filter((s) => !(hideDone && s === "done")).map((s) => {
+        const col = COLUMNS.find((c) => c.id === s)!;
+        return {
+          key: s,
+          label: col.label,
+          tone: col.pillTone,
+          icon: <StatusIcon status={s} className="size-3.5" />,
+          tasks: visible.filter((t) => t.status === s),
+        };
+      });
+    }
+    if (groupBy === "assignee") {
+      const byId = new Map<string, Task[]>();
+      const none: Task[] = [];
+      for (const t of visible) {
+        if (!t.assignee_id) none.push(t);
+        else byId.set(t.assignee_id, [...(byId.get(t.assignee_id) ?? []), t]);
+      }
+      const out: Group[] = [...byId.entries()]
+        .map(([id, ts]) => ({
+          key: id,
+          label: assignees[id]?.name ?? "Member",
+          tone: "neutral" as const,
+          icon: <PersonAvatar info={assignees[id]} />,
+          tasks: ts,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      if (none.length)
+        out.push({
+          key: "none",
+          label: "Unassigned",
+          tone: "neutral",
+          icon: <PersonAvatar />,
+          tasks: none,
+        });
+      return out;
+    }
+    return [{ key: "all", label: "All tasks", tone: "neutral", icon: null, tasks: visible }];
+  }, [groupBy, visible, hideDone, assignees]);
 
-  const visibleStatuses = STATUS_IDS.filter(
-    (s) => !(hideDone && s === "done"),
+  /* ── Rows (shared by both panes) ────────────────────────────────────────── */
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    let y = 0;
+    type RowInput = Row extends infer R ? (R extends Row ? Omit<R, "y"> : never) : never;
+    const push = (r: RowInput) => {
+      out.push({ ...r, y } as Row);
+      y += r.h;
+    };
+    if (milestones.length) push({ type: "milestones", h: ROW_HEIGHT });
+    for (const g of groups) {
+      if (groupBy !== "none") push({ type: "group", h: GROUP_HEIGHT, group: g });
+      const dated = g.tasks
+        .map((t) => ({ t, span: spanOf(t, windowStart) }))
+        .filter((x): x is { t: Task; span: Span } => x.span !== null)
+        .sort((a, b) => a.span.startDay - b.span.startDay || a.span.endDay - b.span.endDay);
+      const undated = g.tasks.length - dated.length;
+      for (const { t, span } of dated) push({ type: "task", h: ROW_HEIGHT, task: t, span, group: g });
+      if (dated.length === 0 && undated === 0)
+        push({ type: "hint", h: HINT_HEIGHT, text: "Nothing here" });
+      if (undated > 0)
+        push({ type: "hint", h: HINT_HEIGHT, text: `No date — ${undated}` });
+    }
+    return out;
+  }, [groups, groupBy, milestones.length, windowStart]);
+  const bodyHeight = rows.reduce((acc, r) => acc + r.h, 0);
+
+  const rowCenterByTask = useMemo(() => {
+    const m = new Map<string, { y: number; span: Span }>();
+    for (const r of rows)
+      if (r.type === "task") m.set(r.task.id, { y: r.y + r.h / 2, span: r.span });
+    return m;
+  }, [rows]);
+
+  /* ── Drag (move / resize) ───────────────────────────────────────────────── */
+  const [drag, setDrag] = useState<{
+    id: string;
+    mode: "move" | "resize";
+    deltaDays: number;
+  } | null>(null);
+  const suppressClick = useRef(false);
+
+  const persistShift = useCallback(
+    async (task: Task, span: Span, mode: "move" | "resize", deltaDays: number) => {
+      if (deltaDays === 0) return;
+      const shift = (iso: string) => new Date(new Date(iso).getTime() + deltaDays * MS_PER_DAY).toISOString();
+      let patch: Parameters<typeof rescheduleTask>[0];
+      let optimistic: Partial<Task>;
+      if (mode === "resize") {
+        // Only ranges resize. Clamp so the window never inverts.
+        const start = new Date(task.scheduled_start!);
+        const end = new Date(task.scheduled_end ?? task.scheduled_start!);
+        const next = new Date(end.getTime() + deltaDays * MS_PER_DAY);
+        if (next <= start) return;
+        patch = { taskId: task.id, scheduledEnd: next.toISOString() };
+        optimistic = { scheduled_end: next.toISOString() };
+      } else if (span.kind === "range") {
+        patch = {
+          taskId: task.id,
+          scheduledStart: shift(task.scheduled_start!),
+          scheduledEnd: task.scheduled_end ? shift(task.scheduled_end) : undefined,
+          // Keep the due date travelling with the block when both exist.
+          dueAt: task.due_at ? shift(task.due_at) : undefined,
+        };
+        optimistic = {
+          scheduled_start: patch.scheduledStart,
+          scheduled_end: patch.scheduledEnd ?? task.scheduled_end,
+          due_at: patch.dueAt ?? task.due_at,
+        };
+      } else {
+        patch = { taskId: task.id, dueAt: shift(task.due_at!) };
+        optimistic = { due_at: patch.dueAt };
+      }
+      qc.setQueryData<Task[]>(["tasks", propertyId], (prev) =>
+        (prev ?? []).map((t) => (t.id === task.id ? { ...t, ...optimistic } : t)),
+      );
+      const res = await rescheduleTask(patch);
+      if ("error" in res) toast.error(res.error);
+      else {
+        const n = Math.abs(deltaDays);
+        toast.success(
+          mode === "resize"
+            ? `${deltaDays > 0 ? "Extended" : "Shortened"} “${task.title}” by ${n} day${n > 1 ? "s" : ""}`
+            : `Moved “${task.title}” ${n} day${n > 1 ? "s" : ""} ${deltaDays > 0 ? "later" : "earlier"}`,
+          { duration: 2200 },
+        );
+      }
+      void qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+      onChanged?.();
+    },
+    [qc, propertyId, onChanged],
   );
 
-  // Total task rows actually rendered, used to size the timeline background.
-  const totalRows = visibleStatuses.reduce(
-    (acc, s) => acc + Math.max(placedByStatus.out[s].length, 0),
-    0,
-  );
+  function startDrag(
+    e: React.PointerEvent,
+    task: Task,
+    span: Span,
+    mode: "move" | "resize",
+  ) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const x0 = e.clientX;
+    let moved = false;
+    let delta = 0;
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0;
+      if (Math.abs(dx) > 4) moved = true;
+      if (!moved) return;
+      const next = Math.round(dx / dayWidth);
+      if (next !== delta) {
+        delta = next;
+        setDrag({ id: task.id, mode, deltaDays: delta });
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setDrag(null);
+      if (!moved) return;
+      suppressClick.current = true;
+      window.setTimeout(() => (suppressClick.current = false), 80);
+      void persistShift(task, span, mode, delta);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  /* ── Scroll to today on mount + zoom change ─────────────────────────────── */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const todayX = todayOffset * dayWidth;
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = Math.max(0, todayX - 160);
+    // Re-centre only when the zoom changes, not on every data refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
+  const jumpToToday = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ left: Math.max(0, todayX - 160), behavior: "smooth" });
+  };
+
+  /* ── Axis ───────────────────────────────────────────────────────────────── */
+  const months = useMemo(() => {
+    const out: { label: string; startDay: number; days: number }[] = [];
+    for (let i = 0; i < nDays; i++) {
+      const d = addDays(windowStart, i);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const last = out[out.length - 1];
+      if (last && (last as { key?: string }).key === key) last.days++;
+      else
+        out.push(
+          Object.assign(
+            {
+              label: d.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+              startDay: i,
+              days: 1,
+            },
+            { key },
+          ),
+        );
+    }
+    return out;
+  }, [windowStart, nDays]);
+
+  const weekCount = nDays / 7;
+  const anyDated = rows.some((r) => r.type === "task");
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Nav row — 36px, matching the board toolbar directly above it. */}
-      <div className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
-        <div className="flex items-center gap-0.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={() => setAnchor((d) => addDays(d, -7))}
-            aria-label="Previous week"
-          >
-            <ChevronLeft className="size-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={() => setAnchor((d) => addDays(d, 7))}
-            aria-label="Next week"
-          >
-            <ChevronRight className="size-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={() => setAnchor(startOfWeek(new Date()))}
-          >
-            Today
-          </Button>
-        </div>
-        <h2 className="truncate text-sm font-medium text-foreground">
-          {windowStart.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          })}{" "}
-          –{" "}
-          {windowEnd.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </h2>
-        <div className="hidden items-center gap-3 text-xs text-faint-foreground lg:flex">
+    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
+      {/* Toolbar — 36px, matching the board toolbar above it. */}
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
+        <ToggleGroup
+          value={[zoom]}
+          onValueChange={(v) => {
+            const next = (v as Zoom[])[0];
+            if (next) setZoom(next);
+          }}
+          variant="outline"
+          size="sm"
+          spacing={0}
+          aria-label="Zoom"
+        >
+          {(Object.keys(ZOOM) as Zoom[]).map((z) => (
+            <ToggleGroupItem key={z} value={z}>
+              {ZOOM[z].label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <NativeSelect
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+          aria-label="Group by"
+          className="h-7 w-auto text-sm"
+        >
+          <option value="status">Group: Status</option>
+          <option value="assignee">Group: Assignee</option>
+          <option value="none">No grouping</option>
+        </NativeSelect>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={jumpToToday}>
+          <Crosshair className="size-3.5" />
+          Today
+        </Button>
+        <div className="ml-auto hidden items-center gap-3 text-xs text-faint-foreground lg:flex">
           <span className="inline-flex items-center gap-1.5">
-            <span className="block h-1.5 w-4 rounded-full bg-info" />
-            Scheduled range
+            <span className="block h-1.5 w-4 rounded-full bg-pill-info" />
+            Drag to move · edge to resize
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Diamond className="size-3 fill-warning text-warning" />
-            Due date
-          </span>
+          {milestones.length ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Diamond className="size-3 fill-foreground text-foreground" />
+              Milestone
+            </span>
+          ) : null}
+          {deps.length ? (
+            <span className="inline-flex items-center gap-1.5">
+              <svg width="18" height="8" aria-hidden="true">
+                <path d="M0 4 H14 M10 1 L14 4 L10 7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Blocks
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* Body — left labels + right scrollable timeline */}
-      <div className="flex min-h-0 flex-1 overflow-auto">
-        {/* Left label column */}
+      {/* Body — one scroll container; left pane sticky-left, axis sticky-top. */}
+      <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto">
+        {/* Left labels */}
         <div
           className="sticky left-0 z-20 shrink-0 border-r border-border bg-card"
           style={{ width: LABEL_WIDTH }}
         >
-          {/* Header spacer to match the date axis */}
           <div
-            className="sticky top-0 z-10 border-b border-border bg-card"
+            className="sticky top-0 z-10 flex items-end border-b border-border bg-card px-3 pb-1.5 text-xs font-medium text-faint-foreground"
             style={{ height: AXIS_HEIGHT }}
-          />
-
-          {visibleStatuses.map((status) => {
-            const col = COLUMNS.find((c) => c.id === status)!;
-            const rows = placedByStatus.out[status];
-            const offRows = placedByStatus.unscheduled[status];
-            const before = placedByStatus.before[status];
-            const after = placedByStatus.after[status];
-            const offWindow = before.length + after.length;
-            return (
-              <div key={status}>
-                {/* One group-header voice across list / kanban / timeline:
-                    StatusIcon + 14px/500 foreground label + faint count on a
-                    muted band. Height comes from GROUP_HEIGHT (not padding)
-                    so the border-box matches the right pane's spacer exactly
-                    — padding here drifted the panes 1px per status section. */}
-                <header
-                  className="flex items-center gap-2 border-b border-border bg-muted px-3"
-                  style={{ height: GROUP_HEIGHT }}
+          >
+            Task
+          </div>
+          <div className="relative" style={{ height: bodyHeight }}>
+            {rows.map((r, i) => {
+              if (r.type === "milestones")
+                return (
+                  <div
+                    key="ms"
+                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted/60 px-3 text-xs font-medium text-muted-foreground"
+                    style={{ top: r.y, height: r.h }}
+                  >
+                    <Diamond className="size-3" />
+                    Milestones
+                    <span className="ml-auto tabular-nums text-faint-foreground">{milestones.length}</span>
+                  </div>
+                );
+              if (r.type === "group")
+                return (
+                  <header
+                    key={`g-${r.group.key}`}
+                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted px-3"
+                    style={{ top: r.y, height: r.h }}
+                  >
+                    {r.group.icon}
+                    <h3 className="truncate text-sm font-medium text-foreground">{r.group.label}</h3>
+                    <span className="ml-auto text-xs tabular-nums text-faint-foreground">
+                      {r.group.tasks.length}
+                    </span>
+                  </header>
+                );
+              if (r.type === "hint")
+                return (
+                  <div
+                    key={`h-${i}`}
+                    className="absolute inset-x-0 flex items-center border-b border-border px-3 text-xs text-faint-foreground"
+                    style={{ top: r.y, height: r.h }}
+                  >
+                    {r.text}
+                  </div>
+                );
+              const sub = progress.total.get(r.task.id);
+              return (
+                <button
+                  key={r.task.id}
+                  type="button"
+                  onClick={() => openTask(r.task.id)}
+                  className="absolute inset-x-0 flex items-center gap-2 border-b border-border px-3 text-left transition-colors hover:bg-accent"
+                  style={{ top: r.y, height: r.h }}
                 >
-                  <StatusIcon status={col.id} className="size-3.5" />
-                  <h3 className="truncate text-sm font-medium text-foreground">
-                    {col.label}
-                  </h3>
-                  <span className="ml-auto text-xs tabular-nums text-faint-foreground">
-                    {rows.length + offRows.length + offWindow}
+                  <StatusIcon status={r.task.status} className="size-3.5 shrink-0" />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-sm",
+                      r.task.status === "done" ? "text-muted-foreground line-through" : "text-foreground",
+                    )}
+                  >
+                    {r.task.title}
                   </span>
-                </header>
-                {rows.length === 0 && offRows.length === 0 && offWindow === 0 ? (
-                  <div
-                    className="flex items-center border-b border-border px-3 text-xs text-faint-foreground"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    Nothing scheduled
-                  </div>
-                ) : (
-                  rows.map(({ row }) => (
-                    <RowLabel
-                      key={row.task.id}
-                      task={row.task}
-                      assignee={
-                        row.task.assignee_id
-                          ? assignees[row.task.assignee_id]
-                          : undefined
-                      }
-                      propertyId={propertyId}
-                    />
-                  ))
-                )}
-                {offRows.length > 0 ? (
-                  <div
-                    className="flex items-center border-b border-border px-3"
-                    style={{ height: HINT_HEIGHT }}
-                  >
-                    <p className="text-xs text-faint-foreground">
-                      No date — {offRows.length}
-                    </p>
-                  </div>
-                ) : null}
-                {offWindow > 0 ? (
-                  <div
-                    className="flex items-center border-b border-border px-3"
-                    style={{ height: HINT_HEIGHT }}
-                  >
-                    <p className="text-xs text-faint-foreground">
-                      Off window — {offWindow}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+                  {sub ? (
+                    <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
+                      {progress.done.get(r.task.id) ?? 0}/{sub}
+                    </span>
+                  ) : null}
+                  {r.task.assignee_id ? (
+                    <PersonAvatar info={assignees[r.task.assignee_id]} />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Right timeline */}
-        <div className="relative shrink-0" style={{ width: VISIBLE_DAYS * DAY_WIDTH }}>
-          {/* Date axis */}
-          <DayHeader days={days} todayOffset={todayOffset} />
-
-          {/* Body grid + bars */}
-          <div className="relative">
-            {/* Background day grid — drawn once for the whole body so column
-                lines stay continuous across status sections. `--border` is
-                already a 7% warm hairline; it is not thinned further. */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              aria-hidden
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px " +
-                  DAY_WIDTH +
-                  "px)",
-              }}
-            />
-            {/* Weekend tint */}
-            {days.map((d, i) =>
-              d.getDay() === 0 || d.getDay() === 6 ? (
+        {/* Right canvas */}
+        <div className="relative shrink-0" style={{ width: canvasWidth }}>
+          {/* Axis */}
+          <div
+            className="sticky top-0 z-10 border-b border-border bg-card"
+            style={{ height: AXIS_HEIGHT, width: canvasWidth }}
+          >
+            <div className="relative flex" style={{ height: AXIS_MONTH_HEIGHT }}>
+              {months.map((m) => (
                 <div
-                  key={i}
-                  aria-hidden
-                  className="pointer-events-none absolute top-0 bg-muted"
-                  style={{
-                    left: i * DAY_WIDTH,
-                    width: DAY_WIDTH,
-                    height: "100%",
-                  }}
-                />
-              ) : null,
-            )}
-            {/* Today line — a 1px hairline, not a bar */}
-            {todayOffset >= 0 && todayOffset < VISIBLE_DAYS ? (
+                  key={`${m.label}-${m.startDay}`}
+                  className="flex items-center overflow-hidden border-l border-border text-xs font-medium text-foreground"
+                  style={{ width: m.days * dayWidth }}
+                >
+                  {/* Month name sticks to the left while its month scrolls out. */}
+                  <span className="sticky left-[calc(var(--label-w)+8px)] truncate px-2" style={{ "--label-w": `${LABEL_WIDTH}px` } as React.CSSProperties}>
+                    {m.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="relative flex border-t border-border" style={{ height: AXIS_DAY_HEIGHT }}>
+              {zoom === "weeks"
+                ? Array.from({ length: nDays }, (_, i) => {
+                    const d = addDays(windowStart, i);
+                    const weekend = d.getDay() === 0 || d.getDay() === 6;
+                    const isToday = i === todayOffset;
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex items-center justify-center text-[11px] tabular-nums",
+                          d.getDay() === 1 ? "border-l border-border" : "border-l border-border/40",
+                          isToday
+                            ? "font-semibold text-primary"
+                            : weekend
+                              ? "text-faint-foreground/70"
+                              : "text-faint-foreground",
+                        )}
+                        style={{ width: dayWidth }}
+                        title={d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+                      >
+                        {d.getDate()}
+                      </div>
+                    );
+                  })
+                : Array.from({ length: weekCount }, (_, i) => {
+                    const d = addDays(windowStart, i * 7);
+                    const holdsToday = todayOffset >= i * 7 && todayOffset < i * 7 + 7;
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex items-center border-l border-border pl-1 text-[11px] tabular-nums",
+                          holdsToday ? "font-semibold text-primary" : "text-faint-foreground",
+                        )}
+                        style={{ width: dayWidth * 7 }}
+                      >
+                        {fmtShort(d)}
+                      </div>
+                    );
+                  })}
+            </div>
+          </div>
+
+          {/* Grid */}
+          <div className="relative" style={{ height: bodyHeight, width: canvasWidth }}>
+            {/* Weekend wash (weeks zoom only — at 11px/day it reads as noise) */}
+            {zoom === "weeks"
+              ? Array.from({ length: nDays }, (_, i) => {
+                  const d = addDays(windowStart, i);
+                  return d.getDay() === 0 || d.getDay() === 6 ? (
+                    <div
+                      key={`we-${i}`}
+                      className="absolute inset-y-0 bg-muted/50"
+                      style={{ left: i * dayWidth, width: dayWidth }}
+                      aria-hidden="true"
+                    />
+                  ) : null;
+                })
+              : null}
+            {/* Week lines */}
+            {Array.from({ length: weekCount + 1 }, (_, i) => (
               <div
-                aria-hidden
-                className="pointer-events-none absolute top-0 z-10 w-px bg-destructive"
-                style={{
-                  left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2,
-                  height: "100%",
-                }}
+                key={`wl-${i}`}
+                className="absolute inset-y-0 w-px bg-border/70"
+                style={{ left: i * 7 * dayWidth }}
+                aria-hidden="true"
+              />
+            ))}
+            {/* Row backgrounds */}
+            {rows.map((r, i) => (
+              <div
+                key={`rb-${i}`}
+                className={cn(
+                  "absolute inset-x-0 border-b border-border",
+                  r.type === "group" && "bg-muted",
+                  r.type === "milestones" && "bg-muted/60",
+                )}
+                style={{ top: r.y, height: r.h }}
+                aria-hidden="true"
+              />
+            ))}
+            {/* Today */}
+            {todayOffset >= 0 && todayOffset < nDays ? (
+              <div
+                className="absolute inset-y-0 z-[2] w-0.5 bg-primary/70"
+                style={{ left: todayX + dayWidth / 2 }}
+                title="Today"
+                aria-hidden="true"
               />
             ) : null}
 
-            {/* Rows */}
-            {visibleStatuses.map((status) => {
-              const rows = placedByStatus.out[status];
-              const offRows = placedByStatus.unscheduled[status];
-              const before = placedByStatus.before[status];
-              const after = placedByStatus.after[status];
-              const offWindow = before.length + after.length;
-              const sectionRows = Math.max(rows.length, 0);
+            {/* Milestone lane */}
+            {rows.map((r) =>
+              r.type === "milestones" ? (
+                <MilestoneLane
+                  key="ms-lane"
+                  milestones={milestones}
+                  windowStart={windowStart}
+                  dayWidth={dayWidth}
+                  y={r.y}
+                  h={r.h}
+                />
+              ) : null,
+            )}
+
+            {/* Bars */}
+            {rows.map((r) => {
+              if (r.type !== "task") return null;
+              const dragging = drag?.id === r.task.id ? drag : null;
+              const moveDelta = dragging?.mode === "move" ? dragging.deltaDays : 0;
+              const resizeDelta = dragging?.mode === "resize" ? dragging.deltaDays : 0;
+              const startDay = r.span.startDay + moveDelta;
+              const endDay = Math.max(startDay, r.span.endDay + moveDelta + resizeDelta);
+              const x = startDay * dayWidth;
+              const w = Math.max(dayWidth, (endDay - startDay + 1) * dayWidth) - 2;
+              const inside = w > INSIDE_LABEL_MIN;
+              const total = progress.total.get(r.task.id) ?? 0;
+              const pct =
+                r.task.status === "done"
+                  ? 100
+                  : total > 0
+                    ? Math.round(((progress.done.get(r.task.id) ?? 0) / total) * 100)
+                    : 0;
+              const pill = COLUMN_PILL_CLASS[r.group.tone === "neutral" && groupBy === "status" ? r.group.tone : (COLUMNS.find((c) => c.id === r.task.status)?.pillTone ?? "neutral")].pill;
+              const startDate = addDays(windowStart, startDay);
+              const endDate = addDays(windowStart, endDay);
+              const tip = `${r.task.title} · ${fmtShort(startDate)}${endDay !== startDay ? ` → ${fmtShort(endDate)}` : ""}`;
               return (
-                <div key={status}>
-                  {/* Status band spacer. `bg-card` under an inset `bg-muted`
-                      layer reproduces the left pane's band exactly — the
-                      muted token is translucent, so painting it straight onto
-                      the grid/weekend tint made the two halves of the same
-                      band read as different fills. */}
+                <div key={r.task.id} className="contents">
                   <div
-                    className="relative border-b border-border bg-card"
-                    style={{ height: GROUP_HEIGHT }}
+                    role="button"
+                    tabIndex={0}
+                    title={tip}
+                    aria-label={tip}
+                    onPointerDown={(e) => startDrag(e, r.task, r.span, "move")}
+                    onClick={() => {
+                      if (!suppressClick.current) openTask(r.task.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openTask(r.task.id);
+                      }
+                    }}
+                    className={cn(
+                      "absolute z-[3] flex items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs font-medium select-none",
+                      pill,
+                      dragging ? "cursor-grabbing shadow-overlay ring-1 ring-primary/40" : "cursor-grab hover:brightness-95",
+                      r.task.status === "done" && "opacity-60",
+                    )}
+                    style={{
+                      left: x + 1,
+                      top: r.y + (ROW_HEIGHT - BAR_HEIGHT) / 2,
+                      width: w,
+                      height: BAR_HEIGHT,
+                    }}
                   >
-                    <div aria-hidden className="absolute inset-0 bg-muted" />
-                  </div>
-                  {sectionRows === 0 && offRows.length === 0 && offWindow === 0 ? (
-                    <div
-                      className="border-b border-border"
-                      style={{ height: ROW_HEIGHT }}
-                    />
-                  ) : (
-                    rows.map(({ row }) => (
-                      <TimelineRow
-                        key={row.task.id}
-                        item={row}
-                        propertyId={propertyId}
+                    {pct > 0 && pct < 100 ? (
+                      <span
+                        className="absolute inset-y-0 left-0 bg-foreground/10"
+                        style={{ width: `${pct}%` }}
+                        aria-hidden="true"
                       />
-                    ))
-                  )}
-                  {offRows.length > 0 ? (
-                    <div
-                      className="flex items-center border-b border-border px-3"
-                      style={{ height: HINT_HEIGHT }}
+                    ) : null}
+                    {inside ? (
+                      <>
+                        {r.task.assignee_id ? (
+                          <PersonAvatar info={assignees[r.task.assignee_id]} size="xs" />
+                        ) : null}
+                        <span className="relative truncate">{r.task.title}</span>
+                      </>
+                    ) : null}
+                    {r.span.kind === "range" ? (
+                      <span
+                        onPointerDown={(e) => startDrag(e, r.task, r.span, "resize")}
+                        className="absolute inset-y-0 right-0 w-2 cursor-ew-resize"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </div>
+                  {!inside ? (
+                    <span
+                      className="pointer-events-none absolute z-[3] truncate text-xs text-muted-foreground"
+                      style={{ left: x + w + 8, top: r.y + (ROW_HEIGHT - 16) / 2, maxWidth: 240, lineHeight: "16px" }}
                     >
-                      <p className="text-xs text-faint-foreground">
-                        Add a due date to plot here
-                      </p>
-                    </div>
-                  ) : null}
-                  {offWindow > 0 ? (
-                    <div
-                      className="relative flex items-center gap-1 border-b border-border px-2"
-                      style={{ height: HINT_HEIGHT }}
-                    >
-                      {before.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const d = placedByStatus.nearest(before, "before");
-                            if (d) setAnchor(startOfWeek(d));
-                          }}
-                          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-                        >
-                          <ChevronLeft className="size-3.5" />
-                          {before.length} earlier
-                        </button>
-                      ) : null}
-                      {after.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const d = placedByStatus.nearest(after, "after");
-                            if (d) setAnchor(startOfWeek(d));
-                          }}
-                          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-                        >
-                          {after.length} later
-                          <ChevronRight className="size-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
+                      {r.task.title}
+                    </span>
                   ) : null}
                 </div>
               );
             })}
 
-            {totalRows === 0 ? (
-              <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-                No tasks fall within this window.
+            {/* Dependency arrows */}
+            <svg
+              className="pointer-events-none absolute left-0 top-0 z-[2]"
+              width={canvasWidth}
+              height={bodyHeight}
+              viewBox={`0 0 ${canvasWidth} ${bodyHeight}`}
+              aria-hidden="true"
+            >
+              {deps.map((d) => {
+                const a = rowCenterByTask.get(d.blocker);
+                const b = rowCenterByTask.get(d.blocked);
+                if (!a || !b) return null;
+                const x1 = (a.span.endDay + 1) * dayWidth;
+                const y1 = a.y;
+                const x2 = b.span.startDay * dayWidth;
+                const y2 = b.y;
+                const conflict = x2 < x1;
+                const c1 = Math.max(x1 + 12, x2 - 12);
+                const c2 = Math.min(x1 + 12, x2 - 12);
+                return (
+                  <g
+                    key={`${d.blocker}-${d.blocked}`}
+                    className={conflict ? "text-warning" : "text-muted-foreground"}
+                  >
+                    <path
+                      d={`M${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2 - 1} ${y2}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeDasharray={conflict ? "3 3" : undefined}
+                    />
+                    <path
+                      d={`M${x2 - 6} ${y2 - 3.5} L${x2 - 1} ${y2} L${x2 - 6} ${y2 + 3.5}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {!anyDated && milestones.length === 0 ? (
+              <div className="sticky left-0 flex w-[min(100%,36rem)] items-center px-6 py-10 text-sm text-muted-foreground">
+                Nothing on the timeline yet — give tasks a due date or a scheduled window to see them here.
               </div>
             ) : null}
           </div>
@@ -468,174 +881,86 @@ export function TimelineView({
   );
 }
 
-function DayHeader({
-  days,
-  todayOffset,
-}: {
-  days: Date[];
-  todayOffset: number;
-}) {
-  // Group consecutive days under their month label.
-  const months: { label: string; start: number; span: number }[] = [];
-  for (let i = 0; i < days.length; i++) {
-    const d = days[i]!;
-    const label = d.toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
-    });
-    const last = months[months.length - 1];
-    if (last && last.label === label) last.span += 1;
-    else months.push({ label, start: i, span: 1 });
-  }
+/* -------------------------------------------------------------------------- */
+/* Pieces                                                                     */
+/* -------------------------------------------------------------------------- */
 
+function PersonAvatar({ info, size = "sm" }: { info?: AssigneeInfo; size?: "xs" | "sm" }) {
+  const cls = size === "xs" ? "size-4 text-[9px]" : "size-5 text-[10px]";
   return (
-    <div
-      className="sticky top-0 z-10 border-b border-border bg-card"
-      style={{ height: AXIS_HEIGHT }}
-    >
-      <div
-        className="relative border-b border-border"
-        style={{ height: AXIS_MONTH_HEIGHT }}
-      >
-        {months.map((m) => (
-          <span
-            key={m.start}
-            className="absolute top-0 truncate px-2 text-xs font-medium text-faint-foreground"
-            style={{
-              left: m.start * DAY_WIDTH,
-              width: m.span * DAY_WIDTH,
-              lineHeight: `${AXIS_MONTH_HEIGHT}px`,
-            }}
+    <Avatar className={cn(cls, "shrink-0")} title={info?.name}>
+      {info?.avatar ? <AvatarImage src={info.avatar} alt="" /> : null}
+      <AvatarFallback className="bg-accent-pressed font-medium text-secondary-ink">
+        {info ? initials(info.name) : "–"}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+/**
+ * Milestone lane — one diamond per date (same-day milestones merge into one
+ * with a "+N"), and each label may only use the room up to the next diamond;
+ * cramped ones show just the diamond. The tooltip always carries everything.
+ */
+function MilestoneLane({
+  milestones,
+  windowStart,
+  dayWidth,
+  y,
+  h,
+}: {
+  milestones: TimelineMilestone[];
+  windowStart: Date;
+  dayWidth: number;
+  y: number;
+  h: number;
+}) {
+  const byDate = new Map<string, TimelineMilestone[]>();
+  for (const m of milestones) byDate.set(m.date, [...(byDate.get(m.date) ?? []), m]);
+  const pts = [...byDate.entries()]
+    .sort(([a], [b]) => (a > b ? 1 : -1))
+    .map(([date, list]) => ({
+      date,
+      list,
+      x: diffDays(parseDateOnly(date), windowStart) * dayWidth + dayWidth / 2,
+    }));
+  return (
+    <>
+      {pts.map((pt, i) => {
+        const room = (pts[i + 1] ? pts[i + 1]!.x : Infinity) - pt.x - 24;
+        const first = pt.list[0]!;
+        const allDone = pt.list.every((m) => m.done);
+        const name = first.name + (pt.list.length > 1 ? ` +${pt.list.length - 1}` : "");
+        const tip =
+          pt.list.map((m) => m.name + (m.project ? ` (${m.project})` : "")).join(" · ") +
+          " · " +
+          fmtShort(parseDateOnly(pt.date));
+        return (
+          <div
+            key={pt.date}
+            className="absolute z-[3] flex items-center gap-2"
+            style={{ left: pt.x - 7, top: y + (h - 18) / 2, height: 18 }}
+            title={tip}
+            tabIndex={0}
+            aria-label={`Milestone: ${tip}`}
           >
-            {m.label}
-          </span>
-        ))}
-      </div>
-      <div className="relative" style={{ height: AXIS_DAY_HEIGHT }}>
-        {days.map((d, i) => {
-          const isToday = i === todayOffset;
-          return (
-            <div
-              key={i}
+            <Diamond
               className={cn(
-                // 12px faint ticks on one line — the today column is marked
-                // by ink plus the hairline today-line, not a filled disc.
-                "absolute top-0 flex items-center justify-center gap-1 text-xs tabular-nums text-faint-foreground",
-                isToday && "font-medium text-destructive",
+                "size-3.5 shrink-0",
+                allDone ? "fill-success text-success" : "fill-foreground text-foreground",
               )}
-              style={{
-                left: i * DAY_WIDTH,
-                width: DAY_WIDTH,
-                height: AXIS_DAY_HEIGHT,
-              }}
-            >
-              <span>
-                {d.toLocaleDateString(undefined, { weekday: "narrow" })}
+            />
+            {room >= 28 ? (
+              <span
+                className="truncate text-xs font-medium text-foreground"
+                style={{ maxWidth: Number.isFinite(room) ? Math.round(room) : undefined }}
+              >
+                {name}
               </span>
-              <span>{d.getDate()}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RowLabel({
-  task,
-  assignee,
-  propertyId,
-}: {
-  task: Task;
-  assignee: AssigneeInfo | undefined;
-  propertyId: string;
-}) {
-  const open = useOpenTask(propertyId);
-  return (
-    <button
-      type="button"
-      onClick={() => open(task.id)}
-      className="flex w-full items-center gap-3 border-b border-border px-3 py-1.5 text-left hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-      style={{ height: ROW_HEIGHT }}
-    >
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-        {task.title}
-      </span>
-      {task.assignee_id ? (
-        <Avatar size="sm" className="size-5 shrink-0">
-          {assignee?.avatar ? (
-            <AvatarImage src={assignee.avatar} alt={assignee.name} />
-          ) : null}
-          <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-            {initials(assignee?.name ?? "??")}
-          </AvatarFallback>
-        </Avatar>
-      ) : null}
-    </button>
-  );
-}
-
-function TimelineRow({
-  item,
-  propertyId,
-}: {
-  item: Schedulable;
-  propertyId: string;
-}) {
-  const open = useOpenTask(propertyId);
-  const priority = PRIORITY_META[item.task.priority];
-  return (
-    <div
-      className="relative border-b border-border"
-      style={{ height: ROW_HEIGHT }}
-    >
-      {item.kind === "bar" ? (
-        <button
-          type="button"
-          title={`${item.task.title} — ${priority.label}`}
-          onClick={() => open(item.task.id)}
-          className={cn(
-            // Hover is a fill-strength change only — no ring, no lift, no
-            // border change. The blue focus shadow is the focus signal.
-            "absolute top-1/2 -translate-y-1/2 truncate rounded-md px-2 text-left text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus",
-            // Semantic ramp — priority is the only signal this view carries
-            // for a bar (the lanes are already grouped by status).
-            item.task.priority === "urgent" && "bg-destructive",
-            item.task.priority === "high" && "bg-warning",
-            item.task.priority === "medium" && "bg-info",
-            item.task.priority === "low" && "bg-muted-foreground",
-            item.task.status === "done" && "opacity-60",
-          )}
-          style={{
-            left: item.startDay * DAY_WIDTH + 2,
-            width: Math.max((item.endDay - item.startDay + 1) * DAY_WIDTH - 4, DAY_WIDTH - 4),
-            height: BAR_HEIGHT,
-            lineHeight: `${BAR_HEIGHT}px`,
-          }}
-        >
-          {item.task.title}
-        </button>
-      ) : (
-        <button
-          type="button"
-          title={`${item.task.title} — due`}
-          onClick={() => open(item.task.id)}
-          className="absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-md hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-          style={{ left: item.day * DAY_WIDTH + DAY_WIDTH / 2 }}
-          aria-label={`${item.task.title}, due milestone`}
-        >
-          <Diamond
-            className={cn(
-              "size-4",
-              item.task.priority === "urgent" && "fill-destructive text-destructive",
-              item.task.priority === "high" && "fill-warning text-warning",
-              item.task.priority === "medium" && "fill-info text-info",
-              item.task.priority === "low" && "fill-muted-foreground text-muted-foreground",
-              item.task.status === "done" && "opacity-50",
-            )}
-          />
-        </button>
-      )}
-    </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </>
   );
 }

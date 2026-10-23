@@ -88,6 +88,9 @@ export type EntityColor =
   | "rose"
   | "violet";
 export type ProjectStatus = "active" | "planned" | "completed" | "archived";
+/** Who performed an `activity_log` row (migration 0106). */
+export type ActivityActorKind = "user" | "system" | "workflow" | "ai";
+export type ActivityEntityKind = "task" | "project" | "milestone";
 export type WorkflowMode = "instant" | "durable";
 // Kept in sync with the CHECKs in migration 0057_forms.sql.
 export type FormStatus = "draft" | "published" | "closed";
@@ -1003,6 +1006,8 @@ export interface Database {
           archived_at: string | null;
           created_at: string;
           updated_at: string;
+          /** The accountable person for the initiative (migration 0106). */
+          lead_user_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1017,6 +1022,7 @@ export interface Database {
           position?: number;
           created_by?: string | null;
           archived_at?: string | null;
+          lead_user_id?: string | null;
         };
         Update: Partial<{
           name: string;
@@ -1028,6 +1034,7 @@ export interface Database {
           target_date: string | null;
           position: number;
           archived_at: string | null;
+          lead_user_id: string | null;
         }>;
         Relationships: [];
       };
@@ -3372,6 +3379,56 @@ export interface Database {
         Update: Partial<{
           messages: number;
           tokens: number;
+        }>;
+        Relationships: [];
+      };
+      activity_log: {
+        Row: {
+          id: string;
+          property_id: string;
+          actor_id: string | null;
+          actor_kind: ActivityActorKind;
+          entity_kind: ActivityEntityKind;
+          entity_id: string;
+          entity_title: string | null;
+          verb: string;
+          detail: Record<string, unknown>;
+          project_id: string | null;
+          space_id: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      project_milestones: {
+        Row: {
+          id: string;
+          property_id: string;
+          project_id: string;
+          name: string;
+          due_date: string;
+          completed_at: string | null;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          project_id: string;
+          name: string;
+          due_date: string;
+          completed_at?: string | null;
+          position?: number;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          due_date: string;
+          completed_at: string | null;
+          position: number;
         }>;
         Relationships: [];
       };

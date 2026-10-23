@@ -412,6 +412,8 @@ export function TasksBoard({
           tasks={filteredTasks}
           assignees={assignees}
           hideDone={hideDone}
+          milestoneScope={{ kind: "property" }}
+          onChanged={notifyChanged}
         />
       ) : (
         <WorkloadView

@@ -1,4 +1,5 @@
 import {
+  Activity,
   AtSign,
   ChartNoAxesColumn,
   CircleDot,
@@ -20,6 +21,7 @@ import type { NotificationRow } from "@/lib/notifications/types";
 export type ActivityViewId =
   | "inbox"
   | "unread"
+  | "workspace"
   | "mentions"
   | "tasks"
   | "channels"
@@ -39,6 +41,12 @@ type ViewDef = {
 export const PRIMARY_VIEWS: ViewDef[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "unread", label: "Unread", icon: CircleDot },
+  /**
+   * Not a notification slice: the property-wide "who did what" feed read
+   * from `activity_log` (migration 0106). The inbox answers "what needs me";
+   * this answers "what changed", for everyone, with the actor on every row.
+   */
+  { id: "workspace", label: "Workspace", icon: Activity },
 ];
 
 /** Type filters — the "folders" of the inbox. */
@@ -73,6 +81,9 @@ export function matchesView(n: NotificationRow, view: ActivityViewId): boolean {
       return true;
     case "unread":
       return !n.seen_at;
+    case "workspace":
+      // Rendered from activity_log, not notifications — never counts unread.
+      return false;
     case "mentions":
       return n.type === "mention" || n.type === "task_comment_mention";
     case "tasks":

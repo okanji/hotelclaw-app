@@ -22,6 +22,7 @@ export default defineConfig({
       "lib/documents/__tests__/**/*.test.ts",
       "lib/tasks/__tests__/**/*.test.ts",
       "lib/workflows/__tests__/**/*.test.ts",
+      "lib/query/__tests__/**/*.test.ts",
     ],
     environment: "node",
     globals: true,

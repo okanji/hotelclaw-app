@@ -35,8 +35,12 @@ import {
   calendarEventsQueryOptions,
   freeBusyQueryOptions,
 } from "@/lib/calendar/query-options";
-import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
+import {
+  propertyMembersQueryOptions,
+  tasksQueryOptions,
+} from "@/lib/query/section-queries";
 import { scheduleTask } from "@/lib/calendar/actions";
+import { rescheduleTask } from "@/components/tasks/actions";
 import { useCalendarPrefs } from "./calendar-prefs-context";
 import { WeekGrid } from "./week-grid";
 import { MonthGrid } from "./month-grid";
@@ -54,7 +58,7 @@ import { PresenceCursors } from "./presence-cursors";
 import { CalendarAiPanel } from "./calendar-ai-panel";
 import { CalendarAiKnowledge } from "./calendar-ai-knowledge";
 import { CalendarAiTools } from "./calendar-ai-tools";
-import type { CalendarEvent } from "@/lib/calendar/types";
+import type { CalendarEvent, TaskEvent } from "@/lib/calendar/types";
 
 /** "May 18 – 24, 2026" / "May 18, 2026" / "May 2026". */
 function formatRange(view: "day" | "week" | "month", focus: Date): string {
@@ -169,6 +173,43 @@ export function CalendarRoom({
     freeBusyQueryOptions(propertyId, overlayList, range),
   );
   const membersQuery = useQuery(propertyMembersQueryOptions(propertyId));
+  const tasksQuery = useQuery(tasksQueryOptions(propertyId));
+
+  // Deadlines: tasks with a due date but no scheduled window become all-day
+  // chips on their due day (the amber task tint, prefixed "Due" in month
+  // view). Scheduled tasks already arrive as time blocks from the events
+  // endpoint, so only due-only ones are synthesised here; done tasks stay
+  // off the grid — a met deadline is noise on a planning surface.
+  const deadlineEvents = useMemo<TaskEvent[]>(() => {
+    const from = new Date(range.from).getTime();
+    const to = new Date(range.to).getTime();
+    const out: TaskEvent[] = [];
+    for (const t of tasksQuery.data ?? []) {
+      if (!t.due_at || t.scheduled_start || t.status === "done") continue;
+      const due = new Date(t.due_at);
+      if (Number.isNaN(due.getTime())) continue;
+      const day = startOfDay(due);
+      const dayMs = day.getTime();
+      if (dayMs >= to || dayMs + MINUTES_PER_DAY * 60_000 <= from) continue;
+      out.push({
+        id: t.id,
+        source: "task",
+        title: t.title,
+        description: t.description ?? null,
+        location: null,
+        color: null,
+        all_day: true,
+        start: day.toISOString(),
+        end: addMinutes(day, MINUTES_PER_DAY).toISOString(),
+        status: t.status,
+        priority: t.priority,
+        assignee_id: t.assignee_id,
+        due_at: t.due_at,
+        due_only: true,
+      });
+    }
+    return out;
+  }, [tasksQuery.data, range.from, range.to]);
 
   // Deterministic per-user colour palette — keyed on a hash of the id so
   // the same user gets the same colour across renders, sessions, and
@@ -209,7 +250,8 @@ export function CalendarRoom({
   const [overGrid, setOverGrid] = useState(false);
 
   function handleDragStart(event: DragStartEvent) {
-    if (event.active.data.current?.kind === "task") {
+    const kind = event.active.data.current?.kind;
+    if (kind === "task" || kind === "task-due") {
       setDragTask(event.active.data.current as TaskDragData);
       setOverGrid(false);
     }
@@ -223,15 +265,63 @@ export function CalendarRoom({
   async function handleDragEnd(event: DragEndEvent) {
     setDragTask(null);
     setOverGrid(false);
-    const taskId =
-      event.active.data.current?.kind === "task"
-        ? (event.active.data.current as TaskDragData).taskId
-        : null;
-    if (!taskId) return;
-    const dropDate =
-      event.over?.data.current?.kind === "calendar-day"
-        ? new Date((event.over.data.current as { date: string }).date)
-        : null;
+    const data = event.active.data.current as TaskDragData | undefined;
+    if (!data || (data.kind !== "task" && data.kind !== "task-due")) return;
+    const taskId = data.taskId;
+    const overKind = event.over?.data.current?.kind as string | undefined;
+    const overDate = event.over
+      ? new Date((event.over.data.current as { date: string }).date)
+      : null;
+
+    // Month cell: a deadline chip moves its due date (keeping the time of
+    // day); a rail chip gets a default 9–10am block on that day.
+    if (overKind === "calendar-month-day" && overDate) {
+      if (data.kind === "task-due") {
+        const prev = data.dueAt ? new Date(data.dueAt) : null;
+        const next = startOfDay(overDate);
+        if (prev && !Number.isNaN(prev.getTime())) {
+          next.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
+        } else {
+          next.setHours(17, 0, 0, 0);
+        }
+        if (prev && startOfDay(prev).getTime() === startOfDay(next).getTime()) return;
+        qc.setQueryData<{ id: string; due_at: string | null }[]>(
+          ["tasks", propertyId],
+          (list) =>
+            (list ?? []).map((t) =>
+              t.id === taskId ? { ...t, due_at: next.toISOString() } : t,
+            ),
+        );
+        const result = await rescheduleTask({ taskId, dueAt: next.toISOString() });
+        if ("error" in result) toast.error(result.error);
+        else
+          toast.success(
+            `Due ${next.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`,
+          );
+        qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+        broadcast({ type: "calendar-invalidate" });
+        return;
+      }
+      const start = addMinutes(startOfDay(overDate), 9 * 60);
+      const end = addMinutes(start, 60);
+      const result = await scheduleTask({
+        propertyId,
+        taskId,
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Task scheduled");
+      qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
+      qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+      broadcast({ type: "calendar-invalidate" });
+      return;
+    }
+
+    const dropDate = overKind === "calendar-day" ? overDate : null;
     if (!dropDate) return;
     // Resolve the drop time from where the ghost chip's top edge lands in
     // the column. Both rects are viewport-space: `over.rect` stays live via
@@ -271,7 +361,7 @@ export function CalendarRoom({
   // dense; CSS-level filtering keeps round-trips at zero when the user
   // toggles a calendar's visibility.
   const events = useMemo<CalendarEvent[]>(() => {
-    const all = eventsQuery.data ?? [];
+    const all: CalendarEvent[] = [...(eventsQuery.data ?? []), ...deadlineEvents];
     if (hiddenSources.size === 0) return all;
     return all.filter((e) => {
       if (e.source === "meeting") {
@@ -285,7 +375,7 @@ export function CalendarRoom({
       }
       return !hiddenSources.has(e.calendar_id);
     });
-  }, [eventsQuery.data, hiddenSources]);
+  }, [eventsQuery.data, deadlineEvents, hiddenSources]);
 
   // Event-creation dialog. `prefill` carries the slot the user clicked or
   // dragged, so the dialog opens with the right start/end already filled.

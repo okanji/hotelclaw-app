@@ -193,6 +193,79 @@ Property members define **bookable services** (tables, spa appointments, tours) 
 - **Demo data**: `node --env-file=.env.local --no-network-family-autoselection scripts/seed-bookings-demo.mjs` — re-runnable; 14-table restaurant (4 zones) + spa + kayak tour + a one-off beach party (17/120 tickets) + a 3-unit car rental (incl. a 24h van hire), ~40 bookings across yesterday→+5d covering every status/source. Agenda view opens with a 4-stat engine-pulse strip.
 - Deferred: table combinations + reflow, server sections, meal-stage statuses, drag-on-timetable (menu-move shipped instead), reminders/no-show automation, waitlists, deposits/payments, per-party-size turn times, multiple ranges per day in the hours editor, bookings lens in Insights metrics, reserved-seat event ticketing (GA-capacity covers small venues per research).
 
+## Who did what — activity log, milestones, Gantt, deadlines (built 2026-10-23)
+
+A side-by-side with the open-source gr8r-studio task manager (plain-JS demo,
+`github.com/gr8rstudio/gr8r-studio`) surfaced four gaps; each is now closed.
+Everything here lives behind **migration 0106** (`activity_log`,
+`project_milestones`, `projects.lead_user_id`) — apply it before testing.
+
+- **`activity_log` — the actor-aware change log.** `workflow_events` is the
+  automation OUTBOX: DB triggers write it with no acting user and only for
+  the events workflows can trigger on, so nothing could say *who* moved a
+  task. `activity_log` is written by its own security-definer triggers on
+  `tasks` / `projects` / `project_milestones` (one row per changed field:
+  created, status_changed/completed/reopened, priority_changed,
+  assigned/unassigned, due_changed, scheduled, renamed, description_changed,
+  labels_changed, project_changed (+ `project_removed` stamped on the project
+  it LEFT so both feeds see it), space_changed, parent_changed, deleted;
+  projects: status/dates/lead/archived; milestones: added/completed/…). The
+  actor is `auth.uid()`; a service-role write can hint one with
+  `set local app.actor_id = '<uuid>'` / `app.actor_kind` (the eve runtime
+  acts under a person's scope — wire the GUC there when bot attribution
+  matters). Task INSERTs with `source = 'workflow' | 'ai'` are attributed to
+  that engine. `entity_title` is a snapshot so rows read after deletion;
+  `project_id`/`space_id` are denormalised so scoped feeds are one indexed
+  filter. Member SELECT only; realtime-published.
+  - Read via `lib/query/activity-log-queries.ts` (`activityLogQueryOptions`
+    with a property / project / space / task / actor scope; `matchesFamily`
+    is the one filter-chip mapping, tested in `lib/query/__tests__`).
+  - Render via `components/activity/activity-log.tsx`: `describeActivity`
+    turns a row into **Actor · verb · *object link* · extra** ("You" for the
+    viewer, project/space/member names resolved from the shared caches),
+    `ActivityLogFeed` (day buckets + kind chips + person select, realtime),
+    `ActivityLogList` (compact rails), `useViewerId` (pages that don't carry
+    the user id).
+  - Surfaces: **Activity → Workspace** (`?view=workspace`, property-wide,
+    "in <project>" suffix), **project + space pages** (rail = last 6, a real
+    *Activity* tab with filters — the trigger-based `activityQuery` feed is
+    no longer used there), and the **task page** (`TaskHistory` — field
+    changes above the Liveblocks comment threads; creation row excluded
+    because the page already renders "Task created by X").
+- **Project milestones + lead.** `project_milestones` (name + `due_date`
+  day + `completed_at`, per project) with `components/projects/
+  milestones-panel.tsx` (diamond per row — filled when reached, warning ink
+  when overdue — inline add, one-click reach/unreach, realtime) on the
+  project Overview; `projects.lead_user_id` with a `LeadPicker` row in the
+  rail (`updateProject({ lead_user_id })`). Actions in `milestone-actions.ts`,
+  queries in `lib/query/milestone-queries.ts` (project + property-wide with
+  the project joined, archived projects excluded).
+- **Gantt (`components/tasks/timeline-view.tsx`, rewritten).** The gr8r
+  model on our data: a wide scrollable canvas widened to cover every dated
+  task (no more fixed 4-week window / "off window" rows), **Weeks (32px/day)
+  / Months (11px/day)** zoom, **group by status / assignee / none**, every
+  dated task a **draggable bar** (scheduled window = its days; due-only = a
+  one-day bar on the due date — the diamond now means *milestone* only),
+  drag moves by whole days (`rescheduleTask` action: shifts the window AND
+  a due date that travels with it; the right edge resizes a window),
+  sub-issue **progress fill**, `task_relations.kind = 'blocks'` drawn as
+  **dependency arrows** (`lib/query/task-dependency-queries.ts`; dashed in
+  warning ink when the blocked task starts before its blocker ends), a
+  **milestone lane** (`milestoneScope` prop: property-wide on the board,
+  one project on the project page), today line + auto-scroll to today, one
+  scroll container with a sticky left pane. The project page gained a
+  **Timeline** tab mounting it over the project's tasks.
+- **Calendar deadlines.** Due-only tasks never reached the calendar (the
+  events endpoint returns scheduled blocks only; the "client-side due
+  markers" the old comment promised didn't exist). `calendar-room.tsx` now
+  synthesises an all-day `TaskEvent` (`due_only: true`, done tasks excluded)
+  per due-only task in the query window: amber "Due" chips in month view
+  (draggable — every month cell is a `calendar-month-day` droppable; dropping
+  moves `due_at` keeping its time of day, and a rail chip dropped on a month
+  cell gets a 9–10am block), the all-day band in week/day view, and the
+  existing task details dialog on click. The `internal:tasks` source toggle
+  hides them with the blocks.
+
 ## Automations everywhere — the lightning button (built 2026-08-14)
 
 Every feature page that a workflow can read from or act on carries a **⚡ Automations button** in its header, so automation is discovered from the surface you're standing on rather than only from the Workflows section.
