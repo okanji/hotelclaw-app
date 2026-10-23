@@ -1,6 +1,6 @@
 import "server-only";
 /**
- * Embeddings for chatbot knowledge — fail-soft like gbrain/OpenClaw config:
+ * Embeddings for chatbot knowledge — fail-soft like the rest of the AI config:
  * when OPENAI_API_KEY is unset every function returns null, training skips
  * the embedding pass, and retrieval stays FTS-only. Set the key and retrain
  * to light up hybrid (vector + FTS) retrieval — the schema has carried the

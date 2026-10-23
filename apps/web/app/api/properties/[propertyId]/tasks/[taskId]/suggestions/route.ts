@@ -112,11 +112,7 @@ export async function POST(
   if (parsed.data.action === "accept") {
     after(async () => {
       try {
-        const { resolvePropertyBrain, captureToBrain } = await import(
-          "@/lib/brain/client"
-        );
-        const binding = await resolvePropertyBrain(propertyId);
-        if (!binding) return;
+        const { rememberForProperty } = await import("@/lib/memory/store");
         const { data: task } = await service
           .from("tasks")
           .select("title, space_id, assignee_id, priority, spaces(name)")
@@ -129,19 +125,17 @@ export async function POST(
             : suggestion.field === "assignee"
               ? `assignee ${suggestion.suggested_value}`
               : `priority ${suggestion.suggested_value}`;
-        await captureToBrain(binding, {
-          slug: "concepts/triage-routing",
-          pageTitle: "Task routing memory",
-          summary: `Task "${String(task.title).slice(0, 120)}" → ${target} (triage suggestion accepted by staff).`,
+        await rememberForProperty({
+          propertyId,
+          kind: "outcome",
+          content: `Task "${String(task.title).slice(0, 120)}" → ${target} (triage suggestion accepted by staff).`,
           source: `triage, ${new Date().toISOString().slice(0, 10)}`,
+          tags: ["triage-routing"],
+          importance: 1,
+          createdBy: user.id,
         });
       } catch (err) {
-        const { logBrainEvent } = await import("@/lib/brain/telemetry");
-        logBrainEvent("capture_failed", {
-          surface: "triage-routing",
-          propertyId,
-          reason: err instanceof Error ? err.message : String(err),
-        });
+        console.warn("[triage] routing memory write failed", { propertyId }, err);
       }
     });
   }

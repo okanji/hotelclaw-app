@@ -3,7 +3,7 @@ import { explainTemplateValue } from "@/lib/workflows/explain-template";
 import { type StepCatalogEntry, type TriggerCatalogEntry } from "./types";
 
 // System surface: triggers that don't belong to a content surface (schedule,
-// manual), plus notify + gbrain + delegate actions.
+// manual), plus notify + memory + delegate actions.
 
 const triggers: TriggerCatalogEntry[] = [
   {
@@ -91,7 +91,7 @@ const actions: StepCatalogEntry[] = [
       "Saves a note into the property's shared memory so the AI — and future workflows — can recall it later.",
     examplePrompts: [
       "remember that this guest dislikes spicy food",
-      "log this pattern to gbrain",
+      "remember this pattern in property memory",
     ],
     outputSchema: z.object({ ok: z.boolean() }),
     explain: () => "Save to shared memory",

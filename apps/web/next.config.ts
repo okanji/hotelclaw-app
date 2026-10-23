@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // Workspace packages shipped as TS source (shared with the eve runtime).
   transpilePackages: [
     "@hotelclaw/agent-config",
-    "@hotelclaw/brain",
+    "@hotelclaw/memory",
     "@hotelclaw/chat-grouping",
     "@hotelclaw/chat-ui",
   ],

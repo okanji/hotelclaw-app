@@ -1,18 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { RotateCcw, Send } from "lucide-react";
-import { AiLoader } from "@/components/ui/ai-loader";
-import { ToolTrace } from "@/components/ai/tool-trace";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TintIcon } from "@/components/ui/tint-card";
-import { ChatMarkdown } from "@/components/chatbots/chat-markdown";
-import {
-  createTranscriptReducer,
-  type TranscriptItem,
-} from "@/lib/fleet/transcript";
+import { EveConversation } from "@/components/ai/eve-conversation";
+import { useEveSession } from "@/hooks/use-eve-session";
 import { recordAgentSession } from "./actions";
 
 export type AgentChatSession = {
@@ -30,11 +25,11 @@ export type AgentChatTarget = { agentId: string } | { botSlug: string };
 /**
  * Chat with an agent over eve's HTTP API — same-origin `/eve/v1/*` routes
  * (withEve), Supabase cookie auth verified by the agent's channel AuthFn,
- * property + target selected via headers. The NDJSON event stream replays
- * from index 0 on every attach, so the transcript is REBUILT from the event
- * log each turn — which also makes resuming a saved session free. Tool
- * calls are rendered inline (name + expandable payload): the transparency
- * counterpart to the editor's grants list.
+ * property + target selected via headers. Transport lives in
+ * `useEveSession`, rendering in `EveConversation` (mono tool labels here:
+ * this is the transparency counterpart to the editor's grants list, so the
+ * raw tool names are the point). Questions and approvals the agent parks on
+ * are answered inline.
  */
 export function AgentChat({
   propertyId,
@@ -53,17 +48,7 @@ export function AgentChat({
   paused: boolean;
   initialSession: AgentChatSession | null;
 }) {
-  const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const sessionRef = useRef<AgentChatSession | null>(initialSession);
-  // User turns the session is known to hold (kept current by every stream
-  // replay) — the next follow-up expects turnsRef.current + 1.
-  const turnsRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const hydratedRef = useRef(false);
-
   const targetAgentId = "agentId" in target ? target.agentId : null;
   const targetBotSlug = "botSlug" in target ? target.botSlug : null;
 
@@ -77,179 +62,55 @@ export function AgentChat({
     [propertyId, targetAgentId, targetBotSlug],
   );
 
-  /** Read the session's NDJSON stream, rebuilding the transcript from the
-   * full event log. The replay includes every HISTORICAL park boundary
-   * (session.waiting), so a follow-up must not stop at the first one it
-   * sees — that's the previous turn's park, and aborting there freezes the
-   * transcript one turn behind. `expectedTurns` is how many user messages
-   * the session holds including the one just sent: the stream is consumed
-   * until the park that FOLLOWS that turn. Pass null when the count is
-   * unknown (resume-on-mount) — the replay of a parked session simply goes
-   * quiet, so reads race a short idle window instead. */
-  const consumeStream = useCallback(
-    async (sessionId: string, expectedTurns: number | null) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      const response = await fetch(`/eve/v1/session/${sessionId}/stream`, {
-        headers: headers(),
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) {
-        throw new Error(`stream failed (${response.status})`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let userTurns = 0;
-
-      const reducer = createTranscriptReducer({
-        onWaiting: (continuationToken) => {
-          sessionRef.current = { id: sessionId, continuationToken };
-          if (expectedTurns !== null && userTurns >= expectedTurns) {
-            controller.abort();
-          }
-        },
-        onFailed: () => {
-          toast.error("The agent run failed — try again.");
-          controller.abort();
-        },
-      });
-      const handle = (event: { type: string; data: Record<string, unknown> }) => {
-        if (event.type === "message.received") userTurns += 1;
-        reducer.handle(event);
-        setTranscript([...reducer.items]);
-      };
-
-      try {
-        for (;;) {
-          const chunk =
-            expectedTurns === null
-              ? await Promise.race([
-                  reader.read(),
-                  new Promise<{ done: true; value?: undefined }>((resolve) =>
-                    setTimeout(() => resolve({ done: true }), 2000),
-                  ),
-                ])
-              : await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              handle(JSON.parse(line));
-            } catch {
-              // Skip unparseable lines (partial writes on abort).
-            }
-          }
-        }
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          throw error;
-        }
-      } finally {
-        reader.cancel().catch(() => {});
-        turnsRef.current = Math.max(turnsRef.current, userTurns);
-      }
-    },
-    [headers],
+  const frameFirstMessage = useCallback(
+    (text: string) => `[Now: ${new Date().toISOString()} (UTC)]\n\n${text}`,
+    [],
   );
+
+  const onTurn = useCallback(
+    async ({
+      sessionId,
+      isFirstTurn,
+      message,
+    }: {
+      sessionId: string;
+      isFirstTurn: boolean;
+      message: string;
+    }) => {
+      // Pod-bot test chats are ephemeral — agent_sessions FKs the agents
+      // table, so only stored-agent sessions are recorded.
+      if (!targetAgentId) return;
+      await recordAgentSession({
+        sessionId,
+        agentId: targetAgentId,
+        propertyId,
+        title: isFirstTurn ? message.slice(0, 140) : undefined,
+        continuationToken: null,
+      });
+    },
+    [propertyId, targetAgentId],
+  );
+
+  const onError = useCallback((message: string) => toast.error(message), []);
+
+  const session = useEveSession({
+    headers,
+    initialSessionId: initialSession?.id ?? null,
+    frameFirstMessage,
+    onTurn,
+    onError,
+  });
 
   const send = useCallback(
-    async (text: string) => {
-      const message = text.trim();
-      if (!message || busy) return;
+    (text: string) => {
+      if (paused) return;
       setInput("");
-      setBusy(true);
-      // Optimistic echo — the stream replay will replace it.
-      setTranscript((prev) => [...prev, { kind: "user", text: message }]);
-      try {
-        const session = sessionRef.current;
-        const isFollowUp = Boolean(session?.id && session?.continuationToken);
-        const response = await fetch(
-          isFollowUp ? `/eve/v1/session/${session!.id}` : "/eve/v1/session",
-          {
-            method: "POST",
-            headers: headers(),
-            body: JSON.stringify(
-              isFollowUp
-                ? { continuationToken: session!.continuationToken, message }
-                : { message },
-            ),
-          },
-        );
-        if (!response.ok) {
-          throw new Error(
-            response.status === 401
-              ? "Not authorized for this agent."
-              : `The agent runtime returned ${response.status}.`,
-          );
-        }
-        const body = (await response.json()) as {
-          sessionId?: string;
-          continuationToken?: string;
-        };
-        const sessionId = body.sessionId ?? session?.id;
-        if (!sessionId) throw new Error("No session id returned.");
-        sessionRef.current = {
-          id: sessionId,
-          continuationToken: body.continuationToken ?? null,
-        };
-
-        if (!isFollowUp) turnsRef.current = 0;
-        await consumeStream(sessionId, turnsRef.current + 1);
-
-        // Pod-bot test chats are ephemeral — agent_sessions FKs the agents
-        // table, so only stored-agent sessions are recorded.
-        if (targetAgentId) {
-          await recordAgentSession({
-            sessionId,
-            agentId: targetAgentId,
-            propertyId,
-            title: isFollowUp ? undefined : message.slice(0, 140),
-            continuationToken: sessionRef.current?.continuationToken ?? null,
-          });
-        }
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to reach the agent",
-        );
-      } finally {
-        setBusy(false);
-      }
+      void session.send(text);
     },
-    [busy, headers, consumeStream, targetAgentId, propertyId],
+    [paused, session],
   );
 
-  // Resume the saved conversation once on mount: attach to its stream to
-  // rebuild the transcript (the replay ends at session.waiting).
-  useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-    const session = sessionRef.current;
-    if (!session?.id) return;
-    setBusy(true);
-    consumeStream(session.id, null)
-      .catch(() => {
-        // A dead/expired session just starts fresh.
-        sessionRef.current = null;
-      })
-      .finally(() => setBusy(false));
-  }, [consumeStream]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [transcript]);
-
-  function newConversation() {
-    abortRef.current?.abort();
-    sessionRef.current = null;
-    setTranscript([]);
-  }
+  const prompts = starterPrompts.filter((p) => p.trim());
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -263,67 +124,52 @@ export function AgentChat({
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={newConversation}
+          onClick={session.reset}
           aria-label="New conversation"
-          disabled={busy}
+          disabled={session.busy}
         >
           <RotateCcw className="size-4" />
         </Button>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {transcript.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <EveConversation
+        items={session.items}
+        busy={session.busy}
+        resuming={session.resuming}
+        workingLabel={`${agentName} is working…`}
+        scale="compact"
+        mono
+        onSend={send}
+        onRespond={session.respond}
+        feedback={
+          targetAgentId
+            ? { propertyId, surface: "agent", sessionId: session.sessionId }
+            : null
+        }
+        empty={
+          <div className="flex h-full flex-col items-center justify-center gap-3 pt-12 text-center">
             <p className="max-w-xs text-sm text-pretty text-muted-foreground">
               {paused
                 ? "This agent is paused — activate it to chat."
                 : "Ask anything. Tool calls show up inline so you can see exactly what it reads."}
             </p>
-            {!paused && starterPrompts.filter((p) => p.trim()).length > 0 ? (
+            {!paused && prompts.length > 0 ? (
               <div className="flex flex-wrap justify-center gap-2">
-                {starterPrompts
-                  .filter((p) => p.trim())
-                  .map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      onClick={() => send(prompt)}
-                      className="inline-flex h-7 items-center rounded-md bg-muted px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+                {prompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => send(prompt)}
+                    className="inline-flex h-7 items-center rounded-md bg-muted px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>
-        ) : (
-          <ul role="list" className="flex flex-col gap-4">
-            {transcript.map((item, index) => (
-              <li key={index}>
-                {item.kind === "user" ? (
-                  <div className="ml-8 rounded-card bg-muted px-3 py-2 text-sm">
-                    {item.text}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <ToolTrace calls={item.toolCalls} mono />
-                    {item.text ? (
-                      <div className="text-sm">
-                        <ChatMarkdown>{item.text}</ChatMarkdown>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </li>
-            ))}
-            {busy ? (
-              <li>
-                <AiLoader label={`${agentName} is working…`} />
-              </li>
-            ) : null}
-          </ul>
-        )}
-      </div>
+        }
+      />
 
       <form
         className="flex items-end gap-2 border-t border-border p-3"
@@ -341,15 +187,21 @@ export function AgentChat({
               send(input);
             }
           }}
-          placeholder={paused ? "Agent is paused" : `Message ${agentName}…`}
+          placeholder={
+            paused
+              ? "Agent is paused"
+              : session.pending.length > 0
+                ? "Answer above, or type a message…"
+                : `Message ${agentName}…`
+          }
           rows={1}
-          disabled={paused || busy}
+          disabled={paused || session.busy}
           className="min-h-9 flex-1 resize-none shadow-composer focus-visible:shadow-composer-focus"
         />
         <Button
           type="submit"
           size="icon-sm"
-          disabled={paused || busy || !input.trim()}
+          disabled={paused || session.busy || !input.trim()}
           aria-label="Send"
         >
           <Send className="size-4" />

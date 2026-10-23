@@ -16,7 +16,6 @@ import "server-only";
  */
 import { extractText, getDocumentProxy } from "unpdf";
 import { createServiceClient } from "@/lib/supabase/server";
-import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 
 const TEXT_MIMES = new Set([
   "text/plain",
@@ -104,6 +103,5 @@ export async function ingestAttachmentText(input: {
   }
   if (text) {
     await rebuildDocumentAttachmentsText(input.documentId);
-    await syncDocumentToBrain(input.documentId);
   }
 }

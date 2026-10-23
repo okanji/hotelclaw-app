@@ -1,20 +1,18 @@
 "use server";
 
-import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
 import {
   readDocumentBodyHtml,
   writeDocumentBody,
 } from "@/lib/documents/write-body";
-import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 
 /**
  * Restore a pre-replace AI revision (document_ai_revisions, 0094) as the
  * document's live body. Mirrors the internal write route's recipe exactly:
  * revision body_json → faithful HTML (readDocumentBodyHtml) → replace via
  * writeDocumentBody — which STASHES THE CURRENT BODY FIRST, so a restore is
- * itself undoable — then the brain re-mirror in after().
+ * itself undoable.
  *
  * Auth: any member (the same people who can edit the document live).
  * Tenancy: propertyId is re-checked against the document inside both
@@ -60,6 +58,5 @@ export async function restoreAiRevision(input: {
   });
   if (!write.ok) return { ok: false, error: write.error };
 
-  after(() => syncDocumentToBrain(input.documentId).catch(() => {}));
   return { ok: true };
 }

@@ -1,4 +1,3 @@
-import type { SessionContext } from "eve/context";
 // Shared versioned config schema — single source of truth with the builder
 // UI (packages/agent-config; dependency-free apart from zod). Cross-package
 // RELATIVE imports don't work here: eve snapshots only the agent root, so
@@ -8,7 +7,7 @@ import {
   type AgentConfig,
 } from "@hotelclaw/agent-config";
 import { serviceClient } from "./supabase";
-import { tenantCallerOrNull, type TenantCaller } from "./tenant";
+import { tenantCallerOrNull, type SessionLike, type TenantCaller } from "./tenant";
 
 export type ResolvedAgent = {
   caller: TenantCaller;
@@ -53,9 +52,9 @@ export const ASSISTANT_BOT_SLUG = "assistant";
 
 // Identity, tone, and standing rules ONLY (eve doctrine: instructions are
 // the always-on prompt; the knowledge-lookup PROCEDURE lives in
-// agent/skills/knowledge-lookup.md, and the knowledge-discipline standing
+// agent/skills/knowledge-lookup.md, and the memory-discipline standing
 // rules are appended per-session in instructions/dynamic.ts from
-// @hotelclaw/brain so every tier shares one text).
+// @hotelclaw/memory so every tier shares one text).
 const CHANNEL_BOT_INSTRUCTIONS = [
   "You are Hotelclaw, an in-channel teammate inside a Slack-style chat for a hotel operations app.",
   "You reply inside a busy team channel: be brief, concrete, and useful. Lead with the answer. Use light markdown only (bold, short lists) — never headings or tables in chat.",
@@ -194,7 +193,7 @@ function channelBotConfig(): AgentConfig {
 // force every future channel-tuning edit onto a surface with a different shape.
 const ASSISTANT_INSTRUCTIONS = [
   "You are the personal assistant for one member of a hotel operations team. You live on your own full-page surface in their workspace — not in a team channel — and you are talking to exactly one person: whoever opened this conversation.",
-  "You have the run of their workspace. Tasks, projects, documents, spreadsheets, meetings, bookings, forms, workflows, chat history, the org chart, and the property's knowledge brain are all yours to read and act on. Everything you can reach is scoped to what THIS person can already see — you are not a way around anyone's permissions.",
+  "You have the run of their workspace. Tasks, projects, documents, spreadsheets, meetings, bookings, forms, workflows, chat history, the org chart, and the property's memory are all yours to read and act on. Everything you can reach is scoped to what THIS person can already see — you are not a way around anyone's permissions.",
   // Voice. The single most-visible difference from the channel bot.
   "Write for a page, not a chat bubble. Headings, tables, lists, and code blocks are all available and you should use them when they make an answer easier to read. Length follows the question: a one-line answer for a one-line question, a structured brief for a real piece of work. Never pad.",
   "Lead with the answer. Open with the thing they'd repeat to a colleague, then the supporting detail beneath it. Caveats and open questions go at the end, briefly — never in front of the answer.",
@@ -365,7 +364,7 @@ async function withAssistantProject(
 // property. agentId is stamped by channel auth; a session without one (bare
 // smoke tests) resolves to null and the static fallbacks apply.
 export async function resolveSessionAgent(
-  ctx: SessionContext,
+  ctx: SessionLike,
 ): Promise<ResolvedAgent | null> {
   const caller = tenantCallerOrNull(ctx);
   const agentId = ctx.session.auth.current?.attributes?.agentId;
@@ -444,7 +443,7 @@ export async function resolveSessionAgent(
               // KEEP IN SYNC conceptually with the guest-side voice: this is
               // the staff-channel preamble the web path used pre-migration.
               `You are deployed in a STAFF team channel (Slack-style chat), talking to staff members of this property — not guests. Help the team using your knowledge base and integrations; speak collegially, not in your guest-facing voice. You also have the workspace tools every channel assistant gets (tasks, docs, calendar).`,
-              `Your TRAINED knowledge base (search_knowledge) is the authority for your specialty — check it FIRST for questions in your domain. The shared property brain (brain_search) is for cross-property institutional memory (past incidents, suppliers, guest history), not your curated content.`,
+              `Your TRAINED knowledge base (search_knowledge) is the authority for your specialty — check it FIRST for questions in your domain. Property memory (recalled above each turn; property__search for more) is for institutional memory (past incidents, suppliers, guest history), not your curated content.`,
             ].join("\n");
             const base = channelBotConfig();
             return {

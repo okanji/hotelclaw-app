@@ -141,7 +141,7 @@ export async function POST(
       guest: { guestName: convo.guest_name, roomNumber: convo.room_number },
       tools,
       messages: parsed.data.messages,
-      onFinish: () => {},
+      onEnd: () => {},
     });
     // Consume the stream server-side — the console is request/response.
     const text = await result.text;

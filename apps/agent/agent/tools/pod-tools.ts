@@ -4,12 +4,6 @@ import { z } from "zod";
 import { StreamChat } from "stream-chat";
 import { serviceClient } from "../lib/supabase";
 import { resolvePodContext } from "../lib/pods";
-import {
-  brainQuery,
-  callBrainTool,
-  getBrainPage,
-  putBrainPage,
-} from "../lib/gbrain-http";
 
 // Pod-bot tool surface (fleet spec M2). Built per session from the
 // addressed bot's `tool_set` allow-list — a tool not in the list does not
@@ -33,12 +27,12 @@ export default defineDynamic({
     "session.started": async (_event, ctx) => {
       const pod = await resolvePodContext(ctx);
       if (!pod?.bot) return null;
-      const { caller, bot, brainUrl, brainTokenRef, propertySlug, clientSlug } = pod;
+      const { caller, bot } = pod;
       const propertyId = caller.propertyId;
       const userId = caller.userId;
       const allowed = bot.toolSet;
 
-      const tools: Record<string, ReturnType<typeof defineTool>> = {};
+      const tools: Record<string, unknown> = {};
 
       if (allowed.has("list_tasks")) {
         tools.list_tasks = defineTool({
@@ -132,7 +126,7 @@ export default defineDynamic({
       if (allowed.has("search_docs")) {
         tools.search_docs = defineTool({
           description:
-            "Full-text search over this property's app documents (SOPs, notes). Returns title + preview per match. Distinct from the knowledge brain — use brain_query for institutional knowledge.",
+            "Full-text search over this property's app documents (SOPs, notes). Returns title + preview per match. Distinct from property memory (recalled above each turn; property__search for more), which holds institutional knowledge rather than authored documents.",
           inputSchema: z.object({
             query: z.string().min(1).max(200),
             limit: z.number().int().min(1).max(10).default(5),
@@ -381,103 +375,6 @@ export default defineDynamic({
               .single();
             if (error) return { error: error.message };
             return { recorded: true, reference: booking.reference, follow_up_task: data.id };
-          },
-        });
-      }
-
-      if (allowed.has("brain_query")) {
-        tools.brain_query = defineTool({
-          description:
-            `Query the ${clientSlug} knowledge brain (institutional memory: property systems, guests, suppliers, playbooks, local area). ALWAYS try this before answering property-specific questions. Cite returned page paths as [brain: <path>].`,
-          inputSchema: z.object({
-            query: z.string().min(2).max(300),
-          }),
-          async execute({ query }) {
-            const result = await brainQuery(brainUrl, brainTokenRef, query);
-            if (!result.ok) {
-              return {
-                unavailable: true,
-                reason: result.reason,
-                // Wording constraint: the eve build transform captures any
-                // token in this body matching a resolver-scope binding —
-                // never write the bare word "t-o-o-l-s" (the accumulator's
-                // name) in here.
-                guidance:
-                  "The knowledge brain is unreachable. Answer from live app data only and say institutional knowledge is temporarily unavailable.",
-              };
-            }
-            return { result: result.content };
-          },
-        });
-      }
-
-      if (allowed.has("brain_get")) {
-        tools.brain_get = defineTool({
-          description:
-            `Fetch a full page from the ${clientSlug} knowledge brain by path (e.g. properties/${propertySlug}/welcome-book).`,
-          inputSchema: z.object({ path: z.string().min(2).max(300) }),
-          async execute({ path }) {
-            const page = await getBrainPage(brainUrl, brainTokenRef, path);
-            const result = page
-              ? { ok: true as const, content: page }
-              : { ok: false as const, reason: "page not found or brain unreachable" };
-            if (!result.ok) return { unavailable: true, reason: result.reason };
-            return { page: result.content };
-          },
-        });
-      }
-
-      if (allowed.has("brain_write")) {
-        // Disciplined capture shape (same contract as every other bot's
-        // brain_capture): append EVIDENCE to an entity page's timeline —
-        // never a whole-page overwrite. Compiled truth stays human/dream-
-        // cycle territory; a bot rewriting it destroyed provenance.
-        tools.brain_write = defineTool({
-          description:
-            "Record an outcome/learning in the knowledge brain as a timeline entry on an entity page (created with a review marker if missing). Outcomes only, never chatter; every entry carries its source. Follow the brain's filing + PII rules.",
-          inputSchema: z.object({
-            path: z
-              .string()
-              .min(2)
-              .max(300)
-              .describe(
-                "Entity page path per filing rules, e.g. systems/pool-pump or suppliers/acme",
-              ),
-            page_title: z.string().min(2).max(120),
-            observation: z
-              .string()
-              .min(10)
-              .max(1000)
-              .describe("The durable outcome/learning, one to three sentences"),
-            source: z
-              .string()
-              .max(140)
-              .describe("Where this came from (channel, person, date)"),
-          }),
-          async execute({ path, page_title, observation, source }) {
-            const existing = await getBrainPage(brainUrl, brainTokenRef, path);
-            if (existing === null) {
-              const created = await putBrainPage(
-                brainUrl,
-                brainTokenRef,
-                path,
-                `# ${page_title}\n\n> ⚠️ OPERATOR REVIEW — page created automatically from app activity; compile the truth above the line as evidence accumulates.\n`,
-              );
-              if (!created.ok) return { unavailable: true, reason: created.reason };
-            }
-            const entry = await callBrainTool(
-              brainUrl,
-              brainTokenRef,
-              "add_timeline_entry",
-              {
-                slug: path,
-                date: new Date().toISOString().slice(0, 10),
-                summary: observation,
-                source,
-              },
-            );
-            if (!entry.ok) return { unavailable: true, reason: entry.reason };
-            return { written: true, path };
           },
         });
       }

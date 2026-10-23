@@ -3,7 +3,7 @@ import "server-only";
  * Tool registry for guest-facing chatbots.
  *
  * Structurally restricted: a guest bot gets ONLY the tools its saved config
- * enables — no gbrain MCP, no delegate_to_openclaw, no property-wide tools.
+ * enables — no memory tools, no delegate_to_openclaw, no property-wide tools.
  * Every tool closure captures the tenant scope server-side; the model never
  * supplies property/chatbot/conversation ids. Each action's user-written
  * `whenToUse` text is appended to the tool description (the Chatbase
@@ -20,7 +20,7 @@ import { getStreamServer } from "@/lib/stream/server";
 import { getBotUserId } from "@/lib/stream/ai-adapter";
 import { createNotifications } from "@/lib/notifications/server";
 import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
-import { captureGuestDetails } from "@/lib/brain/guest-profile";
+import { captureGuestDetails } from "@/lib/memory/guest-profile";
 import { searchChatbotKnowledge } from "@/lib/chatbots/retrieval";
 import {
   executeCustomAction,
@@ -198,7 +198,7 @@ function buildSaveGuestDetailsTool(
             guest_phone: guest.guest_phone,
           },
         });
-        // Deterministic brain capture (guest-profile side-channel): fixed
+        // Deterministic memory capture (guest-profile side-channel): fixed
         // shape from validated fields only — no guest freetext reaches the
         // shared brain. Fail-soft inside the helper.
         await captureGuestDetails(scope.propertyId, {

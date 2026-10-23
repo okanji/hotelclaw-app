@@ -673,7 +673,7 @@ export async function generateInsightsBrief(opts: {
       output: Output.object({ schema: BriefSchema }),
       ...samplingParams(BRIEF_MODEL, 0),
       maxRetries: 3,
-      system: [
+      instructions: [
         `You are the operations analyst for a hotel/restaurant team workspace. You are analyzing ${lens}. Turn its metrics into at most 4 ranked insight cards a manager acts on.`,
         "Rules:",
         "- Every number and name comes from the provided data. Never invent, never extrapolate.",

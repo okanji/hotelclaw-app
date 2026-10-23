@@ -3,11 +3,12 @@ import { includes } from "eve/evals/expect";
 
 export default defineEval({
   description:
-    "The bookings bot's allow-listed tool surface materializes (refund gate present, brain tools present).",
+    "The bookings bot's allow-listed tool surface materializes (refund gate present, property memory tools present).",
   async test(t) {
-    await t.send("List the exact names of the tools you can call, comma-separated.");
+    const turn = await t.send("List the exact names of the tools you can call, comma-separated.");
     t.succeeded();
-    t.check(t.reply, includes("refund_booking"));
-    t.check(t.reply, includes("brain_query"));
+    t.check(turn.message ?? "", includes("refund_booking"));
+    // Memory is a first-class eve slot (agent/memory/*), qualified `property__search`.
+    t.check(turn.message ?? "", includes("property__search"));
   },
 });

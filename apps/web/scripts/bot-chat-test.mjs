@@ -54,7 +54,7 @@ async function readEveSession(channelId) {
   if (!supabase) return null;
   const { data } = await supabase
     .from("channel_bot_sessions")
-    .select("eve_session_id, eve_continuation_token, last_turn_at")
+    .select("eve_session_id, last_turn_at")
     .eq("channel_id", channelId)
     .eq("thread_key", "_root")
     .maybeSingle();
@@ -446,7 +446,7 @@ async function runScenario(scenario, channelId) {
     `  engagement: engaged=${JSON.stringify(finalEngagement.ai_engaged_threads)} skipped=${JSON.stringify(finalEngagement.ai_skipped_threads)}`,
   );
   console.log(`  redis turns persisted: ${history?.length ?? 0}`);
-  console.log(`  eve session: ${eveSession?.eve_session_id ?? "none"} (token: ${eveSession?.eve_continuation_token ? "live" : "none"})`);
+  console.log(`  eve session: ${eveSession?.eve_session_id ?? "none"}`);
   if (aiLogs.length > 0) {
     console.log(`  classifier decisions:`);
     for (const l of aiLogs) console.log(`    ${l}`);
@@ -466,7 +466,7 @@ async function runScenario(scenario, channelId) {
       }
     }
     if (scenario.postChecks.eveSession) {
-      if (!eveSession?.eve_session_id || !eveSession?.eve_continuation_token) {
+      if (!eveSession?.eve_session_id) {
         postFailures.push("expected a live eve session (id + continuation token) for this channel");
       }
     }
@@ -728,7 +728,7 @@ const STRESS_SCENARIOS = [
       // is unused there — AGENTS.md channel-bot section). Depth persistence
       // = one live session carried across all six turns.
       const eveSession = await readEveSession(channelId);
-      if (!eveSession?.eve_session_id || !eveSession?.eve_continuation_token) {
+      if (!eveSession?.eve_session_id) {
         return {
           passed: false,
           reason: "expected a live eve session (id + continuation token) after 6 turns",

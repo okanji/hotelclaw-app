@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Streamdown (AI Elements MessageResponse) ships its classes in dist — Tailwind
+   must scan them or streamed markdown renders unstyled. Hoisted pnpm: root. */
+@source "../../../node_modules/streamdown/dist/*.js";
 
 /* Typography plugin — supplies the `.prose` styles the document editor relies
  * on for heading sizes/weights and paragraph/list spacing. Without it the

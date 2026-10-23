@@ -125,7 +125,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     {
       id: "go-agents",
       label: "Go to agents",
-      keywords: ["ai", "fleet", "brain"],
+      keywords: ["ai", "fleet", "memory"],
       icon: Sparkles,
       href: `${base}/agents`,
     },

@@ -20,7 +20,6 @@ import {
 } from "@/lib/documents/snapshot";
 import { sanitizeDocHtml } from "@/lib/ai/bots/doc-bot";
 import { WRITE_EXTENSIONS, WRITE_SCHEMA } from "@/lib/documents/editor-schema";
-import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 import { createServiceClient } from "@/lib/supabase/server";
 
 // Basic-tag extension set matching doc-bot's ALLOWED_TAGS (headings, lists,
@@ -113,7 +112,7 @@ export type WriteBodyResult =
 /**
  * Write (replace or append) a document's body. Verifies tenancy, writes
  * the Liveblocks room, persists the Postgres snapshot, and re-mirrors the
- * doc into the property's knowledge brain.
+ * doc searchable.
  */
 export async function writeDocumentBody(input: {
   propertyId: string;
@@ -221,10 +220,6 @@ export async function writeDocumentBody(input: {
   if ("error" in persisted) {
     return { ok: false, error: `Snapshot persist failed: ${persisted.error}` };
   }
-
-  // Mirror into the knowledge brain right away (the webhook would also
-  // catch up, but the bot may search for this content seconds later).
-  await syncDocumentToBrain(input.documentId);
 
   return {
     ok: true,

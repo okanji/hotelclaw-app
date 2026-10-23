@@ -68,7 +68,7 @@ export async function generateAgentDraft(
   const result = await generateText({
     model: anthropic(GENERATE_MODEL),
     output: Output.object({ schema: GeneratedAgentZod }),
-    system: SYSTEM,
+    instructions: SYSTEM,
     messages: turns.map((t) => ({ role: t.role, content: t.content })),
     temperature: 0.3,
   });

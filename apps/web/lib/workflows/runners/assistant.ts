@@ -146,10 +146,7 @@ export const assistantRunRunner: RunnerImpl<
         error: `Assistant runtime returned ${response.status}.`,
       };
     }
-    const body = (await response.json()) as {
-      sessionId?: string;
-      continuationToken?: string;
-    };
+    const body = (await response.json()) as { sessionId?: string };
     if (!body.sessionId) {
       return { started: false, chat_id: chat.id, error: "No session id returned." };
     }
@@ -158,7 +155,6 @@ export const assistantRunRunner: RunnerImpl<
       .from("assistant_chats")
       .update({
         eve_session_id: body.sessionId,
-        continuation_token: body.continuationToken ?? null,
         last_message_at: new Date().toISOString(),
       })
       .eq("id", chat.id);

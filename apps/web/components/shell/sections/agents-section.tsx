@@ -117,12 +117,12 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
-                render={<Link href={`${base}/brain`} />}
-                isActive={pathname === `${base}/brain`}
+                render={<Link href={`${base}/memory`} />}
+                isActive={pathname === `${base}/memory`}
                 tooltip="Browse what this property has learned"
               >
                 <Library />
-                <span>Brain</span>
+                <span>Memory</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -168,12 +168,12 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  render={<Link href={`${fleetBase}/brain`} />}
-                  isActive={pathname === `${fleetBase}/brain`}
-                  tooltip="Knowledge brain status and API access"
+                  render={<Link href={`${fleetBase}/access`} />}
+                  isActive={pathname === `${fleetBase}/access`}
+                  tooltip="Actions API keys for external automations"
                 >
                   <Brain />
-                  <span>Brain &amp; access</span>
+                  <span>API access</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

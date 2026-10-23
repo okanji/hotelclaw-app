@@ -160,7 +160,7 @@ export async function processImportedTranscript(args: {
     const result = await generateObject({
       model: getModel(SUMMARY_MODEL),
       schema: SummarySchema,
-      system:
+      instructions:
         "You summarize meeting transcripts for a hotel-operations team. " +
         "Be specific: name people involved, capture deadlines, distinguish " +
         "decisions from open questions. If the transcript is too short or " +
@@ -252,7 +252,7 @@ export async function processTranscriptReady(args: {
     const result = await generateObject({
       model: getModel(SUMMARY_MODEL),
       schema: SummarySchema,
-      system:
+      instructions:
         "You summarize meeting transcripts for a hotel-operations team. " +
         "Be specific: name people involved, capture deadlines, distinguish " +
         "decisions from open questions. If the transcript is too short or " +
@@ -318,52 +318,30 @@ export async function processTranscriptReady(args: {
     summaryPreview: summary.summary_md,
   });
 
-  // Durable evidence into the property's shared brain (fail-soft): the
-  // decisions + action items are exactly the "what did we agree and why"
-  // institutional memory other bots should find later. The full summary
-  // stays in the app doc — the brain gets the durable takeaways.
-  try {
-    const { resolvePropertyBrain, captureToBrain } = await import(
-      "@/lib/brain/client"
-    );
-    const binding = await resolvePropertyBrain(args.meeting.propertyId);
-    if (binding && (summary.decisions.length || summary.action_items.length)) {
-      const detail = [
-        summary.decisions.length
-          ? `Decisions:\n${summary.decisions.map((d) => `- ${d}`).join("\n")}`
-          : "",
-        summary.action_items.length
-          ? `Action items:\n${summary.action_items
-              .map((a) => `- ${typeof a === "string" ? a : JSON.stringify(a)}`)
-              .join("\n")}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-      const captured = await captureToBrain(binding, {
-        slug: "meetings/outcomes",
-        pageTitle: "Meeting outcomes",
-        summary: `${args.meeting.title || "Meeting"}: ${summary.decisions[0] ?? summary.summary_md.split("\n")[0].slice(0, 200)}`,
-        detail,
-        source: `meeting ${args.meeting.id}, ${new Date().toISOString().slice(0, 10)}`,
-      });
-      if (!captured.ok) {
-        const { logBrainEvent } = await import("@/lib/brain/telemetry");
-        logBrainEvent("capture_failed", {
-          surface: "meeting-outcomes",
-          propertyId: args.meeting.propertyId,
-          meetingId: args.meeting.id,
-          reason: captured.reason,
-        });
-      }
-    }
-  } catch (err) {
-    const { logBrainEvent } = await import("@/lib/brain/telemetry");
-    logBrainEvent("capture_failed", {
-      surface: "meeting-outcomes",
+  // Durable evidence into property memory (fail-soft): the decisions +
+  // action items are exactly the "what did we agree and why" institutional
+  // memory other bots should find later. The full summary stays in the
+  // app doc — memory gets the durable takeaways.
+  if (summary.decisions.length || summary.action_items.length) {
+    const detail = [
+      summary.decisions.length
+        ? `Decisions: ${summary.decisions.join("; ")}`
+        : "",
+      summary.action_items.length
+        ? `Action items: ${summary.action_items
+            .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+            .join("; ")}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const { rememberForProperty } = await import("@/lib/memory/store");
+    await rememberForProperty({
       propertyId: args.meeting.propertyId,
-      meetingId: args.meeting.id,
-      reason: err instanceof Error ? err.message : String(err),
+      kind: "event",
+      content: `${args.meeting.title || "Meeting"} (${new Date().toISOString().slice(0, 10)}): ${detail}`.slice(0, 2000),
+      source: `meeting ${args.meeting.id}`,
+      tags: ["meeting", "decision"],
     });
   }
 }

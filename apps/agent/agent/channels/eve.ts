@@ -181,11 +181,55 @@ function serviceBearerAuth(): AuthFn<Request> {
   };
 }
 
+// Mobile path: the Expo app has no cookies, so it sends its Supabase access
+// token as `Authorization: Bearer <jwt>` (the same header lib/auth/api-caller
+// accepts on the web API). Anything that isn't the service key is verified
+// against the auth server with the anon client; a forged or expired token
+// yields no user and falls through to the next authenticator (fail-closed).
+function supabaseBearerAuth(): AuthFn<Request> {
+  return async (request) => {
+    const propertyId = request.headers.get(PROPERTY_HEADER);
+    const auth = request.headers.get("authorization");
+    if (!propertyId || !auth?.startsWith("Bearer ")) return null;
+    const token = auth.slice(7);
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (secret && (token === secret || token.startsWith(`${secret}:`))) return null;
+    // Supabase access tokens are JWTs; skip anything that isn't shaped like one.
+    if (token.split(".").length !== 3) return null;
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !anonKey) return null;
+    const supabase = createServerClient(url, anonKey, {
+      cookies: { getAll: () => [], setAll: () => {} },
+    });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(token);
+    if (!user) return null;
+
+    const membership = await verifyMembership(user.id, propertyId);
+    if (!membership) return null;
+
+    return principal(
+      "supabase-bearer",
+      user.id,
+      propertyId,
+      membership.role,
+      request.headers.get(AGENT_HEADER),
+      request.headers.get(BOT_HEADER),
+      request.headers.get(CHANNEL_HEADER),
+      user.id,
+      request.headers.get(PROJECT_HEADER),
+    );
+  };
+}
+
 // localDev() stays last for bare local smoke tests (no property attributes →
 // dynamic resolvers fall back to static instructions) — but ONLY off Vercel:
 // in production the list is fail-closed (Supabase cookie or service bearer,
 // both membership-checked).
-const authChain: AuthFn[] = [supabaseCookieAuth(), serviceBearerAuth()];
+const authChain: AuthFn[] = [supabaseCookieAuth(), serviceBearerAuth(), supabaseBearerAuth()];
 if (!process.env.VERCEL) authChain.push(localDev());
 
 // ---------------------------------------------------------------------------
@@ -195,9 +239,8 @@ if (!process.env.VERCEL) authChain.push(localDev());
 // back to the surface that owns this channel" (docs/channels/custom) — the
 // runtime posts the reply to Stream when the turn actually finishes,
 // instead of the webhook function holding a connection open until the turn
-// parks. Handlers run "inside the ALS-scoped harness step"
-// (callback-context.d.ts), i.e., in workflow compute — turn length is
-// unbounded and parked work holds no compute.
+// parks. Handlers run inside the durable step, so turn length is unbounded
+// and parked work holds no compute.
 //
 // Scope guard: only sessions whose VERIFIED auth attributes mark them as
 // default-channel-bot sessions (botSlug 'hotelclaw', a channelId, no
@@ -212,6 +255,12 @@ if (!process.env.VERCEL) authChain.push(localDev());
 // re-stamp the nonce, so their parks skip delivery here (their own web
 // path posts outcomes); the delivered_nonce guard plus a deterministic
 // Stream message id make delivery idempotent under handler replay.
+//
+// TWO delivery points since eve 0.70: a question or approval no longer ends
+// the turn — the stream emits `input.requested` then `turn.waiting {on:
+// "input"}` and the SAME turn resumes when the person answers, so the park
+// is delivered from `turn.waiting`. A turn that ends normally still parks
+// the session with `session.waiting`, the second delivery point.
 // ---------------------------------------------------------------------------
 
 const CHANNEL_BOT_SLUG = "hotelclaw";
@@ -232,6 +281,21 @@ function channelBotSession(ctx: HandlerCtx): boolean {
   );
 }
 
+/** Post the turn's accumulated reply exactly once per nonce. Shared by the
+ * two park points (turn.waiting on input, session.waiting at turn end). */
+async function deliverOnce(sessionId: string): Promise<void> {
+  const row = await findSessionRow(sessionId);
+  if (!row) return;
+  await updateSessionRow(row.id, {
+    turn_activity: null,
+    last_turn_at: new Date().toISOString(),
+  });
+  if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
+    await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
+    await deliverReply(row);
+  }
+}
+
 export default eveChannel({
   auth: authChain,
   events: {
@@ -248,9 +312,8 @@ export default eveChannel({
 
     "actions.requested": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      const actions = Array.isArray((data as { actions?: unknown[] }).actions)
-        ? ((data as { actions: Array<Record<string, unknown>> }).actions)
-        : [];
+      const actions = (data as unknown as { actions?: readonly Record<string, unknown>[] })
+        .actions ?? [];
       // Every action kind carries `input`, which is where the progress label
       // gets its SUBJECT (which document, which skill, which query). eve's
       // control-plane kinds have no `toolName` — map them onto synthetic ones
@@ -312,7 +375,7 @@ export default eveChannel({
     //     the model generating, which can run for minutes (prod 2026-07-30:
     //     120s between a document read and the write, all of it generation).
     //     Leaving the tool's label up made that read as "Searching the
-    //     knowledge brain…" for two minutes — blaming the brain for time it
+    //     property memory…" for two minutes — blaming memory for time it
     //     didn't spend. A neutral label is honest; the next actions.requested
     //     overwrites it with the real next step.
     "action.result": async (data, _channel, ctx) => {
@@ -331,50 +394,50 @@ export default eveChannel({
       await updateSessionRow(row.id, { ui_spec: spec });
     },
 
-    // Input park — TWO shapes share this event (eve's InputRequest:
-    // {action, prompt, requestId, display?, options?, allowFreeform?}):
+    // Input park — THREE request kinds share this event (eve's InputRequest
+    // carries a `kind` discriminator since 0.28):
     //
-    //   display "confirmation" → a TOOL APPROVAL, routed to the fleet
-    //     Approvals inbox, which reads `r.action` via parsePendingRequests.
-    //   display "text"/"select" → the agent ASKING THE USER A QUESTION
-    //     (eve's ask_question). The question is `prompt` — it never appears
-    //     as message text, so the turn parks with an empty reply_candidate.
+    //   tool-approval → a gated tool awaiting a decision (display
+    //     "confirmation"), routed to the fleet Approvals inbox, which reads
+    //     `r.action` via parsePendingRequests.
+    //   question      → the agent ASKING THE USER something (ask_question).
+    //     The question is `prompt` — it never appears as message text, so the
+    //     turn parks with an empty reply_candidate.
+    //   session-limit → eve's own Continue/Stop budget prompt (0.82).
     //
-    // This handler originally mapped `r.action` only, which threw the
-    // question away: session.waiting then found no text and posted the
-    // fail-loud ⚠️ instead of the question (prod, 2026-07-28). Keep the
-    // action projection for the inbox and carry the question fields too —
-    // deliverReply renders them.
+    // All three are rendered by deliverReply from the stored requests; the
+    // web glue answers them with `inputResponses` keyed by requestId.
     "input.requested": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      const requests = Array.isArray((data as { requests?: unknown[] }).requests)
-        ? ((data as { requests: Array<Record<string, unknown>> }).requests).map((r) => {
-            const action = (r.action ?? {}) as Record<string, unknown>;
-            const options = Array.isArray(r.options)
-              ? (r.options as Array<Record<string, unknown>>)
-                  .map((o) => ({
-                    id: typeof o.id === "string" ? o.id : "",
-                    label: typeof o.label === "string" ? o.label : "",
-                    description:
-                      typeof o.description === "string" ? o.description : null,
-                  }))
-                  .filter((o) => o.id && o.label)
-              : [];
-            return {
-              // Shape the fleet Approvals inbox reads — do not rename.
-              toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
-              input: action.input ?? null,
-              callId: typeof action.callId === "string" ? action.callId : null,
-              // Question fields: what the user actually needs to see, and
-              // what the answer must be addressed to on resume.
-              prompt: typeof r.prompt === "string" ? r.prompt : null,
-              requestId: typeof r.requestId === "string" ? r.requestId : null,
-              display: typeof r.display === "string" ? r.display : null,
-              allowFreeform: r.allowFreeform === true,
-              options,
-            };
-          })
-        : [];
+      const raw = (data as unknown as { requests?: readonly Record<string, unknown>[] })
+        .requests ?? [];
+      const requests = raw.map((r) => {
+        const action = (r.action ?? {}) as Record<string, unknown>;
+        const options = Array.isArray(r.options)
+          ? (r.options as Array<Record<string, unknown>>)
+              .map((o) => ({
+                id: typeof o.id === "string" ? o.id : "",
+                label: typeof o.label === "string" ? o.label : "",
+                description:
+                  typeof o.description === "string" ? o.description : null,
+              }))
+              .filter((o) => o.id && o.label)
+          : [];
+        return {
+          // Shape the fleet Approvals inbox reads — do not rename.
+          toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
+          input: action.input ?? null,
+          callId: typeof action.callId === "string" ? action.callId : null,
+          kind: typeof r.kind === "string" ? r.kind : null,
+          // Question fields: what the user actually needs to see, and
+          // what the answer must be addressed to on resume.
+          prompt: typeof r.prompt === "string" ? r.prompt : null,
+          requestId: typeof r.requestId === "string" ? r.requestId : null,
+          display: typeof r.display === "string" ? r.display : null,
+          allowFreeform: r.allowFreeform === true,
+          options,
+        };
+      });
       if (requests.length === 0) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce) return;
@@ -388,34 +451,49 @@ export default eveChannel({
       });
     },
 
-    // Turn parked: THE delivery point. Store the fresh continuation token
-    // (docs: follow-ups must use "the current continuationToken from that
-    // event"), post the reply once per nonce, then either DRAIN queued
-    // messages into the next turn (with that same fresh token — the
-    // eve-docs app-layer-queue pattern) or mark the turn slot idle.
-    "session.waiting": async (data, _channel, ctx) => {
+    // Non-terminal turn failure: session.waiting follows and the turn's
+    // accumulator may be empty. Put the reason in the reply so the fail-loud
+    // notice names the error instead of "completed without a reply".
+    "turn.failed": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const failure = data as unknown as { code?: string; message?: string; terminal?: boolean };
+      if (failure.terminal) return; // session.failed handles the terminal case
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      const prior = (row.reply_candidate ?? "").trim();
+      const note = `⚠️ That turn failed (${failure.code ?? "unknown"}: ${(failure.message ?? "").slice(0, 300)}). Send the message again to retry.`;
+      await updateSessionRow(row.id, {
+        reply_candidate: prior ? `${prior}\n\n${note}` : note,
+      });
+    },
+
+    // Park on HUMAN INPUT (eve ≥ 0.70): the turn stays open, so this — not
+    // session.waiting — is where a question or approval reaches the channel.
+    // Deliver what the turn produced so far plus the rendered request, then
+    // release the turn slot: the answer arrives as a new webhook trigger and
+    // is addressed to the parked request by the web glue. Queued messages
+    // are deliberately NOT drained here — an unrelated message would steer
+    // the held turn and withdraw the question (the next trigger's fallback
+    // drain carries them into the next turn instead).
+    "turn.waiting": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      if ((data as unknown as { on?: string }).on !== "input") return;
+      const sessionId = (ctx as HandlerCtx).session.id;
+      await deliverOnce(sessionId);
+      const row = await findSessionRow(sessionId, { retries: 0 });
+      if (row) await updateSessionRow(row.id, { turn_state: "idle" });
+    },
+
+    // Turn ended, session parked: the second delivery point. Post the reply
+    // once per nonce, then either DRAIN queued messages into the next turn
+    // (the eve-docs app-layer-queue pattern) or mark the turn slot idle.
+    "session.waiting": async (_data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
       const sessionId = (ctx as HandlerCtx).session.id;
-      const row = await findSessionRow(sessionId);
+      await deliverOnce(sessionId);
+      const row = await findSessionRow(sessionId, { retries: 0 });
       if (!row) return;
-      const token =
-        typeof (data as { continuationToken?: unknown }).continuationToken === "string"
-          ? (data as { continuationToken: string }).continuationToken
-          : null;
-      if (token) {
-        await updateSessionRow(row.id, {
-          eve_continuation_token: token,
-          last_turn_at: new Date().toISOString(),
-        });
-      }
-      // The turn is over — drop the progress line so the indicator doesn't
-      // sit on a stale "Reading…" after the reply lands.
-      await updateSessionRow(row.id, { turn_activity: null });
-      if (row.turn_nonce && row.delivered_nonce !== row.turn_nonce) {
-        await updateSessionRow(row.id, { delivered_nonce: row.turn_nonce });
-        await deliverReply(row);
-      }
-      await drainQueueOrIdle(row, sessionId, token);
+      await drainQueueOrIdle(row, sessionId);
     },
 
     // Fail-loud contract: a dead session posts a visible ⚠️, never silence.

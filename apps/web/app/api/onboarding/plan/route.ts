@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       output: Output.object({ schema: PlanSchema }),
       temperature: 0,
       maxRetries: 3,
-      system: [
+      instructions: [
         "You design the initial workspace for a hotel/restaurant operations app (chat channels, team spaces, task labels, ready-to-use forms).",
         "Rules:",
         "- `spaces` mirror THEIR departments — use their department names verbatim, one space per department, in the same order. You only choose the emoji icon, the color, and a lowercase a-z0-9- channel slug for each. At most 8.",

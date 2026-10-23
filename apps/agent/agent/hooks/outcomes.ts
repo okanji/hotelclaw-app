@@ -1,17 +1,16 @@
 import { defineHook } from "eve/hooks";
 import { resolvePodContext } from "../lib/pods";
-import { putBrainPage } from "../lib/gbrain-http";
+import { memoryStore } from "../lib/memory-provider";
 
 /**
  * Outcome write-back (fleet spec M4.3): when a pod-bot session completes a
  * WRITE action (task created/updated, refund, rate override, comp night),
- * bank a timeline entry into the pod brain — outcomes and learnings, never
- * chatter. One entry per qualifying action; queries/reads never log.
+ * bank an `outcome` row into property memory — outcomes and learnings,
+ * never chatter. One row per qualifying action; queries/reads never log.
  *
  * PII: only the tool's structured output is logged (titles, references,
- * statuses) — never conversation text. Fail-soft: while the brain endpoint
- * is offline this observes and drops (hooks are observe-only; a brain
- * outage must never affect the session).
+ * statuses) — never conversation text. Fail-soft: hooks are observe-only;
+ * a memory write failure must never affect the session.
  */
 const WRITE_TOOLS = new Set([
   "create_task",
@@ -34,24 +33,24 @@ export default defineHook({
       if (!output || output.error || output.unavailable) return;
 
       const pod = await resolvePodContext(ctx);
-      if (!pod?.bot || !pod.brainUrl) return;
+      if (!pod?.bot) return;
 
-      const now = new Date();
-      const stamp = now.toISOString();
-      const day = stamp.slice(0, 10);
-      const path = `timeline/${day.slice(0, 4)}/${day.slice(5, 7)}/${day}-${tool}-${now.getTime().toString(36)}`;
-      const markdown = [
-        `# ${stamp} — ${tool} via ${pod.bot.displayName}`,
-        ``,
-        `- Property: properties/${pod.propertySlug}`,
-        `- Action: \`${tool}\``,
-        `- Outcome: \`${JSON.stringify(output).slice(0, 600)}\``,
-        `- Citation: [brain: properties/${pod.propertySlug}] (entity pages to be enriched by the dream cycle)`,
-      ].join("\n");
-
-      const written = await putBrainPage(pod.brainUrl, pod.brainTokenRef, path, markdown);
-      if (!written.ok) {
-        console.warn("[outcomes-hook] brain write skipped:", written.reason);
+      try {
+        await memoryStore().remember({
+          scope: {
+            propertyId: pod.caller.propertyId,
+            subjectKind: "property",
+            subjectId: pod.caller.propertyId,
+          },
+          kind: "outcome",
+          content: `${pod.bot.displayName} ran ${tool}: ${JSON.stringify(output).slice(0, 600)}`,
+          source: `pod bot ${pod.bot.botSlug}, ${new Date().toISOString().slice(0, 10)}`,
+          tags: ["outcome", tool],
+          importance: 1,
+          createdVia: "app",
+        });
+      } catch (err) {
+        console.warn("[outcomes-hook] memory write skipped:", err);
       }
     },
   },

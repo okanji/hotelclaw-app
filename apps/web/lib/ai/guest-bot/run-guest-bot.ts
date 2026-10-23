@@ -4,13 +4,13 @@ import "server-only";
  *
  * Deliberately separate from runBot() (lib/ai/run-bot.ts): guests are
  * untrusted and anonymous, so this runner streams tokens (streamText, not
- * generateText), takes a structurally restricted ToolSet (no gbrain, no
+ * generateText), takes a structurally restricted ToolSet (no memory, no
  * delegation, no property tools — see tools/registry.ts), and hardens the
  * system prompt against prompt injection instead of optimizing for teammate
  * behavior. Model settings mirror runBot: temperature 0, capped tool steps,
  * bounded retries.
  */
-import { stepCountIs, streamText, type ModelMessage, type ToolSet } from "ai";
+import { isStepCount, streamText, type ModelMessage, type ToolSet } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { samplingParams } from "@/lib/ai/model-settings";
 import {
@@ -24,9 +24,9 @@ const MAX_TOOL_STEPS = 5;
 export type GuestContext = {
   guestName: string | null;
   roomNumber: string | null;
-  /** Staff/bot-curated profile from the property's knowledge brain,
-   *  prefetched SERVER-side (lib/brain/guest-profile.ts) — guests never
-   *  get brain tools. Null when unknown/unconfigured. */
+  /** Staff/bot-curated guest memory, prefetched SERVER-side
+   *  (lib/memory/guest-profile.ts) — guests never get memory tools. Null
+   *  when the guest is unknown. */
   profileNotes?: string | null;
 };
 
@@ -115,7 +115,7 @@ export type RunGuestBotOptions = {
   sessionCapReached?: boolean;
   /** Persist hook — called once with the final text, trace, token usage, and
    *  any structured render cards derived from this turn's tool results. */
-  onFinish: (result: {
+  onEnd: (result: {
     text: string;
     totalTokens: number | null;
     toolCalls: { name: string; input: unknown }[];
@@ -138,10 +138,10 @@ export function runGuestBot(opts: RunGuestBotOptions) {
 
   return streamText({
     model: anthropic(CHATBOT_TIER_MODELS[opts.config.modelTier]),
-    system,
+    instructions: system,
     messages: opts.messages,
     tools: opts.tools,
-    stopWhen: stepCountIs(MAX_TOOL_STEPS),
+    stopWhen: isStepCount(MAX_TOOL_STEPS),
     // temperature 0 on the Haiku tier only — Sonnet 5 rejects sampling
     // params (lib/ai/model-settings.ts).
     ...samplingParams(CHATBOT_TIER_MODELS[opts.config.modelTier], 0),
@@ -152,7 +152,7 @@ export function runGuestBot(opts: RunGuestBotOptions) {
     onError: ({ error }) => {
       console.error("[run-guest-bot] stream error", error);
     },
-    onFinish: async ({ text, totalUsage, steps }) => {
+    onEnd: async ({ text, totalUsage, steps }) => {
       const toolCalls = steps.flatMap((step) =>
         step.toolCalls.map((tc) => ({ name: tc.toolName, input: tc.input })),
       );
@@ -162,7 +162,7 @@ export function runGuestBot(opts: RunGuestBotOptions) {
           output: tr.output,
         })),
       );
-      await opts.onFinish({
+      await opts.onEnd({
         text: (text ?? "").trim(),
         totalTokens: totalUsage?.totalTokens ?? null,
         toolCalls,

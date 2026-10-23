@@ -78,7 +78,7 @@ export async function classifyConversations(args: {
       output: Output.object({ schema: Classification }),
       temperature: 0,
       maxRetries: 2,
-      system: [
+      instructions: [
         "You label guest-chatbot conversations for a hotel analytics dashboard.",
         "For each conversation, return its id, a short topic (2-4 lowercase words naming what the guest wanted, e.g. 'breakfast hours', 'room service order', 'late checkout request', 'complaint about noise'), and the GUEST's overall sentiment.",
         "Reuse identical topic strings for conversations about the same thing — these are aggregated into counts.",

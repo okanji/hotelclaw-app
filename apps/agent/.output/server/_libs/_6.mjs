@@ -1,5 +1,8 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import { V as W } from "./eve+zod.mjs";
-export { W as t };
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
+export { gateway } from "./@ai-sdk/gateway+[...].mjs";
+import "./ai-sdk__provider.mjs";
+import "./ai-sdk__provider-utils.mjs";
+import "./ai.mjs";

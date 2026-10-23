@@ -2,17 +2,8 @@ import { defineDynamic, defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { StreamChat } from "stream-chat";
-import {
-  brainToolDescriptions,
-  brainToolSchemas,
-  normalizeListPages,
-  operatorReviewPage,
-  resolveCaptureSlug,
-} from "@hotelclaw/brain";
 import { serviceClient } from "../lib/supabase";
 import { resolveSessionAgent } from "../lib/agent-config";
-import { resolvePropertyBrainBinding } from "../lib/property-brain";
-import { callBrainToolDirect } from "../lib/gbrain-http";
 import { channelBotHeaders, eveSelfOrigin } from "../lib/channel-delivery";
 
 // The executor side of AGENT_TOOL_CATALOG (apps/web/lib/agents/schema.ts —
@@ -62,7 +53,7 @@ export default defineDynamic({
       const grants = new Set(config.tools);
       const resourceIds = config.resources.documentIds;
 
-      const tools: Record<string, ReturnType<typeof defineTool>> = {};
+      const tools: Record<string, unknown> = {};
 
       if (grants.has("list_open_tasks")) {
         tools.list_open_tasks = defineTool({
@@ -776,7 +767,7 @@ export default defineDynamic({
       if (grants.has("update_document")) {
         tools.update_document = defineTool({
           description:
-            "Write CONTENT into an existing document — replace the whole body or append sections, and optionally rename it. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. Pass new_title to also set the record's title in the same call (e.g. an 'Untitled' doc you're filling with a titled SOP — set new_title to the SOP's name); if you don't, a doc still called 'Untitled' is auto-titled from its own heading and the result tells you what it became, so say so in your reply. This REPLACES/extends the body — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable and brain-mirrored.",
+            "Write CONTENT into an existing document — replace the whole body or append sections, and optionally rename it. Use for filling in stub docs, updating SOPs, adding sections. Get the id from list_documents/search_documents. Same HTML subset as create_document. Pass new_title to also set the record's title in the same call (e.g. an 'Untitled' doc you're filling with a titled SOP — set new_title to the SOP's name); if you don't, a doc still called 'Untitled' is auto-titled from its own heading and the result tells you what it became, so say so in your reply. This REPLACES/extends the body — when unsure whether to overwrite meaningful existing content, confirm with the requester first. An artifact card appears in the channel so people can watch the edit happen live; content is immediately searchable.",
           inputSchema: z.object({
             document_id: z.string().uuid(),
             content_html: z.string().min(10).max(100_000),
@@ -826,8 +817,8 @@ export default defineDynamic({
                 tagged === null
                   ? ((docRow.body_text ?? "")
                       .split("\n")
-                      .map((line) => line.trim())
-                      .find((line) => line.length >= 3 && line.length <= 120) ?? null)
+                      .map((line: string) => line.trim())
+                      .find((line: string) => line.length >= 3 && line.length <= 120) ?? null)
                   : null;
               const candidate = (tagged ?? plain ?? "")
                 .replace(/<[^>]+>/g, "")
@@ -2627,7 +2618,12 @@ export default defineDynamic({
               const rows = channels
                 .map((c) => ({
                   channel_id: c.id ?? null,
-                  name: (c.data?.name as string | undefined) ?? c.id ?? "",
+                  name:
+                    ((c.data as Record<string, unknown> | undefined)?.name as
+                      | string
+                      | undefined) ??
+                    c.id ??
+                    "",
                 }))
                 .filter((c) => c.channel_id)
                 .filter((c) => !needle || c.name.toLowerCase().includes(needle));
@@ -2868,151 +2864,6 @@ export default defineDynamic({
             };
           },
         });
-      }
-
-      // Brain grants (mirror tools/channel-brain.ts — keep descriptions in
-      // sync). Fail-soft: granted but no property binding ⇒ the tools simply
-      // don't exist, same as every other ungranted capability.
-      const wantsBrain =
-        grants.has("brain_search") ||
-        grants.has("brain_think") ||
-        grants.has("brain_get") ||
-        grants.has("brain_list") ||
-        grants.has("brain_capture");
-      const binding = wantsBrain
-        ? await resolvePropertyBrainBinding(propertyId)
-        : null;
-      if (binding) {
-        const brainMcpUrl = binding.url;
-        const brainCred = {
-          clientId: binding.clientId,
-          clientSecret: binding.clientSecret,
-        };
-
-        if (grants.has("brain_search")) {
-          tools.brain_search = defineTool({
-            description: brainToolDescriptions.brain_search,
-            inputSchema: brainToolSchemas.brain_search,
-            async execute({ query, limit }) {
-              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "search", {
-                query,
-                limit,
-              });
-              return result.ok
-                ? { results: result.content }
-                : { unavailable: true, reason: result.reason };
-            },
-          });
-        }
-
-        if (grants.has("brain_think")) {
-          tools.brain_think = defineTool({
-            description: brainToolDescriptions.brain_think,
-            inputSchema: brainToolSchemas.brain_think,
-            async execute({ question }) {
-              const result = await callBrainToolDirect(
-                brainMcpUrl,
-                brainCred,
-                "think",
-                { question },
-                { timeoutMs: 60_000 },
-              );
-              return result.ok
-                ? { answer: result.content }
-                : { unavailable: true, reason: result.reason };
-            },
-          });
-        }
-
-        if (grants.has("brain_get")) {
-          tools.brain_get = defineTool({
-            description: brainToolDescriptions.brain_get,
-            inputSchema: brainToolSchemas.brain_get,
-            async execute({ slug }) {
-              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
-                slug,
-              });
-              if (!result.ok) {
-                return { unavailable: true, reason: result.reason };
-              }
-              const page =
-                typeof result.content === "string"
-                  ? result.content
-                  : ((result.content as { content?: string; markdown?: string } | null)
-                      ?.content ??
-                    (result.content as { markdown?: string } | null)?.markdown ??
-                    "");
-              if (!page) return { found: false, slug };
-              return { found: true, slug, markdown: page.slice(0, 20_000) };
-            },
-          });
-        }
-
-        if (grants.has("brain_list")) {
-          tools.brain_list = defineTool({
-            description: brainToolDescriptions.brain_list,
-            inputSchema: brainToolSchemas.brain_list,
-            async execute({ prefix, limit }) {
-              const result = await callBrainToolDirect(brainMcpUrl, brainCred, "list_pages", {
-                ...(prefix ? { prefix } : {}),
-                limit,
-                sort: "updated_desc",
-              });
-              if (!result.ok) {
-                return { unavailable: true, reason: result.reason };
-              }
-              const listed = normalizeListPages(result.content);
-              // Some serves ignore unknown filter params — apply the prefix
-              // client-side too so the contract holds regardless.
-              const pages = prefix
-                ? listed.pages.filter((p) => p.slug.startsWith(prefix))
-                : listed.pages;
-              return { count: pages.length, pages: pages.slice(0, limit) };
-            },
-          });
-        }
-
-        if (grants.has("brain_capture")) {
-          tools.brain_capture = defineTool({
-            description: brainToolDescriptions.brain_capture,
-            inputSchema: brainToolSchemas.brain_capture,
-            async execute({ slug: requestedSlug, page_title, observation, source }) {
-              // Same namespace enforcement as the channel bot's capture
-              // (tools/channel-brain.ts) — keep the two in sync.
-              const slugCheck = resolveCaptureSlug(requestedSlug);
-              if (!slugCheck.ok) return { captured: false, reason: slugCheck.reason };
-              const slug = slugCheck.slug;
-
-              const existing = await callBrainToolDirect(brainMcpUrl, brainCred, "get_page", {
-                slug,
-              });
-              if (!existing.ok) {
-                const created = await callBrainToolDirect(brainMcpUrl, brainCred, "put_page", {
-                  slug,
-                  content: operatorReviewPage(page_title),
-                  ingested_via: "hotelclaw-custom-agent",
-                });
-                if (!created.ok) return { captured: false, reason: created.reason };
-              }
-              const entry = await callBrainToolDirect(brainMcpUrl, brainCred, "add_timeline_entry", {
-                slug,
-                date: new Date().toISOString().slice(0, 10),
-                summary: observation,
-                source,
-              });
-              if (!entry.ok) return { captured: false, reason: entry.reason };
-              return {
-                captured: true,
-                slug,
-                ...(slugCheck.coercedFrom
-                  ? {
-                      note: `Filed under '${slug}' — '${slugCheck.coercedFrom}' is not a namespace the brain's knowledge graph indexes.`,
-                    }
-                  : {}),
-              };
-            },
-          });
-        }
       }
 
       return tools;

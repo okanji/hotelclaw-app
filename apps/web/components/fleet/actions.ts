@@ -118,7 +118,7 @@ export async function decideApproval(input: {
   const { data: row } = await service
     .from("bot_chat_sessions")
     .select(
-      "id, client_id, property_id, bot_id, channel_id, eve_session_id, eve_continuation_token, status",
+      "id, client_id, property_id, bot_id, channel_id, eve_session_id, pending_approval, status",
     )
     .eq("id", rid.data)
     .maybeSingle();

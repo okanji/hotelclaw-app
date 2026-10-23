@@ -10,14 +10,14 @@ import "server-only";
  *   - "What other tasks are related?"
  *
  * Persona + task-scoped tools (get_task_details, get_related_tasks,
- * get_subtasks) plus the runtime's shared gbrain + delegate tools.
+ * get_subtasks) plus the runtime's shared memory + delegate tools.
  *
  * Architecture: this module is just a thin descriptor — it knows the
  * persona and which tools to expose. Actual generation goes through
- * `runBot()` so it inherits all the cross-bot guarantees (gbrain wiring,
+ * `runBot()` so it inherits all the cross-bot guarantees (memory wiring,
  * delegate-to-OpenClaw, consistent model settings).
  */
-import { runBot, tool, z, type ModelMessage, type ToolSet } from "@/lib/ai/run-bot";
+import { runBot, streamBot, tool, z, type ModelMessage, type ToolSet } from "@/lib/ai/run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -188,4 +188,20 @@ export async function runTaskBot(opts: {
     },
   });
   return { text: result.text };
+}
+
+/** Streaming twin of `runTaskBot` for the task panel (UI message stream). */
+export function streamTaskBot(opts: {
+  propertyId: string;
+  userId: string;
+  taskId: string;
+  messages: ModelMessage[];
+}): Promise<Response> {
+  return streamBot({
+    persona: TASK_BOT_PERSONA,
+    activationReason: "mention",
+    scopedTools: buildTaskScopedTools(opts.propertyId, opts.taskId),
+    messages: opts.messages,
+    scope: { propertyId: opts.propertyId, userId: opts.userId, surface: "task" },
+  });
 }

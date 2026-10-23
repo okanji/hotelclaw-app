@@ -5,7 +5,6 @@ import {
   captureDocumentSnapshot,
   persistDocumentSnapshot,
 } from "@/lib/documents/snapshot";
-import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 import { getLiveblocksServer } from "@/lib/liveblocks/server";
 import { parseDocumentRoomId, parseTaskRoomId } from "@/lib/liveblocks/rooms";
 import { getMentionsFromCommentBody, stringifyCommentBody } from "@liveblocks/node";
@@ -109,10 +108,6 @@ export async function POST(request: NextRequest) {
           parsed.documentId,
           result.error,
         );
-      } else {
-        // Mirror into the property's knowledge brain off the request path
-        // (fail-soft inside; the webhook 200s regardless).
-        after(() => syncDocumentToBrain(parsed.documentId));
       }
     } catch (err) {
       console.error(
@@ -157,8 +152,6 @@ export async function POST(request: NextRequest) {
           parsed.documentId,
           result.error,
         );
-      } else {
-        after(() => syncDocumentToBrain(parsed.documentId));
       }
     } catch (err) {
       console.error(
@@ -187,9 +180,6 @@ export async function POST(request: NextRequest) {
           parsed.documentId,
           error.message,
         );
-      } else {
-        // Remove the brain mirror for the archived doc.
-        after(() => syncDocumentToBrain(parsed.documentId));
       }
     } catch (err) {
       console.error(

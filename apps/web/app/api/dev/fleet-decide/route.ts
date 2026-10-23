@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   const { data: row } = await service
     .from("bot_chat_sessions")
     .select(
-      "id, client_id, property_id, bot_id, channel_id, eve_session_id, eve_continuation_token",
+      "id, client_id, property_id, bot_id, channel_id, eve_session_id, pending_approval",
     )
     .eq("id", body.sessionRowId)
     .maybeSingle();

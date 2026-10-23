@@ -11,7 +11,7 @@ import "server-only";
  *
  * Deliberately NOT built on `runBot()`: contextual edits are a single,
  * tool-free, low-latency turn that must return ONLY the resulting prose.
- * `runBot()` would inject gbrain + delegate tools, deferral-guard text,
+ * `runBot()` would inject memory + delegate tools, deferral-guard text,
  * activation-reason sections, and `stopWhen: stepCountIs(5)` — all wrong
  * here. We mirror the lower-level `createAnthropic` + `generateText` style
  * of `lib/ai/run-bot.ts` / `lib/ai/bot-scaffold.ts`.
@@ -139,7 +139,7 @@ export async function runDocContextualEdit(
     });
     const { text } = await generateText({
       model: anthropic(MODEL_ID),
-      system: SYSTEM_PROMPT,
+      instructions: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserMessage(input) }],
       // No tools → single turn; the default stopWhen is correct here.
       // temperature 0.4 (a little warmth for free-form prose) only on models

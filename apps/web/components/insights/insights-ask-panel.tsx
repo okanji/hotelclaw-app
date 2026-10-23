@@ -1,27 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { useMemo, useState } from "react";
 import { ChevronDown, Pin, Send, Sparkles } from "lucide-react";
-import { AiLoader } from "@/components/ui/ai-loader";
 import { toast } from "sonner";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { BotPanelConversation, messageText } from "@/components/ai/bot-panel-conversation";
 import { cn } from "@/lib/utils";
 import { scopeKey, type InsightScope } from "@/lib/insights/scope";
 import { usePinPrompt } from "./pinned-prompts";
 
 /**
  * "Ask the numbers" — the insights Q&A dock. A collapsed pill at the bottom
- * of the Insights page; expands into a small chat whose answers come from
- * the same deterministic metric functions the charts render (the bot cites
- * each figure's source). Stateless: the transcript lives in component state
- * and is posted whole each turn with the lens currently being viewed —
- * switching the lens mid-conversation just changes the default lens of the
- * next question (earlier answers stay valid; they cite their own lens).
+ * of the Insights page; expands into a small streaming chat whose answers
+ * come from the same deterministic metric functions the charts render (the
+ * bot cites each figure's source, and the tool calls are visible inline).
+ * Stateless: `useChat` owns the transcript and posts it whole each turn with
+ * the lens currently being viewed — switching the lens mid-conversation just
+ * changes the default lens of the next question.
  */
-
-type Turn = { role: "user" | "assistant"; content: string };
 
 const SUGGESTIONS = [
   "What's overdue this week?",
@@ -37,44 +36,30 @@ export function InsightsAskPanel({
   scope: InsightScope;
 }) {
   const [open, setOpen] = useState(false);
-  const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const { pin, pinning } = usePinPrompt(propertyId, scope);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [turns, busy]);
+  const scopeRef = useMemo(() => ({ key: scopeKey(scope) }), [scope]);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `/api/properties/${propertyId}/insights/ask`,
+        body: () => ({ scope: scopeRef.key }),
+      }),
+    [propertyId, scopeRef],
+  );
+  const { messages, sendMessage, status, stop } = useChat({
+    id: `insights-ask-${propertyId}`,
+    transport,
+    onError: (error) => toast.error(error.message || "Couldn't reach the analyst"),
+  });
+  const busy = status === "submitted" || status === "streaming";
 
-  async function send(text: string) {
+  function send(text: string) {
     const question = text.trim();
     if (!question || busy) return;
-    const next: Turn[] = [...turns, { role: "user", content: question }];
-    setTurns(next);
     setInput("");
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/properties/${propertyId}/insights/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next, scope: scopeKey(scope) }),
-      });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? `HTTP ${res.status}`);
-      }
-      const { reply } = (await res.json()) as { reply: string };
-      setTurns((t) => [...t, { role: "assistant", content: reply }]);
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Couldn't reach the analyst",
-      );
-      setTurns((t) => t.slice(0, -1));
-      setInput(question);
-    } finally {
-      setBusy(false);
-    }
+    void sendMessage({ text: question });
   }
 
   if (!open) {
@@ -112,11 +97,13 @@ export function InsightsAskPanel({
           </Button>
         </div>
 
-        <div
-          ref={scrollRef}
-          className="flex max-h-[45vh] flex-col gap-3 overflow-y-auto px-4 py-3"
-        >
-          {turns.length === 0 ? (
+        <BotPanelConversation
+          messages={messages}
+          status={status}
+          workingLabel="Reading the numbers…"
+          feedback={{ propertyId, surface: "insights", sessionId: scopeRef.key }}
+          className="max-h-[45vh]"
+          empty={
             <div className="flex flex-col gap-2 py-1">
               <p className="text-sm text-muted-foreground">
                 Answers come from the same numbers the charts use — with the
@@ -130,50 +117,31 @@ export function InsightsAskPanel({
                 ))}
               </div>
             </div>
-          ) : (
-            turns.map((t, i) =>
-              t.role === "user" ? (
-                <p
-                  key={i}
-                  className="ml-8 self-end rounded-md bg-muted px-3 py-1.5 text-sm text-foreground"
-                >
-                  {t.content}
-                </p>
-              ) : (
-                <div key={i} className="flex flex-col gap-1">
-                  <div
-                    className={cn(
-                      "prose prose-sm dark:prose-invert max-w-none",
-                      "text-sm leading-relaxed text-foreground [&_li]:my-0.5 [&_p]:my-1",
-                    )}
-                  >
-                    <ReactMarkdown>{t.content}</ReactMarkdown>
-                  </div>
-                  {turns[i - 1]?.role === "user" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      disabled={pinning}
-                      onClick={() => void pin(turns[i - 1].content)}
-                      className="w-fit text-muted-foreground"
-                      title="Keep this question on the page — it re-answers itself when the numbers move"
-                    >
-                      <Pin className="size-3" />
-                      Pin this question
-                    </Button>
-                  ) : null}
-                </div>
-              ),
-            )
-          )}
-          {busy ? <AiLoader label="Reading the numbers…" /> : null}
-        </div>
+          }
+          renderAfterAssistant={(message, index) => {
+            const question = messages[index - 1];
+            if (!question || question.role !== "user") return null;
+            return (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                disabled={pinning}
+                onClick={() => void pin(messageText(question))}
+                className="w-fit text-muted-foreground"
+                title="Keep this question on the page — it re-answers itself when the numbers move"
+              >
+                <Pin className="size-3" />
+                Pin this question
+              </Button>
+            );
+          }}
+        />
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void send(input);
+            send(input);
           }}
           className="flex items-end gap-2 border-t border-border px-3 py-2.5"
         >
@@ -185,7 +153,7 @@ export function InsightsAskPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void send(input);
+                send(input);
               }
             }}
             rows={1}
@@ -193,19 +161,24 @@ export function InsightsAskPanel({
             disabled={busy}
             className="max-h-28 min-h-9 flex-1 resize-none rounded-md bg-transparent px-3 py-2 text-sm shadow-composer outline-none transition-[background-color,box-shadow] placeholder:text-faint-foreground focus-visible:shadow-composer-focus disabled:opacity-50 dark:bg-muted"
           />
-          <Button
-            type="submit"
-            aria-label="Send"
-            size="icon-lg"
-            disabled={busy || input.trim().length === 0}
-            // Quiet ghost until there's something to send; then it fills in
-            // (warm ink) as the clear "go" affordance — no flat solid block
-            // sitting there when the field is empty.
-            variant={input.trim().length > 0 ? "default" : "ghost"}
-            className={cn(input.trim().length === 0 && "text-faint-foreground")}
-          >
-            <Send className="size-4" />
-          </Button>
+          {busy ? (
+            <Button type="button" size="sm" variant="outline" onClick={() => void stop()}>
+              Stop
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              aria-label="Send"
+              size="icon-lg"
+              disabled={input.trim().length === 0}
+              // Quiet ghost until there's something to send; then it fills in
+              // (warm ink) as the clear "go" affordance.
+              variant={input.trim().length > 0 ? "default" : "ghost"}
+              className={cn(input.trim().length === 0 && "text-faint-foreground")}
+            >
+              <Send className="size-4" />
+            </Button>
+          )}
         </form>
       </div>
     </div>

@@ -24,8 +24,16 @@ This repo is a **turborepo** containing three apps:
   `/eve/v1/*` (middleware-allowlisted; auth = eve channel AuthFn in
   `apps/agent/agent/channels/eve.ts`: Supabase session cookie or
   service-role bearer + `x-hotelclaw-property`/`-agent`/`-user` headers).
+  **eve is pinned to 0.83.0 (upgraded from 0.27 on 2026-10-23)** — sessions
+  are addressed by durable id (no continuation tokens), questions/approvals
+  hold the turn open (`turn.waiting`), and property memory is an eve memory
+  SLOT over Postgres (`apps/agent/agent/memory/*`, `packages/memory`) —
+  the gbrain server is retired. Contract + research:
+  `apps/web/AGENTS.md` ("eve 0.83 runtime contract", "Substrate — property
+  memory") and `docs/ai-layer-eve-0.83.md`. Typecheck the runtime with
+  `pnpm --filter agent typecheck`; compile it with `cd apps/agent && pnpm build`.
 
-Shared code goes under `packages/*` (`@hotelclaw/agent-config` is the first).
+Shared code goes under `packages/*` (`@hotelclaw/agent-config`, `@hotelclaw/memory`, `@hotelclaw/chat-ui`, `@hotelclaw/chat-grouping`).
 
 ## Common commands (run from repo root)
 

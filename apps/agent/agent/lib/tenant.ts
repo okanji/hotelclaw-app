@@ -1,5 +1,20 @@
 import type { SessionContext } from "eve/context";
 
+/**
+ * The slice of runtime context every tenancy helper needs. Both eve context
+ * shapes satisfy it: `SessionContext` (tools, hooks, channel events) and
+ * `DynamicResolveContext` (defineDynamic resolvers — eve 0.33+ no longer
+ * hands resolvers a full SessionContext; they get `session.auth` but no
+ * `getSandbox`). Typing against the slice keeps one helper for both.
+ */
+export type SessionLike = {
+  readonly session: {
+    readonly id: string;
+    readonly auth: SessionContext["session"]["auth"];
+    readonly parent?: SessionContext["session"]["parent"];
+  };
+};
+
 export type TenantCaller = {
   propertyId: string;
   userId: string;
@@ -27,7 +42,7 @@ function memoTenant(sessionId: string | undefined, caller: TenantCaller) {
   rootTenantMemo.set(sessionId, caller);
 }
 
-export function requireTenantCaller(ctx: SessionContext): TenantCaller {
+export function requireTenantCaller(ctx: SessionLike): TenantCaller {
   const caller = ctx.session.auth.current;
   const propertyId = caller?.attributes?.propertyId;
   const role = caller?.attributes?.role;
@@ -45,7 +60,7 @@ export function requireTenantCaller(ctx: SessionContext): TenantCaller {
   return resolved;
 }
 
-export function tenantCallerOrNull(ctx: SessionContext): TenantCaller | null {
+export function tenantCallerOrNull(ctx: SessionLike): TenantCaller | null {
   try {
     return requireTenantCaller(ctx);
   } catch {
@@ -70,7 +85,7 @@ export function tenantCallerOrNull(ctx: SessionContext): TenantCaller | null {
  * writes on behalf of a user must run in the root session.
  */
 export async function resolveTenantCaller(
-  ctx: SessionContext,
+  ctx: SessionLike,
 ): Promise<TenantCaller> {
   const direct = tenantCallerOrNull(ctx);
   if (direct) return direct;

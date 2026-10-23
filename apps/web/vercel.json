@@ -26,8 +26,8 @@
       "schedule": "30 4 * * *"
     },
     {
-      "path": "/api/brain/sync-documents",
-      "schedule": "30 3 * * *"
+      "path": "/api/memory/consolidate",
+      "schedule": "15 3 * * *"
     }
   ]
 }

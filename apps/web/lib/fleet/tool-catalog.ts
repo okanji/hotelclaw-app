@@ -13,7 +13,7 @@ export type PodToolInfo = {
   /** Mirrors approval: always() in pod-tools.ts — the runtime parks the
    * call for a human decision; the UI badges these. */
   gated: boolean;
-  category: "Tasks" | "Bookings" | "Documents" | "Chat" | "Brain" | "Money";
+  category: "Tasks" | "Bookings" | "Documents" | "Chat" | "Money";
 };
 
 export const POD_TOOL_CATALOG: PodToolInfo[] = [
@@ -72,29 +72,6 @@ export const POD_TOOL_CATALOG: PodToolInfo[] = [
     description: "Post a message into a property chat channel as the bot.",
     gated: false,
     category: "Chat",
-  },
-  {
-    id: "brain_query",
-    label: "Query brain",
-    description:
-      "Hybrid search over the pod's knowledge brain (its own pages + federated master playbooks).",
-    gated: false,
-    category: "Brain",
-  },
-  {
-    id: "brain_get",
-    label: "Read brain page",
-    description: "Fetch a single brain page by its slug.",
-    gated: false,
-    category: "Brain",
-  },
-  {
-    id: "brain_write",
-    label: "Capture to brain",
-    description:
-      "Append an outcome/learning to an entity page's timeline in the pod's own brain source (never the master; never rewrites compiled truth).",
-    gated: false,
-    category: "Brain",
   },
   {
     id: "refund_booking",

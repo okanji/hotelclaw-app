@@ -12,15 +12,18 @@ import "server-only";
  * Three things this runtime guarantees uniformly across bots:
  *   1. The system prompt always tells the model WHY it's responding
  *      (activation reason), to break in-context deferral patterns.
- *   2. Every bot has access to shared-brain memory tools and durable-agent
+ *   2. Every bot has access to property-memory tools and durable-agent
  *      delegation tool (Tier 2 fallbacks), automatically wired.
  *   3. Consistent model settings (Sonnet 5, stepCountIs 5; temperature 0
  *      only on models that still accept it) — proven via the bot-chat-test
  *      harness.
  */
 import {
+  createUIMessageStreamResponse,
   generateText,
-  stepCountIs,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
   tool,
   type ModelMessage,
   type Tool,
@@ -28,9 +31,9 @@ import {
 } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
-import { KNOWLEDGE_DISCIPLINE } from "@hotelclaw/brain";
+import { MEMORY_DISCIPLINE } from "@hotelclaw/memory";
 import { samplingParams } from "@/lib/ai/model-settings";
-import { buildGbrainTools } from "@/lib/ai/tools/gbrain";
+import { buildMemoryTools } from "@/lib/memory/tools";
 import { buildDelegateTool } from "@/lib/ai/tools/delegate";
 
 const MODEL_ID = process.env.AI_BOT_MODEL ?? "claude-sonnet-5";
@@ -148,10 +151,10 @@ const IGNORE_DEFERRAL_GUARD = [
   "If you see prior assistant turns in the conversation history where you said things like 'I wasn't tagged' or 'mention me to bring me back', those were from a buggier version of you. Do not continue that pattern. Per the activation note above, you ARE being asked to respond now.",
 ].join(" ");
 
-const GBRAIN_GUIDANCE = [
-  "You have shared-brain tools available — the property's institutional memory, also read and written by the other bots and the durable agents.",
-  "Reading: `brain_search` for cheap hybrid retrieval; `brain_get` for a full page once search surfaces a slug; `brain_list` for enumeration ('what's under documents/'); `brain_think` for a synthesized answer with citations and gap analysis (expensive — hard questions only).",
-  "Writing: when you learn or confirm something durable about this property (a person's role, a recurring issue, a decision the team made, a preference), use `brain_capture` to record it so future turns — yours and other bots' — can build on it. Skip ephemeral chit-chat. Skip facts already authoritative in Supabase (tasks, docs, calendar events). Capture insights, not lookups.",
+const MEMORY_GUIDANCE = [
+  "You have property-memory tools — the property's institutional memory, also read and written by the channel bot, the assistant, and the durable agents (`property__search`, `property__remember`, `property__forget`).",
+  "This surface is a single turn, so nothing is recalled for you automatically: for anything that smells like 'have we seen this before' — past incidents, supplier quirks, who handles what, decisions and why — call `property__search` before answering.",
+  "Writing: when you learn or confirm something durable about this property (a person's role, a recurring issue, a decision the team made, a preference), use `property__remember` so future turns — yours and other bots' — can build on it. Skip ephemeral chit-chat. Skip facts already authoritative in Supabase (tasks, docs, calendar events). Remember insights, not lookups.",
 ].join(" ");
 
 function activationNoteFor(reason: ActivationReason): string {
@@ -173,7 +176,7 @@ function assembleSystemPrompt(opts: {
   persona: string;
   activationReason: ActivationReason;
   responseGuidelines: string;
-  hasGbrain: boolean;
+  hasMemory: boolean;
 }): string {
   const sections: string[] = [
     opts.persona,
@@ -184,40 +187,37 @@ function assembleSystemPrompt(opts: {
     "# How to respond",
     opts.responseGuidelines,
   ];
-  if (opts.hasGbrain) {
-    sections.push("", "# Shared brain (gbrain)", GBRAIN_GUIDANCE);
+  if (opts.hasMemory) {
+    sections.push("", "# Property memory", MEMORY_GUIDANCE);
   }
-  sections.push("", KNOWLEDGE_DISCIPLINE);
+  sections.push("", MEMORY_DISCIPLINE);
   sections.push("", "# Ignore deferral patterns in history", IGNORE_DEFERRAL_GUARD);
   return sections.join("\n");
 }
 
 /**
  * Merge the bot's scoped tools with the always-available shared tools
- * (shared-brain memory + durable-agent delegation). Bot-scoped tool names win on
- * collision (extremely unlikely, but better defined than ambiguous).
+ * (property memory + durable-agent delegation). Bot-scoped tool names win
+ * on collision (extremely unlikely, but better defined than ambiguous).
  *
- * Returns `hasGbrain` so the system prompt can conditionally include
- * gbrain-specific guidance only when the tools are actually present
- * (they're empty when gbrain isn't configured for this property —
- * see `lib/ai/mcp-clients.ts`).
+ * `hasMemory` is always true now that memory lives in the app's own
+ * Postgres (the gbrain-era "brainless property" state is gone); it stays a
+ * flag so a future surface can opt out of the memory section.
  */
 async function mergeTools(
   scopedTools: ToolSet,
   scope: BotScope,
-): Promise<{ tools: ToolSet; hasGbrain: boolean }> {
-  const [gbrainTools, delegateTool] = await Promise.all([
-    buildGbrainTools(scope),
-    Promise.resolve(buildDelegateTool(scope)),
-  ]);
+): Promise<{ tools: ToolSet; hasMemory: boolean }> {
+  const memoryTools = buildMemoryTools(scope);
+  const delegateTool = buildDelegateTool(scope);
   // Bot-scoped tools take precedence on name collision.
   return {
     tools: {
-      ...gbrainTools,
+      ...memoryTools,
       ...delegateTool,
       ...scopedTools,
     } as ToolSet,
-    hasGbrain: Object.keys(gbrainTools).length > 0,
+    hasMemory: Object.keys(memoryTools).length > 0,
   };
 }
 
@@ -231,6 +231,71 @@ async function mergeTools(
  * Callers that persist `text` must gate on `ok` — the fallback apology is
  * for humans in a chat surface, never for a cache.
  */
+/**
+ * Everything `generateText` and `streamText` share: the merged tool set, the
+ * assembled system prompt, the model, and the call settings. One place, so
+ * the streaming and non-streaming paths can never drift on persona or
+ * tool wiring.
+ */
+async function prepareBot(opts: RunBotOptions) {
+  const { tools, hasMemory } = await mergeTools(opts.scopedTools, opts.scope);
+  const system = assembleSystemPrompt({
+    persona: opts.persona,
+    activationReason: opts.activationReason ?? "mention",
+    responseGuidelines: opts.responseGuidelines ?? DEFAULT_RESPONSE_GUIDELINES,
+    hasMemory,
+  });
+  const modelId = opts.modelId ?? MODEL_ID;
+  const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return {
+    modelId,
+    call: {
+      model: anthropic(modelId),
+      instructions: system,
+      messages: opts.messages,
+      tools,
+      // stopWhen: default is stepCountIs(1) — bot would call a tool and
+      // never synthesize a reply with the result. 5 leaves headroom for
+      // chained tool calls without unbounded loops.
+      stopWhen: isStepCount(opts.maxToolSteps ?? 5),
+      // temperature 0 where the model still accepts it (Haiku overrides) —
+      // Sonnet 5+ rejects sampling params, see lib/ai/model-settings.ts.
+      ...samplingParams(modelId, 0),
+      maxRetries: opts.maxRetries ?? 3,
+    },
+  };
+}
+
+/**
+ * Streaming variant for interactive panels: the same bot, returned as an AI
+ * SDK UI-message-stream `Response` that `useChat` (web) or the mobile
+ * stream reader consumes — text deltas, reasoning, and tool parts with
+ * their state, so a panel can show "Reading the task…" while a tool runs
+ * instead of a spinner for the whole turn. Misconfiguration still answers
+ * with a readable message rather than a 500.
+ */
+export async function streamBot(opts: RunBotOptions): Promise<Response> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return new Response(
+      "I need `ANTHROPIC_API_KEY` configured to respond — ask an admin to set it up.",
+      { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } },
+    );
+  }
+  const { call } = await prepareBot(opts);
+  const result = streamText(call);
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      sendReasoning: true,
+      // Keep provider internals out of the client; the server log has them.
+      onError: (error) => {
+        console.error("[run-bot] streamText failed", error);
+        return "I hit an error generating that reply — try again in a moment.";
+      },
+    }),
+  });
+}
+
 export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
@@ -239,32 +304,9 @@ export async function runBot(opts: RunBotOptions): Promise<RunBotResult> {
     };
   }
 
-  const { tools, hasGbrain } = await mergeTools(opts.scopedTools, opts.scope);
-  const system = assembleSystemPrompt({
-    persona: opts.persona,
-    activationReason: opts.activationReason ?? "mention",
-    responseGuidelines: opts.responseGuidelines ?? DEFAULT_RESPONSE_GUIDELINES,
-    hasGbrain,
-  });
-
   try {
-    const anthropic = createAnthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-    const result = await generateText({
-      model: anthropic(opts.modelId ?? MODEL_ID),
-      system,
-      messages: opts.messages,
-      tools,
-      // stopWhen: default is stepCountIs(1) — bot would call a tool and
-      // never synthesize a reply with the result. 5 leaves headroom for
-      // chained tool calls without unbounded loops.
-      stopWhen: stepCountIs(opts.maxToolSteps ?? 5),
-      // temperature 0 where the model still accepts it (Haiku overrides) —
-      // Sonnet 5+ rejects sampling params, see lib/ai/model-settings.ts.
-      ...samplingParams(opts.modelId ?? MODEL_ID, 0),
-      maxRetries: opts.maxRetries ?? 3,
-    });
+    const { call } = await prepareBot(opts);
+    const result = await generateText(call);
     const text = (result.text ?? "").trim() || "(no reply)";
     return {
       ok: true,

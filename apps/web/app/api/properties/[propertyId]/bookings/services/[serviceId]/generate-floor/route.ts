@@ -61,7 +61,7 @@ export async function POST(
       output: Output.object({ schema: GeneratedFloor }),
       temperature: 0,
       maxRetries: 2,
-      system: [
+      instructions: [
         "You turn a restaurant-room description into a table list for a floor-plan editor.",
         "Rules:",
         "- One entry per table. Short names: T1, T2… (or P1… for patio, B1… for bar — first letter of the zone).",

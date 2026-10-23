@@ -275,6 +275,84 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      agent_memories: {
+        Row: {
+          id: string;
+          property_id: string;
+          subject_kind: "property" | "user" | "guest";
+          subject_id: string;
+          kind: "fact" | "preference" | "event" | "outcome" | "playbook";
+          content: string;
+          source: string | null;
+          tags: string[];
+          importance: number;
+          pinned: boolean;
+          created_by: string | null;
+          created_via: "agent" | "app" | "member" | "import";
+          superseded_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          subject_kind: "property" | "user" | "guest";
+          subject_id: string;
+          kind?: "fact" | "preference" | "event" | "outcome" | "playbook";
+          content: string;
+          source?: string | null;
+          tags?: string[];
+          importance?: number;
+          pinned?: boolean;
+          created_by?: string | null;
+          created_via?: "agent" | "app" | "member" | "import";
+          superseded_at?: string | null;
+        };
+        Update: Partial<{
+          kind: "fact" | "preference" | "event" | "outcome" | "playbook";
+          content: string;
+          source: string | null;
+          tags: string[];
+          importance: number;
+          pinned: boolean;
+          superseded_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      ai_feedback: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          surface: "assistant" | "agent" | "task" | "insights" | "document" | "channel";
+          session_id: string | null;
+          message_key: string;
+          rating: number;
+          note: string | null;
+          excerpt: string | null;
+          distilled_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          surface: "assistant" | "agent" | "task" | "insights" | "document" | "channel";
+          session_id?: string | null;
+          message_key: string;
+          rating: number;
+          note?: string | null;
+          excerpt?: string | null;
+          distilled_at?: string | null;
+        };
+        Update: Partial<{
+          rating: number;
+          note: string | null;
+          excerpt: string | null;
+          distilled_at: string | null;
+        }>;
+        Relationships: [];
+      };
       documents: {
         Row: {
           id: string;
@@ -306,10 +384,10 @@ export interface Database {
           sheet_updated_at: string | null;
           // Concatenated extracted text of uploaded file attachments
           // (migration 0089, lib/documents/attachment-text.ts). Weight C
-          // in body_fts; mirrored into the brain page.
+          // in body_fts.
           attachments_text: string;
-          // Last successful mirror into the property's gbrain source
-          // (migration 0088, lib/brain/doc-sync.ts). Null = never mirrored.
+          // Legacy gbrain mirror cursor (migration 0088). Unused since the
+          // brain retired (2026-10-23); kept because the column exists.
           brain_synced_at: string | null;
           space_id: string | null;
           project_id: string | null;
@@ -3374,6 +3452,16 @@ export interface Database {
           p_tokens: number;
         };
         Returns: number;
+      };
+      search_agent_memories: {
+        Args: {
+          p_property_id: string;
+          p_subject_kind: string;
+          p_subject_id: string;
+          p_query: string;
+          p_limit?: number;
+        };
+        Returns: Database["public"]["Tables"]["agent_memories"]["Row"][];
       };
       search_chatbot_chunks: {
         Args: {

@@ -80,6 +80,8 @@ app/
   task/[taskId].tsx                   # task detail: complete, status, priority, assignee
   documents.tsx                       # document list + search
   document/[documentId].tsx           # read-only document (body_text)
+  assistant.tsx                       # your AI conversations (assistant_chats) + starters
+  assistant/[chatId].tsx              # one eve-backed conversation (useEveSession + EveTranscript)
 components/ChannelListPane.tsx        # the shared channel list (filters + tenant guards)
 components/ScreenHeader.tsx           # compact nav bar for tab screens (NativeTabs has no header)
 components/ui.tsx                     # Loading / ErrorState / EmptyState, status+priority ramps
@@ -166,6 +168,47 @@ automations) but silently skip all three.
   other surfaces.
   Native date/time pickers come from `@react-native-community/datetimepicker`
   (native module — adding it required a rebuild).
+
+## Assistant + AI on mobile (built 2026-10-23)
+
+The phone is a full client of the eve agent runtime, not a viewer of it.
+
+- **Auth**: eve's channel accepts the Supabase access token as
+  `Authorization: Bearer <jwt>` + `x-hotelclaw-property` (`supabaseBearerAuth`
+  in `apps/agent/agent/channels/eve.ts`; verified with `auth.getUser(token)`
+  and membership-checked exactly like the web's cookie path). `lib/eve.ts`
+  builds those headers and talks to `/eve/v1/*` on `EXPO_PUBLIC_API_URL`.
+- **Streaming needs `expo/fetch`.** React Native's global `fetch` buffers the
+  whole body and an eve session stream never closes, so `eveStream` and the
+  panel-bot reader use `import { fetch } from "expo/fetch"` (ReadableStream
+  body). Never switch them back to global fetch — the chat would hang on the
+  first turn with no error.
+- **`hooks/useEveSession.ts`** is a port of `apps/web/hooks/use-eve-session.ts`
+  (same contract: durable session ids, replay from index 0 rebuilt by the
+  SHARED reducer in `@hotelclaw/chat-ui/transcript`, `inputResponses` to answer
+  a parked question/approval, 409 → fresh session). The transcript therefore
+  reads identically on both apps.
+- **Screens**: `app/assistant.tsx` (your conversations — rows straight from
+  `assistant_chats` under RLS, live via Realtime, starter prompts, new-chat
+  pencil) and `app/assistant/[chatId].tsx` (one conversation: `EveTranscript`
+  + composer; the eve session id is stored back on the row after each turn so
+  a chat started on the phone continues on the web and vice versa; `?prefill=`
+  carries a starter prompt). Entry points: the ✨ button in the Channels
+  header pill and the "Assistant" row in You.
+- **`components/ai/EveTranscript.tsx`** renders the reducer items: user
+  bubbles (framing stripped with the shared `displayUserText`), `Markdown`
+  (a dependency-free subset: headings, lists, bold, code, fenced blocks),
+  collapsed tool activity, `render_ui` cards through the existing
+  `AiUiAttachment` (keep the no-horizontal-ScrollView rule), parked questions
+  as chips / free text and approvals as Approve / Cancel, and 👍/👎 posting to
+  `/api/properties/:id/ai-feedback` (the learning loop).
+- **Task assistant** (`components/TaskAiSheet.tsx`, on task detail): same
+  route as web (`POST .../tasks/:taskId/ai`, Bearer), same streamed AI SDK
+  UI-message protocol, read by `lib/ui-stream.ts` (text / reasoning / tool
+  parts; posts legacy `{role, content}` turns — the route accepts both).
+- The in-channel bot path is unchanged for mobile: the webhook → eve → Stream
+  post, with `AiThinkingIndicator` watching `channel_bot_sessions` over
+  Realtime.
 
 ## Documents are the real editor, in a WebView
 

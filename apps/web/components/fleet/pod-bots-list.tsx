@@ -40,7 +40,7 @@ export function PodBotsList({
         eyebrow="Fleet"
         eyebrowTone="brand"
         title="Pod bots"
-        description={`The operated AI bots serving ${client.name}. Each bot's persona lives in the pod's knowledge brain; its tools, model, and fallback persona are configured here — and every grant is visible to the whole team.`}
+        description={`The operated AI bots serving ${client.name}. Each bot's persona, tools, and model are configured here; property memory is recalled into every session — and every grant is visible to the whole team.`}
         actions={<StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>}
       />
 

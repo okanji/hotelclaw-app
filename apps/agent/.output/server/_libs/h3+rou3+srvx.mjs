@@ -1,12 +1,12 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import nodeHTTP from "node:http";
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
 import { PassThrough, Readable } from "node:stream";
+import nodeHTTP from "node:http";
+import nodeHTTP2 from "node:http2";
 import { pipeline } from "node:stream/promises";
 import nodeHTTPS from "node:https";
-import nodeHTTP2 from "node:http2";
-//#region ../../node_modules/srvx/dist/_chunks/_url.mjs
 function lazyInherit(target, source, sourceKey) {
 	for (const key of [...Object.getOwnPropertyNames(source), ...Object.getOwnPropertySymbols(source)]) {
 		if (key === "constructor") continue;
@@ -34,10 +34,50 @@ function lazyInherit(target, source, sourceKey) {
 		if (modified) Object.defineProperty(target, key, desc);
 	}
 }
-const _needsNormRE = /(?:(?:^|\/)(?:\.|\.\.|%2e|%2e\.|\.%2e|%2e%2e)(?:\/|$))|[\\^#"<>{}`\x80-\uffff]/i;
-const _searchNeedsNormRE = /[#"'<>]/;
+const _needsNormRE = /(?:(?:^|\/)(?:\.|\.\.|%2e|%2e\.|\.%2e|%2e%2e)(?:\/|$))|[\\^#"<>{}`\x00-\x20\x7f-\uffff]/i;
+const _searchNeedsNormRE = /[#"'<>\x00-\x20\x7f-\uffff]/;
 const FastURL = /* @__PURE__ */ (() => {
 	const NativeURL = globalThis.URL;
+	const NativeSearchParams = globalThis.URLSearchParams;
+	const FastURLSearchParams = class URLSearchParams {
+		#owner;
+		#params;
+		constructor(owner) {
+			this.#owner = owner;
+		}
+		static [Symbol.hasInstance](val) {
+			return val instanceof NativeSearchParams;
+		}
+		_adopt(params) {
+			this.#params = params;
+		}
+		get _params() {
+			if (!this.#params) {
+				const search = this.#owner.search;
+				this.#params ??= new NativeSearchParams(search);
+			}
+			return this.#params;
+		}
+		#mutable() {
+			this.#owner._url;
+			return this.#params;
+		}
+		append(name, value) {
+			this.#mutable().append(name, value);
+		}
+		set(name, value) {
+			this.#mutable().set(name, value);
+		}
+		delete(name, value) {
+			this.#mutable().delete(name, value);
+		}
+		sort() {
+			this.#mutable().sort();
+		}
+	};
+	lazyInherit(FastURLSearchParams.prototype, NativeSearchParams.prototype, "_params");
+	Object.setPrototypeOf(FastURLSearchParams.prototype, NativeSearchParams.prototype);
+	Object.setPrototypeOf(FastURLSearchParams, NativeSearchParams);
 	const FastURL = class URL {
 		#url;
 		#href;
@@ -50,7 +90,7 @@ const FastURL = /* @__PURE__ */ (() => {
 		constructor(url) {
 			if (typeof url === "string") {
 				const isOriginForm = url[0] === "/";
-				if (isOriginForm && !_searchNeedsNormRE.test(url)) this.#href = url;
+				if (isOriginForm && !_searchNeedsNormRE.test(url)) this.#href = `http://localhost${url}`;
 				else this.#url = new NativeURL(isOriginForm ? `http://localhost${url}` : url);
 			} else if (_needsNormRE.test(url.pathname) || url.search && _searchNeedsNormRE.test(url.search)) this.#url = new NativeURL(`${url.protocol || "http:"}//${url.host || "localhost"}${url.pathname}${url.search || ""}`);
 			else {
@@ -71,8 +111,8 @@ const FastURL = /* @__PURE__ */ (() => {
 			this.#host = void 0;
 			this.#pathname = void 0;
 			this.#search = void 0;
-			this.#searchParams = void 0;
 			this.#pos = void 0;
+			this.#searchParams?._adopt(this.#url.searchParams);
 			return this.#url;
 		}
 		get href() {
@@ -114,9 +154,9 @@ const FastURL = /* @__PURE__ */ (() => {
 			return this.#search;
 		}
 		get searchParams() {
+			if (this.#searchParams) return this.#searchParams;
 			if (this.#url) return this.#url.searchParams;
-			if (!this.#searchParams) this.#searchParams = new URLSearchParams(this.search);
-			return this.#searchParams;
+			return this.#searchParams = new FastURLSearchParams(this);
 		}
 		get protocol() {
 			if (this.#url) return this.#url.protocol;
@@ -127,6 +167,10 @@ const FastURL = /* @__PURE__ */ (() => {
 				this.#protocol = url.slice(0, protocolIndex + 1);
 			}
 			return this.#protocol;
+		}
+		get hash() {
+			if (this.#url) return this.#url.hash;
+			return "";
 		}
 		toString() {
 			return this.href;
@@ -140,12 +184,10 @@ const FastURL = /* @__PURE__ */ (() => {
 	Object.setPrototypeOf(FastURL, NativeURL);
 	return FastURL;
 })();
-//#endregion
-//#region ../../node_modules/srvx/dist/_chunks/_utils2.mjs
 function resolvePortAndHost(opts) {
 	const _port = opts.port ?? globalThis.process?.env.PORT ?? 3e3;
 	const port = typeof _port === "number" ? _port : Number.parseInt(_port, 10);
-	if (port < 0 || port > 65535) throw new RangeError(`Port must be between 0 and 65535 (got "${port}").`);
+	if (Number.isNaN(port) || port < 0 || port > 65535) throw new RangeError(`Port must be a number between 0 and 65535 (got "${_port}").`);
 	return {
 		port,
 		hostname: opts.hostname ?? globalThis.process?.env.HOST
@@ -202,36 +244,84 @@ function createWaitUntil() {
 	return {
 		waitUntil: (promise) => {
 			if (typeof promise?.then !== "function") return;
-			promises.add(Promise.resolve(promise).catch(console.error).finally(() => {
-				promises.delete(promise);
-			}));
+			const chained = Promise.resolve(promise).catch(console.error).finally(() => {
+				promises.delete(chained);
+			});
+			promises.add(chained);
 		},
 		wait: () => {
 			return Promise.all(promises);
+		},
+		get _size() {
+			return promises.size;
 		}
 	};
 }
-//#endregion
-//#region ../../node_modules/srvx/dist/_chunks/_utils.mjs
+function limitBodyStream(stream, maxRequestBodySize, options) {
+	const createError = options?.createError ?? createBodyTooLargeError;
+	const reader = stream.getReader();
+	let size = 0;
+	return new ReadableStream({
+		async pull(controller) {
+			const { done, value } = await reader.read();
+			if (done) {
+				controller.close();
+				return;
+			}
+			size += value.byteLength;
+			if (size > maxRequestBodySize) {
+				const error = createError(maxRequestBodySize);
+				reader.cancel(error).catch(() => {});
+				controller.error(error);
+				return;
+			}
+			controller.enqueue(value);
+		},
+		cancel(reason) {
+			return reader.cancel(reason);
+		}
+	});
+}
+var BodyTooLargeError = class extends Error {
+	code = "ERR_BODY_TOO_LARGE";
+	statusCode = 413;
+	status = 413;
+	statusText = "Content Too Large";
+	get name() {
+		return "HTTPError";
+	}
+	toJSON() {
+		return {
+			status: this.status,
+			statusText: this.statusText,
+			message: this.message
+		};
+	}
+};
+function createBodyTooLargeError(maxRequestBodySize) {
+	return new BodyTooLargeError(`Request body exceeds the maximum allowed size of ${maxRequestBodySize} bytes.`);
+}
 const noColor = /* @__PURE__ */ (() => {
-	const env = globalThis.process?.env ?? {};
-	return env.NO_COLOR === "1" || env.TERM === "dumb";
+	const proc = globalThis.process;
+	const env = proc?.env ?? {};
+	if (env.FORCE_COLOR) return false;
+	if (env.NO_COLOR || env.TERM === "dumb") return true;
+	return !proc?.stdout?.isTTY;
 })();
 const _c = (c, r = 39) => (t) => noColor ? t : `\u001B[${c}m${t}\u001B[${r}m`;
 const bold = /* @__PURE__ */ _c(1, 22);
 const red = /* @__PURE__ */ _c(31);
 const green = /* @__PURE__ */ _c(32);
 const gray = /* @__PURE__ */ _c(90);
-//#endregion
-//#region ../../node_modules/srvx/dist/_chunks/_plugins.mjs
 function wrapFetch(server) {
-	const fetchHandler = server.options.fetch;
-	const middleware = server.options.middleware || [];
-	return middleware.length === 0 ? fetchHandler : (request) => callMiddleware$1(request, fetchHandler, middleware, 0);
-}
-function callMiddleware$1(request, fetchHandler, middleware, index) {
-	if (index === middleware.length) return fetchHandler(request);
-	return middleware[index](request, () => callMiddleware$1(request, fetchHandler, middleware, index + 1));
+	let composed = server.options.fetch;
+	const middleware = server.options.middleware;
+	if (middleware) for (let i = middleware.length - 1; i >= 0; i--) {
+		const mw = middleware[i];
+		const next = composed;
+		composed = (request) => mw(request, () => next(request));
+	}
+	return composed;
 }
 const errorPlugin = (server) => {
 	const errorHandler = server.options.error;
@@ -239,7 +329,7 @@ const errorPlugin = (server) => {
 	server.options.middleware.unshift((_req, next) => {
 		try {
 			const res = next();
-			return res instanceof Promise ? res.catch((error) => errorHandler(error)) : res;
+			return typeof res?.then === "function" ? res.then(void 0, (error) => errorHandler(error)) : res;
 		} catch (error) {
 			return errorHandler(error);
 		}
@@ -278,8 +368,6 @@ const gracefulShutdownPlugin = (server) => {
 	};
 	for (const sig of ["SIGINT", "SIGTERM"]) globalThis.process.on(sig, shutdown);
 };
-//#endregion
-//#region ../../node_modules/srvx/dist/_chunks/_trust-proxy.mjs
 function isTrustedProxy(trustProxy, remoteAddress) {
 	if (trustProxy === void 0 || trustProxy === false) return false;
 	if (trustProxy === true) return true;
@@ -296,56 +384,59 @@ function isLoopbackAddress(address) {
 	return !!address && (address === "::1" || address.startsWith("127.") || address.startsWith("::ffff:127."));
 }
 const HOST_RE = /^(\[(?:[A-Fa-f0-9:.]+)\]|(?:[A-Za-z0-9_-]+\.)*[A-Za-z0-9_-]+|(?:\d{1,3}\.){3}\d{1,3})(:\d{1,5})?$/;
-function firstForwardedValue(value) {
-	if (!value) return;
-	return (Array.isArray(value) ? value[0] : value).split(",")[0].trim() || void 0;
+function forwardedList(value) {
+	if (!value) return [];
+	const raw = Array.isArray(value) ? value.join(",") : value;
+	const out = [];
+	for (const part of raw.split(",")) {
+		const entry = part.trim();
+		if (entry) out.push(entry);
+	}
+	return out;
 }
-//#endregion
-//#region ../../node_modules/srvx/dist/_chunks/_body-limit.mjs
-function createBodyTooLargeError(maxRequestBodySize) {
-	return Object.assign(/* @__PURE__ */ new Error(`Request body exceeds the maximum allowed size of ${maxRequestBodySize} bytes.`), {
-		code: "ERR_BODY_TOO_LARGE",
-		statusCode: 413,
-		status: 413
-	});
+function resolveClientIP(trustProxy, peer, forwardedFor) {
+	if (!isTrustedProxy(trustProxy, peer)) return peer;
+	const list = forwardedList(forwardedFor);
+	for (let i = list.length - 1; i >= 0; i--) if (!isTrustedProxy(trustProxy, list[i])) return list[i];
+	return list.length > 0 ? list[0] : peer;
 }
-function limitBodyStream(stream, maxRequestBodySize) {
-	const reader = stream.getReader();
-	let size = 0;
-	return new ReadableStream({
-		async pull(controller) {
-			const { done, value } = await reader.read();
-			if (done) {
-				controller.close();
-				return;
-			}
-			size += value.byteLength;
-			if (size > maxRequestBodySize) {
-				const error = createBodyTooLargeError(maxRequestBodySize);
-				reader.cancel(error).catch(() => {});
-				controller.error(error);
-				return;
-			}
-			controller.enqueue(value);
-		},
-		cancel(reason) {
-			return reader.cancel(reason);
-		}
-	});
+function trustedHops(trustProxy, peer, forwardedFor) {
+	if (!isTrustedProxy(trustProxy, peer)) return 0;
+	const list = forwardedList(forwardedFor);
+	let hops = 1;
+	for (let i = list.length - 1; i >= 0; i--) {
+		if (!isTrustedProxy(trustProxy, list[i])) return hops;
+		hops++;
+	}
+	return Number.POSITIVE_INFINITY;
 }
-//#endregion
-//#region ../../node_modules/srvx/dist/adapters/node.mjs
-function sendNodeResponseDetached(nodeRes, webRes) {
+function forwardedHopValue(value, hops) {
+	if (hops <= 0) return;
+	const list = forwardedList(value);
+	if (list.length === 0) return;
+	return list[Math.max(0, list.length - hops)];
+}
+function sendNodeResponseDetached(nodeRes, webRes, silent) {
 	try {
 		return _sendNodeResponse(nodeRes, webRes, true);
 	} catch (error) {
-		handleSendError(nodeRes, error);
+		handleSendError(nodeRes, error, silent);
 	}
 }
-function handleSendError(nodeRes, _error) {
+function handleSendError(nodeRes, error, silent) {
+	if (!silent) console.error("[srvx] Failed to send response:", error);
+	failResponse(nodeRes);
+}
+function sendErrorResponse(nodeRes, error, silent) {
+	if (!silent) console.error("[srvx] Unhandled error in fetch handler:", error);
+	failResponse(nodeRes);
+}
+function failResponse(nodeRes) {
+	if (nodeRes.writableEnded) return;
 	if (nodeRes.headersSent) nodeRes.destroy();
 	else {
 		nodeRes.statusCode = 500;
+		if (nodeRes.req?.httpVersion !== "2.0") nodeRes.statusMessage = "";
 		nodeRes.end();
 	}
 }
@@ -372,8 +463,14 @@ function _sendNodeResponse(nodeRes, webRes, detached) {
 	return webRes.body ? streamBody(webRes.body, nodeRes) : endNodeResponse(nodeRes, detached);
 }
 function writeHead(nodeRes, status, statusText, rawHeaders) {
-	if (!nodeRes.headersSent) if (nodeRes.req?.httpVersion === "2.0") nodeRes.writeHead(status, rawHeaders);
-	else nodeRes.writeHead(status, statusText, rawHeaders);
+	if (!nodeRes.headersSent) {
+		if (nodeRes.req?.httpVersion === "2.0") nodeRes.writeHead(status, rawHeaders);
+		else nodeRes.writeHead(status, safeStatusText(statusText), rawHeaders);
+	}
+}
+const INVALID_REASON_PHRASE_RE = /[^\t\u0020-\u007E\u0080-\u00FF]/g;
+function safeStatusText(statusText) {
+	return typeof statusText === "string" && statusText ? statusText.replace(INVALID_REASON_PHRASE_RE, "") : statusText;
 }
 function endNodeResponse(nodeRes, detached) {
 	if (detached) {
@@ -387,6 +484,12 @@ function pipeBody(stream, nodeRes, status, statusText, headers) {
 		stream.destroy?.();
 		return;
 	}
+	if (nodeRes.req?.method === "HEAD") {
+		if (typeof stream.destroy === "function") stream.destroy();
+		else stream.abort?.();
+		writeHead(nodeRes, status, statusText, headers);
+		return endNodeResponse(nodeRes);
+	}
 	if (typeof stream.on !== "function" || typeof stream.destroy !== "function") {
 		writeHead(nodeRes, status, statusText, headers);
 		stream.pipe(nodeRes);
@@ -397,14 +500,19 @@ function pipeBody(stream, nodeRes, status, statusText, headers) {
 		return endNodeResponse(nodeRes);
 	}
 	return new Promise((resolve) => {
-		function onEarlyError() {
+		function cleanup() {
+			stream.off("error", onEarlyError);
 			stream.off("readable", onReadable);
+			nodeRes.off("close", onResClose);
+		}
+		function onEarlyError() {
+			cleanup();
 			stream.destroy();
 			writeHead(nodeRes, 500, "Internal Server Error", []);
 			endNodeResponse(nodeRes).then(resolve);
 		}
 		function onReadable() {
-			stream.off("error", onEarlyError);
+			cleanup();
 			if (nodeRes.destroyed) {
 				stream.destroy();
 				return resolve();
@@ -412,14 +520,24 @@ function pipeBody(stream, nodeRes, status, statusText, headers) {
 			writeHead(nodeRes, status, statusText, headers);
 			pipeline(stream, nodeRes).catch(() => {}).then(() => resolve());
 		}
+		function onResClose() {
+			cleanup();
+			stream.destroy();
+			resolve();
+		}
 		stream.once("error", onEarlyError);
 		stream.once("readable", onReadable);
+		nodeRes.once("close", onResClose);
 	});
 }
 function streamBody(stream, nodeRes) {
 	if (nodeRes.destroyed) {
-		stream.cancel();
+		stream.cancel().catch(() => {});
 		return;
+	}
+	if (nodeRes.req?.method === "HEAD") {
+		stream.cancel().catch(() => {});
+		return endNodeResponse(nodeRes);
 	}
 	const reader = stream.getReader();
 	function streamCancel(error) {
@@ -444,14 +562,17 @@ function streamBody(stream, nodeRes) {
 	});
 }
 var NodeRequestURL = class extends FastURL {
-	constructor({ req, trusted = false }) {
+	constructor({ req, hops = 0 }) {
 		const path = req.url || "/";
-		const forwardedHost = trusted ? firstForwardedValue(req.headers["x-forwarded-host"]) : void 0;
+		const trusted = hops > 0;
+		const forwardedHost = forwardedHopValue(req.headers["x-forwarded-host"], hops);
 		let host = (forwardedHost && HOST_RE.test(forwardedHost) ? forwardedHost : void 0) || req.headers.host || req.headers[":authority"];
 		if (host && !HOST_RE.test(host)) host = "_invalid_";
-		else if (!host) if (req.socket) host = `${req.socket.localFamily === "IPv6" ? "[" + req.socket.localAddress + "]" : req.socket.localAddress}:${req.socket?.localPort || "80"}`;
-		else host = "localhost";
-		const forwardedProto = trusted ? firstForwardedValue(req.headers["x-forwarded-proto"]) : void 0;
+		else if (!host) {
+			if (req.socket) host = `${req.socket.localFamily === "IPv6" ? "[" + req.socket.localAddress + "]" : req.socket.localAddress}:${req.socket?.localPort || "80"}`;
+			else host = "localhost";
+		}
+		const forwardedProto = forwardedHopValue(req.headers["x-forwarded-proto"], hops);
 		const protocol = req.socket?.encrypted || forwardedProto === "https" || trusted && req.headers[":scheme"] === "https" ? "https:" : "http:";
 		if (path[0] === "/") {
 			const qIndex = path.indexOf("?");
@@ -467,9 +588,31 @@ var NodeRequestURL = class extends FastURL {
 			pathname: "/*",
 			search: ""
 		});
-		else super(path);
+		else {
+			const target = URL.canParse(path) ? new URL(path) : void 0;
+			if (target) {
+				const targetHost = target.host;
+				const targetPath = target.pathname;
+				super({
+					protocol,
+					host: targetHost ? HOST_RE.test(targetHost) ? targetHost : "_invalid_" : host,
+					pathname: targetPath ? targetPath[0] === "/" ? targetPath : `/${targetPath}` : "/",
+					search: target.search
+				});
+			} else super({
+				protocol,
+				host,
+				pathname: "/",
+				search: ""
+			});
+		}
 	}
 };
+function isValidAbsoluteForm(target) {
+	if (!URL.canParse(target)) return false;
+	const url = new URL(target);
+	return (url.protocol === "http:" || url.protocol === "https:") && url.host !== "";
+}
 const _nonJoinedHeaders = /* @__PURE__ */ new Set([
 	"age",
 	"authorization",
@@ -512,6 +655,9 @@ const NodeRequestHeaders = /* @__PURE__ */ (() => {
 		}
 		static [Symbol.hasInstance](val) {
 			return val instanceof NativeHeaders;
+		}
+		_adopt(headers) {
+			this.#headers = headers;
 		}
 		get _headers() {
 			if (!this.#headers) {
@@ -562,6 +708,23 @@ const NodeRequestHeaders = /* @__PURE__ */ (() => {
 	return Headers;
 })();
 const kNativeRequest = /* @__PURE__ */ Symbol.for("srvx.nativeRequest");
+function bodyUnusable() {
+	return /* @__PURE__ */ new TypeError("Body is unusable: Body has already been read");
+}
+function abortError() {
+	return new DOMException("The request was aborted.", "AbortError");
+}
+function erroredStream(error) {
+	return new ReadableStream({ start(controller) {
+		controller.error(error);
+	} });
+}
+function isClientGone(req) {
+	return req.aborted || !!req.errored || req.destroyed && !req.complete;
+}
+function isBodySourceFinished(req) {
+	return isClientGone(req) || req.destroyed || req.readableEnded;
+}
 const NodeRequest = /* @__PURE__ */ (() => {
 	const NativeRequest = getNativeRequest();
 	class Request {
@@ -570,6 +733,7 @@ const NodeRequest = /* @__PURE__ */ (() => {
 		#req;
 		#url;
 		#bodyStream;
+		#bodyUsed = false;
 		#request;
 		#headers;
 		#abortController;
@@ -578,7 +742,8 @@ const NodeRequest = /* @__PURE__ */ (() => {
 		#ip;
 		#ipResolved = false;
 		#remoteAddress;
-		#trusted;
+		#remoteResolved = false;
+		#hops;
 		constructor(ctx) {
 			this.#req = ctx.req;
 			this.#maxRequestBodySize = ctx.maxRequestBodySize;
@@ -591,21 +756,21 @@ const NodeRequest = /* @__PURE__ */ (() => {
 		static [Symbol.hasInstance](val) {
 			return val instanceof NativeRequest;
 		}
-		#resolveTrusted() {
-			if (this.#trusted === void 0) {
+		#remoteAddr() {
+			if (!this.#remoteResolved) {
+				this.#remoteResolved = true;
 				this.#remoteAddress = this.#req.socket?.remoteAddress;
-				this.#trusted = isTrustedProxy(this.#trustProxy, this.#remoteAddress);
 			}
-			return this.#trusted;
+			return this.#remoteAddress;
+		}
+		#resolveHops() {
+			if (this.#hops === void 0) this.#hops = trustedHops(this.#trustProxy, this.#remoteAddr(), this.#req.headers["x-forwarded-for"]);
+			return this.#hops;
 		}
 		get ip() {
 			if (this.#ipResolved) return this.#ip;
 			this.#ipResolved = true;
-			if (this.#resolveTrusted()) {
-				const forwarded = firstForwardedValue(this.#req.headers["x-forwarded-for"]);
-				if (forwarded) return this.#ip = forwarded;
-			}
-			return this.#ip = this.#remoteAddress;
+			return this.#ip = resolveClientIP(this.#trustProxy, this.#remoteAddr(), this.#req.headers["x-forwarded-for"]);
 		}
 		get method() {
 			if (this.#request) return this.#request.method;
@@ -614,7 +779,7 @@ const NodeRequest = /* @__PURE__ */ (() => {
 		get _url() {
 			return this.#url ||= new NodeRequestURL({
 				req: this.#req,
-				trusted: this.#resolveTrusted()
+				hops: this.#resolveHops()
 			});
 		}
 		set _url(url) {
@@ -625,7 +790,6 @@ const NodeRequest = /* @__PURE__ */ (() => {
 			return this._url.href;
 		}
 		get headers() {
-			if (this.#request) return this.#request.headers;
 			return this.#headers ||= new NodeRequestHeaders(this.#req);
 		}
 		get _abortController() {
@@ -634,46 +798,110 @@ const NodeRequest = /* @__PURE__ */ (() => {
 				const { req, res } = this.runtime.node;
 				const abortController = this.#abortController;
 				const abort = (err) => abortController.abort?.(err);
-				if (res) res.once("close", () => {
-					const reqError = req.errored;
-					if (reqError) abort(reqError);
-					else if (!res.writableEnded) abort();
-				});
-				else req.once("close", () => {
-					if (!req.complete) abort();
-				});
+				if (res) {
+					const onClose = () => {
+						const reqError = req.errored;
+						if (reqError) abort(reqError);
+						else if (!res.writableEnded) abort();
+					};
+					res.once("close", onClose);
+					if (res.destroyed || isClientGone(req)) onClose();
+				} else {
+					const onClose = () => {
+						if (!req.complete || req.aborted) abort();
+					};
+					req.once("close", onClose);
+					if (isClientGone(req)) onClose();
+				}
 			}
 			return this.#abortController;
 		}
 		get signal() {
 			return this.#request ? this.#request.signal : this._abortController.signal;
 		}
+		#hasBody() {
+			const method = this.method;
+			return method !== "GET" && method !== "HEAD";
+		}
 		get body() {
 			if (this.#request) return this.#request.body;
 			if (this.#bodyStream === void 0) {
-				const method = this.method;
-				let stream = !(method === "GET" || method === "HEAD") ? Readable.toWeb(this.#req) : null;
+				let stream = null;
+				if (this.#hasBody() && !this.#bodyUsed) {
+					if ("rawBody" in this.#req && Buffer.isBuffer(this.#req.rawBody)) stream = Readable.toWeb(Readable.from([this.#req.rawBody]));
+					else if (isBodySourceFinished(this.#req)) stream = erroredStream(this.#bodyError());
+					else stream = Readable.toWeb(this.#req);
+				}
 				if (stream && this.#maxRequestBodySize !== void 0) stream = limitBodyStream(stream, this.#maxRequestBodySize);
 				this.#bodyStream = stream;
 			}
 			return this.#bodyStream;
 		}
+		get bodyUsed() {
+			if (this.#isBodyUsed()) return true;
+			return this.#request ? this.#request.bodyUsed : false;
+		}
+		#isBodyUsed() {
+			if (!this.#bodyUsed && this.#bodyStream && Readable.isDisturbed(this.#bodyStream)) this.#bodyUsed = true;
+			return this.#bodyUsed;
+		}
+		#bodyError() {
+			const signal = this._abortController.signal;
+			if (signal.aborted) return signal.reason;
+			return this.#req.errored || (isClientGone(this.#req) ? abortError() : bodyUnusable());
+		}
 		#readBuffered() {
+			if ("rawBody" in this.#req && Buffer.isBuffer(this.#req.rawBody)) return readBody(this.#req, this.#maxRequestBodySize);
+			if (isBodySourceFinished(this.#req)) return Promise.reject(this.#bodyError());
 			return readBody(this.#req, this.#maxRequestBodySize);
 		}
 		text() {
+			if (this.#isBodyUsed()) return Promise.reject(bodyUnusable());
 			if (this.#request) return this.#request.text();
-			if (this.#bodyStream !== void 0) return this.#bodyStream ? new Response(this.#bodyStream).text() : Promise.resolve("");
+			if (!this.#hasBody()) return Promise.resolve("");
+			this.#bodyUsed = true;
+			if (this.#bodyStream !== void 0) try {
+				return new Response(this.#bodyStream).text();
+			} catch (error) {
+				return Promise.reject(error);
+			}
 			return this.#readBuffered().then((buf) => buf.toString());
 		}
 		json() {
+			if (this.#isBodyUsed()) return Promise.reject(bodyUnusable());
 			if (this.#request) return this.#request.json();
-			if (this.#bodyStream !== void 0) return this.text().then((text) => JSON.parse(text));
+			if (!this.#hasBody()) return Promise.resolve().then(() => JSON.parse(""));
+			this.#bodyUsed = true;
+			if (this.#bodyStream !== void 0) try {
+				return new Response(this.#bodyStream).json();
+			} catch (error) {
+				return Promise.reject(error);
+			}
 			return this.#readBuffered().then((buf) => JSON.parse(buf.toString()));
+		}
+		arrayBuffer() {
+			return this.#consumeNative("arrayBuffer");
+		}
+		bytes() {
+			return this.#consumeNative("bytes");
+		}
+		blob() {
+			return this.#consumeNative("blob");
+		}
+		formData() {
+			return this.#consumeNative("formData");
+		}
+		#consumeNative(method) {
+			if (this.#isBodyUsed()) return Promise.reject(bodyUnusable());
+			try {
+				return this._request[method]();
+			} catch (error) {
+				return Promise.reject(error);
+			}
 		}
 		get _request() {
 			if (!this.#request) {
-				const body = this.body;
+				const body = this.#isBodyUsed() ? null : this.body;
 				this.#request = new NativeRequest(this.url, {
 					method: this.method,
 					headers: this.headers,
@@ -681,7 +909,7 @@ const NodeRequest = /* @__PURE__ */ (() => {
 					body,
 					duplex: body ? "half" : void 0
 				});
-				this.#headers = void 0;
+				this.#headers._adopt(this.#request.headers);
 				this.#bodyStream = void 0;
 			}
 			return this.#request;
@@ -703,6 +931,7 @@ function readBody(req, maxRequestBodySize) {
 			req.off("data", onData);
 			req.off("end", onEnd);
 			req.off("error", onError);
+			req.off("close", onClose);
 		};
 		const onData = (chunk) => {
 			if (maxRequestBodySize !== void 0) {
@@ -722,9 +951,17 @@ function readBody(req, maxRequestBodySize) {
 		};
 		const onEnd = () => {
 			cleanup();
+			if (isClientGone(req)) {
+				reject(req.errored || abortError());
+				return;
+			}
 			resolve(chunks.length === 1 ? chunks[0] : Buffer.concat(chunks));
 		};
-		req.on("data", onData).once("end", onEnd).once("error", onError);
+		const onClose = () => {
+			cleanup();
+			reject(req.errored || abortError());
+		};
+		req.on("data", onData).once("end", onEnd).once("error", onError).once("close", onClose);
 	});
 }
 function getNativeRequest() {
@@ -734,7 +971,6 @@ function getNativeRequest() {
 }
 const NodeResponse = /* @__PURE__ */ (() => {
 	const NativeResponse = globalThis.Response;
-	const STATUS_CODES = globalThis.process?.getBuiltinModule?.("node:http")?.STATUS_CODES || {};
 	class NodeResponse {
 		#body;
 		#init;
@@ -747,17 +983,31 @@ const NodeResponse = /* @__PURE__ */ (() => {
 		static [Symbol.hasInstance](val) {
 			return val instanceof NativeResponse;
 		}
+		static json(data, init) {
+			const body = JSON.stringify(data);
+			if (body === void 0) throw new TypeError("Value is not JSON serializable");
+			let headers = init?.headers;
+			if (!headers) headers = { "content-type": "application/json" };
+			else {
+				const merged = new Headers(headers);
+				if (!merged.has("content-type")) merged.set("content-type", "application/json");
+				headers = merged;
+			}
+			return new NodeResponse(body, init ? {
+				...init,
+				headers
+			} : { headers });
+		}
 		get status() {
 			return this.#response?.status || this.#init?.status || 200;
 		}
 		get statusText() {
-			return this.#response?.statusText || this.#init?.statusText || STATUS_CODES[this.status] || "";
+			return this.#response?.statusText || this.#init?.statusText || "";
 		}
 		get headers() {
 			if (this.#response) return this.#response.headers;
 			if (this.#headers) return this.#headers;
-			const initHeaders = this.#init?.headers;
-			return this.#headers = initHeaders instanceof Headers ? initHeaders : new Headers(initHeaders);
+			return this.#headers = new Headers(this.#init?.headers);
 		}
 		get ok() {
 			if (this.#response) return this.#response.ok;
@@ -790,26 +1040,28 @@ const NodeResponse = /* @__PURE__ */ (() => {
 			let contentType;
 			let contentLength;
 			if (this.#response) body = this.#response.body;
-			else if (this.#body) if (this.#body instanceof ReadableStream) body = this.#body;
-			else if (typeof this.#body === "string") {
-				body = this.#body;
-				contentType = "text/plain; charset=UTF-8";
-				contentLength = Buffer.byteLength(this.#body);
-			} else if (this.#body instanceof ArrayBuffer) {
-				body = Buffer.from(this.#body);
-				contentLength = this.#body.byteLength;
-			} else if (this.#body instanceof Uint8Array) {
-				body = this.#body;
-				contentLength = this.#body.byteLength;
-			} else if (this.#body instanceof DataView) {
-				body = Buffer.from(this.#body.buffer);
-				contentLength = this.#body.byteLength;
-			} else if (this.#body instanceof Blob) {
-				body = this.#body.stream();
-				contentType = this.#body.type;
-				contentLength = this.#body.size;
-			} else if (typeof this.#body.pipe === "function") body = this.#body;
-			else body = this._response.body;
+			else if (this.#body != null) {
+				if (this.#body instanceof ReadableStream) body = this.#body;
+				else if (typeof this.#body === "string") {
+					body = this.#body;
+					contentType = "text/plain; charset=UTF-8";
+					contentLength = Buffer.byteLength(this.#body);
+				} else if (this.#body instanceof ArrayBuffer) {
+					body = Buffer.from(this.#body);
+					contentLength = this.#body.byteLength;
+				} else if (this.#body instanceof Uint8Array) {
+					body = this.#body;
+					contentLength = this.#body.byteLength;
+				} else if (this.#body instanceof DataView) {
+					body = Buffer.from(this.#body.buffer, this.#body.byteOffset, this.#body.byteLength);
+					contentLength = this.#body.byteLength;
+				} else if (this.#body instanceof Blob) {
+					body = this.#body.stream();
+					contentType = this.#body.type;
+					contentLength = this.#body.size;
+				} else if (typeof this.#body.pipe === "function") body = this.#body;
+				else body = this._response.body;
+			}
 			const headers = [];
 			const initHeaders = this.#init?.headers;
 			const headerEntries = this.#response?.headers || this.#headers || (initHeaders ? Array.isArray(initHeaders) ? initHeaders : initHeaders?.entries ? initHeaders.entries() : Object.entries(initHeaders) : void 0);
@@ -823,7 +1075,7 @@ const NodeResponse = /* @__PURE__ */ (() => {
 				else if (lowerKey === "content-length") hasContentLength = true;
 			}
 			if (contentType && !hasContentTypeHeader) headers.push("content-type", contentType);
-			if (contentLength && !hasContentLength) headers.push("content-length", String(contentLength));
+			if (contentLength != null && !hasContentLength) headers.push("content-length", String(contentLength));
 			this.#init = void 0;
 			this.#headers = void 0;
 			this.#response = void 0;
@@ -854,6 +1106,7 @@ var NodeServer = class {
 	#isSecure;
 	#listeningPromise;
 	#listenError;
+	#listenErrorObserved;
 	#wait;
 	constructor(options) {
 		this.options = {
@@ -865,7 +1118,7 @@ var NodeServer = class {
 		const fetchHandler = this.fetch = wrapFetch(this);
 		const handler = (nodeReq, nodeRes) => {
 			const reqUrl = nodeReq.url;
-			if (reqUrl && reqUrl[0] !== "/" && reqUrl !== "*" && !URL.canParse(reqUrl)) {
+			if (reqUrl && reqUrl[0] !== "/" && reqUrl !== "*" && !isValidAbsoluteForm(reqUrl)) {
 				nodeRes.statusCode = 400;
 				nodeRes.end();
 				return;
@@ -877,8 +1130,13 @@ var NodeServer = class {
 				trustProxy: this.options.trustProxy
 			});
 			request.waitUntil = this.#wait?.waitUntil;
-			const res = fetchHandler(request);
-			return res instanceof Promise ? res.then((resolvedRes) => sendNodeResponseDetached(nodeRes, resolvedRes)) : sendNodeResponseDetached(nodeRes, res);
+			let res;
+			try {
+				res = fetchHandler(request);
+			} catch (error) {
+				return sendErrorResponse(nodeRes, error, this.options.silent);
+			}
+			return typeof res?.then === "function" ? res.then((resolvedRes) => sendNodeResponseDetached(nodeRes, resolvedRes, this.options.silent), (error) => sendErrorResponse(nodeRes, error, this.options.silent)) : sendNodeResponseDetached(nodeRes, res, this.options.silent);
 		};
 		this.node = {
 			handler,
@@ -893,25 +1151,41 @@ var NodeServer = class {
 		this.#wait = createWaitUntil();
 		this.waitUntil = this.#wait.waitUntil;
 		const tls = resolveTLSOptions(this.options);
-		const { port, hostname: host } = resolvePortAndHost(this.options);
+		const nodeListen = this.options.node;
+		const hasListenTarget = nodeListen?.path != null || nodeListen?.handle != null || nodeListen?.fd != null;
+		let portAndHost;
+		if (!hasListenTarget) {
+			const { port, hostname: host } = resolvePortAndHost(this.options);
+			portAndHost = {
+				port,
+				host
+			};
+		}
 		this.serveOptions = {
-			port,
-			host,
+			...portAndHost,
 			exclusive: !this.options.reusePort,
+			reusePort: this.options.reusePort,
 			...tls,
 			...this.options.node
 		};
 		let server;
 		this.#isSecure = !!this.serveOptions.cert && this.options.protocol !== "http";
-		if (this.options.node?.http2 ?? this.#isSecure) if (this.#isSecure) server = nodeHTTP2.createSecureServer({
-			allowHTTP1: true,
-			...this.serveOptions
-		}, handler);
-		else throw new Error("node.http2 option requires tls certificate!");
-		else if (this.#isSecure) server = nodeHTTPS.createServer(this.serveOptions, handler);
+		if (this.options.node?.http2 ?? this.#isSecure) {
+			if (this.#isSecure) server = nodeHTTP2.createSecureServer({
+				allowHTTP1: true,
+				...this.serveOptions
+			}, handler);
+			else throw new Error("node.http2 option requires tls certificate!");
+		} else if (this.#isSecure) server = nodeHTTPS.createServer(this.serveOptions, handler);
 		else server = nodeHTTP.createServer(this.serveOptions, handler);
 		this.node.server = server;
-		if (!options.manual) this.serve().catch(() => {});
+		if (!options.manual) this.serve().catch((error) => this.#reportUnobservedListenError(error));
+	}
+	#reportUnobservedListenError(error) {
+		if (this.#listenErrorObserved) return;
+		if (!this.options.silent) console.error("[srvx] Failed to start server:", error);
+		const process = globalThis.process;
+		if (process && !process.exitCode) process.exitCode = 1;
 	}
 	serve() {
 		if (this.#listeningPromise) return this.#listeningPromise.then(() => this);
@@ -942,6 +1216,7 @@ var NodeServer = class {
 		return typeof addr === "string" ? addr : fmtURL(addr.address, addr.port, this.#isSecure);
 	}
 	ready() {
+		this.#listenErrorObserved = true;
 		if (this.#listenError) return Promise.reject(this.#listenError);
 		return Promise.resolve(this.#listeningPromise).then(() => this);
 	}
@@ -954,21 +1229,31 @@ var NodeServer = class {
 		})]);
 	}
 };
-//#endregion
-//#region ../../node_modules/rou3/dist/index.mjs
 const NullProtoObj = /* @__PURE__ */ (() => {
 	const e = function() {};
 	return e.prototype = Object.create(null), Object.freeze(e.prototype), e;
 })();
-//#endregion
-//#region ../../node_modules/h3/dist/h3.mjs
+const NEEDLESS_ESCAPE_SRC = String.raw`%(?:2[146-9A-E]|3[0-9ABD]|4[0-9A-F]|5[0-9ABDF]|6[1-9A-F]|7[0-9ACE])`;
+const NEEDLESS_ESCAPE_RE = /* @__PURE__ */ new RegExp(NEEDLESS_ESCAPE_SRC, "i");
+const NEEDLESS_ESCAPE_RE_G = /* @__PURE__ */ new RegExp(NEEDLESS_ESCAPE_SRC, "gi");
+function isNonCanonicalPathname(pathname) {
+	return NEEDLESS_ESCAPE_RE.test(pathname);
+}
+function canonicalPathname(pathname) {
+	return pathname.replace(NEEDLESS_ESCAPE_RE_G, (m) => String.fromCharCode(Number.parseInt(m.slice(1), 16)));
+}
 function decodePathname(pathname) {
-	return decodeURI(pathname.includes("%25") ? pathname.replace(/%25/g, "%2525") : pathname);
+	try {
+		return decodeURI(pathname);
+	} catch {
+		return;
+	}
 }
 const kEventNS = "h3.internal.event.";
 const kEventRes = /* @__PURE__ */ Symbol.for(`${kEventNS}res`);
 const kEventResHeaders = /* @__PURE__ */ Symbol.for(`${kEventNS}res.headers`);
 const kEventResErrHeaders = /* @__PURE__ */ Symbol.for(`${kEventNS}res.err.headers`);
+const kMalformedURL = /* @__PURE__ */ Symbol.for(`${kEventNS}malformed`);
 var H3Event = class {
 	app;
 	req;
@@ -976,12 +1261,16 @@ var H3Event = class {
 	context;
 	static __is_event__ = true;
 	constructor(req, context, app) {
-		this.context = context || req.context || new NullProtoObj();
+		this.context = req.context = context || req.context || new NullProtoObj();
 		this.req = req;
 		this.app = app;
 		const _url = req._url;
-		const url = _url && _url instanceof URL ? _url : new FastURL(req.url);
-		if (url.pathname.includes("%")) url.pathname = decodePathname(url.pathname);
+		let url = _url && _url instanceof URL ? _url : new FastURL(req.url);
+		const pathname = url.pathname;
+		if (pathname.includes("%")) {
+			if (decodePathname(pathname) === void 0) this[kMalformedURL] = true;
+			else if (isNonCanonicalPathname(pathname)) url = new FastURL(`${url.protocol}//${url.host}${canonicalPathname(pathname)}${url.search}`);
+		}
 		this.url = url;
 	}
 	get res() {
@@ -1029,7 +1318,7 @@ function sanitizeStatusMessage(statusMessage = "") {
 function sanitizeStatusCode(statusCode, defaultStatusCode = 200) {
 	if (!statusCode) return defaultStatusCode;
 	if (typeof statusCode === "string") statusCode = +statusCode;
-	if (statusCode < 100 || statusCode > 599) return defaultStatusCode;
+	if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) return defaultStatusCode;
 	return statusCode;
 }
 var HTTPError = class HTTPError extends Error {
@@ -1044,7 +1333,7 @@ var HTTPError = class HTTPError extends Error {
 	body;
 	unhandled;
 	static isError(input) {
-		return input instanceof Error && input?.name === "HTTPError";
+		return input instanceof Error && input?.name === "HTTPError" && input.status > 99;
 	}
 	static status(status, statusText, details) {
 		return new HTTPError({
@@ -1105,15 +1394,35 @@ function isJSONSerializable(value, _type) {
 	const proto = Object.getPrototypeOf(value);
 	return proto === Object.prototype || proto === null;
 }
+const kEventDispose = /* @__PURE__ */ Symbol.for("h3.internal.event.dispose");
 const kNotFound = /* @__PURE__ */ Symbol.for("h3.notFound");
 const kHandled = /* @__PURE__ */ Symbol.for("h3.handled");
 function toResponse(val, event, config = {}) {
-	if (typeof val?.then === "function") return val.then((resolvedVal) => toResponse(resolvedVal, event, config), (r) => toResponse(typeof r === "number" ? new HTTPError({ status: r }) : r, event, config));
-	const response = prepareResponse(val, event, config);
+	if (typeof val?.then === "function") return val.then((resolvedVal) => toResponse(resolvedVal, event, config), (r) => toResponse(toError(r), event, config));
+	let response;
+	try {
+		response = prepareResponse(val, event, config);
+	} catch (error) {
+		return toResponse(toError(error), event, config);
+	}
 	if (typeof response?.then === "function") return toResponse(response, event, config);
 	const { onResponse } = config;
-	return onResponse ? Promise.resolve(onResponse(response, event)).then(() => response) : response;
+	if (onResponse) return Promise.resolve().then(() => onResponse(response, event)).catch((error) => {
+		if (!config.silent) console.error(error);
+	}).then(() => event[kEventDispose]?.observe(response, val) ?? response);
+	return event[kEventDispose]?.observe(response, val) ?? response;
 }
+function toError(value) {
+	if (value === kNotFound || value === kHandled || value instanceof Error) return value;
+	if (typeof value === "number") return new HTTPError({ status: value });
+	const error = new HTTPError({
+		status: 500,
+		unhandled: true
+	});
+	error.cause = value;
+	return error;
+}
+const kHTTPResponse = /* @__PURE__ */ Symbol.for("h3.HTTPResponse");
 var HTTPResponse = class {
 	#headers;
 	#init;
@@ -1123,15 +1432,16 @@ var HTTPResponse = class {
 		this.#init = init;
 	}
 	get status() {
-		return this.#init?.status || 200;
+		return this.#init?.status;
 	}
 	get statusText() {
-		return this.#init?.statusText || "OK";
+		return this.#init?.statusText;
 	}
 	get headers() {
 		return this.#headers ||= new Headers(this.#init?.headers);
 	}
 };
+HTTPResponse.prototype[kHTTPResponse] = true;
 function prepareResponse(val, event, config, nested) {
 	if (val === kHandled) return new NodeResponse(null);
 	if (val === kNotFound) val = new HTTPError({
@@ -1148,33 +1458,37 @@ function prepareResponse(val, event, config, nested) {
 		if (error.unhandled && !config.silent) console.error(error);
 		const { onError } = config;
 		const errHeaders = event[kEventRes]?.[kEventResErrHeaders];
-		return onError && !nested ? Promise.resolve(onError(error, event)).catch((error) => error).then((newVal) => prepareResponse(newVal ?? val, event, config, true)) : errorResponse(error, config.debug, errHeaders);
+		if (onError && !nested) return Promise.resolve().then(() => onError(error, event)).catch(toError).then((newVal) => prepareResponse(newVal ?? val, event, config, true));
+		event[kEventRes] = void 0;
+		val = errorResponse(error, config.debug, errHeaders);
 	}
 	const preparedRes = event[kEventRes];
-	const preparedHeaders = preparedRes?.[kEventResHeaders];
+	let preparedHeaders = preparedRes?.[kEventResHeaders];
 	event[kEventRes] = void 0;
 	if (!(val instanceof Response)) {
 		const res = prepareResponseBody(val, event, config);
-		const status = res.status || preparedRes?.status;
+		const rawStatus = res.status || preparedRes?.status;
+		const status = rawStatus ? sanitizeStatusCode(rawStatus) : void 0;
+		const rawStatusText = res.statusText || preparedRes?.statusText;
 		return new NodeResponse(nullBody(event.req.method, status) ? null : res.body, {
 			status,
-			statusText: res.statusText || preparedRes?.statusText,
-			headers: res.headers && preparedHeaders ? mergeHeaders$1(res.headers, preparedHeaders) : res.headers || preparedHeaders
+			statusText: rawStatusText === void 0 ? void 0 : sanitizeStatusMessage(rawStatusText),
+			headers: res.headers && preparedHeaders ? mergeHeaders(res.headers, preparedHeaders) : res.headers || preparedHeaders
 		});
 	}
-	if (!preparedHeaders || nested || !val.ok) return val;
-	try {
-		mergeHeaders$1(val.headers, preparedHeaders, val.headers);
-		return val;
-	} catch {
-		return new NodeResponse(nullBody(event.req.method, val.status) ? null : val.body, {
-			status: val.status,
-			statusText: val.statusText,
-			headers: mergeHeaders$1(val.headers, preparedHeaders)
-		});
-	}
+	if (val.status >= 400) preparedHeaders = preparedRes?.[kEventResErrHeaders];
+	if (preparedHeaders && !nested && !preparedHeaders.keys().next().done) return new NodeResponse(nullBody(event.req.method, val.status) ? null : val.body, {
+		status: val.status,
+		statusText: val.statusText,
+		headers: mergeHeaders(val.headers, preparedHeaders)
+	});
+	return event.req.method === "HEAD" && val.body !== null ? new NodeResponse(null, {
+		status: val.status,
+		statusText: val.statusText,
+		headers: val.headers
+	}) : val;
 }
-function mergeHeaders$1(base, overrides, target = new Headers(base)) {
+function mergeHeaders(base, overrides, target = new Headers(base)) {
 	for (const [name, value] of overrides) if (name === "set-cookie") target.append(name, value);
 	else target.set(name, value);
 	return target;
@@ -1196,11 +1510,11 @@ function prepareResponseBody(val, event, config) {
 	};
 	const valType = typeof val;
 	if (valType === "string") return { body: val };
-	if (val instanceof Uint8Array) {
-		event.res.headers.set("content-length", val.byteLength.toString());
-		return { body: val };
-	}
-	if (val instanceof HTTPResponse || val?.constructor?.name === "HTTPResponse") return val;
+	if (val instanceof Uint8Array) return {
+		body: val,
+		headers: new Headers({ "content-length": val.byteLength.toString() })
+	};
+	if (val instanceof HTTPResponse || val?.[kHTTPResponse] === true) return val;
 	if (isJSONSerializable(val, valType)) return {
 		body: JSON.stringify(val, void 0, config.debug ? 2 : void 0),
 		headers: jsonHeaders
@@ -1232,8 +1546,8 @@ function nullBody(method, status) {
 	return method === "HEAD" || status === 100 || status === 101 || status === 102 || status === 204 || status === 205 || status === 304;
 }
 function errorResponse(error, debug, errHeaders) {
-	let headers = error.headers ? mergeHeaders$1(jsonHeaders, error.headers) : new Headers(jsonHeaders);
-	if (errHeaders) headers = mergeHeaders$1(headers, errHeaders);
+	let headers = error.headers ? mergeHeaders(jsonHeaders, error.headers) : new Headers(jsonHeaders);
+	if (errHeaders) headers = mergeHeaders(headers, errHeaders);
 	return new NodeResponse(JSON.stringify({
 		...error.toJSON(),
 		stack: debug && error.stack ? error.stack.split("\n").map((l) => l.trim()) : void 0
@@ -1243,15 +1557,31 @@ function errorResponse(error, debug, errHeaders) {
 		headers
 	});
 }
+function composeMiddleware(middleware) {
+	let chain = (event, handler) => handler(event);
+	for (let i = middleware.length - 1; i >= 0; i--) {
+		const fn = middleware[i];
+		const inner = chain;
+		chain = (event, handler) => callLayer(fn, event, handler, inner);
+	}
+	return chain;
+}
+function composeHandler(middleware, handler) {
+	const chain = composeMiddleware(middleware);
+	return function _composedHandler(event) {
+		return chain(event, handler);
+	};
+}
 function callMiddleware(event, middleware, handler, index = 0) {
-	if (index === middleware.length) return handler(event);
-	const fn = middleware[index];
+	return index === middleware.length ? handler(event) : callLayer(middleware[index], event, handler, (_event, _handler) => callMiddleware(_event, middleware, _handler, index + 1));
+}
+function callLayer(fn, event, handler, inner) {
 	let nextCalled;
 	let nextResult;
 	const next = () => {
 		if (nextCalled) return nextResult;
 		nextCalled = true;
-		nextResult = callMiddleware(event, middleware, handler, index + 1);
+		nextResult = inner(event, handler);
 		return nextResult;
 	};
 	const ret = fn(event, next);
@@ -1265,9 +1595,9 @@ function defineHandler(input) {
 	const handler = input.handler || (input.fetch ? function _fetchHandler(event) {
 		return input.fetch(event.req);
 	} : NoHandler);
-	return Object.assign(handlerWithFetch(input.middleware?.length ? function _handlerMiddleware(event) {
-		return callMiddleware(event, input.middleware, handler);
-	} : handler), input);
+	const composed = input.middleware?.length && composeHandler(input.middleware, handler);
+	const eventHandler = handlerWithFetch(composed || handler);
+	return Object.assign(eventHandler, input, composed && { fetch: eventHandler.fetch });
 }
 function handlerWithFetch(handler) {
 	if ("fetch" in handler) return handler;
@@ -1278,7 +1608,7 @@ function handlerWithFetch(handler) {
 		try {
 			return Promise.resolve(toResponse(handler(event), event));
 		} catch (error) {
-			return Promise.resolve(toResponse(error, event));
+			return Promise.resolve(toResponse(toError(error), event));
 		}
 	} });
 }
@@ -1295,6 +1625,8 @@ var H3Core = class {
 	config;
 	"~middleware";
 	"~routes" = [];
+	"~dispatch";
+	"~composed";
 	constructor(config = {}) {
 		this["~middleware"] = [];
 		this.config = config;
@@ -1310,14 +1642,16 @@ var H3Core = class {
 			event.context.params = route.params;
 			event.context.matchedRoute = route.data;
 		}
-		const routeHandler = route?.data.handler || NoHandler;
-		const middleware = this["~getMiddleware"](event, route);
-		return middleware.length > 0 ? callMiddleware(event, middleware, routeHandler) : routeHandler(event);
+		return (this["~dispatch"] ??= createDispatcher(this))(event, route);
 	}
 	"~request"(request, context) {
 		const event = new H3Event(request, context, this);
 		let handlerRes;
 		try {
+			if (event[kMalformedURL] && !this.config.allowMalformedURL) throw new HTTPError({
+				status: 400,
+				message: "Bad Request"
+			});
 			if (this.config.onRequest) {
 				const hookRes = this.config.onRequest(event);
 				handlerRes = typeof hookRes?.then === "function" ? hookRes.then(() => this.handler(event)) : this.handler(event);
@@ -1331,11 +1665,20 @@ var H3Core = class {
 	"~addRoute"(_route) {
 		this["~routes"].push(_route);
 	}
-	"~getMiddleware"(_event, route) {
-		const routeMiddleware = route?.data.middleware;
-		const globalMiddleware = this["~middleware"];
-		return routeMiddleware ? [...globalMiddleware, ...routeMiddleware] : globalMiddleware;
+	"~getMiddleware"(_event, _route) {
+		return this["~middleware"];
 	}
 };
-//#endregion
-export { NodeResponse as a, toEventHandler as i, HTTPError as n, serve as o, defineHandler as r, H3Core as t };
+function createDispatcher(app) {
+	if (app["~getMiddleware"] !== H3Core.prototype["~getMiddleware"]) return (event, route) => callMiddleware(event, app["~getMiddleware"](event, route || void 0), routeHandler(route));
+	const middleware = app["~middleware"];
+	if (middleware.length === 0) return (event, route) => routeHandler(route)(event);
+	const composed = app["~composed"] ??= composeMiddleware(middleware);
+	return (event, route) => composed(event, routeHandler(route));
+}
+function routeHandler(route) {
+	const data = route?.data;
+	if (!data) return NoHandler;
+	return data.middleware?.length ? data["~composed"] ??= composeHandler(data.middleware, data.handler) : data.handler;
+}
+export { H3Core, HTTPError, NodeResponse, defineHandler, serve, toEventHandler };

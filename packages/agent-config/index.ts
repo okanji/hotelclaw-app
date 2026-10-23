@@ -259,39 +259,6 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
-    id: "brain_search",
-    label: "Search the knowledge brain",
-    summary:
-      "Search the property's institutional memory (past incidents, suppliers, guest history).",
-    category: "read",
-  },
-  {
-    id: "brain_think",
-    label: "Ask the knowledge brain",
-    summary:
-      "Synthesized answers with citations for hard questions spanning many brain pages.",
-    category: "read",
-  },
-  {
-    id: "brain_get",
-    label: "Read brain pages",
-    summary: "Read one full knowledge-brain page by slug.",
-    category: "read",
-  },
-  {
-    id: "brain_list",
-    label: "List brain pages",
-    summary: "List knowledge-brain pages (optionally under a slug prefix).",
-    category: "read",
-  },
-  {
-    id: "brain_capture",
-    label: "Capture to the knowledge brain",
-    summary:
-      "Record durable observations to the property's shared brain timeline.",
-    category: "write",
-  },
-  {
     id: "delete_task",
     label: "Delete tasks (approval-gated)",
     summary: "Permanently delete a task — every call parks for human approval first.",

@@ -249,7 +249,6 @@ const handler = createMcpHandler((server) => {
               await service
                 .from("bot_chat_sessions")
                 .update({
-                  eve_continuation_token: tail.continuationToken,
                   last_turn_at: new Date().toISOString(),
                   status:
                     tail.status === "awaiting_approval" ? "awaiting_approval" : "idle",

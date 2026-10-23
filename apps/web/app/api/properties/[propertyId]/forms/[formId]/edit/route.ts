@@ -90,7 +90,7 @@ export async function POST(
       output: Output.object({ schema: EditedForm }),
       temperature: 0,
       maxRetries: 3,
-      system: [
+      instructions: [
         "You edit an internal operations form for a hotel/restaurant team workspace. You receive the form's current fields as JSON and an instruction; return the FULL revised field list.",
         "Rules:",
         "- Keep every field the instruction doesn't mention, unchanged and in order, INCLUDING its exact `id`.",

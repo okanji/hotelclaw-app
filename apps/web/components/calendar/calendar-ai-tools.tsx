@@ -290,12 +290,12 @@ export function CalendarAiTools({
         })}
       />
 
-      {/* ---------- search-property-brain (read-only) ---------- */}
+      {/* ---------- search-property-memory (read-only) ---------- */}
       <RegisterAiTool
-        name="search-property-brain"
+        name="search-property-memory"
         tool={defineAiTool()({
           description:
-            "Search the property's shared knowledge brain (institutional memory: past incidents and fixes, supplier quirks, guest history, policies, team lore). Use for 'have we seen this before' / policy / background questions — NOT for this week's schedule, which is already in your knowledge. Cite results as [brain: <page-path>].",
+            "Search the property's memory (institutional memory: past incidents and fixes, supplier quirks, guest history, decisions, team lore). Use for 'have we seen this before' / policy / background questions — NOT for this week's schedule, which is already in your knowledge. Cite results as [memory #id].",
           parameters: {
             type: "object",
             properties: {
@@ -309,35 +309,43 @@ export function CalendarAiTools({
             additionalProperties: false,
           },
           execute: async (input) => {
-            const res = await fetch(
-              `/api/properties/${propertyId}/brain/search`,
-              {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                  query: input.query,
-                  limit: input.limit,
-                }),
-              },
-            );
+            const params = new URLSearchParams({
+              kind: "property",
+              q: String(input.query ?? ""),
+              limit: String(Math.min(Number(input.limit ?? 5) || 5, 10)),
+            });
+            const res = await fetch(`/api/properties/${propertyId}/memory?${params}`);
             if (!res.ok) {
               return { data: { error: await res.text() } };
             }
-            return { data: await res.json() };
+            const body = (await res.json()) as {
+              memories?: Array<{ id: string; kind: string; content: string; source: string | null; created_at: string }>;
+            };
+            return {
+              data: {
+                results: (body.memories ?? []).map((m) => ({
+                  memory_id: m.id.replace(/-/g, "").slice(0, 8),
+                  kind: m.kind,
+                  date: m.created_at.slice(0, 10),
+                  content: m.content,
+                  source: m.source,
+                })),
+              },
+            };
           },
           render: ({ stage, args, result }) => {
             if (stage !== "executed") {
-              return <AiTool title="Searching the brain…" icon="🧠" />;
+              return <AiTool title="Searching memory…" icon="🧠" />;
             }
             const data = result?.data as
               | { results?: unknown; unavailable?: boolean; error?: string }
               | undefined;
             if (!data || data.error || data.unavailable) {
-              return <AiTool title="Brain unavailable" icon="⚠️" />;
+              return <AiTool title="Memory unavailable" icon="⚠️" />;
             }
             return (
               <AiTool
-                title={`Searched the brain: "${args.query}"`}
+                title={`Searched memory: "${args.query}"`}
                 icon="🧠"
               />
             );

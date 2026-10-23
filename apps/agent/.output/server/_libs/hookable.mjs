@@ -1,7 +1,7 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-//#region ../../node_modules/hookable/dist/index.mjs
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
 function callHooks(hooks, args, startIndex, task) {
 	for (let i = startIndex; i < hooks.length; i += 1) try {
 		const result = task ? task.run(() => hooks[i](...args)) : hooks[i](...args);
@@ -37,8 +37,7 @@ var HookableCore = class {
 	callHook(name, ...args) {
 		const hooks = this._hooks[name];
 		if (!hooks || hooks.length === 0) return;
-		return callHooks(hooks, args, 0);
+		return callHooks(hooks.slice(), args, 0);
 	}
 };
-//#endregion
-export { HookableCore as t };
+export { HookableCore };

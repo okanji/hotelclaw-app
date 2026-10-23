@@ -8,8 +8,6 @@ import {
   type AgentConfig,
 } from "@/lib/agents/schema";
 
-const BRAIN_TOOL_IDS = new Set(["brain_search", "brain_think", "brain_capture"]);
-
 const TIER_LABELS: Record<AgentConfig["modelTier"], string> = {
   standard: "Standard",
   advanced: "Advanced",
@@ -18,19 +16,16 @@ const TIER_LABELS: Record<AgentConfig["modelTier"], string> = {
 /**
  * Read-only mirror of what the eve runtime will actually resolve for this
  * agent's NEXT session (apps/agent resolveSessionAgent) — model, mounted
- * tools, skills, and whether brain tools land on a real binding. Derives
- * live from the editor's config state, so toggling a grant updates it
- * before saving; the honesty rows (paused fallback, unprovisioned brain)
- * are the point.
+ * tools, skills, and the always-on memory slots. Derives live from the
+ * editor's config state, so toggling a grant updates it before saving;
+ * the honesty rows (paused fallback) are the point.
  */
 export function ResolvedConfig({
   config,
   status,
-  brain,
 }: {
   config: AgentConfig;
   status: string;
-  brain: { configured: boolean; source: string | null };
 }) {
   const granted = AGENT_TOOL_CATALOG.filter((tool) =>
     config.tools.includes(tool.id),
@@ -38,7 +33,6 @@ export function ResolvedConfig({
   const unknownGrants = config.tools.filter(
     (id) => !AGENT_TOOL_CATALOG.some((tool) => tool.id === id),
   );
-  const brainGrants = granted.filter((tool) => BRAIN_TOOL_IDS.has(tool.id));
   const paused = status !== "active";
 
   return (
@@ -99,27 +93,13 @@ export function ResolvedConfig({
           ) : null}
         </dd>
 
-        <dt className="text-xs text-muted-foreground">Brain</dt>
+        <dt className="text-xs text-muted-foreground">Memory</dt>
         <dd className="flex flex-wrap items-center gap-2">
-          {brainGrants.length === 0 ? (
-            <span className="text-muted-foreground">
-              No brain tools granted
-            </span>
-          ) : brain.configured ? (
-            <>
-              <StatusBadge tone="success">Mounted</StatusBadge>
-              <span className="font-mono text-xs text-muted-foreground">
-                {brain.source}
-              </span>
-            </>
-          ) : (
-            <>
-              <StatusBadge tone="neutral">Not provisioned</StatusBadge>
-              <span className="text-xs text-muted-foreground">
-                brain tools mount but answer fail-soft
-              </span>
-            </>
-          )}
+          <StatusBadge tone="success">Always on</StatusBadge>
+          <span className="text-xs text-muted-foreground">
+            property memory + per-person notes are recalled each turn
+            (property__search / remember / forget, person__…)
+          </span>
         </dd>
 
         <dt className="text-xs text-muted-foreground">Skills</dt>

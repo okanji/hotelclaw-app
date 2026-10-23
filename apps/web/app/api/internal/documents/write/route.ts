@@ -1,8 +1,7 @@
-import { after, NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeDocumentBody } from "@/lib/documents/write-body";
-import { syncDocumentToBrain } from "@/lib/brain/doc-sync";
 
 /**
  * INTERNAL document write endpoint — the eve runtime's path into document
@@ -157,14 +156,6 @@ export async function POST(request: NextRequest) {
       { error: "provide html, a title to rename, or reserveOnly" },
       { status: 400 },
     );
-  }
-
-  // A rename changes the doc's brain page (title is part of it) but touches
-  // no Liveblocks doc, so the snapshot webhook that re-mirrors body edits
-  // never fires — trigger the re-mirror explicitly. Fail-soft; the nightly
-  // cron reconciles regardless. (Body-only writes keep their webhook path.)
-  if (renaming) {
-    after(() => syncDocumentToBrain(documentId).catch(() => {}));
   }
 
   let title = input.title ?? null;

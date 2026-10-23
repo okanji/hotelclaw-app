@@ -1,48 +1,42 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { getMembershipForProperty } from "@/lib/auth/session";
-import { runInsightsQaBot } from "@/lib/ai/bots/insights-qa-bot";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
+import { streamInsightsQaBot } from "@/lib/ai/bots/insights-qa-bot";
+import { PanelChatBody, panelMessagesToModel } from "@/lib/ai/ui-messages";
 import { parseScope, PROPERTY_SCOPE } from "@/lib/insights/scope";
 
 /**
  * POST /api/properties/:propertyId/insights/ask
  *
- * One turn of the insights Q&A bot ("Ask the numbers"). Stateless: the
- * client owns the transcript and posts it whole each turn, plus the lens
- * the page is currently viewing — the same pattern as the task bot.
- * Non-streaming for now (runBot is the uniform Tier-1 runtime; tool
- * latency dominates the wait anyway).
+ * One turn of the insights Q&A bot ("Ask the numbers"), STREAMED as an AI
+ * SDK UI message stream. Stateless: the client owns the transcript and
+ * posts it whole each turn, plus the lens the page is currently viewing.
  *
  * Owner/manager only — the bot's toolset includes workload and operations
  * aggregates that staff sessions must never see (same gate as the brief).
+ * Cookie OR Supabase bearer (mobile).
  */
 
 export const maxDuration = 60;
 
-const TurnSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string().max(4000),
-});
-
-const Body = z.object({
-  messages: z.array(TurnSchema).min(1).max(30),
-  scope: z.string().optional(),
-});
+const Body = PanelChatBody.extend({ scope: z.string().optional() });
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string }> },
 ) {
   const { propertyId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const membership = await getMembershipForProperty(propertyId);
+  // Membership under the caller's own RLS client (works for cookie + bearer).
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("property_id", propertyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
   if (!membership || membership.role === "staff") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -59,13 +53,12 @@ export async function POST(
   }
 
   try {
-    const result = await runInsightsQaBot({
+    return await streamInsightsQaBot({
       propertyId,
       userId: user.id,
       scope: parseScope(parsed.data.scope) ?? PROPERTY_SCOPE,
-      messages: parsed.data.messages,
+      messages: await panelMessagesToModel(parsed.data.messages),
     });
-    return NextResponse.json({ reply: result.text });
   } catch (err) {
     console.error("[insights-qa] failed", err);
     return NextResponse.json({ error: "generation failed" }, { status: 500 });

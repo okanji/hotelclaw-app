@@ -61,7 +61,7 @@ for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 4000));
   const { data } = await supabase
     .from("bot_chat_sessions")
-    .select("id, status, pending_approval, eve_session_id, eve_continuation_token")
+    .select("id, status, pending_approval, eve_session_id")
     .eq("channel_id", CH)
     .maybeSingle();
   row = data;

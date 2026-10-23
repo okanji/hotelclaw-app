@@ -27,12 +27,10 @@ import { PageShell } from "@/components/ui/page-shell";
  */
 export function AgentDetail({
   agent,
-  brain,
   documents,
   initialSession,
 }: {
   agent: AgentRow;
-  brain: { configured: boolean; source: string | null };
   documents: { id: string; title: string }[];
   initialSession: AgentChatSession | null;
 }) {
@@ -136,7 +134,7 @@ export function AgentDetail({
           {/* Sections separate by WHITESPACE — a full-width rule between two
               stacked panels reads as a seam (notion-spec-v2 §1). */}
           <div className="h-10" />
-          <ResolvedConfig config={config} status={status} brain={brain} />
+          <ResolvedConfig config={config} status={status} />
         </div>
         <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
           <AgentChat

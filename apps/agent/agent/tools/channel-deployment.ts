@@ -118,7 +118,7 @@ export default defineDynamic({
       const chatbotId = deployment.chatbotId;
       const chatbotName = deployment.chatbotName;
 
-      const tools: Record<string, ReturnType<typeof defineTool>> = {
+      const tools: Record<string, unknown> = {
         search_knowledge: defineTool({
           description: `Search the "${chatbotName}" bot's trained knowledge base — menus, policies, hours, FAQs the team curated for it.`,
           inputSchema: z.object({

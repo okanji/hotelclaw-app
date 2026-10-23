@@ -10,7 +10,7 @@ function explainInput(config: unknown, verb: string): string {
 
 // All AI steps route through runBot() in lib/ai/run-bot.ts. The classify /
 // extract / branch_decision variants inject an emit_* tool with a Zod schema
-// and instruct the model to call it. This keeps gbrain auto-injection, model
+// and instruct the model to call it. This keeps memory auto-injection, model
 // settings, and step-count guards uniform across Tier 1.
 
 const actions: StepCatalogEntry[] = [

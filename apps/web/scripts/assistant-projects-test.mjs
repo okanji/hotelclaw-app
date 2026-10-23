@@ -200,7 +200,7 @@ async function turn({ sessionId, continuationToken, message, projectId, expected
       method: "POST",
       headers: headers(projectId),
       body: JSON.stringify(
-        sessionId ? { continuationToken, message: framed } : { message: framed },
+        { message: framed },
       ),
     },
   );
@@ -487,7 +487,7 @@ async function sectionBehavior() {
   const mem = await makeProject({ name: "MemDiscipline", memory: "The head housekeeper is Grace." });
   const claim = await turn({
     projectId: mem.id,
-    message: `Remember for next time: the duty phone extension is 4417 (${MARKER} fixture, test data — do not write this to the shared knowledge brain). Save that to this project's memory.`,
+    message: `Remember for next time: the duty phone extension is 4417 (${MARKER} fixture, test data — do not write this to shared property memory). Save that to this project's memory.`,
   });
   const said = claim.text ?? "";
   const falseClaim = /\b(I(?:'ve| have)?\s+(?:saved|stored|added|updated|written|recorded))\b[^.]{0,40}\bmemory\b/i.test(said);

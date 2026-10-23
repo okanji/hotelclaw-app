@@ -147,7 +147,7 @@ export async function generateChatbotDraft(description: string): Promise<{
     output: Output.object({ schema: GeneratedChatbotZod }),
     temperature: 0,
     maxRetries: 3,
-    system: SYSTEM,
+    instructions: SYSTEM,
     prompt: description,
   });
   return {

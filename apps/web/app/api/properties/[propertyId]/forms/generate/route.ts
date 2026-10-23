@@ -85,7 +85,7 @@ export async function POST(
       output: Output.object({ schema: GeneratedForm }),
       temperature: 0,
       maxRetries: 3,
-      system: [
+      instructions: [
         "You design internal operations forms for a hotel/restaurant team workspace (maintenance, housekeeping, F&B, front desk, staff feedback).",
         "Rules:",
         "- Be concise: at most 12 fields, only what the request actually needs.",

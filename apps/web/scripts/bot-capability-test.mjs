@@ -32,7 +32,6 @@
 //
 // Every fixture the bot creates carries the CAPTEST marker so cleanup can
 // sweep leftovers from a crashed run (`--sweep`).
-import { createDecipheriv, createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { StreamChat } from "stream-chat";
 
@@ -72,7 +71,7 @@ const TARGET_CHANNEL = "prop-d58fc73b-announcements-db5598";
  *  leftovers from a run that died before cleanup. */
 const MARK = "CAPTEST";
 
-// A knowledge turn walks documents → brain → tasks and routinely parks
+// A knowledge turn walks documents → memory → tasks and routinely parks
 // past 90s; bot-chat-test raised its window to 150s for exactly this.
 const REPLY_TIMEOUT_MS = 180_000;
 
@@ -293,96 +292,20 @@ function documentNames(docs) {
 }
 
 /**
- * Read the property's knowledge brain with its own OAuth credential, the
- * same way the runtime does. Needed because a `brain_capture` cannot be
- * verified from Postgres — the evidence lands in gbrain, not in our tables.
- * Mirrors tests/gbrain-fleet.test.mjs; returns null when unconfigured.
+ * Memory verification: `property__remember` lands a row in agent_memories
+ * (the eve memory slot's store), so the write is verified in Postgres like
+ * every other action — no external brain to query any more.
  */
-async function brainCall(propertyId, tool, args) {
-  const url = process.env.BRAIN_MCP_URL;
-  const material = process.env.CHATBOT_SESSION_SECRET ?? process.env.STREAM_API_SECRET;
-  if (!url || !material) return null;
-  const { data: row } = await supabase
-    .from("property_brains")
-    .select("client_id, client_secret_enc")
+async function memoryRows(propertyId, pattern) {
+  const { data } = await supabase
+    .from("agent_memories")
+    .select("id, content, source, created_at")
     .eq("property_id", propertyId)
-    .maybeSingle();
-  if (!row) return null;
-  const parts = String(row.client_secret_enc ?? "").split(".");
-  if (parts.length !== 4 || parts[0] !== "v1") return null;
-  let secret;
-  try {
-    const key = createHash("sha256").update(`${material}:property-brains`).digest();
-    const d = createDecipheriv("aes-256-gcm", key, Buffer.from(parts[1], "base64url"));
-    d.setAuthTag(Buffer.from(parts[2], "base64url"));
-    secret = Buffer.concat([
-      d.update(Buffer.from(parts[3], "base64url")),
-      d.final(),
-    ]).toString("utf8");
-  } catch {
-    return null;
-  }
-  const origin = new URL(url).origin;
-  const tok = await fetch(`${origin}/token`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: row.client_id,
-      client_secret: secret,
-    }),
-  }).then((r) => (r.ok ? r.json() : null));
-  if (!tok?.access_token) return null;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-      authorization: `Bearer ${tok.access_token}`,
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: tool, arguments: args },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  // The serve holds the SSE stream open after replying — read one data line.
-  const ct = res.headers.get("content-type") ?? "";
-  let text;
-  if (ct.includes("text/event-stream") && res.body) {
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let line = null;
-    try {
-      while (line === null) {
-        const c = await reader.read();
-        if (c.done) break;
-        buf += dec.decode(c.value, { stream: true });
-        if (buf.includes("\n")) {
-          const done = buf
-            .slice(0, buf.lastIndexOf("\n"))
-            .split("\n")
-            .filter((l) => l.startsWith("data:"));
-          if (done.length) line = done[done.length - 1];
-        }
-      }
-    } finally {
-      reader.cancel().catch(() => {});
-    }
-    text = line ? line.slice(5) : "";
-  } else {
-    text = await res.text();
-  }
-  if (!text.trim()) return null;
-  const blocks = (JSON.parse(text).result?.content ?? []).map((b) => b.text ?? "").join("\n");
-  try {
-    return JSON.parse(blocks);
-  } catch {
-    return blocks;
-  }
+    .eq("subject_kind", "property")
+    .is("superseded_at", null)
+    .order("created_at", { ascending: false })
+    .limit(40);
+  return (data ?? []).filter((r) => pattern.test(`${r.content} ${r.source ?? ""}`));
 }
 
 /** Poll a check until it returns something truthy — writes land through
@@ -402,7 +325,7 @@ async function pollFor(fn, { timeoutMs = 60_000, intervalMs = 3000 } = {}) {
 const KNOWLEDGE_SCENARIOS = [
   {
     id: "knowledge/two-part",
-    tools: ["search_documents","list_documents","brain_search"],
+    tools: ["search_documents","list_documents","property__search"],
     // The exact shape that exposed the problem in manual testing: one half
     // needs property-specific retrieval, the other is general knowledge.
     // A bot that answers only the interesting half looks fine until you
@@ -435,7 +358,7 @@ const KNOWLEDGE_SCENARIOS = [
 
   {
     id: "knowledge/absent",
-    tools: ["search_documents","list_documents","brain_search"],
+    tools: ["search_documents","list_documents","property__search"],
     // The anti-hallucination test. There is no helicopter SOP. The ONLY
     // correct answer is some form of "I can't find one".
     ask: `@hotelclaw What does our helicopter landing pad SOP say about crosswind limits? [${MARK}]`,
@@ -462,7 +385,7 @@ const KNOWLEDGE_SCENARIOS = [
 
   {
     id: "knowledge/specific-fact",
-    tools: ["search_documents","read_document","brain_search"],
+    tools: ["search_documents","read_document","property__search"],
     // Retrieval depth: the answer lives in the BODY of one document, not in
     // any title. Graded deterministically on the numbers.
     ask: `@hotelclaw What temperature range should the walk-in freezer be kept at, and who responds if it goes out of range? [${MARK}]`,
@@ -517,7 +440,7 @@ const KNOWLEDGE_SCENARIOS = [
 
   {
     id: "knowledge/enumerate",
-    tools: ["list_documents","brain_list"],
+    tools: ["list_documents"],
     // Enumeration is the case the knowledge-discipline rules single out:
     // listing tools beat keyword search, and a bot that pads the list to
     // look helpful is worse than one that returns four real titles.
@@ -833,59 +756,40 @@ const ACTION_SCENARIOS = [
   },
 
   {
-    id: "action/brain-capture",
-    tools: ["brain_capture", "brain_get"],
-    // The capture path, verified in gbrain rather than Postgres.
+    id: "action/memory-remember",
+    tools: ["property__remember", "property__search"],
+    // The remember path, verified in Postgres (agent_memories).
     //
     // Worth its own scenario because the 2026-08-10 audit found EVERY
-    // timeline entry in the brain came from a test or a manual operator
-    // action — none from a deterministic writer. The meeting writer turned
-    // out to be blocked upstream (no Stream call webhook). This asserts the
-    // remaining live path — a bot asked to remember something — genuinely
-    // lands durable evidence, so a future regression is visible immediately.
-    ask: `@hotelclaw Remember this for next time: the ice machine on level 2 trips its breaker when the compressor and the lift run together. Capture it. [${MARK}]`,
+    // durable memory entry came from a test or a manual operator action —
+    // none from a deterministic writer. This asserts the live path — a bot
+    // asked to remember something — genuinely lands a row, so a future
+    // regression is visible immediately.
+    ask: `@hotelclaw Remember this for next time: the ice machine on level 2 trips its breaker when the compressor and the lift run together. Save it to memory. [${MARK}]`,
     async verify({ propertyId }) {
       const found = await pollFor(
         async () => {
-          const listed = await brainCall(propertyId, "list_pages", {
-            limit: 60,
-            sort: "updated_desc",
-          });
-          if (!Array.isArray(listed)) return null;
-          // The model picks its own slug (systems/…, operations/…) — find the
-          // page by recency + content rather than guessing the name.
-          for (const p of listed.slice(0, 12)) {
-            // The observation lands in the TIMELINE, and `get_page` returns a
-            // `timeline` key that is always []. Ask get_timeline explicitly —
-            // checking the page body alone reports a working capture as lost
-            // (that mistake failed this scenario twice against a correct bot).
-            const tl = await brainCall(propertyId, "get_timeline", {
-              slug: p.slug,
-              limit: 20,
-            });
-            const blob = JSON.stringify(tl ?? "");
-            if (/ice machine/i.test(blob) && /breaker|compressor|lift/i.test(blob)) {
-              return { slug: p.slug };
-            }
-          }
-          return null;
+          const rows = await memoryRows(propertyId, /ice machine/i);
+          const hit = rows.find((r) => /breaker|compressor|lift/i.test(r.content));
+          return hit ? { id: hit.id } : null;
         },
         { timeoutMs: 90_000, intervalMs: 8000 },
       );
       if (!found) {
         return {
           passed: false,
-          reason: "no brain page carries the captured observation (brain_capture did not land)",
+          reason: "no agent_memories row carries the observation (property__remember did not land)",
         };
       }
-      return { passed: true, detail: `captured to ${found.slug}` };
+      return { passed: true, detail: `remembered as ${found.id}` };
     },
     async cleanupExtra({ propertyId }) {
-      const listed = await brainCall(propertyId, "list_pages", { limit: 60 });
-      for (const p of Array.isArray(listed) ? listed.slice(0, 12) : []) {
-        if (!/ice-machine|ice machine/i.test(String(p.slug))) continue;
-        await brainCall(propertyId, "delete_page", { slug: p.slug });
-      }
+      const rows = await memoryRows(propertyId, /ice machine/i);
+      if (rows.length === 0) return;
+      await supabase
+        .from("agent_memories")
+        .delete()
+        .in("id", rows.map((r) => r.id));
     },
   },
 

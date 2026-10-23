@@ -15,7 +15,7 @@
  */
 import { StreamChat } from "stream-chat";
 import { validateChatUiSpec } from "@hotelclaw/chat-ui";
-import { chunkStreamText } from "@hotelclaw/brain";
+import { chunkStreamText } from "@hotelclaw/chat-ui";
 import { serviceClient } from "./supabase";
 
 export type DeliveryRow = {
@@ -142,26 +142,18 @@ const TOOL_ACTIVITY: Record<string, { base: string; detail?: string }> = {
     base: "Updating a spreadsheet",
     detail: "Updating the “{}” spreadsheet",
   },
-  brain_search: {
-    base: "Searching the knowledge brain",
-    detail: "Searching the knowledge brain for “{}”",
+  property__search: {
+    base: "Searching property memory",
+    detail: "Searching property memory for “{}”",
   },
-  brain_think: {
-    base: "Thinking it through with the brain",
-    detail: "Asking the knowledge brain: “{}”",
+  property__remember: {
+    base: "Saving to property memory",
+    detail: "Remembering: {}",
   },
-  brain_get: {
-    base: "Reading from the knowledge brain",
-    detail: "Reading “{}” from the knowledge brain",
-  },
-  brain_list: {
-    base: "Browsing the knowledge brain",
-    detail: "Browsing “{}” in the knowledge brain",
-  },
-  brain_capture: {
-    base: "Saving to the knowledge brain",
-    detail: "Saving “{}” to the knowledge brain",
-  },
+  property__forget: { base: "Retiring a memory" },
+  person__search: { base: "Checking your notes", detail: "Checking your notes for “{}”" },
+  person__remember: { base: "Noting a preference", detail: "Noting: {}" },
+  person__forget: { base: "Retiring a note" },
   search_tasks: { base: "Searching tasks", detail: "Searching tasks for “{}”" },
   list_open_tasks: { base: "Checking open tasks" },
   update_task: { base: "Updating a task", detail: "Updating “{}”" },
@@ -219,11 +211,10 @@ const ACTIVITY_DETAIL_ARGS: Record<string, string[]> = {
   search_documents: ["query"],
   search_tasks: ["query"],
   search_chat_messages: ["query"],
-  brain_search: ["query"],
-  brain_think: ["question"],
-  brain_get: ["slug"],
-  brain_list: ["prefix"],
-  brain_capture: ["page_title"],
+  property__search: ["query"],
+  property__remember: ["content"],
+  person__search: ["query"],
+  person__remember: ["content"],
   list_documents: ["title_contains"],
   create_document: ["title"],
   update_document: ["new_title"],
@@ -827,14 +818,14 @@ type QueuedMessage = {
  * The drain-on-park step (eve docs, execution-model-and-durability.md:
  * "keep your own per-session queue in the channel or app layer, then
  * deliver the next message after the session parks again"). Called from
- * the session.waiting handler WITH the fresh continuation token that event
- * carries: if messages queued up during the turn, start the next turn with
- * them immediately (coalesced); otherwise mark the turn slot idle.
+ * the session.waiting handler: if messages queued up during the turn, start
+ * the next turn with them immediately (coalesced); otherwise mark the turn
+ * slot idle. Since eve 0.31 follow-ups are addressed by the durable session
+ * id alone — there is no continuation token to carry.
  */
 export async function drainQueueOrIdle(
   row: DeliveryRow,
   eveSessionId: string,
-  continuationToken: string | null,
 ): Promise<void> {
   if (row.kind === "job") {
     // Jobs have no message queue — nothing routes to them by thread key. They
@@ -854,7 +845,7 @@ export async function drainQueueOrIdle(
     .limit(10);
   const pending = (queued ?? []).map((r) => r.message as QueuedMessage);
 
-  if (pending.length === 0 || !continuationToken) {
+  if (pending.length === 0) {
     await updateSessionRow(row.id, { turn_state: "idle" });
     return;
   }
@@ -889,7 +880,8 @@ export async function drainQueueOrIdle(
     last_turn_at: new Date().toISOString(),
   });
 
-  // Resume with the fresh token; one retry covers the park-settle race.
+  // Resume by session id; one retry covers the park-settle race
+  // (409 session_not_ready right after the park commits).
   let sent = false;
   for (let attempt = 0; attempt < 2 && !sent; attempt++) {
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2_000));
@@ -898,7 +890,7 @@ export async function drainQueueOrIdle(
       {
         method: "POST",
         headers,
-        body: JSON.stringify({ continuationToken, message: turnMessage }),
+        body: JSON.stringify({ message: turnMessage }),
         signal: AbortSignal.timeout(15_000),
       },
     ).catch(() => null);

@@ -14,7 +14,7 @@ import "server-only";
  * each turn (the task-bot pattern). Owner/manager only — enforced by the
  * route, and the toolset assumes it.
  */
-import { runBot, tool, z, type ModelMessage, type ToolSet } from "@/lib/ai/run-bot";
+import { runBot, streamBot, tool, z, type ModelMessage, type ToolSet } from "@/lib/ai/run-bot";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   computeInsightsMetrics,
@@ -270,12 +270,14 @@ export async function refreshPinnedPrompt(
   }
 }
 
-export async function runInsightsQaBot(opts: {
+type QaBotOptions = {
   propertyId: string;
   userId: string;
   scope: InsightScope;
   messages: ModelMessage[];
-}) {
+};
+
+async function qaBotConfig(opts: QaBotOptions) {
   const lens = await scopeLabel(opts.propertyId, opts.scope);
   const persona = [
     `You are the operations analyst for a hotel/restaurant team workspace, answering questions about this property's numbers. The user is currently viewing the Insights page through the lens of ${lens} (scope key: ${scopeKey(opts.scope)}) — scoped tools default to that lens.`,
@@ -287,8 +289,7 @@ export async function runInsightsQaBot(opts: {
     "- If the data shows nothing (empty lists, zeroes), say so plainly. No invented context.",
     "- Be concise: lead with the answer, then the supporting numbers. Use a short list only when comparing several items.",
   ].join("\n");
-
-  return runBot({
+  return {
     persona,
     scopedTools: buildQaTools(opts.propertyId, opts.scope),
     messages: opts.messages,
@@ -296,7 +297,17 @@ export async function runInsightsQaBot(opts: {
     scope: {
       propertyId: opts.propertyId,
       userId: opts.userId,
-      surface: "insights",
+      surface: "insights" as const,
     },
-  });
+  };
+}
+
+/** Non-streaming turn — used by pinned-prompt refresh (cached answers). */
+export async function runInsightsQaBot(opts: QaBotOptions) {
+  return runBot(await qaBotConfig(opts));
+}
+
+/** Streaming turn for the "Ask the numbers" dock (UI message stream). */
+export async function streamInsightsQaBot(opts: QaBotOptions): Promise<Response> {
+  return streamBot(await qaBotConfig(opts));
 }

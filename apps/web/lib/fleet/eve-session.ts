@@ -3,13 +3,15 @@ import "server-only";
  * Shared server-side eve session helpers for the fleet stack. Centralizes
  * the origin resolution (previously duplicated in pod-bot-reply and the
  * actions-MCP route) and the deadline-raced stream tail read used to
- * classify a session and recover its live continuation token.
+ * classify a session (eve ≥ 0.31 addresses sessions by durable id — there
+ * is no continuation token to recover any more).
  *
  * Eve streams REPLAY from index 0 on every attach and stay OPEN after the
  * last event, so: (a) a tail read always sees the full history including
- * the latest `session.waiting` (which carries the current continuation
- * token), and (b) every read must be raced against a deadline — a bare
- * reader.read() on an idle stream blocks forever.
+ * the latest park, and (b) every read must be raced against a deadline — a
+ * bare reader.read() on an idle stream blocks forever. Since eve 0.70 a
+ * question or approval holds the TURN open: the park shows up as
+ * `turn.waiting {on:"input"}`, not `session.waiting`.
  */
 
 export function eveOrigin(): string {
@@ -30,13 +32,15 @@ export type PendingRequest = {
   toolName: string;
   input: unknown;
   callId: string | null;
+  /** The id an `inputResponses` answer must be addressed to. */
+  requestId: string | null;
+  kind: string | null;
 };
 
 export type SessionTail = {
   status: "running" | "waiting" | "awaiting_approval" | "completed" | "failed";
   lastMessage: string;
   pendingRequests: PendingRequest[];
-  continuationToken: string | null;
 };
 
 export function parsePendingRequests(data: Record<string, unknown> | undefined): PendingRequest[] {
@@ -50,6 +54,8 @@ export function parsePendingRequests(data: Record<string, unknown> | undefined):
       toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
       input: action.input ?? null,
       callId: typeof action.callId === "string" ? action.callId : null,
+      requestId: typeof r.requestId === "string" ? r.requestId : null,
+      kind: typeof r.kind === "string" ? r.kind : null,
     };
   });
 }
@@ -87,7 +93,6 @@ export async function readSessionTail(
     status: "running",
     lastMessage: "",
     pendingRequests: [],
-    continuationToken: null,
   };
   const deadline = Date.now() + deadlineMs;
   let settled = false;
@@ -123,9 +128,11 @@ export async function readSessionTail(
             tail.status = "running";
             tail.pendingRequests = [];
           }
+        } else if (event.type === "turn.waiting") {
+          // Held turn: on "input" a person must act (the park); on "tasks"
+          // the turn is still working on subagents — not a settle point.
+          if (event.data?.on === "input") settled = true;
         } else if (event.type === "session.waiting") {
-          const token = event.data?.continuationToken;
-          tail.continuationToken = typeof token === "string" ? token : null;
           if (tail.status !== "awaiting_approval") tail.status = "waiting";
           settled = true;
         } else if (event.type === "session.completed") {

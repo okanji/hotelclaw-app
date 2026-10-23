@@ -4,9 +4,8 @@ import "server-only";
  * exactly as they were (deciding WHETHER to respond is cheap and
  * stateless); this module QUEUES the generation: one durable eve session
  * per (channel, thread), resolved runtime-side as the virtual `hotelclaw`
- * agent (apps/agent agent/lib/agent-config.ts) with property tools + the
- * shared knowledge brain (when the property has a binding — brainless
- * properties get no brain tools and instructions that say so).
+ * agent (apps/agent agent/lib/agent-config.ts) with property tools +
+ * property memory (recalled by the eve memory slots every turn).
  *
  * DELIVERY IS EVENT-DRIVEN (2026-07-23): this module fires the turn and
  * returns immediately; the eve channel's `events` handlers
@@ -402,7 +401,7 @@ async function resumeParkedJob(
 
   // A job cannot be restarted from here — its brief lived in the session we
   // can no longer resume. Say so instead of silently eating the answer.
-  if (!row.eve_session_id || !row.eve_continuation_token || stale) {
+  if (!row.eve_session_id || stale) {
     await service
       .from("channel_bot_sessions")
       .update({ question_message_id: null, pending_approval: null, turn_state: "idle" })
@@ -471,20 +470,21 @@ async function resumeParkedJob(
       })
     : null;
 
+  // eve ≥ 0.31: follow-ups are addressed by session id and carry EXACTLY ONE
+  // of `message` or `inputResponses`. A parked question is answered through
+  // the responses (a freeform reply rides as `text`); only when nothing could
+  // be addressed to the park does the raw message go — which steers the held
+  // turn and lets the model read it.
+  void consumedAnswer;
   const response = headers
     ? await fetch(
         `${eveOrigin()}/eve/v1/session/${encodeURIComponent(row.eve_session_id)}`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            continuationToken: row.eve_continuation_token,
-            // A bare "yes"/"2" is delivered ONLY as the input response —
-            // echoing it as a message made the model treat it as a fresh,
-            // contextless turn.
-            ...(consumedAnswer ? {} : { message: answerMessage }),
-            ...(responses.length > 0 ? { inputResponses: responses } : {}),
-          }),
+          body: JSON.stringify(
+            responses.length > 0 ? { inputResponses: responses } : { message: answerMessage },
+          ),
           signal: AbortSignal.timeout(15_000),
         },
       ).catch(() => null)
@@ -582,9 +582,7 @@ export async function runChannelBotEveTurn(ctx: {
 
     const { data: existing } = await service
       .from("channel_bot_sessions")
-      .select(
-        "id, eve_session_id, eve_continuation_token, last_turn_at, runtime_tag, pending_approval",
-      )
+      .select("id, eve_session_id, last_turn_at, runtime_tag, pending_approval")
       .eq("channel_id", ctx.streamChannelId)
       .eq("thread_key", threadKey)
       .maybeSingle();
@@ -716,32 +714,32 @@ export async function runChannelBotEveTurn(ctx: {
       senderId: ctx.triggerMessage.userId,
     });
 
-    // Resume when we hold a live continuation FROM THIS BUILD, else fresh;
-    // a failed resume (expired session/token) transparently starts fresh.
+    // Resume the session FROM THIS BUILD by its durable id (eve ≥ 0.31: no
+    // continuation token), else fresh; a failed resume (409 — expired, reset,
+    // or stranded by a runtime upgrade) transparently starts fresh.
     let sessionId = staleRuntime ? null : (existing?.eve_session_id ?? null);
     let sendResponse: Response | null = null;
     let sendResponseWasResume = false;
-    if (sessionId && existing?.eve_continuation_token) {
-      // If the session is parked on a QUESTION (eve ask_question — see
-      // channel-delivery.ts), address the answer to that request rather than
-      // relying on the model to re-derive it from a plain message. Eve's
-      // HandleMessageRequestBody accepts inputResponses alongside message, so
-      // the turn still carries its nonce marker + activation context.
-      const { responses: inputResponses, consumedAnswer } = buildInputResponses(
-        existing.pending_approval,
+    if (sessionId) {
+      // If the session is parked on a QUESTION or APPROVAL (eve holds the
+      // turn open — see channel-delivery.ts), address the answer to that
+      // request: a follow-up carries EXACTLY ONE of `inputResponses` or
+      // `message`, and a plain message would steer the held turn and
+      // withdraw the question. Only when nothing can be addressed to the park
+      // does the framed message go.
+      const { responses: inputResponses } = buildInputResponses(
+        existing?.pending_approval ?? null,
         ctx.triggerMessage.text,
       );
+      const parked = hasPendingQuestion(existing?.pending_approval ?? null);
       sendResponse = await fetch(`${eveOrigin()}/eve/v1/session/${sessionId}`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          continuationToken: existing.eve_continuation_token,
-          // A bare decision ("2" / "yes") is delivered ONLY as the input
-          // response; forwarding it as a message too made the model treat it
-          // as a fresh, contextless user turn.
-          ...(consumedAnswer ? {} : { message: turnMessage }),
-          ...(inputResponses.length > 0 ? { inputResponses } : {}),
-        }),
+        body: JSON.stringify(
+          parked && inputResponses.length > 0
+            ? { inputResponses }
+            : { message: turnMessage },
+        ),
         signal: AbortSignal.timeout(15_000),
       }).catch(() => null);
       if (!sendResponse?.ok) sendResponse = null;

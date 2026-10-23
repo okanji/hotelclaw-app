@@ -139,7 +139,7 @@ async function turn({ sessionId, continuationToken, message, projectId, expected
       method: "POST",
       headers: headers(projectId, bot, channelId),
       body: JSON.stringify(
-        sessionId ? { continuationToken, message: framed } : { message: framed },
+        { message: framed },
       ),
     },
   );
@@ -174,14 +174,14 @@ async function main() {
     `tools=${JSON.stringify(first.tools)}`,
   );
   check(
-    "continuation token returned",
-    Boolean(first.continuationToken),
-    "without it, follow-ups cannot resume the session",
+    "session id returned",
+    Boolean(first.sessionId),
+    "without it, follow-ups cannot resume the session (eve ≥ 0.31 addresses sessions by id)",
   );
   if (first.text) console.log(`      ↳ ${first.text.replace(/\s+/g, " ").slice(0, 180)}…`);
 
   // ── 2. The session is durable: a follow-up remembers turn one ───────────
-  if (first.continuationToken) {
+  if (first.sessionId) {
     console.log("\n── Follow-up on the same session");
     const second = await turn({
       sessionId: first.sessionId,
@@ -341,11 +341,6 @@ async function main() {
     .select("id, eve_session_id, continuation_token")
     .single();
   check("chat row stores the session", !chatError && Boolean(chat?.eve_session_id), chatError?.message ?? "");
-  check(
-    "chat row stores the continuation token",
-    Boolean(chat?.continuation_token),
-    "a chat without one cannot be resumed after a reload",
-  );
 
   // ── 6. REGRESSION: the channel bot is untouched ─────────────────────────
   // The assistant rides the channel bot's machinery — a shared resolver, two

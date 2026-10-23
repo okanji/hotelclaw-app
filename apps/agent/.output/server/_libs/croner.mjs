@@ -1,7 +1,7 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-//#region ../../node_modules/nitro/dist/node_modules/croner/dist/croner.js
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
 function T(s) {
 	return Date.UTC(s.y, s.m - 1, s.d, s.h, s.i, s.s);
 }
@@ -144,12 +144,7 @@ var C = class {
 			case "6-part":
 				e[6] = "*";
 				break;
-			case "5-or-6-parts":
-				e[6] = "*";
-				break;
-			case "6-or-7-parts": break;
-			case "7-part":
-			case "auto": break;
+			case "5-or-6-parts": e[6] = "*";
 		}
 		this.throwAtIllegalCharacters(e), this.partToArray("second", e[0], 0, 1), this.partToArray("minute", e[1], 0, 1), this.partToArray("hour", e[2], 0, 1), this.partToArray("day", e[3], -1, 1), this.partToArray("month", e[4], -1, 1);
 		let r = this.alternativeWeekdays ? -1 : 0;
@@ -541,7 +536,7 @@ var m = class s {
 	}
 };
 function R(s) {
-	if (s === void 0 && (s = {}), delete s.name, s.legacyMode !== void 0 && s.domAndDow === void 0 ? s.domAndDow = !s.legacyMode : s.domAndDow === void 0 && (s.domAndDow = !1), s.legacyMode = !s.domAndDow, s.paused = s.paused === void 0 ? !1 : s.paused, s.maxRuns = s.maxRuns === void 0 ? Infinity : s.maxRuns, s.catch = s.catch === void 0 ? !1 : s.catch, s.interval = s.interval === void 0 ? 0 : parseInt(s.interval.toString(), 10), s.utcOffset = s.utcOffset === void 0 ? void 0 : parseInt(s.utcOffset.toString(), 10), s.dayOffset = s.dayOffset === void 0 ? 0 : parseInt(s.dayOffset.toString(), 10), s.unref = s.unref === void 0 ? !1 : s.unref, s.mode = s.mode === void 0 ? "auto" : s.mode, s.alternativeWeekdays = s.alternativeWeekdays === void 0 ? !1 : s.alternativeWeekdays, s.sloppyRanges = s.sloppyRanges === void 0 ? !1 : s.sloppyRanges, ![
+	if (s === void 0 && (s = {}), delete s.name, s.legacyMode !== void 0 && s.domAndDow === void 0 ? s.domAndDow = !s.legacyMode : s.domAndDow === void 0 && (s.domAndDow = !1), s.legacyMode = !s.domAndDow, s.paused = s.paused === void 0 ? !1 : s.paused, s.maxRuns = s.maxRuns === void 0 ? 1 / 0 : s.maxRuns, s.catch = s.catch === void 0 ? !1 : s.catch, s.interval = s.interval === void 0 ? 0 : parseInt(s.interval.toString(), 10), s.utcOffset = s.utcOffset === void 0 ? void 0 : parseInt(s.utcOffset.toString(), 10), s.dayOffset = s.dayOffset === void 0 ? 0 : parseInt(s.dayOffset.toString(), 10), s.unref = s.unref === void 0 ? !1 : s.unref, s.mode = s.mode === void 0 ? "auto" : s.mode, s.alternativeWeekdays = s.alternativeWeekdays === void 0 ? !1 : s.alternativeWeekdays, s.sloppyRanges = s.sloppyRanges === void 0 ? !1 : s.sloppyRanges, ![
 		"auto",
 		"5-part",
 		"6-part",
@@ -571,7 +566,7 @@ function _(s) {
 function x(s) {
 	typeof Deno < "u" && typeof Deno.unrefTimer < "u" ? Deno.unrefTimer(s) : s && typeof s.unref < "u" && s.unref();
 }
-var W = 30 * 1e3;
+var W = 3e4;
 var w = [];
 var E = class {
 	name;
@@ -739,5 +734,4 @@ var E = class {
 		return n === null && (n = void 0), [n, t];
 	}
 };
-//#endregion
-export { E as t };
+export { E };

@@ -102,12 +102,12 @@ async function main() {
 
   const { data: s1 } = await supabase
     .from("bot_chat_sessions")
-    .select("eve_session_id, eve_continuation_token")
+    .select("eve_session_id")
     .eq("channel_id", CH_A)
     .maybeSingle();
   check(
     "session row persisted with continuation",
-    Boolean(s1?.eve_session_id && s1?.eve_continuation_token),
+    Boolean(s1?.eve_session_id),
   );
 
   // Turn 2 in channel A — durable memory across turns.

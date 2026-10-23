@@ -83,11 +83,6 @@ export const CAPABILITY_TOOL_COVERAGE: Record<string, readonly string[]> = {
     "guest_conversation_insights",
   ],
   "knowledge & background work": [
-    "brain_search",
-    "brain_think",
-    "brain_get",
-    "brain_list",
-    "brain_capture",
     "read_resource",
     "start_background_job",
   ],
@@ -108,6 +103,6 @@ export function botCapabilityBlurb(botName: string): string {
     "  • Forms — list forms and their response summaries; build a form, publish or close it, share it into a channel.",
     "  • People & comms — look up the org chart (who owns what, reporting lines, team leads), search this channel's history, notify someone, or post into another channel.",
     "  • Workflows & reports — list and trigger workflows; read the intelligence brief, weekly reports, handovers, and guest-chatbot activity.",
-    "  • Knowledge & background work — search the property's knowledge brain, and kick off longer-running jobs that report back here.",
+    "  • Knowledge & background work — recall and search what the property remembers (its memory), and kick off longer-running jobs that report back here.",
   ].join("\n");
 }

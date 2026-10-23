@@ -70,7 +70,7 @@ export async function POST(
     try {
       const result = await generateText({
         model: anthropic(DRAFT_MODEL),
-        system: [
+        instructions: [
           "You turn a hotel manager's rough (often dictated) morning check-in answers into a crisp brief for their team channel.",
           "Output ONLY the brief body in light markdown: a '**Today's priorities**' bulleted list, then '**Blocked / need help**' (omit the section if empty), then '**Also**' (omit if empty).",
           "Keep the author's meaning and specifics exactly — tidy the language, never invent content. No greeting, no sign-off, no preamble.",

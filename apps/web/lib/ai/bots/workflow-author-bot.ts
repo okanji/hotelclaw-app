@@ -5,9 +5,9 @@ import "server-only";
  * Architecture: a thin descriptor over runBot() (same pattern as task-bot.ts).
  * Why not `generateObject`? Two reasons:
  *   1. Uniform Tier 1 path — every bot in this repo goes through runBot(), and
- *      we get gbrain auto-injection + model settings + step-count guards
+ *      we get memory auto-injection + model settings + step-count guards
  *      consistently.
- *   2. The author bot needs *tools* (catalog introspection, gbrain search,
+ *   2. The author bot needs *tools* (catalog introspection, memory search,
  *      ask_clarification, propose_entity_type) — `generateObject` doesn't tool-
  *      call. We get structured output by giving the bot ONE special tool —
  *      `emit_workflow` — whose Zod schema *is* the WorkflowSpec. The bot calls

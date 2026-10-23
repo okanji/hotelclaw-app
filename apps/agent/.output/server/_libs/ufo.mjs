@@ -1,6 +1,7 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
 String.fromCharCode;
 const ENC_SLASH_RE = /%2f/gi;
 function decode(text = "") {
@@ -63,5 +64,4 @@ function joinURL(base, ...input) {
 	} else url = segment;
 	return url;
 }
-//#endregion
-export { withoutTrailingSlash as i, joinURL as n, withLeadingSlash as r, decodePath as t };
+export { decodePath, joinURL, withLeadingSlash, withoutTrailingSlash };

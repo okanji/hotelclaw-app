@@ -1,9 +1,9 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import { t as __commonJSMin } from "../_runtime.mjs";
-import { a as require_token_util, o as require_token_error } from "./@ai-sdk/gateway+[...].mjs";
-//#region ../../node_modules/@vercel/oidc/dist/token.js
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
+import { __commonJSMin } from "../_runtime.mjs";
+import { require_token_error, require_token_util } from "./@ai-sdk/gateway+[...].mjs";
 var require_token = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -54,5 +54,4 @@ var require_token = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	0 && (module.exports = { refreshToken });
 }));
-//#endregion
-export { require_token as t };
+export { require_token };

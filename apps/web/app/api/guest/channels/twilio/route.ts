@@ -10,7 +10,7 @@ import {
   validateTwilioSignature,
 } from "@/lib/chatbots/twilio";
 import { runGuestBot } from "@/lib/ai/guest-bot/run-guest-bot";
-import { loadGuestProfile } from "@/lib/brain/guest-profile";
+import { loadGuestProfile } from "@/lib/memory/guest-profile";
 import { buildGuestBotTools } from "@/lib/ai/guest-bot/tools/registry";
 import type { ModelMessage } from "ai";
 
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
       tools,
       messages,
       sessionCapReached: (guestCount ?? 0) >= bot.session_message_cap,
-      onFinish: async ({ text: reply, totalTokens, toolCalls }) => {
+      onEnd: async ({ text: reply, totalTokens, toolCalls }) => {
         const finished = new Date().toISOString();
         await supabase.from("chatbot_messages").insert({
           conversation_id: convo.id,

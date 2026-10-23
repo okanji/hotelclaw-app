@@ -32,7 +32,7 @@ import {
   createLiveblocksAdapter,
   type LiveblocksAdapter,
 } from "@liveblocks/chat-sdk-adapter";
-import { generateText, stepCountIs, type ModelMessage } from "ai";
+import { generateText, isStepCount, type ModelMessage } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { samplingParams } from "@/lib/ai/model-settings";
 import { createMemoryState } from "./memory-state";
@@ -117,7 +117,7 @@ function buildBot(): Bot {
         thread as unknown as { id: string; adapter: LiveblocksAdapter },
         message,
       );
-      // Through runBot so the shared runtime applies: gbrain + delegate
+      // Through runBot so the shared runtime applies: memory + delegate
       // tools auto-injected, uniform model settings and deferral guard.
       const result = await runBot({
         persona: groundedSystemPrompt(context),
@@ -309,11 +309,11 @@ async function postReply(args: {
   // sampling params — see lib/ai/model-settings.ts).
   const { text } = await generateText({
     model: anthropic(getBotModelId()),
-    system: args.systemPrompt,
+    instructions: args.systemPrompt,
     messages: args.history,
     tools: args.tools,
     ...samplingParams(getBotModelId(), 0),
-    stopWhen: stepCountIs(5),
+    stopWhen: isStepCount(5),
   });
   await args.thread.post(text.trim() || "(no reply)");
 }

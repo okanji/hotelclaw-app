@@ -18,7 +18,8 @@ const agentDir = join(repoRoot, "apps", "agent", "agent");
 const read = (...p: string[]) => readFileSync(join(...p), "utf8");
 
 const catalogSrc = read(agentDir, "tools", "catalog.ts");
-const channelBrainSrc = read(agentDir, "tools", "channel-brain.ts");
+const memoryProviderSrc = read(agentDir, "lib", "memory-provider.ts");
+const memorySlotSrcs = ["property", "person"].map((slot) => read(agentDir, "memory", `${slot}.ts`));
 const podToolsSrc = read(agentDir, "tools", "pod-tools.ts");
 const agentConfigSrc = read(agentDir, "lib", "agent-config.ts");
 const dynamicInstructionsSrc = read(agentDir, "instructions", "dynamic.ts");
@@ -94,18 +95,21 @@ describe("AGENT_TOOL_CATALOG ↔ eve executor sync", () => {
     ).not.toContain("start_background_job");
   });
 
-  it("both virtual bots reach the brain and render_ui", () => {
+  it("both virtual bots reach render_ui, and memory is slot-scoped (not slug-gated)", () => {
     // The assistant is a second virtual bot on the channel bot's machinery.
-    // Its brain + rich-UI tools mount from slug-gated dynamics, so a gate
-    // that forgets the new slug silently ships a brainless assistant.
-    for (const [name, src] of [
-      ["channel-brain.ts", channelBrainSrc],
-      ["channel-render-ui.ts", read(agentDir, "tools", "channel-render-ui.ts")],
-    ] as const) {
-      expect(
-        src.includes("ASSISTANT_BOT_SLUG"),
-        `${name} does not admit ASSISTANT_BOT_SLUG — the assistant loses these tools`,
-      ).toBe(true);
+    // Its rich-UI tool mounts from a slug-gated dynamic, so a gate that
+    // forgets the new slug silently ships an assistant without cards.
+    expect(
+      read(agentDir, "tools", "channel-render-ui.ts").includes("ASSISTANT_BOT_SLUG"),
+      "channel-render-ui.ts does not admit ASSISTANT_BOT_SLUG — the assistant loses render_ui",
+    ).toBe(true);
+    // Memory is an eve SLOT (agent/memory/*): every session with a verified
+    // propertyId gets it — no slug gate to forget. The scope must come from
+    // auth attributes, never from a header the model could influence.
+    for (const src of memorySlotSrcs) {
+      expect(src).toContain("defineMemory(");
+      expect(src).toContain("attributes?.propertyId");
+      expect(src).toMatch(/\bnull\b/);
     }
   });
 
@@ -171,7 +175,7 @@ describe("eve build-transform safety (prod incident 2026-07-22)", () => {
   // killed every tool. Collision-prone short names stay banned.
   const dynamicToolModules: Array<[string, string]> = [
     ["catalog.ts", catalogSrc],
-    ["channel-brain.ts", channelBrainSrc],
+    ["memory-provider.ts", memoryProviderSrc],
     ["pod-tools.ts", podToolsSrc],
   ];
 
@@ -182,9 +186,13 @@ describe("eve build-transform safety (prod incident 2026-07-22)", () => {
     });
   }
 
-  it("brain executors use the collision-proof names", () => {
-    expect(catalogSrc).toContain("brainMcpUrl");
-    expect(channelBrainSrc).toContain("brainMcpUrl");
+  it("memory provider tools close over plain strings only", () => {
+    // The scope object itself must not be captured — the build transform
+    // serialises captured values and an object/function capture does not
+    // replay. Each executor rebuilds the scope from the string parts.
+    expect(memoryProviderSrc).toContain("const memPropertyId = scope.propertyId");
+    expect(memoryProviderSrc).toContain("const memSubjectId = scope.subjectId");
+    expect(memoryProviderSrc).not.toMatch(/execute\([^)]*\)\s*\{[^}]*\bscope\./);
   });
 
   it("no shared helper functions are closed over by role-gated executes", () => {
@@ -198,15 +206,28 @@ describe("eve channel events surface (silent-ignore incident 2026-07-23)", () =>
   // ChannelEvents (eve dist/src/public/definitions/channel.d.ts) supports a
   // fixed hook set. Unknown keys are silently ignored — a "message.received"
   // handler never fired and the delivery nonce was never stamped.
+  // eve 0.83 ChannelEvents (dist/src/public/definitions/channel.d.ts).
   const SUPPORTED = new Set([
+    "approval.candidate",
+    "approval.settled",
+    "context.cleared",
+    "compaction.requested",
+    "compaction.completed",
     "turn.started",
     "actions.requested",
+    "action.partial",
     "action.result",
     "message.completed",
     "message.appended",
     "reasoning.appended",
     "reasoning.completed",
+    "step.started",
+    "step.completed",
     "input.requested",
+    "input.resolved",
+    "task.started",
+    "task.settled",
+    "turn.waiting",
     "turn.failed",
     "turn.completed",
     "turn.cancelled",
@@ -234,6 +255,10 @@ describe("eve channel events surface (silent-ignore incident 2026-07-23)", () =>
       '"message.completed"',
       '"action.result"',
       '"input.requested"',
+      // eve ≥ 0.70: a question/approval holds the turn open and parks via
+      // turn.waiting {on:"input"} — session.waiting alone would never post
+      // the question (prod 2026-07-28 class of bug, now a contract).
+      '"turn.waiting"',
       '"session.waiting"',
       '"session.failed"',
     ]) {
@@ -244,7 +269,7 @@ describe("eve channel events surface (silent-ignore incident 2026-07-23)", () =>
 
 describe("knowledge discipline wiring (SOP incident 2026-07-22)", () => {
   it("per-session instructions inject the shared discipline", () => {
-    expect(dynamicInstructionsSrc).toContain("KNOWLEDGE_DISCIPLINE");
+    expect(dynamicInstructionsSrc).toContain("MEMORY_DISCIPLINE");
   });
 
   it("the knowledge-lookup skill exists with a routing description", () => {
@@ -252,7 +277,14 @@ describe("knowledge discipline wiring (SOP incident 2026-07-22)", () => {
     expect(skill).toContain("description:");
     expect(skill).toContain("Absence protocol");
     expect(skill).toContain("list_documents");
-    expect(skill).toContain("brain_list");
+    expect(skill).toContain("property__search");
+    expect(skill).toContain("property__remember");
+  });
+
+  it("the opt-in framework tools the persona relies on are authored (eve ≥ 0.65 made them opt-in)", () => {
+    for (const tool of ["ask_question", "no_reply", "sleep"]) {
+      expect(() => read(agentDir, "tools", `${tool}.ts`)).not.toThrow();
+    }
   });
 
   it("role-gated tools check the real sender, not the acting principal", () => {

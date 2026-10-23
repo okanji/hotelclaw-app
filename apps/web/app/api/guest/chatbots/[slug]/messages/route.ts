@@ -9,7 +9,7 @@ import {
   recordUsage,
 } from "@/lib/chatbots/limits";
 import { runGuestBot } from "@/lib/ai/guest-bot/run-guest-bot";
-import { loadGuestProfile } from "@/lib/brain/guest-profile";
+import { loadGuestProfile } from "@/lib/memory/guest-profile";
 import {
   buildGuestBotTools,
   performGuestHandoff,
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       tools,
       messages,
       sessionCapReached,
-      onFinish: async ({ text: reply, totalTokens, toolCalls, attachments }) => {
+      onEnd: async ({ text: reply, totalTokens, toolCalls, attachments }) => {
         const finished = new Date().toISOString();
         await supabase.from("chatbot_messages").insert({
           conversation_id: conversation.id,

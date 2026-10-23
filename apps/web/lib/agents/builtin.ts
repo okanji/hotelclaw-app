@@ -40,7 +40,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
       "Org chart",
       "Create tasks",
       "Render rich UI",
-      "Shared brain (search, read, list, think, capture)",
+      "Property memory (recalled each turn; search, remember, forget)",
     ],
     model: "Sonnet",
   },
@@ -52,7 +52,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A about a single task, its subtasks and related work.",
     promptSummary:
       "Scoped to the open task: explains status, finds related tasks, suggests next steps. Read-only.",
-    tools: ["Task details", "Subtasks", "Related tasks", "Shared brain (gbrain)"],
+    tools: ["Task details", "Subtasks", "Related tasks", "Property memory (search, remember, forget)"],
     model: "Sonnet",
   },
   {
@@ -63,7 +63,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A over the open document plus inline writing help.",
     promptSummary:
       "Answers questions about the open document and can propose new content blocks; edits are always applied by the human.",
-    tools: ["Read document", "Propose content", "Shared brain (gbrain)"],
+    tools: ["Read document", "Propose content", "Property memory (search, remember, forget)"],
     model: "Sonnet",
   },
   {
@@ -74,7 +74,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Weekly reports, the intelligence brief, and risk annotations.",
     promptSummary:
       "Writes narrative over deterministic metrics — it never computes numbers itself, and every card cites the signals it rests on.",
-    tools: ["Deterministic metrics (read-only)", "Shared brain (weekly reports)"],
+    tools: ["Deterministic metrics (read-only)", "Property memory (weekly reports)"],
     model: "Sonnet + Haiku",
   },
   {
@@ -85,7 +85,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Q&A over flow metrics, workload, and operations.",
     promptSummary:
       "Answers with figures pulled from the same metric functions the dashboards chart, citing (metric · lens) for every number.",
-    tools: ["Flow metrics", "Attention", "Portfolio", "Workload", "Operations", "Weekly report", "Shared brain (gbrain)"],
+    tools: ["Flow metrics", "Attention", "Portfolio", "Workload", "Operations", "Weekly report", "Property memory (search, remember, forget)"],
     model: "Sonnet",
   },
   {
@@ -96,7 +96,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Your 'since your last shift' orientation paragraph.",
     promptSummary:
       "Writes only the one-paragraph read over a deterministic change payload; the widget renders the facts directly.",
-    tools: ["Shift window data (read-only)", "Shared brain (gbrain)"],
+    tools: ["Shift window data (read-only)", "Property memory (search, remember, forget)"],
     model: "Haiku",
   },
   {
@@ -107,7 +107,7 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     description: "Suggests team, assignee, and priority for bare new tasks.",
     promptSummary:
       "Suggestions only — values are validated against real candidates and applied by staff (or the owner's auto-apply dial).",
-    tools: ["Similar-task evidence", "Candidate lists", "Brain evidence (prefetched)"],
+    tools: ["Similar-task evidence", "Candidate lists", "Memory evidence (prefetched)"],
     model: "Haiku",
   },
   {
@@ -127,10 +127,10 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     emoji: "🤖",
     where: "Channels (@name), pod properties only",
     description:
-      "Operated bots on the durable agent runtime — persona from the pod's knowledge brain, tools per-bot allow-listed.",
+      "Operated bots on the durable agent runtime — configured persona, tools per-bot allow-listed, property memory recalled each turn.",
     promptSummary:
       "Durable eve sessions per channel; money-moving tools always park for human approval (Fleet → Approvals). Full config and session logs are in the Fleet views.",
-    tools: ["Per-bot allow-list", "Brain query/write", "Approval-gated money tools"],
+    tools: ["Per-bot allow-list", "Property memory", "Approval-gated money tools"],
     model: "Haiku / Sonnet",
   },
 ];

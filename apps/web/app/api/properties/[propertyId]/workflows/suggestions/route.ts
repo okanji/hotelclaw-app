@@ -6,7 +6,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { Redis } from "@upstash/redis";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
-import { callBrainTool, resolvePropertyBrain } from "@/lib/brain/client";
+import { memoryContextLines } from "@/lib/memory/store";
 import { getStep, getTrigger } from "@/lib/workflows/catalog";
 import type { StepType, TriggerEventType } from "@/lib/workflows/spec";
 import {
@@ -40,10 +40,10 @@ import {
  *     evidence gets dropped to an empty basis rather than inventing one.
  *  2. **The catalog** — the exact triggers/actions this feature supports, so
  *     the model cannot propose something the engine can't build.
- *  3. **gbrain** — the property's institutional memory. The query is STEERED
+ *  3. **property memory** — the property's institutional memory. The query is STEERED
  *     BY the top deterministic signals (search "blocked work" only when work
  *     is actually blocked), which makes retrieval pointed instead of generic.
- *     Strictly fail-soft: brainless properties just skip this layer.
+ *     Strictly fail-soft: a property with no memory yet just skips this layer.
  *  4. **Industry prior** — the model's own hospitality-ops knowledge, framed
  *     by the system prompt and disciplined by layers 1–3.
  *
@@ -59,8 +59,6 @@ import {
 const SUGGEST_MODEL = "claude-haiku-4-5-20251001";
 const CACHE_TTL_SECONDS = 60 * 60 * 24;
 const MAX_SUGGESTIONS = 4;
-/** The modal is waiting on this — a slow brain must not hold the user. */
-const BRAIN_TIMEOUT_MS = 6_000;
 
 const Body = z.object({
   feature: z.enum(AUTOMATION_FEATURES as [AutomationFeature, ...AutomationFeature[]]),
@@ -155,34 +153,16 @@ async function brainContext(
   feature: AutomationFeature,
   signals: SuggestionSignal[],
 ): Promise<string[]> {
-  try {
-    const binding = await resolvePropertyBrain(propertyId);
-    if (!binding) return [];
-    const steer = signals
-      .slice(0, 3)
-      .map((s) => s.evidence)
-      .join("; ");
-    const query =
-      `${featureMeta(feature).label} operations: recurring problems, escalations, standing procedures` +
-      (steer ? ` — ${steer}` : "");
-    const result = await callBrainTool(
-      binding,
-      "search",
-      { query, limit: 6 },
-      { timeoutMs: BRAIN_TIMEOUT_MS },
-    );
-    if (!result.ok) return [];
-    const raw =
-      typeof result.content === "string"
-        ? result.content
-        : JSON.stringify(result.content ?? "");
-    // The serve returns chunks in varying shapes; we only need readable text
-    // for the prompt, so normalize to a bounded string rather than parsing.
-    return raw.trim() ? [raw.slice(0, 4000)] : [];
-  } catch (err) {
-    console.warn("[workflows/suggestions] brain lookup failed", err);
-    return [];
-  }
+  const steer = signals
+    .slice(0, 3)
+    .map((s) => s.evidence)
+    .join("; ");
+  const query =
+    `${featureMeta(feature).label} operations: recurring problems, escalations, standing procedures` +
+    (steer ? ` — ${steer}` : "");
+  // Memory lives in the same Postgres as the signals — no timeout race.
+  const lines = await memoryContextLines(propertyId, query, 6);
+  return lines.length ? [lines.join("\n").slice(0, 4000)] : [];
 }
 
 export async function POST(
@@ -283,7 +263,7 @@ export async function POST(
     }
   }
 
-  // Only pay for the brain on an actual generation (cache misses).
+  // Only pay for the memory lookup on an actual generation (cache misses).
   const brain = await brainContext(propertyId, feature, signals);
 
   // ── Generate ─────────────────────────────────────────────────────────────
@@ -307,7 +287,7 @@ export async function POST(
       output: Output.object({ schema: Suggestions }),
       temperature: 0.4,
       maxRetries: 2,
-      system: [
+      instructions: [
         "You are an operations consultant for hotels and restaurants who knows this software's automation engine inside out.",
         `A manager is looking at the ${meta.label} section and asking "what should I automate here?".`,
         "",
@@ -339,7 +319,7 @@ export async function POST(
           ? signals.map((s) => `${s.id}: ${s.evidence}`).join("\n")
           : "(no signals available — this surface has little data yet, so lean on standard hospitality practice and keep suggestions foundational)",
         "",
-        "## Institutional memory (from this property's knowledge brain)",
+        "## Institutional memory (this property's memory)",
         brain.length ? brain.join("\n") : "(nothing relevant found)",
         "",
         `## Triggers available on ${meta.label}`,

@@ -5,9 +5,6 @@
 //   node --env-file=.env.local --no-network-family-autoselection \
 //     scripts/backfill-attachment-texts.mjs
 //
-// After it finishes, run the doc→brain sweep (or wait for the nightly cron)
-// so the refreshed attachments_text reaches the brain mirrors:
-//   curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/brain/sync-documents
 import { createClient } from "@supabase/supabase-js";
 import { extractText, getDocumentProxy } from "unpdf";
 

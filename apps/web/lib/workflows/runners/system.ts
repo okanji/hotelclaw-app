@@ -1,43 +1,32 @@
 import "server-only";
-import {
-  captureToBrain,
-  resolvePropertyBrain,
-} from "@/lib/brain/client";
-import { logBrainEvent } from "@/lib/brain/telemetry";
+import { rememberForProperty } from "@/lib/memory/store";
 import { delegateToEve } from "@/lib/ai/eve-delegate";
 import type { RunnerImpl } from "./types";
 
 type CaptureConfig = { text: string; tags?: string[] };
 
+/**
+ * `action.gbrain.capture` — keeps its historical id so saved workflows keep
+ * working; it now writes a row into property memory (gbrain retired
+ * 2026-10-23). Every property has memory, so the old "no binding" stub
+ * state no longer exists.
+ */
 export const gbrainCaptureRunner: RunnerImpl<
   CaptureConfig,
-  { ok: boolean; stub?: boolean }
+  { ok: boolean; stub?: boolean; memory_id?: string }
 > = async ({ config, ctx }) => {
   if (ctx.dryRun) return { ok: true };
 
-  const binding = await resolvePropertyBrain(ctx.propertyId);
-  if (!binding) {
-    // Kept as a stub (not a run failure) for workflow back-compat, but the
-    // skip is structured telemetry now — a brainless property running
-    // capture steps is a provisioning gap someone should see.
-    logBrainEvent("capture_skipped_no_binding", {
-      surface: "workflow-capture",
-      propertyId: ctx.propertyId,
-      workflowId: ctx.workflowId,
-      runId: ctx.runId,
-    });
-    return { ok: false, stub: true };
-  }
-
-  const result = await captureToBrain(binding, {
-    slug: "concepts/workflow-signals",
-    pageTitle: "Workflow signals",
-    summary: config.text.slice(0, 1000),
-    ...(config.tags?.length ? { detail: `tags: ${config.tags.join(", ")}` } : {}),
+  const id = await rememberForProperty({
+    propertyId: ctx.propertyId,
+    kind: "fact",
+    content: config.text.slice(0, 2000),
     source: `workflow ${ctx.workflowId}, run ${ctx.runId}`,
+    tags: config.tags ?? [],
+    createdBy: ctx.workflowOwnerId ?? null,
   });
-  if (!result.ok) throw new Error(`brain capture failed: ${result.reason}`);
-  return { ok: true };
+  if (!id) throw new Error("memory write failed");
+  return { ok: true, memory_id: id };
 };
 
 type DelegateConfig = {

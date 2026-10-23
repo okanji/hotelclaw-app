@@ -1,5 +1,6 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import { F as Rt } from "./eve+zod.mjs";
-export { Rt as anthropic };
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
+import "../_chunks/compiled-artifacts-instrumentation.mjs";
+export {};

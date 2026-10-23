@@ -37,10 +37,10 @@ describe("activityLabel", () => {
     ).toBe("Searching documents for “freezer SOP”…");
     expect(
       await activityLabel(
-        [{ toolName: "brain_search", input: { query: "checkout policy" } }],
+        [{ toolName: "property__search", input: { query: "checkout policy" } }],
         PROPERTY,
       ),
-    ).toBe("Searching the knowledge brain for “checkout policy”…");
+    ).toBe("Searching property memory for “checkout policy”…");
     expect(
       await activityLabel(
         [{ toolName: "search_chat_messages", input: { query: "boiler" } }],
@@ -80,12 +80,12 @@ describe("activityLabel", () => {
     expect(
       await activityLabel(
         [
-          { toolName: "brain_search", input: { query: "late checkout" } },
+          { toolName: "property__search", input: { query: "late checkout" } },
           { toolName: "search_tasks", input: { query: "late checkout" } },
         ],
         PROPERTY,
       ),
-    ).toBe("Searching the knowledge brain for “late checkout” +1 more…");
+    ).toBe("Searching property memory for “late checkout” +1 more…");
   });
 
   it("degrades readably for an unmapped tool", async () => {
@@ -96,7 +96,7 @@ describe("activityLabel", () => {
 
   it("clips a long subject to one line", async () => {
     const label = await activityLabel(
-      [{ toolName: "brain_think", input: { question: "why ".repeat(60) } }],
+      [{ toolName: "property__remember", input: { content: "why ".repeat(60) } }],
       PROPERTY,
     );
     expect(label!.length).toBeLessThan(100);

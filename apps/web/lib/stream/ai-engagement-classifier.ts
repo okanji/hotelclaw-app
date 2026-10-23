@@ -126,7 +126,7 @@ export async function shouldStayEngaged(
     // mis-fires by reading the prompt + history, not by chasing entropy.
     const result = await generateObject({
       model: anthropic(CLASSIFIER_MODEL_ID),
-      system: input.spinoffContext ? SPINOFF_SYSTEM_PROMPT : ENGAGED_SYSTEM_PROMPT,
+      instructions: input.spinoffContext ? SPINOFF_SYSTEM_PROMPT : ENGAGED_SYSTEM_PROMPT,
       schema: DecisionSchema,
       messages,
       temperature: 0,

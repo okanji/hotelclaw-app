@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { AiPixelGrid, AiShimmerLabel } from "../../components/AiLoader";
 import { TriageSuggestions } from "../../components/TriageSuggestions";
+import { TaskAiSheet } from "../../components/TaskAiSheet";
 import {
   ErrorState,
   Loading,
@@ -144,6 +145,8 @@ export default function TaskDetailScreen() {
             onApplied={refetch}
           />
         ) : null}
+
+        {propertyId && taskId ? <TaskAiSheet propertyId={propertyId} taskId={taskId} /> : null}
 
         <Section title="Status">
           <View style={styles.options}>

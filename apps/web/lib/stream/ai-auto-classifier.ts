@@ -206,7 +206,7 @@ export async function shouldBotChimeIn(
     // tuning. Revisit once prompts are stable.
     const result = await generateObject({
       model: anthropic(CLASSIFIER_MODEL_ID),
-      system: promptFor(input.sensitivity),
+      instructions: promptFor(input.sensitivity),
       schema: DecisionSchema,
       messages: [
         ...recent.map((h) => ({ role: h.role, content: h.content })),

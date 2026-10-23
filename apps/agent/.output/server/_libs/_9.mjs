@@ -1,5 +1,7 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import { A as Pn } from "./eve+zod.mjs";
-export { Pn as google };
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
+import { require_token } from "./vercel__oidc.mjs";
+export default require_token();
+export {};

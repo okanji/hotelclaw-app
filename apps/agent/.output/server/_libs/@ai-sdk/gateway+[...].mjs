@@ -1,14 +1,19 @@
 import { fileURLToPath as __eveFileURLToPath } from "node:url";
 import { dirname as __eveDirname } from "node:path";
-__eveDirname(__eveFileURLToPath(import.meta.url));
-import { a as __toESM, i as __require, t as __commonJSMin } from "../../_runtime.mjs";
-import { A as literal, E as boolean, I as string, L as union, M as number, N as object, O as discriminatedUnion, P as record, R as unknown, T as array, V as toJSONSchema, b as ZodFirstPartyTypeKind, w as any, x as _enum, y as EventSourceParserStream, z as safeParseAsync } from "./anthropic+[...].mjs";
-//#region ../../node_modules/eve/node_modules/@ai-sdk/provider/dist/index.js
-var marker$1 = "vercel.ai.error";
-var symbol$2 = Symbol.for(marker$1);
-var _a$2;
-var _b$2;
-var AISDKError = class _AISDKError extends (_b$2 = Error, _a$2 = symbol$2, _b$2) {
+const __filename = __eveFileURLToPath(import.meta.url);
+__eveDirname(__filename);
+import { __commonJSMin, __require, __toESM as __toESM$1 } from "../../_runtime.mjs";
+/**
+* Symbol used for identifying AI SDK Error instances.
+* Enables checking if an error is an instance of AISDKError across package versions.
+*/
+const marker$16 = "vercel.ai.error";
+const symbol$16 = Symbol.for(marker$16);
+/**
+* Custom error class for AI SDK related errors.
+* @extends Error
+*/
+var AISDKError = class AISDKError extends Error {
 	/**
 	* Creates an AI SDK Error.
 	*
@@ -17,10 +22,10 @@ var AISDKError = class _AISDKError extends (_b$2 = Error, _a$2 = symbol$2, _b$2)
 	* @param {string} params.message - The error message.
 	* @param {unknown} [params.cause] - The underlying cause of the error.
 	*/
-	constructor({ name: name15, message, cause }) {
+	constructor({ name, message, cause }) {
 		super(message);
-		this[_a$2] = true;
-		this.name = name15;
+		this[symbol$16] = true;
+		this.name = name;
 		this.cause = cause;
 	}
 	/**
@@ -29,26 +34,24 @@ var AISDKError = class _AISDKError extends (_b$2 = Error, _a$2 = symbol$2, _b$2)
 	* @returns {boolean} True if the error is an AI SDK Error, false otherwise.
 	*/
 	static isInstance(error) {
-		return _AISDKError.hasMarker(error, marker$1);
+		return AISDKError.hasMarker(error, marker$16);
 	}
-	static hasMarker(error, marker16) {
-		const markerSymbol = Symbol.for(marker16);
+	static hasMarker(error, marker) {
+		const markerSymbol = Symbol.for(marker);
 		return error != null && typeof error === "object" && markerSymbol in error && typeof error[markerSymbol] === "boolean" && error[markerSymbol] === true;
 	}
 };
-var name$2 = "AI_APICallError";
-var marker2$1 = `vercel.ai.error.${name$2}`;
-var symbol2$1 = Symbol.for(marker2$1);
-var _a2$1;
-var _b2$1;
-var APICallError = class extends (_b2$1 = AISDKError, _a2$1 = symbol2$1, _b2$1) {
+const name$14 = "AI_APICallError";
+const marker$14 = `vercel.ai.error.${name$14}`;
+const symbol$14 = Symbol.for(marker$14);
+var APICallError = class extends AISDKError {
 	constructor({ message, url, requestBodyValues, statusCode, responseHeaders, responseBody, cause, isRetryable = statusCode != null && (statusCode === 408 || statusCode === 409 || statusCode === 429 || statusCode >= 500), data }) {
 		super({
-			name: name$2,
+			name: name$14,
 			message,
 			cause
 		});
-		this[_a2$1] = true;
+		this[symbol$14] = true;
 		this.url = url;
 		this.requestBodyValues = requestBodyValues;
 		this.statusCode = statusCode;
@@ -58,24 +61,22 @@ var APICallError = class extends (_b2$1 = AISDKError, _a2$1 = symbol2$1, _b2$1) 
 		this.data = data;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker2$1);
+		return AISDKError.hasMarker(error, marker$14);
 	}
 };
-var name2$1 = "AI_EmptyResponseBodyError";
-var marker3$1 = `vercel.ai.error.${name2$1}`;
-var symbol3$1 = Symbol.for(marker3$1);
-var _a3$1;
-var _b3$1;
-var EmptyResponseBodyError = class extends (_b3$1 = AISDKError, _a3$1 = symbol3$1, _b3$1) {
+const name$13 = "AI_EmptyResponseBodyError";
+const marker$13 = `vercel.ai.error.${name$13}`;
+const symbol$13 = Symbol.for(marker$13);
+var EmptyResponseBodyError = class extends AISDKError {
 	constructor({ message = "Empty response body" } = {}) {
 		super({
-			name: name2$1,
+			name: name$13,
 			message
 		});
-		this[_a3$1] = true;
+		this[symbol$13] = true;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker3$1);
+		return AISDKError.hasMarker(error, marker$13);
 	}
 };
 function getErrorMessage(error) {
@@ -84,202 +85,51 @@ function getErrorMessage(error) {
 	if (error instanceof Error) return error.toString();
 	return JSON.stringify(error);
 }
-var name3$1 = "AI_InvalidArgumentError";
-var marker4$1 = `vercel.ai.error.${name3$1}`;
-var symbol4$1 = Symbol.for(marker4$1);
-var _a4$1;
-var _b4$1;
-var InvalidArgumentError = class extends (_b4$1 = AISDKError, _a4$1 = symbol4$1, _b4$1) {
+const name$11 = "AI_InvalidArgumentError";
+const marker$11 = `vercel.ai.error.${name$11}`;
+const symbol$11$1 = Symbol.for(marker$11);
+/**
+* A function argument is invalid.
+*/
+var InvalidArgumentError = class extends AISDKError {
 	constructor({ message, cause, argument }) {
 		super({
-			name: name3$1,
+			name: name$11,
 			message,
 			cause
 		});
-		this[_a4$1] = true;
+		this[symbol$11$1] = true;
 		this.argument = argument;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker4$1);
+		return AISDKError.hasMarker(error, marker$11);
 	}
 };
-var name4$1 = "AI_InvalidPromptError";
-var marker5$1 = `vercel.ai.error.${name4$1}`;
-var symbol5$1 = Symbol.for(marker5$1);
-var _a5$1;
-var _b5$1;
-var InvalidPromptError = class extends (_b5$1 = AISDKError, _a5$1 = symbol5$1, _b5$1) {
-	constructor({ prompt, message, cause }) {
-		super({
-			name: name4$1,
-			message: `Invalid prompt: ${message}`,
-			cause
-		});
-		this[_a5$1] = true;
-		this.prompt = prompt;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker5$1);
-	}
-};
-var name5$1 = "AI_InvalidResponseDataError";
-var marker6$1 = `vercel.ai.error.${name5$1}`;
-var symbol6$1 = Symbol.for(marker6$1);
-var _a6$1;
-var _b6$1;
-(class extends (_b6$1 = AISDKError, _a6$1 = symbol6$1, _b6$1) {
-	constructor({ data, message = `Invalid response data: ${JSON.stringify(data)}.` }) {
-		super({
-			name: name5$1,
-			message
-		});
-		this[_a6$1] = true;
-		this.data = data;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker6$1);
-	}
-});
-var name6$1 = "AI_JSONParseError";
-var marker7$1 = `vercel.ai.error.${name6$1}`;
-var symbol7$1 = Symbol.for(marker7$1);
-var _a7$1;
-var _b7$1;
-var JSONParseError = class extends (_b7$1 = AISDKError, _a7$1 = symbol7$1, _b7$1) {
+const name$8$2 = "AI_JSONParseError";
+const marker$8$2 = `vercel.ai.error.${name$8$2}`;
+const symbol$8$2 = Symbol.for(marker$8$2);
+var JSONParseError = class extends AISDKError {
 	constructor({ text, cause }) {
 		super({
-			name: name6$1,
-			message: `JSON parsing failed: Text: ${text}.
-Error message: ${getErrorMessage(cause)}`,
+			name: name$8$2,
+			message: `JSON parsing failed: Text: ${text}.\nError message: ${getErrorMessage(cause)}`,
 			cause
 		});
-		this[_a7$1] = true;
+		this[symbol$8$2] = true;
 		this.text = text;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker7$1);
+		return AISDKError.hasMarker(error, marker$8$2);
 	}
 };
-var name7$1 = "AI_LoadAPIKeyError";
-var marker8$1 = `vercel.ai.error.${name7$1}`;
-var symbol8$1 = Symbol.for(marker8$1);
-var _a8$1;
-var _b8$1;
-(class extends (_b8$1 = AISDKError, _a8$1 = symbol8$1, _b8$1) {
-	constructor({ message }) {
-		super({
-			name: name7$1,
-			message
-		});
-		this[_a8$1] = true;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker8$1);
-	}
-});
-var name8$1 = "AI_LoadSettingError";
-var marker9$1 = `vercel.ai.error.${name8$1}`;
-var symbol9$1 = Symbol.for(marker9$1);
-var _a9$1;
-var _b9$1;
-(class extends (_b9$1 = AISDKError, _a9$1 = symbol9$1, _b9$1) {
-	constructor({ message }) {
-		super({
-			name: name8$1,
-			message
-		});
-		this[_a9$1] = true;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker9$1);
-	}
-});
-var name9$1 = "AI_NoContentGeneratedError";
-var marker10$1 = `vercel.ai.error.${name9$1}`;
-var symbol10$1 = Symbol.for(marker10$1);
-var _a10$1;
-var _b10$1;
-(class extends (_b10$1 = AISDKError, _a10$1 = symbol10$1, _b10$1) {
-	constructor({ message = "No content generated." } = {}) {
-		super({
-			name: name9$1,
-			message
-		});
-		this[_a10$1] = true;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker10$1);
-	}
-});
-var name10 = "AI_NoSuchModelError";
-var marker11 = `vercel.ai.error.${name10}`;
-var symbol11 = Symbol.for(marker11);
-var _a11;
-var _b11;
-(class extends (_b11 = AISDKError, _a11 = symbol11, _b11) {
-	constructor({ errorName = name10, modelId, modelType, message = `No such ${modelType}: ${modelId}` }) {
-		super({
-			name: errorName,
-			message
-		});
-		this[_a11] = true;
-		this.modelId = modelId;
-		this.modelType = modelType;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker11);
-	}
-});
-var name11 = "AI_NoSuchProviderReferenceError";
-var marker12 = `vercel.ai.error.${name11}`;
-var symbol12 = Symbol.for(marker12);
-var _a12;
-var _b12;
-(class extends (_b12 = AISDKError, _a12 = symbol12, _b12) {
-	constructor({ provider, reference, message = `No provider reference found for provider '${provider}'. Available providers: ${Object.keys(reference).join(", ")}` }) {
-		super({
-			name: name11,
-			message
-		});
-		this[_a12] = true;
-		this.provider = provider;
-		this.reference = reference;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker12);
-	}
-});
-var name12 = "AI_TooManyEmbeddingValuesForCallError";
-var marker13 = `vercel.ai.error.${name12}`;
-var symbol13 = Symbol.for(marker13);
-var _a13;
-var _b13;
-(class extends (_b13 = AISDKError, _a13 = symbol13, _b13) {
-	constructor(options) {
-		super({
-			name: name12,
-			message: `Too many values for a single embedding call. The ${options.provider} model "${options.modelId}" can only embed up to ${options.maxEmbeddingsPerCall} values per call, but ${options.values.length} values were provided.`
-		});
-		this[_a13] = true;
-		this.provider = options.provider;
-		this.modelId = options.modelId;
-		this.maxEmbeddingsPerCall = options.maxEmbeddingsPerCall;
-		this.values = options.values;
-	}
-	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker13);
-	}
-});
-var name13 = "AI_TypeValidationError";
-var marker14 = `vercel.ai.error.${name13}`;
-var symbol14 = Symbol.for(marker14);
-var _a14;
-var _b14;
-var TypeValidationError = class _TypeValidationError extends (_b14 = AISDKError, _a14 = symbol14, _b14) {
+const name$1$11 = "AI_TypeValidationError";
+const marker$1$11 = `vercel.ai.error.${name$1$11}`;
+const symbol$1$12 = Symbol.for(marker$1$11);
+var TypeValidationError = class TypeValidationError extends AISDKError {
 	constructor({ value, cause, context }) {
 		let contextPrefix = "Type validation failed";
-		if (context == null ? void 0 : context.field) contextPrefix += ` for ${context.field}`;
-		if ((context == null ? void 0 : context.entityName) || (context == null ? void 0 : context.entityId)) {
+		if (context?.field) contextPrefix += ` for ${context.field}`;
+		if (context?.entityName || context?.entityId) {
 			contextPrefix += " (";
 			const parts = [];
 			if (context.entityName) parts.push(context.entityName);
@@ -288,17 +138,16 @@ var TypeValidationError = class _TypeValidationError extends (_b14 = AISDKError,
 			contextPrefix += ")";
 		}
 		super({
-			name: name13,
-			message: `${contextPrefix}: Value: ${JSON.stringify(value)}.
-Error message: ${getErrorMessage(cause)}`,
+			name: name$1$11,
+			message: `${contextPrefix}: Value: ${JSON.stringify(value)}.\nError message: ${getErrorMessage(cause)}`,
 			cause
 		});
-		this[_a14] = true;
+		this[symbol$1$12] = true;
 		this.value = value;
 		this.context = context;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker14);
+		return AISDKError.hasMarker(error, marker$1$11);
 	}
 	/**
 	* Wraps an error into a TypeValidationError.
@@ -312,35 +161,6154 @@ Error message: ${getErrorMessage(cause)}`,
 	* @returns {TypeValidationError} A TypeValidationError instance.
 	*/
 	static wrap({ value, cause, context }) {
-		var _a16, _b16, _c;
-		if (_TypeValidationError.isInstance(cause) && cause.value === value && ((_a16 = cause.context) == null ? void 0 : _a16.field) === (context == null ? void 0 : context.field) && ((_b16 = cause.context) == null ? void 0 : _b16.entityName) === (context == null ? void 0 : context.entityName) && ((_c = cause.context) == null ? void 0 : _c.entityId) === (context == null ? void 0 : context.entityId)) return cause;
-		return new _TypeValidationError({
+		if (TypeValidationError.isInstance(cause) && cause.value === value && cause.context?.field === context?.field && cause.context?.entityName === context?.entityName && cause.context?.entityId === context?.entityId) return cause;
+		return new TypeValidationError({
 			value,
 			cause,
 			context
 		});
 	}
 };
-var name14 = "AI_UnsupportedFunctionalityError";
-var marker15 = `vercel.ai.error.${name14}`;
-var symbol15 = Symbol.for(marker15);
-var _a15;
-var _b15;
-var UnsupportedFunctionalityError = class extends (_b15 = AISDKError, _a15 = symbol15, _b15) {
+const name$16 = "AI_UnsupportedFunctionalityError";
+const marker$17 = `vercel.ai.error.${name$16}`;
+const symbol$17 = Symbol.for(marker$17);
+var UnsupportedFunctionalityError = class extends AISDKError {
 	constructor({ functionality, message = `'${functionality}' functionality not supported.` }) {
 		super({
-			name: name14,
+			name: name$16,
 			message
 		});
-		this[_a15] = true;
+		this[symbol$17] = true;
 		this.functionality = functionality;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker15);
+		return AISDKError.hasMarker(error, marker$17);
 	}
 };
-//#endregion
-//#region ../../node_modules/eve/node_modules/@workflow/serde/dist/index.js
+function getEnumValues(entries) {
+	const numericValues = Object.values(entries).filter((v) => typeof v === "number");
+	return Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
+}
+function joinValues(array, separator = "|") {
+	return array.map((val) => stringifyPrimitive(val)).join(separator);
+}
+function jsonStringifyReplacer(_, value) {
+	if (typeof value === "bigint") return value.toString();
+	return value;
+}
+var Cached = class {
+	constructor(getter) {
+		this._getter = getter;
+		this._value = void 0;
+	}
+	get value() {
+		const getter = this._getter;
+		if (getter !== void 0) {
+			this._value = getter();
+			this._getter = void 0;
+		}
+		return this._value;
+	}
+};
+function cached(getter) {
+	return new Cached(getter);
+}
+function nullish(input) {
+	return input === null || input === void 0;
+}
+function cleanRegex(source) {
+	const start = source.startsWith("^") ? 1 : 0;
+	const end = source.endsWith("$") ? source.length - 1 : source.length;
+	return source.slice(start, end);
+}
+function floatSafeRemainder(val, step) {
+	const ratio = val / step;
+	const roundedRatio = Math.round(ratio);
+	const tolerance = 4 * Number.EPSILON * Math.max(Math.abs(ratio), 1);
+	if (Math.abs(ratio - roundedRatio) < tolerance) return 0;
+	return ratio - roundedRatio;
+}
+const EVALUATING = /* @__PURE__*/ Symbol("evaluating");
+function defineLazy(object, key, getter) {
+	let value = void 0;
+	Object.defineProperty(object, key, {
+		get() {
+			if (value === EVALUATING) return;
+			if (value === void 0) {
+				value = EVALUATING;
+				value = getter();
+			}
+			return value;
+		},
+		set(v) {
+			Object.defineProperty(object, key, { value: v });
+		},
+		configurable: true
+	});
+}
+function assignProp(target, prop, value) {
+	Object.defineProperty(target, prop, {
+		value,
+		writable: true,
+		enumerable: true,
+		configurable: true
+	});
+}
+/**
+* Whichever object a def's `shape` currently answers from: the one the caller passed until the first read, the frozen copy after it.
+*
+* Its keys and descriptors read without invoking anything, which is what lets a discriminated union check its discriminator, and the cycle walk read a shape, without resolving a getter that references the schema being constructed. A def that answers `shape` from an accessor of its own has none.
+*/
+function rawShape(def) {
+	const desc = Object.getOwnPropertyDescriptor(def, "shape");
+	return desc?.get ? desc.get.raw : desc?.value;
+}
+function sourceShape(schema) {
+	return rawShape(schema._zod.def) ?? schema._zod.def.shape;
+}
+function deferProp(target, key, getter) {
+	Object.defineProperty(target, key, {
+		get() {
+			const value = getter();
+			assignProp(this, key, value);
+			return value;
+		},
+		enumerable: true,
+		configurable: true
+	});
+}
+function putProp(target, key, value) {
+	if (key in target) assignProp(target, key, value);
+	else target[key] = value;
+}
+/**
+* Copies `keys` of `source`'s shape onto `target`, each value passed through `wrap`.
+*
+* A key the source has resolved is copied through now, so the derived shape states it outright and nothing has to resolve it to learn what it holds. A key the source still defers stays deferred, and reads back through the source's own `shape`, so it resolves once and both shapes get that one schema.
+*/
+function mirrorShape(target, source, keys, wrap) {
+	const raw = sourceShape(source);
+	for (const key of keys) {
+		const desc = Object.getOwnPropertyDescriptor(raw, key);
+		if (!desc.enumerable) continue;
+		if (desc.get) deferProp(target, key, () => {
+			const value = source._zod.def.shape[key];
+			return wrap ? wrap(value, key) : value;
+		});
+		else putProp(target, key, wrap ? wrap(desc.value, key) : desc.value);
+	}
+}
+function mirrorProps(target, source) {
+	for (const key of Reflect.ownKeys(source)) {
+		const desc = Object.getOwnPropertyDescriptor(source, key);
+		if (!desc.enumerable) continue;
+		if (desc.get) deferProp(target, key, () => source[key]);
+		else putProp(target, key, desc.value);
+	}
+}
+function mergeDefs(...defs) {
+	const mergedDescriptors = {};
+	for (const def of defs) {
+		const descriptors = Object.getOwnPropertyDescriptors(def);
+		Object.assign(mergedDescriptors, descriptors);
+	}
+	return Object.defineProperties({}, mergedDescriptors);
+}
+function esc(str) {
+	return JSON.stringify(str);
+}
+function slugify(input) {
+	return input.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+const captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {};
+function isObject(data) {
+	return typeof data === "object" && data !== null && !Array.isArray(data);
+}
+const allowsEval = /* @__PURE__*/ cached(() => {
+	if (globalConfig.jitless) return false;
+	if (typeof navigator !== "undefined" && navigator?.userAgent?.includes("Cloudflare")) return false;
+	try {
+		new Function("");
+		return true;
+	} catch (_) {
+		return false;
+	}
+});
+function isPlainObject(o) {
+	if (isObject(o) === false) return false;
+	const ctor = o.constructor;
+	if (ctor === void 0) return true;
+	if (typeof ctor !== "function") return true;
+	const prot = ctor.prototype;
+	if (isObject(prot) === false) return false;
+	if (Object.prototype.hasOwnProperty.call(prot, "isPrototypeOf") === false) return false;
+	return true;
+}
+function shallowClone(o) {
+	if (isPlainObject(o)) return { ...o };
+	if (Array.isArray(o)) return [...o];
+	if (o instanceof Map) return new Map(o);
+	if (o instanceof Set) return new Set(o);
+	return o;
+}
+const propertyKeyTypes = /* @__PURE__*/ new Set([
+	"string",
+	"number",
+	"symbol"
+]);
+function escapeRegex(str) {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function clone(inst, def, params) {
+	const cl = new inst._zod.constr(def ?? inst._zod.def);
+	if (!def || params?.parent) cl._zod.parent = inst;
+	return cl;
+}
+function normalizeParams(_params) {
+	const params = _params;
+	if (!params) return {};
+	if (typeof params === "string") return { error: () => params };
+	if (params?.message !== void 0) {
+		if (params?.error !== void 0) throw new Error("Cannot specify both `message` and `error` params");
+		params.error = params.message;
+	}
+	delete params.message;
+	if (typeof params.error === "string") return {
+		...params,
+		error: () => params.error
+	};
+	return params;
+}
+function stringifyPrimitive(value) {
+	if (typeof value === "bigint") return value.toString() + "n";
+	if (typeof value === "string") return `"${value}"`;
+	return `${value}`;
+}
+function optionalKeys(shape) {
+	return Object.keys(shape).filter((k) => {
+		return shape[k]._zod.optin !== void 0 && shape[k]._zod.optout === "optional";
+	});
+}
+const NUMBER_FORMAT_RANGES = /*@__PURE__*/ (() => ({
+	safeint: [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+	int32: [-2147483648, 2147483647],
+	uint32: [0, 4294967295],
+	float32: [-34028234663852886e22, 34028234663852886e22],
+	float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
+}))();
+const BIGINT_FORMAT_RANGES = {
+	int64: [/* @__PURE__*/ BigInt("-9223372036854775808"), /* @__PURE__*/ BigInt("9223372036854775807")],
+	uint64: [/* @__PURE__*/ BigInt(0), /* @__PURE__*/ BigInt("18446744073709551615")]
+};
+function pick(schema, mask) {
+	const currDef = schema._zod.def;
+	const checks = currDef.checks;
+	if (checks && checks.length > 0) throw new Error(".pick() cannot be used on object schemas containing refinements");
+	const newShape = {};
+	mirrorShape(newShape, schema, maskedKeys(schema, mask));
+	return clone(schema, mergeDefs(currDef, {
+		shape: newShape,
+		checks: []
+	}));
+}
+function maskedKeys(schema, mask) {
+	const raw = sourceShape(schema);
+	const keys = [];
+	for (const key of Reflect.ownKeys(mask)) {
+		if (!Object.getOwnPropertyDescriptor(raw, key)?.enumerable) throw new Error(`Unrecognized key: "${String(key)}"`);
+		if (mask[key]) keys.push(key);
+	}
+	return keys;
+}
+function omit(schema, mask) {
+	const currDef = schema._zod.def;
+	const checks = currDef.checks;
+	if (checks && checks.length > 0) throw new Error(".omit() cannot be used on object schemas containing refinements");
+	const omitted = new Set(maskedKeys(schema, mask));
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)).filter((key) => !omitted.has(key)));
+	return clone(schema, mergeDefs(currDef, {
+		shape: newShape,
+		checks: []
+	}));
+}
+function extend(schema, shape) {
+	if (!isPlainObject(shape)) throw new Error("Invalid input to extend: expected a plain object");
+	const checks = schema._zod.def.checks;
+	if (checks && checks.length > 0) {
+		const existingShape = sourceShape(schema);
+		for (const key of Reflect.ownKeys(shape)) if (Object.getOwnPropertyDescriptor(existingShape, key) !== void 0) throw new Error("Cannot overwrite keys on object schemas containing refinements. Use `.safeExtend()` instead.");
+	}
+	return clone(schema, mergeDefs(schema._zod.def, { shape: extended(schema, shape) }));
+}
+function extended(schema, shape) {
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)));
+	mirrorProps(newShape, shape);
+	return newShape;
+}
+function safeExtend(schema, shape) {
+	if (!isPlainObject(shape)) throw new Error("Invalid input to safeExtend: expected a plain object");
+	return clone(schema, mergeDefs(schema._zod.def, { shape: extended(schema, shape) }));
+}
+function merge(a, b) {
+	if (!b?._zod?.def) throw new Error("Invalid input to merge: expected an object schema. To merge a plain shape, use `.extend()`.");
+	if (a._zod.def.checks?.length) throw new Error(".merge() cannot be used on object schemas containing refinements. Use .safeExtend() instead.");
+	const newShape = {};
+	mirrorShape(newShape, a, Reflect.ownKeys(sourceShape(a)));
+	mirrorShape(newShape, b, Reflect.ownKeys(sourceShape(b)));
+	return clone(a, mergeDefs(a._zod.def, {
+		shape: newShape,
+		get catchall() {
+			return b._zod.def.catchall;
+		},
+		checks: b._zod.def.checks ?? []
+	}));
+}
+function partial(Class, schema, mask, name = "partial") {
+	const checks = schema._zod.def.checks;
+	if (checks && checks.length > 0) throw new Error(`.${name}() cannot be used on object schemas containing refinements`);
+	const selected = mask ? new Set(maskedKeys(schema, mask)) : void 0;
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)), Class && ((value, key) => selected && !selected.has(key) ? value : new Class({
+		type: "optional",
+		innerType: value
+	})));
+	return clone(schema, mergeDefs(schema._zod.def, {
+		shape: newShape,
+		checks: []
+	}));
+}
+function required(Class, schema, mask) {
+	const selected = mask ? new Set(maskedKeys(schema, mask)) : void 0;
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)), (value, key) => selected && !selected.has(key) ? value : new Class({
+		type: "nonoptional",
+		innerType: value
+	}));
+	return clone(schema, mergeDefs(schema._zod.def, { shape: newShape }));
+}
+function aborted(x, startIndex = 0) {
+	if (x.aborted === true) return true;
+	for (let i = startIndex; i < x.issues.length; i++) if (x.issues[i]?.continue !== true) return true;
+	return false;
+}
+function explicitlyAborted(x, startIndex = 0) {
+	if (x.aborted === true) return true;
+	for (let i = startIndex; i < x.issues.length; i++) if (x.issues[i]?.continue === false) return true;
+	return false;
+}
+function prefixIssues(path, issues) {
+	return issues.map((iss) => {
+		var _a;
+		(_a = iss).path ?? (_a.path = []);
+		iss.path.unshift(path);
+		return iss;
+	});
+}
+function unwrapMessage(message) {
+	return typeof message === "string" ? message : message?.message;
+}
+/** The leading size checks of `defChecks` that set an upper bound, each paired with it. */
+function sizeCaps(defChecks) {
+	const caps = [];
+	for (const ch of defChecks ?? []) {
+		const d = ch._zod.def;
+		if (!/_(length|size)$|_equals$/.test(d.check)) break;
+		const max = d.maximum ?? d.length ?? d.size;
+		if (max >= 0) caps.push([max, ch]);
+	}
+	return caps;
+}
+function attachSchema(issues, start, inst) {
+	var _a;
+	for (let i = start; i < issues.length; i++) (_a = issues[i]).schema ?? (_a.schema = inst);
+}
+function finalizeIssue(iss, ctx, config) {
+	var _a;
+	const traits = iss.inst?._zod?.traits;
+	if (traits?.has("$ZodType")) {
+		if (traits.has("$ZodCheck")) (_a = iss).schema ?? (_a.schema = iss.inst);
+		else iss.schema = iss.inst;
+	}
+	const schemaError = iss.schema !== iss.inst ? iss.schema?._zod.def?.error : void 0;
+	const message = iss.message ? iss.message : unwrapMessage(iss.inst?._zod.def?.error?.(iss)) ?? unwrapMessage(schemaError?.(iss)) ?? unwrapMessage(ctx?.error?.(iss)) ?? unwrapMessage(config.customError?.(iss)) ?? unwrapMessage(config.localeError?.(iss)) ?? "Invalid input";
+	const full = {};
+	for (const k of Object.keys(iss)) {
+		if (k === "inst" || k === "schema" || k === "continue" || k === "input" || k === "__proto__") continue;
+		full[k] = iss[k];
+	}
+	full.path ?? (full.path = []);
+	full.message = message;
+	if (ctx?.reportInput) full.input = iss.input;
+	return full;
+}
+const highSurrogate = /[\uD800-\uDBFF]/;
+function codePointLength(str) {
+	const units = str.length;
+	if (!highSurrogate.test(str)) return units;
+	let count = units;
+	for (let i = 0; i < units - 1; i++) if ((str.charCodeAt(i) & 64512) === 55296 && (str.charCodeAt(i + 1) & 64512) === 56320) {
+		count--;
+		i++;
+	}
+	return count;
+}
+function getLengthableOrigin(input) {
+	if (Array.isArray(input)) return "array";
+	if (typeof input === "string") return "string";
+	return "unknown";
+}
+function parsedType(data) {
+	const t = typeof data;
+	switch (t) {
+		case "number": return Number.isNaN(data) ? "nan" : "number";
+		case "object": {
+			if (data === null) return "null";
+			if (Array.isArray(data)) return "array";
+			const obj = data;
+			if (obj && Object.getPrototypeOf(obj) !== Object.prototype && "constructor" in obj && obj.constructor) return obj.constructor.name;
+		}
+	}
+	return t;
+}
+function issue(...args) {
+	const [iss, input, inst] = args;
+	if (typeof iss === "string") return {
+		message: iss,
+		code: "custom",
+		input,
+		inst
+	};
+	return { ...iss };
+}
+/**
+* Installs a trait's members on its prototype. Each value builds that member for the instance on first read; the built value shadows the accessor as an own property, so a detached `const { parse } = schema` keeps working.
+*
+* Call this from a `proto` initializer, which runs once per prototype — never per instance.
+*/
+function members(proto, table) {
+	for (const key in table) {
+		const desc = Object.getOwnPropertyDescriptor(table, key);
+		if (desc.get) Object.defineProperty(proto, key, {
+			...desc,
+			enumerable: false
+		});
+		else defineBound(proto, key, desc.value);
+	}
+}
+/** Shadows a prototype member with an own value, so a getter that builds from the instance runs once. */
+function own(inst, key, value, enumerable = true) {
+	Object.defineProperty(inst, key, {
+		configurable: true,
+		writable: true,
+		enumerable,
+		value
+	});
+	return value;
+}
+/** Like {@link own}, for a member that was never an own data property and has to stay out of `Object.keys`. */
+function hide(inst, key, value) {
+	return own(inst, key, value, false);
+}
+/** Adds members a table derives from the instance: each builds on first read and shadows as own data, and assignment shadows the same way, as when these were own properties. */
+/* @__NO_SIDE_EFFECTS__ */
+function derived(computes, table) {
+	for (const key in computes) {
+		const compute = computes[key];
+		Object.defineProperty(table, key, {
+			configurable: true,
+			enumerable: true,
+			get() {
+				return own(this, key, compute(this));
+			},
+			set(value) {
+				own(this, key, value);
+			}
+		});
+	}
+	return table;
+}
+function defineBound(proto, key, fn) {
+	Object.defineProperty(proto, key, {
+		configurable: true,
+		get() {
+			return this == null ? fn : own(this, key, fn.bind(this));
+		},
+		set(value) {
+			own(this, key, value);
+		}
+	});
+}
+/** Returns the prototype to install on, or `undefined` if this group is already installed on it. */
+function claim(inst, sentinel) {
+	const proto = Object.getPrototypeOf(inst);
+	return sentinel in proto ? void 0 : proto;
+}
+let installing;
+let broke = false;
+const breaker = {
+	configurable: true,
+	get() {
+		broke = true;
+	}
+};
+/**
+* Installs a lazily-derived internal on the `_zod` prototype of `inst`'s
+* constructor, computed from the internals object itself and cached there on
+* first read. One accessor per constructor rather than one per instance.
+*/
+function defineLazyInternal(inst, key, compute) {
+	const proto = Object.getPrototypeOf(inst._zod);
+	if (key in proto && installing !== inst._zod) {
+		installing = void 0;
+		return;
+	}
+	installing = inst._zod;
+	Object.defineProperty(proto, key, {
+		configurable: true,
+		get() {
+			Object.defineProperty(this, key, breaker);
+			const outer = broke;
+			broke = false;
+			try {
+				const value = compute(this);
+				if (broke) delete this[key];
+				else Object.defineProperty(this, key, {
+					configurable: true,
+					writable: true,
+					value
+				});
+				broke = broke || outer;
+				return value;
+			} catch (err) {
+				delete this[key];
+				broke = broke || outer;
+				throw err;
+			}
+		},
+		set(value) {
+			Object.defineProperty(this, key, {
+				configurable: true,
+				writable: true,
+				value
+			});
+		}
+	});
+}
+/**
+* Installs `key` on `inst`'s prototype, computed by `make` on first read and cached there as an own
+* data property. One accessor per constructor rather than one per instance, because an own accessor
+* puts every instance after the first into v8 dictionary mode. The key doubles as the sentinel.
+*/
+function installLazyProp(inst, key, make, enumerable) {
+	const proto = claim(inst, key);
+	if (!proto) return;
+	Object.defineProperty(proto, key, {
+		configurable: true,
+		get() {
+			const desc = {
+				configurable: true,
+				writable: true,
+				enumerable,
+				value: void 0
+			};
+			Object.defineProperty(this, key, desc);
+			desc.value = make(this);
+			Object.defineProperty(this, key, desc);
+			return desc.value;
+		},
+		set(value) {
+			Object.defineProperty(this, key, {
+				configurable: true,
+				writable: true,
+				enumerable,
+				value
+			});
+		}
+	});
+}
+/** Wraps a constant catch value in a thunk tagged with {@link CONSTANT_CATCH}. */
+function constantCatch(value) {
+	const fn = () => value;
+	fn["~constantCatch"] = true;
+	return fn;
+}
+var _a$1;
+const _zodDesc = {
+	value: void 0,
+	enumerable: false
+};
+let _E = "captureStackTrace" in Error ? Error : null;
+function newError(Definition) {
+	const E = _E;
+	if (E) {
+		const saved = E.stackTraceLimit;
+		if (typeof saved === "number") {
+			try {
+				E.stackTraceLimit = 0;
+			} catch {
+				_E = null;
+				return new Definition();
+			}
+			try {
+				return new Definition();
+			} finally {
+				E.stackTraceLimit = saved;
+			}
+		}
+	}
+	return new Definition();
+}
+/* @__NO_SIDE_EFFECTS__ */
+function $constructor(name, initializer, proto, params) {
+	const zodProto = {};
+	function Internals(def) {
+		this.def = def;
+		this.constr = _;
+		this.traits = /* @__PURE__ */ new Set();
+	}
+	Internals.prototype = zodProto;
+	const protoMembers = proto;
+	const initialized = protoMembers && /* @__PURE__ */ new WeakSet();
+	function init(inst, def) {
+		if (!inst._zod) {
+			_zodDesc.value = new Internals(def);
+			try {
+				Object.defineProperty(inst, "_zod", _zodDesc);
+			} finally {
+				_zodDesc.value = void 0;
+			}
+		} else if (inst._zod.traits.has(name)) return;
+		inst._zod.traits.add(name);
+		initializer(inst, def);
+		if (initialized) {
+			const own = Object.getPrototypeOf(inst);
+			const ctorProto = inst._zod.constr.prototype;
+			let up = own;
+			while (up && up !== ctorProto) up = Object.getPrototypeOf(up);
+			const target = up ?? own;
+			if (!initialized.has(target)) {
+				initialized.add(target);
+				members(target, protoMembers);
+			}
+		}
+		const proto = _.prototype;
+		for (const k in proto) {
+			if (!Object.prototype.hasOwnProperty.call(proto, k)) continue;
+			if (!(k in inst)) inst[k] = proto[k].bind(inst);
+		}
+	}
+	const Parent = params?.Parent ?? Object;
+	class Definition extends Parent {}
+	Object.defineProperty(Definition, "name", { value: name });
+	function _(def) {
+		const inst = params?.Parent ? newError(Definition) : this;
+		init(inst, def);
+		const deferred = inst._zod.deferred;
+		if (deferred) {
+			for (const fn of deferred) fn();
+			inst._zod.deferred = void 0;
+		}
+		const pp = globalThis.__zod_globalConfig?.postProcessor;
+		if (pp) pp(inst);
+		return inst;
+	}
+	Object.defineProperty(_, "init", { value: init });
+	Object.defineProperty(_, Symbol.hasInstance, { value: (inst) => {
+		if (params?.Parent && inst instanceof params.Parent) return true;
+		return inst?._zod?.traits?.has(name);
+	} });
+	Object.defineProperty(_, "name", { value: name });
+	return _;
+}
+var $ZodAsyncError = class extends Error {
+	constructor() {
+		super(`Encountered Promise during synchronous parse. Use .parseAsync() instead.`);
+	}
+};
+var $ZodEncodeError = class extends Error {
+	constructor(name) {
+		super(`Encountered unidirectional transform during encode: ${name}`);
+		this.name = "ZodEncodeError";
+	}
+};
+(_a$1 = globalThis).__zod_globalConfig ?? (_a$1.__zod_globalConfig = {});
+const globalConfig = globalThis.__zod_globalConfig;
+function config(newConfig) {
+	if (newConfig) Object.assign(globalConfig, newConfig);
+	return globalConfig;
+}
+function _getMessage() {
+	const internals = this._zod;
+	internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
+	return internals.message;
+}
+function _setMessage(value) {
+	this._zod.message = value;
+}
+const _messageDesc = {
+	get: _getMessage,
+	set: _setMessage,
+	enumerable: true,
+	configurable: true
+};
+const _issuesDesc = {
+	value: void 0,
+	enumerable: false
+};
+const _installedToString = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
+const initializer$1 = (inst, def) => {
+	inst.name = "$ZodError";
+	_issuesDesc.value = def;
+	Object.defineProperty(inst, "issues", _issuesDesc);
+	_issuesDesc.value = void 0;
+	Object.defineProperty(inst, "message", _messageDesc);
+	const proto = Object.getPrototypeOf(inst);
+	if (!_installedToString.has(proto)) {
+		_installedToString.add(proto);
+		Object.defineProperty(proto, "toString", {
+			configurable: true,
+			enumerable: false,
+			get() {
+				const value = () => this.message;
+				Object.defineProperty(this, "toString", {
+					value,
+					configurable: true,
+					writable: true
+				});
+				return value;
+			},
+			set(value) {
+				Object.defineProperty(this, "toString", {
+					value,
+					configurable: true,
+					writable: true
+				});
+			}
+		});
+	}
+};
+const $ZodError = /* @__PURE__ */ $constructor("$ZodError", initializer$1);
+/** Get-or-create `obj[key]` as an own data property. A path segment naming an inherited member
+* ("toString", "constructor") would otherwise read through to the prototype, and assigning
+* "__proto__" would hit the setter instead of creating a key. */
+function node(obj, key, make) {
+	if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+		if (key === "__proto__") Object.defineProperty(obj, key, {
+			value: make(),
+			writable: true,
+			enumerable: true,
+			configurable: true
+		});
+		else obj[key] = make();
+	}
+	return obj[key];
+}
+function flattenError(error, mapper = (issue) => issue.message) {
+	const fieldErrors = {};
+	const formErrors = [];
+	for (const sub of error.issues) if (sub.path.length > 0) node(fieldErrors, sub.path[0], () => []).push(mapper(sub));
+	else formErrors.push(mapper(sub));
+	return {
+		formErrors,
+		fieldErrors
+	};
+}
+function formatError(error, mapper = (issue) => issue.message) {
+	const fieldErrors = { _errors: [] };
+	const processError = (error, path = []) => {
+		for (const issue of error.issues) if (issue.code === "invalid_union" && issue.errors.length) issue.errors.map((issues) => processError({ issues }, [...path, ...issue.path]));
+		else if (issue.code === "invalid_key") processError({ issues: issue.issues }, [...path, ...issue.path]);
+		else if (issue.code === "invalid_element") processError({ issues: issue.issues }, [...path, ...issue.path]);
+		else {
+			const fullpath = [...path, ...issue.path];
+			if (fullpath.length === 0) fieldErrors._errors.push(mapper(issue));
+			else {
+				let curr = fieldErrors;
+				let i = 0;
+				while (i < fullpath.length) {
+					const el = fullpath[i];
+					const terminal = i === fullpath.length - 1;
+					if (el === "_errors") {
+						if (terminal) curr._errors.push(mapper(issue));
+						i++;
+						continue;
+					}
+					if (!Object.prototype.hasOwnProperty.call(curr, el)) Object.defineProperty(curr, el, {
+						value: { _errors: [] },
+						enumerable: true,
+						writable: true,
+						configurable: true
+					});
+					const node = curr[el];
+					if (terminal) node._errors.push(mapper(issue));
+					curr = node;
+					i++;
+				}
+			}
+		}
+	};
+	processError(error);
+	return fieldErrors;
+}
+function finalizeParams(callee, params) {
+	return {
+		callee: params?.callee ?? callee,
+		Err: params?.Err
+	};
+}
+const _parse$1 = (_Err) => {
+	const fn = (schema, value, _ctx, _params) => {
+		const ctx = _ctx ? {
+			..._ctx,
+			async: false
+		} : { async: false };
+		const result = schema._zod.run({
+			value,
+			issues: []
+		}, ctx);
+		if (result instanceof Promise) throw new $ZodAsyncError();
+		if (result.issues.length) {
+			const e = new ((_params?.Err) ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+			captureStackTrace(e, _params?.callee ?? fn);
+			throw e;
+		}
+		return result.value;
+	};
+	return fn;
+};
+const _parseAsync = (_Err) => {
+	const fn = async (schema, value, _ctx, params) => {
+		const ctx = _ctx ? {
+			..._ctx,
+			async: true
+		} : { async: true };
+		let result = schema._zod.run({
+			value,
+			issues: []
+		}, ctx);
+		if (result instanceof Promise) result = await result;
+		if (result.issues.length) {
+			const e = new ((params?.Err) ?? _Err)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())));
+			captureStackTrace(e, params?.callee ?? fn);
+			throw e;
+		}
+		return result.value;
+	};
+	return fn;
+};
+const _safeParse = (_Err) => (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: false
+	} : { async: false };
+	const result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) throw new $ZodAsyncError();
+	return result.issues.length ? failure(_Err, result.issues, ctx) : {
+		success: true,
+		data: result.value
+	};
+};
+function failure(Err, issues, ctx) {
+	let error;
+	return {
+		success: false,
+		get error() {
+			if (!error) {
+				error = new Err(issues.map((iss) => finalizeIssue(iss, ctx, config())));
+				issues = void 0;
+				ctx = void 0;
+			}
+			return error;
+		},
+		set error(e) {
+			error = e;
+			issues = void 0;
+			ctx = void 0;
+		}
+	};
+}
+const _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: true
+	} : { async: true };
+	let result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) result = await result;
+	return result.issues.length ? failure(_Err, result.issues, ctx) : {
+		success: true,
+		data: result.value
+	};
+};
+const COMPILE_INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
+const COMPILE_FALLBACK = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
+const validate = ((schema, value, _ctx) => {
+	const validator = schema._zod.bag.validator;
+	if (validator !== void 0) {
+		if (validator(value) !== COMPILE_INVALID) return true;
+		if (validator.definite === true && _ctx === void 0) return false;
+	}
+	return validateFallback(schema, value, _ctx);
+});
+function validateFallback(schema, value, _ctx) {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: false,
+		abortEarly: true
+	} : {
+		async: false,
+		abortEarly: true
+	};
+	const fallbackRun = schema._zod.bag.fallbackRun;
+	let result;
+	if (fallbackRun) {
+		ctx[COMPILE_FALLBACK] = true;
+		result = fallbackRun({
+			value,
+			issues: []
+		}, ctx);
+	} else result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) throw new $ZodAsyncError();
+	return result.issues.length === 0;
+}
+const validateAsync$1 = async (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: true,
+		abortEarly: true
+	} : {
+		async: true,
+		abortEarly: true
+	};
+	let result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) result = await result;
+	return result.issues.length === 0;
+};
+const _encode = (_Err) => {
+	const parse = _parse$1(_Err);
+	const fn = (schema, value, _ctx, _params) => {
+		const ctx = _ctx ? {
+			..._ctx,
+			direction: "backward"
+		} : { direction: "backward" };
+		return parse(schema, value, ctx, finalizeParams(fn, _params));
+	};
+	return fn;
+};
+const _decode = (_Err) => {
+	const parse = _parse$1(_Err);
+	const fn = (schema, value, _ctx, _params) => {
+		return parse(schema, value, _ctx, finalizeParams(fn, _params));
+	};
+	return fn;
+};
+const _encodeAsync = (_Err) => {
+	const parseAsync = _parseAsync(_Err);
+	const fn = async (schema, value, _ctx, _params) => {
+		const ctx = _ctx ? {
+			..._ctx,
+			direction: "backward"
+		} : { direction: "backward" };
+		return await parseAsync(schema, value, ctx, finalizeParams(fn, _params));
+	};
+	return fn;
+};
+const _decodeAsync = (_Err) => {
+	const parseAsync = _parseAsync(_Err);
+	const fn = async (schema, value, _ctx, _params) => {
+		return await parseAsync(schema, value, _ctx, finalizeParams(fn, _params));
+	};
+	return fn;
+};
+const _safeEncode = (_Err) => (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		direction: "backward"
+	} : { direction: "backward" };
+	return _safeParse(_Err)(schema, value, ctx);
+};
+const _safeDecode = (_Err) => (schema, value, _ctx) => {
+	return _safeParse(_Err)(schema, value, _ctx);
+};
+const _safeEncodeAsync = (_Err) => async (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		direction: "backward"
+	} : { direction: "backward" };
+	return _safeParseAsync(_Err)(schema, value, ctx);
+};
+const _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
+	return _safeParseAsync(_Err)(schema, value, _ctx);
+};
+/**
+* @deprecated CUID v1 is deprecated by its authors due to information leakage
+* (timestamps embedded in the id). Use {@link cuid2} instead.
+* See https://github.com/paralleldrive/cuid.
+*/
+const cuid = /^[cC][0-9a-z]{6,}$/;
+const cuid2 = /^[0-9a-z]+$/;
+const ulid = /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/;
+const xid = /^[0-9a-vA-V]{20}$/;
+const ksuid = /^[A-Za-z0-9]{27}$/;
+const nanoid = /^[a-zA-Z0-9_-]{21}$/;
+function nanoidOfLength(length) {
+	return new RegExp(`^[a-zA-Z0-9_-]{${length}}$`);
+}
+/** ISO 8601-1 duration regex. Does not support the 8601-2 extensions like negative durations or fractional/negative components. */
+const duration = /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/;
+/** A regex for any UUID-like identifier: 8-4-4-4-12 hex pattern */
+const guid = /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+/** Returns a regex for validating an RFC 9562/4122 UUID.
+*
+* @param version Optionally specify a version 1-8. If no version is specified, all versions are supported. */
+const uuid = (version) => {
+	if (!version) return /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/;
+	return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
+};
+/** Practical email validation */
+const email = /^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
+const _emoji$1 = `^(?=[\\s\\S]*[\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u20E3])[\\p{Extended_Pictographic}\\p{Emoji_Component}]+$`;
+function emoji() {
+	return new RegExp(_emoji$1, "u");
+}
+const ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
+const ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
+const cidrv4 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
+const cidrv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
+const base64 = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
+const base64url = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/;
+const httpProtocol = /^https?$/;
+const e164 = /^\+[1-9]\d{6,14}$/;
+const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
+/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+* esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+* will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */
+function anchor(source) {
+	return new RegExp(`^${source}$`);
+}
+const date = /*@__PURE__*/ anchor(dateSource);
+function timeSource(args) {
+	const hhmm = `(?:[01]\\d|2[0-3]):[0-5]\\d`;
+	return typeof args.precision === "number" ? args.precision === -1 ? `${hhmm}` : args.precision === 0 ? `${hhmm}:[0-5]\\d` : `${hhmm}:[0-5]\\d\\.\\d{${args.precision}}` : args.seconds ? `${hhmm}:[0-5]\\d(?:\\.\\d+)?` : `${hhmm}(?::[0-5]\\d(?:\\.\\d+)?)?`;
+}
+function time(args) {
+	return new RegExp(`^${timeSource(args)}$`);
+}
+function datetime(args) {
+	const opts = ["Z"];
+	if (args.offset) opts.push(`([+-](?:[01]\\d|2[0-3]):[0-5]\\d)`);
+	const qualified = `${timeSource({
+		precision: args.precision,
+		seconds: true
+	})}(?:${opts.join("|")})`;
+	const timeRegex = args.local ? `${qualified}|${timeSource({ precision: args.precision })}` : qualified;
+	return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
+}
+const anyString = /^[\s\S]{0,}$/;
+const integer = /^-?\d+$/;
+const number$1 = /^-?\d+(?:\.\d+)?$/;
+const boolean$1 = /^(?:true|false)$/i;
+const _null$2 = /^null$/i;
+const lowercase = /^[^A-Z]*$/;
+const uppercase = /^[^a-z]*$/;
+const $ZodCheck = /*@__PURE__*/ $constructor("$ZodCheck", (inst, def) => {
+	var _a;
+	inst._zod ?? (inst._zod = {});
+	inst._zod.def = def;
+	(_a = inst._zod).onattach ?? (_a.onattach = []);
+});
+/** Default `when` for length-based checks: run only on non-nullish values with a `length`. */
+const _whenHasLength = (payload) => {
+	const val = payload.value;
+	return !nullish(val) && val.length !== void 0;
+};
+const numericOriginMap = {
+	number: "number",
+	bigint: "bigint",
+	object: "date"
+};
+const $ZodCheckLessThan = /*@__PURE__*/ $constructor("$ZodCheckLessThan", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const origin = numericOriginMap[typeof def.value];
+	inst._zod.check = (payload) => {
+		if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
+		payload.issues.push({
+			origin: numericOriginMap[typeof payload.value] ?? origin,
+			code: "too_big",
+			maximum: typeof def.value === "object" ? def.value.getTime() : def.value,
+			input: payload.value,
+			inclusive: def.inclusive,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckGreaterThan = /*@__PURE__*/ $constructor("$ZodCheckGreaterThan", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const origin = numericOriginMap[typeof def.value];
+	inst._zod.check = (payload) => {
+		if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
+		payload.issues.push({
+			origin: numericOriginMap[typeof payload.value] ?? origin,
+			code: "too_small",
+			minimum: typeof def.value === "object" ? def.value.getTime() : def.value,
+			input: payload.value,
+			inclusive: def.inclusive,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckMultipleOf = /*@__PURE__*/ $constructor("$ZodCheckMultipleOf", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (typeof payload.value !== typeof def.value) throw new Error("Cannot mix number and bigint in multiple_of check.");
+		if (typeof payload.value === "bigint" ? def.value !== BigInt(0) && payload.value % def.value === BigInt(0) : floatSafeRemainder(payload.value, def.value) === 0) return;
+		payload.issues.push({
+			origin: typeof payload.value,
+			code: "not_multiple_of",
+			divisor: def.value,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckNumberFormat = /*@__PURE__*/ $constructor("$ZodCheckNumberFormat", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	def.format = def.format || "float64";
+	const isInt = def.format?.includes("int");
+	const origin = isInt ? "int" : "number";
+	const [minimum, maximum] = NUMBER_FORMAT_RANGES[def.format];
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		if (isInt) {
+			if (!Number.isInteger(input)) {
+				payload.issues.push({
+					expected: origin,
+					format: def.format,
+					code: "invalid_type",
+					continue: false,
+					input,
+					inst
+				});
+				return;
+			}
+			if (!Number.isSafeInteger(input)) {
+				if (input > 0) payload.issues.push({
+					input,
+					code: "too_big",
+					maximum: Number.MAX_SAFE_INTEGER,
+					note: "Integers must be within the safe integer range.",
+					inst,
+					origin,
+					inclusive: true,
+					continue: !def.abort
+				});
+				else payload.issues.push({
+					input,
+					code: "too_small",
+					minimum: Number.MIN_SAFE_INTEGER,
+					note: "Integers must be within the safe integer range.",
+					inst,
+					origin,
+					inclusive: true,
+					continue: !def.abort
+				});
+				return;
+			}
+		}
+		if (input < minimum) payload.issues.push({
+			origin: "number",
+			input,
+			code: "too_small",
+			minimum,
+			inclusive: true,
+			inst,
+			continue: !def.abort
+		});
+		if (input > maximum) payload.issues.push({
+			origin: "number",
+			input,
+			code: "too_big",
+			maximum,
+			inclusive: true,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckMaxLength = /*@__PURE__*/ $constructor("$ZodCheckMaxLength", (inst, def) => {
+	var _a;
+	$ZodCheck.init(inst, def);
+	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		const units = input.length;
+		if ((typeof input === "string" && units > def.maximum ? codePointLength(input) : units) <= def.maximum) return;
+		const origin = getLengthableOrigin(input);
+		payload.issues.push({
+			origin,
+			code: "too_big",
+			maximum: def.maximum,
+			inclusive: true,
+			input,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckMinLength = /*@__PURE__*/ $constructor("$ZodCheckMinLength", (inst, def) => {
+	var _a;
+	$ZodCheck.init(inst, def);
+	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		const units = input.length;
+		if ((typeof input === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input) : units) >= def.minimum) return;
+		const origin = getLengthableOrigin(input);
+		payload.issues.push({
+			origin,
+			code: "too_small",
+			minimum: def.minimum,
+			inclusive: true,
+			input,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckLengthEquals = /*@__PURE__*/ $constructor("$ZodCheckLengthEquals", (inst, def) => {
+	var _a;
+	$ZodCheck.init(inst, def);
+	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		const units = input.length;
+		const length = typeof input === "string" && units >= def.length && units <= def.length * 2 ? codePointLength(input) : units;
+		if (length === def.length) return;
+		const origin = getLengthableOrigin(input);
+		const tooBig = length > def.length;
+		payload.issues.push({
+			origin,
+			...tooBig ? {
+				code: "too_big",
+				maximum: def.length
+			} : {
+				code: "too_small",
+				minimum: def.length
+			},
+			inclusive: true,
+			exact: true,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckStringFormat = /*@__PURE__*/ $constructor("$ZodCheckStringFormat", (inst, def) => {
+	var _a, _b;
+	$ZodCheck.init(inst, def);
+	if (def.pattern) (_a = inst._zod).check ?? (_a.check = (payload) => {
+		def.pattern.lastIndex = 0;
+		if (def.pattern.test(payload.value)) return;
+		payload.issues.push({
+			origin: "string",
+			code: "invalid_format",
+			format: def.format,
+			input: payload.value,
+			...def.pattern ? { pattern: def.pattern.toString() } : {},
+			inst,
+			continue: !def.abort
+		});
+	});
+	else (_b = inst._zod).check ?? (_b.check = () => {});
+});
+const $ZodCheckRegex = /*@__PURE__*/ $constructor("$ZodCheckRegex", (inst, def) => {
+	$ZodCheckStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		def.pattern.lastIndex = 0;
+		if (def.pattern.test(payload.value)) return;
+		payload.issues.push({
+			origin: "string",
+			code: "invalid_format",
+			format: "regex",
+			input: payload.value,
+			pattern: def.pattern.toString(),
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckLowerCase = /*@__PURE__*/ $constructor("$ZodCheckLowerCase", (inst, def) => {
+	def.pattern ?? (def.pattern = lowercase);
+	$ZodCheckStringFormat.init(inst, def);
+});
+const $ZodCheckUpperCase = /*@__PURE__*/ $constructor("$ZodCheckUpperCase", (inst, def) => {
+	def.pattern ?? (def.pattern = uppercase);
+	$ZodCheckStringFormat.init(inst, def);
+});
+const $ZodCheckIncludes = /*@__PURE__*/ $constructor("$ZodCheckIncludes", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const escapedRegex = escapeRegex(def.includes);
+	def.pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position},}${escapedRegex}` : escapedRegex);
+	inst._zod.check = (payload) => {
+		if (payload.value.includes(def.includes, def.position)) return;
+		payload.issues.push({
+			origin: "string",
+			code: "invalid_format",
+			format: "includes",
+			includes: def.includes,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckStartsWith = /*@__PURE__*/ $constructor("$ZodCheckStartsWith", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const pattern = new RegExp(`^${escapeRegex(def.prefix)}.*`);
+	def.pattern ?? (def.pattern = pattern);
+	inst._zod.check = (payload) => {
+		if (payload.value.startsWith(def.prefix)) return;
+		payload.issues.push({
+			origin: "string",
+			code: "invalid_format",
+			format: "starts_with",
+			prefix: def.prefix,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckEndsWith = /*@__PURE__*/ $constructor("$ZodCheckEndsWith", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const pattern = new RegExp(`.*${escapeRegex(def.suffix)}$`);
+	def.pattern ?? (def.pattern = pattern);
+	inst._zod.check = (payload) => {
+		if (payload.value.endsWith(def.suffix)) return;
+		payload.issues.push({
+			origin: "string",
+			code: "invalid_format",
+			format: "ends_with",
+			suffix: def.suffix,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+function handleCheckPropertyResult(result, payload, property) {
+	if (result.issues.length) payload.issues.push(...prefixIssues(property, result.issues));
+}
+const $ZodCheckProperties = /*@__PURE__*/ $constructor("$ZodCheckProperties", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	hide(inst, Symbol.iterator, function* () {
+		yield inst;
+	});
+	let entries;
+	inst._zod.check = (payload) => {
+		if (payload.value == null) {
+			payload.issues.push({
+				expected: "object",
+				code: "invalid_type",
+				input: payload.value,
+				inst
+			});
+			return;
+		}
+		entries ?? (entries = Reflect.ownKeys(def.shape).map((key) => [key, def.shape[key]]));
+		const input = payload.value;
+		let proms;
+		for (const [key, schema] of entries) {
+			const result = schema._zod.run({
+				value: input[key],
+				issues: []
+			}, {});
+			if (result instanceof Promise) {
+				proms ?? (proms = []);
+				proms.push(result.then((result) => handleCheckPropertyResult(result, payload, key)));
+			} else handleCheckPropertyResult(result, payload, key);
+		}
+		if (proms) return Promise.all(proms).then(() => void 0);
+	};
+});
+const $ZodCheckOverwrite = /*@__PURE__*/ $constructor("$ZodCheckOverwrite", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	inst._zod.check = (payload) => {
+		payload.value = def.tx(payload.value);
+	};
+});
+var Doc = class {
+	constructor(args = [], closed = {}) {
+		this.content = [];
+		this.indent = 0;
+		this.args = args;
+		this.closed = closed;
+	}
+	indented(fn) {
+		this.indent += 1;
+		try {
+			fn(this);
+		} finally {
+			this.indent -= 1;
+		}
+	}
+	write(arg) {
+		if (typeof arg === "function") {
+			arg(this, { execution: "sync" });
+			arg(this, { execution: "async" });
+			return;
+		}
+		const lines = arg.split("\n").filter((x) => x);
+		const minIndent = Math.min(...lines.map((x) => x.length - x.trimStart().length));
+		const dedented = lines.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
+		for (const line of dedented) this.content.push(line);
+	}
+	compile() {
+		const F = Function;
+		const content = this?.content ?? [``];
+		return new F(...Object.keys(this.closed), `return function (${this.args.join(", ")}) {\n${content.join("\n")}\n};`)(...Object.values(this.closed));
+	}
+};
+const version = {
+	major: 4,
+	minor: 6,
+	patch: 7
+};
+const $ZodType = /*@__PURE__*/ $constructor("$ZodType", (inst, def) => {
+	var _a;
+	inst ?? (inst = {});
+	inst._zod.def = def;
+	inst._zod.bag = inst._zod.bag || {};
+	inst._zod.version = version;
+	const defChecks = inst._zod.def.checks;
+	const checks = inst._zod.traits.has("$ZodCheck") ? [inst, ...defChecks ?? []] : defChecks?.length ? [...defChecks] : [];
+	for (const ch of checks) for (const fn of ch._zod.onattach) fn(inst);
+	if (checks.length === 0) {
+		(_a = inst._zod).deferred ?? (_a.deferred = []);
+		inst._zod.deferred?.push(() => {
+			inst._zod.run = inst._zod.parse;
+		});
+	} else {
+		const runChecks = (payload, checks, ctx) => {
+			if (payload.memo) return payload;
+			let isAborted = aborted(payload);
+			let asyncResult;
+			for (const ch of checks) {
+				if (ch._zod.def.when) {
+					if (explicitlyAborted(payload)) continue;
+					if (!ch._zod.def.when(payload)) continue;
+				} else if (isAborted) continue;
+				const currLen = payload.issues.length;
+				const _ = ch._zod.check(payload);
+				if (_ instanceof Promise && ctx?.async === false) throw new $ZodAsyncError();
+				if (asyncResult || _ instanceof Promise) asyncResult = (asyncResult ?? Promise.resolve()).then(async () => {
+					await _;
+					if (payload.issues.length === currLen) return;
+					attachSchema(payload.issues, currLen, inst);
+					if (!isAborted) isAborted = aborted(payload, currLen);
+				});
+				else {
+					if (payload.issues.length === currLen) continue;
+					attachSchema(payload.issues, currLen, inst);
+					if (!isAborted) isAborted = aborted(payload, currLen);
+				}
+			}
+			if (asyncResult) return asyncResult.then(() => {
+				return payload;
+			});
+			return payload;
+		};
+		const handleCanaryResult = (canary, payload, ctx) => {
+			if (aborted(canary)) {
+				canary.aborted = true;
+				return canary;
+			}
+			const checkResult = runChecks(payload, checks, ctx);
+			if (checkResult instanceof Promise) {
+				if (ctx.async === false) throw new $ZodAsyncError();
+				return checkResult.then((checkResult) => inst._zod.parse(checkResult, ctx));
+			}
+			return inst._zod.parse(checkResult, ctx);
+		};
+		inst._zod.run = (payload, ctx) => {
+			if (ctx.skipChecks) return inst._zod.parse(payload, ctx);
+			if (ctx.direction === "backward") {
+				const canary = inst._zod.parse({
+					value: payload.value,
+					issues: []
+				}, {
+					...ctx,
+					skipChecks: true
+				});
+				if (canary instanceof Promise) return canary.then((canary) => {
+					return handleCanaryResult(canary, payload, ctx);
+				});
+				return handleCanaryResult(canary, payload, ctx);
+			}
+			const result = inst._zod.parse(payload, ctx);
+			if (result instanceof Promise) {
+				if (ctx.async === false) throw new $ZodAsyncError();
+				return result.then((result) => runChecks(result, checks, ctx));
+			}
+			return runChecks(result, checks, ctx);
+		};
+	}
+}, {
+	get "~standard"() {
+		return hide(this, "~standard", standardProps(this));
+	},
+	set "~standard"(value) {
+		own(this, "~standard", value);
+	}
+});
+/** The Standard Schema surface for `inst`. Shared so wrappers can extend it without forcing it. */
+const toStandardResult = (r, ctx) => r.issues.length ? { issues: r.issues.map((iss) => finalizeIssue(iss, ctx, config())) } : { value: r.value };
+async function validateAsync(inst, value) {
+	const ctx = { async: true };
+	return toStandardResult(await inst._zod.run({
+		value,
+		issues: []
+	}, ctx), ctx);
+}
+function standardProps(inst) {
+	return {
+		validate: (value) => {
+			const ctx = { async: false };
+			try {
+				const r = inst._zod.run({
+					value,
+					issues: []
+				}, ctx);
+				if (!(r instanceof Promise)) return toStandardResult(r, ctx);
+			} catch (_) {}
+			return validateAsync(inst, value);
+		},
+		vendor: "zod",
+		version: 1
+	};
+}
+const $ZodString = /*@__PURE__*/ $constructor("$ZodString", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = def.pattern ?? anyString;
+	inst._zod.parse = (payload, _) => {
+		if (def.coerce) try {
+			payload.value = String(payload.value);
+		} catch (_) {}
+		if (typeof payload.value === "string") return payload;
+		payload.issues.push({
+			expected: "string",
+			code: "invalid_type",
+			input: payload.value,
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodStringFormat = /*@__PURE__*/ $constructor("$ZodStringFormat", (inst, def) => {
+	$ZodCheckStringFormat.init(inst, def);
+	$ZodString.init(inst, def);
+});
+const $ZodGUID = /*@__PURE__*/ $constructor("$ZodGUID", (inst, def) => {
+	def.pattern ?? (def.pattern = guid);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodUUID = /*@__PURE__*/ $constructor("$ZodUUID", (inst, def) => {
+	if (def.version) {
+		const v = {
+			v1: 1,
+			v2: 2,
+			v3: 3,
+			v4: 4,
+			v5: 5,
+			v6: 6,
+			v7: 7,
+			v8: 8
+		}[def.version];
+		if (v === void 0) throw new Error(`Invalid UUID version: "${def.version}"`);
+		def.pattern ?? (def.pattern = uuid(v));
+	} else def.pattern ?? (def.pattern = uuid());
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodEmail = /*@__PURE__*/ $constructor("$ZodEmail", (inst, def) => {
+	def.pattern ?? (def.pattern = email);
+	$ZodStringFormat.init(inst, def);
+});
+function canParseURL(input) {
+	try {
+		if (typeof URL !== "undefined" && typeof URL.canParse === "function") return URL.canParse(input);
+		new URL(input);
+		return true;
+	} catch {
+		return false;
+	}
+}
+function validateURL(trimmed, def) {
+	if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) return canParseURL(trimmed) || 2;
+	return parseURLObject(trimmed, def);
+}
+/** Parses a URL while preserving the non-normalizing HTTP guard. */
+function parseURLObject(trimmed, def) {
+	if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) return 1;
+	try {
+		if (typeof URL !== "undefined") {
+			const URLStatic = URL;
+			if (typeof URLStatic.parse === "function") return URLStatic.parse(trimmed) ?? 2;
+		}
+		return new URL(trimmed);
+	} catch {
+		return 2;
+	}
+}
+const asciiTabOrNewline = /[\t\n\r]/g;
+/** The URL parser deletes every ASCII tab, LF and CR from its input before it parses, so `new URL("https://exa\nmple.com")` reports on `example.com`. Applying the same deletion to the returned value closes the half of that divergence which can move the host; the parser's other rewrite, stripping C0 controls at the edges, cannot. */
+function stripTabAndNewline(value) {
+	return value.replace(asciiTabOrNewline, "");
+}
+function urlHostnameOk(url, hostname) {
+	hostname.lastIndex = 0;
+	return hostname.test(url.hostname);
+}
+function urlProtocolOk(url, protocol) {
+	protocol.lastIndex = 0;
+	return protocol.test(url.protocol.endsWith(":") ? url.protocol.slice(0, -1) : url.protocol);
+}
+const $ZodURL = /*@__PURE__*/ $constructor("$ZodURL", (inst, def) => {
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		try {
+			const trimmed = payload.value.trim();
+			const url = validateURL(trimmed, def);
+			if (url === 1) {
+				payload.issues.push({
+					code: "invalid_format",
+					format: "url",
+					note: "Invalid URL format",
+					input: payload.value,
+					inst,
+					continue: !def.abort
+				});
+				return;
+			}
+			if (url === 2) {
+				payload.issues.push({
+					code: "invalid_format",
+					format: "url",
+					input: payload.value,
+					inst,
+					continue: !def.abort
+				});
+				return;
+			}
+			if (url === true) {
+				payload.value = stripTabAndNewline(trimmed);
+				return;
+			}
+			if (def.hostname && !urlHostnameOk(url, def.hostname)) payload.issues.push({
+				code: "invalid_format",
+				format: "url",
+				note: "Invalid hostname",
+				pattern: def.hostname.source,
+				input: payload.value,
+				inst,
+				continue: !def.abort
+			});
+			if (def.protocol && !urlProtocolOk(url, def.protocol)) payload.issues.push({
+				code: "invalid_format",
+				format: "url",
+				note: "Invalid protocol",
+				pattern: def.protocol.source,
+				input: payload.value,
+				inst,
+				continue: !def.abort
+			});
+			payload.value = def.normalize ? url.href : stripTabAndNewline(trimmed);
+			return;
+		} catch (_) {
+			payload.issues.push({
+				code: "invalid_format",
+				format: "url",
+				input: payload.value,
+				inst,
+				continue: !def.abort
+			});
+		}
+	};
+});
+const $ZodEmoji = /*@__PURE__*/ $constructor("$ZodEmoji", (inst, def) => {
+	def.pattern ?? (def.pattern = emoji());
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodNanoID = /*@__PURE__*/ $constructor("$ZodNanoID", (inst, def) => {
+	if (def.length !== void 0 && (!Number.isInteger(def.length) || def.length < 1)) throw new Error(`Invalid nanoid length: ${def.length}`);
+	def.pattern ?? (def.pattern = def.length === void 0 ? nanoid : nanoidOfLength(def.length));
+	$ZodStringFormat.init(inst, def);
+});
+/**
+* @deprecated CUID v1 is deprecated by its authors due to information leakage
+* (timestamps embedded in the id). Use {@link $ZodCUID2} instead.
+* See https://github.com/paralleldrive/cuid.
+*/
+const $ZodCUID = /*@__PURE__*/ $constructor("$ZodCUID", (inst, def) => {
+	def.pattern ?? (def.pattern = cuid);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodCUID2 = /*@__PURE__*/ $constructor("$ZodCUID2", (inst, def) => {
+	def.pattern ?? (def.pattern = cuid2);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodULID = /*@__PURE__*/ $constructor("$ZodULID", (inst, def) => {
+	def.pattern ?? (def.pattern = ulid);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodXID = /*@__PURE__*/ $constructor("$ZodXID", (inst, def) => {
+	def.pattern ?? (def.pattern = xid);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodKSUID = /*@__PURE__*/ $constructor("$ZodKSUID", (inst, def) => {
+	def.pattern ?? (def.pattern = ksuid);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodISODateTime = /*@__PURE__*/ $constructor("$ZodISODateTime", (inst, def) => {
+	def.pattern ?? (def.pattern = datetime(def));
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodISODate = /*@__PURE__*/ $constructor("$ZodISODate", (inst, def) => {
+	def.pattern ?? (def.pattern = date);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodISOTime = /*@__PURE__*/ $constructor("$ZodISOTime", (inst, def) => {
+	def.pattern ?? (def.pattern = time(def));
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodISODuration = /*@__PURE__*/ $constructor("$ZodISODuration", (inst, def) => {
+	def.pattern ?? (def.pattern = duration);
+	$ZodStringFormat.init(inst, def);
+});
+const $ZodIPv4 = /*@__PURE__*/ $constructor("$ZodIPv4", (inst, def) => {
+	def.pattern ?? (def.pattern = ipv4);
+	$ZodStringFormat.init(inst, def);
+});
+/** An IPv6 address is written with hex digits, colons and dots, and nothing else. The guard is what makes the check below an IPv6 check: `new URL("http://[...]")` parses an authority, not an address, so `@` and `\` re-delimit it and `"::@1\\"` validates against the host `0.0.0.1`. The URL parser also deletes ASCII tab, LF and CR rather than failing, which is how `"::1\n"` validated as `::1`. */
+const ipv6Alphabet = /^[0-9a-fA-F:.]+$/;
+function isValidIPv6(value) {
+	if (!ipv6Alphabet.test(value)) return false;
+	return canParseURL(`http://[${value}]`);
+}
+const $ZodIPv6 = /*@__PURE__*/ $constructor("$ZodIPv6", (inst, def) => {
+	def.pattern ?? (def.pattern = ipv6);
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (!isValidIPv6(payload.value)) payload.issues.push({
+			code: "invalid_format",
+			format: "ipv6",
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCIDRv4 = /*@__PURE__*/ $constructor("$ZodCIDRv4", (inst, def) => {
+	def.pattern ?? (def.pattern = cidrv4);
+	$ZodStringFormat.init(inst, def);
+});
+function isValidCIDRv6(value) {
+	const parts = value.split("/");
+	if (parts.length !== 2) return false;
+	const [address, prefix] = parts;
+	if (!prefix) return false;
+	const prefixNum = Number(prefix);
+	if (`${prefixNum}` !== prefix) return false;
+	if (prefixNum < 0 || prefixNum > 128) return false;
+	return isValidIPv6(address);
+}
+const $ZodCIDRv6 = /*@__PURE__*/ $constructor("$ZodCIDRv6", (inst, def) => {
+	def.pattern ?? (def.pattern = cidrv6);
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (!isValidCIDRv6(payload.value)) payload.issues.push({
+			code: "invalid_format",
+			format: "cidrv6",
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+function isValidBase64(data) {
+	if (data === "") return true;
+	if (/\s/.test(data)) return false;
+	if (data.length % 4 !== 0) return false;
+	try {
+		atob(data);
+		return true;
+	} catch {
+		return false;
+	}
+}
+const base64Charset = /^[0-9a-zA-Z+/]*={0,2}$/;
+const $ZodBase64 = /*@__PURE__*/ $constructor("$ZodBase64", (inst, def) => {
+	def.pattern ?? (def.pattern = base64Charset);
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (isValidBase64(payload.value)) return;
+		payload.issues.push({
+			code: "invalid_format",
+			format: "base64",
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const base64urlCharset = /^[A-Za-z0-9_-]*$/;
+function isValidBase64URL(data) {
+	if (!base64urlCharset.test(data)) return false;
+	const base64 = data.replace(/[-_]/g, (c) => c === "-" ? "+" : "/");
+	return isValidBase64(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+}
+const $ZodBase64URL = /*@__PURE__*/ $constructor("$ZodBase64URL", (inst, def) => {
+	def.pattern ?? (def.pattern = base64urlCharset);
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (isValidBase64URL(payload.value)) return;
+		payload.issues.push({
+			code: "invalid_format",
+			format: "base64url",
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodE164 = /*@__PURE__*/ $constructor("$ZodE164", (inst, def) => {
+	def.pattern ?? (def.pattern = e164);
+	$ZodStringFormat.init(inst, def);
+});
+function isValidJWT(token, algorithm = null) {
+	try {
+		const tokensParts = token.split(".");
+		if (tokensParts.length !== 3) return false;
+		const [header] = tokensParts;
+		if (!header) return false;
+		const parsedHeader = JSON.parse(atob(header));
+		if ("typ" in parsedHeader && parsedHeader?.typ !== "JWT") return false;
+		if (!parsedHeader.alg) return false;
+		if (algorithm && (!("alg" in parsedHeader) || parsedHeader.alg !== algorithm)) return false;
+		return true;
+	} catch {
+		return false;
+	}
+}
+const $ZodJWT = /*@__PURE__*/ $constructor("$ZodJWT", (inst, def) => {
+	$ZodStringFormat.init(inst, def);
+	inst._zod.check = (payload) => {
+		if (isValidJWT(payload.value, def.alg)) return;
+		payload.issues.push({
+			code: "invalid_format",
+			format: "jwt",
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodNumber = /*@__PURE__*/ $constructor("$ZodNumber", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = number$1;
+	inst._zod.parse = (payload, _ctx) => {
+		if (def.coerce) try {
+			payload.value = Number(payload.value);
+		} catch (_) {}
+		const input = payload.value;
+		if (typeof input === "number" && !Number.isNaN(input) && Number.isFinite(input)) return payload;
+		const received = typeof input === "number" ? Number.isNaN(input) ? "NaN" : !Number.isFinite(input) ? String(input) : void 0 : void 0;
+		payload.issues.push({
+			expected: "number",
+			code: "invalid_type",
+			input,
+			inst,
+			...received ? { received } : {}
+		});
+		return payload;
+	};
+});
+const $ZodNumberFormat = /*@__PURE__*/ $constructor("$ZodNumberFormat", (inst, def) => {
+	$ZodCheckNumberFormat.init(inst, def);
+	$ZodNumber.init(inst, def);
+});
+const $ZodBoolean = /*@__PURE__*/ $constructor("$ZodBoolean", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = boolean$1;
+	inst._zod.parse = (payload, _ctx) => {
+		if (def.coerce) try {
+			payload.value = Boolean(payload.value);
+		} catch (_) {}
+		const input = payload.value;
+		if (typeof input === "boolean") return payload;
+		payload.issues.push({
+			expected: "boolean",
+			code: "invalid_type",
+			input,
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodNull = /*@__PURE__*/ $constructor("$ZodNull", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = _null$2;
+	inst._zod.values = /* @__PURE__ */ new Set([null]);
+	inst._zod.parse = (payload, _ctx) => {
+		const input = payload.value;
+		if (input === null) return payload;
+		payload.issues.push({
+			expected: "null",
+			code: "invalid_type",
+			input,
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodAny = /*@__PURE__*/ $constructor("$ZodAny", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.parse = (payload) => payload;
+});
+const $ZodUnknown = /*@__PURE__*/ $constructor("$ZodUnknown", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.parse = (payload) => payload;
+});
+const $ZodNever = /*@__PURE__*/ $constructor("$ZodNever", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.parse = (payload, _ctx) => {
+		payload.issues.push({
+			expected: "never",
+			code: "invalid_type",
+			input: payload.value,
+			inst
+		});
+		return payload;
+	};
+});
+function capSize(inst, size) {
+	const caps = sizeCaps(inst._zod.def.checks);
+	if (!caps.length) return;
+	const cap = Math.min(...caps.map((c) => c[0]));
+	const parse = inst._zod.parse;
+	inst._zod.parse = (payload, ctx) => {
+		const n = size(payload.value);
+		if (n > cap && !ctx?.skipChecks && ctx?.direction !== "backward") {
+			for (const [max, ch] of sizeCaps(inst._zod.def.checks)) if (n > max && ch._zod.def.when(payload)) {
+				const start = payload.issues.length;
+				ch._zod.check(payload);
+				payload.issues[start].continue = false;
+				attachSchema(payload.issues, start, inst);
+				return payload;
+			}
+		}
+		return parse(payload, ctx);
+	};
+}
+const arraySize = (input) => Array.isArray(input) ? input.length : -1;
+function handleArrayResult(result, final, index) {
+	if (result.issues.length) final.issues.push(...prefixIssues(index, result.issues));
+	final.value[index] = result.value;
+}
+const $ZodArray = /*@__PURE__*/ $constructor("$ZodArray", (inst, def) => {
+	$ZodType.init(inst, def);
+	const memo = globalConfig.memoizer;
+	memo?.attach(inst);
+	inst._zod.parse = (payload, ctx) => {
+		const input = payload.value;
+		if (!Array.isArray(input)) {
+			payload.issues.push({
+				expected: "array",
+				code: "invalid_type",
+				input,
+				inst
+			});
+			return payload;
+		}
+		payload.value = memo ? memo.alloc(inst, payload, Array(input.length), ctx) : Array(input.length);
+		const proms = [];
+		const abortEarly = ctx?.abortEarly;
+		for (let i = 0; i < input.length; i++) {
+			const item = input[i];
+			const result = def.element._zod.run({
+				value: item,
+				issues: []
+			}, ctx);
+			if (result instanceof Promise) proms.push(result.then((result) => handleArrayResult(result, payload, i)));
+			else {
+				handleArrayResult(result, payload, i);
+				if (abortEarly && result.issues.length !== 0 && aborted(result)) break;
+			}
+		}
+		if (proms.length) return Promise.all(proms).then(() => payload);
+		return payload;
+	};
+	capSize(inst, arraySize);
+});
+function handlePropertyResult(result, final, key, input, optin, optout) {
+	const isPresent = key in input;
+	const isOptionalOut = optout === "optional";
+	if (!isPresent && isOptionalOut && optin === "optional") return;
+	if (result.issues.length) {
+		if (optin !== void 0 && isOptionalOut && !isPresent) return;
+		final.issues.push(...prefixIssues(key, result.issues));
+	}
+	if (!isPresent && optin === void 0) {
+		if (!result.issues.length) final.issues.push({
+			code: "invalid_type",
+			expected: "nonoptional",
+			input: void 0,
+			path: [key]
+		});
+		return;
+	}
+	if (result.value === void 0) {
+		if (isPresent || optin === "defaulted" && !isOptionalOut) final.value[key] = void 0;
+	} else final.value[key] = result.value;
+}
+const NO_SYMBOL_KEYS = [];
+function normalizeDef(def) {
+	const keys = Object.keys(def.shape);
+	const ownSymbols = Object.getOwnPropertySymbols(def.shape);
+	const symbolKeys = ownSymbols.length ? ownSymbols : NO_SYMBOL_KEYS;
+	const allKeys = symbolKeys.length ? [...keys, ...symbolKeys] : keys;
+	for (const k of allKeys) if (!def.shape?.[k]?._zod?.traits?.has("$ZodType")) throw new Error(`Invalid element at key "${String(k)}": expected a Zod schema`);
+	const okeys = optionalKeys(def.shape);
+	return {
+		...def,
+		allKeys,
+		symbolKeys,
+		keySet: new Set(keys),
+		numKeys: keys.length,
+		optionalKeys: new Set(okeys)
+	};
+}
+function handleCatchall(proms, input, payload, ctx, def, inst, abortEarly) {
+	const unrecognized = [];
+	const keySet = def.keySet;
+	const _catchall = def.catchall._zod;
+	const t = _catchall.def.type;
+	const optin = _catchall.optin;
+	const optout = _catchall.optout;
+	let seen = 0;
+	for (const key in input) {
+		if (abortEarly && payload.issues.length !== seen) {
+			if (aborted(payload, seen)) break;
+			seen = payload.issues.length;
+		}
+		if (keySet.has(key)) continue;
+		if (key === "__proto__") {
+			if (t === "never") unrecognized.push(key);
+			continue;
+		}
+		if (t === "never") {
+			unrecognized.push(key);
+			continue;
+		}
+		const r = _catchall.run({
+			value: input[key],
+			issues: []
+		}, ctx);
+		if (r instanceof Promise) proms.push(r.then((r) => handlePropertyResult(r, payload, key, input, optin, optout)));
+		else handlePropertyResult(r, payload, key, input, optin, optout);
+	}
+	if (unrecognized.length) payload.issues.push({
+		code: "unrecognized_keys",
+		keys: unrecognized,
+		input,
+		inst,
+		continue: true
+	});
+	if (!proms.length) return payload;
+	return Promise.all(proms).then(() => {
+		return payload;
+	});
+}
+const $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
+	$ZodType.init(inst, def);
+	const desc = Object.getOwnPropertyDescriptor(def, "shape");
+	const sh = desc?.get ? desc.get.raw : def.shape ?? {};
+	if (sh) {
+		const get = () => {
+			const newSh = { ...sh };
+			Object.defineProperty(def, "shape", { value: newSh });
+			get.raw = newSh;
+			return newSh;
+		};
+		get.raw = sh;
+		Object.defineProperty(def, "shape", { get });
+	}
+	const _normalized = cached(() => normalizeDef(def));
+	defineLazyInternal(inst, "propValues", (zod) => {
+		const shape = zod.def.shape;
+		const propValues = {};
+		for (const key in shape) {
+			const field = shape[key]._zod;
+			if (field.values) {
+				if (!Object.prototype.hasOwnProperty.call(propValues, key)) assignProp(propValues, key, /* @__PURE__ */ new Set());
+				for (const v of field.values) propValues[key].add(v);
+				if (field.optin !== void 0) propValues[key].add(void 0);
+			}
+		}
+		return propValues;
+	});
+	const isObject$1 = isObject;
+	const catchall = def.catchall;
+	let value;
+	const memo = globalConfig.memoizer;
+	memo?.attach(inst);
+	inst._zod.parse = (payload, ctx) => {
+		value ?? (value = _normalized.value);
+		const input = payload.value;
+		if (!isObject$1(input)) {
+			payload.issues.push({
+				expected: "object",
+				code: "invalid_type",
+				input,
+				inst
+			});
+			return payload;
+		}
+		payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+		const proms = [];
+		const shape = value.shape;
+		const abortEarly = ctx?.abortEarly;
+		let seen = payload.issues.length;
+		for (const key of value.allKeys) {
+			if (abortEarly && payload.issues.length !== seen) {
+				if (aborted(payload, seen)) break;
+				seen = payload.issues.length;
+			}
+			if (key === "__proto__") continue;
+			const el = shape[key];
+			const optin = el._zod.optin;
+			const optout = el._zod.optout;
+			const r = el._zod.run({
+				value: input[key],
+				issues: []
+			}, ctx);
+			if (r instanceof Promise) proms.push(r.then((r) => handlePropertyResult(r, payload, key, input, optin, optout)));
+			else handlePropertyResult(r, payload, key, input, optin, optout);
+		}
+		if (!catchall) return proms.length ? Promise.all(proms).then(() => payload) : payload;
+		return handleCatchall(proms, input, payload, ctx, _normalized.value, inst, abortEarly === true);
+	};
+});
+const $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
+	$ZodObject.init(inst, def);
+	const superParse = inst._zod.parse;
+	const _normalized = cached(() => normalizeDef(def));
+	const memo = globalConfig.memoizer;
+	const generateFastpass = (shape) => {
+		const normalized = _normalized.value;
+		const syms = normalized.symbolKeys;
+		const doc = new Doc(["payload", "ctx"], {
+			shape,
+			inst,
+			memo,
+			syms
+		});
+		const parseStr = (k) => `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
+		const prefixStr = (id, k) => `
+          let ${id}_ab = false;
+          for (let i = 0; i < ${id}.issues.length; i++) {
+            const iss = ${id}.issues[i];
+            iss.path = iss.path ? [${k}, ...iss.path] : [${k}];
+            payload.issues.push(iss);
+            if (iss.continue !== true) ${id}_ab = true;
+          }
+          if (${id}_ab && ctx && ctx.abortEarly) {
+            payload.value = newResult;
+            return payload;
+          }`;
+		doc.write(`const input = payload.value;`);
+		const ids = Object.create(null);
+		let counter = 0;
+		for (const key of normalized.allKeys) ids[key] = `key_${counter++}`;
+		doc.write(memo ? `const newResult = memo.alloc(inst, payload, {}, ctx);` : `const newResult = {};`);
+		for (const key of normalized.allKeys) {
+			if (key === "__proto__") continue;
+			const id = ids[key];
+			const k = typeof key === "symbol" ? `syms[${syms.indexOf(key)}]` : esc(key);
+			const isPresent = `${k} in input`;
+			const schema = shape[key];
+			const optin = schema?._zod?.optin;
+			const isOptionalIn = optin !== void 0;
+			const isOptionalOut = schema?._zod?.optout === "optional";
+			doc.write(`const ${id} = ${parseStr(k)};`);
+			if (isOptionalIn && isOptionalOut) {
+				const assign = optin === "optional" ? `${id}_present` : `${id}.value !== undefined || ${id}_present`;
+				doc.write(`
+        const ${id}_present = ${isPresent};
+        if (!${id}.issues.length || ${id}_present) {
+          if (${id}.issues.length) {${prefixStr(id, k)}
+          }
+
+          if (${assign}) {
+            newResult[${k}] = ${id}.value;
+          }
+        }
+
+      `);
+			} else if (!isOptionalIn) doc.write(`
+        const ${id}_present = ${isPresent};
+        if (${id}.issues.length) {${prefixStr(id, k)}
+        }
+        if (!${id}_present && !${id}.issues.length) {
+          payload.issues.push({
+            code: "invalid_type",
+            expected: "nonoptional",
+            input: undefined,
+            path: [${k}]
+          });
+          if (ctx && ctx.abortEarly) {
+            payload.value = newResult;
+            return payload;
+          }
+        }
+
+        if (${id}_present) {
+          newResult[${k}] = ${id}.value;
+        }
+
+      `);
+			else {
+				doc.write(`
+        if (${id}.issues.length) {${prefixStr(id, k)}
+        }
+      `);
+				if (optin === "defaulted") doc.write(`newResult[${k}] = ${id}.value;`);
+				else doc.write(`
+        if (${id}.value !== undefined || ${isPresent}) {
+          newResult[${k}] = ${id}.value;
+        }
+      `);
+			}
+		}
+		doc.write(`payload.value = newResult;`);
+		doc.write(`return payload;`);
+		return doc.compile();
+	};
+	let fastpass;
+	const isObject$2 = isObject;
+	const jit = !globalConfig.jitless;
+	const fastEnabled = jit && allowsEval.value;
+	const catchall = def.catchall;
+	let value;
+	inst._zod.parse = (payload, ctx) => {
+		value ?? (value = _normalized.value);
+		const input = payload.value;
+		if (!isObject$2(input)) {
+			payload.issues.push({
+				expected: "object",
+				code: "invalid_type",
+				input,
+				inst
+			});
+			return payload;
+		}
+		if (jit && fastEnabled && ctx?.async === false && ctx.jitless !== true) {
+			if (!fastpass) fastpass = generateFastpass(def.shape);
+			payload = fastpass(payload, ctx);
+			if (!catchall) return payload;
+			return handleCatchall([], input, payload, ctx, value, inst, ctx?.abortEarly === true);
+		}
+		return superParse(payload, ctx);
+	};
+});
+function handleUnionResults(results, final, inst, ctx) {
+	for (const result of results) if (result.issues.length === 0) {
+		final.value = result.value;
+		return final;
+	}
+	const nonaborted = results.filter((r) => !aborted(r));
+	if (nonaborted.length === 1) {
+		final.value = nonaborted[0].value;
+		return nonaborted[0];
+	}
+	final.issues.push({
+		code: "invalid_union",
+		input: final.value,
+		inst,
+		errors: results.map((result) => result.issues.map((iss) => finalizeIssue(iss, ctx, config())))
+	});
+	return final;
+}
+const $ZodUnion = /*@__PURE__*/ $constructor("$ZodUnion", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.options.some((o) => o._zod.optin === "defaulted") ? "defaulted" : zod.def.options.some((o) => o._zod.optin !== void 0) ? "optional" : void 0);
+	defineLazyInternal(inst, "optout", (zod) => zod.def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
+	defineLazyInternal(inst, "values", (zod) => {
+		if (zod.def.options.every((o) => o._zod.values)) return new Set(zod.def.options.flatMap((option) => Array.from(option._zod.values)));
+	});
+	defineLazyInternal(inst, "pattern", (zod) => {
+		if (zod.def.options.every((o) => o._zod.pattern)) {
+			const patterns = zod.def.options.map((o) => o._zod.pattern);
+			return new RegExp(`^(${patterns.map((p) => cleanRegex(p.source)).join("|")})$`);
+		}
+	});
+	const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+	inst._zod.parse = (payload, ctx) => {
+		if (first) return first(payload, ctx);
+		let async = false;
+		const results = [];
+		for (const option of def.options) {
+			const result = option._zod.run({
+				value: payload.value,
+				issues: []
+			}, ctx);
+			if (result instanceof Promise) {
+				results.push(result);
+				async = true;
+			} else {
+				if (result.issues.length === 0) return result;
+				results.push(result);
+			}
+		}
+		if (!async) return handleUnionResults(results, payload, inst, ctx);
+		return Promise.all(results).then((results) => {
+			return handleUnionResults(results, payload, inst, ctx);
+		});
+	};
+});
+function discriminatorMap(def) {
+	const map = /* @__PURE__ */ new Map();
+	for (const option of def.options) {
+		const values = option._zod.propValues?.[def.discriminator];
+		if (!values || values.size === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(option)}"`);
+		for (const value of values) if (map.has(value)) {
+			if (value !== void 0) throw new Error(`Duplicate discriminator value "${String(value)}"`);
+			map.set(value, null);
+		} else map.set(value, option);
+	}
+	return map;
+}
+const $ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("$ZodDiscriminatedUnion", (inst, def) => {
+	def.inclusive = false;
+	$ZodUnion.init(inst, def);
+	const _super = inst._zod.parse;
+	defineLazyInternal(inst, "propValues", (zod) => {
+		const propValues = {};
+		let undefinedCount = 0;
+		for (const option of zod.def.options) {
+			const pv = option._zod.propValues;
+			if (!pv || Object.keys(pv).length === 0) throw new Error(`Invalid discriminated union option at index "${zod.def.options.indexOf(option)}"`);
+			if (pv[zod.def.discriminator]?.has(void 0)) undefinedCount++;
+			for (const [k, v] of Object.entries(pv)) {
+				if (!Object.prototype.hasOwnProperty.call(propValues, k)) assignProp(propValues, k, /* @__PURE__ */ new Set());
+				for (const val of v) propValues[k].add(val);
+			}
+		}
+		if (!zod.def.unionFallback && undefinedCount > 1) propValues[zod.def.discriminator]?.delete(void 0);
+		return propValues;
+	});
+	def.options.forEach((option, i) => {
+		const propShape = rawShape(option._zod.def);
+		if (propShape && !Object.prototype.hasOwnProperty.call(propShape, def.discriminator)) throw new Error(`Invalid discriminated union option at index "${i}"`);
+	});
+	const disc = cached(() => discriminatorMap(def));
+	inst._zod.parse = (payload, ctx) => {
+		const input = payload.value;
+		if (!isObject(input)) {
+			payload.issues.push({
+				code: "invalid_type",
+				expected: "object",
+				input,
+				inst
+			});
+			return payload;
+		}
+		const value = input?.[def.discriminator];
+		const opt = disc.value.get(value);
+		if (opt && (value !== void 0 || ctx.direction !== "backward")) return opt._zod.run(payload, ctx);
+		if (def.unionFallback || ctx.direction === "backward") return _super(payload, ctx);
+		payload.issues.push({
+			code: "invalid_union",
+			errors: [],
+			note: "No matching discriminator",
+			discriminator: def.discriminator,
+			options: Array.from(disc.value.keys()).filter((value) => disc.value.get(value) !== null),
+			input,
+			path: [def.discriminator],
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodIntersection = /*@__PURE__*/ $constructor("$ZodIntersection", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.parse = (payload, ctx) => {
+		const input = payload.value;
+		const left = def.left._zod.run({
+			value: input,
+			issues: []
+		}, ctx);
+		const right = def.right._zod.run({
+			value: input,
+			issues: []
+		}, ctx);
+		if (left instanceof Promise || right instanceof Promise) return Promise.all([left, right]).then(([left, right]) => {
+			return handleIntersectionResults(payload, left, right);
+		});
+		return handleIntersectionResults(payload, left, right);
+	};
+});
+function mergeValues(a, b) {
+	if (a === b) return {
+		valid: true,
+		data: a
+	};
+	if (a instanceof Date && b instanceof Date && +a === +b) return {
+		valid: true,
+		data: a
+	};
+	if (isPlainObject(a) && isPlainObject(b)) {
+		const bKeys = Object.keys(b);
+		const sharedKeys = Object.keys(a).filter((key) => bKeys.indexOf(key) !== -1);
+		const newObj = {
+			...a,
+			...b
+		};
+		if (Object.prototype.hasOwnProperty.call(newObj, "__proto__")) delete newObj.__proto__;
+		for (const key of sharedKeys) {
+			if (key === "__proto__") continue;
+			const sharedValue = mergeValues(a[key], b[key]);
+			if (!sharedValue.valid) return {
+				valid: false,
+				mergeErrorPath: [key, ...sharedValue.mergeErrorPath]
+			};
+			newObj[key] = sharedValue.data;
+		}
+		return {
+			valid: true,
+			data: newObj
+		};
+	}
+	if (Array.isArray(a) && Array.isArray(b)) {
+		if (a.length !== b.length) return {
+			valid: false,
+			mergeErrorPath: []
+		};
+		const newArray = [];
+		for (let index = 0; index < a.length; index++) {
+			const itemA = a[index];
+			const itemB = b[index];
+			const sharedValue = mergeValues(itemA, itemB);
+			if (!sharedValue.valid) return {
+				valid: false,
+				mergeErrorPath: [index, ...sharedValue.mergeErrorPath]
+			};
+			newArray.push(sharedValue.data);
+		}
+		return {
+			valid: true,
+			data: newArray
+		};
+	}
+	return {
+		valid: false,
+		mergeErrorPath: []
+	};
+}
+function handleIntersectionResults(result, left, right) {
+	const unrecKeys = /* @__PURE__ */ new Map();
+	let unrecIssue;
+	const keyIssues = /* @__PURE__ */ new Map();
+	const collect = (iss, side) => {
+		let keys;
+		if (iss.code === "unrecognized_keys" && !iss.path?.length) {
+			unrecIssue ?? (unrecIssue = iss);
+			keys = iss.keys;
+		} else if (iss.code === "invalid_key" && iss.origin === "record" && iss.path?.length === 1) {
+			const k = String(iss.path[0]);
+			if (!keyIssues.has(k)) keyIssues.set(k, iss);
+			keys = [k];
+		} else return false;
+		for (const k of keys) {
+			if (!unrecKeys.has(k)) unrecKeys.set(k, {});
+			unrecKeys.get(k)[side] = true;
+		}
+		return true;
+	};
+	for (const iss of left.issues) if (!collect(iss, "l")) result.issues.push(iss);
+	for (const iss of right.issues) if (!collect(iss, "r")) result.issues.push(iss);
+	const bothKeys = [...unrecKeys].filter(([, f]) => f.l && f.r).map(([k]) => k);
+	if (bothKeys.length) {
+		const aggregated = unrecIssue ? bothKeys.filter((k) => unrecIssue.keys.includes(k)) : [];
+		if (aggregated.length) result.issues.push({
+			...unrecIssue,
+			keys: aggregated
+		});
+		for (const k of bothKeys) if (!aggregated.includes(k) && keyIssues.has(k)) result.issues.push(keyIssues.get(k));
+	}
+	const merged = mergeValues(left.value, right.value);
+	if (!merged.valid) {
+		if (aborted(result)) return result;
+		throw new Error(`Unmergable intersection. Error path: ${JSON.stringify(merged.mergeErrorPath)}`);
+	}
+	result.value = merged.data;
+	return result;
+}
+const $ZodRecord = /*@__PURE__*/ $constructor("$ZodRecord", (inst, def) => {
+	$ZodType.init(inst, def);
+	const memo = globalConfig.memoizer;
+	memo?.attach(inst);
+	inst._zod.parse = (payload, ctx) => {
+		const input = payload.value;
+		if (!isPlainObject(input)) {
+			payload.issues.push({
+				expected: "record",
+				code: "invalid_type",
+				input,
+				inst
+			});
+			return payload;
+		}
+		const proms = [];
+		const values = def.keyType._zod.values;
+		if (values && !def.partial) {
+			payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+			const recordKeys = /* @__PURE__ */ new Set();
+			for (const key of values) if (typeof key === "string" || typeof key === "number" || typeof key === "symbol") {
+				recordKeys.add(typeof key === "number" ? key.toString() : key);
+				if (key === "__proto__") continue;
+				const keyResult = def.keyType._zod.run({
+					value: key,
+					issues: []
+				}, ctx);
+				if (keyResult instanceof Promise) throw new Error("Async schemas not supported in object keys currently");
+				if (keyResult.issues.length) {
+					payload.issues.push({
+						code: "invalid_key",
+						origin: "record",
+						issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+						input: key,
+						path: [key],
+						inst
+					});
+					continue;
+				}
+				const outKey = keyResult.value;
+				if (outKey === "__proto__") continue;
+				const result = def.valueType._zod.run({
+					value: input[key],
+					issues: []
+				}, ctx);
+				if (result instanceof Promise) proms.push(result.then((result) => {
+					if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues));
+					payload.value[outKey] = result.value;
+				}));
+				else {
+					if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues));
+					payload.value[outKey] = result.value;
+				}
+			}
+			let unrecognized;
+			for (const key in input) if (!recordKeys.has(key)) {
+				if (def.mode === "loose") {
+					if (key === "__proto__") continue;
+					payload.value[key] = input[key];
+				} else {
+					unrecognized = unrecognized ?? [];
+					unrecognized.push(key);
+				}
+			}
+			if (unrecognized && unrecognized.length > 0) payload.issues.push({
+				code: "unrecognized_keys",
+				input,
+				inst,
+				keys: unrecognized,
+				continue: true
+			});
+		} else {
+			payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+			let unrecognized;
+			for (const key of Reflect.ownKeys(input)) {
+				if (key === "__proto__") continue;
+				if (!Object.prototype.propertyIsEnumerable.call(input, key)) continue;
+				let keyResult = def.keyType._zod.run({
+					value: key,
+					issues: []
+				}, ctx);
+				if (keyResult instanceof Promise) throw new Error("Async schemas not supported in object keys currently");
+				if (typeof key === "string" && number$1.test(key) && keyResult.issues.length) {
+					const retryResult = def.keyType._zod.run({
+						value: Number(key),
+						issues: []
+					}, ctx);
+					if (retryResult instanceof Promise) throw new Error("Async schemas not supported in object keys currently");
+					if (retryResult.issues.length === 0) keyResult = retryResult;
+				}
+				if (keyResult.issues.length) {
+					if (def.mode === "loose") payload.value[key] = input[key];
+					else if (values) {
+						unrecognized = unrecognized ?? [];
+						unrecognized.push(key);
+					} else payload.issues.push({
+						code: "invalid_key",
+						origin: "record",
+						issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+						input: key,
+						path: [key],
+						inst
+					});
+					continue;
+				}
+				const outKey = keyResult.value;
+				if (outKey === "__proto__") continue;
+				const result = def.valueType._zod.run({
+					value: input[key],
+					issues: []
+				}, ctx);
+				if (result instanceof Promise) proms.push(result.then((result) => {
+					if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues));
+					payload.value[outKey] = result.value;
+				}));
+				else {
+					if (result.issues.length) payload.issues.push(...prefixIssues(key, result.issues));
+					payload.value[outKey] = result.value;
+				}
+			}
+			if (unrecognized && unrecognized.length > 0) payload.issues.push({
+				code: "unrecognized_keys",
+				input,
+				inst,
+				keys: unrecognized,
+				continue: true
+			});
+		}
+		if (proms.length) return Promise.all(proms).then(() => payload);
+		return payload;
+	};
+});
+const $ZodEnum = /*@__PURE__*/ $constructor("$ZodEnum", (inst, def) => {
+	$ZodType.init(inst, def);
+	const values = getEnumValues(def.entries);
+	const valuesSet = new Set(values);
+	inst._zod.values = valuesSet;
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const patternValues = getEnumValues(zod.def.entries).filter((k) => propertyKeyTypes.has(typeof k));
+		return new RegExp(patternValues.length ? `^(${patternValues.map((o) => escapeRegex(o.toString())).join("|")})$` : "^[^\\s\\S]$");
+	});
+	inst._zod.parse = (payload, _ctx) => {
+		const input = payload.value;
+		if (valuesSet.has(input)) return payload;
+		payload.issues.push({
+			code: "invalid_value",
+			values,
+			input,
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodLiteral = /*@__PURE__*/ $constructor("$ZodLiteral", (inst, def) => {
+	$ZodType.init(inst, def);
+	const values = new Set(def.values);
+	inst._zod.values = values;
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const vals = zod.def.values;
+		return new RegExp(vals.length ? `^(${vals.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$` : "^[^\\s\\S]$");
+	});
+	inst._zod.parse = (payload, _ctx) => {
+		const input = payload.value;
+		if (values.has(input)) return payload;
+		payload.issues.push({
+			code: "invalid_value",
+			values: def.values,
+			input,
+			inst
+		});
+		return payload;
+	};
+});
+const $ZodTransform = /*@__PURE__*/ $constructor("$ZodTransform", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.optin = "optional";
+	globalConfig.memoizer?.guard(inst);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") throw new $ZodEncodeError(inst.constructor.name);
+		const _out = def.transform(payload.value, payload);
+		if (ctx.async) return (_out instanceof Promise ? _out : Promise.resolve(_out)).then((output) => {
+			payload.value = output;
+			return payload;
+		});
+		if (_out instanceof Promise) throw new $ZodAsyncError();
+		payload.value = _out;
+		return payload;
+	};
+});
+function handleOptionalResult(payload, result) {
+	payload.value = result.issues.length ? void 0 : result.value;
+	return payload;
+}
+const $ZodOptional = /*@__PURE__*/ $constructor("$ZodOptional", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin === "defaulted" ? "defaulted" : "optional");
+	inst._zod.optout = "optional";
+	defineLazyInternal(inst, "values", (zod) => {
+		const values = zod.def.innerType._zod.values;
+		return values ? /* @__PURE__ */ new Set([...values, void 0]) : void 0;
+	});
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const pattern = zod.def.innerType._zod.pattern;
+		return pattern ? new RegExp(`^(${cleanRegex(pattern.source)})?$`) : void 0;
+	});
+	inst._zod.parse = (payload, ctx) => {
+		if (payload.value === void 0) {
+			if (def.innerType._zod.optin !== "defaulted") return payload;
+			const result = def.innerType._zod.run({
+				value: payload.value,
+				issues: []
+			}, ctx);
+			if (result instanceof Promise) return result.then((result) => handleOptionalResult(payload, result));
+			return handleOptionalResult(payload, result);
+		}
+		return def.innerType._zod.run(payload, ctx);
+	};
+});
+const $ZodExactOptional = /*@__PURE__*/ $constructor("$ZodExactOptional", (inst, def) => {
+	$ZodOptional.init(inst, def);
+	defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
+	defineLazyInternal(inst, "pattern", (zod) => zod.def.innerType._zod.pattern);
+	inst._zod.parse = (payload, ctx) => {
+		return def.innerType._zod.run(payload, ctx);
+	};
+});
+const $ZodNullable = /*@__PURE__*/ $constructor("$ZodNullable", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin);
+	defineLazyInternal(inst, "optout", (zod) => zod.def.innerType._zod.optout);
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const pattern = zod.def.innerType._zod.pattern;
+		return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
+	});
+	defineLazyInternal(inst, "values", (zod) => {
+		return zod.def.innerType._zod.values ? /* @__PURE__ */ new Set([...zod.def.innerType._zod.values, null]) : void 0;
+	});
+	inst._zod.parse = (payload, ctx) => {
+		if (payload.value === null) return payload;
+		return def.innerType._zod.run(payload, ctx);
+	};
+});
+const $ZodDefault = /*@__PURE__*/ $constructor("$ZodDefault", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.optin = "defaulted";
+	defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") return def.innerType._zod.run(payload, ctx);
+		if (payload.value === void 0) {
+			payload.value = def.defaultValue;
+			/**
+			* $ZodDefault returns the default value immediately in forward direction.
+			* It doesn't pass the default value into the validator ("prefault"). There's no reason to pass the default value through validation. The validity of the default is enforced by TypeScript statically. Otherwise, it's the responsibility of the user to ensure the default is valid. In the case of pipes with divergent in/out types, you can specify the default on the `in` schema of your ZodPipe to set a "prefault" for the pipe.   */
+			return payload;
+		}
+		const result = def.innerType._zod.run(payload, ctx);
+		if (result instanceof Promise) return result.then((result) => handleDefaultResult(result, def));
+		return handleDefaultResult(result, def);
+	};
+});
+function handleDefaultResult(payload, def) {
+	if (payload.value === void 0) payload.value = def.defaultValue;
+	return payload;
+}
+const $ZodPrefault = /*@__PURE__*/ $constructor("$ZodPrefault", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.optin = "defaulted";
+	defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") return def.innerType._zod.run(payload, ctx);
+		if (payload.value === void 0) payload.value = def.defaultValue;
+		return def.innerType._zod.run(payload, ctx);
+	};
+});
+const $ZodNonOptional = /*@__PURE__*/ $constructor("$ZodNonOptional", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "values", (zod) => {
+		const v = zod.def.innerType._zod.values;
+		return v ? new Set([...v].filter((x) => x !== void 0)) : void 0;
+	});
+	inst._zod.parse = (payload, ctx) => {
+		const result = def.innerType._zod.run(payload, ctx);
+		if (result instanceof Promise) return result.then((result) => handleNonOptionalResult(result, inst));
+		return handleNonOptionalResult(result, inst);
+	};
+});
+function handleNonOptionalResult(payload, inst) {
+	if (!payload.issues.length && payload.value === void 0) payload.issues.push({
+		code: "invalid_type",
+		expected: "nonoptional",
+		input: payload.value,
+		inst
+	});
+	return payload;
+}
+function handleCatchResult(payload, result, def, ctx) {
+	if (!result.issues.length) {
+		payload.value = result.value;
+		if (result.memo) payload.memo = true;
+		return payload;
+	}
+	payload.value = def.catchValue({
+		...result,
+		value: payload.value,
+		error: { issues: result.issues.map((iss) => finalizeIssue(iss, ctx, config())) },
+		input: payload.value
+	});
+	return payload;
+}
+const $ZodCatch = /*@__PURE__*/ $constructor("$ZodCatch", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin === "defaulted" ? "defaulted" : "optional");
+	defineLazyInternal(inst, "optout", (zod) => zod.def.innerType._zod.optout);
+	defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") return def.innerType._zod.run(payload, ctx);
+		const result = def.innerType._zod.run({
+			value: payload.value,
+			issues: []
+		}, ctx);
+		if (result instanceof Promise) return result.then((result) => handleCatchResult(payload, result, def, ctx));
+		return handleCatchResult(payload, result, def, ctx);
+	};
+});
+const $ZodPipe = /*@__PURE__*/ $constructor("$ZodPipe", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "values", (zod) => zod.def.in._zod.values);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.in._zod.optin);
+	defineLazyInternal(inst, "optout", (zod) => zod.def.out._zod.optout);
+	defineLazyInternal(inst, "propValues", (zod) => zod.def.in._zod.propValues);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") {
+			const right = def.out._zod.run(payload, ctx);
+			if (right instanceof Promise) return right.then((right) => handlePipeResult(right, def.in, ctx));
+			return handlePipeResult(right, def.in, ctx);
+		}
+		const left = def.in._zod.run(payload, ctx);
+		if (left instanceof Promise) return left.then((left) => handlePipeResult(left, def.out, ctx));
+		return handlePipeResult(left, def.out, ctx);
+	};
+});
+function handlePipeResult(left, next, ctx) {
+	if (left.issues.some((iss) => iss.code !== "unrecognized_keys")) {
+		left.aborted = true;
+		return left;
+	}
+	return next._zod.run({
+		value: left.value,
+		issues: left.issues
+	}, ctx);
+}
+const $ZodReadonly = /*@__PURE__*/ $constructor("$ZodReadonly", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazyInternal(inst, "propValues", (zod) => zod.def.innerType._zod.propValues);
+	defineLazyInternal(inst, "values", (zod) => zod.def.innerType._zod.values);
+	defineLazyInternal(inst, "optin", (zod) => zod.def.innerType?._zod?.optin);
+	defineLazyInternal(inst, "optout", (zod) => zod.def.innerType?._zod?.optout);
+	inst._zod.parse = (payload, ctx) => {
+		if (ctx.direction === "backward") return def.innerType._zod.run(payload, ctx);
+		const result = def.innerType._zod.run(payload, ctx);
+		if (result instanceof Promise) return result.then(handleReadonlyResult);
+		return handleReadonlyResult(result);
+	};
+});
+function handleReadonlyResult(payload) {
+	if (!payload.memo) payload.value = Object.freeze(payload.value);
+	return payload;
+}
+const $ZodLazy = /*@__PURE__*/ $constructor("$ZodLazy", (inst, def) => {
+	$ZodType.init(inst, def);
+	defineLazy(inst._zod, "innerType", () => {
+		const d = def;
+		if (!d._cachedInner) d._cachedInner = def.getter();
+		return d._cachedInner;
+	});
+	defineLazyInternal(inst, "pattern", (zod) => zod.innerType?._zod?.pattern);
+	defineLazyInternal(inst, "propValues", (zod) => zod.innerType?._zod?.propValues);
+	defineLazyInternal(inst, "optin", (zod) => zod.innerType?._zod?.optin ?? void 0);
+	defineLazyInternal(inst, "optout", (zod) => zod.innerType?._zod?.optout ?? void 0);
+	inst._zod.parse = (payload, ctx) => {
+		return inst._zod.innerType._zod.run(payload, ctx);
+	};
+});
+const $ZodCustom = /*@__PURE__*/ $constructor("$ZodCustom", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	$ZodType.init(inst, def);
+	inst._zod.parse = (payload, _) => {
+		return payload;
+	};
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		const r = def.fn(input);
+		if (r instanceof Promise) return r.then((r) => handleRefineResult(r, payload, input, inst));
+		handleRefineResult(r, payload, input, inst);
+	};
+});
+function handleRefineResult(result, payload, input, inst) {
+	if (!result) {
+		const _iss = {
+			code: "custom",
+			input,
+			inst,
+			path: [...inst._zod.def.path ?? []],
+			continue: !inst._zod.def.abort
+		};
+		if (inst._zod.def.params) _iss.params = inst._zod.def.params;
+		payload.issues.push(issue(_iss));
+	}
+}
+var $ZodCyclicError = class extends Error {
+	constructor() {
+		super(`Cannot parse a reference cycle that closes through a transform`);
+		this.name = "ZodCyclicError";
+	}
+};
+/** Keyed off the context object every schema in one parse call already shares. */
+const STATE = "~memo";
+const NO_ISSUES = [];
+function isRef(value) {
+	return value !== null && typeof value === "object";
+}
+function cloneIssues(issues) {
+	return issues.map((iss) => iss.path ? {
+		...iss,
+		path: iss.path.slice()
+	} : { ...iss });
+}
+const recursive = /*@__PURE__*/ new WeakMap();
+/** What the walk established, in order of certainty: ordered so the strongest answer among children wins. */
+const NONE = 0;
+const ASSUMED = 1;
+const PROVEN = 2;
+/** Whether this schema's subtree contains a cycle, so one parse can re-enter it. */
+function isRecursive(inst, stack, resolve) {
+	const cached = recursive.get(inst);
+	if (cached !== void 0) return cached ? PROVEN : NONE;
+	if (stack.has(inst)) return PROVEN;
+	stack.add(inst);
+	let result = NONE;
+	const check = (child) => {
+		if (result !== PROVEN && child?._zod) {
+			const answer = isRecursive(child, stack, resolve);
+			if (answer > result) result = answer;
+		}
+	};
+	const shape = (sh, spread) => {
+		let answer = NONE;
+		for (const key of Reflect.ownKeys(sh)) {
+			const desc = Object.getOwnPropertyDescriptor(sh, key);
+			if (spread && !desc.enumerable) continue;
+			const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
+			if (child > answer) answer = child;
+		}
+		return answer;
+	};
+	const merge = (answer) => {
+		if (answer > result) result = answer;
+	};
+	const def = inst._zod.def;
+	switch (def.type) {
+		case "object": {
+			const raw = rawShape(def);
+			merge(raw ? shape(raw, true) : ASSUMED);
+			check(def.catchall);
+			break;
+		}
+		case "array":
+			check(def.element);
+			break;
+		case "tuple":
+			for (const el of def.items) check(el);
+			check(def.rest);
+			break;
+		case "record":
+		case "map":
+			check(def.keyType);
+			check(def.valueType);
+			break;
+		case "set":
+			check(def.valueType);
+			break;
+		case "union":
+			for (const el of def.options) check(el);
+			break;
+		case "intersection":
+			check(def.left);
+			check(def.right);
+			break;
+		case "optional":
+		case "nullable":
+		case "default":
+		case "prefault":
+		case "catch":
+		case "readonly":
+		case "nonoptional":
+		case "promise":
+		case "success":
+			check(def.innerType);
+			break;
+		case "pipe":
+			check(def.in);
+			check(def.out);
+			break;
+		case "function":
+			check(def.input);
+			check(def.output);
+			break;
+		case "lazy": {
+			const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
+			merge(inner ? isRecursive(inner, stack, false) : ASSUMED);
+			break;
+		}
+		case "template_literal":
+		case "string":
+		case "number":
+		case "int":
+		case "boolean":
+		case "bigint":
+		case "symbol":
+		case "undefined":
+		case "null":
+		case "void":
+		case "never":
+		case "any":
+		case "unknown":
+		case "date":
+		case "nan":
+		case "enum":
+		case "literal":
+		case "file":
+		case "transform":
+		case "custom": break;
+		default: for (const key in def) {
+			const desc = Object.getOwnPropertyDescriptor(def, key);
+			if (!desc || desc.get) continue;
+			const value = desc.value;
+			if (!value || typeof value !== "object") continue;
+			if (value._zod) check(value);
+			else if (Array.isArray(value)) for (const el of value) check(el);
+		}
+	}
+	stack.delete(inst);
+	return settle(inst, result);
+}
+/** An assumed answer must not outlive the resolution that settles it, so only a certain one is cached. */
+function settle(inst, answer) {
+	if (answer !== ASSUMED) recursive.set(inst, answer === PROVEN);
+	return answer;
+}
+function bucketFor(state, inst) {
+	let bucket = state.buckets.get(inst);
+	if (!bucket) {
+		bucket = /* @__PURE__ */ new WeakMap();
+		state.buckets.set(inst, bucket);
+	}
+	return bucket;
+}
+let handoff;
+const open = [];
+const memo = {
+	alloc(_inst, payload, empty) {
+		const bucket = handoff;
+		if (!bucket) return empty;
+		handoff = void 0;
+		const entry = {
+			value: empty,
+			issues: null
+		};
+		bucket.set(payload.value, entry);
+		open.push(entry);
+		return empty;
+	},
+	guard(inst) {
+		var _a;
+		(_a = inst._zod).deferred ?? (_a.deferred = []);
+		inst._zod.deferred.push(() => {
+			const base = inst._zod.parse;
+			const wrapped = (payload, ctx) => {
+				if (ctx.direction !== "backward" && isBackEdge(ctx, payload.value)) throw new $ZodCyclicError();
+				return base(payload, ctx);
+			};
+			inst._zod.parse = wrapped;
+			if (inst._zod.run === base) inst._zod.run = wrapped;
+		});
+	},
+	attach(inst) {
+		var _a;
+		let isRecursiveInst;
+		let rechecked = false;
+		let lastCtx;
+		let lastBucket;
+		(_a = inst._zod).deferred ?? (_a.deferred = []);
+		inst._zod.deferred.push(() => {
+			const base = inst._zod.parse;
+			const wrapped = (payload, ctx) => {
+				if (isRecursiveInst === void 0) {
+					const walked = isRecursive(inst, /* @__PURE__ */ new Set(), false);
+					if (walked === NONE) {
+						inst._zod.parse = base;
+						if (inst._zod.run === wrapped) inst._zod.run = base;
+						return base(payload, ctx);
+					}
+					if (walked === PROVEN || rechecked) isRecursiveInst = true;
+					else rechecked = true;
+				}
+				const input = payload.value;
+				if (!isRef(input)) return base(payload, ctx);
+				let state = ctx[STATE];
+				if (!state) {
+					state = {
+						buckets: /* @__PURE__ */ new WeakMap(),
+						backEdges: void 0
+					};
+					ctx[STATE] = state;
+				}
+				let bucket;
+				if (lastCtx === ctx) bucket = lastBucket;
+				else {
+					bucket = bucketFor(state, inst);
+					lastCtx = ctx;
+					lastBucket = bucket;
+				}
+				const hit = bucket.get(input);
+				if (hit) {
+					payload.value = hit.value;
+					if (hit.issues) {
+						if (hit.issues.length) payload.issues.push(...cloneIssues(hit.issues));
+					} else {
+						payload.memo = true;
+						state.backEdges ?? (state.backEdges = /* @__PURE__ */ new WeakSet());
+						state.backEdges.add(hit.value);
+					}
+					return payload;
+				}
+				handoff = bucket;
+				const depth = open.length;
+				const result = base(payload, ctx);
+				handoff = void 0;
+				const entry = open.length > depth ? open.pop() : void 0;
+				if (result instanceof Promise) return result.then((r) => {
+					if (entry) entry.issues = r.issues.length ? cloneIssues(r.issues) : NO_ISSUES;
+					return r;
+				});
+				if (entry) entry.issues = result.issues.length ? cloneIssues(result.issues) : NO_ISSUES;
+				return result;
+			};
+			inst._zod.parse = wrapped;
+			if (inst._zod.run === base) inst._zod.run = wrapped;
+		});
+	}
+};
+/** The memoizer that gives containers cycle support. `zod` installs it by default; `zod/mini` opts in with `config({ memoizer: memoizer() })`. */
+function memoizer() {
+	return memo;
+}
+/** Whether this value is a node a back-edge resolved to before it finished. */
+function isBackEdge(ctx, value) {
+	const backEdges = ctx[STATE]?.backEdges;
+	return backEdges !== void 0 && isRef(value) && backEdges.has(value);
+}
+const error = () => {
+	const Sizable = {
+		string: {
+			unit: "characters",
+			verb: "to have"
+		},
+		file: {
+			unit: "bytes",
+			verb: "to have"
+		},
+		array: {
+			unit: "items",
+			verb: "to have"
+		},
+		set: {
+			unit: "items",
+			verb: "to have"
+		},
+		map: {
+			unit: "entries",
+			verb: "to have"
+		}
+	};
+	function getSizing(origin) {
+		return Sizable[origin] ?? null;
+	}
+	const FormatDictionary = {
+		regex: "input",
+		email: "email address",
+		url: "URL",
+		emoji: "emoji",
+		uuid: "UUID",
+		uuidv4: "UUIDv4",
+		uuidv6: "UUIDv6",
+		nanoid: "nanoid",
+		guid: "GUID",
+		cuid: "cuid",
+		cuid2: "cuid2",
+		ulid: "ULID",
+		xid: "XID",
+		ksuid: "KSUID",
+		datetime: "ISO datetime",
+		date: "ISO date",
+		time: "ISO time",
+		duration: "ISO duration",
+		ipv4: "IPv4 address",
+		ipv6: "IPv6 address",
+		mac: "MAC address",
+		cidrv4: "IPv4 range",
+		cidrv6: "IPv6 range",
+		base64: "base64-encoded string",
+		base64url: "base64url-encoded string",
+		json_string: "JSON string",
+		e164: "E.164 number",
+		currency_code: "currency code",
+		credit_card: "credit card number",
+		iban: "IBAN",
+		jwt: "JWT",
+		template_literal: "input"
+	};
+	const TypeDictionary = { nan: "NaN" };
+	function getTypeName(type, input) {
+		if (type === "number" && typeof input === "number" && !Number.isFinite(input)) return String(input);
+		return TypeDictionary[type] ?? type;
+	}
+	return (issue) => {
+		switch (issue.code) {
+			case "invalid_type": return `Invalid input: expected ${getTypeName(issue.expected)}, received ${getTypeName(parsedType(issue.input), issue.input)}`;
+			case "invalid_value":
+				if (issue.values.length === 1) return `Invalid input: expected ${stringifyPrimitive(issue.values[0])}`;
+				return `Invalid option: expected one of ${joinValues(issue.values, "|")}`;
+			case "too_big": {
+				const adj = issue.exact ? "exactly " : issue.inclusive ? "<=" : "<";
+				const sizing = getSizing(issue.origin);
+				if (sizing) return `Too big: expected ${issue.origin ?? "value"} to have ${adj}${issue.maximum.toString()} ${sizing.unit ?? "elements"}`;
+				return `Too big: expected ${issue.origin ?? "value"} to be ${adj}${issue.maximum.toString()}`;
+			}
+			case "too_small": {
+				const adj = issue.exact ? "exactly " : issue.inclusive ? ">=" : ">";
+				const sizing = getSizing(issue.origin);
+				if (sizing) return `Too small: expected ${issue.origin} to have ${adj}${issue.minimum.toString()} ${sizing.unit}`;
+				return `Too small: expected ${issue.origin} to be ${adj}${issue.minimum.toString()}`;
+			}
+			case "invalid_format": {
+				const _issue = issue;
+				if (_issue.format === "starts_with") return `Invalid string: must start with "${_issue.prefix}"`;
+				if (_issue.format === "ends_with") return `Invalid string: must end with "${_issue.suffix}"`;
+				if (_issue.format === "includes") return `Invalid string: must include "${_issue.includes}"`;
+				if (_issue.format === "regex") return `Invalid string: must match pattern ${_issue.pattern}`;
+				return `Invalid ${FormatDictionary[_issue.format] ?? issue.format}`;
+			}
+			case "not_multiple_of": return `Invalid number: must be a multiple of ${issue.divisor}`;
+			case "unrecognized_keys": return `Unrecognized key${issue.keys.length > 1 ? "s" : ""}: ${joinValues(issue.keys, ", ")}`;
+			case "invalid_key": return `Invalid key in ${issue.origin}`;
+			case "invalid_union":
+				if (issue.options && Array.isArray(issue.options) && issue.options.length > 0) return `Invalid discriminator value. Expected ${issue.options.map((o) => `'${o}'`).join(" | ")}`;
+				if (issue.inclusive === false) return "Invalid input: more than one option matched";
+				return "Invalid input";
+			case "invalid_element": return `Invalid value in ${issue.origin}`;
+			default: return `Invalid input`;
+		}
+	};
+};
+function en_default() {
+	return { localeError: error() };
+}
+var _a;
+var $ZodRegistry = class {
+	constructor() {
+		this._map = /* @__PURE__ */ new WeakMap();
+		this._idmap = /* @__PURE__ */ new Map();
+	}
+	add(schema, ..._meta) {
+		const meta = _meta[0];
+		this._map.set(schema, meta);
+		if (meta && typeof meta === "object" && "id" in meta) this._idmap.set(meta.id, schema);
+		return this;
+	}
+	clear() {
+		this._map = /* @__PURE__ */ new WeakMap();
+		this._idmap = /* @__PURE__ */ new Map();
+		return this;
+	}
+	remove(schema) {
+		const meta = this._map.get(schema);
+		if (meta && typeof meta === "object" && "id" in meta) this._idmap.delete(meta.id);
+		this._map.delete(schema);
+		return this;
+	}
+	get(schema) {
+		const p = schema._zod.parent;
+		if (p) {
+			const pm = { ...this.get(p) ?? {} };
+			delete pm.id;
+			const f = {
+				...pm,
+				...this._map.get(schema)
+			};
+			return Object.keys(f).length ? f : void 0;
+		}
+		return this._map.get(schema);
+	}
+	has(schema) {
+		return this._map.has(schema);
+	}
+};
+function registry() {
+	return new $ZodRegistry();
+}
+(_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry());
+const globalRegistry = globalThis.__zod_globalRegistry;
+function snapshotChecks(def) {
+	if (def.checks) def.checks = [...def.checks];
+	return def;
+}
+// @__NO_SIDE_EFFECTS__
+function _string(Class, params) {
+	return new Class(snapshotChecks({
+		type: "string",
+		...normalizeParams(params)
+	}));
+}
+// @__NO_SIDE_EFFECTS__
+function _email(Class, params) {
+	return new Class({
+		type: "string",
+		format: "email",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _guid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "guid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _uuid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "uuid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _uuidv4(Class, params) {
+	return new Class({
+		type: "string",
+		format: "uuid",
+		check: "string_format",
+		abort: false,
+		version: "v4",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _uuidv6(Class, params) {
+	return new Class({
+		type: "string",
+		format: "uuid",
+		check: "string_format",
+		abort: false,
+		version: "v6",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _uuidv7(Class, params) {
+	return new Class({
+		type: "string",
+		format: "uuid",
+		check: "string_format",
+		abort: false,
+		version: "v7",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _url(Class, params) {
+	return new Class({
+		type: "string",
+		format: "url",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _emoji(Class, params) {
+	return new Class({
+		type: "string",
+		format: "emoji",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _nanoid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "nanoid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+/**
+* @deprecated CUID v1 is deprecated by its authors due to information leakage
+* (timestamps embedded in the id). Use {@link _cuid2} instead.
+* See https://github.com/paralleldrive/cuid.
+*/
+// @__NO_SIDE_EFFECTS__
+function _cuid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "cuid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _cuid2(Class, params) {
+	return new Class({
+		type: "string",
+		format: "cuid2",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _ulid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "ulid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _xid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "xid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _ksuid(Class, params) {
+	return new Class({
+		type: "string",
+		format: "ksuid",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _ipv4(Class, params) {
+	return new Class({
+		type: "string",
+		format: "ipv4",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _ipv6(Class, params) {
+	return new Class({
+		type: "string",
+		format: "ipv6",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _cidrv4(Class, params) {
+	return new Class({
+		type: "string",
+		format: "cidrv4",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _cidrv6(Class, params) {
+	return new Class({
+		type: "string",
+		format: "cidrv6",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _base64(Class, params) {
+	return new Class({
+		type: "string",
+		format: "base64",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _base64url(Class, params) {
+	return new Class({
+		type: "string",
+		format: "base64url",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _e164(Class, params) {
+	return new Class({
+		type: "string",
+		format: "e164",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _jwt(Class, params) {
+	return new Class({
+		type: "string",
+		format: "jwt",
+		check: "string_format",
+		abort: false,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _isoDateTime(Class, params) {
+	return new Class({
+		type: "string",
+		format: "datetime",
+		check: "string_format",
+		offset: false,
+		local: false,
+		precision: null,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _isoDate(Class, params) {
+	return new Class({
+		type: "string",
+		format: "date",
+		check: "string_format",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _isoTime(Class, params) {
+	return new Class({
+		type: "string",
+		format: "time",
+		check: "string_format",
+		precision: null,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _isoDuration(Class, params) {
+	return new Class({
+		type: "string",
+		format: "duration",
+		check: "string_format",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _number(Class, params) {
+	return new Class(snapshotChecks({
+		type: "number",
+		checks: [],
+		...normalizeParams(params)
+	}));
+}
+// @__NO_SIDE_EFFECTS__
+function _int(Class, params) {
+	return new Class({
+		type: "number",
+		check: "number_format",
+		abort: false,
+		format: "safeint",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _boolean(Class, params) {
+	return new Class({
+		type: "boolean",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _null$1(Class, params) {
+	return new Class({
+		type: "null",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _any(Class) {
+	return new Class({ type: "any" });
+}
+// @__NO_SIDE_EFFECTS__
+function _unknown(Class) {
+	return new Class({ type: "unknown" });
+}
+// @__NO_SIDE_EFFECTS__
+function _never(Class, params) {
+	return new Class({
+		type: "never",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _lt(value, params) {
+	return new $ZodCheckLessThan({
+		check: "less_than",
+		...normalizeParams(params),
+		value,
+		inclusive: false
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _lte(value, params) {
+	return new $ZodCheckLessThan({
+		check: "less_than",
+		...normalizeParams(params),
+		value,
+		inclusive: true
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _gt(value, params) {
+	return new $ZodCheckGreaterThan({
+		check: "greater_than",
+		...normalizeParams(params),
+		value,
+		inclusive: false
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _gte(value, params) {
+	return new $ZodCheckGreaterThan({
+		check: "greater_than",
+		...normalizeParams(params),
+		value,
+		inclusive: true
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _multipleOf(value, params) {
+	return new $ZodCheckMultipleOf({
+		check: "multiple_of",
+		...normalizeParams(params),
+		value
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _maxLength(maximum, params) {
+	return new $ZodCheckMaxLength({
+		check: "max_length",
+		...normalizeParams(params),
+		maximum
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _minLength(minimum, params) {
+	return new $ZodCheckMinLength({
+		check: "min_length",
+		...normalizeParams(params),
+		minimum
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _length(length, params) {
+	return new $ZodCheckLengthEquals({
+		check: "length_equals",
+		...normalizeParams(params),
+		length
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _regex(pattern, params) {
+	return new $ZodCheckRegex({
+		check: "string_format",
+		format: "regex",
+		...normalizeParams(params),
+		pattern
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _lowercase(params) {
+	return new $ZodCheckLowerCase({
+		check: "string_format",
+		format: "lowercase",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _uppercase(params) {
+	return new $ZodCheckUpperCase({
+		check: "string_format",
+		format: "uppercase",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _includes(includes, params) {
+	return new $ZodCheckIncludes({
+		check: "string_format",
+		format: "includes",
+		...normalizeParams(params),
+		includes
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _startsWith(prefix, params) {
+	return new $ZodCheckStartsWith({
+		check: "string_format",
+		format: "starts_with",
+		...normalizeParams(params),
+		prefix
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _endsWith(suffix, params) {
+	return new $ZodCheckEndsWith({
+		check: "string_format",
+		format: "ends_with",
+		...normalizeParams(params),
+		suffix
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _properties(shape, params) {
+	return new $ZodCheckProperties({
+		check: "properties",
+		shape,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _overwrite(tx) {
+	return new $ZodCheckOverwrite({
+		check: "overwrite",
+		tx
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _normalize(form) {
+	return /* @__PURE__ */ _overwrite((input) => input.normalize(form));
+}
+// @__NO_SIDE_EFFECTS__
+function _trim() {
+	return /* @__PURE__ */ _overwrite((input) => input.trim());
+}
+// @__NO_SIDE_EFFECTS__
+function _toLowerCase() {
+	return /* @__PURE__ */ _overwrite((input) => input.toLowerCase());
+}
+// @__NO_SIDE_EFFECTS__
+function _toUpperCase() {
+	return /* @__PURE__ */ _overwrite((input) => input.toUpperCase());
+}
+// @__NO_SIDE_EFFECTS__
+function _slugify() {
+	return /* @__PURE__ */ _overwrite((input) => slugify(input));
+}
+// @__NO_SIDE_EFFECTS__
+function _array(Class, element, params) {
+	return new Class({
+		type: "array",
+		element,
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _custom(Class, fn, _params) {
+	const norm = normalizeParams(_params);
+	norm.abort ?? (norm.abort = true);
+	return new Class({
+		type: "custom",
+		check: "custom",
+		fn,
+		...norm
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _refine(Class, fn, _params) {
+	return new Class({
+		type: "custom",
+		check: "custom",
+		fn,
+		...normalizeParams(_params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _superRefine(fn, params) {
+	const ch = /* @__PURE__ */ _check((payload) => {
+		payload.addIssue = (issue$2) => {
+			if (typeof issue$2 === "string") payload.issues.push(issue(issue$2, payload.value, ch._zod.def));
+			else {
+				const _issue = issue$2;
+				if (_issue.fatal) _issue.continue = false;
+				_issue.code ?? (_issue.code = "custom");
+				if (!("input" in _issue)) _issue.input = payload.value;
+				_issue.inst ?? (_issue.inst = ch);
+				_issue.continue ?? (_issue.continue = !ch._zod.def.abort);
+				payload.issues.push(issue(_issue));
+			}
+		};
+		return fn(payload.value, payload);
+	}, params);
+	return ch;
+}
+// @__NO_SIDE_EFFECTS__
+function _check(fn, params) {
+	const ch = new $ZodCheck({
+		check: "custom",
+		...normalizeParams(params)
+	});
+	ch._zod.check = fn;
+	return ch;
+}
+function assignProps(target, ...sources) {
+	for (const source of sources) for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProp(target, key, source[key]);
+	return target;
+}
+function initializeContext(params) {
+	let target = params?.target ?? "draft-2020-12";
+	if (target === "draft-4") target = "draft-04";
+	if (target === "draft-7") target = "draft-07";
+	return {
+		processors: params.processors ?? {},
+		metadataRegistry: params?.metadata ?? globalRegistry,
+		target,
+		unrepresentable: params?.unrepresentable ?? "throw",
+		override: params?.override ?? (() => {}),
+		io: params?.io ?? "output",
+		counter: 0,
+		seen: /* @__PURE__ */ new Map(),
+		sharedDefsExtractedFor: void 0,
+		sharedEmitDoneFor: void 0,
+		cycles: params?.cycles ?? "ref",
+		reused: params?.reused ?? "inline",
+		intersections: [],
+		deferred: [],
+		external: params?.external ?? void 0
+	};
+}
+/**
+* Applies the `unrepresentable` setting at a site that has no JSON Schema equivalent. Throws
+* `message` unless the setting (or the handler's return value) says otherwise. Returns `true` if a
+* custom JSON Schema was written into `json`, in which case the caller must not write its own.
+*/
+function handleUnrepresentable(schema, ctx, json, params, message) {
+	const result = typeof ctx.unrepresentable === "function" ? ctx.unrepresentable({
+		zodSchema: schema,
+		path: params.path,
+		message
+	}) : ctx.unrepresentable;
+	if (result === "any") return false;
+	if (result === void 0 || result === "throw") throw new Error(message);
+	Object.assign(json, result);
+	return true;
+}
+function processSchema(schema, ctx, _params = {
+	path: [],
+	schemaPath: []
+}) {
+	var _a;
+	const def = schema._zod.def;
+	const seen = ctx.seen.get(schema);
+	if (seen) {
+		seen.count++;
+		if (_params.schemaPath.includes(schema)) seen.cycle = _params.path;
+		return seen.schema;
+	}
+	const result = {
+		schema: {},
+		count: 1,
+		cycle: void 0,
+		path: _params.path
+	};
+	ctx.seen.set(schema, result);
+	ctx.sharedDefsExtractedFor = void 0;
+	ctx.sharedEmitDoneFor = void 0;
+	const overrideSchema = schema._zod.toJSONSchema?.();
+	if (overrideSchema) result.schema = overrideSchema;
+	else {
+		const params = {
+			..._params,
+			schemaPath: [..._params.schemaPath, schema],
+			path: _params.path
+		};
+		if (schema._zod.processJSONSchema) schema._zod.processJSONSchema(ctx, result.schema, params);
+		else {
+			const _json = result.schema;
+			const processor = ctx.processors[def.type];
+			if (!processor) throw new Error(`[toJSONSchema]: Non-representable type encountered: ${def.type}`);
+			processor(schema, ctx, _json, params);
+		}
+		const parent = schema._zod.parent;
+		if (parent) {
+			if (!result.ref) result.ref = parent;
+			processSchema(parent, ctx, params);
+			ctx.seen.get(parent).isParent = true;
+		}
+	}
+	const meta = ctx.metadataRegistry.get(schema);
+	if (meta) assignProps(result.schema, meta);
+	if (ctx.io === "input" && isTransforming(schema)) {
+		delete result.schema.examples;
+		delete result.schema.default;
+	}
+	if (ctx.io === "input" && "_prefault" in result.schema) (_a = result.schema).default ?? (_a.default = result.schema._prefault);
+	delete result.schema._prefault;
+	return ctx.seen.get(schema).schema;
+}
+function encodeJSONPointerSegment(segment) {
+	return segment.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+function extractDefs(ctx, schema) {
+	const root = ctx.seen.get(schema);
+	if (!root) throw new Error("Unprocessed schema. This is a bug in Zod.");
+	if (ctx.external && ctx.sharedDefsExtractedFor === ctx.external) return;
+	const idToSchema = /* @__PURE__ */ new Map();
+	for (const entry of ctx.seen.entries()) {
+		const id = ctx.metadataRegistry.get(entry[0])?.id;
+		if (id) {
+			const existing = idToSchema.get(id);
+			if (existing && existing !== entry[0]) throw new Error(`Duplicate schema id "${id}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
+			idToSchema.set(id, entry[0]);
+		}
+	}
+	const makeURI = (entry) => {
+		const defsSegment = ctx.target === "draft-2020-12" ? "$defs" : "definitions";
+		if (ctx.external) {
+			const externalId = ctx.external.registry.get(entry[0])?.id;
+			const uriGenerator = ctx.external.uri ?? ((id) => id);
+			if (externalId) return { ref: uriGenerator(externalId) };
+			const id = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
+			entry[1].defId = id;
+			return {
+				defId: id,
+				ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id)}`
+			};
+		}
+		const uriPrefix = `#`;
+		const defUriPrefix = `${uriPrefix}/${defsSegment}/`;
+		if (entry[1] === root && !entry[1].schema.id) return { ref: uriPrefix };
+		const defId = entry[1].schema.id ?? `__schema${ctx.counter++}`;
+		return {
+			defId,
+			ref: defUriPrefix + encodeJSONPointerSegment(defId)
+		};
+	};
+	const extractToDef = (entry) => {
+		if (entry[1].schema.$ref) return;
+		const seen = entry[1];
+		const { ref, defId } = makeURI(entry);
+		seen.def = { ...seen.schema };
+		if (defId) seen.defId = defId;
+		const schema = seen.schema;
+		for (const key in schema) delete schema[key];
+		schema.$ref = ref;
+	};
+	if (ctx.cycles === "throw") for (const entry of ctx.seen.entries()) {
+		const seen = entry[1];
+		if (seen.cycle) throw new Error(`Cycle detected: #/${seen.cycle?.join("/")}/<root>
+
+Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.`);
+	}
+	for (const entry of ctx.seen.entries()) {
+		const seen = entry[1];
+		if (schema === entry[0]) {
+			extractToDef(entry);
+			continue;
+		}
+		if (ctx.external) {
+			const ext = ctx.external.registry.get(entry[0])?.id;
+			if (schema !== entry[0] && ext) {
+				extractToDef(entry);
+				continue;
+			}
+		}
+		if (ctx.metadataRegistry.get(entry[0])?.id) {
+			extractToDef(entry);
+			continue;
+		}
+		if (seen.cycle) {
+			extractToDef(entry);
+			continue;
+		}
+		if (seen.count > 1) {
+			if (ctx.reused === "ref") extractToDef(entry);
+		}
+	}
+	if (ctx.external) ctx.sharedDefsExtractedFor = ctx.external;
+}
+/** Rewrites `anyOf: [{type: "a"}, {type: "b"}]` to `type: ["a", "b"]`, which every JSON Schema draft treats as equivalent and most consumers render far better for the nullable case. Only branches that are a bare type assertion qualify — anything carrying a constraint, `$ref`, `const` or metadata is left alone. Runs after `flattenRef`, so a branch an override decorated or `$defs` extraction turned into a `$ref` is no longer bare and correctly stays in `anyOf`. `oneOf` is excluded: `integer` and `number` overlap, so "exactly one" and "at least one" are not the same there. OpenAPI 3.0 is excluded: its `type` must be a single string. */
+function compactTypeUnion(schema) {
+	const options = schema.anyOf;
+	if (!Array.isArray(options) || options.length === 0 || schema.type !== void 0) return;
+	const types = [];
+	for (const option of options) {
+		if (!option || typeof option !== "object") return;
+		compactTypeUnion(option);
+		const keys = Object.keys(option);
+		if (keys.length !== 1 || keys[0] !== "type") return;
+		const type = option.type;
+		for (const member of Array.isArray(type) ? type : [type]) {
+			if (typeof member !== "string") return;
+			if (!types.includes(member)) types.push(member);
+		}
+	}
+	delete schema.anyOf;
+	schema.type = types.length === 1 ? types[0] : types;
+}
+/** Keywords `foldIntersection` knows how to combine. Anything else — `$ref`, `patternProperties`,
+* an annotation like `description` — makes a member unfoldable, so a constraint this does not
+* understand leaves the `allOf` alone instead of being silently dropped or misattributed. */
+const FOLDABLE_KEYS = /* @__PURE__ */ new Set([
+	"type",
+	"properties",
+	"required",
+	"additionalProperties"
+]);
+const UNION_KEYS = ["oneOf", "anyOf"];
+/** A member's constraint on a key it does not declare itself. A `catchall` states one; `false`, an absent `additionalProperties`, and the empty schema a loose object emits state nothing. */
+function undeclaredConstraint(member) {
+	const extra = member.additionalProperties;
+	if (extra === void 0 || extra === false || typeof extra !== "object" || extra === null) return null;
+	return Object.keys(extra).length ? extra : null;
+}
+/** Combines object members into the single object they describe together, or returns `null` if any of them carries a keyword outside {@link FOLDABLE_KEYS}. */
+function foldObjects(members) {
+	const objects = [];
+	for (const member of members) {
+		if (typeof member !== "object" || member.type !== "object") return null;
+		for (const key in member) if (!FOLDABLE_KEYS.has(key)) return null;
+		objects.push(member);
+	}
+	const properties = {};
+	const required = /* @__PURE__ */ new Set();
+	for (const object of objects) {
+		for (const key in object.properties) {
+			if (Object.prototype.hasOwnProperty.call(properties, key)) continue;
+			const parts = [];
+			for (const other of objects) {
+				const part = other.properties?.[key] ?? undeclaredConstraint(other);
+				if (part === null || part === void 0) continue;
+				if (!parts.some((seen) => JSON.stringify(seen) === JSON.stringify(part))) parts.push(part);
+			}
+			assignProp(properties, key, parts.length === 1 ? parts[0] : foldObjects(parts) ?? { allOf: parts });
+		}
+		for (const key of object.required ?? []) required.add(key);
+	}
+	const folded = {
+		type: "object",
+		properties
+	};
+	if (required.size) folded.required = [...required];
+	if (objects.every((object) => object.additionalProperties === false)) folded.additionalProperties = false;
+	else {
+		const constraints = [];
+		for (const object of objects) {
+			const constraint = undeclaredConstraint(object);
+			if (constraint && !constraints.some((seen) => JSON.stringify(seen) === JSON.stringify(constraint))) constraints.push(constraint);
+		}
+		if (constraints.length === 1) folded.additionalProperties = constraints[0];
+		else if (constraints.length > 1) folded.additionalProperties = { allOf: constraints };
+	}
+	return folded;
+}
+/** `additionalProperties` in an `allOf` member sees only that member's own `properties`, so two
+* closed object members reject each other's keys and the schema validates nothing. Zod's parser
+* pools the key sets instead — `handleIntersectionResults` reports a key as unrecognized only when
+* *every* side rejects it — so the emitted schema has to pool them too, and folding the members
+* into one object is the encoding that says so on every target.
+*
+* This runs from `finalize`, after `extractDefs`, which is what keeps it clear of the `$ref`
+* machinery: a member extracted into `$defs` is already a `$ref` by now and declines to fold, so it
+* keeps its reference and its own closedness rather than being inlined as a stale copy. */
+function foldIntersection(json) {
+	const allOf = json.allOf;
+	if (!Array.isArray(allOf) || allOf.length < 2) return;
+	for (const key of FOLDABLE_KEYS) if (key in json) return;
+	const unions = allOf.filter((m) => UNION_KEYS.some((k) => Array.isArray(m[k])));
+	let folded = null;
+	if (!unions.length) folded = foldObjects(allOf);
+	else {
+		const union = unions[0];
+		const keyword = UNION_KEYS.find((k) => Array.isArray(union[k]));
+		if (Object.keys(union).length !== 1) return;
+		const rest = allOf.filter((m) => m !== union);
+		const branches = union[keyword].map((branch) => foldObjects([...rest, branch]));
+		if (branches.some((b) => !b)) return;
+		folded = { [keyword]: branches };
+	}
+	if (!folded) return;
+	delete json.allOf;
+	assignProps(json, folded);
+}
+function finalize(ctx, schema) {
+	const root = ctx.seen.get(schema);
+	if (!root) throw new Error("Unprocessed schema. This is a bug in Zod.");
+	const flattenRef = (zodSchema) => {
+		const seen = ctx.seen.get(zodSchema);
+		if (seen.ref === null) return;
+		const schema = seen.def ?? seen.schema;
+		const _cached = { ...schema };
+		const ref = seen.ref;
+		seen.ref = null;
+		if (ref) {
+			flattenRef(ref);
+			const refSeen = ctx.seen.get(ref);
+			const refSchema = refSeen.schema;
+			if (refSchema.$ref && (ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0")) {
+				schema.allOf = schema.allOf ?? [];
+				schema.allOf.push(refSchema);
+			} else assignProps(schema, refSchema);
+			assignProps(schema, _cached);
+			if (zodSchema._zod.parent === ref) for (const key in schema) {
+				if (key === "$ref" || key === "allOf") continue;
+				if (!(key in _cached)) delete schema[key];
+			}
+			if (refSchema.$ref && refSeen.def) for (const key in schema) {
+				if (key === "$ref" || key === "allOf") continue;
+				if (key in refSeen.def && JSON.stringify(schema[key]) === JSON.stringify(refSeen.def[key])) delete schema[key];
+			}
+		}
+		const parent = zodSchema._zod.parent;
+		if (parent && parent !== ref) {
+			flattenRef(parent);
+			const parentSeen = ctx.seen.get(parent);
+			if (parentSeen?.schema.$ref) {
+				schema.$ref = parentSeen.schema.$ref;
+				if (parentSeen.def) for (const key in schema) {
+					if (key === "$ref" || key === "allOf") continue;
+					if (key in parentSeen.def && JSON.stringify(schema[key]) === JSON.stringify(parentSeen.def[key])) delete schema[key];
+				}
+			}
+		}
+		ctx.override({
+			zodSchema,
+			jsonSchema: schema,
+			path: seen.path ?? []
+		});
+	};
+	if (!ctx.external || ctx.sharedEmitDoneFor !== ctx.external) {
+		for (const entry of [...ctx.seen.entries()].reverse()) flattenRef(entry[0]);
+		if (ctx.target !== "openapi-3.0") for (const entry of ctx.seen.entries()) compactTypeUnion(entry[1].def ?? entry[1].schema);
+		for (const rewrite of ctx.deferred) rewrite();
+		if (ctx.intersections.length) {
+			const carriers = /* @__PURE__ */ new Map();
+			for (const seen of ctx.seen.values()) for (const json of [seen.schema, seen.def]) {
+				const allOf = json?.allOf;
+				if (!Array.isArray(allOf)) continue;
+				const existing = carriers.get(allOf);
+				if (existing) existing.push(json);
+				else carriers.set(allOf, [json]);
+			}
+			for (const allOf of ctx.intersections) for (const json of carriers.get(allOf) ?? []) foldIntersection(json);
+		}
+	}
+	const result = {};
+	if (ctx.target === "draft-2020-12") result.$schema = "https://json-schema.org/draft/2020-12/schema";
+	else if (ctx.target === "draft-07") result.$schema = "http://json-schema.org/draft-07/schema#";
+	else if (ctx.target === "draft-04") result.$schema = "http://json-schema.org/draft-04/schema#";
+	else if (ctx.target === "openapi-3.0") {}
+	if (ctx.external?.uri) {
+		const id = ctx.external.registry.get(schema)?.id;
+		if (!id) throw new Error("Schema is missing an `id` property");
+		result.$id = ctx.external.uri(id);
+	}
+	assignProps(result, root.defId ? root.schema : root.def ?? root.schema);
+	const rootMetaId = ctx.metadataRegistry.get(schema)?.id;
+	if (rootMetaId !== void 0 && result.id === rootMetaId) delete result.id;
+	const defs = ctx.external?.defs ?? {};
+	if (!ctx.external || ctx.sharedEmitDoneFor !== ctx.external) for (const entry of ctx.seen.entries()) {
+		const seen = entry[1];
+		if (seen.def && seen.defId) {
+			if (seen.def.id === seen.defId) delete seen.def.id;
+			assignProp(defs, seen.defId, seen.def);
+		}
+	}
+	if (ctx.external) ctx.sharedEmitDoneFor = ctx.external;
+	if (ctx.external) {} else if (Object.keys(defs).length > 0) {
+		if (ctx.target === "draft-2020-12") result.$defs = defs;
+		else result.definitions = defs;
+	}
+	try {
+		const finalized = JSON.parse(JSON.stringify(result));
+		Object.defineProperty(finalized, "~standard", {
+			value: {
+				...schema["~standard"],
+				jsonSchema: {
+					input: createStandardJSONSchemaMethod(schema, "input", ctx.processors),
+					output: createStandardJSONSchemaMethod(schema, "output", ctx.processors)
+				}
+			},
+			enumerable: false,
+			writable: false
+		});
+		return finalized;
+	} catch (_err) {
+		throw new Error("Error converting schema to JSON.");
+	}
+}
+function isTransforming(_schema, _ctx) {
+	const ctx = _ctx ?? { seen: /* @__PURE__ */ new Set() };
+	if (ctx.seen.has(_schema)) return false;
+	ctx.seen.add(_schema);
+	const def = _schema._zod.def;
+	if (def.type === "transform") return true;
+	if (def.type === "array") return isTransforming(def.element, ctx);
+	if (def.type === "set") return isTransforming(def.valueType, ctx);
+	if (def.type === "lazy") return isTransforming(def.getter(), ctx);
+	if (def.type === "promise" || def.type === "optional" || def.type === "nonoptional" || def.type === "nullable" || def.type === "readonly" || def.type === "default" || def.type === "prefault" || def.type === "catch") return isTransforming(def.innerType, ctx);
+	if (def.type === "intersection") return isTransforming(def.left, ctx) || isTransforming(def.right, ctx);
+	if (def.type === "record" || def.type === "map") return isTransforming(def.keyType, ctx) || isTransforming(def.valueType, ctx);
+	if (def.type === "pipe") {
+		if (_schema._zod.traits.has("$ZodCodec")) return true;
+		return isTransforming(def.in, ctx) || isTransforming(def.out, ctx);
+	}
+	if (def.type === "object") {
+		for (const key in def.shape) if (isTransforming(def.shape[key], ctx)) return true;
+		return false;
+	}
+	if (def.type === "union") {
+		for (const option of def.options) if (isTransforming(option, ctx)) return true;
+		return false;
+	}
+	if (def.type === "tuple") {
+		for (const item of def.items) if (isTransforming(item, ctx)) return true;
+		if (def.rest && isTransforming(def.rest, ctx)) return true;
+		return false;
+	}
+	return false;
+}
+/**
+* Creates a toJSONSchema method for a schema instance.
+* This encapsulates the logic of initializing context, processing, extracting defs, and finalizing.
+*/
+const createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
+	const ctx = initializeContext({
+		...params,
+		processors
+	});
+	processSchema(schema, ctx);
+	extractDefs(ctx, schema);
+	return finalize(ctx, schema);
+};
+const createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) => {
+	const { libraryOptions, target } = params ?? {};
+	const ctx = initializeContext({
+		...libraryOptions ?? {},
+		target,
+		io,
+		processors
+	});
+	processSchema(schema, ctx);
+	extractDefs(ctx, schema);
+	return finalize(ctx, schema);
+};
+const narrowMin = (agg, key, value) => {
+	if (agg[key] === void 0 || value > agg[key]) agg[key] = value;
+};
+const narrowMax = (agg, key, value) => {
+	if (agg[key] === void 0 || value < agg[key]) agg[key] = value;
+};
+const narrowBoth = (agg, value) => {
+	narrowMin(agg, "minimum", value);
+	narrowMax(agg, "maximum", value);
+};
+const addDivisor = (agg, value) => {
+	agg.multipleOf ?? (agg.multipleOf = []);
+	if (!agg.multipleOf.includes(value)) agg.multipleOf.push(value);
+};
+const addPattern$1 = (agg, pattern) => {
+	agg.patterns ?? (agg.patterns = /* @__PURE__ */ new Set());
+	agg.patterns.add(pattern);
+};
+const intersectMime = (agg, mime) => {
+	agg.mime = agg.mime ? agg.mime.filter((m) => mime.includes(m)) : [...mime];
+};
+const setFormat = (agg, format) => {
+	agg.format = format;
+	if (format.includes("int")) agg.isInt = true;
+};
+const minContributor = (agg, def) => narrowMin(agg, "minimum", def.minimum);
+const maxContributor = (agg, def) => narrowMax(agg, "maximum", def.maximum);
+const formatContributor = (ranges) => (agg, def) => {
+	setFormat(agg, def.format);
+	const [minimum, maximum] = ranges[def.format];
+	narrowMin(agg, "minimum", minimum);
+	narrowMax(agg, "maximum", maximum);
+};
+const contributors = {
+	greater_than: (agg, def) => narrowMin(agg, def.inclusive ? "minimum" : "exclusiveMinimum", def.value),
+	less_than: (agg, def) => narrowMax(agg, def.inclusive ? "maximum" : "exclusiveMaximum", def.value),
+	multiple_of: (agg, def) => addDivisor(agg, def.value),
+	number_format: formatContributor(NUMBER_FORMAT_RANGES),
+	bigint_format: formatContributor(BIGINT_FORMAT_RANGES),
+	min_length: minContributor,
+	max_length: maxContributor,
+	length_equals: (agg, def) => narrowBoth(agg, def.length),
+	min_size: minContributor,
+	max_size: maxContributor,
+	size_equals: (agg, def) => narrowBoth(agg, def.size),
+	string_format: (agg, def) => {
+		setFormat(agg, def.format);
+		if (def.pattern) addPattern$1(agg, def.pattern);
+		if (def.format === "base64" || def.format === "base64url") agg.contentEncoding = def.format;
+		if (def.local || def.precision === -1) agg.laxFormat = true;
+	},
+	mime_type: (agg, def) => intersectMime(agg, def.mime)
+};
+function aggregateChecks(schema) {
+	const agg = {};
+	const def = schema._zod.def;
+	const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+	for (const ch of list) contributors[ch._zod.def.check]?.(agg, ch._zod.def);
+	const bag = schema._zod.bag;
+	if (bag.minimum !== void 0) narrowMin(agg, "minimum", bag.minimum);
+	if (bag.exclusiveMinimum !== void 0) narrowMin(agg, "exclusiveMinimum", bag.exclusiveMinimum);
+	if (bag.maximum !== void 0) narrowMax(agg, "maximum", bag.maximum);
+	if (bag.exclusiveMaximum !== void 0) narrowMax(agg, "exclusiveMaximum", bag.exclusiveMaximum);
+	if (bag.multipleOf !== void 0) addDivisor(agg, bag.multipleOf);
+	if (bag.format !== void 0) {
+		agg.format ?? (agg.format = bag.format);
+		if (bag.format.includes("int")) agg.isInt = true;
+	}
+	if (bag.mime) intersectMime(agg, bag.mime);
+	for (const pattern of bag.patterns ?? []) addPattern$1(agg, pattern);
+	return agg;
+}
+const formatMap = {
+	guid: "uuid",
+	url: "uri",
+	datetime: "date-time",
+	json_string: "json-string",
+	regex: ""
+};
+const exactPatterns = /* @__PURE__ */ new Map([[base64Charset, base64], [base64urlCharset, base64url]]);
+const exactPattern = (p) => exactPatterns.get(p) ?? p;
+const stringProcessor = (schema, ctx, _json, _params) => {
+	const json = _json;
+	json.type = "string";
+	const { minimum, maximum, format, patterns, contentEncoding, laxFormat } = aggregateChecks(schema);
+	if (typeof minimum === "number") json.minLength = minimum;
+	if (typeof maximum === "number") json.maxLength = maximum;
+	if (format) {
+		json.format = formatMap[format] ?? format;
+		if (json.format === "") delete json.format;
+		if (format === "time" || laxFormat) delete json.format;
+	}
+	if (contentEncoding) json.contentEncoding = contentEncoding;
+	if (patterns && patterns.size > 0) {
+		const patternList = [...patterns].map(exactPattern);
+		if (patternList.length === 1) json.pattern = patternList[0].source;
+		else if (patternList.length > 1) json.allOf = [...patternList.map((regex) => ({
+			...ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0" ? { type: "string" } : {},
+			pattern: regex.source
+		}))];
+	}
+};
+const numberProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const { minimum, maximum, multipleOf, exclusiveMaximum, exclusiveMinimum, isInt } = aggregateChecks(schema);
+	json.type = isInt ? "integer" : "number";
+	const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
+	const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
+	const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
+	if (exMin) {
+		if (legacy) {
+			json.minimum = exclusiveMinimum;
+			json.exclusiveMinimum = true;
+		} else json.exclusiveMinimum = exclusiveMinimum;
+	} else if (typeof minimum === "number") json.minimum = minimum;
+	if (exMax) {
+		if (legacy) {
+			json.maximum = exclusiveMaximum;
+			json.exclusiveMaximum = true;
+		} else json.exclusiveMaximum = exclusiveMaximum;
+	} else if (typeof maximum === "number") json.maximum = maximum;
+	if (multipleOf) {
+		const divisors = /* @__PURE__ */ new Set();
+		for (const divisor of multipleOf) if (Number.isFinite(divisor) && divisor !== 0) divisors.add(Math.abs(divisor));
+		else handleUnrepresentable(schema, ctx, json, params, `A multipleOf divisor of ${divisor} cannot be represented in JSON Schema`);
+		const [first, ...rest] = divisors;
+		if (first !== void 0) json.multipleOf = first;
+		if (rest.length) json.allOf = [...json.allOf ?? [], ...rest.map((m) => ({ multipleOf: m }))];
+	}
+};
+const booleanProcessor = (_schema, _ctx, json, _params) => {
+	json.type = "boolean";
+};
+const bigintProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "BigInt cannot be represented in JSON Schema");
+};
+const symbolProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Symbols cannot be represented in JSON Schema");
+};
+const nullProcessor = (_schema, ctx, json, _params) => {
+	if (ctx.target === "openapi-3.0") {
+		json.type = "string";
+		json.nullable = true;
+		json.enum = [null];
+	} else json.type = "null";
+};
+const undefinedProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Undefined cannot be represented in JSON Schema");
+};
+const voidProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Void cannot be represented in JSON Schema");
+};
+const neverProcessor = (_schema, _ctx, json, _params) => {
+	json.not = {};
+};
+const anyProcessor = (_schema, _ctx, _json, _params) => {};
+const unknownProcessor = (_schema, _ctx, _json, _params) => {};
+const dateProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Date cannot be represented in JSON Schema");
+};
+const enumProcessor = (schema, _ctx, json, _params) => {
+	const def = schema._zod.def;
+	const values = getEnumValues(def.entries);
+	if (values.length === 0) {
+		json.not = {};
+		return;
+	}
+	if (values.every((v) => typeof v === "number")) json.type = "number";
+	if (values.every((v) => typeof v === "string")) json.type = "string";
+	json.enum = values;
+};
+const literalProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	if (def.values.length === 0) {
+		json.not = {};
+		return;
+	}
+	const vals = [];
+	for (const val of def.values) if (val === void 0) {
+		if (handleUnrepresentable(schema, ctx, json, params, "Literal `undefined` cannot be represented in JSON Schema")) return;
+	} else if (typeof val === "bigint") {
+		if (handleUnrepresentable(schema, ctx, json, params, "BigInt literals cannot be represented in JSON Schema")) return;
+		vals.push(Number(val));
+	} else vals.push(val);
+	if (vals.length === 0) {} else if (vals.length === 1) {
+		const val = vals[0];
+		json.type = val === null ? "null" : typeof val;
+		if (ctx.target === "draft-04" || ctx.target === "openapi-3.0") json.enum = [val];
+		else json.const = val;
+	} else {
+		if (vals.every((v) => typeof v === "number")) json.type = "number";
+		if (vals.every((v) => typeof v === "string")) json.type = "string";
+		if (vals.every((v) => typeof v === "boolean")) json.type = "boolean";
+		if (vals.every((v) => v === null)) json.type = "null";
+		json.enum = vals;
+	}
+};
+const nanProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "NaN cannot be represented in JSON Schema");
+};
+const templateLiteralProcessor = (schema, _ctx, json, _params) => {
+	const _json = json;
+	const pattern = schema._zod.pattern;
+	if (!pattern) throw new Error("Pattern not found in template literal");
+	_json.type = "string";
+	_json.pattern = pattern.source;
+};
+const fileProcessor = (schema, _ctx, json, _params) => {
+	const _json = json;
+	_json.type = "string";
+	_json.format = "binary";
+	_json.contentEncoding = "binary";
+	const { minimum, maximum, mime } = aggregateChecks(schema);
+	if (minimum !== void 0) _json.minLength = minimum;
+	if (maximum !== void 0) _json.maxLength = maximum;
+	if (!mime) return;
+	if (mime.length === 0) _json.not = {};
+	else if (mime.length === 1) _json.contentMediaType = mime[0];
+	else _json.anyOf = mime.map((m) => ({ contentMediaType: m }));
+};
+const successProcessor = (_schema, _ctx, json, _params) => {
+	json.type = "boolean";
+};
+const customProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Custom types cannot be represented in JSON Schema");
+};
+const functionProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Function types cannot be represented in JSON Schema");
+};
+const transformProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Transforms cannot be represented in JSON Schema");
+};
+const mapProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Map cannot be represented in JSON Schema");
+};
+const setProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Set cannot be represented in JSON Schema");
+};
+const arrayProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const def = schema._zod.def;
+	const { minimum, maximum } = aggregateChecks(schema);
+	if (typeof minimum === "number") json.minItems = minimum;
+	if (typeof maximum === "number") json.maxItems = maximum;
+	json.type = "array";
+	json.items = processSchema(def.element, ctx, {
+		...params,
+		path: [...params.path, "items"]
+	});
+};
+function inputOptin(schema) {
+	const def = schema._zod.def;
+	if (def.type === "pipe" && def.in._zod.traits.has("$ZodTransform")) return inputOptin(def.out);
+	if (def.type === "catch") return inputOptin(def.innerType);
+	return schema._zod.optin;
+}
+const objectProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const def = schema._zod.def;
+	const shape = def.shape;
+	if (Object.getOwnPropertySymbols(shape).length && handleUnrepresentable(schema, ctx, json, params, "Symbol keys cannot be represented in JSON Schema")) return;
+	json.type = "object";
+	json.properties = {};
+	for (const key in shape) assignProp(json.properties, key, processSchema(shape[key], ctx, {
+		...params,
+		path: [
+			...params.path,
+			"properties",
+			key
+		]
+	}));
+	const requiredKeys = [];
+	for (const key of Object.keys(shape)) {
+		const field = def.shape[key];
+		if (ctx.io === "input" ? inputOptin(field) === void 0 : field._zod.optout === void 0) requiredKeys.push(key);
+	}
+	if (requiredKeys.length > 0) json.required = requiredKeys;
+	if (def.catchall?._zod.def.type === "never") json.additionalProperties = false;
+	else if (!def.catchall) {
+		if (ctx.io === "output") json.additionalProperties = false;
+	} else if (def.catchall) json.additionalProperties = processSchema(def.catchall, ctx, {
+		...params,
+		path: [...params.path, "additionalProperties"]
+	});
+};
+const unionProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	const isExclusive = def.inclusive === false;
+	const options = def.options.map((x, i) => processSchema(x, ctx, {
+		...params,
+		path: [
+			...params.path,
+			isExclusive ? "oneOf" : "anyOf",
+			i
+		]
+	}));
+	if (isExclusive) json.oneOf = options;
+	else json.anyOf = options;
+};
+const intersectionProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	const a = processSchema(def.left, ctx, {
+		...params,
+		path: [
+			...params.path,
+			"allOf",
+			0
+		]
+	});
+	const b = processSchema(def.right, ctx, {
+		...params,
+		path: [
+			...params.path,
+			"allOf",
+			1
+		]
+	});
+	const isSimpleIntersection = (val) => "allOf" in val && Object.keys(val).length === 1;
+	const allOf = [...isSimpleIntersection(a) ? a.allOf : [a], ...isSimpleIntersection(b) ? b.allOf : [b]];
+	json.allOf = allOf;
+	ctx.intersections.push(allOf);
+};
+const tupleProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const def = schema._zod.def;
+	json.type = "array";
+	const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
+	const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
+	const prefixItems = def.items.map((x, i) => processSchema(x, ctx, {
+		...params,
+		path: [
+			...params.path,
+			prefixPath,
+			i
+		]
+	}));
+	const rest = def.rest ? processSchema(def.rest, ctx, {
+		...params,
+		path: [
+			...params.path,
+			restPath,
+			...ctx.target === "openapi-3.0" ? [def.items.length] : []
+		]
+	}) : null;
+	let minItems = def.items.length;
+	while (minItems > 0) {
+		const item = def.items[minItems - 1];
+		if (!(ctx.io === "input" ? inputOptin(item) !== void 0 : item._zod.optout === "optional")) break;
+		minItems--;
+	}
+	const maxItems = def.items.length;
+	const isClosed = !def.rest;
+	if (ctx.target === "draft-2020-12") {
+		json.prefixItems = prefixItems;
+		if (isClosed) json.items = false;
+		else if (rest) json.items = rest;
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	} else if (ctx.target === "openapi-3.0") {
+		json.items = { anyOf: prefixItems };
+		if (rest) json.items.anyOf.push(rest);
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	} else {
+		json.items = prefixItems;
+		if (isClosed) json.additionalItems = false;
+		else if (rest) json.additionalItems = rest;
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	}
+	const { minimum, maximum } = aggregateChecks(schema);
+	if (typeof minimum === "number") json.minItems = minimum;
+	if (typeof maximum === "number") json.maxItems = maximum;
+};
+/** JSON object keys are always strings, so a numeric record key schema is re-expressed over the
+* numeric-string form the record parser matches. Deferred to `finalize`, after the flatten: a key
+* behind a wrapper only carries its own `type` before then, and a union key only has its branches.
+*
+* A numeric bound cannot apply to a property name, so `minimum` and its siblings are dropped rather
+* than carried over: keeping them beside `type: "string"` reproduces the match-nothing schema this
+* exists to fix. A key that carries one therefore emits wider than the record parses — `z.record(z.number().min(5), V)`
+* accepts `"3"` — which is the deliberate trade, since throwing on it would reject an ordinary schema
+* outright. */
+function stringifyKeyNames(bySchema, json, visited) {
+	if (json.$ref) {
+		if (visited.has(json)) return json;
+		visited.add(json);
+		const def = bySchema.get(json)?.def;
+		if (!def) return json;
+		const inlined = stringifyKeyNames(bySchema, def, visited);
+		return inlined === def ? json : inlined;
+	}
+	for (const keyword of ["anyOf", "oneOf"]) {
+		const branches = json[keyword];
+		if (!Array.isArray(branches)) continue;
+		const mapped = branches.map((branch) => stringifyKeyNames(bySchema, branch, visited));
+		if (mapped.some((branch, i) => branch !== branches[i])) json = {
+			...json,
+			[keyword]: mapped
+		};
+	}
+	const types = Array.isArray(json.type) ? json.type : [json.type];
+	const numericType = !types.includes("string") && types.some((t) => t === "number" || t === "integer");
+	const values = json.enum ?? (json.const !== void 0 ? [json.const] : void 0);
+	if (!numericType && !values?.some((v) => typeof v === "number")) return json;
+	const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format, id, ...rest } = json;
+	if (rest.enum) rest.enum = rest.enum.map((v) => typeof v === "number" ? String(v) : v);
+	else if (typeof rest.const === "number") rest.const = String(rest.const);
+	if (!numericType) return rest;
+	rest.type = "string";
+	if (!values) rest.pattern = (types.includes("number") ? number$1 : integer).source;
+	return rest;
+}
+/** Every record of one conversion, so the carriers are found in a single pass rather than once per record. */
+const pendingRecords = /* @__PURE__ */ new WeakMap();
+function rewriteKeyNames(ctx) {
+	const bySchema = /* @__PURE__ */ new Map();
+	for (const entry of ctx.seen.values()) if (entry.def && !bySchema.has(entry.schema)) bySchema.set(entry.schema, entry);
+	const rewrites = /* @__PURE__ */ new Map();
+	for (const record of pendingRecords.get(ctx) ?? []) {
+		const seen = ctx.seen.get(record);
+		const names = (seen?.def ?? seen?.schema)?.propertyNames;
+		if (!names || names === true || rewrites.has(names)) continue;
+		const rewritten = stringifyKeyNames(bySchema, names, /* @__PURE__ */ new Set());
+		if (rewritten !== names) rewrites.set(names, rewritten);
+	}
+	if (!rewrites.size) return;
+	for (const entry of ctx.seen.values()) for (const carrier of [entry.schema, entry.def]) {
+		const rewritten = carrier && rewrites.get(carrier.propertyNames);
+		if (rewritten) carrier.propertyNames = rewritten;
+	}
+}
+const recordProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const def = schema._zod.def;
+	json.type = "object";
+	const keyType = def.keyType;
+	const patterns = aggregateChecks(keyType).patterns;
+	if (def.mode === "loose" && patterns && patterns.size > 0) {
+		const valueSchema = processSchema(def.valueType, ctx, {
+			...params,
+			path: [
+				...params.path,
+				"patternProperties",
+				"*"
+			]
+		});
+		json.patternProperties = {};
+		for (const pattern of patterns) assignProp(json.patternProperties, exactPattern(pattern).source, valueSchema);
+	} else {
+		if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
+			json.propertyNames = processSchema(def.keyType, ctx, {
+				...params,
+				path: [...params.path, "propertyNames"]
+			});
+			let pending = pendingRecords.get(ctx);
+			if (!pending) {
+				pending = [];
+				pendingRecords.set(ctx, pending);
+				ctx.deferred.push(() => rewriteKeyNames(ctx));
+			}
+			pending.push(schema);
+		}
+		json.additionalProperties = processSchema(def.valueType, ctx, {
+			...params,
+			path: [...params.path, "additionalProperties"]
+		});
+	}
+	const keyValues = keyType._zod.values;
+	const omittableOnInput = ctx.io === "input" && inputOptin(def.valueType) !== void 0;
+	if (keyValues && !def.partial && !omittableOnInput) {
+		const validKeyValues = [...keyValues].filter((v) => typeof v === "string" || typeof v === "number");
+		if (validKeyValues.length > 0) json.required = validKeyValues.map(String);
+	}
+};
+const nullableProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	const inner = processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	if (ctx.target === "openapi-3.0") {
+		seen.ref = def.innerType;
+		json.nullable = true;
+	} else json.anyOf = [inner, { type: "null" }];
+};
+const nonoptionalProcessor = (schema, ctx, _json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+};
+/** Round-trips a default value through JSON so the emitted schema is guaranteed to be valid JSON.
+* A BigInt has no reliable encoding, so it goes through `unrepresentable` like any other
+* unrepresentable value. Returns a sentinel when the caller must not write a default of its own. */
+const UNREPRESENTABLE_DEFAULT = Symbol();
+function serializeDefaultValue(value, schema, ctx, json, params) {
+	let unrepresentable = false;
+	const serialized = JSON.stringify(value, (_, val) => {
+		if (typeof val !== "bigint") return val;
+		unrepresentable = true;
+		return null;
+	});
+	if (!unrepresentable) return JSON.parse(serialized);
+	handleUnrepresentable(schema, ctx, json, params, "BigInt defaults cannot be represented in JSON Schema");
+	return UNREPRESENTABLE_DEFAULT;
+}
+const defaultProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+	const value = serializeDefaultValue(def.defaultValue, schema, ctx, json, params);
+	if (value !== UNREPRESENTABLE_DEFAULT) json.default = value;
+};
+const prefaultProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+	if (ctx.io !== "input") return;
+	const value = serializeDefaultValue(def.defaultValue, schema, ctx, json, params);
+	if (value !== UNREPRESENTABLE_DEFAULT) json._prefault = value;
+};
+const catchProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+	let catchValue;
+	try {
+		catchValue = def.catchValue(void 0);
+	} catch {
+		handleUnrepresentable(schema, ctx, json, params, "Dynamic catch values are not supported in JSON Schema");
+		return;
+	}
+	json.default = catchValue;
+};
+const pipeProcessor = (schema, ctx, _json, params) => {
+	const def = schema._zod.def;
+	const inIsTransform = def.in._zod.traits.has("$ZodTransform");
+	const innerType = ctx.io === "input" ? inIsTransform ? def.out : def.in : def.out;
+	processSchema(innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = innerType;
+};
+const readonlyProcessor = (schema, ctx, json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+	json.readOnly = true;
+};
+const promiseProcessor = (schema, ctx, _json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+};
+const optionalProcessor = (schema, ctx, _json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+};
+const lazyProcessor = (schema, ctx, _json, params) => {
+	const innerType = schema._zod.innerType;
+	processSchema(innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = innerType;
+};
+const allProcessors = {
+	string: stringProcessor,
+	number: numberProcessor,
+	boolean: booleanProcessor,
+	bigint: bigintProcessor,
+	symbol: symbolProcessor,
+	null: nullProcessor,
+	undefined: undefinedProcessor,
+	void: voidProcessor,
+	never: neverProcessor,
+	any: anyProcessor,
+	unknown: unknownProcessor,
+	date: dateProcessor,
+	enum: enumProcessor,
+	literal: literalProcessor,
+	nan: nanProcessor,
+	template_literal: templateLiteralProcessor,
+	file: fileProcessor,
+	success: successProcessor,
+	custom: customProcessor,
+	function: functionProcessor,
+	transform: transformProcessor,
+	map: mapProcessor,
+	set: setProcessor,
+	array: arrayProcessor,
+	object: objectProcessor,
+	union: unionProcessor,
+	intersection: intersectionProcessor,
+	tuple: tupleProcessor,
+	record: recordProcessor,
+	nullable: nullableProcessor,
+	nonoptional: nonoptionalProcessor,
+	default: defaultProcessor,
+	prefault: prefaultProcessor,
+	catch: catchProcessor,
+	pipe: pipeProcessor,
+	readonly: readonlyProcessor,
+	promise: promiseProcessor,
+	optional: optionalProcessor,
+	lazy: lazyProcessor
+};
+function toJSONSchema(input, params) {
+	if ("_idmap" in input) {
+		const registry = input;
+		const ctx = initializeContext({
+			...params,
+			processors: allProcessors
+		});
+		const defs = {};
+		for (const entry of registry._idmap.entries()) {
+			const [_, schema] = entry;
+			processSchema(schema, ctx);
+		}
+		const schemas = {};
+		ctx.external = {
+			registry,
+			uri: params?.uri,
+			defs
+		};
+		for (const entry of registry._idmap.entries()) {
+			const [key, schema] = entry;
+			extractDefs(ctx, schema);
+			assignProp(schemas, key, finalize(ctx, schema));
+		}
+		if (Object.keys(defs).length > 0) schemas.__shared = { [ctx.target === "draft-2020-12" ? "$defs" : "definitions"]: defs };
+		return { schemas };
+	}
+	const ctx = initializeContext({
+		...params,
+		processors: allProcessors
+	});
+	processSchema(input, ctx);
+	extractDefs(ctx, input);
+	return finalize(ctx, input);
+}
+const _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
+function _lazyMethod(proto, key, make) {
+	Object.defineProperty(proto, key, {
+		configurable: true,
+		enumerable: false,
+		get() {
+			const value = make(this);
+			Object.defineProperty(this, key, {
+				value,
+				configurable: true,
+				writable: true
+			});
+			return value;
+		},
+		set(value) {
+			Object.defineProperty(this, key, {
+				value,
+				configurable: true,
+				writable: true
+			});
+		}
+	});
+}
+const initializer = (inst, issues) => {
+	$ZodError.init(inst, issues);
+	inst.name = "ZodError";
+	const proto = Object.getPrototypeOf(inst);
+	if (_installedErrorProtos.has(proto)) return;
+	_installedErrorProtos.add(proto);
+	_lazyMethod(proto, "format", (self) => (mapper) => formatError(self, mapper));
+	_lazyMethod(proto, "flatten", (self) => (mapper) => flattenError(self, mapper));
+	_lazyMethod(proto, "addIssue", (self) => (issue) => {
+		self.issues.push(issue);
+		self.message = JSON.stringify(self.issues, jsonStringifyReplacer, 2);
+	});
+	_lazyMethod(proto, "addIssues", (self) => (issues) => {
+		self.issues.push(...issues);
+		self.message = JSON.stringify(self.issues, jsonStringifyReplacer, 2);
+	});
+	Object.defineProperty(proto, "isEmpty", {
+		configurable: true,
+		enumerable: false,
+		get() {
+			return this.issues.length === 0;
+		}
+	});
+};
+const ZodRealError = /*@__PURE__*/ $constructor("ZodError", initializer, void 0, { Parent: Error });
+const parse = /* @__PURE__ */ _parse$1(ZodRealError);
+const parseAsync = /* @__PURE__ */ _parseAsync(ZodRealError);
+const safeParse = /* @__PURE__ */ _safeParse(ZodRealError);
+const safeParseAsync = /* @__PURE__ */ _safeParseAsync(ZodRealError);
+const encode = /* @__PURE__ */ _encode(ZodRealError);
+const decode = /* @__PURE__ */ _decode(ZodRealError);
+const encodeAsync = /* @__PURE__ */ _encodeAsync(ZodRealError);
+const decodeAsync = /* @__PURE__ */ _decodeAsync(ZodRealError);
+const safeEncode = /* @__PURE__ */ _safeEncode(ZodRealError);
+const safeDecode = /* @__PURE__ */ _safeDecode(ZodRealError);
+const safeEncodeAsync = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
+const safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
+function _ensureDefaultLocale() {
+	if (!globalConfig.localeError) config(en_default());
+}
+function _ensureDefaultMemoizer() {
+	if (!globalConfig.memoizer) config({ memoizer: memoizer() });
+}
+const ZodType = /*@__PURE__*/ $constructor("ZodType", (inst, def) => {
+	_ensureDefaultLocale();
+	$ZodType.init(inst, def);
+	inst.def = def;
+	inst.type = def.type;
+	return inst;
+}, {
+	check(...chks) {
+		const def = this.def;
+		return this.clone(mergeDefs(def, { checks: [...def.checks ?? [], ...chks.map((ch) => typeof ch === "function" ? { _zod: {
+			check: ch,
+			def: { check: "custom" },
+			onattach: []
+		} } : ch)] }), { parent: true });
+	},
+	with(...chks) {
+		return this.check(...chks);
+	},
+	clone(def, params) {
+		return clone(this, def, params);
+	},
+	brand() {
+		return this;
+	},
+	register(reg, meta) {
+		reg.add(this, meta);
+		return this;
+	},
+	refine(check, params) {
+		return this.check(refine(check, params));
+	},
+	superRefine(refinement, params) {
+		return this.check(superRefine(refinement, params));
+	},
+	overwrite(fn) {
+		return this.check(/* @__PURE__ */ _overwrite(fn));
+	},
+	optional() {
+		return optional(this);
+	},
+	exactOptional() {
+		return exactOptional(this);
+	},
+	nullable() {
+		return nullable(this);
+	},
+	nullish() {
+		return optional(nullable(this));
+	},
+	nonoptional(params) {
+		return nonoptional(this, params);
+	},
+	array() {
+		return array(this);
+	},
+	or(arg) {
+		return union([this, arg]);
+	},
+	and(arg) {
+		return intersection(this, arg);
+	},
+	transform(tx) {
+		return pipe(this, transform(tx));
+	},
+	default(d) {
+		return _default(this, d);
+	},
+	prefault(d) {
+		return prefault(this, d);
+	},
+	catch(params) {
+		return _catch(this, params);
+	},
+	pipe(target) {
+		return pipe(this, target);
+	},
+	readonly() {
+		return readonly(this);
+	},
+	describe(description) {
+		const cl = this.clone();
+		globalRegistry.add(cl, { description });
+		return cl;
+	},
+	meta(...args) {
+		if (args.length === 0) return globalRegistry.get(this);
+		const cl = this.clone();
+		globalRegistry.add(cl, args[0]);
+		return cl;
+	},
+	isOptional() {
+		return this.safeParse(void 0).success;
+	},
+	isNullable() {
+		return this.safeParse(null).success;
+	},
+	apply(fn, ...args) {
+		return args.length === 0 ? fn(this) : fn(this, ...args);
+	},
+	get "~standard"() {
+		return hide(this, "~standard", {
+			...standardProps(this),
+			jsonSchema: {
+				input: createStandardJSONSchemaMethod(this, "input"),
+				output: createStandardJSONSchemaMethod(this, "output")
+			}
+		});
+	},
+	set "~standard"(value) {
+		own(this, "~standard", value);
+	},
+	parse: function _parse(data, params) {
+		return parse(this, data, params, { callee: _parse });
+	},
+	parseAsync: async function _parseAsync(data, params) {
+		return await parseAsync(this, data, params, { callee: _parseAsync });
+	},
+	safeParse(data, params) {
+		return safeParse(this, data, params);
+	},
+	async safeParseAsync(data, params) {
+		return safeParseAsync(this, data, params);
+	},
+	get spa() {
+		return this?.safeParseAsync;
+	},
+	set spa(value) {
+		own(this, "spa", value);
+	},
+	validate(data, params) {
+		return validate(this, data, params);
+	},
+	validateAsync(data, params) {
+		return validateAsync$1(this, data, params);
+	},
+	encode: function _encode(data, params) {
+		return encode(this, data, params, { callee: _encode });
+	},
+	decode: function _decode(data, params) {
+		return decode(this, data, params, { callee: _decode });
+	},
+	encodeAsync: async function _encodeAsync(data, params) {
+		return await encodeAsync(this, data, params, { callee: _encodeAsync });
+	},
+	decodeAsync: async function _decodeAsync(data, params) {
+		return await decodeAsync(this, data, params, { callee: _decodeAsync });
+	},
+	safeEncode(data, params) {
+		return safeEncode(this, data, params);
+	},
+	safeDecode(data, params) {
+		return safeDecode(this, data, params);
+	},
+	async safeEncodeAsync(data, params) {
+		return safeEncodeAsync(this, data, params);
+	},
+	async safeDecodeAsync(data, params) {
+		return safeDecodeAsync(this, data, params);
+	},
+	toJSONSchema(params) {
+		return createToJSONSchemaMethod(this, {})(params);
+	},
+	get description() {
+		return globalRegistry.get(this)?.description;
+	},
+	get _def() {
+		return this._zod.def;
+	}
+});
+/** @internal */
+const _ZodString = /*@__PURE__*/ $constructor("_ZodString", (inst, def) => {
+	$ZodString.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => stringProcessor(inst, ctx, json, params);
+}, /*@__PURE__*/ derived({
+	format: (inst) => aggregateChecks(inst).format ?? null,
+	minLength: (inst) => aggregateChecks(inst).minimum ?? null,
+	maxLength: (inst) => aggregateChecks(inst).maximum ?? null
+}, {
+	regex(...args) {
+		return this.check(/* @__PURE__ */ _regex(...args));
+	},
+	includes(...args) {
+		return this.check(/* @__PURE__ */ _includes(...args));
+	},
+	startsWith(...args) {
+		return this.check(/* @__PURE__ */ _startsWith(...args));
+	},
+	endsWith(...args) {
+		return this.check(/* @__PURE__ */ _endsWith(...args));
+	},
+	min(...args) {
+		return this.check(/* @__PURE__ */ _minLength(...args));
+	},
+	max(...args) {
+		return this.check(/* @__PURE__ */ _maxLength(...args));
+	},
+	length(...args) {
+		return this.check(/* @__PURE__ */ _length(...args));
+	},
+	nonempty(...args) {
+		return this.check(/* @__PURE__ */ _minLength(1, ...args));
+	},
+	lowercase(params) {
+		return this.check(/* @__PURE__ */ _lowercase(params));
+	},
+	uppercase(params) {
+		return this.check(/* @__PURE__ */ _uppercase(params));
+	},
+	trim() {
+		return this.check(/* @__PURE__ */ _trim());
+	},
+	normalize(...args) {
+		return this.check(/* @__PURE__ */ _normalize(...args));
+	},
+	toLowerCase() {
+		return this.check(/* @__PURE__ */ _toLowerCase());
+	},
+	toUpperCase() {
+		return this.check(/* @__PURE__ */ _toUpperCase());
+	},
+	slugify() {
+		return this.check(/* @__PURE__ */ _slugify());
+	}
+}));
+const ZodString = /*@__PURE__*/ $constructor("ZodString", (inst, def) => {
+	$ZodString.init(inst, def);
+	_ZodString.init(inst, def);
+}, {
+	email(params) {
+		return this.check(/* @__PURE__ */ _email(ZodEmail, params));
+	},
+	url(params) {
+		return this.check(/* @__PURE__ */ _url(ZodURL, params));
+	},
+	jwt(params) {
+		return this.check(/* @__PURE__ */ _jwt(ZodJWT, params));
+	},
+	emoji(params) {
+		return this.check(/* @__PURE__ */ _emoji(ZodEmoji, params));
+	},
+	guid(params) {
+		return this.check(/* @__PURE__ */ _guid(ZodGUID, params));
+	},
+	uuid(params) {
+		return this.check(/* @__PURE__ */ _uuid(ZodUUID, params));
+	},
+	uuidv4(params) {
+		return this.check(/* @__PURE__ */ _uuidv4(ZodUUID, params));
+	},
+	uuidv6(params) {
+		return this.check(/* @__PURE__ */ _uuidv6(ZodUUID, params));
+	},
+	uuidv7(params) {
+		return this.check(/* @__PURE__ */ _uuidv7(ZodUUID, params));
+	},
+	nanoid(params) {
+		return this.check(/* @__PURE__ */ _nanoid(ZodNanoID, params));
+	},
+	cuid(params) {
+		return this.check(/* @__PURE__ */ _cuid(ZodCUID, params));
+	},
+	cuid2(params) {
+		return this.check(/* @__PURE__ */ _cuid2(ZodCUID2, params));
+	},
+	ulid(params) {
+		return this.check(/* @__PURE__ */ _ulid(ZodULID, params));
+	},
+	base64(params) {
+		return this.check(/* @__PURE__ */ _base64(ZodBase64, params));
+	},
+	base64url(params) {
+		return this.check(/* @__PURE__ */ _base64url(ZodBase64URL, params));
+	},
+	xid(params) {
+		return this.check(/* @__PURE__ */ _xid(ZodXID, params));
+	},
+	ksuid(params) {
+		return this.check(/* @__PURE__ */ _ksuid(ZodKSUID, params));
+	},
+	ipv4(params) {
+		return this.check(/* @__PURE__ */ _ipv4(ZodIPv4, params));
+	},
+	ipv6(params) {
+		return this.check(/* @__PURE__ */ _ipv6(ZodIPv6, params));
+	},
+	cidrv4(params) {
+		return this.check(/* @__PURE__ */ _cidrv4(ZodCIDRv4, params));
+	},
+	cidrv6(params) {
+		return this.check(/* @__PURE__ */ _cidrv6(ZodCIDRv6, params));
+	},
+	e164(params) {
+		return this.check(/* @__PURE__ */ _e164(ZodE164, params));
+	},
+	datetime(params) {
+		return this.check(/* @__PURE__ */ _isoDateTime(ZodISODateTime, params));
+	},
+	date(params) {
+		return this.check(/* @__PURE__ */ _isoDate(ZodISODate, params));
+	},
+	time(params) {
+		return this.check(/* @__PURE__ */ _isoTime(ZodISOTime, params));
+	},
+	duration(params) {
+		return this.check(/* @__PURE__ */ _isoDuration(ZodISODuration, params));
+	}
+});
+function string(params) {
+	return /* @__PURE__ */ _string(ZodString, params);
+}
+const ZodStringFormat = /*@__PURE__*/ $constructor("ZodStringFormat", (inst, def) => {
+	$ZodStringFormat.init(inst, def);
+	_ZodString.init(inst, def);
+});
+const ZodISODateTime = /*@__PURE__*/ $constructor("ZodISODateTime", (inst, def) => {
+	$ZodISODateTime.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodISODate = /*@__PURE__*/ $constructor("ZodISODate", (inst, def) => {
+	$ZodISODate.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodISOTime = /*@__PURE__*/ $constructor("ZodISOTime", (inst, def) => {
+	$ZodISOTime.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodISODuration = /*@__PURE__*/ $constructor("ZodISODuration", (inst, def) => {
+	$ZodISODuration.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodEmail = /*@__PURE__*/ $constructor("ZodEmail", (inst, def) => {
+	$ZodEmail.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodGUID = /*@__PURE__*/ $constructor("ZodGUID", (inst, def) => {
+	$ZodGUID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodUUID = /*@__PURE__*/ $constructor("ZodUUID", (inst, def) => {
+	$ZodUUID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodURL = /*@__PURE__*/ $constructor("ZodURL", (inst, def) => {
+	$ZodURL.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodEmoji = /*@__PURE__*/ $constructor("ZodEmoji", (inst, def) => {
+	$ZodEmoji.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodNanoID = /*@__PURE__*/ $constructor("ZodNanoID", (inst, def) => {
+	$ZodNanoID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+/**
+* @deprecated CUID v1 is deprecated by its authors due to information leakage
+* (timestamps embedded in the id). Use {@link ZodCUID2} instead.
+* See https://github.com/paralleldrive/cuid.
+*/
+const ZodCUID = /*@__PURE__*/ $constructor("ZodCUID", (inst, def) => {
+	$ZodCUID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodCUID2 = /*@__PURE__*/ $constructor("ZodCUID2", (inst, def) => {
+	$ZodCUID2.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodULID = /*@__PURE__*/ $constructor("ZodULID", (inst, def) => {
+	$ZodULID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodXID = /*@__PURE__*/ $constructor("ZodXID", (inst, def) => {
+	$ZodXID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodKSUID = /*@__PURE__*/ $constructor("ZodKSUID", (inst, def) => {
+	$ZodKSUID.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodIPv4 = /*@__PURE__*/ $constructor("ZodIPv4", (inst, def) => {
+	$ZodIPv4.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodIPv6 = /*@__PURE__*/ $constructor("ZodIPv6", (inst, def) => {
+	$ZodIPv6.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodCIDRv4 = /*@__PURE__*/ $constructor("ZodCIDRv4", (inst, def) => {
+	$ZodCIDRv4.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodCIDRv6 = /*@__PURE__*/ $constructor("ZodCIDRv6", (inst, def) => {
+	$ZodCIDRv6.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodBase64 = /*@__PURE__*/ $constructor("ZodBase64", (inst, def) => {
+	$ZodBase64.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodBase64URL = /*@__PURE__*/ $constructor("ZodBase64URL", (inst, def) => {
+	$ZodBase64URL.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodE164 = /*@__PURE__*/ $constructor("ZodE164", (inst, def) => {
+	$ZodE164.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodJWT = /*@__PURE__*/ $constructor("ZodJWT", (inst, def) => {
+	$ZodJWT.init(inst, def);
+	ZodStringFormat.init(inst, def);
+});
+const ZodNumber = /*@__PURE__*/ $constructor("ZodNumber", (inst, def) => {
+	$ZodNumber.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => numberProcessor(inst, ctx, json, params);
+	inst.isFinite = true;
+}, /*@__PURE__*/ derived({
+	minValue: (inst) => {
+		const { minimum, exclusiveMinimum } = aggregateChecks(inst);
+		return Math.max(minimum ?? Number.NEGATIVE_INFINITY, exclusiveMinimum ?? Number.NEGATIVE_INFINITY);
+	},
+	maxValue: (inst) => {
+		const { maximum, exclusiveMaximum } = aggregateChecks(inst);
+		return Math.min(maximum ?? Number.POSITIVE_INFINITY, exclusiveMaximum ?? Number.POSITIVE_INFINITY);
+	},
+	isInt: (inst) => {
+		const { isInt, multipleOf } = aggregateChecks(inst);
+		return !!isInt || !!multipleOf?.some(Number.isSafeInteger);
+	},
+	format: (inst) => aggregateChecks(inst).format ?? null
+}, {
+	gt(value, params) {
+		return this.check(/* @__PURE__ */ _gt(value, params));
+	},
+	gte(value, params) {
+		return this.check(/* @__PURE__ */ _gte(value, params));
+	},
+	min(value, params) {
+		return this.check(/* @__PURE__ */ _gte(value, params));
+	},
+	lt(value, params) {
+		return this.check(/* @__PURE__ */ _lt(value, params));
+	},
+	lte(value, params) {
+		return this.check(/* @__PURE__ */ _lte(value, params));
+	},
+	max(value, params) {
+		return this.check(/* @__PURE__ */ _lte(value, params));
+	},
+	int(params) {
+		return this.check(int(params));
+	},
+	safe(params) {
+		return this.check(int(params));
+	},
+	positive(params) {
+		return this.check(/* @__PURE__ */ _gt(0, params));
+	},
+	nonnegative(params) {
+		return this.check(/* @__PURE__ */ _gte(0, params));
+	},
+	negative(params) {
+		return this.check(/* @__PURE__ */ _lt(0, params));
+	},
+	nonpositive(params) {
+		return this.check(/* @__PURE__ */ _lte(0, params));
+	},
+	multipleOf(value, params) {
+		return this.check(/* @__PURE__ */ _multipleOf(value, params));
+	},
+	step(value, params) {
+		return this.check(/* @__PURE__ */ _multipleOf(value, params));
+	},
+	finite() {
+		return this;
+	}
+}));
+function number(params) {
+	return /* @__PURE__ */ _number(ZodNumber, params);
+}
+const ZodNumberFormat = /*@__PURE__*/ $constructor("ZodNumberFormat", (inst, def) => {
+	$ZodNumberFormat.init(inst, def);
+	ZodNumber.init(inst, def);
+});
+function int(params) {
+	return /* @__PURE__ */ _int(ZodNumberFormat, params);
+}
+const ZodBoolean = /*@__PURE__*/ $constructor("ZodBoolean", (inst, def) => {
+	$ZodBoolean.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => booleanProcessor(inst, ctx, json, params);
+});
+function boolean(params) {
+	return /* @__PURE__ */ _boolean(ZodBoolean, params);
+}
+const ZodNull = /*@__PURE__*/ $constructor("ZodNull", (inst, def) => {
+	$ZodNull.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => nullProcessor(inst, ctx, json, params);
+});
+function _null(params) {
+	return /* @__PURE__ */ _null$1(ZodNull, params);
+}
+const ZodAny = /*@__PURE__*/ $constructor("ZodAny", (inst, def) => {
+	$ZodAny.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => void 0;
+});
+function any() {
+	return /* @__PURE__ */ _any(ZodAny);
+}
+const ZodUnknown = /*@__PURE__*/ $constructor("ZodUnknown", (inst, def) => {
+	$ZodUnknown.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => void 0;
+});
+function unknown() {
+	return /* @__PURE__ */ _unknown(ZodUnknown);
+}
+const ZodNever = /*@__PURE__*/ $constructor("ZodNever", (inst, def) => {
+	$ZodNever.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => neverProcessor(inst, ctx, json, params);
+});
+function never(params) {
+	return /* @__PURE__ */ _never(ZodNever, params);
+}
+const ZodArray = /*@__PURE__*/ $constructor("ZodArray", (inst, def) => {
+	_ensureDefaultMemoizer();
+	$ZodArray.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => arrayProcessor(inst, ctx, json, params);
+	inst.element = def.element;
+}, {
+	min(n, params) {
+		return this.check(/* @__PURE__ */ _minLength(n, params));
+	},
+	nonempty(params) {
+		return this.check(/* @__PURE__ */ _minLength(1, params));
+	},
+	max(n, params) {
+		return this.check(/* @__PURE__ */ _maxLength(n, params));
+	},
+	length(n, params) {
+		return this.check(/* @__PURE__ */ _length(n, params));
+	},
+	unwrap() {
+		return this.element;
+	}
+});
+function array(element, params) {
+	return /* @__PURE__ */ _array(ZodArray, element, params);
+}
+const ZodObject = /*@__PURE__*/ $constructor("ZodObject", (inst, def) => {
+	_ensureDefaultMemoizer();
+	$ZodObjectJIT.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => objectProcessor(inst, ctx, json, params);
+	installLazyProp(inst, "shape", (self) => self._zod.def.shape, false);
+}, {
+	keyof() {
+		return _enum(Object.keys(this._zod.def.shape));
+	},
+	catchall(catchall) {
+		return this.clone(mergeDefs(this._zod.def, { catchall }));
+	},
+	passthrough() {
+		return this.clone(mergeDefs(this._zod.def, { catchall: unknown() }));
+	},
+	loose() {
+		return this.clone(mergeDefs(this._zod.def, { catchall: unknown() }));
+	},
+	strict() {
+		return this.clone(mergeDefs(this._zod.def, { catchall: never() }));
+	},
+	strip() {
+		return this.clone(mergeDefs(this._zod.def, { catchall: void 0 }));
+	},
+	extend(incoming) {
+		return extend(this, incoming);
+	},
+	safeExtend(incoming) {
+		return safeExtend(this, incoming);
+	},
+	merge(other) {
+		return merge(this, other);
+	},
+	pick(mask) {
+		return pick(this, mask);
+	},
+	omit(mask) {
+		return omit(this, mask);
+	},
+	partial(...args) {
+		return partial(ZodOptional, this, args[0]);
+	},
+	exactPartial(...args) {
+		return partial(ZodExactOptional, this, args[0], "exactPartial");
+	},
+	required(...args) {
+		return required(ZodNonOptional, this, args[0]);
+	}
+});
+function object(shape, params) {
+	const def = {
+		type: "object",
+		shape: shape ?? {},
+		...normalizeParams(params)
+	};
+	return new ZodObject(def);
+}
+function looseObject(shape, params) {
+	return new ZodObject({
+		type: "object",
+		shape,
+		catchall: unknown(),
+		...normalizeParams(params)
+	});
+}
+const ZodUnion = /*@__PURE__*/ $constructor("ZodUnion", (inst, def) => {
+	$ZodUnion.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => unionProcessor(inst, ctx, json, params);
+	inst.options = def.options;
+});
+function union(options, params) {
+	return new ZodUnion({
+		type: "union",
+		options,
+		...normalizeParams(params)
+	});
+}
+const ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("ZodDiscriminatedUnion", (inst, def) => {
+	ZodUnion.init(inst, def);
+	$ZodDiscriminatedUnion.init(inst, def);
+});
+function discriminatedUnion(discriminator, options, params) {
+	return new ZodDiscriminatedUnion({
+		type: "union",
+		options,
+		discriminator,
+		...normalizeParams(params)
+	});
+}
+const ZodIntersection = /*@__PURE__*/ $constructor("ZodIntersection", (inst, def) => {
+	$ZodIntersection.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => intersectionProcessor(inst, ctx, json, params);
+});
+function intersection(left, right) {
+	return new ZodIntersection({
+		type: "intersection",
+		left,
+		right
+	});
+}
+const ZodRecord = /*@__PURE__*/ $constructor("ZodRecord", (inst, def) => {
+	_ensureDefaultMemoizer();
+	$ZodRecord.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => recordProcessor(inst, ctx, json, params);
+	inst.keyType = def.keyType;
+	inst.valueType = def.valueType;
+});
+function record(keyType, valueType, params) {
+	if (!valueType || !valueType._zod) return new ZodRecord({
+		type: "record",
+		keyType: string(),
+		valueType: keyType,
+		...normalizeParams(valueType)
+	});
+	return new ZodRecord({
+		type: "record",
+		keyType,
+		valueType,
+		...normalizeParams(params)
+	});
+}
+const ZodEnum = /*@__PURE__*/ $constructor("ZodEnum", (inst, def) => {
+	$ZodEnum.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => enumProcessor(inst, ctx, json, params);
+	inst.enum = def.entries;
+	inst.options = [...inst._zod.values];
+	const keys = new Set(Object.keys(def.entries));
+	inst.extract = (values, params) => {
+		const newEntries = {};
+		for (const value of values) if (keys.has(value)) newEntries[value] = def.entries[value];
+		else throw new Error(`Key ${value} not found in enum`);
+		return new ZodEnum({
+			...def,
+			checks: [],
+			...normalizeParams(params),
+			entries: newEntries
+		});
+	};
+	inst.exclude = (values, params) => {
+		const newEntries = { ...def.entries };
+		for (const value of values) if (keys.has(value)) delete newEntries[value];
+		else throw new Error(`Key ${value} not found in enum`);
+		return new ZodEnum({
+			...def,
+			checks: [],
+			...normalizeParams(params),
+			entries: newEntries
+		});
+	};
+});
+function _enum(values, params) {
+	const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
+	return new ZodEnum({
+		type: "enum",
+		entries,
+		...normalizeParams(params)
+	});
+}
+const ZodLiteral = /*@__PURE__*/ $constructor("ZodLiteral", (inst, def) => {
+	$ZodLiteral.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => literalProcessor(inst, ctx, json, params);
+	inst.values = new Set(def.values);
+	Object.defineProperty(inst, "value", { get() {
+		if (def.values.length > 1) throw new Error("This schema contains multiple valid literal values. Use `.values` instead.");
+		return def.values[0];
+	} });
+});
+function literal(value, params) {
+	return new ZodLiteral({
+		type: "literal",
+		values: Array.isArray(value) ? value : [value],
+		...normalizeParams(params)
+	});
+}
+const ZodTransform = /*@__PURE__*/ $constructor("ZodTransform", (inst, def) => {
+	_ensureDefaultMemoizer();
+	$ZodTransform.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => transformProcessor(inst, ctx, json, params);
+	inst._zod.parse = (payload, _ctx) => {
+		if (_ctx.direction === "backward") throw new $ZodEncodeError(inst.constructor.name);
+		payload.addIssue = (issue$1) => {
+			if (typeof issue$1 === "string") payload.issues.push(issue(issue$1, payload.value, def));
+			else {
+				const _issue = issue$1;
+				if (_issue.fatal) _issue.continue = false;
+				_issue.code ?? (_issue.code = "custom");
+				if (!("input" in _issue)) _issue.input = payload.value;
+				_issue.inst ?? (_issue.inst = inst);
+				payload.issues.push(issue(_issue));
+			}
+		};
+		const output = def.transform(payload.value, payload);
+		if (output instanceof Promise) return output.then((output) => {
+			payload.value = output;
+			return payload;
+		});
+		payload.value = output;
+		return payload;
+	};
+});
+function transform(fn) {
+	return new ZodTransform({
+		type: "transform",
+		transform: fn
+	});
+}
+const ZodOptional = /*@__PURE__*/ $constructor("ZodOptional", (inst, def) => {
+	$ZodOptional.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => optionalProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function optional(innerType) {
+	return new ZodOptional({
+		type: "optional",
+		innerType
+	});
+}
+const ZodExactOptional = /*@__PURE__*/ $constructor("ZodExactOptional", (inst, def) => {
+	$ZodExactOptional.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => optionalProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function exactOptional(innerType) {
+	return new ZodExactOptional({
+		type: "optional",
+		innerType
+	});
+}
+const ZodNullable = /*@__PURE__*/ $constructor("ZodNullable", (inst, def) => {
+	$ZodNullable.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => nullableProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function nullable(innerType) {
+	return new ZodNullable({
+		type: "nullable",
+		innerType
+	});
+}
+const ZodDefault = /*@__PURE__*/ $constructor("ZodDefault", (inst, def) => {
+	$ZodDefault.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => defaultProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+	inst.removeDefault = inst.unwrap;
+});
+function _default(innerType, defaultValue) {
+	return new ZodDefault({
+		type: "default",
+		innerType,
+		get defaultValue() {
+			return typeof defaultValue === "function" ? defaultValue() : shallowClone(defaultValue);
+		}
+	});
+}
+const ZodPrefault = /*@__PURE__*/ $constructor("ZodPrefault", (inst, def) => {
+	$ZodPrefault.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => prefaultProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function prefault(innerType, defaultValue) {
+	return new ZodPrefault({
+		type: "prefault",
+		innerType,
+		get defaultValue() {
+			return typeof defaultValue === "function" ? defaultValue() : shallowClone(defaultValue);
+		}
+	});
+}
+const ZodNonOptional = /*@__PURE__*/ $constructor("ZodNonOptional", (inst, def) => {
+	$ZodNonOptional.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => nonoptionalProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function nonoptional(innerType, params) {
+	return new ZodNonOptional({
+		type: "nonoptional",
+		innerType,
+		...normalizeParams(params)
+	});
+}
+const ZodCatch = /*@__PURE__*/ $constructor("ZodCatch", (inst, def) => {
+	$ZodCatch.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => catchProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+	inst.removeCatch = inst.unwrap;
+});
+function _catch(innerType, catchValue) {
+	return new ZodCatch({
+		type: "catch",
+		innerType,
+		catchValue: typeof catchValue === "function" ? catchValue : constantCatch(catchValue)
+	});
+}
+const ZodPipe = /*@__PURE__*/ $constructor("ZodPipe", (inst, def) => {
+	$ZodPipe.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => pipeProcessor(inst, ctx, json, params);
+	inst.in = def.in;
+	inst.out = def.out;
+});
+function pipe(in_, out) {
+	return new ZodPipe({
+		type: "pipe",
+		in: in_,
+		out
+	});
+}
+const ZodReadonly = /*@__PURE__*/ $constructor("ZodReadonly", (inst, def) => {
+	$ZodReadonly.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => readonlyProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.innerType;
+});
+function readonly(innerType) {
+	return new ZodReadonly({
+		type: "readonly",
+		innerType
+	});
+}
+const ZodLazy = /*@__PURE__*/ $constructor("ZodLazy", (inst, def) => {
+	$ZodLazy.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => lazyProcessor(inst, ctx, json, params);
+	inst.unwrap = () => inst._zod.def.getter();
+});
+function lazy(getter) {
+	return new ZodLazy({
+		type: "lazy",
+		getter
+	});
+}
+const ZodCustom = /*@__PURE__*/ $constructor("ZodCustom", (inst, def) => {
+	$ZodCustom.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => customProcessor(inst, ctx, json, params);
+});
+function custom(fn, _params) {
+	return /* @__PURE__ */ _custom(ZodCustom, fn ?? (() => true), _params);
+}
+function refine(fn, _params = {}) {
+	return /* @__PURE__ */ _refine(ZodCustom, fn, _params);
+}
+function superRefine(fn, params) {
+	return /* @__PURE__ */ _superRefine(fn, params);
+}
+const ZodInstanceOf = /*@__PURE__*/ $constructor("ZodInstanceOf", (inst, def) => {
+	ZodCustom.init(inst, def);
+}, { properties(shape, params) {
+	return this.check(/* @__PURE__ */ _properties(shape, params));
+} });
+function _instanceof(cls, params = {}) {
+	const inst = new ZodInstanceOf({
+		type: "custom",
+		check: "custom",
+		fn: (data) => data instanceof cls,
+		abort: true,
+		...normalizeParams(params)
+	});
+	inst._zod.bag.Class = cls;
+	inst._zod.check = (payload) => {
+		if (!(payload.value instanceof cls)) payload.issues.push({
+			code: "invalid_type",
+			expected: cls.name,
+			input: payload.value,
+			inst,
+			path: [...inst._zod.def.path ?? []]
+		});
+	};
+	return inst;
+}
+function json(params) {
+	const jsonSchema = lazy(() => {
+		return union([
+			string(params),
+			number(),
+			boolean(),
+			_null(),
+			array(jsonSchema),
+			record(string(), jsonSchema)
+		]);
+	});
+	return jsonSchema;
+}
+var ParseError = class extends Error {
+	constructor(message, options) {
+		super(message), this.name = "ParseError", this.type = options.type, this.field = options.field, this.value = options.value, this.line = options.line;
+	}
+};
+const LF = 10;
+const CR = 13;
+const SPACE = 32;
+function noop(_arg) {}
+function createParser(config) {
+	if (typeof config == "function") throw new TypeError("`config` must be an object, got a function instead. Did you mean `createParser({onEvent: fn})`?");
+	const { onEvent = noop, onError = noop, onRetry = noop, onComment, maxBufferSize } = config, pendingFragments = [];
+	let pendingFragmentsLength = 0, isFirstChunk = !0, id, data = "", dataLines = 0, eventType, terminated = !1;
+	function feed(chunk) {
+		if (terminated) throw new Error("Cannot feed parser: it was terminated after exceeding the configured max buffer size. Call `reset()` to resume parsing.");
+		if (isFirstChunk && (isFirstChunk = !1, chunk.charCodeAt(0) === 239 && chunk.charCodeAt(1) === 187 && chunk.charCodeAt(2) === 191 && (chunk = chunk.slice(3))), pendingFragments.length === 0) {
+			const trailing2 = processLines(chunk);
+			trailing2 !== "" && (pendingFragments.push(trailing2), pendingFragmentsLength = trailing2.length), checkBufferSize();
+			return;
+		}
+		if (chunk.indexOf(`
+`) === -1 && chunk.indexOf("\r") === -1) {
+			pendingFragments.push(chunk), pendingFragmentsLength += chunk.length, checkBufferSize();
+			return;
+		}
+		pendingFragments.push(chunk);
+		const input = pendingFragments.join("");
+		pendingFragments.length = 0, pendingFragmentsLength = 0;
+		const trailing = processLines(input);
+		trailing !== "" && (pendingFragments.push(trailing), pendingFragmentsLength = trailing.length), checkBufferSize();
+	}
+	function checkBufferSize() {
+		maxBufferSize !== void 0 && (pendingFragmentsLength + data.length <= maxBufferSize || (terminated = !0, pendingFragments.length = 0, pendingFragmentsLength = 0, id = void 0, data = "", dataLines = 0, eventType = void 0, onError(new ParseError(`Buffered data exceeded max buffer size of ${maxBufferSize} characters`, { type: "max-buffer-size-exceeded" }))));
+	}
+	function processLines(chunk) {
+		let searchIndex = 0;
+		if (chunk.indexOf("\r") === -1) {
+			let lfIndex = chunk.indexOf(`
+`, searchIndex);
+			for (; lfIndex !== -1;) {
+				if (searchIndex === lfIndex) {
+					dataLines > 0 && onEvent({
+						id,
+						event: eventType,
+						data
+					}), id = void 0, data = "", dataLines = 0, eventType = void 0, searchIndex = lfIndex + 1, lfIndex = chunk.indexOf(`
+`, searchIndex);
+					continue;
+				}
+				const firstCharCode = chunk.charCodeAt(searchIndex);
+				if (isDataPrefix(chunk, searchIndex, firstCharCode)) {
+					const valueStart = chunk.charCodeAt(searchIndex + 5) === SPACE ? searchIndex + 6 : searchIndex + 5, value = chunk.slice(valueStart, lfIndex);
+					if (dataLines === 0 && chunk.charCodeAt(lfIndex + 1) === LF) {
+						onEvent({
+							id,
+							event: eventType,
+							data: value
+						}), id = void 0, data = "", eventType = void 0, searchIndex = lfIndex + 2, lfIndex = chunk.indexOf(`
+`, searchIndex);
+						continue;
+					}
+					data = dataLines === 0 ? value : `${data}
+${value}`, dataLines++;
+				} else isEventPrefix(chunk, searchIndex, firstCharCode) ? eventType = chunk.slice(chunk.charCodeAt(searchIndex + 6) === SPACE ? searchIndex + 7 : searchIndex + 6, lfIndex) || void 0 : parseLine(chunk, searchIndex, lfIndex);
+				searchIndex = lfIndex + 1, lfIndex = chunk.indexOf(`
+`, searchIndex);
+			}
+			return chunk.slice(searchIndex);
+		}
+		for (; searchIndex < chunk.length;) {
+			const crIndex = chunk.indexOf("\r", searchIndex), lfIndex = chunk.indexOf(`
+`, searchIndex);
+			let lineEnd = -1;
+			if (crIndex !== -1 && lfIndex !== -1 ? lineEnd = crIndex < lfIndex ? crIndex : lfIndex : crIndex !== -1 ? crIndex === chunk.length - 1 ? lineEnd = -1 : lineEnd = crIndex : lfIndex !== -1 && (lineEnd = lfIndex), lineEnd === -1) break;
+			parseLine(chunk, searchIndex, lineEnd), searchIndex = lineEnd + 1, chunk.charCodeAt(searchIndex - 1) === CR && chunk.charCodeAt(searchIndex) === LF && searchIndex++;
+		}
+		return chunk.slice(searchIndex);
+	}
+	function parseLine(chunk, start, end) {
+		if (start === end) {
+			dispatchEvent();
+			return;
+		}
+		const firstCharCode = chunk.charCodeAt(start);
+		if (isDataPrefix(chunk, start, firstCharCode)) {
+			const valueStart = chunk.charCodeAt(start + 5) === SPACE ? start + 6 : start + 5, value2 = chunk.slice(valueStart, end);
+			data = dataLines === 0 ? value2 : `${data}
+${value2}`, dataLines++;
+			return;
+		}
+		if (isEventPrefix(chunk, start, firstCharCode)) {
+			eventType = chunk.slice(chunk.charCodeAt(start + 6) === SPACE ? start + 7 : start + 6, end) || void 0;
+			return;
+		}
+		if (firstCharCode === 105 && chunk.charCodeAt(start + 1) === 100 && chunk.charCodeAt(start + 2) === 58) {
+			const value2 = chunk.slice(chunk.charCodeAt(start + 3) === SPACE ? start + 4 : start + 3, end);
+			value2.includes("\0") || (id = value2);
+			return;
+		}
+		if (firstCharCode === 58) {
+			if (onComment) {
+				const line2 = chunk.slice(start, end);
+				onComment(line2.slice(chunk.charCodeAt(start + 1) === SPACE ? 2 : 1));
+			}
+			return;
+		}
+		const line = chunk.slice(start, end), fieldSeparatorIndex = line.indexOf(":");
+		if (fieldSeparatorIndex === -1) {
+			processField(line, "", line);
+			return;
+		}
+		const field = line.slice(0, fieldSeparatorIndex), offset = line.charCodeAt(fieldSeparatorIndex + 1) === SPACE ? 2 : 1;
+		processField(field, line.slice(fieldSeparatorIndex + offset), line);
+	}
+	function processField(field, value, line) {
+		switch (field) {
+			case "event":
+				eventType = value || void 0;
+				break;
+			case "data":
+				data = dataLines === 0 ? value : `${data}
+${value}`, dataLines++;
+				break;
+			case "id":
+				value.includes("\0") || (id = value);
+				break;
+			case "retry":
+				/^\d+$/.test(value) ? onRetry(parseInt(value, 10)) : onError(new ParseError(`Invalid \`retry\` value: "${value}"`, {
+					type: "invalid-retry",
+					value,
+					line
+				}));
+				break;
+			default: onError(new ParseError(`Unknown field "${field.length > 20 ? `${field.slice(0, 20)}\u2026` : field}"`, {
+				type: "unknown-field",
+				field,
+				value,
+				line
+			}));
+		}
+	}
+	function dispatchEvent() {
+		dataLines > 0 && onEvent({
+			id,
+			event: eventType,
+			data
+		}), id = void 0, data = "", dataLines = 0, eventType = void 0;
+	}
+	function reset(options = {}) {
+		if (options.consume && pendingFragments.length > 0) {
+			const incompleteLine = pendingFragments.join("");
+			parseLine(incompleteLine, 0, incompleteLine.length);
+		}
+		isFirstChunk = !0, id = void 0, data = "", dataLines = 0, eventType = void 0, pendingFragments.length = 0, pendingFragmentsLength = 0, terminated = !1;
+	}
+	return {
+		feed,
+		reset
+	};
+}
+function isDataPrefix(chunk, i, firstCharCode) {
+	return firstCharCode === 100 && chunk.charCodeAt(i + 1) === 97 && chunk.charCodeAt(i + 2) === 116 && chunk.charCodeAt(i + 3) === 97 && chunk.charCodeAt(i + 4) === 58;
+}
+function isEventPrefix(chunk, i, firstCharCode) {
+	return firstCharCode === 101 && chunk.charCodeAt(i + 1) === 118 && chunk.charCodeAt(i + 2) === 101 && chunk.charCodeAt(i + 3) === 110 && chunk.charCodeAt(i + 4) === 116 && chunk.charCodeAt(i + 5) === 58;
+}
+var EventSourceParserStream = class extends TransformStream {
+	constructor({ onError, onRetry, onComment, maxBufferSize } = {}) {
+		let parser;
+		super({
+			start(controller) {
+				parser = createParser({
+					onEvent: (event) => {
+						controller.enqueue(event);
+					},
+					onError(error) {
+						typeof onError == "function" && onError(error), (onError === "terminate" || error.type === "max-buffer-size-exceeded") && controller.error(error);
+					},
+					onRetry,
+					onComment,
+					maxBufferSize
+				});
+			},
+			transform(chunk) {
+				parser.feed(chunk);
+			}
+		});
+	}
+};
 /**
 * Symbol used to define custom serialization for user-defined class instances.
 * The static method should accept an instance and return serializable data.
@@ -370,31 +6338,38 @@ const WORKFLOW_SERIALIZE = Symbol.for("workflow-serialize");
 * @see WORKFLOW_SERIALIZE for usage example
 */
 const WORKFLOW_DESERIALIZE = Symbol.for("workflow-deserialize");
-//#endregion
-//#region ../../node_modules/eve/node_modules/@ai-sdk/provider-utils/dist/index.js
-function asArray(value) {
-	return value === void 0 ? [] : Array.isArray(value) ? value : [value];
-}
 function combineHeaders(...headers) {
 	return headers.reduce((combinedHeaders, currentHeaders) => ({
 		...combinedHeaders,
-		...currentHeaders != null ? currentHeaders : {}
+		...currentHeaders
 	}), {});
 }
+/**
+* Removes entries from a record where the value is null or undefined.
+* @param record - The input object whose entries may be null or undefined.
+* @returns A new object containing only entries with non-null and non-undefined values.
+*/
 function removeUndefinedEntries(record) {
 	return Object.fromEntries(Object.entries(record).filter(([_key, value]) => value != null));
 }
+/**
+* Creates a Promise that resolves after a specified delay
+* @param delayInMs - The delay duration in milliseconds. If null or undefined, resolves immediately.
+* @param signal - Optional AbortSignal to cancel the delay
+* @returns A Promise that resolves after the specified delay
+* @throws {DOMException} When the signal is aborted
+*/
 async function delay(delayInMs, options) {
-	if (delayInMs == null) return Promise.resolve();
-	const signal = options == null ? void 0 : options.abortSignal;
-	return new Promise((resolve2, reject) => {
-		if (signal == null ? void 0 : signal.aborted) {
+	if (delayInMs == null) return;
+	const signal = options?.abortSignal;
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) {
 			reject(createAbortError());
 			return;
 		}
 		const timeoutId = setTimeout(() => {
 			cleanup();
-			resolve2();
+			resolve();
 		}, delayInMs);
 		const cleanup = () => {
 			clearTimeout(timeoutId);
@@ -411,28 +6386,43 @@ function createAbortError() {
 	return new DOMException("Delay was aborted", "AbortError");
 }
 function getWebSocketConstructor(webSocket) {
-	const WebSocketConstructor = webSocket != null ? webSocket : globalThis.WebSocket;
+	const WebSocketConstructor = webSocket ?? globalThis.WebSocket;
 	if (WebSocketConstructor == null) throw new Error("No WebSocket implementation available.");
 	return WebSocketConstructor;
 }
-var textDecoder = new TextDecoder();
+const textDecoder$1 = new TextDecoder();
+/**
+* Reads WebSocket message data as text, handling string, binary,
+* and Blob payloads.
+*/
 async function readWebSocketMessageText(data) {
 	if (typeof data === "string") return data;
-	if (data instanceof ArrayBuffer) return textDecoder.decode(data);
-	if (ArrayBuffer.isView(data)) return textDecoder.decode(data);
+	if (data instanceof ArrayBuffer) return textDecoder$1.decode(data);
+	if (ArrayBuffer.isView(data)) return textDecoder$1.decode(data);
 	if (typeof Blob !== "undefined" && data instanceof Blob) return data.text();
 	return String(data);
 }
-var WEBSOCKET_OPEN_STATE = 1;
-async function waitForWebSocketBufferDrain(socket, { highWaterMark = 1024 * 1024, pollIntervalMs = 20, abortSignal } = {}) {
-	var _a2;
-	while (socket.readyState === WEBSOCKET_OPEN_STATE && ((_a2 = socket.bufferedAmount) != null ? _a2 : 0) > highWaterMark) {
-		if ((abortSignal == null ? void 0 : abortSignal.aborted) === true) return;
+const WEBSOCKET_OPEN_STATE = 1;
+/**
+* Waits until the socket's send buffer drains below `highWaterMark` bytes.
+* No-op for implementations that do not expose `bufferedAmount`. There is no
+* portable drain event, so this polls. Returns as soon as the socket is no
+* longer open or the signal aborts — `bufferedAmount` never drains on a
+* closed socket, so waiting on would poll forever.
+*/
+async function waitForWebSocketBufferDrain(socket, { highWaterMark = 1048576, pollIntervalMs = 20, abortSignal } = {}) {
+	while (socket.readyState === WEBSOCKET_OPEN_STATE && (socket.bufferedAmount ?? 0) > highWaterMark) {
+		if (abortSignal?.aborted === true) return;
 		await delay(pollIntervalMs);
 	}
 }
+/**
+* Opens a WebSocket for a provider model, owning the transport-generic layer
+* (analogous to `postToApi` for HTTP): constructor resolution, header hygiene,
+* abort wiring, and message decoding. Callers own the URL, the auth channel
+* (subprotocols vs headers), and the wire protocol.
+*/
 function connectToWebSocket({ url, protocols, headers, webSocket, abortSignal, onOpen, onMessageText, onProcessingError, onSocketError, onClose, onAbort }) {
-	var _a2;
 	let socket;
 	let abortListener;
 	const close = (code) => {
@@ -442,17 +6432,17 @@ function connectToWebSocket({ url, protocols, headers, webSocket, abortSignal, o
 		}
 		try {
 			socket?.close(code);
-		} catch (e) {}
+		} catch {}
 	};
-	if (abortSignal == null ? void 0 : abortSignal.aborted) {
-		onAbort?.((_a2 = abortSignal.reason) != null ? _a2 : /* @__PURE__ */ new Error("Aborted"));
+	if (abortSignal?.aborted) {
+		onAbort?.(abortSignal.reason ?? /* @__PURE__ */ new Error("Aborted"));
 		return {
 			socket: void 0,
 			close
 		};
 	}
 	try {
-		socket = new (getWebSocketConstructor(webSocket))(url, protocols, { headers: removeUndefinedEntries(headers != null ? headers : {}) });
+		socket = new (getWebSocketConstructor(webSocket))(url, protocols, { headers: removeUndefinedEntries(headers ?? {}) });
 	} catch (error) {
 		onProcessingError(error);
 		return {
@@ -461,10 +6451,7 @@ function connectToWebSocket({ url, protocols, headers, webSocket, abortSignal, o
 		};
 	}
 	if (abortSignal != null && onAbort != null) {
-		abortListener = () => {
-			var _a3;
-			return onAbort((_a3 = abortSignal.reason) != null ? _a3 : /* @__PURE__ */ new Error("Aborted"));
-		};
+		abortListener = () => onAbort(abortSignal.reason ?? /* @__PURE__ */ new Error("Aborted"));
 		abortSignal.addEventListener("abort", abortListener, { once: true });
 	}
 	const openedSocket = socket;
@@ -480,420 +6467,264 @@ function connectToWebSocket({ url, protocols, headers, webSocket, abortSignal, o
 		tail = tail.then(() => readWebSocketMessageText(event.data)).then((text) => onMessageText(text)).catch(onProcessingError);
 	};
 	socket.onerror = () => {
-		tail = tail.then(() => onSocketError == null ? void 0 : onSocketError()).catch(onProcessingError);
+		tail = tail.then(() => onSocketError?.()).catch(onProcessingError);
 	};
-	socket.onclose = () => {
-		tail = tail.then(() => onClose == null ? void 0 : onClose()).catch(onProcessingError);
+	socket.onclose = (event) => {
+		const closeEvent = event;
+		const code = typeof closeEvent?.code === "number" ? closeEvent.code : void 0;
+		const reason = typeof closeEvent?.reason === "string" ? closeEvent.reason : void 0;
+		tail = tail.then(() => onClose?.({
+			code,
+			reason
+		})).catch(onProcessingError);
 	};
 	return {
 		socket,
 		close
 	};
 }
-var { btoa: btoa$1, atob: atob$1 } = globalThis;
+/**
+* Converts an AsyncIterator to a ReadableStream.
+*
+* @template T - The type of elements produced by the AsyncIterator.
+* @param { <T>} iterator - The AsyncIterator to convert.
+* @returns {ReadableStream<T>} - A ReadableStream that provides the same data as the AsyncIterator.
+*/
+function convertAsyncIteratorToReadableStream(iterator) {
+	let cancelled = false;
+	return new ReadableStream({
+		/**
+		* Called when the consumer wants to pull more data from the stream.
+		*
+		* @param {ReadableStreamDefaultController<T>} controller - The controller to enqueue data into the stream.
+		* @returns {Promise<void>}
+		*/
+		async pull(controller) {
+			if (cancelled) return;
+			try {
+				const { value, done } = await iterator.next();
+				if (done) controller.close();
+				else controller.enqueue(value);
+			} catch (error) {
+				controller.error(error);
+			}
+		},
+		/**
+		* Called when the consumer cancels the stream.
+		*/
+		async cancel(reason) {
+			cancelled = true;
+			if (iterator.return) try {
+				await iterator.return(reason);
+			} catch {}
+		}
+	});
+}
+const { btoa: btoa$1, atob: atob$1 } = globalThis;
 function convertBase64ToUint8Array(base64String) {
-	const latin1string = atob$1(base64String.replace(/-/g, "+").replace(/_/g, "/"));
+	const base64Url = base64String.replace(/-/g, "+").replace(/_/g, "/");
+	const latin1string = atob$1(base64Url);
 	return Uint8Array.from(latin1string, (byte) => byte.codePointAt(0));
 }
 function convertUint8ArrayToBase64(array) {
-	let latin1string = "";
-	for (let i = 0; i < array.length; i++) latin1string += String.fromCodePoint(array[i]);
-	return btoa$1(latin1string);
+	const chunks = [];
+	const chunkSize = 4096;
+	for (let i = 0; i < array.length; i += chunkSize) chunks.push(String.fromCodePoint(...array.subarray(i, i + chunkSize)));
+	return btoa$1(chunks.join(""));
 }
-var DelayedPromise = class {
-	constructor() {
-		this.status = { type: "pending" };
-		this._resolve = void 0;
-		this._reject = void 0;
+/**
+* Extracts the headers from a response object and returns them as a key-value object.
+*
+* @param response - The response object to extract headers from.
+* @returns The headers as a key-value object.
+*/
+function extractResponseHeaders(response) {
+	return Object.fromEntries([...response.headers]);
+}
+function getRuntimeEnvironmentUserAgent(globalThisAny = globalThis) {
+	if (globalThisAny.navigator?.userAgent) return globalThisAny.navigator.userAgent.toLowerCase();
+	if (globalThisAny.process?.versions?.node) return `node.js/${globalThisAny.process.version}`;
+	if (globalThisAny.EdgeRuntime) return "vercel-edge";
+	return "";
+}
+function isAbortError(error) {
+	return (error instanceof Error || typeof DOMException === "function" && error instanceof DOMException) && (error.name === "AbortError" || error.name === "ResponseAborted" || error.name === "TimeoutError");
+}
+const FETCH_FAILED_ERROR_MESSAGES = ["fetch failed", "failed to fetch"];
+const RETRYABLE_NETWORK_ERROR_CODES = /* @__PURE__ */ new Set([
+	"ConnectionRefused",
+	"ConnectionClosed",
+	"FailedToOpenSocket",
+	"ECONNRESET",
+	"ECONNREFUSED",
+	"ETIMEDOUT",
+	"EPIPE",
+	"UND_ERR_SOCKET",
+	"UND_ERR_HEADERS_TIMEOUT",
+	"UND_ERR_BODY_TIMEOUT",
+	"UND_ERR_CONNECT_TIMEOUT"
+]);
+function findNetworkError(error) {
+	const visited = /* @__PURE__ */ new Set();
+	let current = error;
+	while (current instanceof Error && !visited.has(current)) {
+		visited.add(current);
+		const errorWithCode = current;
+		if (typeof errorWithCode.code === "string" && RETRYABLE_NETWORK_ERROR_CODES.has(errorWithCode.code)) return errorWithCode;
+		current = current.cause;
 	}
-	get promise() {
-		if (this._promise) return this._promise;
-		this._promise = new Promise((resolve2, reject) => {
-			if (this.status.type === "resolved") resolve2(this.status.value);
-			else if (this.status.type === "rejected") reject(this.status.error);
-			this._resolve = resolve2;
-			this._reject = reject;
+}
+function handleFetchError({ error, url, requestBodyValues }) {
+	if (isAbortError(error)) return error;
+	if (error instanceof TypeError && FETCH_FAILED_ERROR_MESSAGES.includes(error.message.toLowerCase())) {
+		const cause = error.cause;
+		if (cause != null) return new APICallError({
+			message: `Cannot connect to API: ${cause.message}`,
+			cause,
+			url,
+			requestBodyValues,
+			isRetryable: true
 		});
-		return this._promise;
 	}
-	resolve(value) {
-		var _a2;
-		this.status = {
-			type: "resolved",
-			value
-		};
-		if (this._promise) (_a2 = this._resolve) == null || _a2.call(this, value);
+	const networkError = findNetworkError(error);
+	if (networkError != null) {
+		if (APICallError.isInstance(error)) return new APICallError({
+			message: error.message,
+			cause: error.cause,
+			url: error.url,
+			requestBodyValues: error.requestBodyValues,
+			statusCode: error.statusCode,
+			responseHeaders: error.responseHeaders,
+			responseBody: error.responseBody,
+			data: error.data,
+			isRetryable: true
+		});
+		return new APICallError({
+			message: `Cannot connect to API: ${error instanceof Error ? error.message : networkError.message}`,
+			cause: error,
+			url,
+			requestBodyValues,
+			isRetryable: true
+		});
 	}
-	reject(error) {
-		var _a2;
-		this.status = {
-			type: "rejected",
-			error
-		};
-		if (this._promise) (_a2 = this._reject) == null || _a2.call(this, error);
-	}
-	isResolved() {
-		return this.status.type === "resolved";
-	}
-	isRejected() {
-		return this.status.type === "rejected";
-	}
-	isPending() {
-		return this.status.type === "pending";
-	}
-};
-var imageMediaTypeSignatures = [
-	{
-		mediaType: "image/gif",
-		bytesPrefix: [
-			71,
-			73,
-			70
-		]
-	},
-	{
-		mediaType: "image/png",
-		bytesPrefix: [
-			137,
-			80,
-			78,
-			71
-		]
-	},
-	{
-		mediaType: "image/jpeg",
-		bytesPrefix: [255, 216]
-	},
-	{
-		mediaType: "image/webp",
-		bytesPrefix: [
-			82,
-			73,
-			70,
-			70,
-			null,
-			null,
-			null,
-			null,
-			87,
-			69,
-			66,
-			80
-		]
-	},
-	{
-		mediaType: "image/bmp",
-		bytesPrefix: [66, 77]
-	},
-	{
-		mediaType: "image/tiff",
-		bytesPrefix: [
-			73,
-			73,
-			42,
-			0
-		]
-	},
-	{
-		mediaType: "image/tiff",
-		bytesPrefix: [
-			77,
-			77,
-			0,
-			42
-		]
-	},
-	{
-		mediaType: "image/avif",
-		bytesPrefix: [
-			0,
-			0,
-			0,
-			32,
-			102,
-			116,
-			121,
-			112,
-			97,
-			118,
-			105,
-			102
-		]
-	},
-	{
-		mediaType: "image/heic",
-		bytesPrefix: [
-			0,
-			0,
-			0,
-			32,
-			102,
-			116,
-			121,
-			112,
-			104,
-			101,
-			105,
-			99
-		]
-	}
-];
-var documentMediaTypeSignatures = [{
-	mediaType: "application/pdf",
-	bytesPrefix: [
-		37,
-		80,
-		68,
-		70
-	]
-}];
-var audioMediaTypeSignatures = [
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 251]
-	},
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 250]
-	},
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 243]
-	},
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 242]
-	},
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 227]
-	},
-	{
-		mediaType: "audio/mpeg",
-		bytesPrefix: [255, 226]
-	},
-	{
-		mediaType: "audio/wav",
-		bytesPrefix: [
-			82,
-			73,
-			70,
-			70,
-			null,
-			null,
-			null,
-			null,
-			87,
-			65,
-			86,
-			69
-		]
-	},
-	{
-		mediaType: "audio/ogg",
-		bytesPrefix: [
-			79,
-			103,
-			103,
-			83
-		]
-	},
-	{
-		mediaType: "audio/flac",
-		bytesPrefix: [
-			102,
-			76,
-			97,
-			67
-		]
-	},
-	{
-		mediaType: "audio/aac",
-		bytesPrefix: [
-			64,
-			21,
-			0,
-			0
-		]
-	},
-	{
-		mediaType: "audio/mp4",
-		bytesPrefix: [
-			102,
-			116,
-			121,
-			112
-		]
-	},
-	{
-		mediaType: "audio/webm",
-		bytesPrefix: [
-			26,
-			69,
-			223,
-			163
-		]
-	}
-];
-var videoMediaTypeSignatures = [
-	{
-		mediaType: "video/mp4",
-		bytesPrefix: [
-			0,
-			0,
-			0,
-			null,
-			102,
-			116,
-			121,
-			112
-		]
-	},
-	{
-		mediaType: "video/webm",
-		bytesPrefix: [
-			26,
-			69,
-			223,
-			163
-		]
-	},
-	{
-		mediaType: "video/quicktime",
-		bytesPrefix: [
-			0,
-			0,
-			0,
-			20,
-			102,
-			116,
-			121,
-			112,
-			113,
-			116
-		]
-	},
-	{
-		mediaType: "video/x-msvideo",
-		bytesPrefix: [
-			82,
-			73,
-			70,
-			70
-		]
-	}
-];
-var stripID3 = (data) => {
-	const bytes = typeof data === "string" ? convertBase64ToUint8Array(data) : data;
-	const id3Size = (bytes[6] & 127) << 21 | (bytes[7] & 127) << 14 | (bytes[8] & 127) << 7 | bytes[9] & 127;
-	return bytes.slice(id3Size + 10);
-};
-function stripID3TagsIfPresent(data) {
-	return typeof data === "string" && data.startsWith("SUQz") || typeof data !== "string" && data.length > 10 && data[0] === 73 && data[1] === 68 && data[2] === 51 ? stripID3(data) : data;
+	return error;
 }
-function detectMediaTypeBySignatures({ data, signatures }) {
-	const processedData = stripID3TagsIfPresent(data);
-	const bytes = typeof processedData === "string" ? convertBase64ToUint8Array(processedData.substring(0, Math.min(processedData.length, 24))) : processedData;
-	for (const signature of signatures) if (bytes.length >= signature.bytesPrefix.length && signature.bytesPrefix.every((byte, index) => byte === null || bytes[index] === byte)) return signature.mediaType;
-}
-var topLevelSignatureTables = {
-	image: imageMediaTypeSignatures,
-	audio: audioMediaTypeSignatures,
-	video: videoMediaTypeSignatures,
-	application: documentMediaTypeSignatures
-};
-function detectMediaType({ data, topLevelType }) {
-	if (topLevelType === void 0) return detectMediaTypeBySignatures({
-		data,
-		signatures: [
-			...imageMediaTypeSignatures,
-			...documentMediaTypeSignatures,
-			...audioMediaTypeSignatures,
-			...videoMediaTypeSignatures
-		]
+/**
+* Normalizes different header inputs into a plain record with lower-case keys.
+* Entries with `undefined` or `null` values are removed.
+*
+* @param headers - Input headers (`Headers`, tuples array, plain record) to normalize.
+* @returns A record containing the normalized header entries.
+*/
+function normalizeHeaders(headers) {
+	if (headers == null) return {};
+	const normalized = {};
+	if (headers instanceof Headers) headers.forEach((value, key) => {
+		normalized[key.toLowerCase()] = value;
 	});
-	const signatures = topLevelSignatureTables[topLevelType];
-	if (signatures === void 0) return;
-	return detectMediaTypeBySignatures({
-		data,
-		signatures
-	});
+	else {
+		if (!Array.isArray(headers)) headers = Object.entries(headers);
+		for (const [key, value] of headers) if (value != null) normalized[key.toLowerCase()] = value;
+	}
+	return normalized;
 }
-function isFullMediaType(mediaType) {
-	const slashIndex = mediaType.indexOf("/");
-	if (slashIndex === -1) return false;
-	const subtype = mediaType.substring(slashIndex + 1);
-	return subtype.length > 0 && subtype !== "*";
+/**
+* Appends suffix parts to the `user-agent` header.
+* If a `user-agent` header already exists, the suffix parts are appended to it.
+* If no `user-agent` header exists, a new one is created with the suffix parts.
+* Automatically removes undefined entries from the headers.
+*
+* @param headers - The original headers.
+* @param userAgentSuffixParts - The parts to append to the `user-agent` header.
+* @returns The new headers with the `user-agent` header set or updated.
+*/
+function withUserAgentSuffix(headers, ...userAgentSuffixParts) {
+	const normalizedHeaders = new Headers(normalizeHeaders(headers));
+	const currentUserAgentHeader = normalizedHeaders.get("user-agent") || "";
+	normalizedHeaders.set("user-agent", [currentUserAgentHeader, ...userAgentSuffixParts].filter(Boolean).join(" "));
+	return Object.fromEntries(normalizedHeaders.entries());
 }
+/**
+* Cancels a response body to release the underlying connection.
+*
+* When a fetch Response is rejected without consuming its body (e.g. a failed
+* status code, an open-redirect rejection, or a Content-Length that exceeds the
+* size limit), the underlying TCP socket is not returned to the connection pool
+* and may stay open until the process runs out of file descriptors. Cancelling
+* the body avoids this leak.
+*
+* Errors thrown while cancelling are ignored: the body may already be locked,
+* disturbed, or absent, none of which should mask the original rejection.
+*/
 async function cancelResponseBody(response) {
-	var _a2;
 	try {
-		await ((_a2 = response.body) == null ? void 0 : _a2.cancel());
-	} catch (e) {}
+		await response.body?.cancel();
+	} catch {}
 }
-var name$1 = "AI_DownloadError";
-var marker = `vercel.ai.error.${name$1}`;
-var symbol$1 = Symbol.for(marker);
-var _a$1;
-var _b$1;
-var DownloadError = class extends (_b$1 = AISDKError, _a$1 = symbol$1, _b$1) {
+const name$1$1 = "AI_DownloadError";
+const marker$1$1 = `vercel.ai.error.${name$1$1}`;
+const symbol$1$1 = Symbol.for(marker$1$1);
+var DownloadError = class extends AISDKError {
 	constructor({ url, statusCode, statusText, cause, message = cause == null ? `Failed to download ${url}: ${statusCode} ${statusText}` : `Failed to download ${url}: ${cause}` }) {
 		super({
-			name: name$1,
+			name: name$1$1,
 			message,
 			cause
 		});
-		this[_a$1] = true;
+		this[symbol$1$1] = true;
 		this.url = url;
 		this.statusCode = statusCode;
 		this.statusText = statusText;
 	}
 	static isInstance(error) {
-		return AISDKError.hasMarker(error, marker);
+		return AISDKError.hasMarker(error, marker$1$1);
 	}
 };
+/**
+* Returns `true` when running in a browser.
+*
+* Detection keys on the presence of a global `window`, matching the browser
+* check used elsewhere in this package (see `getRuntimeEnvironmentUserAgent`)
+* so the SDK has a single, consistent definition of "browser". Server runtimes
+* (Node.js, Deno, Bun, edge/workers) do not define `window`.
+*/
 function isBrowserRuntime(globalThisAny = globalThis) {
 	return globalThisAny.window != null;
 }
+/**
+* Returns true when `url` has the same origin (scheme + host + port) as
+* `baseUrl`.
+*
+* Used to decide whether provider credentials may be attached to a request to a
+* URL taken from a provider response (e.g. a polling or media-download URL).
+* Credentials must only be sent to the provider's own origin; a response that
+* names a foreign host (a CDN, or an attacker-controlled host if the response
+* is tampered with) must not receive the API key.
+*
+* Returns false if either value is not a valid absolute URL (fail-closed).
+*/
 function isSameOrigin(url, baseUrl) {
 	try {
 		return new URL(url).origin === new URL(baseUrl).origin;
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }
-var BLOCKED_REQUEST_HEADERS = [
-	"connection",
-	"keep-alive",
-	"te",
-	"trailer",
-	"transfer-encoding",
-	"upgrade",
-	"host",
-	"forwarded",
-	"proxy-authorization",
-	"via",
-	"x-forwarded-for",
-	"x-forwarded-host",
-	"x-forwarded-proto",
-	"x-real-ip",
-	"metadata",
-	"metadata-flavor",
-	"x-aws-ec2-metadata-token",
-	"x-metadata-token",
-	"cookie",
-	"set-cookie"
-];
-function sanitizeRequestHeaders(input) {
-	const headers = new Headers(input);
-	for (const name2 of BLOCKED_REQUEST_HEADERS) headers.delete(name2);
-	return headers;
-}
+/**
+* Validates that a URL is safe to download from, blocking private/internal addresses
+* to prevent SSRF attacks.
+*
+* Note: this function performs string/literal-IP checks only. The Node.js
+* download fetch additionally validates and pins DNS results at connect time.
+*
+* @param url - The URL string to validate.
+* @throws DownloadError if the URL is unsafe.
+*/
 function validateDownloadUrl(url) {
 	let parsed;
 	try {
 		parsed = new URL(url);
-	} catch (e) {
+	} catch {
 		throw new DownloadError({
 			url,
 			message: `Invalid URL: ${url}`
@@ -909,7 +6740,7 @@ function validateDownloadUrl(url) {
 		url,
 		message: `URL must have a hostname`
 	});
-	if (hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".localhost")) throw new DownloadError({
+	if (hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".localhost") || hostname.endsWith(".internal")) throw new DownloadError({
 		url,
 		message: `URL with hostname ${hostname} is not allowed`
 	});
@@ -925,8 +6756,17 @@ function validateDownloadUrl(url) {
 			url,
 			message: `URL with IP address ${hostname} is not allowed`
 		});
-		return;
 	}
+}
+/**
+* Validates an address returned by DNS before it is used to open a socket.
+* This is intentionally not exported from the package entry point.
+*/
+function validateDownloadAddress({ address, family, hostname }) {
+	if (family === 4 ? !isIPv4(address) || isPrivateIPv4(address) : family === 6 ? isPrivateIPv6(address) : true) throw new DownloadError({
+		url: hostname,
+		message: `Hostname ${hostname} resolved to disallowed IP address ${address}`
+	});
 }
 function isIPv4(hostname) {
 	const parts = hostname.split(".");
@@ -953,6 +6793,12 @@ function isPrivateIPv4(ip) {
 	if (a >= 224) return true;
 	return false;
 }
+/**
+* Expands an IPv6 address string into its 8 16-bit groups, handling `::`
+* compression and an optional dotted-decimal IPv4 tail (e.g. `::ffff:127.0.0.1`).
+*
+* @returns the 8 groups, or null if the input is not a parseable IPv6 address.
+*/
 function parseIPv6(ip) {
 	let address = ip.toLowerCase();
 	const zoneIndex = address.indexOf("%");
@@ -1005,15 +6851,178 @@ function isPrivateIPv6(ip) {
 	if (topZero(6) || topZero(5) && groups[5] === 65535 || topZero(4) && groups[4] === 65535 && groups[5] === 0 || groups[0] === 100 && groups[1] === 65435 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0 && groups[5] === 0 || groups[0] === 100 && groups[1] === 65435 && groups[2] === 1) return isPrivateIPv4(`${groups[6] >> 8 & 255}.${groups[6] & 255}.${groups[7] >> 8 & 255}.${groups[7] & 255}`);
 	return false;
 }
-var MAX_DOWNLOAD_REDIRECTS = 10;
-var REDIRECT_STATUS_CODES = /* @__PURE__ */ new Set([
+/**
+* Creates a DNS lookup hook that validates every returned address before
+* returning the callback shape requested by the HTTP connector. Because
+* resolution and validation happen inside the connector, the socket is pinned
+* to the validated result and DNS rebinding cannot introduce a second lookup.
+*/
+function createSafeLookup(lookup) {
+	return ((hostname, options, callback) => {
+		lookup(hostname, {
+			...options,
+			all: true
+		}, (error, addresses) => {
+			if (error) {
+				callback(error);
+				return;
+			}
+			try {
+				const [firstAddress] = addresses;
+				if (firstAddress == null) throw new Error(`Hostname ${hostname} did not resolve to an address`);
+				for (const { address, family } of addresses) validateDownloadAddress({
+					address,
+					family,
+					hostname
+				});
+				if (options.all === true) callback(null, addresses);
+				else callback(null, firstAddress.address, firstAddress.family);
+			} catch (error) {
+				callback(error instanceof Error ? error : new Error(String(error)));
+			}
+		});
+	});
+}
+let safeNodeFetchPromise;
+function isNodeRuntime() {
+	const runtimeProcess = globalThis.process;
+	return runtimeProcess?.release?.name === "node" && runtimeProcess.versions?.bun == null && runtimeProcess.versions?.deno == null && runtimeProcess.title !== "workerd" && globalThis.EdgeRuntime == null;
+}
+async function getDefaultDownloadFetch() {
+	if (!isNodeRuntime()) return globalThis.fetch;
+	return safeNodeFetchPromise ??= Promise.resolve().then(createSafeNodeFetch);
+}
+function createSafeNodeFetch() {
+	const module = loadBuiltinModule("node:module");
+	const { lookup } = loadBuiltinModule("node:dns");
+	const { Agent, fetch } = module.createRequire(getCurrentModulePath())("undici");
+	const dispatcher = new Agent({ connect: { lookup: createSafeLookup(lookup) } });
+	return ((input, init) => fetch(input, {
+		...init,
+		dispatcher
+	}));
+}
+function loadBuiltinModule(id) {
+	const builtinModule = globalThis.process?.getBuiltinModule?.(id);
+	if (builtinModule == null) throw new Error(`Node.js built-in module ${id} is unavailable`);
+	return builtinModule;
+}
+function getCurrentModulePath() {
+	const originalPrepareStackTrace = Error.prepareStackTrace;
+	try {
+		Error.prepareStackTrace = (_error, callSites) => callSites;
+		const error = /* @__PURE__ */ new Error("Capture current module path");
+		Error.captureStackTrace(error, getCurrentModulePath);
+		const [caller] = error.stack;
+		const fileName = caller?.getFileName();
+		if (fileName == null) throw new Error("Unable to determine the current module path");
+		return fileName;
+	} finally {
+		Error.prepareStackTrace = originalPrepareStackTrace;
+	}
+}
+/**
+* Request headers stripped before fetching an untrusted URL: host/virtual-host
+* routing, proxy/origin spoofing, cloud-metadata, cookies, and hop-by-hop
+* transport headers (RFC 7230 §6.1).
+*
+* `Authorization` and other credential-bearing caller headers (e.g. `x-key`)
+* are intentionally not listed because trusted provider requests may need
+* them. `fetchUntrustedUrl` separately restricts an untrusted first hop to an
+* explicit allowlist of non-credential request metadata. Both it and
+* `fetchWithValidatedRedirects` drop all caller headers except the user-agent
+* on a cross-origin redirect.
+*/
+const BLOCKED_REQUEST_HEADERS = [
+	"connection",
+	"keep-alive",
+	"te",
+	"trailer",
+	"transfer-encoding",
+	"upgrade",
+	"host",
+	"forwarded",
+	"proxy-authorization",
+	"via",
+	"x-forwarded-for",
+	"x-forwarded-host",
+	"x-forwarded-proto",
+	"x-real-ip",
+	"metadata",
+	"metadata-flavor",
+	"x-aws-ec2-metadata-token",
+	"x-metadata-token",
+	"cookie",
+	"set-cookie"
+];
+/**
+* Returns a fresh `Headers` built from `input` with {@link BLOCKED_REQUEST_HEADERS}
+* removed. The input is never mutated.
+*/
+function sanitizeRequestHeaders(input) {
+	const headers = new Headers(input);
+	for (const name of BLOCKED_REQUEST_HEADERS) headers.delete(name);
+	return headers;
+}
+const MAX_DOWNLOAD_REDIRECTS = 10;
+const REDIRECT_STATUS_CODES = /* @__PURE__ */ new Set([
 	301,
 	302,
 	303,
 	307,
 	308
 ]);
-async function fetchWithValidatedRedirects({ url, headers, abortSignal, maxRedirects = MAX_DOWNLOAD_REDIRECTS, fetch = globalThis.fetch, trustedOrigin }) {
+async function getValidatedFetch(customFetch) {
+	return customFetch == null || customFetch === globalThis.fetch ? await getDefaultDownloadFetch() : customFetch;
+}
+/**
+* Fetches a URL while enforcing the download guard on every hop.
+*
+* Redirects are followed manually (`redirect: 'manual'`) so each hop is
+* validated with {@link validateDownloadUrl} *before* it is requested. Relying
+* on the default `redirect: 'follow'` would issue the request to a redirect
+* target (e.g. an internal address) before we ever see its URL, defeating the
+* guard.
+*
+* Request headers are also protected: {@link sanitizeRequestHeaders} strips
+* proxy/metadata/cookie/hop-by-hop headers before the first request, and all
+* caller headers except `User-Agent` are dropped on a cross-origin redirect.
+* Credentials and custom headers are preserved on the first hop for backwards
+* compatibility. The caller must ensure that the initial URL may receive them.
+* Use `fetchUntrustedUrl` for URLs that require first-hop credential isolation.
+* The fetch spec only strips `Authorization` on cross-origin redirects because
+* in a browser, CORS preflighting protects custom headers; there is no CORS on
+* the server, so provider API keys carried in custom headers (e.g. `x-key`)
+* must be dropped here as well.
+*
+* A `redirect: 'manual'` request yields an unreadable opaque response in the
+* browser (and in other spec-compliant fetch implementations), so the redirect
+* target cannot be validated here. In a real browser this is safe to follow
+* natively because reaching an internal network is not possible (fetch is
+* constrained by CORS and cannot reach a server's internal network or
+* cloud-metadata). On any other runtime we cannot validate the hop, so we fail
+* closed rather than follow it blindly and bypass the guard.
+*
+* A hop that is same-origin with `trustedOrigin` (the developer-configured
+* provider endpoint) skips target validation: that origin is exactly what an
+* unvalidated, config-derived request would fetch anyway, and validating it
+* would break legitimate self-hosted / localhost deployments whose response
+* URLs point back at the configured host. Hops on any other origin are always
+* validated.
+*
+* The returned response is the final (non-redirect) response. The caller is
+* responsible for checking `response.ok` and reading the body.
+*
+* On Node.js, the default fetch resolves every hostname through a validating
+* lookup hook and passes those exact addresses to the connector, preventing
+* hostname-to-private-IP and DNS-rebinding bypasses. An injected fetch is
+* responsible for equivalent connect-time validation. Other runtimes should
+* constrain egress at the network layer when handling untrusted URLs.
+*
+* @throws DownloadError if a hop is unsafe, the redirect limit is exceeded, or
+* a redirect cannot be validated on a non-browser runtime.
+*/
+async function fetchWithValidatedRedirects({ url, headers, abortSignal, maxRedirects = MAX_DOWNLOAD_REDIRECTS, fetch: customFetch, trustedOrigin }) {
 	let currentHeaders = headers === void 0 ? void 0 : sanitizeRequestHeaders(headers);
 	const perHopInit = (redirect) => {
 		const init = {
@@ -1025,7 +7034,9 @@ async function fetchWithValidatedRedirects({ url, headers, abortSignal, maxRedir
 	};
 	let currentUrl = url;
 	for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
-		if (trustedOrigin === void 0 || !isSameOrigin(currentUrl, trustedOrigin)) validateDownloadUrl(currentUrl);
+		const isTrustedHop = trustedOrigin !== void 0 && isSameOrigin(currentUrl, trustedOrigin);
+		if (!isTrustedHop) validateDownloadUrl(currentUrl);
+		const fetch = isTrustedHop && customFetch != null ? customFetch : isTrustedHop ? globalThis.fetch : await getValidatedFetch(customFetch);
 		const response = await fetch(currentUrl, perHopInit("manual"));
 		if (response.type === "opaqueredirect") {
 			if (!isBrowserRuntime()) throw new DownloadError({
@@ -1034,9 +7045,9 @@ async function fetchWithValidatedRedirects({ url, headers, abortSignal, maxRedir
 			});
 			return await fetch(currentUrl, perHopInit("follow"));
 		}
-		const location = response.headers.get("location");
+		const location = response.headers?.get("location");
 		if (REDIRECT_STATUS_CODES.has(response.status) && location) {
-			await cancelResponseBody(response);
+			cancelResponseBody(response);
 			const nextUrl = new URL(location, currentUrl).toString();
 			if (currentHeaders !== void 0 && !isSameOrigin(nextUrl, currentUrl)) {
 				const userAgent = currentHeaders.get("user-agent");
@@ -1052,6 +7063,19 @@ async function fetchWithValidatedRedirects({ url, headers, abortSignal, maxRedir
 		message: `Too many redirects (max ${maxRedirects})`
 	});
 }
+/**
+* Reads a fetch Response body with a size limit to prevent memory exhaustion.
+*
+* Checks the Content-Length header for early rejection, then reads the body
+* incrementally via ReadableStream and aborts with a DownloadError when the
+* limit is exceeded.
+*
+* @param response - The fetch Response to read.
+* @param url - The URL being downloaded (used in error messages).
+* @param maxBytes - Maximum allowed bytes. Defaults to DEFAULT_MAX_DOWNLOAD_SIZE.
+* @returns A Uint8Array containing the response body.
+* @throws DownloadError if the response exceeds maxBytes.
+*/
 async function readResponseWithSizeLimit({ response, url, maxBytes = 2147483648 }) {
 	const contentLength = response.headers.get("content-length");
 	if (contentLength != null) {
@@ -1078,12 +7102,12 @@ async function readResponseWithSizeLimit({ response, url, maxBytes = 2147483648 
 				url,
 				message: `Download of ${url} exceeded maximum size of ${maxBytes} bytes.`
 			});
-			chunks.push(value);
+			chunks.push(value.byteLength < value.buffer.byteLength ? new Uint8Array(value) : value);
 		}
 	} finally {
 		try {
 			await reader.cancel();
-		} finally {
+		} catch {} finally {
 			reader.releaseLock();
 		}
 	}
@@ -1095,13 +7119,17 @@ async function readResponseWithSizeLimit({ response, url, maxBytes = 2147483648 
 	}
 	return result;
 }
-function extractResponseHeaders(response) {
-	return Object.fromEntries([...response.headers]);
-}
-function filterNullable(...values) {
-	return values.filter((value) => value != null);
-}
-var createIdGenerator = ({ prefix, size = 16, alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", separator = "-" } = {}) => {
+/**
+* Creates an ID generator.
+* The total length of the ID is the sum of the prefix, separator, and random part length.
+* Not cryptographically secure.
+*
+* @param alphabet - The alphabet to use for the ID. Default: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.
+* @param prefix - The prefix of the ID to generate. Optional.
+* @param separator - The separator between the prefix and the random part of the ID. Default: '-'.
+* @param size - The size of the random part of the ID to generate. Default: 16.
+*/
+const createIdGenerator = ({ prefix, size = 16, alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", separator = "-" } = {}) => {
 	const generator = () => {
 		const alphabetLength = alphabet.length;
 		const chars = new Array(size);
@@ -1116,83 +7144,18 @@ var createIdGenerator = ({ prefix, size = 16, alphabet = "0123456789ABCDEFGHIJKL
 	return () => `${prefix}${separator}${generator()}`;
 };
 createIdGenerator();
-function isAbortError(error) {
-	return (error instanceof Error || error instanceof DOMException) && (error.name === "AbortError" || error.name === "ResponseAborted" || error.name === "TimeoutError");
-}
-var FETCH_FAILED_ERROR_MESSAGES = ["fetch failed", "failed to fetch"];
-var BUN_ERROR_CODES = [
-	"ConnectionRefused",
-	"ConnectionClosed",
-	"FailedToOpenSocket",
-	"ECONNRESET",
-	"ECONNREFUSED",
-	"ETIMEDOUT",
-	"EPIPE"
-];
-function isBunNetworkError(error) {
-	if (!(error instanceof Error)) return false;
-	const code = error.code;
-	if (typeof code === "string" && BUN_ERROR_CODES.includes(code)) return true;
-	return false;
-}
-function handleFetchError({ error, url, requestBodyValues }) {
-	if (isAbortError(error)) return error;
-	if (error instanceof TypeError && FETCH_FAILED_ERROR_MESSAGES.includes(error.message.toLowerCase())) {
-		const cause = error.cause;
-		if (cause != null) return new APICallError({
-			message: `Cannot connect to API: ${cause.message}`,
-			cause,
-			url,
-			requestBodyValues,
-			isRetryable: true
-		});
-	}
-	if (isBunNetworkError(error)) return new APICallError({
-		message: `Cannot connect to API: ${error.message}`,
-		cause: error,
-		url,
-		requestBodyValues,
-		isRetryable: true
-	});
-	return error;
-}
-function getRuntimeEnvironmentUserAgent(globalThisAny = globalThis) {
-	var _a2, _b2, _c;
-	if (globalThisAny.window) return `runtime/browser`;
-	if ((_a2 = globalThisAny.navigator) == null ? void 0 : _a2.userAgent) return `runtime/${globalThisAny.navigator.userAgent.toLowerCase()}`;
-	if ((_c = (_b2 = globalThisAny.process) == null ? void 0 : _b2.versions) == null ? void 0 : _c.node) return `runtime/node.js/${globalThisAny.process.version.substring(0)}`;
-	if (globalThisAny.EdgeRuntime) return `runtime/vercel-edge`;
-	return "runtime/unknown";
-}
-function normalizeHeaders(headers) {
-	if (headers == null) return {};
-	const normalized = {};
-	if (headers instanceof Headers) headers.forEach((value, key) => {
-		normalized[key.toLowerCase()] = value;
-	});
-	else {
-		if (!Array.isArray(headers)) headers = Object.entries(headers);
-		for (const [key, value] of headers) if (value != null) normalized[key.toLowerCase()] = value;
-	}
-	return normalized;
-}
-function withUserAgentSuffix(headers, ...userAgentSuffixParts) {
-	const normalizedHeaders = new Headers(normalizeHeaders(headers));
-	const currentUserAgentHeader = normalizedHeaders.get("user-agent") || "";
-	normalizedHeaders.set("user-agent", [currentUserAgentHeader, ...userAgentSuffixParts].filter(Boolean).join(" "));
-	return Object.fromEntries(normalizedHeaders.entries());
-}
-var getOriginalFetch = () => globalThis.fetch;
-var getFromApi = async ({ url, headers = {}, successfulResponseHandler, failedResponseHandler, abortSignal, fetch = getOriginalFetch(), validateUrl, credentialedOrigin, trustedOrigin }) => {
+const getOriginalFetch$2 = () => globalThis.fetch;
+const getFromApi = async ({ url, headers = {}, successfulResponseHandler, failedResponseHandler, abortSignal, fetch, validateUrl, credentialedOrigin, trustedOrigin }) => {
 	try {
-		const requestHeaders = withUserAgentSuffix(credentialedOrigin !== void 0 && !isSameOrigin(url, credentialedOrigin) ? {} : headers, `ai-sdk/provider-utils/5.0.11`, getRuntimeEnvironmentUserAgent());
+		const requestFetch = fetch ?? getOriginalFetch$2();
+		const requestHeaders = withUserAgentSuffix(credentialedOrigin !== void 0 && !isSameOrigin(url, credentialedOrigin) ? {} : headers, `ai-sdk-provider-utils/5.0.67`, getRuntimeEnvironmentUserAgent());
 		const response = validateUrl ? await fetchWithValidatedRedirects({
 			url,
 			headers: requestHeaders,
 			abortSignal,
 			fetch,
 			trustedOrigin
-		}) : await fetch(url, {
+		}) : await requestFetch(url, {
 			method: "GET",
 			headers: requestHeaders,
 			signal: abortSignal
@@ -1246,32 +7209,19 @@ var getFromApi = async ({ url, headers = {}, successfulResponseHandler, failedRe
 		});
 	}
 };
-function isBuffer(value) {
-	var _a2, _b2;
-	return (_b2 = (_a2 = globalThis.Buffer) == null ? void 0 : _a2.isBuffer(value)) != null ? _b2 : false;
+/**
+* Checks whether a value is a non-null, non-array object.
+*/
+function isRecord(value) {
+	return value != null && typeof value === "object" && !Array.isArray(value);
 }
-function isProviderReference(data) {
-	return typeof data === "object" && data !== null && !(data instanceof Uint8Array) && !(data instanceof URL) && !(data instanceof ArrayBuffer) && !isBuffer(data) && !("type" in data);
-}
-function isUrlSupported({ mediaType, url, supportedUrls }) {
-	url = url.toLowerCase();
-	mediaType = mediaType.toLowerCase();
-	const isTopLevelOnly = !mediaType.includes("/");
-	return Object.entries(supportedUrls).map(([key, value]) => {
-		const mediaType2 = key.toLowerCase();
-		return mediaType2 === "*" || mediaType2 === "*/*" ? {
-			mediaTypePrefix: "",
-			regexes: value
-		} : {
-			mediaTypePrefix: mediaType2.replace(/\*/, ""),
-			regexes: value
-		};
-	}).filter(({ mediaTypePrefix }) => {
-		if (mediaTypePrefix === "") return true;
-		if (isTopLevelOnly) return `${mediaType}/` === mediaTypePrefix;
-		return mediaType.startsWith(mediaTypePrefix);
-	}).flatMap(({ regexes }) => regexes).some((pattern) => pattern.test(url));
-}
+/**
+* Loads an optional `string` setting from the environment or a parameter.
+*
+* @param settingValue - The setting value.
+* @param environmentVariableName - The environment variable name.
+* @returns The setting value.
+*/
 function loadOptionalSetting({ settingValue, environmentVariableName }) {
 	if (typeof settingValue === "string") return settingValue;
 	if (settingValue != null || typeof process === "undefined") return;
@@ -1279,8 +7229,25 @@ function loadOptionalSetting({ settingValue, environmentVariableName }) {
 	if (settingValue == null || typeof settingValue !== "string") return;
 	return settingValue;
 }
-var suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
-var suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
+/**
+* Normalizes complete batch request counts.
+*
+* Returns `undefined` when any count is missing, is not a non-negative safe
+* integer, or when the item counts do not add up to the total.
+*/
+function normalizeBatchRequestCounts({ total, pending, completed, failed }) {
+	if (isNonNegativeSafeInteger(total) && isNonNegativeSafeInteger(pending) && isNonNegativeSafeInteger(completed) && isNonNegativeSafeInteger(failed) && pending + completed + failed === total) return {
+		total,
+		pending,
+		completed,
+		failed
+	};
+}
+function isNonNegativeSafeInteger(value) {
+	return value != null && Number.isSafeInteger(value) && value >= 0;
+}
+const suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
+const suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
 function _parse(text) {
 	const obj = JSON.parse(text);
 	if (obj === null || typeof obj !== "object") return obj;
@@ -1307,7 +7274,7 @@ function secureJsonParse(text) {
 	const { stackTraceLimit } = Error;
 	try {
 		Error.stackTraceLimit = 0;
-	} catch (e) {
+	} catch {
 		return _parse(text);
 	}
 	try {
@@ -1316,26 +7283,32 @@ function secureJsonParse(text) {
 		Error.stackTraceLimit = stackTraceLimit;
 	}
 }
-function addAdditionalPropertiesToJsonSchema(jsonSchema2) {
-	if (jsonSchema2.type === "object" || Array.isArray(jsonSchema2.type) && jsonSchema2.type.includes("object")) {
-		jsonSchema2.additionalProperties = false;
-		const { properties } = jsonSchema2;
+/**
+* Recursively adds additionalProperties: false to object schemas that do not
+* define a schema for their additional properties. This is necessary because
+* some providers (e.g. OpenAI) do not support additionalProperties: true.
+*/
+function addAdditionalPropertiesToJsonSchema(jsonSchema) {
+	if (jsonSchema.type === "object" || Array.isArray(jsonSchema.type) && jsonSchema.type.includes("object")) {
+		const { additionalProperties } = jsonSchema;
+		jsonSchema.additionalProperties = additionalProperties != null && typeof additionalProperties !== "boolean" ? visit(additionalProperties) : false;
+		const { properties } = jsonSchema;
 		if (properties != null) for (const key of Object.keys(properties)) properties[key] = visit(properties[key]);
 	}
-	if (jsonSchema2.items != null) jsonSchema2.items = Array.isArray(jsonSchema2.items) ? jsonSchema2.items.map(visit) : visit(jsonSchema2.items);
-	if (jsonSchema2.anyOf != null) jsonSchema2.anyOf = jsonSchema2.anyOf.map(visit);
-	if (jsonSchema2.allOf != null) jsonSchema2.allOf = jsonSchema2.allOf.map(visit);
-	if (jsonSchema2.oneOf != null) jsonSchema2.oneOf = jsonSchema2.oneOf.map(visit);
-	const { definitions } = jsonSchema2;
+	if (jsonSchema.items != null) jsonSchema.items = Array.isArray(jsonSchema.items) ? jsonSchema.items.map(visit) : visit(jsonSchema.items);
+	if (jsonSchema.anyOf != null) jsonSchema.anyOf = jsonSchema.anyOf.map(visit);
+	if (jsonSchema.allOf != null) jsonSchema.allOf = jsonSchema.allOf.map(visit);
+	if (jsonSchema.oneOf != null) jsonSchema.oneOf = jsonSchema.oneOf.map(visit);
+	const { definitions } = jsonSchema;
 	if (definitions != null) for (const key of Object.keys(definitions)) definitions[key] = visit(definitions[key]);
-	return jsonSchema2;
+	return jsonSchema;
 }
 function visit(def) {
 	if (typeof def === "boolean") return def;
 	return addAdditionalPropertiesToJsonSchema(def);
 }
-var ignoreOverride = /* @__PURE__ */ Symbol("Let zodToJsonSchema decide on which parser to use");
-var defaultOptions = {
+const ignoreOverride = Symbol("Let zodToJsonSchema decide on which parser to use");
+const defaultOptions = {
 	name: void 0,
 	$refStrategy: "root",
 	basePath: ["#"],
@@ -1356,7 +7329,7 @@ var defaultOptions = {
 	base64Strategy: "contentEncoding:base64",
 	nameStrategy: "ref"
 };
-var getDefaultOptions = (options) => typeof options === "string" ? {
+const getDefaultOptions = (options) => typeof options === "string" ? {
 	...defaultOptions,
 	name: options
 } : {
@@ -1367,9 +7340,8 @@ function parseAnyDef() {
 	return {};
 }
 function parseArrayDef(def, refs) {
-	var _a2, _b2, _c;
 	const res = { type: "array" };
-	if (((_a2 = def.type) == null ? void 0 : _a2._def) && ((_c = (_b2 = def.type) == null ? void 0 : _b2._def) == null ? void 0 : _c.typeName) !== ZodFirstPartyTypeKind.ZodAny) res.items = parseDef(def.type._def, {
+	if (def.type?._def && def.type?._def?.typeName !== "ZodAny") res.items = parseDef(def.type._def, {
 		...refs,
 		currentPath: [...refs.currentPath, "items"]
 	});
@@ -1396,9 +7368,7 @@ function parseBigintDef(def) {
 			if (check.inclusive) res.maximum = check.value;
 			else res.exclusiveMaximum = check.value;
 			break;
-		case "multipleOf":
-			res.multipleOf = check.value;
-			break;
+		case "multipleOf": res.multipleOf = check.value;
 	}
 	return res;
 }
@@ -1408,11 +7378,11 @@ function parseBooleanDef() {
 function parseBrandedDef(_def, refs) {
 	return parseDef(_def.type._def, refs);
 }
-var parseCatchDef = (def, refs) => {
+const parseCatchDef = (def, refs) => {
 	return parseDef(def.innerType._def, refs);
 };
 function parseDateDef(def, refs, overrideDateStrategy) {
-	const strategy = overrideDateStrategy != null ? overrideDateStrategy : refs.dateStrategy;
+	const strategy = overrideDateStrategy ?? refs.dateStrategy;
 	if (Array.isArray(strategy)) return { anyOf: strategy.map((item) => parseDateDef(def, refs, item)) };
 	switch (strategy) {
 		case "string":
@@ -1427,7 +7397,7 @@ function parseDateDef(def, refs, overrideDateStrategy) {
 		case "integer": return integerDateParser(def);
 	}
 }
-var integerDateParser = (def) => {
+const integerDateParser = (def) => {
 	const res = {
 		type: "integer",
 		format: "unix-time"
@@ -1436,9 +7406,7 @@ var integerDateParser = (def) => {
 		case "min":
 			res.minimum = check.value;
 			break;
-		case "max":
-			res.maximum = check.value;
-			break;
+		case "max": res.maximum = check.value;
 	}
 	return res;
 };
@@ -1457,7 +7425,7 @@ function parseEnumDef(def) {
 		enum: Array.from(def.values)
 	};
 }
-var isJsonSchema7AllOfType = (type) => {
+const isJsonSchema7AllOfType = (type) => {
 	if ("type" in type && type.type === "string") return false;
 	return "allOf" in type;
 };
@@ -1499,8 +7467,14 @@ function parseLiteralDef(def) {
 		const: def.value
 	};
 }
-var emojiRegex = void 0;
-var zodPatterns = {
+let emojiRegex = void 0;
+/**
+* Generated from the regular expressions found here as of 2024-05-22:
+* https://github.com/colinhacks/zod/blob/master/src/types.ts.
+*
+* Expressions with /i flag have been changed accordingly.
+*/
+const zodPatterns = {
 	/**
 	* `c` was changed to `[cC]` to replicate /i flag
 	*/
@@ -1510,7 +7484,7 @@ var zodPatterns = {
 	/**
 	* `a-z` was added to replicate /i flag
 	*/
-	email: /^(?!\.)(?!.*\.\.)([a-zA-Z0-9_'+\-\.]*)[a-zA-Z0-9_+-]@([a-zA-Z0-9][a-zA-Z0-9\-]*\.)+[a-zA-Z]{2,}$/,
+	email: /^(?!\.)(?!.*\.\.)([a-zA-Z0-9_'+\-.]*)[a-zA-Z0-9_+-]@([a-zA-Z0-9][a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$/,
 	/**
 	* Constructed a valid Unicode RegExp
 	*
@@ -1562,9 +7536,7 @@ function parseStringDef(def, refs) {
 				case "format:idn-email":
 					addFormat(res, "idn-email", check.message, refs);
 					break;
-				case "pattern:zod":
-					addPattern(res, zodPatterns.email, check.message, refs);
-					break;
+				case "pattern:zod": addPattern(res, zodPatterns.email, check.message, refs);
 			}
 			break;
 		case "url":
@@ -1635,23 +7607,17 @@ function parseStringDef(def, refs) {
 				case "contentEncoding:base64":
 					res.contentEncoding = "base64";
 					break;
-				case "pattern:zod":
-					addPattern(res, zodPatterns.base64, check.message, refs);
-					break;
+				case "pattern:zod": addPattern(res, zodPatterns.base64, check.message, refs);
 			}
 			break;
 		case "nanoid": addPattern(res, zodPatterns.nanoid, check.message, refs);
-		case "toLowerCase":
-		case "toUpperCase":
-		case "trim": break;
-		default:
 	}
 	return res;
 }
 function escapeLiteralCheckValue(literal, refs) {
 	return refs.patternStrategy === "escape" ? escapeNonAlphaNumeric(literal) : literal;
 }
-var ALPHA_NUMERIC = /* @__PURE__ */ new Set("ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789");
+const ALPHA_NUMERIC = /* @__PURE__ */ new Set("ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789");
 function escapeNonAlphaNumeric(source) {
 	let result = "";
 	for (let i = 0; i < source.length; i++) {
@@ -1661,8 +7627,7 @@ function escapeNonAlphaNumeric(source) {
 	return result;
 }
 function addFormat(schema, value, message, refs) {
-	var _a2;
-	if (schema.format || ((_a2 = schema.anyOf) == null ? void 0 : _a2.some((x) => x.format))) {
+	if (schema.format || schema.anyOf?.some((x) => x.format)) {
 		if (!schema.anyOf) schema.anyOf = [];
 		if (schema.format) {
 			schema.anyOf.push({ format: schema.format });
@@ -1675,8 +7640,7 @@ function addFormat(schema, value, message, refs) {
 	} else schema.format = value;
 }
 function addPattern(schema, regex, message, refs) {
-	var _a2;
-	if (schema.pattern || ((_a2 = schema.allOf) == null ? void 0 : _a2.some((x) => x.pattern))) {
+	if (schema.pattern || schema.allOf?.some((x) => x.pattern)) {
 		if (!schema.allOf) schema.allOf = [];
 		if (schema.pattern) {
 			schema.allOf.push({ pattern: schema.pattern });
@@ -1689,7 +7653,6 @@ function addPattern(schema, regex, message, refs) {
 	} else schema.pattern = stringifyRegExpWithFlags(regex, refs);
 }
 function stringifyRegExpWithFlags(regex, refs) {
-	var _a2;
 	if (!refs.applyRegexFlags || !regex.flags) return regex.source;
 	const flags = {
 		i: regex.flags.includes("i"),
@@ -1714,7 +7677,7 @@ function stringifyRegExpWithFlags(regex, refs) {
 						pattern += source[i];
 						pattern += `${source[i - 2]}-${source[i]}`.toUpperCase();
 						inCharRange = false;
-					} else if (source[i + 1] === "-" && ((_a2 = source[i + 2]) == null ? void 0 : _a2.match(/[a-z]/))) {
+					} else if (source[i + 1] === "-" && source[i + 2]?.match(/[a-z]/)) {
 						pattern += source[i];
 						inCharRange = true;
 					} else pattern += `${source[i]}${source[i].toUpperCase()}`;
@@ -1727,19 +7690,15 @@ function stringifyRegExpWithFlags(regex, refs) {
 		}
 		if (flags.m) {
 			if (source[i] === "^") {
-				pattern += `(^|(?<=[\r
-]))`;
+				pattern += `(^|(?<=[\r\n]))`;
 				continue;
 			} else if (source[i] === "$") {
-				pattern += `($|(?=[\r
-]))`;
+				pattern += `($|(?=[\r\n]))`;
 				continue;
 			}
 		}
 		if (flags.s && source[i] === ".") {
-			pattern += inCharGroup ? `${source[i]}\r
-` : `[${source[i]}\r
-]`;
+			pattern += inCharGroup ? `${source[i]}\r\n` : `[${source[i]}\r\n]`;
 			continue;
 		}
 		pattern += source[i];
@@ -1749,32 +7708,31 @@ function stringifyRegExpWithFlags(regex, refs) {
 	}
 	try {
 		new RegExp(pattern);
-	} catch (e) {
+	} catch {
 		console.warn(`Could not convert regex pattern at ${refs.currentPath.join("/")} to a flag-independent form! Falling back to the flag-ignorant source`);
 		return regex.source;
 	}
 	return pattern;
 }
 function parseRecordDef(def, refs) {
-	var _a2, _b2, _c, _d, _e, _f;
 	const schema = {
 		type: "object",
-		additionalProperties: (_a2 = parseDef(def.valueType._def, {
+		additionalProperties: parseDef(def.valueType._def, {
 			...refs,
 			currentPath: [...refs.currentPath, "additionalProperties"]
-		})) != null ? _a2 : refs.allowedAdditionalProperties
+		}) ?? refs.allowedAdditionalProperties
 	};
-	if (((_b2 = def.keyType) == null ? void 0 : _b2._def.typeName) === ZodFirstPartyTypeKind.ZodString && ((_c = def.keyType._def.checks) == null ? void 0 : _c.length)) {
+	if (def.keyType?._def.typeName === "ZodString" && def.keyType._def.checks?.length) {
 		const { type: _type, ...keyType } = parseStringDef(def.keyType._def, refs);
 		return {
 			...schema,
 			propertyNames: keyType
 		};
-	} else if (((_d = def.keyType) == null ? void 0 : _d._def.typeName) === ZodFirstPartyTypeKind.ZodEnum) return {
+	} else if (def.keyType?._def.typeName === "ZodEnum") return {
 		...schema,
 		propertyNames: { enum: def.keyType._def.values }
 	};
-	else if (((_e = def.keyType) == null ? void 0 : _e._def.typeName) === ZodFirstPartyTypeKind.ZodBranded && def.keyType._def.type._def.typeName === ZodFirstPartyTypeKind.ZodString && ((_f = def.keyType._def.type._def.checks) == null ? void 0 : _f.length)) {
+	else if (def.keyType?._def.typeName === "ZodBranded" && def.keyType._def.type._def.typeName === "ZodString" && def.keyType._def.type._def.checks?.length) {
 		const { type: _type, ...keyType } = parseBrandedDef(def.keyType._def, refs);
 		return {
 			...schema,
@@ -1829,7 +7787,7 @@ function parseNeverDef() {
 function parseNullDef() {
 	return { type: "null" };
 }
-var primitiveMappings = {
+const primitiveMappings = {
 	ZodString: "string",
 	ZodNumber: "number",
 	ZodBigInt: "integer",
@@ -1839,9 +7797,9 @@ var primitiveMappings = {
 function parseUnionDef(def, refs) {
 	const options = def.options instanceof Map ? Array.from(def.options.values()) : def.options;
 	if (options.every((x) => x._def.typeName in primitiveMappings && (!x._def.checks || !x._def.checks.length))) {
-		const types = options.reduce((types2, x) => {
+		const types = options.reduce((types, x) => {
 			const type = primitiveMappings[x._def.typeName];
-			return type && !types2.includes(type) ? [...types2, type] : types2;
+			return type && !types.includes(type) ? [...types, type] : types;
 		}, []);
 		return { type: types.length > 1 ? types : types[0] };
 	} else if (options.every((x) => x._def.typeName === "ZodLiteral" && !x.description)) {
@@ -1867,11 +7825,11 @@ function parseUnionDef(def, refs) {
 		}
 	} else if (options.every((x) => x._def.typeName === "ZodEnum")) return {
 		type: "string",
-		enum: options.reduce((acc, x) => [...acc, ...x._def.values.filter((x2) => !acc.includes(x2))], [])
+		enum: options.reduce((acc, x) => [...acc, ...x._def.values.filter((x) => !acc.includes(x))], [])
 	};
 	return asAnyOf(def, refs);
 }
-var asAnyOf = (def, refs) => {
+const asAnyOf = (def, refs) => {
 	const anyOf = (def.options instanceof Map ? Array.from(def.options.values()) : def.options).map((x, i) => parseDef(x._def, {
 		...refs,
 		currentPath: [
@@ -1915,9 +7873,7 @@ function parseNumberDef(def) {
 			if (check.inclusive) res.maximum = check.value;
 			else res.exclusiveMaximum = check.value;
 			break;
-		case "multipleOf":
-			res.multipleOf = check.value;
-			break;
+		case "multipleOf": res.multipleOf = check.value;
 	}
 	return res;
 }
@@ -1968,13 +7924,12 @@ function decideAdditionalProperties(def, refs) {
 function safeIsOptional(schema) {
 	try {
 		return schema.isOptional();
-	} catch (e) {
+	} catch {
 		return true;
 	}
 }
-var parseOptionalDef = (def, refs) => {
-	var _a2;
-	if (refs.currentPath.toString() === ((_a2 = refs.propertyPath) == null ? void 0 : _a2.toString())) return parseDef(def.innerType._def, refs);
+const parseOptionalDef = (def, refs) => {
+	if (refs.currentPath.toString() === refs.propertyPath?.toString()) return parseDef(def.innerType._def, refs);
 	const innerSchema = parseDef(def.innerType._def, {
 		...refs,
 		currentPath: [
@@ -1985,7 +7940,7 @@ var parseOptionalDef = (def, refs) => {
 	});
 	return innerSchema ? { anyOf: [{ not: parseAnyDef() }, innerSchema] } : parseAnyDef();
 };
-var parsePipelineDef = (def, refs) => {
+const parsePipelineDef = (def, refs) => {
 	if (refs.pipeStrategy === "input") return parseDef(def.in._def, refs);
 	else if (refs.pipeStrategy === "output") return parseDef(def.out._def, refs);
 	const inputSchema = parseDef(def.in._def, {
@@ -2058,60 +8013,61 @@ function parseUndefinedDef() {
 function parseUnknownDef() {
 	return parseAnyDef();
 }
-var parseReadonlyDef = (def, refs) => {
+const parseReadonlyDef = (def, refs) => {
 	return parseDef(def.innerType._def, refs);
 };
-var selectParser = (def, typeName, refs) => {
+const selectParser = (def, typeName, refs) => {
 	switch (typeName) {
-		case ZodFirstPartyTypeKind.ZodString: return parseStringDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodNumber: return parseNumberDef(def);
-		case ZodFirstPartyTypeKind.ZodObject: return parseObjectDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodBigInt: return parseBigintDef(def);
-		case ZodFirstPartyTypeKind.ZodBoolean: return parseBooleanDef();
-		case ZodFirstPartyTypeKind.ZodDate: return parseDateDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodUndefined: return parseUndefinedDef();
-		case ZodFirstPartyTypeKind.ZodNull: return parseNullDef();
-		case ZodFirstPartyTypeKind.ZodArray: return parseArrayDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodUnion:
-		case ZodFirstPartyTypeKind.ZodDiscriminatedUnion: return parseUnionDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodIntersection: return parseIntersectionDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodTuple: return parseTupleDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodRecord: return parseRecordDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodLiteral: return parseLiteralDef(def);
-		case ZodFirstPartyTypeKind.ZodEnum: return parseEnumDef(def);
-		case ZodFirstPartyTypeKind.ZodNativeEnum: return parseNativeEnumDef(def);
-		case ZodFirstPartyTypeKind.ZodNullable: return parseNullableDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodOptional: return parseOptionalDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodMap: return parseMapDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodSet: return parseSetDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodLazy: return () => def.getter()._def;
-		case ZodFirstPartyTypeKind.ZodPromise: return parsePromiseDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodNaN:
-		case ZodFirstPartyTypeKind.ZodNever: return parseNeverDef();
-		case ZodFirstPartyTypeKind.ZodEffects: return parseEffectsDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodAny: return parseAnyDef();
-		case ZodFirstPartyTypeKind.ZodUnknown: return parseUnknownDef();
-		case ZodFirstPartyTypeKind.ZodDefault: return parseDefaultDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodBranded: return parseBrandedDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodReadonly: return parseReadonlyDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodCatch: return parseCatchDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodPipeline: return parsePipelineDef(def, refs);
-		case ZodFirstPartyTypeKind.ZodFunction:
-		case ZodFirstPartyTypeKind.ZodVoid:
-		case ZodFirstPartyTypeKind.ZodSymbol: return;
-		default: return /* @__PURE__ */ ((_) => void 0)(typeName);
+		case "ZodString": return parseStringDef(def, refs);
+		case "ZodNumber": return parseNumberDef(def);
+		case "ZodObject": return parseObjectDef(def, refs);
+		case "ZodBigInt": return parseBigintDef(def);
+		case "ZodBoolean": return parseBooleanDef();
+		case "ZodDate": return parseDateDef(def, refs);
+		case "ZodUndefined": return parseUndefinedDef();
+		case "ZodNull": return parseNullDef();
+		case "ZodArray": return parseArrayDef(def, refs);
+		case "ZodUnion":
+		case "ZodDiscriminatedUnion": return parseUnionDef(def, refs);
+		case "ZodIntersection": return parseIntersectionDef(def, refs);
+		case "ZodTuple": return parseTupleDef(def, refs);
+		case "ZodRecord": return parseRecordDef(def, refs);
+		case "ZodLiteral": return parseLiteralDef(def);
+		case "ZodEnum": return parseEnumDef(def);
+		case "ZodNativeEnum": return parseNativeEnumDef(def);
+		case "ZodNullable": return parseNullableDef(def, refs);
+		case "ZodOptional": return parseOptionalDef(def, refs);
+		case "ZodMap": return parseMapDef(def, refs);
+		case "ZodSet": return parseSetDef(def, refs);
+		case "ZodLazy": return () => def.getter()._def;
+		case "ZodPromise": return parsePromiseDef(def, refs);
+		case "ZodNaN":
+		case "ZodNever": return parseNeverDef();
+		case "ZodEffects": return parseEffectsDef(def, refs);
+		case "ZodAny": return parseAnyDef();
+		case "ZodUnknown": return parseUnknownDef();
+		case "ZodDefault": return parseDefaultDef(def, refs);
+		case "ZodBranded": return parseBrandedDef(def, refs);
+		case "ZodReadonly": return parseReadonlyDef(def, refs);
+		case "ZodCatch": return parseCatchDef(def, refs);
+		case "ZodPipeline": return parsePipelineDef(def, refs);
+		case "ZodFunction":
+		case "ZodVoid":
+		case "ZodSymbol": return;
+		default:
+ /* c8 ignore next */
+		return ((_) => void 0)(typeName);
 	}
 };
-var getRelativePath = (pathA, pathB) => {
+const getRelativePath = (pathA, pathB) => {
 	let i = 0;
 	for (; i < pathA.length && i < pathB.length; i++) if (pathA[i] !== pathB[i]) break;
 	return [(pathA.length - i).toString(), ...pathB.slice(i)].join("/");
 };
 function parseDef(def, refs, forceResolution = false) {
-	var _a2;
 	const seenItem = refs.seen.get(def);
 	if (refs.override) {
-		const overrideResult = (_a2 = refs.override) == null ? void 0 : _a2.call(refs, def, refs, seenItem, forceResolution);
+		const overrideResult = refs.override?.(def, refs, seenItem, forceResolution);
 		if (overrideResult !== ignoreOverride) return overrideResult;
 	}
 	if (seenItem && !forceResolution) {
@@ -2125,17 +8081,17 @@ function parseDef(def, refs, forceResolution = false) {
 	};
 	refs.seen.set(def, newItem);
 	const jsonSchemaOrGetter = selectParser(def, def.typeName, refs);
-	const jsonSchema2 = typeof jsonSchemaOrGetter === "function" ? parseDef(jsonSchemaOrGetter(), refs) : jsonSchemaOrGetter;
-	if (jsonSchema2) addMeta(def, refs, jsonSchema2);
+	const jsonSchema = typeof jsonSchemaOrGetter === "function" ? parseDef(jsonSchemaOrGetter(), refs) : jsonSchemaOrGetter;
+	if (jsonSchema) addMeta(def, refs, jsonSchema);
 	if (refs.postProcess) {
-		const postProcessResult = refs.postProcess(jsonSchema2, def, refs);
-		newItem.jsonSchema = jsonSchema2;
+		const postProcessResult = refs.postProcess(jsonSchema, def, refs);
+		newItem.jsonSchema = jsonSchema;
 		return postProcessResult;
 	}
-	newItem.jsonSchema = jsonSchema2;
-	return jsonSchema2;
+	newItem.jsonSchema = jsonSchema;
+	return jsonSchema;
 }
-var get$ref = (item, refs) => {
+const get$ref = (item, refs) => {
 	switch (refs.$refStrategy) {
 		case "root": return { $ref: item.path.join("/") };
 		case "relative": return { $ref: getRelativePath(refs.currentPath, item.path) };
@@ -2148,11 +8104,11 @@ var get$ref = (item, refs) => {
 			return refs.$refStrategy === "seen" ? parseAnyDef() : void 0;
 	}
 };
-var addMeta = (def, refs, jsonSchema2) => {
-	if (def.description) jsonSchema2.description = def.description;
-	return jsonSchema2;
+const addMeta = (def, refs, jsonSchema) => {
+	if (def.description) jsonSchema.description = def.description;
+	return jsonSchema;
 };
-var getRefs = (options) => {
+const getRefs = (options) => {
 	const _options = getDefaultOptions(options);
 	const currentPath = _options.name !== void 0 ? [
 		..._options.basePath,
@@ -2163,63 +8119,70 @@ var getRefs = (options) => {
 		..._options,
 		currentPath,
 		propertyPath: void 0,
-		seen: new Map(Object.entries(_options.definitions).map(([name2, def]) => [def._def, {
+		seen: new Map(Object.entries(_options.definitions).map(([name, def]) => [def._def, {
 			def: def._def,
 			path: [
 				..._options.basePath,
 				_options.definitionPath,
-				name2
+				name
 			],
 			jsonSchema: void 0
 		}]))
 	};
 };
-var zod3ToJsonSchema = (schema, options) => {
-	var _a2;
+const zod3ToJsonSchema = (schema, options) => {
 	const refs = getRefs(options);
-	let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name3, schema2]) => {
-		var _a3;
-		return {
-			...acc,
-			[name3]: (_a3 = parseDef(schema2._def, {
-				...refs,
-				currentPath: [
-					...refs.basePath,
-					refs.definitionPath,
-					name3
-				]
-			}, true)) != null ? _a3 : parseAnyDef()
-		};
-	}, {}) : void 0;
-	const name2 = typeof options === "string" ? options : (options == null ? void 0 : options.nameStrategy) === "title" ? void 0 : options == null ? void 0 : options.name;
-	const main = (_a2 = parseDef(schema._def, name2 === void 0 ? refs : {
+	let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name, schema]) => ({
+		...acc,
+		[name]: parseDef(schema._def, {
+			...refs,
+			currentPath: [
+				...refs.basePath,
+				refs.definitionPath,
+				name
+			]
+		}, true) ?? parseAnyDef()
+	}), {}) : void 0;
+	const name = typeof options === "string" ? options : options?.nameStrategy === "title" ? void 0 : options?.name;
+	const main = parseDef(schema._def, name === void 0 ? refs : {
 		...refs,
 		currentPath: [
 			...refs.basePath,
 			refs.definitionPath,
-			name2
+			name
 		]
-	}, false)) != null ? _a2 : parseAnyDef();
+	}, false) ?? parseAnyDef();
 	const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
 	if (title !== void 0) main.title = title;
-	const combined = name2 === void 0 ? definitions ? {
+	const combined = name === void 0 ? definitions ? {
 		...main,
 		[refs.definitionPath]: definitions
 	} : main : {
 		$ref: [
 			...refs.$refStrategy === "relative" ? [] : refs.basePath,
 			refs.definitionPath,
-			name2
+			name
 		].join("/"),
 		[refs.definitionPath]: {
 			...definitions,
-			[name2]: main
+			[name]: main
 		}
 	};
 	combined.$schema = "http://json-schema.org/draft-07/schema#";
 	return combined;
 };
-var schemaSymbol = /* @__PURE__ */ Symbol.for("vercel.ai.schema");
+/**
+* Used to mark schemas so we can support both Zod and custom schemas.
+*/
+const schemaSymbol = Symbol.for("vercel.ai.schema");
+/**
+* Creates a schema with deferred creation.
+* This is important to reduce the startup time of the library
+* and to avoid initializing unused validators.
+*
+* @param createValidator A function that creates a schema.
+* @returns A function that returns a schema.
+*/
 function lazySchema(createSchema) {
 	let schema;
 	return () => {
@@ -2227,13 +8190,19 @@ function lazySchema(createSchema) {
 		return schema;
 	};
 }
-function jsonSchema(jsonSchema2, { validate } = {}) {
+/**
+* Create a schema using a JSON Schema.
+*
+* @param jsonSchema The JSON Schema for the schema.
+* @param options.validate Optional. A validation function for the schema.
+*/
+function jsonSchema(jsonSchema, { validate } = {}) {
 	return {
 		[schemaSymbol]: true,
 		_type: void 0,
 		get jsonSchema() {
-			if (typeof jsonSchema2 === "function") jsonSchema2 = jsonSchema2();
-			return jsonSchema2;
+			if (typeof jsonSchema === "function") jsonSchema = jsonSchema();
+			return jsonSchema;
 		},
 		validate
 	};
@@ -2248,12 +8217,12 @@ function asSchema(schema) {
 		additionalProperties: false
 	}) : isSchema(schema) ? schema : "~standard" in schema ? schema["~standard"].vendor === "zod" ? zodSchema(schema) : standardSchema(schema) : schema();
 }
-function standardSchema(standardSchema2) {
+function standardSchema(standardSchema) {
 	return jsonSchema(() => {
-		if (!hasStandardJsonSchema(standardSchema2)) throw new Error(`Standard schema vendor '${standardSchema2["~standard"].vendor}' does not support JSON Schema conversion.`);
-		return addAdditionalPropertiesToJsonSchema(standardSchema2["~standard"].jsonSchema.input({ target: "draft-07" }));
+		if (!hasStandardJsonSchema(standardSchema)) throw new Error(`Standard schema vendor '${standardSchema["~standard"].vendor}' does not support JSON Schema conversion.`);
+		return addAdditionalPropertiesToJsonSchema(standardSchema["~standard"].jsonSchema.input({ target: "draft-07" }));
 	}, { validate: async (value) => {
-		const result = await standardSchema2["~standard"].validate(value);
+		const result = await standardSchema["~standard"].validate(value);
 		return "value" in result ? {
 			success: true,
 			value: result.value
@@ -2269,11 +8238,10 @@ function standardSchema(standardSchema2) {
 function hasStandardJsonSchema(schema) {
 	return schema["~standard"].jsonSchema != null;
 }
-function zod3Schema(zodSchema2, options) {
-	var _a2;
-	const useReferences = (_a2 = options == null ? void 0 : options.useReferences) != null ? _a2 : false;
-	return jsonSchema(() => zod3ToJsonSchema(zodSchema2, { $refStrategy: useReferences ? "root" : "none" }), { validate: async (value) => {
-		const result = await zodSchema2.safeParseAsync(value);
+function zod3Schema(zodSchema, options) {
+	const useReferences = options?.useReferences ?? false;
+	return jsonSchema(() => zod3ToJsonSchema(zodSchema, { $refStrategy: useReferences ? "root" : "none" }), { validate: async (value) => {
+		const result = await zodSchema.safeParseAsync(value);
 		return result.success ? {
 			success: true,
 			value: result.data
@@ -2283,15 +8251,14 @@ function zod3Schema(zodSchema2, options) {
 		};
 	} });
 }
-function zod4Schema(zodSchema2, options) {
-	var _a2;
-	const useReferences = (_a2 = options == null ? void 0 : options.useReferences) != null ? _a2 : false;
-	return jsonSchema(() => addAdditionalPropertiesToJsonSchema(toJSONSchema(zodSchema2, {
+function zod4Schema(zodSchema, options) {
+	const useReferences = options?.useReferences ?? false;
+	return jsonSchema(() => addAdditionalPropertiesToJsonSchema(toJSONSchema(zodSchema, {
 		target: "draft-7",
 		io: "input",
 		reused: useReferences ? "ref" : "inline"
 	})), { validate: async (value) => {
-		const result = await safeParseAsync(zodSchema2, value);
+		const result = await safeParseAsync(zodSchema, value);
 		return result.success ? {
 			success: true,
 			value: result.data
@@ -2301,13 +8268,23 @@ function zod4Schema(zodSchema2, options) {
 		};
 	} });
 }
-function isZod4Schema(zodSchema2) {
-	return "_zod" in zodSchema2;
+function isZod4Schema(zodSchema) {
+	return "_zod" in zodSchema;
 }
-function zodSchema(zodSchema2, options) {
-	if (isZod4Schema(zodSchema2)) return zod4Schema(zodSchema2, options);
-	else return zod3Schema(zodSchema2, options);
+function zodSchema(zodSchema, options) {
+	if (isZod4Schema(zodSchema)) return zod4Schema(zodSchema, options);
+	else return zod3Schema(zodSchema, options);
 }
+/**
+* Validates the types of an unknown object using a schema and
+* return a strongly-typed object.
+*
+* @template T - The type of the object to validate.
+* @param {string} options.value - The object to validate.
+* @param {Validator<T>} options.schema - The schema to use for validating the JSON.
+* @param {TypeValidationContext} options.context - Optional context about what is being validated.
+* @returns {Promise<T>} - The typed object.
+*/
 async function validateTypes({ value, schema, context }) {
 	const result = await safeValidateTypes({
 		value,
@@ -2321,6 +8298,16 @@ async function validateTypes({ value, schema, context }) {
 	});
 	return result.value;
 }
+/**
+* Safely validates the types of an unknown object using a schema and
+* return a strongly-typed object.
+*
+* @template T - The type of the object to validate.
+* @param {string} options.value - The JSON object to validate.
+* @param {Validator<T>} options.schema - The schema to use for validating the JSON.
+* @param {TypeValidationContext} options.context - Optional context about what is being validated.
+* @returns An object with either a `success` flag and the parsed and typed data, or a `success` flag and an error object.
+*/
 async function safeValidateTypes({ value, schema, context }) {
 	const actualSchema = asSchema(schema);
 	try {
@@ -2395,6 +8382,9 @@ async function safeParseJSON({ text, schema }) {
 		};
 	}
 }
+/**
+* Parses a JSON event stream into a stream of parsed JSON objects.
+*/
 function parseJsonEventStream({ stream, schema }) {
 	return stream.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).pipeThrough(new TransformStream({ async transform({ data }, controller) {
 		if (data === "[DONE]") return;
@@ -2404,8 +8394,21 @@ function parseJsonEventStream({ stream, schema }) {
 		}));
 	} }));
 }
-var getOriginalFetch2 = () => globalThis.fetch;
-var postJsonToApi = async ({ url, headers, body, failedResponseHandler, successfulResponseHandler, abortSignal, fetch }) => await postToApi({
+async function parseProviderOptions({ provider, providerOptions, schema }) {
+	if (providerOptions?.[provider] == null) return;
+	const parsedProviderOptions = await safeValidateTypes({
+		value: providerOptions[provider],
+		schema
+	});
+	if (!parsedProviderOptions.success) throw new InvalidArgumentError({
+		argument: "providerOptions",
+		message: `invalid ${provider} provider options`,
+		cause: parsedProviderOptions.error
+	});
+	return parsedProviderOptions.value;
+}
+const getOriginalFetch = () => globalThis.fetch;
+const postJsonToApi = async ({ url, headers, body, failedResponseHandler, successfulResponseHandler, abortSignal, fetch }) => await postToApi({
 	url,
 	headers: {
 		"Content-Type": "application/json",
@@ -2420,11 +8423,11 @@ var postJsonToApi = async ({ url, headers, body, failedResponseHandler, successf
 	abortSignal,
 	fetch
 });
-var postToApi = async ({ url, headers = {}, body, successfulResponseHandler, failedResponseHandler, abortSignal, fetch = getOriginalFetch2() }) => {
+const postToApi = async ({ url, headers = {}, body, successfulResponseHandler, failedResponseHandler, abortSignal, fetch = getOriginalFetch() }) => {
 	try {
 		const response = await fetch(url, {
 			method: "POST",
-			headers: withUserAgentSuffix(headers, `ai-sdk/provider-utils/5.0.11`, getRuntimeEnvironmentUserAgent()),
+			headers: withUserAgentSuffix(headers, `ai-sdk-provider-utils/5.0.67`, getRuntimeEnvironmentUserAgent()),
 			body: body.content,
 			signal: abortSignal
 		});
@@ -2477,8 +8480,8 @@ var postToApi = async ({ url, headers = {}, body, successfulResponseHandler, fai
 		});
 	}
 };
-function tool(tool2) {
-	return tool2;
+function tool(tool) {
+	return tool;
 }
 function createProviderExecutedToolFactory({ id, inputSchema, outputSchema, supportsDeferredResults }) {
 	return ({ onInputStart, onInputDelta, onInputAvailable, ...args }) => tool({
@@ -2494,64 +8497,69 @@ function createProviderExecutedToolFactory({ id, inputSchema, outputSchema, supp
 		supportsDeferredResults
 	});
 }
+/**
+* Resolves a value that could be a raw value, a Promise, a function returning a value,
+* or a function returning a Promise.
+*/
 async function resolve(value) {
 	if (typeof value === "function") value = value();
-	return Promise.resolve(value);
+	return value;
 }
-var retryWithExponentialBackoff = ({ maxRetries = 2, initialDelayInMs = 2e3, backoffFactor = 2, abortSignal, shouldRetry, getDelayInMs = ({ exponentialBackoffDelay }) => exponentialBackoffDelay, createRetryError = ({ message }) => new Error(message) }) => async (f) => retryWithExponentialBackoffInternal(f, {
-	maxRetries,
-	delayInMs: initialDelayInMs,
-	backoffFactor,
-	abortSignal,
-	shouldRetry,
-	getDelayInMs,
-	createRetryError
-});
-async function retryWithExponentialBackoffInternal(f, { maxRetries, delayInMs, backoffFactor, abortSignal, shouldRetry, getDelayInMs, createRetryError }, errors = []) {
-	try {
-		return await f();
-	} catch (error) {
-		if (isAbortError(error)) throw error;
-		if (maxRetries === 0) throw error;
-		const errorMessage = getErrorMessage(error);
-		const newErrors = [...errors, error];
-		const tryNumber = newErrors.length;
-		if (tryNumber > maxRetries) throw createRetryError({
-			message: `Failed after ${tryNumber} attempts. Last error: ${errorMessage}`,
-			reason: "maxRetriesExceeded",
-			errors: newErrors
-		});
-		if (await shouldRetry(error) && tryNumber <= maxRetries) {
-			await delay(getDelayInMs({
-				error,
-				exponentialBackoffDelay: delayInMs
-			}), { abortSignal });
-			return retryWithExponentialBackoffInternal(f, {
-				maxRetries,
-				delayInMs: backoffFactor * delayInMs,
-				backoffFactor,
-				abortSignal,
-				shouldRetry,
-				getDelayInMs,
-				createRetryError
-			}, newErrors);
+const textDecoder = new TextDecoder();
+const DEFAULT_MAX_JSON_LINE_BYTES = 67108864;
+function wrapResponseBodyStream({ stream, url, requestBodyValues, statusCode, responseHeaders }) {
+	const reader = stream.getReader();
+	let readerReleased = false;
+	const releaseReader = () => {
+		if (!readerReleased) {
+			reader.releaseLock();
+			readerReleased = true;
 		}
-		if (tryNumber === 1) throw error;
-		throw createRetryError({
-			message: `Failed after ${tryNumber} attempts with non-retryable error: '${errorMessage}'`,
-			reason: "errorNotRetryable",
-			errors: newErrors
-		});
-	}
+	};
+	return new ReadableStream({
+		async pull(controller) {
+			try {
+				const { done, value } = await reader.read();
+				if (done) {
+					releaseReader();
+					controller.close();
+				} else controller.enqueue(value);
+			} catch (error) {
+				releaseReader();
+				if (isAbortError(error)) {
+					controller.error(error);
+					return;
+				}
+				controller.error(handleFetchError({
+					error: new APICallError({
+						message: "Failed to process successful response",
+						cause: error,
+						statusCode,
+						url,
+						responseHeaders,
+						requestBodyValues
+					}),
+					url,
+					requestBodyValues
+				}));
+			}
+		},
+		async cancel(reason) {
+			try {
+				await reader.cancel(reason);
+			} finally {
+				releaseReader();
+			}
+		}
+	});
 }
-var textDecoder2 = new TextDecoder();
 async function readResponseBodyAsText({ response, url }) {
-	return textDecoder2.decode(await readResponseWithSizeLimit({
+	return textDecoder.decode(await readResponseWithSizeLimit({
 		response,
 		url
 	}));
 }
-var createJsonErrorResponseHandler = ({ errorSchema, errorToMessage, isRetryable }) => async ({ response, url, requestBodyValues }) => {
+const createJsonErrorResponseHandler = ({ errorSchema, errorToMessage, isRetryable }) => async ({ response, url, requestBodyValues }) => {
 	const responseBody = await readResponseBodyAsText({
 		response,
 		url
@@ -2566,7 +8574,7 @@ var createJsonErrorResponseHandler = ({ errorSchema, errorToMessage, isRetryable
 			statusCode: response.status,
 			responseHeaders,
 			responseBody,
-			isRetryable: isRetryable == null ? void 0 : isRetryable(response)
+			isRetryable: isRetryable?.(response)
 		})
 	};
 	try {
@@ -2584,10 +8592,10 @@ var createJsonErrorResponseHandler = ({ errorSchema, errorToMessage, isRetryable
 				responseHeaders,
 				responseBody,
 				data: parsedError,
-				isRetryable: isRetryable == null ? void 0 : isRetryable(response, parsedError)
+				isRetryable: isRetryable?.(response, parsedError)
 			})
 		};
-	} catch (e) {
+	} catch {
 		return {
 			responseHeaders,
 			value: new APICallError({
@@ -2597,23 +8605,29 @@ var createJsonErrorResponseHandler = ({ errorSchema, errorToMessage, isRetryable
 				statusCode: response.status,
 				responseHeaders,
 				responseBody,
-				isRetryable: isRetryable == null ? void 0 : isRetryable(response)
+				isRetryable: isRetryable?.(response)
 			})
 		};
 	}
 };
-var createEventSourceResponseHandler = (chunkSchema) => async ({ response }) => {
+const createEventSourceResponseHandler = (chunkSchema) => async ({ response, url, requestBodyValues }) => {
 	const responseHeaders = extractResponseHeaders(response);
 	if (response.body == null) throw new EmptyResponseBodyError({});
 	return {
 		responseHeaders,
 		value: parseJsonEventStream({
-			stream: response.body,
+			stream: wrapResponseBodyStream({
+				stream: response.body,
+				url,
+				requestBodyValues,
+				statusCode: response.status,
+				responseHeaders
+			}),
 			schema: chunkSchema
 		})
 	};
 };
-var createJsonResponseHandler = (responseSchema) => async ({ response, url, requestBodyValues }) => {
+const createJsonResponseHandler = (responseSchema) => async ({ response, url, requestBodyValues }) => {
 	const responseBody = await readResponseBodyAsText({
 		response,
 		url
@@ -2638,6 +8652,78 @@ var createJsonResponseHandler = (responseSchema) => async ({ response, url, requ
 		rawValue: parsedResult.rawValue
 	};
 };
+const createJsonLinesResponseHandler = (responseSchema, { maxLineBytes = DEFAULT_MAX_JSON_LINE_BYTES } = {}) => {
+	if (!Number.isSafeInteger(maxLineBytes) || maxLineBytes <= 0) throw new InvalidArgumentError({
+		argument: "maxLineBytes",
+		message: "maxLineBytes must be a positive safe integer."
+	});
+	return async ({ response, url }) => {
+		const responseHeaders = extractResponseHeaders(response);
+		if (response.body == null) throw new EmptyResponseBodyError({});
+		return {
+			responseHeaders,
+			value: parseJsonLines({
+				stream: response.body,
+				schema: responseSchema,
+				url,
+				maxLineBytes
+			})
+		};
+	};
+};
+async function* parseJsonLines({ stream, schema, url, maxLineBytes }) {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+	let lineBytes = 0;
+	let finished = false;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				finished = true;
+				buffer += decoder.decode();
+				break;
+			}
+			let offset = 0;
+			while (offset < value.length) {
+				const lineEnd = value.indexOf(10, offset);
+				const segmentEnd = lineEnd === -1 ? value.length : lineEnd;
+				lineBytes += segmentEnd - offset;
+				if (lineBytes > maxLineBytes) throw new DownloadError({
+					message: `JSON Lines response exceeded maximum line size of ${maxLineBytes} bytes.`,
+					url
+				});
+				const decodeEnd = lineEnd === -1 ? segmentEnd : lineEnd + 1;
+				buffer += decoder.decode(value.subarray(offset, decodeEnd), { stream: true });
+				if (lineEnd === -1) break;
+				const line = buffer.slice(0, -1).replace(/\r$/, "");
+				buffer = "";
+				lineBytes = 0;
+				offset = decodeEnd;
+				if (line.trim().length > 0) yield await parseJSON({
+					text: line,
+					schema
+				});
+			}
+		}
+		const finalLine = buffer.replace(/\r$/, "");
+		if (finalLine.trim().length > 0) yield await parseJSON({
+			text: finalLine,
+			schema
+		});
+	} finally {
+		if (!finished) await reader.cancel().catch(() => {});
+		reader.releaseLock();
+	}
+}
+/**
+* Checks whether a value can cross a workflow serialization boundary.
+*
+* The check accepts JSON-like primitives, arrays, and plain objects whose
+* nested values are also serializable. It rejects functions, symbols,
+* bigints, and non-plain objects such as class instances, dates, and regexes.
+*/
 function isJSONSerializable(value) {
 	if (value === null || value === void 0) return true;
 	const type = typeof value;
@@ -2647,6 +8733,42 @@ function isJSONSerializable(value) {
 	if (Object.getPrototypeOf(value) === Object.prototype) return Object.values(value).every(isJSONSerializable);
 	return false;
 }
+const name$10 = "AI_SerializationError";
+const marker$10 = `vercel.ai.error.${name$10}`;
+const symbol$11 = Symbol.for(marker$10);
+var SerializationError = class extends AISDKError {
+	constructor({ message = "Failed to serialize value.", cause } = {}) {
+		super({
+			name: name$10,
+			message,
+			cause
+		});
+		this[symbol$11] = true;
+	}
+	static isInstance(error) {
+		return AISDKError.hasMarker(error, marker$10);
+	}
+};
+/**
+* Serializes a model instance for workflow step boundaries.
+* Returns the `modelId` plus the JSON-serializable config properties.
+*
+* Non-serializable values are omitted. As a special case, a
+* function-valued `headers` property is resolved during serialization
+* and included if the returned value is JSON-serializable.
+*
+* Used as the body of `static [WORKFLOW_SERIALIZE]` in provider models.
+*
+* @example
+* ```ts
+* static [WORKFLOW_SERIALIZE](model: MyLanguageModel) {
+*   return serializeModelOptions({
+*     modelId: model.modelId,
+*     config: model.config,
+*   });
+* }
+* ```
+*/
 function serializeModelOptions(options) {
 	const serializableConfig = {};
 	for (const [key, value] of Object.entries(options.config)) if (key === "headers") {
@@ -2661,26 +8783,115 @@ function serializeModelOptions(options) {
 function resolveSync(value) {
 	let next = value;
 	if (typeof value === "function") next = value();
-	if (next instanceof Promise) throw new Error("Promise returned from resolveSync");
+	if (next instanceof Promise) throw new SerializationError({ message: "Cannot serialize asynchronous model options." });
 	return next;
 }
+/**
+* Client-side: parse a server TEXT frame into a speech stream part. Returns
+* `undefined` for malformed or unsafe JSON, unknown part types, and known
+* part types whose fields are missing or mistyped. Revives
+* `response-metadata.timestamp` to a `Date`.
+*/
+function parseSpeechStreamPart(text) {
+	let value;
+	try {
+		value = secureJsonParse(text);
+	} catch {
+		return;
+	}
+	if (!isRecord(value)) return;
+	const part = value;
+	switch (part.type) {
+		case "stream-start": {
+			if (!Array.isArray(part.warnings)) return;
+			const warnings = part.warnings.filter((warning) => !isUnknownWarningType(warning));
+			return warnings.every(isWarning$1) ? {
+				...part,
+				warnings
+			} : void 0;
+		}
+		case "audio": return isString$1(part.audio) && isAudioFormat(part.audioFormat) && isOptional$1(part.id, isString$1) && isOptional$1(part.providerMetadata, isRecord) ? part : void 0;
+		case "finish": return isOptional$1(part.usage, isUsage) && isOptional$1(part.providerMetadata, isRecord) ? part : void 0;
+		case "response-metadata": {
+			if (!(isOptional$1(part.modelId, isString$1) && isOptional$1(part.headers, isRecord))) return;
+			const timestamp = part.timestamp;
+			if (timestamp == null) return {
+				...part,
+				timestamp: void 0
+			};
+			if (typeof timestamp !== "string") return;
+			const revived = new Date(timestamp);
+			return Number.isNaN(revived.getTime()) ? void 0 : {
+				...part,
+				timestamp: revived
+			};
+		}
+		case "raw": return "rawValue" in part ? part : void 0;
+		case "error": return "error" in part ? part : void 0;
+		default: return;
+	}
+}
+function isString$1(value) {
+	return typeof value === "string";
+}
+function isOptional$1(value, check) {
+	return value === void 0 || check(value);
+}
+const knownWarningTypes = /* @__PURE__ */ new Set([
+	"compatibility",
+	"deprecated",
+	"other",
+	"unsupported"
+]);
+function isUnknownWarningType(value) {
+	return isRecord(value) && isString$1(value.type) && !knownWarningTypes.has(value.type);
+}
+function isWarning$1(value) {
+	if (!isRecord(value)) return false;
+	switch (value.type) {
+		case "compatibility":
+		case "unsupported": return isString$1(value.feature) && isOptional$1(value.details, isString$1);
+		case "deprecated": return isString$1(value.setting) && isString$1(value.message);
+		case "other": return isString$1(value.message);
+		default: return false;
+	}
+}
+function isAudioFormat(value) {
+	return isRecord(value) && isString$1(value.type) && value.type.length > 0 && isOptional$1(value.rate, (rate) => typeof rate === "number" && Number.isFinite(rate) && rate > 0);
+}
+function isUsage(value) {
+	return isRecord(value) && [
+		"inputCharacters",
+		"inputTokens",
+		"outputTokens"
+	].every((key) => isOptional$1(value[key], (count) => typeof count === "number"));
+}
+/**
+* Client-side: parse a server TEXT frame into a transcription stream part.
+* Returns `undefined` for malformed or unsafe (prototype-polluting) JSON
+* (parsed with `secureJsonParse`), unknown part types, and known part types
+* whose required or optional fields are missing or mistyped (including
+* warning and segment elements) — downstream SDK code dereferences those
+* fields, so a drifted server must not crash or pollute the stream.
+* Revives `response-metadata.timestamp` to a `Date`.
+*/
 function parseTranscriptionStreamPart(text) {
 	let value;
 	try {
 		value = secureJsonParse(text);
-	} catch (e) {
+	} catch {
 		return;
 	}
 	if (value == null || typeof value !== "object" || Array.isArray(value)) return;
 	const part = value;
 	switch (part.type) {
 		case "stream-start": return Array.isArray(part.warnings) && part.warnings.every(isWarning) ? part : void 0;
-		case "transcript-delta": return isString(part.delta) && isOptional(part.id, isString) && isOptional(part.providerMetadata, isPlainObject) ? part : void 0;
-		case "transcript-partial": return isString(part.text) && isOptional(part.id, isString) && isOptional(part.startSecond, isNumber) && isOptional(part.durationInSeconds, isNumber) && isOptional(part.channelIndex, isNumber) && isOptional(part.providerMetadata, isPlainObject) ? part : void 0;
-		case "transcript-final": return isString(part.text) && isOptional(part.id, isString) && isOptional(part.startSecond, isNumber) && isOptional(part.endSecond, isNumber) && isOptional(part.channelIndex, isNumber) && isOptional(part.providerMetadata, isPlainObject) ? part : void 0;
-		case "finish": return isString(part.text) && Array.isArray(part.segments) && part.segments.every(isSegment) && isOptional(part.language, isString) && isOptional(part.durationInSeconds, isNumber) && isOptional(part.providerMetadata, isPlainObject) ? part : void 0;
+		case "transcript-delta": return isString(part.delta) && isOptional(part.id, isString) && isOptional(part.providerMetadata, isRecord) ? part : void 0;
+		case "transcript-partial": return isString(part.text) && isOptional(part.id, isString) && isOptional(part.startSecond, isNumber) && isOptional(part.durationInSeconds, isNumber) && isOptional(part.channelIndex, isNumber) && isOptional(part.providerMetadata, isRecord) ? part : void 0;
+		case "transcript-final": return isString(part.text) && isOptional(part.id, isString) && isOptional(part.startSecond, isNumber) && isOptional(part.endSecond, isNumber) && isOptional(part.channelIndex, isNumber) && isOptional(part.providerMetadata, isRecord) ? part : void 0;
+		case "finish": return isString(part.text) && Array.isArray(part.segments) && part.segments.every(isSegment) && isOptional(part.language, isString) && isOptional(part.durationInSeconds, isNumber) && isOptional(part.usage, isRecord) && isOptional(part.providerMetadata, isRecord) ? part : void 0;
 		case "response-metadata": {
-			if (!(isOptional(part.modelId, isString) && isOptional(part.headers, isPlainObject))) return;
+			if (!(isOptional(part.modelId, isString) && isOptional(part.headers, isRecord))) return;
 			const timestamp = part.timestamp;
 			if (timestamp == null) return {
 				...part,
@@ -2707,46 +8918,15 @@ function isNumber(value) {
 function isOptional(value, check) {
 	return value === void 0 || check(value);
 }
-function isPlainObject(value) {
-	return typeof value === "object" && value != null && !Array.isArray(value);
-}
 function isWarning(value) {
-	return isPlainObject(value) && isString(value.type);
+	return isRecord(value) && isString(value.type);
 }
 function isSegment(value) {
-	return isPlainObject(value) && isString(value.text) && isNumber(value.startSecond) && isNumber(value.endSecond);
+	return isRecord(value) && isString(value.text) && isNumber(value.startSecond) && isNumber(value.endSecond);
 }
 function withoutTrailingSlash(url) {
-	return url == null ? void 0 : url.replace(/\/$/, "");
+	return url?.replace(/\/$/, "");
 }
-function isExecutableTool(tool2) {
-	return tool2 != null && typeof tool2.execute === "function";
-}
-function isAsyncIterable(obj) {
-	return obj != null && typeof obj[Symbol.asyncIterator] === "function";
-}
-async function* executeTool({ tool: tool2, input, options }) {
-	const result = tool2.execute(input, options);
-	if (isAsyncIterable(result)) {
-		let lastOutput;
-		for await (const output of result) {
-			lastOutput = output;
-			yield {
-				type: "preliminary",
-				output
-			};
-		}
-		yield {
-			type: "final",
-			output: lastOutput
-		};
-	} else yield {
-		type: "final",
-		output: await result
-	};
-}
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/get-context.js
 var require_get_context = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -2783,8 +8963,6 @@ var require_get_context = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		getContext
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/token-error.js
 var require_token_error = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -2822,8 +9000,6 @@ var require_token_error = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 	0 && (module.exports = { VercelOidcTokenError });
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/get-vercel-oidc-token.js
 var require_get_vercel_oidc_token = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -2862,7 +9038,7 @@ var require_get_vercel_oidc_token = /* @__PURE__ */ __commonJSMin(((exports, mod
 			err = error;
 		}
 		try {
-			const [{ getTokenPayload, isExpired }, { refreshToken }] = await Promise.all([await import("../_.mjs").then((m) => /* @__PURE__ */ __toESM(m.default)), await import("../_7.mjs").then((m) => /* @__PURE__ */ __toESM(m.default))]);
+			const [{ getTokenPayload, isExpired }, { refreshToken }] = await Promise.all([await import("../_5.mjs").then((m) => /* @__PURE__ */ __toESM$1(m.default)), await import("../_9.mjs").then((m) => /* @__PURE__ */ __toESM$1(m.default))]);
 			if (!token || isExpired(getTokenPayload(token), options?.expirationBufferMs)) {
 				await refreshToken(options);
 				token = getVercelOidcTokenSync();
@@ -2886,8 +9062,6 @@ ${error.message}`;
 		getVercelOidcTokenSync
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/auth-errors.js
 var require_auth_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -2932,8 +9106,6 @@ var require_auth_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		RefreshAccessTokenFailedError
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/token-io.js
 var require_token_io = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __create = Object.create;
 	var __defProp = Object.defineProperty;
@@ -2969,7 +9141,7 @@ var require_token_io = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = __toCommonJS(token_io_exports);
 	var import_path = __toESM(__require("path"));
 	var import_fs = __toESM(__require("fs"));
-	var import_os$1 = __toESM(__require("os"));
+	var import_os = __toESM(__require("os"));
 	var import_token_error = require_token_error();
 	function findRootDir() {
 		try {
@@ -2986,9 +9158,9 @@ var require_token_io = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	function getUserDataDir() {
 		if (process.env.XDG_DATA_HOME) return process.env.XDG_DATA_HOME;
-		switch (import_os$1.default.platform()) {
-			case "darwin": return import_path.default.join(import_os$1.default.homedir(), "Library/Application Support");
-			case "linux": return import_path.default.join(import_os$1.default.homedir(), ".local/share");
+		switch (import_os.default.platform()) {
+			case "darwin": return import_path.default.join(import_os.default.homedir(), "Library/Application Support");
+			case "linux": return import_path.default.join(import_os.default.homedir(), ".local/share");
 			case "win32":
 				if (process.env.LOCALAPPDATA) return process.env.LOCALAPPDATA;
 				return null;
@@ -3000,8 +9172,6 @@ var require_token_io = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		getUserDataDir
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/auth-config.js
 var require_auth_config = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __create = Object.create;
 	var __defProp = Object.defineProperty;
@@ -3036,19 +9206,19 @@ var require_auth_config = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		writeAuthConfig: () => writeAuthConfig
 	});
 	module.exports = __toCommonJS(auth_config_exports);
-	var fs$1 = __toESM(__require("fs"));
-	var path$1 = __toESM(__require("path"));
+	var fs = __toESM(__require("fs"));
+	var path = __toESM(__require("path"));
 	var import_token_util = require_token_util();
 	function getAuthConfigPath() {
 		const dataDir = (0, import_token_util.getVercelDataDir)();
 		if (!dataDir) throw new Error(`Unable to find Vercel CLI data directory. Your platform: ${process.platform}. Supported: darwin, linux, win32.`);
-		return path$1.join(dataDir, "auth.json");
+		return path.join(dataDir, "auth.json");
 	}
 	function readAuthConfig() {
 		try {
 			const authPath = getAuthConfigPath();
-			if (!fs$1.existsSync(authPath)) return null;
-			const content = fs$1.readFileSync(authPath, "utf8");
+			if (!fs.existsSync(authPath)) return null;
+			const content = fs.readFileSync(authPath, "utf8");
 			if (!content) return null;
 			return JSON.parse(content);
 		} catch (error) {
@@ -3057,12 +9227,12 @@ var require_auth_config = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	function writeAuthConfig(config) {
 		const authPath = getAuthConfigPath();
-		const authDir = path$1.dirname(authPath);
-		if (!fs$1.existsSync(authDir)) fs$1.mkdirSync(authDir, {
+		const authDir = path.dirname(authPath);
+		if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, {
 			mode: 504,
 			recursive: true
 		});
-		fs$1.writeFileSync(authPath, JSON.stringify(config, null, 2), { mode: 384 });
+		fs.writeFileSync(authPath, JSON.stringify(config, null, 2), { mode: 384 });
 	}
 	function isValidAccessToken(authConfig, expirationBufferMs = 0) {
 		if (!authConfig.token) return false;
@@ -3077,8 +9247,6 @@ var require_auth_config = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		writeAuthConfig
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/oauth.js
 var require_oauth = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -3153,8 +9321,6 @@ var require_oauth = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		refreshTokenRequest
 	});
 }));
-//#endregion
-//#region ../../node_modules/@vercel/oidc/dist/token-util.js
 var require_token_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __create = Object.create;
 	var __defProp = Object.defineProperty;
@@ -3306,8 +9472,6 @@ var require_token_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		saveToken
 	});
 }));
-//#endregion
-//#region ../../node_modules/eve/node_modules/@ai-sdk/gateway/dist/index.js
 var import_dist = (/* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var __defProp = Object.defineProperty;
 	var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -3352,15 +9516,30 @@ var import_dist = (/* @__PURE__ */ __commonJSMin(((exports, module) => {
 		getVercelToken
 	});
 })))();
+/**
+* Client-side: build the WebSocket subprotocols that carry `token` to the
+* Gateway. Pass the result as the second argument to `new WebSocket(url, ...)`.
+*/
 function getGatewayRealtimeProtocols(token, options) {
 	return buildGatewayProtocols("ai-gateway-realtime.v1", token, options);
 }
+/**
+* Client-side: `getGatewayRealtimeProtocols`, but with the streaming
+* transcription marker subprotocol.
+*/
 function getGatewayTranscriptionProtocols(token, options) {
 	return buildGatewayProtocols("ai-gateway-transcription.v1", token, options);
 }
-function buildGatewayProtocols(marker11, token, options) {
-	const protocols = [marker11, `ai-gateway-auth.${token}`];
-	if (options == null ? void 0 : options.teamIdOrSlug) protocols.push(`ai-gateway-team.${encodeSubprotocolValue(options.teamIdOrSlug)}`);
+/**
+* Client-side: `getGatewayRealtimeProtocols`, but with the streaming speech
+* marker subprotocol.
+*/
+function getGatewaySpeechProtocols(token, options) {
+	return buildGatewayProtocols("ai-gateway-speech.v1", token, options);
+}
+function buildGatewayProtocols(marker, token, options) {
+	const protocols = [marker, `ai-gateway-auth.${token}`];
+	if (options?.teamIdOrSlug) protocols.push(`ai-gateway-team.${encodeSubprotocolValue(options.teamIdOrSlug)}`);
 	return protocols;
 }
 function encodeSubprotocolValue(value) {
@@ -3369,13 +9548,26 @@ function encodeSubprotocolValue(value) {
 	for (const byte of bytes) binary += String.fromCharCode(byte);
 	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/u, "");
 }
-var symbol = Symbol.for("vercel.ai.gateway.error");
-var _a;
-var _b;
-var GatewayError = class _GatewayError extends (_b = Error, _a = symbol, _b) {
+const z = {
+	any,
+	array,
+	boolean,
+	discriminatedUnion,
+	enum: _enum,
+	literal,
+	json,
+	number,
+	object,
+	record,
+	string,
+	union,
+	unknown
+};
+const symbol$10 = Symbol.for("vercel.ai.gateway.error");
+var GatewayError = class GatewayError extends Error {
 	constructor({ message, statusCode = 500, cause, generationId, isRetryable = statusCode != null && (statusCode === 408 || statusCode === 409 || statusCode === 429 || statusCode >= 500) }) {
 		super(generationId ? `${message} [${generationId}]` : message);
-		this[_a] = true;
+		this[symbol$10] = true;
 		this.statusCode = statusCode;
 		this.cause = cause;
 		this.generationId = generationId;
@@ -3387,18 +9579,19 @@ var GatewayError = class _GatewayError extends (_b = Error, _a = symbol, _b) {
 	* @returns {boolean} True if the error is a Gateway Error, false otherwise.
 	*/
 	static isInstance(error) {
-		return _GatewayError.hasMarker(error);
+		return GatewayError.hasMarker(error);
 	}
 	static hasMarker(error) {
-		return typeof error === "object" && error !== null && symbol in error && error[symbol] === true;
+		return typeof error === "object" && error !== null && symbol$10 in error && error[symbol$10] === true;
 	}
 };
-var name = "GatewayAuthenticationError";
-var marker2 = `vercel.ai.gateway.error.${name}`;
-var symbol2 = Symbol.for(marker2);
-var _a2;
-var _b2;
-var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b2 = GatewayError, _a2 = symbol2, _b2) {
+const name$9 = "GatewayAuthenticationError";
+const marker$9 = `vercel.ai.gateway.error.${name$9}`;
+const symbol$9 = Symbol.for(marker$9);
+/**
+* Authentication failed - invalid API key or OIDC token
+*/
+var GatewayAuthenticationError = class GatewayAuthenticationError extends GatewayError {
 	constructor({ message = "Authentication failed", statusCode = 401, cause, generationId } = {}) {
 		super({
 			message,
@@ -3406,12 +9599,12 @@ var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b2 
 			cause,
 			generationId
 		});
-		this[_a2] = true;
-		this.name = name;
+		this[symbol$9] = true;
+		this.name = name$9;
 		this.type = "authentication_error";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol2 in error;
+		return GatewayError.hasMarker(error) && symbol$9 in error;
 	}
 	/**
 	* Creates a contextual error message when authentication fails
@@ -3440,7 +9633,7 @@ Pass a Vercel personal access token or Vercel app access token via the 'apiKey' 
 
 Option 3 - OIDC token:
 Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the token.`;
-		return new _GatewayAuthenticationError({
+		return new GatewayAuthenticationError({
 			message: contextualMessage,
 			statusCode,
 			cause,
@@ -3448,12 +9641,13 @@ Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the toke
 		});
 	}
 };
-var name2 = "GatewayInvalidRequestError";
-var marker3 = `vercel.ai.gateway.error.${name2}`;
-var symbol3 = Symbol.for(marker3);
-var _a3;
-var _b3;
-var GatewayInvalidRequestError = class extends (_b3 = GatewayError, _a3 = symbol3, _b3) {
+const name$8 = "GatewayInvalidRequestError";
+const marker$8 = `vercel.ai.gateway.error.${name$8}`;
+const symbol$8 = Symbol.for(marker$8);
+/**
+* Invalid request - missing headers, malformed data, etc.
+*/
+var GatewayInvalidRequestError = class extends GatewayError {
 	constructor({ message = "Invalid request", statusCode = 400, cause, generationId } = {}) {
 		super({
 			message,
@@ -3461,20 +9655,21 @@ var GatewayInvalidRequestError = class extends (_b3 = GatewayError, _a3 = symbol
 			cause,
 			generationId
 		});
-		this[_a3] = true;
-		this.name = name2;
+		this[symbol$8] = true;
+		this.name = name$8;
 		this.type = "invalid_request_error";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol3 in error;
+		return GatewayError.hasMarker(error) && symbol$8 in error;
 	}
 };
-var name3 = "GatewayRateLimitError";
-var marker4 = `vercel.ai.gateway.error.${name3}`;
-var symbol4 = Symbol.for(marker4);
-var _a4;
-var _b4;
-var GatewayRateLimitError = class extends (_b4 = GatewayError, _a4 = symbol4, _b4) {
+const name$7 = "GatewayRateLimitError";
+const marker$7 = `vercel.ai.gateway.error.${name$7}`;
+const symbol$7 = Symbol.for(marker$7);
+/**
+* Rate limit exceeded.
+*/
+var GatewayRateLimitError = class extends GatewayError {
 	constructor({ message = "Rate limit exceeded", statusCode = 429, cause, generationId } = {}) {
 		super({
 			message,
@@ -3482,21 +9677,22 @@ var GatewayRateLimitError = class extends (_b4 = GatewayError, _a4 = symbol4, _b
 			cause,
 			generationId
 		});
-		this[_a4] = true;
-		this.name = name3;
+		this[symbol$7] = true;
+		this.name = name$7;
 		this.type = "rate_limit_exceeded";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol4 in error;
+		return GatewayError.hasMarker(error) && symbol$7 in error;
 	}
 };
-var name4 = "GatewayModelNotFoundError";
-var marker5 = `vercel.ai.gateway.error.${name4}`;
-var symbol5 = Symbol.for(marker5);
-var modelNotFoundParamSchema = lazySchema(() => zodSchema(object({ modelId: string() })));
-var _a5;
-var _b5;
-var GatewayModelNotFoundError = class extends (_b5 = GatewayError, _a5 = symbol5, _b5) {
+const name$6 = "GatewayModelNotFoundError";
+const marker$6 = `vercel.ai.gateway.error.${name$6}`;
+const symbol$6 = Symbol.for(marker$6);
+const modelNotFoundParamSchema = lazySchema(() => zodSchema(z.object({ modelId: z.string() })));
+/**
+* Model not found or not available
+*/
+var GatewayModelNotFoundError = class extends GatewayError {
 	constructor({ message = "Model not found", statusCode = 404, modelId, cause, generationId } = {}) {
 		super({
 			message,
@@ -3504,21 +9700,46 @@ var GatewayModelNotFoundError = class extends (_b5 = GatewayError, _a5 = symbol5
 			cause,
 			generationId
 		});
-		this[_a5] = true;
-		this.name = name4;
+		this[symbol$6] = true;
+		this.name = name$6;
 		this.type = "model_not_found";
 		this.modelId = modelId;
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol5 in error;
+		return GatewayError.hasMarker(error) && symbol$6 in error;
 	}
 };
-var name5 = "GatewayInternalServerError";
-var marker6 = `vercel.ai.gateway.error.${name5}`;
-var symbol6 = Symbol.for(marker6);
-var _a6;
-var _b6;
-var GatewayInternalServerError = class extends (_b6 = GatewayError, _a6 = symbol6, _b6) {
+const name$5 = "GatewayNotFoundError";
+const marker$5 = `vercel.ai.gateway.error.${name$5}`;
+const symbol$5 = Symbol.for(marker$5);
+/**
+* Not found - the requested Gateway resource does not exist or is not
+* visible to the caller (e.g. an unknown async batch/video job id).
+* Distinct from `GatewayModelNotFoundError`, which is model-specific.
+*/
+var GatewayNotFoundError = class extends GatewayError {
+	constructor({ message = "Resource not found", statusCode = 404, cause, generationId } = {}) {
+		super({
+			message,
+			statusCode,
+			cause,
+			generationId
+		});
+		this[symbol$5] = true;
+		this.name = name$5;
+		this.type = "not_found";
+	}
+	static isInstance(error) {
+		return GatewayError.hasMarker(error) && symbol$5 in error;
+	}
+};
+const name$4 = "GatewayInternalServerError";
+const marker$4 = `vercel.ai.gateway.error.${name$4}`;
+const symbol$4 = Symbol.for(marker$4);
+/**
+* Internal server error from the Gateway
+*/
+var GatewayInternalServerError = class extends GatewayError {
 	constructor({ message = "Internal server error", statusCode = 500, cause, generationId } = {}) {
 		super({
 			message,
@@ -3526,20 +9747,23 @@ var GatewayInternalServerError = class extends (_b6 = GatewayError, _a6 = symbol
 			cause,
 			generationId
 		});
-		this[_a6] = true;
-		this.name = name5;
+		this[symbol$4] = true;
+		this.name = name$4;
 		this.type = "internal_server_error";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol6 in error;
+		return GatewayError.hasMarker(error) && symbol$4 in error;
 	}
 };
-var name6 = "GatewayFailedDependencyError";
-var marker7 = `vercel.ai.gateway.error.${name6}`;
-var symbol7 = Symbol.for(marker7);
-var _a7;
-var _b7;
-var GatewayFailedDependencyError = class extends (_b7 = GatewayError, _a7 = symbol7, _b7) {
+const name$3 = "GatewayFailedDependencyError";
+const marker$3 = `vercel.ai.gateway.error.${name$3}`;
+const symbol$3 = Symbol.for(marker$3);
+/**
+* The request could not be fulfilled because a dependency it relied on was not
+* available on the credentials or provider used to serve it (HTTP 424). Not
+* retryable — the caller must change the request.
+*/
+var GatewayFailedDependencyError = class extends GatewayError {
 	constructor({ message = "Failed dependency", statusCode = 424, cause, generationId } = {}) {
 		super({
 			message,
@@ -3547,21 +9771,23 @@ var GatewayFailedDependencyError = class extends (_b7 = GatewayError, _a7 = symb
 			cause,
 			generationId
 		});
-		this[_a7] = true;
-		this.name = name6;
+		this[symbol$3] = true;
+		this.name = name$3;
 		this.type = "failed_dependency";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol7 in error;
+		return GatewayError.hasMarker(error) && symbol$3 in error;
 	}
 };
-var name7 = "GatewayForbiddenError";
-var marker8 = `vercel.ai.gateway.error.${name7}`;
-var symbol8 = Symbol.for(marker8);
-var forbiddenParamSchema = lazySchema(() => zodSchema(object({ ruleId: string() })));
-var _a8;
-var _b8;
-var GatewayForbiddenError = class extends (_b8 = GatewayError, _a8 = symbol8, _b8) {
+const name$2 = "GatewayForbiddenError";
+const marker$2 = `vercel.ai.gateway.error.${name$2}`;
+const symbol$2 = Symbol.for(marker$2);
+const forbiddenParamSchema = lazySchema(() => zodSchema(z.object({ ruleId: z.string() })));
+/**
+* Forbidden - the request was rejected by policy (e.g. a routing rule),
+* not an authentication failure.
+*/
+var GatewayForbiddenError = class extends GatewayError {
 	constructor({ message = "Forbidden", statusCode = 403, cause, generationId, ruleId } = {}) {
 		super({
 			message,
@@ -3569,40 +9795,41 @@ var GatewayForbiddenError = class extends (_b8 = GatewayError, _a8 = symbol8, _b
 			cause,
 			generationId
 		});
-		this[_a8] = true;
-		this.name = name7;
+		this[symbol$2] = true;
+		this.name = name$2;
 		this.type = "forbidden";
 		this.ruleId = ruleId;
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol8 in error;
+		return GatewayError.hasMarker(error) && symbol$2 in error;
 	}
 };
-var name8 = "GatewayResponseError";
-var marker9 = `vercel.ai.gateway.error.${name8}`;
-var symbol9 = Symbol.for(marker9);
-var _a9;
-var _b9;
-var GatewayResponseError = class extends (_b9 = GatewayError, _a9 = symbol9, _b9) {
-	constructor({ message = "Invalid response from Gateway", statusCode = 502, response, validationError, cause, generationId } = {}) {
+const name$1 = "GatewayResponseError";
+const marker$1 = `vercel.ai.gateway.error.${name$1}`;
+const symbol$1 = Symbol.for(marker$1);
+/**
+* Gateway response parsing error
+*/
+var GatewayResponseError = class extends GatewayError {
+	constructor({ message = "Invalid response from Gateway", statusCode = 502, response, validationError, cause, generationId, isRetryable } = {}) {
 		super({
 			message,
 			statusCode,
 			cause,
-			generationId
+			generationId,
+			isRetryable
 		});
-		this[_a9] = true;
-		this.name = name8;
+		this[symbol$1] = true;
+		this.name = name$1;
 		this.type = "response_error";
 		this.response = response;
 		this.validationError = validationError;
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol9 in error;
+		return GatewayError.hasMarker(error) && symbol$1 in error;
 	}
 };
-async function createGatewayErrorFromResponse({ response, statusCode, defaultMessage = "Gateway request failed", cause, authMethod }) {
-	var _a11;
+async function createGatewayErrorFromResponse({ response, statusCode, defaultMessage = "Gateway request failed", cause, authMethod, isRetryable }) {
 	const parseResult = await safeValidateTypes({
 		value: response,
 		schema: gatewayErrorResponseSchema
@@ -3615,13 +9842,14 @@ async function createGatewayErrorFromResponse({ response, statusCode, defaultMes
 			response,
 			validationError: parseResult.error,
 			cause,
-			generationId: rawGenerationId
+			generationId: rawGenerationId,
+			isRetryable
 		});
 	}
 	const validatedResponse = parseResult.value;
 	const errorType = validatedResponse.error.type;
 	const message = validatedResponse.error.message;
-	const generationId = (_a11 = validatedResponse.generationId) != null ? _a11 : void 0;
+	const generationId = validatedResponse.generationId ?? void 0;
 	switch (errorType) {
 		case "authentication_error": return GatewayAuthenticationError.createContextualError({
 			apiKeyProvided: authMethod === "api-key",
@@ -3655,6 +9883,12 @@ async function createGatewayErrorFromResponse({ response, statusCode, defaultMes
 				generationId
 			});
 		}
+		case "not_found": return new GatewayNotFoundError({
+			message,
+			statusCode,
+			cause,
+			generationId
+		});
 		case "internal_server_error": return new GatewayInternalServerError({
 			message,
 			statusCode,
@@ -3688,30 +9922,31 @@ async function createGatewayErrorFromResponse({ response, statusCode, defaultMes
 		});
 	}
 }
-var gatewayErrorResponseSchema = lazySchema(() => zodSchema(object({
-	error: object({
-		message: string(),
-		type: string().nullish(),
-		param: unknown().nullish(),
-		code: union([string(), number()]).nullish()
+const gatewayErrorResponseSchema = lazySchema(() => zodSchema(z.object({
+	error: z.object({
+		message: z.string(),
+		type: z.string().nullish(),
+		param: z.unknown().nullish(),
+		code: z.union([z.string(), z.number()]).nullish()
 	}),
-	generationId: string().nullish()
+	generationId: z.string().nullish()
 })));
 function extractApiCallResponse(error) {
 	if (error.data !== void 0) return error.data;
 	if (error.responseBody != null) try {
 		return secureJsonParse(error.responseBody);
-	} catch (e) {
+	} catch {
 		return error.responseBody;
 	}
 	return {};
 }
-var name9 = "GatewayTimeoutError";
-var marker10 = `vercel.ai.gateway.error.${name9}`;
-var symbol10 = Symbol.for(marker10);
-var _a10;
-var _b10;
-var GatewayTimeoutError = class _GatewayTimeoutError extends (_b10 = GatewayError, _a10 = symbol10, _b10) {
+const name = "GatewayTimeoutError";
+const marker = `vercel.ai.gateway.error.${name}`;
+const symbol = Symbol.for(marker);
+/**
+* Client request timed out before receiving a response.
+*/
+var GatewayTimeoutError = class GatewayTimeoutError extends GatewayError {
 	constructor({ message = "Request timed out", statusCode = 408, cause, generationId } = {}) {
 		super({
 			message,
@@ -3719,12 +9954,12 @@ var GatewayTimeoutError = class _GatewayTimeoutError extends (_b10 = GatewayErro
 			cause,
 			generationId
 		});
-		this[_a10] = true;
-		this.name = name9;
+		this[symbol] = true;
+		this.name = name;
 		this.type = "timeout_error";
 	}
 	static isInstance(error) {
-		return GatewayError.hasMarker(error) && symbol10 in error;
+		return GatewayError.hasMarker(error) && symbol in error;
 	}
 	/**
 	* Creates a helpful timeout error message with troubleshooting guidance
@@ -3733,7 +9968,7 @@ var GatewayTimeoutError = class _GatewayTimeoutError extends (_b10 = GatewayErro
 		const message = `Gateway request timed out: ${originalMessage}
 
     This is a client-side timeout. To resolve this, increase your timeout configuration: https://vercel.com/docs/ai-gateway/capabilities/video-generation#extending-timeouts-for-node.js`;
-		return new _GatewayTimeoutError({
+		return new GatewayTimeoutError({
 			message,
 			statusCode,
 			cause,
@@ -3741,6 +9976,10 @@ var GatewayTimeoutError = class _GatewayTimeoutError extends (_b10 = GatewayErro
 		});
 	}
 };
+/**
+* Checks if an error is a timeout error from undici.
+* Only checks undici-specific error codes to avoid false positives.
+*/
 function isTimeoutError(error) {
 	if (!(error instanceof Error)) return false;
 	const errorCode = error.code;
@@ -3752,7 +9991,6 @@ function isTimeoutError(error) {
 	return false;
 }
 async function asGatewayError(error, authMethod) {
-	var _a11;
 	if (GatewayError.isInstance(error)) return error;
 	if (isTimeoutError(error)) return GatewayTimeoutError.createTimeoutError({
 		originalMessage: error instanceof Error ? error.message : "Unknown error",
@@ -3765,10 +10003,11 @@ async function asGatewayError(error, authMethod) {
 		});
 		return await createGatewayErrorFromResponse({
 			response: extractApiCallResponse(error),
-			statusCode: (_a11 = error.statusCode) != null ? _a11 : 500,
+			statusCode: error.statusCode ?? 500,
 			defaultMessage: "Gateway request failed",
 			cause: error,
-			authMethod
+			authMethod,
+			isRetryable: error.isRetryable && (error.statusCode == null || error.statusCode < 400) ? true : void 0
 		});
 	}
 	return await createGatewayErrorFromResponse({
@@ -3779,8 +10018,8 @@ async function asGatewayError(error, authMethod) {
 		authMethod
 	});
 }
-var GATEWAY_AUTH_METHOD_HEADER = "ai-gateway-auth-method";
-var VERCEL_AI_GATEWAY_TEAM_HEADER = "x-vercel-ai-gateway-team";
+const GATEWAY_AUTH_METHOD_HEADER = "ai-gateway-auth-method";
+const VERCEL_AI_GATEWAY_TEAM_HEADER = "x-vercel-ai-gateway-team";
 async function parseAuthMethod(headers) {
 	const result = await safeValidateTypes({
 		value: headers[GATEWAY_AUTH_METHOD_HEADER],
@@ -3788,9 +10027,11 @@ async function parseAuthMethod(headers) {
 	});
 	return result.success ? result.value : void 0;
 }
-var gatewayAuthMethodSchema = lazySchema(() => zodSchema(union([literal("api-key"), literal("oidc")])));
-var KNOWN_MODEL_TYPES = [
+const gatewayAuthMethodSchema = lazySchema(() => zodSchema(z.union([z.literal("api-key"), z.literal("oidc")])));
+const KNOWN_MODEL_TYPES = [
 	"embedding",
+	"decision",
+	"evaluation",
 	"image",
 	"language",
 	"realtime",
@@ -3811,8 +10052,8 @@ var GatewayFetchMetadata = class {
 				headers: this.config.headers ? await resolve(this.config.headers) : void 0,
 				successfulResponseHandler: createJsonResponseHandler(gatewayAvailableModelsResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				fetch: this.config.fetch
 			});
@@ -3823,14 +10064,19 @@ var GatewayFetchMetadata = class {
 	}
 	async getCredits() {
 		try {
+			const baseUrl = new URL(this.config.baseURL);
+			const headers = this.config.headers ? await resolve(this.config.headers) : void 0;
+			const url = new URL("/v1/credits", baseUrl.origin);
+			const teamIdOrSlug = getTeamIdOrSlug(headers);
+			if (teamIdOrSlug) url.searchParams.set(teamIdOrSlug.startsWith("team_") ? "teamId" : "slug", teamIdOrSlug);
 			const { value } = await getFromApi({
-				url: `${new URL(this.config.baseURL).origin}/v1/credits`,
+				url: url.toString(),
 				validateUrl: false,
-				headers: this.config.headers ? await resolve(this.config.headers) : void 0,
+				headers,
 				successfulResponseHandler: createJsonResponseHandler(gatewayCreditsResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				fetch: this.config.fetch
 			});
@@ -3840,31 +10086,35 @@ var GatewayFetchMetadata = class {
 		}
 	}
 };
-var gatewayAvailableModelsResponseSchema = lazySchema(() => zodSchema(object({ models: array(object({
-	id: string(),
-	name: string(),
-	description: string().nullish(),
-	pricing: object({
-		input: string(),
-		output: string(),
-		input_cache_read: string().nullish(),
-		input_cache_write: string().nullish()
+function getTeamIdOrSlug(headers) {
+	if (!headers) return void 0;
+	for (const [name, value] of Object.entries(headers)) if (name.toLowerCase() === "x-vercel-ai-gateway-team") return value?.trim() || void 0;
+}
+const gatewayAvailableModelsResponseSchema = lazySchema(() => zodSchema(z.object({ models: z.array(z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string().nullish(),
+	pricing: z.object({
+		input: z.string(),
+		output: z.string(),
+		input_cache_read: z.string().nullish(),
+		input_cache_write: z.string().nullish()
 	}).transform(({ input, output, input_cache_read, input_cache_write }) => ({
 		input,
 		output,
 		...input_cache_read ? { cachedInputTokens: input_cache_read } : {},
 		...input_cache_write ? { cacheCreationInputTokens: input_cache_write } : {}
 	})).nullish(),
-	specification: object({
-		specificationVersion: literal("v4"),
-		provider: string(),
-		modelId: string()
+	specification: z.object({
+		specificationVersion: z.literal("v4"),
+		provider: z.string(),
+		modelId: z.string()
 	}),
-	modelType: string().nullish()
+	modelType: z.string().nullish()
 })).transform((models) => models.filter((m) => m.modelType == null || KNOWN_MODEL_TYPES.includes(m.modelType))) })));
-var gatewayCreditsResponseSchema = lazySchema(() => zodSchema(object({
-	balance: string(),
-	total_used: string()
+const gatewayCreditsResponseSchema = lazySchema(() => zodSchema(z.object({
+	balance: z.string(),
+	total_used: z.string()
 }).transform(({ balance, total_used }) => ({
 	balance,
 	totalUsed: total_used
@@ -3892,8 +10142,8 @@ var GatewaySpendReport = class {
 				headers: this.config.headers ? await resolve(this.config.headers) : void 0,
 				successfulResponseHandler: createJsonResponseHandler(gatewaySpendReportResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				fetch: this.config.fetch
 			});
@@ -3903,22 +10153,22 @@ var GatewaySpendReport = class {
 		}
 	}
 };
-var gatewaySpendReportResponseSchema = lazySchema(() => zodSchema(object({ results: array(object({
-	day: string().optional(),
-	hour: string().optional(),
-	user: string().optional(),
-	model: string().optional(),
-	tag: string().optional(),
-	provider: string().optional(),
-	credential_type: _enum(["byok", "system"]).optional(),
-	total_cost: number(),
-	market_cost: number().optional(),
-	input_tokens: number().optional(),
-	output_tokens: number().optional(),
-	cached_input_tokens: number().optional(),
-	cache_creation_input_tokens: number().optional(),
-	reasoning_tokens: number().optional(),
-	request_count: number().optional()
+const gatewaySpendReportResponseSchema = lazySchema(() => zodSchema(z.object({ results: z.array(z.object({
+	day: z.string().optional(),
+	hour: z.string().optional(),
+	user: z.string().optional(),
+	model: z.string().optional(),
+	tag: z.string().optional(),
+	provider: z.string().optional(),
+	credential_type: z.enum(["byok", "system"]).optional(),
+	total_cost: z.number(),
+	market_cost: z.number().optional(),
+	input_tokens: z.number().optional(),
+	output_tokens: z.number().optional(),
+	cached_input_tokens: z.number().optional(),
+	cache_creation_input_tokens: z.number().optional(),
+	reasoning_tokens: z.number().optional(),
+	request_count: z.number().optional()
 }).transform(({ credential_type, total_cost, market_cost, input_tokens, output_tokens, cached_input_tokens, cache_creation_input_tokens, reasoning_tokens, request_count, ...rest }) => ({
 	...rest,
 	...credential_type !== void 0 ? { credentialType: credential_type } : {},
@@ -3937,14 +10187,15 @@ var GatewayGenerationInfoFetcher = class {
 	}
 	async getGenerationInfo(params) {
 		try {
+			const baseUrl = new URL(this.config.baseURL);
 			const { value } = await getFromApi({
-				url: `${new URL(this.config.baseURL).origin}/v1/generation?id=${encodeURIComponent(params.id)}`,
+				url: `${baseUrl.origin}/v1/generation?id=${encodeURIComponent(params.id)}`,
 				validateUrl: false,
 				headers: this.config.headers ? await resolve(this.config.headers) : void 0,
 				successfulResponseHandler: createJsonResponseHandler(gatewayGenerationInfoResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				fetch: this.config.fetch
 			});
@@ -3954,25 +10205,25 @@ var GatewayGenerationInfoFetcher = class {
 		}
 	}
 };
-var gatewayGenerationInfoResponseSchema = lazySchema(() => zodSchema(object({ data: object({
-	id: string(),
-	total_cost: number(),
-	upstream_inference_cost: number(),
-	usage: number(),
-	created_at: string(),
-	model: string(),
-	is_byok: boolean(),
-	provider_name: string(),
-	streamed: boolean(),
-	finish_reason: string(),
-	latency: number(),
-	generation_time: number(),
-	native_tokens_prompt: number(),
-	native_tokens_completion: number(),
-	native_tokens_reasoning: number(),
-	native_tokens_cached: number(),
-	native_tokens_cache_creation: number(),
-	billable_web_search_calls: number()
+const gatewayGenerationInfoResponseSchema = lazySchema(() => zodSchema(z.object({ data: z.object({
+	id: z.string(),
+	total_cost: z.number(),
+	upstream_inference_cost: z.number(),
+	usage: z.number(),
+	created_at: z.string(),
+	model: z.string(),
+	is_byok: z.boolean(),
+	provider_name: z.string(),
+	streamed: z.boolean(),
+	finish_reason: z.string(),
+	latency: z.number(),
+	generation_time: z.number(),
+	native_tokens_prompt: z.number(),
+	native_tokens_completion: z.number(),
+	native_tokens_reasoning: z.number(),
+	native_tokens_cached: z.number(),
+	native_tokens_cache_creation: z.number(),
+	billable_web_search_calls: z.number()
 }).transform(({ total_cost, upstream_inference_cost, created_at, is_byok, provider_name, finish_reason, generation_time, native_tokens_prompt, native_tokens_completion, native_tokens_reasoning, native_tokens_cached, native_tokens_cache_creation, billable_web_search_calls, ...rest }) => ({
 	...rest,
 	totalCost: total_cost,
@@ -3989,13 +10240,301 @@ var gatewayGenerationInfoResponseSchema = lazySchema(() => zodSchema(object({ da
 	cacheCreationTokens: native_tokens_cache_creation,
 	billableWebSearchCalls: billable_web_search_calls
 })) }).transform(({ data }) => data)));
-var GatewayLanguageModel = class _GatewayLanguageModel {
-	constructor(modelId, config) {
-		this.modelId = modelId;
+var GatewayBatch = class {
+	constructor(config) {
 		this.config = config;
 		this.specificationVersion = "v4";
 		this.supportedUrls = { "*/*": [/.*/] };
+		this.provider = `${config.provider}.batch`;
 	}
+	/**
+	* Starts a durable batch of text-generation requests through the Gateway's
+	* async batch surface (`POST {baseURL}/batch/start`). The returned
+	* `batchId` is the Gateway job id — provider-native batch ids stay
+	* server-side, so status and results always route back through the
+	* Gateway job.
+	*/
+	async doStartBatch({ requests, providerOptions, headers, abortSignal, webhookUrl }) {
+		assertTextBatchRequests(requests);
+		const modelId = validateSingleModel(requests);
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		const idempotencyKey = getGatewayBatchIdempotencyKey(providerOptions);
+		const forwardedProviderOptions = omitGatewayIdempotencyKey(providerOptions);
+		try {
+			const { value: responseBody } = await postJsonToApi({
+				url: this.getBatchUrl("start"),
+				headers: combineHeaders(resolvedHeaders, headers, { "ai-model-id": modelId }, await resolve(this.config.o11yHeaders), idempotencyKey != null ? { "idempotency-key": idempotencyKey } : void 0),
+				body: {
+					...webhookUrl != null && { callbackUrl: webhookUrl },
+					requests: requests.map((request) => ({
+						id: request.id,
+						type: request.type,
+						modelId: request.modelId,
+						options: maybeEncodeBatchFileParts(request.options)
+					})),
+					...forwardedProviderOptions != null && { providerOptions: forwardedProviderOptions }
+				},
+				successfulResponseHandler: createJsonResponseHandler(gatewayBatchStartResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return {
+				batchId: responseBody.batchId,
+				...convertGatewayBatchStatus(responseBody),
+				warnings: responseBody.warnings ?? []
+			};
+		} catch (error) {
+			if (isAbortOrTimeoutError(error)) throw error;
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	/**
+	* Retrieves the lifecycle status of a Gateway batch job
+	* (`POST {baseURL}/batch/status`).
+	*/
+	async doGetBatchStatus({ batchId, headers, abortSignal }) {
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { value: responseBody } = await postJsonToApi({
+				url: this.getBatchUrl("status"),
+				headers: combineHeaders(resolvedHeaders, headers, await resolve(this.config.o11yHeaders)),
+				body: { batchId },
+				successfulResponseHandler: createJsonResponseHandler(gatewayBatchStatusResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return convertGatewayBatchStatus(responseBody);
+		} catch (error) {
+			if (isAbortOrTimeoutError(error)) throw error;
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	/**
+	* Streams the per-request results of a terminal Gateway batch job
+	* (`POST {baseURL}/batch/results`, `application/x-ndjson`: one
+	* `BatchV4ItemResult` JSON object per line). Items are validated minimally
+	* (id + status) and passed through — the Gateway sanitizes them
+	* server-side. The route responds 400 while the batch is non-terminal.
+	*/
+	async doGetBatchResults({ batchId, headers, abortSignal }) {
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { value: lines } = await postJsonToApi({
+				url: this.getBatchUrl("results"),
+				headers: combineHeaders(resolvedHeaders, headers, await resolve(this.config.o11yHeaders)),
+				body: { batchId },
+				successfulResponseHandler: createJsonLinesResponseHandler(gatewayBatchItemResultLineSchema, { maxLineBytes: this.config.maxLineBytes }),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return convertAsyncIteratorToReadableStream(convertGatewayBatchResultLines(lines));
+		} catch (error) {
+			if (isAbortOrTimeoutError(error)) throw error;
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	/** Requests cancellation; status and partial results remain separate reads. */
+	async doCancelBatch({ batchId, headers, abortSignal }) {
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { value: responseBody } = await postJsonToApi({
+				url: this.getBatchUrl("cancel"),
+				headers: combineHeaders(resolvedHeaders, headers, await resolve(this.config.o11yHeaders)),
+				body: { batchId },
+				successfulResponseHandler: createJsonResponseHandler(gatewayBatchStatusResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return { ...responseBody.providerMetadata != null && { providerMetadata: responseBody.providerMetadata } };
+		} catch (error) {
+			if (isAbortOrTimeoutError(error)) throw error;
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	getBatchUrl(path) {
+		return `${this.config.baseURL}/batch/${path}`;
+	}
+};
+function maybeEncodeBatchFileParts(options) {
+	for (const message of options.prompt) {
+		if (!Array.isArray(message.content)) continue;
+		for (const part of message.content) if (part.type === "file" || part.type === "reasoning-file") part.data = maybeBase64EncodeFileData$1(part.data);
+		else if (part.type === "tool-result" && part.output.type === "content") {
+			for (const contentPart of part.output.value) if (contentPart.type === "file") contentPart.data = maybeBase64EncodeFileData$1(contentPart.data);
+		}
+	}
+	return options;
+}
+function maybeBase64EncodeFileData$1(data) {
+	if (data.type === "data") {
+		const bytes = data.data;
+		if (bytes instanceof Uint8Array) return {
+			...data,
+			data: Buffer.from(bytes).toString("base64")
+		};
+	}
+	return data;
+}
+function validateSingleModel(requests) {
+	const modelId = requests[0]?.modelId;
+	if (modelId == null) throw new InvalidArgumentError({
+		argument: "requests",
+		message: "The AI Gateway Batch API requires at least one request."
+	});
+	for (const request of requests) if (request.modelId !== modelId) throw new InvalidArgumentError({
+		argument: "requests",
+		message: `The AI Gateway Batch API requires all requests in a batch to use the same model. Found "${modelId}" and "${request.modelId}".`
+	});
+	return modelId;
+}
+function assertTextBatchRequests(requests) {
+	for (const request of requests) {
+		const requestType = request.type;
+		if (requestType !== "text") throw new UnsupportedFunctionalityError({
+			functionality: `batch request type: ${requestType}`,
+			message: `The AI Gateway Batch API does not support batch requests with type "${requestType}".`
+		});
+	}
+}
+/**
+* Extracts the optional Gateway idempotency key from
+* `providerOptions.gateway.idempotencyKey`. It is sent as the
+* `idempotency-key` request header — the Gateway's replay contract for batch
+* starts — and stripped from the forwarded body by
+* `omitGatewayIdempotencyKey`.
+*/
+function getGatewayBatchIdempotencyKey(providerOptions) {
+	const gatewayOptions = providerOptions?.gateway;
+	if (gatewayOptions == null || typeof gatewayOptions !== "object" || Array.isArray(gatewayOptions)) return;
+	const key = gatewayOptions.idempotencyKey;
+	return typeof key === "string" && key.length > 0 ? key : void 0;
+}
+/**
+* Removes `gateway.idempotencyKey` from the providerOptions forwarded in the
+* request body. The key is transport metadata (it rides the `idempotency-key`
+* header); the Gateway hashes the raw body for replay payload identity but
+* normalizes the header separately, so keeping it out of the payload prevents
+* equivalent retries from producing different digests (a false 422).
+*/
+function omitGatewayIdempotencyKey(providerOptions) {
+	const gatewayOptions = providerOptions?.gateway;
+	if (gatewayOptions == null || typeof gatewayOptions !== "object" || Array.isArray(gatewayOptions) || !("idempotencyKey" in gatewayOptions)) return providerOptions;
+	const { idempotencyKey: _idempotencyKey, ...restGatewayOptions } = gatewayOptions;
+	const restProviderOptions = { ...providerOptions };
+	if (Object.keys(restGatewayOptions).length === 0) delete restProviderOptions.gateway;
+	else restProviderOptions.gateway = restGatewayOptions;
+	if (Object.keys(restProviderOptions).length === 0) return;
+	return restProviderOptions;
+}
+/**
+* Matches cancellation errors (`AbortError`/`TimeoutError`), which
+* `asGatewayError` would otherwise wrap into a retryable Gateway 500. Kept
+* local because `isAbortError` is not exported from `@ai-sdk/provider-utils`;
+* `DOMException` does not extend `Error`, so both must be checked.
+*/
+function isAbortOrTimeoutError(error) {
+	if (!(error instanceof Error || error instanceof DOMException)) return false;
+	return error.name === "AbortError" || error.name === "TimeoutError";
+}
+function convertGatewayBatchStatus(body) {
+	const requestCounts = normalizeBatchRequestCounts({
+		total: body.requestCounts?.total,
+		pending: body.requestCounts?.pending,
+		completed: body.requestCounts?.completed,
+		failed: body.requestCounts?.failed
+	});
+	return {
+		status: body.status,
+		...body.rawStatus != null && { rawStatus: body.rawStatus },
+		...requestCounts != null && { requestCounts },
+		...body.error != null && { error: {
+			message: body.error.message,
+			...body.error.type != null && { type: body.error.type },
+			...body.error.code != null && { code: body.error.code },
+			...body.error.statusCode != null && { statusCode: body.error.statusCode }
+		} },
+		...body.createdAt != null && { createdAt: body.createdAt },
+		...body.expiresAt != null && { expiresAt: body.expiresAt },
+		...body.providerMetadata != null && { providerMetadata: body.providerMetadata }
+	};
+}
+/**
+* Converts the minimally validated Gateway batch result lines. The Gateway
+* already sanitizes the complete result objects server-side.
+*
+* @yields Each Gateway batch item result.
+*/
+async function* convertGatewayBatchResultLines(lines) {
+	for await (const line of lines) {
+		const item = line;
+		if (item.status === "succeeded") {
+			const response = item.result?.response;
+			if (response !== void 0 && typeof response.timestamp === "string") response.timestamp = new Date(response.timestamp);
+		}
+		yield item;
+	}
+}
+const gatewayBatchItemResultLineSchema = lazySchema(() => zodSchema(z.object({
+	type: z.literal("text"),
+	id: z.string(),
+	status: z.enum([
+		"cancelled",
+		"expired",
+		"failed",
+		"succeeded"
+	])
+}).catchall(z.unknown())));
+const gatewayBatchErrorSchema = () => z.object({
+	message: z.string(),
+	type: z.string().nullish(),
+	code: z.string().nullish(),
+	statusCode: z.number().nullish()
+});
+const gatewayBatchRequestCountsSchema = () => z.object({
+	total: z.number().nullish(),
+	pending: z.number().nullish(),
+	completed: z.number().nullish(),
+	failed: z.number().nullish()
+});
+const gatewayBatchProviderMetadataSchema = () => z.record(z.string(), z.record(z.string(), z.unknown()));
+const gatewayBatchStatusFieldsSchema = () => z.object({
+	status: z.enum([
+		"completed",
+		"failed",
+		"pending"
+	]),
+	rawStatus: z.string().nullish(),
+	requestCounts: gatewayBatchRequestCountsSchema().nullish(),
+	error: gatewayBatchErrorSchema().nullish(),
+	createdAt: z.string().nullish(),
+	expiresAt: z.string().nullish(),
+	providerMetadata: gatewayBatchProviderMetadataSchema().nullish()
+});
+const gatewayBatchStartResponseSchema = lazySchema(() => zodSchema(gatewayBatchStatusFieldsSchema().extend({
+	batchId: z.string(),
+	warnings: z.array(z.object({
+		requestId: z.string().nullish(),
+		warning: z.unknown()
+	}).catchall(z.unknown())).nullish()
+})));
+const gatewayBatchStatusResponseSchema = lazySchema(() => zodSchema(gatewayBatchStatusFieldsSchema()));
+var GatewayLanguageModel = class GatewayLanguageModel {
 	static [WORKFLOW_SERIALIZE](model) {
 		return serializeModelOptions({
 			modelId: model.modelId,
@@ -4003,7 +10542,13 @@ var GatewayLanguageModel = class _GatewayLanguageModel {
 		});
 	}
 	static [WORKFLOW_DESERIALIZE](options) {
-		return new _GatewayLanguageModel(options.modelId, options.config);
+		return new GatewayLanguageModel(options.modelId, options.config);
+	}
+	constructor(modelId, config) {
+		this.modelId = modelId;
+		this.config = config;
+		this.specificationVersion = "v4";
+		this.supportedUrls = { "*/*": [/.*/] };
 	}
 	get provider() {
 		return this.config.provider;
@@ -4024,10 +10569,10 @@ var GatewayLanguageModel = class _GatewayLanguageModel {
 				url: this.getUrl(),
 				headers: combineHeaders(resolvedHeaders, options.headers, this.getModelConfigHeaders(this.modelId, false), await resolve(this.config.o11yHeaders)),
 				body: args,
-				successfulResponseHandler: createJsonResponseHandler(any()),
+				successfulResponseHandler: createJsonResponseHandler(z.any()),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
@@ -4039,10 +10584,10 @@ var GatewayLanguageModel = class _GatewayLanguageModel {
 					headers: responseHeaders,
 					body: rawResponse
 				},
-				warnings
+				warnings: [...responseBody.warnings ?? [], ...warnings]
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	async doStream(options) {
@@ -4054,10 +10599,10 @@ var GatewayLanguageModel = class _GatewayLanguageModel {
 				url: this.getUrl(),
 				headers: combineHeaders(resolvedHeaders, options.headers, this.getModelConfigHeaders(this.modelId, true), await resolve(this.config.o11yHeaders)),
 				body: args,
-				successfulResponseHandler: createEventSourceResponseHandler(any()),
+				successfulResponseHandler: createEventSourceResponseHandler(z.any()),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
@@ -4083,7 +10628,7 @@ var GatewayLanguageModel = class _GatewayLanguageModel {
 				response: { headers: responseHeaders }
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	/**
@@ -4122,14 +10667,7 @@ function maybeBase64EncodeFileData(data) {
 	}
 	return data;
 }
-var GatewayEmbeddingModel = class _GatewayEmbeddingModel {
-	constructor(modelId, config) {
-		this.modelId = modelId;
-		this.config = config;
-		this.specificationVersion = "v4";
-		this.maxEmbeddingsPerCall = 2048;
-		this.supportsParallelCalls = true;
-	}
+var GatewayEmbeddingModel = class GatewayEmbeddingModel {
 	static [WORKFLOW_SERIALIZE](model) {
 		return serializeModelOptions({
 			modelId: model.modelId,
@@ -4137,42 +10675,49 @@ var GatewayEmbeddingModel = class _GatewayEmbeddingModel {
 		});
 	}
 	static [WORKFLOW_DESERIALIZE](options) {
-		return new _GatewayEmbeddingModel(options.modelId, options.config);
+		return new GatewayEmbeddingModel(options.modelId, options.config);
+	}
+	constructor(modelId, config) {
+		this.modelId = modelId;
+		this.config = config;
+		this.specificationVersion = "v4";
+		this.maxEmbeddingsPerCall = 2048;
+		this.supportsParallelCalls = true;
 	}
 	get provider() {
 		return this.config.provider;
 	}
-	async doEmbed({ values, headers, abortSignal, providerOptions }) {
-		var _a11, _b11;
+	async doEmbed({ values, dimensions, headers, abortSignal, providerOptions }) {
 		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
 		try {
 			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
 				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
 				body: {
 					values,
+					dimensions,
 					...providerOptions ? { providerOptions } : {}
 				},
 				successfulResponseHandler: createJsonResponseHandler(gatewayEmbeddingResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
 			});
 			return {
 				embeddings: responseBody.embeddings,
-				usage: (_a11 = responseBody.usage) != null ? _a11 : void 0,
+				usage: responseBody.usage ?? void 0,
 				providerMetadata: responseBody.providerMetadata,
 				response: {
 					headers: responseHeaders,
 					body: rawValue
 				},
-				warnings: (_b11 = responseBody.warnings) != null ? _b11 : []
+				warnings: responseBody.warnings ?? []
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	getUrl() {
@@ -4185,40 +10730,34 @@ var GatewayEmbeddingModel = class _GatewayEmbeddingModel {
 		};
 	}
 };
-var gatewayEmbeddingWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
+const gatewayEmbeddingWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
 	}),
-	object({
-		type: literal("other"),
-		message: string()
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
 	})
 ]);
-var gatewayEmbeddingResponseSchema = lazySchema(() => zodSchema(object({
-	embeddings: array(array(number())),
-	usage: object({ tokens: number() }).nullish(),
-	warnings: array(gatewayEmbeddingWarningSchema).optional(),
-	providerMetadata: record(string(), record(string(), unknown())).optional()
+const gatewayEmbeddingResponseSchema = lazySchema(() => zodSchema(z.object({
+	embeddings: z.array(z.array(z.number())),
+	usage: z.object({ tokens: z.number() }).nullish(),
+	warnings: z.array(gatewayEmbeddingWarningSchema()).optional(),
+	providerMetadata: z.record(z.string(), z.record(z.string(), z.unknown())).optional()
 })));
-var GatewayImageModel = class _GatewayImageModel {
-	constructor(modelId, config) {
-		this.modelId = modelId;
-		this.config = config;
-		this.specificationVersion = "v4";
-		this.maxImagesPerCall = Number.MAX_SAFE_INTEGER;
-	}
+var GatewayImageModel = class GatewayImageModel {
 	static [WORKFLOW_SERIALIZE](model) {
 		return serializeModelOptions({
 			modelId: model.modelId,
@@ -4226,18 +10765,23 @@ var GatewayImageModel = class _GatewayImageModel {
 		});
 	}
 	static [WORKFLOW_DESERIALIZE](options) {
-		return new _GatewayImageModel(options.modelId, options.config);
+		return new GatewayImageModel(options.modelId, options.config);
+	}
+	constructor(modelId, config) {
+		this.modelId = modelId;
+		this.config = config;
+		this.specificationVersion = "v4";
+		this.maxImagesPerCall = Number.MAX_SAFE_INTEGER;
 	}
 	get provider() {
 		return this.config.provider;
 	}
 	async doGenerate({ prompt, n, size, aspectRatio, seed, files, mask, providerOptions, headers, abortSignal }) {
-		var _a11, _b11, _c, _d;
 		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
 		try {
 			const { responseHeaders, value: responseBody } = await postJsonToApi({
 				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
 				body: {
 					prompt,
 					n,
@@ -4250,15 +10794,16 @@ var GatewayImageModel = class _GatewayImageModel {
 				},
 				successfulResponseHandler: createJsonResponseHandler(gatewayImageResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
 			});
 			return {
 				images: responseBody.images,
-				warnings: (_a11 = responseBody.warnings) != null ? _a11 : [],
+				...responseBody.isRetryable != null && { isRetryable: responseBody.isRetryable },
+				warnings: responseBody.warnings ?? [],
 				providerMetadata: responseBody.providerMetadata,
 				response: {
 					timestamp: /* @__PURE__ */ new Date(),
@@ -4266,13 +10811,13 @@ var GatewayImageModel = class _GatewayImageModel {
 					headers: responseHeaders
 				},
 				...responseBody.usage != null && { usage: {
-					inputTokens: (_b11 = responseBody.usage.inputTokens) != null ? _b11 : void 0,
-					outputTokens: (_c = responseBody.usage.outputTokens) != null ? _c : void 0,
-					totalTokens: (_d = responseBody.usage.totalTokens) != null ? _d : void 0
+					inputTokens: responseBody.usage.inputTokens ?? void 0,
+					outputTokens: responseBody.usage.outputTokens ?? void 0,
+					totalTokens: responseBody.usage.totalTokens ?? void 0
 				} }
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	getUrl() {
@@ -4292,39 +10837,40 @@ function maybeEncodeImageFile(file) {
 	};
 	return file;
 }
-var providerMetadataEntrySchema = object({ images: array(unknown()).optional() }).catchall(unknown());
-var gatewayImageWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
+const providerMetadataEntrySchema$3 = () => z.object({ images: z.array(z.unknown()).optional() }).catchall(z.unknown());
+const gatewayImageWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
 	}),
-	object({
-		type: literal("other"),
-		message: string()
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
 	})
 ]);
-var gatewayImageUsageSchema = object({
-	inputTokens: number().nullish(),
-	outputTokens: number().nullish(),
-	totalTokens: number().nullish()
+const gatewayImageUsageSchema = () => z.object({
+	inputTokens: z.number().nullish(),
+	outputTokens: z.number().nullish(),
+	totalTokens: z.number().nullish()
 });
-var gatewayImageResponseSchema = object({
-	images: array(string()),
-	warnings: array(gatewayImageWarningSchema).optional(),
-	providerMetadata: record(string(), providerMetadataEntrySchema).optional(),
-	usage: gatewayImageUsageSchema.optional()
-});
+const gatewayImageResponseSchema = lazySchema(() => zodSchema(z.object({
+	images: z.array(z.string()),
+	isRetryable: z.boolean().optional(),
+	warnings: z.array(gatewayImageWarningSchema()).optional(),
+	providerMetadata: z.record(z.string(), providerMetadataEntrySchema$3()).optional(),
+	usage: gatewayImageUsageSchema().optional()
+})));
 var GatewayVideoModel = class {
 	constructor(modelId, config) {
 		this.modelId = modelId;
@@ -4335,30 +10881,14 @@ var GatewayVideoModel = class {
 	get provider() {
 		return this.config.provider;
 	}
-	async doGenerate({ prompt, n, aspectRatio, resolution, duration, fps, seed, generateAudio, image, frameImages, inputReferences, providerOptions, headers, abortSignal }) {
-		var _a11;
+	async doGenerate(options) {
+		const { headers, abortSignal } = options;
 		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
 		try {
 			const { responseHeaders, value: responseBody } = await postJsonToApi({
 				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders), { accept: "text/event-stream" }),
-				body: {
-					prompt,
-					n,
-					...aspectRatio && { aspectRatio },
-					...resolution && { resolution },
-					...duration && { duration },
-					...fps && { fps },
-					...seed && { seed },
-					...generateAudio !== void 0 && { generateAudio },
-					...providerOptions && { providerOptions },
-					...image && { image: maybeEncodeVideoFile(image) },
-					...frameImages && { frameImages: frameImages.map((frame) => ({
-						...frame,
-						image: maybeEncodeVideoFile(frame.image)
-					})) },
-					...inputReferences && { inputReferences: inputReferences.map((reference) => maybeEncodeVideoFile(reference)) }
-				},
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders), { accept: "text/event-stream" }),
+				body: this.buildRequestBody(options),
 				successfulResponseHandler: async ({ response, url, requestBodyValues }) => {
 					if (response.body == null) throw new APICallError({
 						message: "SSE response body is empty",
@@ -4409,16 +10939,16 @@ var GatewayVideoModel = class {
 					};
 				},
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
 			});
 			return {
 				videos: responseBody.videos,
-				warnings: (_a11 = responseBody.warnings) != null ? _a11 : [],
-				providerMetadata: responseBody.providerMetadata,
+				warnings: responseBody.warnings ?? [],
+				providerMetadata: responseBody.providerMetadata ?? void 0,
 				response: {
 					timestamp: /* @__PURE__ */ new Date(),
 					modelId: this.modelId,
@@ -4426,11 +10956,125 @@ var GatewayVideoModel = class {
 				}
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
+	}
+	async handleWebhookOption({ webhook }) {
+		const { url, received } = await webhook();
+		return {
+			webhookUrl: url,
+			received
+		};
+	}
+	async doStart(options) {
+		const { headers, abortSignal, webhookUrl } = options;
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { responseHeaders, value: responseBody } = await postJsonToApi({
+				url: this.getStartUrl(),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				body: {
+					...this.buildRequestBody(options),
+					...webhookUrl && { callbackUrl: webhookUrl }
+				},
+				successfulResponseHandler: createJsonResponseHandler(gatewayVideoStartResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return {
+				operation: responseBody.operation,
+				warnings: responseBody.warnings ?? [],
+				providerMetadata: responseBody.providerMetadata ?? void 0,
+				response: {
+					timestamp: /* @__PURE__ */ new Date(),
+					modelId: this.modelId,
+					headers: responseHeaders
+				}
+			};
+		} catch (error) {
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	async doStatus({ operation, abortSignal, headers }) {
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { responseHeaders, value: responseBody } = await postJsonToApi({
+				url: this.getStatusUrl(),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				body: { operation },
+				successfulResponseHandler: createJsonResponseHandler(gatewayVideoStatusResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			const response = {
+				timestamp: /* @__PURE__ */ new Date(),
+				modelId: this.modelId,
+				headers: responseHeaders
+			};
+			if (responseBody.status === "completed") return {
+				status: "completed",
+				videos: responseBody.videos,
+				warnings: responseBody.warnings ?? [],
+				providerMetadata: responseBody.providerMetadata ?? void 0,
+				response
+			};
+			if (responseBody.status === "error") return {
+				status: "error",
+				error: responseBody.error,
+				providerMetadata: responseBody.providerMetadata ?? void 0,
+				response
+			};
+			if (responseBody.status === "cancelled") return {
+				status: "error",
+				error: "Video generation was cancelled.",
+				providerMetadata: responseBody.providerMetadata ?? void 0,
+				response
+			};
+			return {
+				status: "pending",
+				warnings: responseBody.warnings ?? [],
+				providerMetadata: responseBody.providerMetadata ?? void 0,
+				response
+			};
+		} catch (error) {
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	buildRequestBody({ prompt, n, aspectRatio, resolution, duration, fps, seed, generateAudio, image, frameImages, inputReferences, providerOptions }) {
+		return {
+			prompt,
+			n,
+			...aspectRatio && { aspectRatio },
+			...resolution && { resolution },
+			...duration && { duration },
+			...fps && { fps },
+			...seed && { seed },
+			...generateAudio !== void 0 && { generateAudio },
+			...providerOptions && { providerOptions },
+			...image && { image: maybeEncodeVideoFile(image) },
+			...frameImages && { frameImages: frameImages.map((frame) => ({
+				...frame,
+				image: maybeEncodeVideoFile(frame.image)
+			})) },
+			...inputReferences && { inputReferences: inputReferences.map((reference) => maybeEncodeVideoFile(reference)) }
+		};
 	}
 	getUrl() {
 		return `${this.config.baseURL}/video-model`;
+	}
+	getStartUrl() {
+		return `${this.config.baseURL}/video-model/start`;
+	}
+	getStatusUrl() {
+		return `${this.config.baseURL}/video-model/status`;
 	}
 	getModelConfigHeaders() {
 		return {
@@ -4446,49 +11090,270 @@ function maybeEncodeVideoFile(file) {
 	};
 	return file;
 }
-var providerMetadataEntrySchema2 = object({ videos: array(unknown()).optional() }).catchall(unknown());
-var gatewayVideoDataSchema = union([object({
-	type: literal("url"),
-	url: string(),
-	mediaType: string()
-}), object({
-	type: literal("base64"),
-	data: string(),
-	mediaType: string()
+const providerMetadataEntrySchema$2 = () => z.object({ videos: z.array(z.unknown()).optional() }).catchall(z.unknown());
+const gatewayVideoDataSchema = () => z.union([z.object({
+	type: z.literal("url"),
+	url: z.string(),
+	mediaType: z.string()
+}), z.object({
+	type: z.literal("base64"),
+	data: z.string(),
+	mediaType: z.string()
 })]);
-var gatewayVideoWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
+const gatewayVideoWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
 	}),
-	object({
-		type: literal("other"),
-		message: string()
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
 	})
 ]);
-var gatewayVideoEventSchema = discriminatedUnion("type", [object({
-	type: literal("result"),
-	videos: array(gatewayVideoDataSchema),
-	warnings: array(gatewayVideoWarningSchema).optional(),
-	providerMetadata: record(string(), providerMetadataEntrySchema2).optional()
-}), object({
-	type: literal("error"),
-	message: string(),
-	errorType: string(),
-	statusCode: number(),
-	param: unknown().nullable()
-})]);
+const gatewayVideoEventSchema = lazySchema(() => zodSchema(z.discriminatedUnion("type", [z.object({
+	type: z.literal("result"),
+	videos: z.array(gatewayVideoDataSchema()),
+	warnings: z.array(gatewayVideoWarningSchema()).optional(),
+	providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).optional()
+}), z.object({
+	type: z.literal("error"),
+	message: z.string(),
+	errorType: z.string(),
+	statusCode: z.number(),
+	param: z.unknown().nullable()
+})])));
+const gatewayVideoStartResponseSchema = lazySchema(() => zodSchema(z.object({
+	operation: z.unknown(),
+	warnings: z.array(gatewayVideoWarningSchema()).nullish(),
+	providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).nullish()
+})));
+const gatewayVideoStatusResponseSchema = lazySchema(() => zodSchema(z.discriminatedUnion("status", [
+	z.object({
+		status: z.literal("pending"),
+		warnings: z.array(gatewayVideoWarningSchema()).nullish(),
+		providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).nullish()
+	}),
+	z.object({
+		status: z.literal("completed"),
+		videos: z.array(gatewayVideoDataSchema()),
+		warnings: z.array(gatewayVideoWarningSchema()).nullish(),
+		providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).nullish()
+	}),
+	z.object({
+		status: z.literal("error"),
+		error: z.string(),
+		providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).nullish()
+	}),
+	z.object({
+		status: z.literal("cancelled"),
+		providerMetadata: z.record(z.string(), providerMetadataEntrySchema$2()).nullish()
+	})
+])));
+const gatewayDecisionProviderOptionsSchema = lazySchema(() => zodSchema(z.object({ models: gatewayModelFallbacksSchema().optional() }).catchall(z.unknown())));
+const probabilitySchema = () => z.number().finite().min(0).max(1);
+const questionSchema = () => z.string().min(1).max(256);
+const directConditionSchema = () => z.union([z.object({
+	question: questionSchema().optional(),
+	confidenceBelow: probabilitySchema()
+}).strict(), z.object({
+	question: questionSchema().optional(),
+	probabilityBetween: z.array(probabilitySchema()).length(2).refine(([minimum, maximum]) => minimum <= maximum, { message: "probabilityBetween minimum must be less than or equal to maximum" })
+}).strict()]);
+const groupBeyondMaxDepthSchema = () => z.union([
+	z.object({ any: z.unknown() }),
+	z.object({ all: z.unknown() }),
+	z.object({ atLeast: z.unknown() })
+]).superRefine((_, context) => {
+	context.addIssue({
+		code: "custom",
+		message: `conditions can be nested at most 5 levels deep`
+	});
+});
+const conditionalModelFallbackSchema = () => z.object({
+	model: z.string().min(1),
+	when: conditionSchema(1)
+}).strict();
+const gatewayModelFallbacksSchema = () => z.array(z.union([z.string(), conditionalModelFallbackSchema()])).superRefine((entries, context) => {
+	const conditionalIndexes = entries.flatMap((entry, index) => typeof entry === "string" ? [] : [index]);
+	if (conditionalIndexes.length > 1) context.addIssue({
+		code: "custom",
+		message: "models supports at most one conditional decision fallback"
+	});
+	if (conditionalIndexes[0] !== void 0 && conditionalIndexes[0] !== 0) context.addIssue({
+		code: "custom",
+		message: "a conditional decision fallback must be the first models entry",
+		path: [conditionalIndexes[0]]
+	});
+});
+function conditionSchema(depth) {
+	if (depth === 5) return z.union([directConditionSchema(), groupBeyondMaxDepthSchema()]);
+	const childConditionSchema = conditionSchema(depth + 1);
+	const conditionListSchema = z.array(childConditionSchema).min(1).max(20);
+	return z.union([
+		directConditionSchema(),
+		z.object({ any: conditionListSchema }).strict(),
+		z.object({ all: conditionListSchema }).strict(),
+		z.object({ atLeast: z.object({
+			count: z.number().int().min(1),
+			conditions: conditionListSchema
+		}).strict().refine(({ count, conditions }) => count <= conditions.length, {
+			message: "atLeast count cannot exceed the number of conditions",
+			path: ["count"]
+		}) }).strict()
+	]);
+}
+var GatewayDecisionModel = class {
+	constructor(modelId, config) {
+		this.modelId = modelId;
+		this.config = config;
+		this.specificationVersion = "v4";
+		this.supportedQuestionTypes = [
+			"choice",
+			"score",
+			"boolean"
+		];
+	}
+	get provider() {
+		return this.config.provider;
+	}
+	/** @deprecated Use `doDecide` instead. */
+	doEvaluate(options) {
+		return this.doDecide(options);
+	}
+	async doDecide({ state, questions, maxOutputTokens, reasoning, headers, abortSignal, providerOptions }) {
+		const stateParts = toGatewayDecisionState(state);
+		const gatewayOptions = await parseProviderOptions({
+			provider: "gateway",
+			providerOptions,
+			schema: gatewayDecisionProviderOptionsSchema
+		});
+		const validatedProviderOptions = gatewayOptions == null ? providerOptions : {
+			...providerOptions,
+			gateway: gatewayOptions
+		};
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
+				url: this.getUrl(),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				body: {
+					stateParts,
+					questions,
+					maxOutputTokens,
+					reasoning,
+					...validatedProviderOptions ? { providerOptions: validatedProviderOptions } : {}
+				},
+				successfulResponseHandler: createJsonResponseHandler(gatewayDecisionResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return {
+				answers: responseBody.answers,
+				...responseBody.rounding ? { rounding: responseBody.rounding } : {},
+				...responseBody.usage ? { usage: responseBody.usage } : {},
+				warnings: responseBody.warnings ?? [],
+				providerMetadata: responseBody.providerMetadata,
+				response: {
+					modelId: responseBody.model ?? this.modelId,
+					headers: responseHeaders,
+					body: rawValue
+				}
+			};
+		} catch (error) {
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	getUrl() {
+		return `${this.config.baseURL}/decision-model`;
+	}
+	getModelConfigHeaders() {
+		return {
+			"ai-decision-model-specification-version": "4",
+			"ai-model-id": this.modelId
+		};
+	}
+};
+const gatewayDecisionAnswerSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("choice"),
+		choice: z.string(),
+		probabilities: z.record(z.string(), z.number()).optional()
+	}),
+	z.object({
+		type: z.literal("score"),
+		score: z.number(),
+		probabilities: z.record(z.string(), z.number()).optional()
+	}),
+	z.object({
+		type: z.literal("boolean"),
+		probability: z.number()
+	}),
+	z.object({ type: z.literal("refusal") })
+]);
+const gatewayDecisionWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
+	}),
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
+	}),
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
+	}),
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
+	})
+]);
+const gatewayDecisionResponseSchema = lazySchema(() => zodSchema(z.object({
+	answers: z.record(z.string(), gatewayDecisionAnswerSchema()),
+	model: z.string().optional(),
+	rounding: z.object({
+		probabilityDecimals: z.number().optional(),
+		scoreDecimals: z.number().optional()
+	}).optional(),
+	usage: z.object({
+		inputTokens: z.number().optional(),
+		outputTokens: z.number().optional()
+	}).optional(),
+	warnings: z.array(gatewayDecisionWarningSchema()).optional(),
+	providerMetadata: z.record(z.string(), z.record(z.string(), z.unknown())).optional()
+})));
+function toGatewayDecisionState(state) {
+	return state.map((part) => {
+		if (part.type !== "file") return part;
+		if (part.data.type !== "data") throw new UnsupportedFunctionalityError({ functionality: `Gateway decision file input: ${part.data.type} data` });
+		const { data } = part.data;
+		return {
+			...part,
+			data: {
+				type: "data",
+				data: typeof data === "string" ? data : convertUint8ArrayToBase64(data)
+			}
+		};
+	});
+}
 var GatewayRerankingModel = class {
 	constructor(modelId, config) {
 		this.modelId = modelId;
@@ -4499,12 +11364,11 @@ var GatewayRerankingModel = class {
 		return this.config.provider;
 	}
 	async doRerank({ documents, query, topN, headers, abortSignal, providerOptions }) {
-		var _a11;
 		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
 		try {
 			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
 				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
 				body: {
 					documents,
 					query,
@@ -4513,8 +11377,8 @@ var GatewayRerankingModel = class {
 				},
 				successfulResponseHandler: createJsonResponseHandler(gatewayRerankingResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
@@ -4526,10 +11390,10 @@ var GatewayRerankingModel = class {
 					headers: responseHeaders,
 					body: rawValue
 				},
-				warnings: (_a11 = responseBody.warnings) != null ? _a11 : []
+				warnings: responseBody.warnings ?? []
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	getUrl() {
@@ -4542,120 +11406,75 @@ var GatewayRerankingModel = class {
 		};
 	}
 };
-var gatewayRerankingWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
+const gatewayRerankingWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
 	}),
-	object({
-		type: literal("other"),
-		message: string()
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
 	})
 ]);
-var gatewayRerankingResponseSchema = lazySchema(() => zodSchema(object({
-	ranking: array(object({
-		index: number(),
-		relevanceScore: number()
+const gatewayRerankingResponseSchema = lazySchema(() => zodSchema(z.object({
+	ranking: z.array(z.object({
+		index: z.number(),
+		relevanceScore: z.number()
 	})),
-	warnings: array(gatewayRerankingWarningSchema).optional(),
-	providerMetadata: record(string(), record(string(), unknown())).optional()
+	warnings: z.array(gatewayRerankingWarningSchema()).optional(),
+	providerMetadata: z.record(z.string(), z.record(z.string(), z.unknown())).optional()
 })));
-var GatewaySpeechModel = class {
-	constructor(modelId, config) {
-		this.modelId = modelId;
-		this.config = config;
-		this.specificationVersion = "v4";
-	}
-	get provider() {
-		return this.config.provider;
-	}
-	async doGenerate({ text, voice, outputFormat, instructions, speed, language, providerOptions, headers, abortSignal }) {
-		var _a11;
-		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
-		try {
-			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
-				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
-				body: {
-					text,
-					...voice && { voice },
-					...outputFormat && { outputFormat },
-					...instructions && { instructions },
-					...speed != null && { speed },
-					...language && { language },
-					...providerOptions && { providerOptions }
-				},
-				successfulResponseHandler: createJsonResponseHandler(gatewaySpeechResponseSchema),
-				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
-				}),
-				...abortSignal && { abortSignal },
-				fetch: this.config.fetch
-			});
-			return {
-				audio: responseBody.audio,
-				warnings: (_a11 = responseBody.warnings) != null ? _a11 : [],
-				providerMetadata: responseBody.providerMetadata,
-				response: {
-					timestamp: /* @__PURE__ */ new Date(),
-					modelId: this.modelId,
-					headers: responseHeaders,
-					body: rawValue
-				}
-			};
-		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
-		}
-	}
-	getUrl() {
-		return `${this.config.baseURL}/speech-model`;
-	}
-	getModelConfigHeaders() {
-		return {
-			"ai-speech-model-specification-version": "4",
-			"ai-model-id": this.modelId
-		};
-	}
+/**
+* `asGatewayError` is async while the WebSocket event handlers are
+* synchronous, hence this helper.
+*/
+async function errorControllerWithGatewayError(controller, error, authMethod) {
+	controller.error(await asGatewayError(error, authMethod));
+}
+/**
+* Extract a human-readable message from an `error` stream part's payload for
+* the terminal close error.
+*/
+function getServerErrorMessage(error) {
+	if (error != null && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
+	return getErrorMessage(error);
+}
+/** Canonical status codes for server error-part types (no HTTP status exists on the WebSocket). */
+const SERVER_ERROR_STATUS_CODES = {
+	authentication_error: 401,
+	failed_dependency: 424,
+	forbidden: 403,
+	internal_server_error: 500,
+	invalid_request_error: 400,
+	model_not_found: 404,
+	rate_limit_exceeded: 429
 };
-var providerMetadataEntrySchema3 = object({}).catchall(unknown());
-var gatewaySpeechWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
-	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
-	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
-	}),
-	object({
-		type: literal("other"),
-		message: string()
-	})
-]);
-var gatewaySpeechResponseSchema = object({
-	audio: string(),
-	warnings: array(gatewaySpeechWarningSchema).optional(),
-	providerMetadata: record(string(), providerMetadataEntrySchema3).optional()
-});
+/**
+* Maps a server error-part payload (`{ message, type }`) to the public
+* Gateway error class for its type; unknown shapes keep the generic message.
+*/
+async function createErrorFromServerErrorPart(error, authMethod, streamLabel = "transcription") {
+	if (typeof error === "object" && error != null && "message" in error && typeof error.message === "string" && "type" in error && typeof error.type === "string" && error.type in SERVER_ERROR_STATUS_CODES) return createGatewayErrorFromResponse({
+		response: { error: {
+			message: error.message,
+			type: error.type
+		} },
+		statusCode: SERVER_ERROR_STATUS_CODES[error.type],
+		authMethod
+	});
+	return /* @__PURE__ */ new Error(`AI Gateway ${streamLabel} stream failed: ${getServerErrorMessage(error)}`);
+}
 var GatewayTranscriptionModel = class {
 	constructor(modelId, config) {
 		this.modelId = modelId;
@@ -4666,12 +11485,11 @@ var GatewayTranscriptionModel = class {
 		return this.config.provider;
 	}
 	async doGenerate({ audio, mediaType, providerOptions, headers, abortSignal }) {
-		var _a11, _b11, _c, _d;
 		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
 		try {
 			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
 				url: this.getUrl(),
-				headers: combineHeaders(resolvedHeaders, headers != null ? headers : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
 				body: {
 					audio: audio instanceof Uint8Array ? convertUint8ArrayToBase64(audio) : audio,
 					mediaType,
@@ -4679,18 +11497,25 @@ var GatewayTranscriptionModel = class {
 				},
 				successfulResponseHandler: createJsonResponseHandler(gatewayTranscriptionResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				...abortSignal && { abortSignal },
 				fetch: this.config.fetch
 			});
+			const warnings = [...responseBody.warnings ?? []];
+			if (isXaiTranscriptionModel(this.modelId) && requestsXaiDiarization(providerOptions) && !containsSpeaker(rawValue)) warnings.push({
+				type: "unsupported",
+				feature: "providerOptions.xai.diarize",
+				details: "AI Gateway does not currently expose xAI speaker diarization metadata."
+			});
 			return {
 				text: responseBody.text,
-				segments: (_a11 = responseBody.segments) != null ? _a11 : [],
-				language: (_b11 = responseBody.language) != null ? _b11 : void 0,
-				durationInSeconds: (_c = responseBody.durationInSeconds) != null ? _c : void 0,
-				warnings: (_d = responseBody.warnings) != null ? _d : [],
+				segments: responseBody.segments ?? [],
+				language: responseBody.language ?? void 0,
+				durationInSeconds: responseBody.durationInSeconds ?? void 0,
+				warnings,
+				...responseBody.usage != null && { usage: responseBody.usage },
 				providerMetadata: responseBody.providerMetadata,
 				response: {
 					timestamp: /* @__PURE__ */ new Date(),
@@ -4700,13 +11525,12 @@ var GatewayTranscriptionModel = class {
 				}
 			};
 		} catch (error) {
-			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders != null ? resolvedHeaders : {}));
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
 		}
 	}
 	async doStream(options) {
-		var _a11, _b11, _c, _d, _e;
-		const currentDate = (_c = (_b11 = (_a11 = this.config._internal) == null ? void 0 : _a11.currentDate) == null ? void 0 : _b11.call(_a11)) != null ? _c : /* @__PURE__ */ new Date();
-		const headers = combineHeaders(await resolve((_d = this.config.headers) != null ? _d : {}), (_e = options.headers) != null ? _e : {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders));
+		const currentDate = this.config._internal?.currentDate?.() ?? /* @__PURE__ */ new Date();
+		const headers = combineHeaders(await resolve(this.config.headers ?? {}), options.headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders));
 		const authMethod = await parseAuthMethod(headers);
 		const startFrame = {
 			type: "transcription-stream.start",
@@ -4742,18 +11566,42 @@ var GatewayTranscriptionModel = class {
 		};
 	}
 };
+function isXaiTranscriptionModel(modelId) {
+	return modelId.startsWith("spacexai/") || modelId.startsWith("xai/");
+}
+function requestsXaiDiarization(providerOptions) {
+	return providerOptions?.xai?.diarize === true || providerOptions?.spacexai?.diarize === true;
+}
+function containsSpeaker(value) {
+	if (Array.isArray(value)) return value.some(containsSpeaker);
+	if (value == null || typeof value !== "object") return false;
+	return Object.entries(value).some(([key, nestedValue]) => key === "speaker" && nestedValue != null || containsSpeaker(nestedValue));
+}
+/**
+* Gateway streaming transcription WebSocket URL: HTTP(S) base upgraded to
+* WS(S), model id in `?ai-model-id=` (browser `WebSocket` cannot set headers;
+* slash-safe for qualified ids like `openai/gpt-realtime-whisper`).
+*/
 function toGatewayTranscriptionUrl(baseURL, modelId) {
 	const url = new URL(`${baseURL.replace(/^http/, "ws")}/transcription-model`);
 	url.searchParams.set("ai-model-id", modelId);
 	return url.toString();
 }
-function getProtocolsFromHeaders(headers) {
+/**
+* Auth-carrying subprotocols from the resolved request headers (bearer token
+* + optional team scope). Native `WebSocket` cannot send headers, so auth
+* rides the `Sec-WebSocket-Protocol` handshake. Header lookups are
+* case-insensitive because `combineHeaders` does not normalize casing and
+* callers can pass arbitrary casing via the `headers` option.
+*/
+function getProtocolsFromHeaders(headers, { marker = "ai-gateway-transcription.v1", getProtocols = getGatewayTranscriptionProtocols } = {}) {
 	const normalizedHeaders = normalizeHeaders(headers);
 	const authorization = normalizedHeaders.authorization;
-	const token = (authorization == null ? void 0 : authorization.startsWith("Bearer ")) ? authorization.slice(7) : void 0;
-	return token == null ? ["ai-gateway-transcription.v1"] : getGatewayTranscriptionProtocols(token, { teamIdOrSlug: normalizedHeaders[VERCEL_AI_GATEWAY_TEAM_HEADER] });
+	const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : void 0;
+	return token == null ? [marker] : getProtocols(token, { teamIdOrSlug: normalizedHeaders[VERCEL_AI_GATEWAY_TEAM_HEADER] });
 }
-var MAX_AUDIO_FRAME_BYTES = 64 * 1024;
+/** Audio frames stay under server frame-size limits (envelope rule 7). */
+const MAX_AUDIO_FRAME_BYTES = 65536;
 function createGatewayTranscriptionStream({ webSocket, url, protocols, headers, startFrame, audio, abortSignal, authMethod }) {
 	let finished = false;
 	let cleanup = () => {};
@@ -4857,67 +11705,314 @@ function createGatewayTranscriptionStream({ webSocket, url, protocols, headers, 
 		}
 	});
 }
-var providerMetadataEntrySchema4 = object({}).catchall(unknown());
-var gatewayTranscriptionWarningSchema = discriminatedUnion("type", [
-	object({
-		type: literal("unsupported"),
-		feature: string(),
-		details: string().optional()
+const providerMetadataEntrySchema$1 = () => z.object({}).catchall(z.unknown());
+const gatewayTranscriptionWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("compatibility"),
-		feature: string(),
-		details: string().optional()
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
 	}),
-	object({
-		type: literal("deprecated"),
-		setting: string(),
-		message: string()
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
 	}),
-	object({
-		type: literal("other"),
-		message: string()
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
 	})
 ]);
-var gatewayTranscriptionResponseSchema = object({
-	text: string(),
-	segments: array(object({
-		text: string(),
-		startSecond: number(),
-		endSecond: number()
+const gatewayTranscriptionResponseSchema = lazySchema(() => zodSchema(z.object({
+	text: z.string(),
+	segments: z.array(z.object({
+		text: z.string(),
+		startSecond: z.number(),
+		endSecond: z.number()
 	})).optional(),
-	language: string().nullish(),
-	durationInSeconds: number().nullish(),
-	warnings: array(gatewayTranscriptionWarningSchema).optional(),
-	providerMetadata: record(string(), providerMetadataEntrySchema4).optional()
-});
-async function errorControllerWithGatewayError(controller, error, authMethod) {
-	controller.error(await asGatewayError(error, authMethod));
-}
-function getServerErrorMessage(error) {
-	if (error != null && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
-	return getErrorMessage(error);
-}
-var SERVER_ERROR_STATUS_CODES = {
-	authentication_error: 401,
-	failed_dependency: 424,
-	forbidden: 403,
-	internal_server_error: 500,
-	invalid_request_error: 400,
-	model_not_found: 404,
-	rate_limit_exceeded: 429
+	language: z.string().nullish(),
+	durationInSeconds: z.number().nullish(),
+	warnings: z.array(gatewayTranscriptionWarningSchema()).optional(),
+	usage: z.record(z.string(), z.json()).optional(),
+	providerMetadata: z.record(z.string(), providerMetadataEntrySchema$1()).optional()
+})));
+var GatewaySpeechModel = class {
+	constructor(modelId, config) {
+		this.modelId = modelId;
+		this.config = config;
+		this.specificationVersion = "v4";
+	}
+	get provider() {
+		return this.config.provider;
+	}
+	async doGenerate({ text, voice, outputFormat, instructions, speed, language, providerOptions, headers, abortSignal }) {
+		const resolvedHeaders = this.config.headers ? await resolve(this.config.headers) : void 0;
+		try {
+			const { responseHeaders, value: responseBody, rawValue } = await postJsonToApi({
+				url: this.getUrl(),
+				headers: combineHeaders(resolvedHeaders, headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders)),
+				body: {
+					text,
+					...voice && { voice },
+					...outputFormat && { outputFormat },
+					...instructions && { instructions },
+					...speed != null && { speed },
+					...language && { language },
+					...providerOptions && { providerOptions }
+				},
+				successfulResponseHandler: createJsonResponseHandler(gatewaySpeechResponseSchema),
+				failedResponseHandler: createJsonErrorResponseHandler({
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
+				}),
+				...abortSignal && { abortSignal },
+				fetch: this.config.fetch
+			});
+			return {
+				audio: responseBody.audio,
+				warnings: responseBody.warnings ?? [],
+				...responseBody.usage != null && { usage: responseBody.usage },
+				providerMetadata: responseBody.providerMetadata,
+				response: {
+					timestamp: /* @__PURE__ */ new Date(),
+					modelId: this.modelId,
+					headers: responseHeaders,
+					body: rawValue
+				}
+			};
+		} catch (error) {
+			throw await asGatewayError(error, await parseAuthMethod(resolvedHeaders ?? {}));
+		}
+	}
+	async doStream(options) {
+		const currentDate = this.config._internal?.currentDate?.() ?? /* @__PURE__ */ new Date();
+		const headers = combineHeaders(await resolve(this.config.headers ?? {}), options.headers ?? {}, this.getModelConfigHeaders(), await resolve(this.config.o11yHeaders));
+		const authMethod = await parseAuthMethod(headers);
+		const startFrame = {
+			type: "speech-stream.start",
+			...options.voice != null && { voice: options.voice },
+			...options.outputFormat != null && { outputFormat: options.outputFormat },
+			...options.instructions != null && { instructions: options.instructions },
+			...options.speed != null && { speed: options.speed },
+			...options.language != null && { language: options.language },
+			...options.providerOptions != null && { providerOptions: options.providerOptions },
+			...options.includeRawChunks != null && { includeRawChunks: options.includeRawChunks }
+		};
+		return {
+			stream: createGatewaySpeechStream({
+				webSocket: this.config.webSocket,
+				url: toGatewaySpeechUrl(this.config.baseURL, this.modelId),
+				protocols: getProtocolsFromHeaders(headers, {
+					marker: "ai-gateway-speech.v1",
+					getProtocols: getGatewaySpeechProtocols
+				}),
+				headers,
+				startFrame,
+				text: options.text,
+				abortSignal: options.abortSignal,
+				authMethod
+			}),
+			request: { body: startFrame },
+			response: {
+				timestamp: currentDate,
+				modelId: this.modelId
+			}
+		};
+	}
+	getUrl() {
+		return `${this.config.baseURL}/speech-model`;
+	}
+	getModelConfigHeaders() {
+		return {
+			"ai-speech-model-specification-version": "4",
+			"ai-model-id": this.modelId
+		};
+	}
 };
-async function createErrorFromServerErrorPart(error, authMethod) {
-	if (typeof error === "object" && error != null && "message" in error && typeof error.message === "string" && "type" in error && typeof error.type === "string" && error.type in SERVER_ERROR_STATUS_CODES) return createGatewayErrorFromResponse({
-		response: { error: {
-			message: error.message,
-			type: error.type
-		} },
-		statusCode: SERVER_ERROR_STATUS_CODES[error.type],
-		authMethod
-	});
-	return /* @__PURE__ */ new Error(`AI Gateway transcription stream failed: ${getServerErrorMessage(error)}`);
+/**
+* Gateway streaming speech WebSocket URL: HTTP(S) base upgraded to WS(S),
+* model id in `?ai-model-id=` (browser `WebSocket` cannot set headers).
+*/
+function toGatewaySpeechUrl(baseURL, modelId) {
+	const url = new URL(`${baseURL.replace(/^http/, "ws")}/speech-model`);
+	url.searchParams.set("ai-model-id", modelId);
+	return url.toString();
 }
+/**
+* Keeps text-delta frames under 64 KiB (envelope rule 7) even when JSON
+* escapes every code unit as `\uXXXX`.
+*/
+const MAX_TEXT_DELTA_CODE_UNITS = 8192;
+/**
+* Splits a long text delta into pieces of at most `MAX_TEXT_DELTA_CODE_UNITS`
+* UTF-16 code units without separating a surrogate pair.
+*/
+function splitTextDelta(delta) {
+	const pieces = [];
+	let offset = 0;
+	while (offset < delta.length) {
+		let end = Math.min(offset + MAX_TEXT_DELTA_CODE_UNITS, delta.length);
+		const lastCodeUnit = delta.charCodeAt(end - 1);
+		if (end < delta.length && lastCodeUnit >= 55296 && lastCodeUnit <= 56319) end--;
+		pieces.push(delta.slice(offset, end));
+		offset = end;
+	}
+	return pieces;
+}
+function createGatewaySpeechStream({ webSocket, url, protocols, headers, startFrame, text, abortSignal, authMethod }) {
+	let finished = false;
+	let cleanup = () => {};
+	return new ReadableStream({
+		start: (controller) => {
+			let textReader;
+			let hasServerErrorPart = false;
+			let lastServerError;
+			let textStopped = false;
+			let connection;
+			const cancelText = () => {
+				if (textReader != null) {
+					textReader.cancel().catch(() => {});
+					textReader = void 0;
+				} else text.cancel().catch(() => {});
+			};
+			cleanup = (closeCode) => {
+				cancelText();
+				connection?.close(closeCode);
+			};
+			const finishWithError = (error) => {
+				if (finished) return;
+				finished = true;
+				cleanup();
+				errorControllerWithGatewayError(controller, error, authMethod);
+			};
+			const sendText = async (socket) => {
+				const reader = text.getReader();
+				textReader = reader;
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done || finished || textStopped) break;
+						let first = true;
+						const pieces = splitTextDelta(value.text);
+						if (pieces.length === 0 && (value.voice != null || value.providerOptions != null)) pieces.push("");
+						for (const delta of pieces) {
+							if (finished || textStopped) break;
+							const frame = {
+								type: "speech-stream.text-delta",
+								delta,
+								...value.voice != null && { voice: value.voice },
+								...first && value.providerOptions != null && { providerOptions: value.providerOptions }
+							};
+							first = false;
+							socket.send(JSON.stringify(frame));
+							await waitForWebSocketBufferDrain(socket);
+						}
+					}
+				} finally {
+					reader.releaseLock();
+					if (textReader === reader) textReader = void 0;
+				}
+				if (!finished && !textStopped) socket.send(JSON.stringify({ type: "speech-stream.text-done" }));
+			};
+			connection = connectToWebSocket({
+				url,
+				protocols,
+				headers,
+				webSocket,
+				abortSignal,
+				onAbort: (reason) => {
+					if (finished) return;
+					finished = true;
+					cleanup();
+					controller.error(reason);
+				},
+				onProcessingError: finishWithError,
+				onOpen: (socket) => {
+					socket.send(JSON.stringify(startFrame));
+					sendText(socket).catch(finishWithError);
+				},
+				onMessageText: async (messageText) => {
+					if (finished) return;
+					const part = parseSpeechStreamPart(messageText);
+					if (part == null) return;
+					if (part.type === "finish") {
+						finished = true;
+						controller.enqueue(part);
+						controller.close();
+						cleanup(1e3);
+						return;
+					}
+					if (part.type === "error") {
+						hasServerErrorPart = true;
+						lastServerError = part.error;
+						textStopped = true;
+						cancelText();
+						part.error = await createErrorFromServerErrorPart(part.error, authMethod, "speech");
+						if (finished) return;
+					}
+					controller.enqueue(part);
+				},
+				onSocketError: () => {
+					finishWithError(/* @__PURE__ */ new Error("Connection error on AI Gateway speech stream"));
+				},
+				onClose: ({ code, reason }) => {
+					if (hasServerErrorPart) {
+						if (finished) return;
+						createErrorFromServerErrorPart(lastServerError, authMethod, "speech").then(finishWithError);
+						return;
+					}
+					finishWithError(/* @__PURE__ */ new Error("AI Gateway speech stream closed before a finish part was received" + (code != null ? ` (code ${code}${reason ? `: ${reason}` : ""})` : "") + "."));
+				}
+			});
+		},
+		cancel: () => {
+			if (finished) return;
+			finished = true;
+			cleanup();
+		}
+	});
+}
+const providerMetadataEntrySchema = () => z.object({}).catchall(z.unknown());
+const gatewaySpeechWarningSchema = () => z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("unsupported"),
+		feature: z.string(),
+		details: z.string().optional()
+	}),
+	z.object({
+		type: z.literal("compatibility"),
+		feature: z.string(),
+		details: z.string().optional()
+	}),
+	z.object({
+		type: z.literal("deprecated"),
+		setting: z.string(),
+		message: z.string()
+	}),
+	z.object({
+		type: z.literal("other"),
+		message: z.string()
+	})
+]);
+const gatewaySpeechResponseSchema = lazySchema(() => zodSchema(z.object({
+	audio: z.string(),
+	warnings: z.array(gatewaySpeechWarningSchema()).optional(),
+	usage: z.record(z.string(), z.json()).optional(),
+	providerMetadata: z.record(z.string(), providerMetadataEntrySchema()).optional()
+})));
+/**
+* Realtime model backed by the AI Gateway.
+*
+* The Gateway normalizes realtime exactly like it normalizes every other
+* modality: the client speaks the normalized AI SDK realtime protocol and the
+* Gateway translates to and from the upstream provider server-side. This model
+* is therefore a thin identity codec over that normalized protocol — only the
+* connection and authentication are Gateway-specific.
+*/
 var GatewayRealtimeModel = class {
 	constructor(modelId, config) {
 		this.specificationVersion = "v4";
@@ -4938,7 +12033,7 @@ var GatewayRealtimeModel = class {
 	async doCreateClientSecret(options) {
 		const secret = await this.config.createClientSecret({
 			modelId: this.modelId,
-			...(options == null ? void 0 : options.expiresAfterSeconds) != null && { expiresAfterSeconds: options.expiresAfterSeconds }
+			...options?.expiresAfterSeconds != null && { expiresAfterSeconds: options.expiresAfterSeconds }
 		});
 		return {
 			token: secret.token,
@@ -4962,22 +12057,101 @@ var GatewayRealtimeModel = class {
 		return config;
 	}
 };
+/**
+* Build the Gateway realtime WebSocket URL. The HTTP(S) base URL is upgraded to
+* WS(S) and the model id rides the `?ai-model-id=` query — the WS transport of
+* the `ai-model-id` header the HTTP routes use, since a browser `WebSocket`
+* cannot set headers. The model id is passed through verbatim; the Gateway owns
+* resolution (including the bare → `openai/` qualification), exactly like the
+* non-realtime routes. The query is slash-safe for qualified ids such as
+* `openai/gpt-realtime-2`.
+*/
 function toGatewayRealtimeUrl(baseURL, modelId) {
 	const url = new URL(`${baseURL.replace(/^http/, "ws")}/realtime-model`);
 	url.searchParams.set("ai-model-id", modelId);
 	return url.toString();
 }
-var exaSearchToolFactory = createProviderExecutedToolFactory({
+const jsonObjectSchema = () => z.record(z.string(), z.unknown());
+const browserbaseFetchToolFactory = createProviderExecutedToolFactory({
+	id: "gateway.browserbase_fetch",
+	inputSchema: lazySchema(() => zodSchema(z.object({
+		url: z.string().url().describe("URL of the page to fetch."),
+		allow_redirects: z.boolean().optional().describe("Whether to follow HTTP redirects (default: false)."),
+		allow_insecure_ssl: z.boolean().optional().describe("Whether to bypass TLS certificate verification (default: false). Only use for trusted hosts."),
+		proxies: z.boolean().optional().describe("Whether to route the request through Browserbase proxies (default: false)."),
+		format: z.enum([
+			"raw",
+			"json",
+			"markdown"
+		]).optional().describe("Output format. raw returns the response body unchanged, markdown returns page content as Markdown, and json returns structured content using schema."),
+		schema: jsonObjectSchema().optional().describe("JSON Schema for structured extraction. Only use with format set to json.")
+	}))),
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		id: z.string(),
+		content: z.union([z.string(), jsonObjectSchema()]),
+		contentType: z.string(),
+		encoding: z.string(),
+		headers: z.record(z.string(), z.string()),
+		statusCode: z.number()
+	}), z.object({
+		error: z.enum([
+			"api_error",
+			"configuration_error",
+			"execution_error",
+			"invalid_input",
+			"rate_limit",
+			"timeout",
+			"unknown"
+		]),
+		statusCode: z.number().optional(),
+		message: z.string()
+	})])))
+});
+const browserbaseFetch = (config = {}) => browserbaseFetchToolFactory(config);
+const browserbaseSearchToolFactory = createProviderExecutedToolFactory({
+	id: "gateway.browserbase_search",
+	inputSchema: lazySchema(() => zodSchema(z.object({
+		query: z.string().min(1).max(200).describe("Web search query. Must be between 1 and 200 characters."),
+		num_results: z.number().int().min(1).max(25).optional().describe("Maximum number of results to return (1-25, default: 10).")
+	}))),
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		query: z.string(),
+		requestId: z.string(),
+		results: z.array(z.object({
+			id: z.string(),
+			title: z.string(),
+			url: z.string(),
+			author: z.string().optional(),
+			favicon: z.string().optional(),
+			image: z.string().optional(),
+			publishedDate: z.string().optional()
+		}))
+	}), z.object({
+		error: z.enum([
+			"api_error",
+			"configuration_error",
+			"execution_error",
+			"invalid_input",
+			"rate_limit",
+			"timeout",
+			"unknown"
+		]),
+		statusCode: z.number().optional(),
+		message: z.string()
+	})])))
+});
+const browserbaseSearch = (config = {}) => browserbaseSearchToolFactory(config);
+const exaSearchToolFactory = createProviderExecutedToolFactory({
 	id: "gateway.exa_search",
-	inputSchema: lazySchema(() => zodSchema(object({
-		query: string().describe("Natural-language web search query. This is required."),
-		type: _enum([
+	inputSchema: lazySchema(() => zodSchema(z.object({
+		query: z.string().describe("Natural-language web search query. This is required."),
+		type: z.enum([
 			"auto",
 			"fast",
 			"instant"
 		]).optional().describe("Search method. Use auto for the default balance of speed and quality."),
-		num_results: number().optional().describe("Maximum number of results to return (1-100, default: 10)."),
-		category: _enum([
+		num_results: z.number().optional().describe("Maximum number of results to return (1-100, default: 10)."),
+		category: z.enum([
 			"company",
 			"people",
 			"research paper",
@@ -4985,21 +12159,21 @@ var exaSearchToolFactory = createProviderExecutedToolFactory({
 			"personal site",
 			"financial report"
 		]).optional().describe("Optional content category to focus results."),
-		user_location: string().optional().describe("Two-letter ISO country code such as 'US'."),
-		include_domains: array(string()).optional().describe("Only return results from these domains."),
-		exclude_domains: array(string()).optional().describe("Exclude results from these domains."),
-		start_published_date: string().optional().describe("Only return links published after this ISO 8601 date."),
-		end_published_date: string().optional().describe("Only return links published before this ISO 8601 date."),
-		contents: object({
-			text: union([boolean(), object({
-				max_characters: number().optional(),
-				include_html_tags: boolean().optional(),
-				verbosity: _enum([
+		user_location: z.string().optional().describe("Two-letter ISO country code such as 'US'."),
+		include_domains: z.array(z.string()).optional().describe("Only return results from these domains."),
+		exclude_domains: z.array(z.string()).optional().describe("Exclude results from these domains."),
+		start_published_date: z.string().optional().describe("Only return links published after this ISO 8601 date."),
+		end_published_date: z.string().optional().describe("Only return links published before this ISO 8601 date."),
+		contents: z.object({
+			text: z.union([z.boolean(), z.object({
+				max_characters: z.number().optional(),
+				include_html_tags: z.boolean().optional(),
+				verbosity: z.enum([
 					"compact",
 					"standard",
 					"full"
 				]).optional(),
-				include_sections: array(_enum([
+				include_sections: z.array(z.enum([
 					"header",
 					"navigation",
 					"banner",
@@ -5008,7 +12182,7 @@ var exaSearchToolFactory = createProviderExecutedToolFactory({
 					"footer",
 					"metadata"
 				])).optional(),
-				exclude_sections: array(_enum([
+				exclude_sections: z.array(z.enum([
 					"header",
 					"navigation",
 					"banner",
@@ -5018,48 +12192,48 @@ var exaSearchToolFactory = createProviderExecutedToolFactory({
 					"metadata"
 				])).optional()
 			})]).optional(),
-			highlights: union([boolean(), object({
-				query: string().optional(),
-				max_characters: number().optional()
+			highlights: z.union([z.boolean(), z.object({
+				query: z.string().optional(),
+				max_characters: z.number().optional()
 			})]).optional(),
-			max_age_hours: number().optional(),
-			livecrawl_timeout: number().optional(),
-			subpages: number().optional(),
-			subpage_target: union([string(), array(string())]).optional(),
-			extras: object({
-				links: number().optional(),
-				image_links: number().optional()
+			max_age_hours: z.number().optional(),
+			livecrawl_timeout: z.number().optional(),
+			subpages: z.number().optional(),
+			subpage_target: z.union([z.string(), z.array(z.string())]).optional(),
+			extras: z.object({
+				links: z.number().optional(),
+				image_links: z.number().optional()
 			}).optional()
 		}).optional().describe("Controls extracted page content and freshness.")
 	}))),
-	outputSchema: lazySchema(() => zodSchema(union([object({
-		requestId: string(),
-		searchType: string().optional(),
-		resolvedSearchType: string().optional(),
-		results: array(object({
-			title: string(),
-			url: string(),
-			id: string(),
-			publishedDate: string().nullable().optional(),
-			author: string().nullable().optional(),
-			image: string().nullable().optional(),
-			favicon: string().nullable().optional(),
-			text: string().optional(),
-			highlights: array(string()).optional(),
-			highlightScores: array(number()).optional(),
-			summary: string().optional(),
-			subpages: array(any()).optional(),
-			extras: object({
-				links: array(string()).optional(),
-				imageLinks: array(string()).optional()
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		requestId: z.string(),
+		searchType: z.string().optional(),
+		resolvedSearchType: z.string().optional(),
+		results: z.array(z.object({
+			title: z.string(),
+			url: z.string(),
+			id: z.string(),
+			publishedDate: z.string().nullable().optional(),
+			author: z.string().nullable().optional(),
+			image: z.string().nullable().optional(),
+			favicon: z.string().nullable().optional(),
+			text: z.string().optional(),
+			highlights: z.array(z.string()).optional(),
+			highlightScores: z.array(z.number()).optional(),
+			summary: z.string().optional(),
+			subpages: z.array(z.any()).optional(),
+			extras: z.object({
+				links: z.array(z.string()).optional(),
+				imageLinks: z.array(z.string()).optional()
 			}).optional()
 		})),
-		costDollars: object({
-			total: number().optional(),
-			search: record(string(), number()).optional()
+		costDollars: z.object({
+			total: z.number().optional(),
+			search: z.record(z.string(), z.number()).optional()
 		}).optional()
-	}), object({
-		error: _enum([
+	}), z.object({
+		error: z.enum([
 			"api_error",
 			"rate_limit",
 			"timeout",
@@ -5068,96 +12242,339 @@ var exaSearchToolFactory = createProviderExecutedToolFactory({
 			"execution_error",
 			"unknown"
 		]),
-		statusCode: number().optional(),
-		message: string()
+		statusCode: z.number().optional(),
+		message: z.string()
 	})])))
 });
-var exaSearch = (config = {}) => exaSearchToolFactory(config);
-var parallelSearchToolFactory = createProviderExecutedToolFactory({
+const exaSearch = (config = {}) => exaSearchToolFactory(config);
+const parallelSearchModes = [
+	"turbo",
+	"fast",
+	"basic",
+	"advanced",
+	"one-shot",
+	"agentic"
+];
+const parallelSearchToolFactory = createProviderExecutedToolFactory({
 	id: "gateway.parallel_search",
-	inputSchema: lazySchema(() => zodSchema(object({
-		objective: string().describe("Natural-language description of the web research goal, including source or freshness guidance and broader context from the task. Maximum 5000 characters."),
-		search_queries: array(string()).optional().describe("Optional search queries to supplement the objective. Maximum 200 characters per query."),
-		mode: _enum(["one-shot", "agentic"]).optional().describe("Mode preset: \"one-shot\" for comprehensive results with longer excerpts (default), \"agentic\" for concise, token-efficient results for multi-step workflows."),
-		max_results: number().optional().describe("Maximum number of results to return (1-20). Defaults to 10 if not specified."),
-		source_policy: object({
-			include_domains: array(string()).optional().describe("Limit results to these domains. Use plain domain names only — e.g. example.com or sub.example.gov, or a bare extension like .edu. Do not include a scheme, path, or port (e.g. not https://example.com/page)."),
-			exclude_domains: array(string()).optional().describe("Exclude results from these domains. Use plain domain names only — e.g. example.com or sub.example.gov, or a bare extension like .edu. Do not include a scheme, path, or port (e.g. not https://example.com/page)."),
-			after_date: string().optional().describe("Only include results published after this date. Use an ISO 8601 calendar date formatted YYYY-MM-DD (e.g. 2025-01-01); do not include a time.")
+	inputSchema: lazySchema(() => zodSchema(z.object({
+		objective: z.string().describe("Natural-language description of the web research goal, including source or freshness guidance and broader context from the task. Maximum 5000 characters."),
+		search_queries: z.array(z.string()).optional().describe("Provide 2-3 concise keyword queries, 3-6 words each (max 5, 200 chars each). Strongly recommended; the search runs on these queries."),
+		mode: z.enum(parallelSearchModes).optional().describe("Search mode: \"turbo\" and \"fast\" return quickly with shorter excerpts, \"basic\" is balanced (default), \"advanced\" is the most thorough. \"turbo\" supports English and Japanese only. \"one-shot\" and \"agentic\" are deprecated aliases of \"basic\" and \"advanced\"."),
+		max_results: z.number().optional().describe("Maximum number of results to return (1-20). Defaults to 10 if not specified."),
+		source_policy: z.object({
+			include_domains: z.array(z.string()).optional().describe("Domains or domain/path prefixes to restrict results to, without scheme or port. Example: ['wikipedia.org', 'docs.python.org/3']."),
+			exclude_domains: z.array(z.string()).optional().describe("Domains or domain/path prefixes to exclude, without scheme or port. Example: ['reddit.com']."),
+			after_date: z.string().optional().describe("Only include results published on or after this date. Use an ISO 8601 calendar date formatted YYYY-MM-DD (e.g. 2025-01-01); do not include a time.")
 		}).optional().describe("Source policy for controlling which domains to include/exclude and freshness."),
-		excerpts: object({
-			max_chars_per_result: number().optional().describe("Maximum characters per result."),
-			max_chars_total: number().optional().describe("Maximum total characters across all results.")
+		excerpts: z.object({
+			max_chars_per_result: z.number().optional().describe("Maximum characters per result."),
+			max_chars_total: z.number().optional().describe("Deprecated: use the top-level max_chars_total.")
 		}).optional().describe("Excerpt configuration for controlling result length."),
-		fetch_policy: object({ max_age_seconds: number().optional().describe("Maximum age in seconds for cached content. Set to 0 to always fetch fresh content.") }).optional().describe("Fetch policy for controlling content freshness.")
+		max_chars_total: z.number().optional().describe("Maximum total characters across all result excerpts."),
+		fetch_policy: z.object({
+			max_age_seconds: z.number().optional().describe("Maximum age of cached content in seconds before a live fetch, minimum 600."),
+			timeout_seconds: z.number().optional().describe("Timeout in seconds for a live fetch when content is not cached. Capped by the gateway tool timeout."),
+			disable_cache_fallback: z.boolean().optional().describe("Return an error instead of older cached content when a live fetch fails.")
+		}).optional().describe("Fetch policy for controlling content freshness."),
+		location: z.string().optional().describe("ISO 3166-1 alpha-2 country code to localize results, e.g. \"us\".")
 	}))),
-	outputSchema: lazySchema(() => zodSchema(union([object({
-		searchId: string(),
-		results: array(object({
-			url: string(),
-			title: string(),
-			excerpt: string(),
-			publishDate: string().nullable().optional(),
-			relevanceScore: number().optional()
-		}))
-	}), object({
-		error: _enum([
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		search_id: z.string(),
+		results: z.array(z.object({
+			url: z.string(),
+			title: z.string().nullable().optional(),
+			publish_date: z.string().nullable().optional(),
+			excerpts: z.array(z.string())
+		})),
+		warnings: z.array(z.object({
+			type: z.string(),
+			message: z.string(),
+			detail: z.record(z.string(), z.unknown()).nullable().optional()
+		})).nullable().optional(),
+		usage: z.array(z.object({
+			name: z.string(),
+			count: z.number().optional()
+		})).nullable().optional(),
+		session_id: z.string().optional()
+	}), z.object({
+		error: z.enum([
 			"api_error",
+			"configuration_error",
+			"execution_error",
+			"gateway_rate_limit",
+			"invalid_input",
 			"rate_limit",
 			"timeout",
-			"invalid_input",
-			"configuration_error",
-			"unknown"
+			"unknown",
+			"unknown_tool"
 		]),
-		statusCode: number().optional(),
-		message: string()
+		statusCode: z.number().optional(),
+		message: z.string()
 	})])))
 });
-var parallelSearch = (config = {}) => parallelSearchToolFactory(config);
-var perplexitySearchToolFactory = createProviderExecutedToolFactory({
+const parallelSearch = (config = {}) => parallelSearchToolFactory(config);
+const perplexitySearchToolFactory = createProviderExecutedToolFactory({
 	id: "gateway.perplexity_search",
-	inputSchema: lazySchema(() => zodSchema(object({
-		query: union([string(), array(string())]).describe("Search query (string) or multiple queries (array of up to 5 strings). Multi-query searches return combined results from all queries."),
-		max_results: number().optional().describe("Maximum number of search results to return (1-20, default: 10)"),
-		max_tokens_per_page: number().optional().describe("Maximum number of tokens to extract per search result page (256-2048, default: 2048)"),
-		max_tokens: number().optional().describe("Maximum total tokens across all search results (default: 25000, max: 1000000)"),
-		country: string().optional().describe("Two-letter ISO 3166-1 alpha-2 country code for regional search results (e.g., 'US', 'GB', 'FR')"),
-		search_domain_filter: array(string()).optional().describe("List of domains to include or exclude from search results (max 20). To include: ['nature.com', 'science.org']. To exclude: ['-example.com', '-spam.net']"),
-		search_language_filter: array(string()).optional().describe("List of ISO 639-1 language codes to filter results (max 10, lowercase). Examples: ['en', 'fr', 'de']"),
-		search_after_date: string().optional().describe("Include only results published after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."),
-		search_before_date: string().optional().describe("Include only results published before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."),
-		last_updated_after_filter: string().optional().describe("Include only results last updated after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."),
-		last_updated_before_filter: string().optional().describe("Include only results last updated before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."),
-		search_recency_filter: _enum([
+	inputSchema: lazySchema(() => zodSchema(z.object({
+		query: z.union([z.string(), z.array(z.string())]).describe("Search query (string) or multiple queries (array of up to 5 strings). Multi-query searches return combined results from all queries."),
+		max_results: z.number().optional().describe("Maximum number of search results to return (1-20, default: 10)"),
+		max_tokens_per_page: z.number().optional().describe("Maximum number of tokens to extract per search result page (256-2048, default: 2048)"),
+		max_tokens: z.number().optional().describe("Maximum total tokens across all search results (default: 25000, max: 1000000)"),
+		country: z.string().optional().describe("Two-letter ISO 3166-1 alpha-2 country code for regional search results (e.g., 'US', 'GB', 'FR')"),
+		search_domain_filter: z.array(z.string()).optional().describe("List of domains to include or exclude from search results (max 20). To include: ['nature.com', 'science.org']. To exclude: ['-example.com', '-spam.net']"),
+		search_language_filter: z.array(z.string()).optional().describe("List of ISO 639-1 language codes to filter results (max 10, lowercase). Examples: ['en', 'fr', 'de']"),
+		search_after_date: z.string().optional().describe("Include only results published after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."),
+		search_before_date: z.string().optional().describe("Include only results published before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."),
+		last_updated_after_filter: z.string().optional().describe("Include only results last updated after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."),
+		last_updated_before_filter: z.string().optional().describe("Include only results last updated before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."),
+		search_recency_filter: z.enum([
 			"day",
 			"week",
 			"month",
 			"year"
 		]).optional().describe("Filter results by relative time period. Cannot be used with search_after_date or search_before_date.")
 	}))),
-	outputSchema: lazySchema(() => zodSchema(union([object({
-		results: array(object({
-			title: string(),
-			url: string(),
-			snippet: string(),
-			date: string().optional(),
-			lastUpdated: string().optional()
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		results: z.array(z.object({
+			title: z.string(),
+			url: z.string(),
+			snippet: z.string(),
+			date: z.string().optional(),
+			lastUpdated: z.string().optional()
 		})),
-		id: string()
-	}), object({
-		error: _enum([
+		id: z.string()
+	}), z.object({
+		error: z.enum([
 			"api_error",
 			"rate_limit",
 			"timeout",
 			"invalid_input",
 			"unknown"
 		]),
-		statusCode: number().optional(),
-		message: string()
+		statusCode: z.number().optional(),
+		message: z.string()
 	})])))
 });
-var perplexitySearch = (config = {}) => perplexitySearchToolFactory(config);
-var gatewayTools = {
+const perplexitySearch = (config = {}) => perplexitySearchToolFactory(config);
+const takoDataSourceInputSchema = () => z.object({
+	count: z.number().optional().describe("Maximum number of data results to return (1-20). When include_contents is true, each additional result adds its own data surcharge."),
+	include_contents: z.boolean().optional().describe("Inline rows for each data result. This adds a data surcharge based on row count and dataset source. To estimate cost, search with include_contents disabled and inspect cards.content.export_pricing. This applies to every returned card; limit sources.data.count and sources.data.max_rows to control cost."),
+	mode: z.enum(["inline", "url"]).optional().describe("Requested data delivery mode. Search card data is always inline."),
+	content_format: z.enum([
+		"card_json",
+		"csv",
+		"json_compact",
+		"json_records"
+	]).optional().describe("Serialization for inlined card data."),
+	max_rows: z.number().optional().describe("Maximum rows to inline per result. Omit to use the allowance in cards.content.export_pricing. A data surcharge applies per 1,000 exported rows; lower values reduce cost."),
+	node_ids: z.array(z.string()).optional().describe("Data Graph node IDs to prioritize. Maximum 20."),
+	strict: z.boolean().optional().describe("Only return cards matching node_ids. Requires a non-empty node_ids.")
+});
+const takoWebSourceInputSchema = () => z.object({
+	count: z.number().optional().describe("Maximum number of web results to return (1-20)."),
+	include_contents: z.boolean().optional().describe("Inline extracted web page text. This can add a data charge."),
+	category: z.enum([
+		"finance",
+		"news",
+		"sports"
+	]).optional().describe("Optional web-result category filter."),
+	include_domains: z.array(z.string()).optional().describe("Only return results from these bare domains."),
+	exclude_domains: z.array(z.string()).optional().describe("Exclude results from these bare domains."),
+	snippet_max_chars: z.number().optional().describe("Maximum characters in each web-result snippet."),
+	highlights: z.boolean().optional().describe("Include highlighted passages in web results. Defaults to true in AI Gateway."),
+	article_content_max_chars: z.number().optional().describe("Maximum extracted characters per web page when including contents."),
+	published_after: z.string().optional().describe("Keep results published on or after this ISO date (YYYY-MM-DD)."),
+	published_before: z.string().optional().describe("Keep results published on or before this ISO date (YYYY-MM-DD).")
+});
+const takoSearchInputSchema = lazySchema(() => zodSchema(z.object({
+	query: z.string().describe("Natural-language search query. Include the entity, metric, and time period. Quote a phrase to force it to one entity, for example \"Tesla\":PRODUCT price."),
+	effort: z.enum([
+		"deep",
+		"fast",
+		"instant"
+	]).optional().describe("Search effort. fast is the balanced default, instant favors cached results and low latency, and deep broadens retrieval with reranking at higher cost and latency."),
+	sources: z.object({
+		data: takoDataSourceInputSchema().optional(),
+		web: takoWebSourceInputSchema().optional()
+	}).optional().describe("Sources to search. Omit to search both curated data and the web. When provided, only keys present are searched."),
+	location: z.object({
+		latitude: z.number().describe("Latitude between -90 and 90."),
+		longitude: z.number().describe("Longitude between -180 and 180.")
+	}).optional().describe("End-user coordinates for localized results."),
+	country_code: z.string().optional().describe("Two-letter ISO 3166-1 country code, such as 'US'."),
+	locale: z.string().optional().describe("BCP-47 locale, such as 'en-US'."),
+	timezone: z.string().optional().describe("IANA timezone, such as 'America/New_York'."),
+	output_settings: z.object({
+		image_dark_mode: z.boolean().optional().describe("Render card preview images in dark mode."),
+		force_refresh: z.boolean().optional().describe("Instant-effort only. Request a refreshed instant result.")
+	}).optional().describe("Controls card rendering in the search response."),
+	include_related: z.number().optional().describe("Maximum related search suggestions to include (1-20).")
+})));
+const takoDatasetCellSchema = () => z.union([
+	z.boolean(),
+	z.number(),
+	z.string()
+]).nullable();
+const takoResultContentSchema = () => z.object({
+	content_format: z.enum([
+		"card_json",
+		"csv",
+		"json_compact",
+		"json_records"
+	]).nullish(),
+	cost: z.number().optional(),
+	data: z.string().nullish(),
+	records: z.array(z.record(z.string(), takoDatasetCellSchema())).nullish(),
+	dataset: z.object({
+		columns: z.array(z.object({
+			name: z.string(),
+			type: z.enum([
+				"boolean",
+				"date",
+				"datetime",
+				"number",
+				"string"
+			]),
+			unit: z.string().nullish()
+		})),
+		rows: z.array(z.array(takoDatasetCellSchema())),
+		total_rows: z.number(),
+		truncated: z.boolean(),
+		ref: z.string(),
+		sources: z.array(z.object({
+			name: z.string(),
+			index: z.enum(["data", "web"]).optional()
+		})),
+		provenance: z.enum(["query", "web_extraction"]).optional()
+	}).nullish(),
+	card_data: z.object({}).passthrough().nullish(),
+	card_data_schema: z.object({}).passthrough().nullish(),
+	url: z.string().nullish(),
+	expires_at: z.string().nullish(),
+	total_rows: z.number().nullish(),
+	truncated: z.boolean().optional(),
+	export_pricing: z.object({
+		baseline_usd: z.number(),
+		free_rows: z.number(),
+		max_rows_ceiling: z.number(),
+		row_cpm_usd: z.number()
+	}).nullish(),
+	manifest: z.array(z.object({
+		dtype: z.enum([
+			"boolean",
+			"date",
+			"datetime",
+			"number",
+			"string"
+		]).nullish(),
+		entity: z.string().nullish(),
+		metric: z.string().nullish(),
+		name: z.string().nullish(),
+		unit: z.string().nullish()
+	})).nullish()
+}).passthrough();
+const takoCardSchema = () => z.object({
+	card_id: z.string().nullish(),
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+	semantic_description: z.string().nullish(),
+	webpage_url: z.string().nullish(),
+	image_url: z.string().nullish(),
+	embed_url: z.string().nullish(),
+	sources: z.array(z.object({
+		source_name: z.string().nullish(),
+		source_description: z.string().nullish(),
+		source_index: z.enum(["data", "web"]),
+		source_text: z.string().nullish(),
+		url: z.string().nullish()
+	})).nullish(),
+	methodologies: z.array(z.object({
+		methodology_name: z.string().nullable(),
+		methodology_description: z.string().nullable()
+	})).nullish(),
+	source_indexes: z.array(z.enum(["data", "web"])).nullish(),
+	card_type: z.string().nullish(),
+	relevance: z.enum([
+		"High",
+		"Low",
+		"Medium"
+	]).nullish(),
+	content: takoResultContentSchema().nullish(),
+	exportable: z.boolean().optional(),
+	nodes: z.array(z.object({
+		id: z.string(),
+		type: z.enum(["entity", "metric"]),
+		name: z.string(),
+		description: z.string().nullish()
+	})).nullish(),
+	metric_definitions: z.array(z.object({
+		name: z.string(),
+		definition: z.string()
+	})).nullish(),
+	data_freshness: z.object({
+		coverage_end: z.string().nullish(),
+		data_as_of: z.string().nullish(),
+		last_updated: z.string().nullish()
+	}).nullish()
+}).passthrough();
+const takoWebResultSchema = () => z.object({
+	title: z.string(),
+	url: z.string(),
+	snippet: z.string().nullish(),
+	source_name: z.string().nullish(),
+	publish_date: z.string().nullish(),
+	content: takoResultContentSchema().nullish()
+}).passthrough();
+const takoSearchToolFactory = createProviderExecutedToolFactory({
+	id: "gateway.tako_search",
+	inputSchema: takoSearchInputSchema,
+	outputSchema: lazySchema(() => zodSchema(z.union([z.object({
+		request_id: z.string(),
+		cards: z.array(takoCardSchema()).optional(),
+		web_results: z.array(takoWebResultSchema()).optional(),
+		usage: z.object({
+			total_cost_usd: z.number(),
+			compute: z.object({ cost_usd: z.number() }).nullish(),
+			data: z.object({
+				cost_usd: z.number(),
+				datasets: z.number()
+			}).nullish()
+		}).nullish(),
+		related: z.array(z.object({}).passthrough()).nullish()
+	}).passthrough(), z.object({
+		error: z.enum([
+			"api_error",
+			"configuration_error",
+			"execution_error",
+			"invalid_input",
+			"rate_limit",
+			"timeout",
+			"unknown_tool"
+		]),
+		statusCode: z.number().optional(),
+		message: z.string()
+	})])))
+});
+const takoSearch = (config = {}) => takoSearchToolFactory(config);
+/**
+* Gateway-specific provider-defined tools.
+*/
+const gatewayTools = {
+	/**
+	* Fetch page content using Browserbase's lightweight Fetch API.
+	*
+	* Supports raw, Markdown, and schema-driven JSON output as well as redirects,
+	* proxy routing, and TLS controls.
+	*/
+	browserbaseFetch,
+	/**
+	* Search the web using Browserbase's Search API for fast, structured results.
+	*
+	* Returns titles, URLs, and available publication metadata without requiring
+	* a browser session.
+	*/
+	browserbaseSearch,
 	/**
 	* Search the web using Exa for current information and token-efficient
 	* excerpts optimized for agent workflows.
@@ -5182,31 +12599,42 @@ var gatewayTools = {
 	* Provides ranked search results with advanced filtering options including
 	* domain, language, date range, and recency filters.
 	*/
-	perplexitySearch
+	perplexitySearch,
+	/**
+	* Search the web and Tako's curated knowledge graph in one call for
+	* token-efficient web excerpts and structured data results grounded in
+	* premium sources, each with an embed-ready visualization.
+	*
+	* Supports effort, per-source web and data controls, localization, and inline
+	* contents for agents that need to reason over underlying data.
+	*/
+	takoSearch
 };
 async function getVercelRequestId() {
-	var _a11;
-	return (_a11 = (0, import_dist.getContext)().headers) == null ? void 0 : _a11["x-vercel-id"];
+	return (0, import_dist.getContext)().headers?.["x-vercel-id"];
 }
-var AI_GATEWAY_PROTOCOL_VERSION = "0.0.1";
-var gatewayClientSecretResponseSchema = object({
-	token: string(),
-	expiresAt: number().nullish()
-});
+const AI_GATEWAY_PROTOCOL_VERSION = "0.0.1";
+/** Response shape of `POST /v1/realtime/client-secrets`. `expiresAt` is epoch seconds. */
+const gatewayClientSecretResponseSchema = lazySchema(() => zodSchema(z.object({
+	token: z.string(),
+	expiresAt: z.number().nullish()
+})));
+/**
+* Create a remote provider instance.
+*/
 function createGateway(options = {}) {
-	var _a11, _b11;
 	let pendingMetadata = null;
 	let metadataCache = null;
-	const cacheRefreshMillis = (_a11 = options.metadataCacheRefreshMillis) != null ? _a11 : 1e3 * 60 * 5;
+	const cacheRefreshMillis = options.metadataCacheRefreshMillis ?? 3e5;
 	let lastFetchTime = 0;
-	const baseURL = (_b11 = withoutTrailingSlash(options.baseURL)) != null ? _b11 : "https://ai-gateway.vercel.sh/v4/ai";
+	const baseURL = withoutTrailingSlash(options.baseURL) ?? "https://ai-gateway.vercel.sh/v4/ai";
 	const createAuthHeaders = (auth) => withUserAgentSuffix({
 		Authorization: `Bearer ${auth.token}`,
 		"ai-gateway-protocol-version": AI_GATEWAY_PROTOCOL_VERSION,
 		[GATEWAY_AUTH_METHOD_HEADER]: auth.authMethod,
 		...options.teamIdOrSlug != null ? { [VERCEL_AI_GATEWAY_TEAM_HEADER]: options.teamIdOrSlug } : {},
 		...options.headers
-	}, `ai-sdk/gateway/4.0.23`);
+	}, `ai-sdk-gateway/4.0.123`);
 	const getHeaders = async () => {
 		try {
 			return createAuthHeaders(await getGatewayAuthToken(options));
@@ -5247,8 +12675,8 @@ function createGateway(options = {}) {
 				},
 				successfulResponseHandler: createJsonResponseHandler(gatewayClientSecretResponseSchema),
 				failedResponseHandler: createJsonErrorResponseHandler({
-					errorSchema: any(),
-					errorToMessage: (data) => data
+					errorSchema: z.any(),
+					errorToMessage: (data) => getErrorMessage(data) ?? "unknown error"
 				}),
 				fetch: options.fetch
 			});
@@ -5297,9 +12725,16 @@ function createGateway(options = {}) {
 			o11yHeaders: createO11yHeaders()
 		});
 	};
+	const createBatch = () => new GatewayBatch({
+		provider: "gateway",
+		maxLineBytes: options.batchResultDownloads?.maxLineBytes,
+		baseURL,
+		headers: getHeaders,
+		fetch: options.fetch,
+		o11yHeaders: createO11yHeaders()
+	});
 	const getAvailableModels = async () => {
-		var _a12, _b12, _c;
-		const now = (_c = (_b12 = (_a12 = options._internal) == null ? void 0 : _a12.currentDate) == null ? void 0 : _b12.call(_a12).getTime()) != null ? _c : Date.now();
+		const now = options._internal?.currentDate?.().getTime() ?? Date.now();
 		if (!pendingMetadata || now - lastFetchTime > cacheRefreshMillis) {
 			lastFetchTime = now;
 			pendingMetadata = new GatewayFetchMetadata({
@@ -5361,6 +12796,7 @@ function createGateway(options = {}) {
 		});
 	};
 	provider.languageModel = createLanguageModel;
+	provider.experimental_batch = createBatch;
 	const createEmbeddingModel = (modelId) => {
 		return new GatewayEmbeddingModel(modelId, {
 			provider: "gateway",
@@ -5392,8 +12828,8 @@ function createGateway(options = {}) {
 	};
 	provider.rerankingModel = createRerankingModel;
 	provider.reranking = createRerankingModel;
-	const createSpeechModel = (modelId) => {
-		return new GatewaySpeechModel(modelId, {
+	const createDecisionModel = (modelId) => {
+		return new GatewayDecisionModel(modelId, {
 			provider: "gateway",
 			baseURL,
 			headers: getHeaders,
@@ -5401,8 +12837,34 @@ function createGateway(options = {}) {
 			o11yHeaders: createO11yHeaders()
 		});
 	};
+	provider.decisionModel = createDecisionModel;
+	provider.decision = createDecisionModel;
+	provider.evaluationModel = createDecisionModel;
+	provider.evaluation = createDecisionModel;
+	const createSpeechModel = (modelId) => {
+		return new GatewaySpeechModel(modelId, {
+			provider: "gateway",
+			baseURL,
+			headers: getHeaders,
+			fetch: options.fetch,
+			o11yHeaders: createO11yHeaders(),
+			webSocket: options.webSocket
+		});
+	};
 	provider.speechModel = createSpeechModel;
 	provider.speech = createSpeechModel;
+	provider.experimental_speech = Object.assign((modelId) => createSpeechModel(modelId), { getToken: async (tokenOptions) => {
+		const secret = await mintClientSecret({
+			modelId: tokenOptions.model,
+			routeKind: "speech",
+			...tokenOptions.expiresAfterSeconds != null && { expiresAfterSeconds: tokenOptions.expiresAfterSeconds }
+		});
+		return {
+			token: secret.token,
+			url: toGatewaySpeechUrl(baseURL, tokenOptions.model),
+			...secret.expiresAt != null && { expiresAt: secret.expiresAt }
+		};
+	} });
 	const createTranscriptionModel = (modelId) => {
 		return new GatewayTranscriptionModel(modelId, {
 			provider: "gateway",
@@ -5449,7 +12911,7 @@ function createGateway(options = {}) {
 	provider.tools = gatewayTools;
 	return provider;
 }
-var gateway = createGateway();
+const gateway = createGateway();
 async function getGatewayAuthToken(options) {
 	const apiKey = loadOptionalSetting({
 		settingValue: options.apiKey,
@@ -5465,7 +12927,6 @@ async function getGatewayAuthToken(options) {
 	};
 }
 function assertGatewayClientSecretServerEnvironment() {
-	if (typeof globalThis.window !== "undefined") throw new Error("AI Gateway client secrets must be minted server-side: minting needs your Gateway credential, which must never reach the browser. Call gateway.experimental_realtime.getToken() or gateway.experimental_transcription.getToken() from your server and pass the returned token to the client.");
+	if (typeof globalThis.window !== "undefined") throw new Error("AI Gateway client secrets must be minted server-side: minting needs your Gateway credential, which must never reach the browser. Call gateway.experimental_realtime.getToken(), gateway.experimental_transcription.getToken(), or gateway.experimental_speech.getToken() from your server and pass the returned token to the client.");
 }
-//#endregion
-export { resolve as A, EmptyResponseBodyError as B, isFullMediaType as C, lazySchema as D, jsonSchema as E, validateTypes as F, getErrorMessage as G, JSONParseError as H, withUserAgentSuffix as I, zodSchema as L, safeParseJSON as M, safeValidateTypes as N, parseJsonEventStream as O, tool as P, AISDKError as R, isExecutableTool as S, isUrlSupported as T, TypeValidationError as U, InvalidPromptError as V, UnsupportedFunctionalityError as W, fetchWithValidatedRedirects as _, require_token_util as a, isAbortError as b, DownloadError as c, cancelResponseBody as d, convertBase64ToUint8Array as f, executeTool as g, detectMediaType as h, gateway as i, retryWithExponentialBackoff as j, readResponseWithSizeLimit as k, asArray as l, createIdGenerator as m, GatewayError as n, require_token_error as o, convertUint8ArrayToBase64 as p, createGateway as r, DelayedPromise as s, GatewayAuthenticationError as t, asSchema as u, filterNullable as v, isProviderReference as w, isBuffer as x, getRuntimeEnvironmentUserAgent as y, APICallError as z };
+export { GatewayAuthenticationError, GatewayError, _enum, _instanceof, _null, array, boolean, createGateway, custom, discriminatedUnion, gateway, lazy, literal, looseObject, never, number, object, record, require_token_error, require_token_util, safeParseAsync, string, toJSONSchema, union, unknown };

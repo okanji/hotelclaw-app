@@ -133,10 +133,10 @@ This app has a **two-tier AI architecture** (plan: `~/.claude/plans/breezy-noodl
 
 Many lightweight, purpose-specific bots, each scoped to a single feature surface:
 - **Channel bot** — `lib/stream/ai-reply.ts` (built — auto mode's classifier (`lib/stream/ai-auto-classifier.ts`) has two sensitivity-independent ALWAYS-respond rules: the message continues a conversation with the bot, or it asks for something on the bot's capability list. **Both are schema fields answered before the verdict and then ENFORCED IN CODE** (2026-08-03): asked for one boolean, Haiku would name the rule and decline anyway ("rule A applies, but I already answered that"), so every auto-mode follow-up silently needed a fresh @-mention. The capability list rule B is judged against lives in `lib/stream/ai-capability-map.ts` and is drift-guarded against the runtime's real grants — a tool the blurb doesn't advertise is a thing auto mode won't volunteer. Replies can carry **rich UI** via the `render_ui` tool (`lib/ai/tools/render-ui.ts`): the model emits a @json-render spec over the house catalog in `lib/ai/chat-ui/catalog.ts` (Stack / DataTable / CardGrid / Card / StatRow / Stat — zod-validated + size-capped server-side), posted as Stream attachment `{type:"ai_ui", spec}` and rendered by `components/chat/ai-ui-attachment.tsx` (json-render's `Renderer` MUST be wrapped in `JSONUIProvider` even for static specs). **Deep links**: the model attaches entity refs (`Card.link` / `DataTable.rowLinks` = `{kind: task|project|document|meeting|form|space, id}` — ids come from tool results, which return `id` for this purpose), and the tool validates each id against the property (batched per kind) and rewrites refs into `/p/<pid>/<section>/<id>` hrefs before the spec is stored; the stored-spec `href` fields must match `INTERNAL_HREF_RX`, so nothing external/scripted can render. Clickable rows/cards navigate via next/link. @json-render is pinned exact (pre-1.0 churn); we deliberately don't use `catalog.prompt()` — the compact tool description in the catalog file is the model's manual. Markdown tables that still slip through get fallback styling in `app/stream-chat-overrides.css`.)
-- **Liveblocks comment bot** — `lib/ai/bot-scaffold.ts` (built — property-scoped replies run through `runBot()` (2026-07-19), so gbrain + delegate inject like every Tier-1 bot; only the no-property fallback stays a bare `generateText`)
+- **Liveblocks comment bot** — `lib/ai/bot-scaffold.ts` (built — property-scoped replies run through `runBot()` (2026-07-19), so memory + delegate inject like every Tier-1 bot; only the no-property fallback stays a bare `generateText`)
 - **Task detail bot** — `lib/ai/bots/task-bot.ts` + `app/api/properties/[propertyId]/tasks/[taskId]/ai/route.ts` + `components/tasks/task-ai-panel.tsx` (built)
 - **Document bot** — `lib/ai/bots/doc-bot.ts` + `app/api/properties/[propertyId]/documents/[documentId]/ai/route.ts` + `components/documents/document-ai-panel.tsx` (built — Q&A + inline write via `propose_document_content`, with the bot's HTML output covering paragraph, headings, lists, blockquote, code, tables, callouts. Floating-toolbar inline rewrite is wired separately via Liveblocks's `AiToolbar` + the `resolveContextualPrompt` endpoint at `/api/properties/[propertyId]/documents/[documentId]/ai/contextual`.)
-- **Calendar AI** — Liveblocks Copilot wired in `components/calendar/calendar-ai-panel.tsx` (built — uses Liveblocks's `AiChat` rather than `runBot()`, since it lives inside a Liveblocks room. The copilot is OURS as of 2026-07-20: `NEXT_PUBLIC_LIVEBLOCKS_COPILOT_ID` → "Hotelclaw Calendar", provider Anthropic claude-sonnet-4-6 with our API key, created via `Liveblocks.createAiCopilot` — generation still runs on Liveblocks' servers with that key. Brain access via the client-registered `search-property-brain` tool in `calendar-ai-tools.tsx` → member-gated `POST /api/properties/[propertyId]/brain/search`)
+- **Calendar AI** — Liveblocks Copilot wired in `components/calendar/calendar-ai-panel.tsx` (built — uses Liveblocks's `AiChat` rather than `runBot()`, since it lives inside a Liveblocks room. The copilot is OURS as of 2026-07-20: `NEXT_PUBLIC_LIVEBLOCKS_COPILOT_ID` → "Hotelclaw Calendar", provider Anthropic claude-sonnet-4-6 with our API key, created via `Liveblocks.createAiCopilot` — generation still runs on Liveblocks' servers with that key. Memory access via the client-registered `search-property-memory` tool in `calendar-ai-tools.tsx` → member-gated `GET /api/properties/[propertyId]/memory`)
 - **Insights bot** — `lib/ai/bots/insights-bot.ts` + `app/api/properties/[propertyId]/insights/{report,brief,annotations}/route.ts` (built — three generators for the Insights rail section, all reading the deterministic metrics in `lib/insights/metrics.ts` (the same functions the dashboards chart) and never computing numbers themselves: **(1) automatic intelligence brief** — typed insight cards via `generateObject` from `lib/insights/trends.ts` signals + `anomalies.ts`, fingerprint-cached in `insight_briefs` (one row/property, migration 0046), served stale-while-revalidate (`after()` regeneration + realtime swap-in) and refreshed by a daily cron (`/api/insights/refresh-briefs`); **(2) weekly management + staff reports** — markdown, cached per (property, week, audience) in `insight_reports` (0044) with an event-count freshness check, Monday cron (`/api/insights/weekly-report`) + `briefing` notifications; **(3) Haiku one-line risk annotations** on flagged projects, rollup-fingerprint-cached in `insight_annotations` (0045). Action deep-links in brief cards are validated server-side against real task/project ids. Smoke-test the SQL shapes with `node --env-file=.env.local scripts/insights-smoke.mjs`.)
 - **Insights Q&A bot** — `lib/ai/bots/insights-qa-bot.ts` + `/api/properties/[propertyId]/insights/ask` + `components/insights/insights-ask-panel.tsx` (built — "Ask the numbers" dock on Insights; stateless task-bot pattern; tools are the deterministic metric functions per scope lens, ids tenant-validated, every figure cited as `(metric · lens)`; owner/manager only)
 - **Shift-brief bot + handover** — `lib/ai/bots/shift-brief-bot.ts` over the deterministic gather in `lib/insights/shift-brief.ts` (built — per-user "since your last shift" brief; cursor + fingerprint cache in `shift_briefs` (0052); Haiku writes only the orientation paragraph, the UI renders the payload directly incl. one-tap task creation from unowned meeting action items; Home widget + staff My Week section. "Draft my handover" (`/api/properties/[propertyId]/handover/draft` + publish, `handovers` 0053) drafts four sections from the same window data; the human edits and publishes to a Stream channel under their own name)
@@ -154,7 +154,7 @@ Many lightweight, purpose-specific bots, each scoped to a single feature surface
 Property members build **agentic chatbots for hotel guests** (front desk, room service, restaurant orders) under the Chatbots rail section. Guests are NOT app users — this is the app's first public surface.
 
 - **Data**: migration 0061 — `chatbots` (versioned `config` JSON per `lib/chatbots/schema.ts`, unguessable `public_slug`), `chatbot_knowledge_sources`/`_chunks` (FTS via `search_chatbot_chunks` RPC + app-layer OR-fallback in `lib/chatbots/retrieval.ts`; `embedding vector(1536)` reserved for hybrid later), `chatbot_conversations`/`_messages` (service-client writes only; members read via RLS), `chatbot_usage_daily` (budget truth + `increment_chatbot_usage` RPC).
-- **Runtime**: `lib/ai/guest-bot/run-guest-bot.ts` — `streamText`, deliberately NOT `runBot()` (guests are untrusted: no gbrain/delegate/property tools, injection-hardened prompt, Haiku/Sonnet per `config.modelTier`). Tools from `lib/ai/guest-bot/tools/registry.ts`, built ONLY from the bot's enabled actions, each with a Chatbase-style natural-language `whenToUse` appended to the tool description: `search_knowledge`, `save_guest_details`, `create_ticket` (→ `tasks` with `source:'ai'` + Stream channel card + `chatbot.order_created` event), `handoff_to_human` (`performGuestHandoff` — the status flip structurally mutes the bot, checked BEFORE generation; Stream card, `guest_escalation` notifications, `chatbot.escalated` event). Actions emit workflow events (`source:'chatbot'`, trigger catalog in `lib/workflows/catalog/chatbots.ts`).
+- **Runtime**: `lib/ai/guest-bot/run-guest-bot.ts` — `streamText`, deliberately NOT `runBot()` (guests are untrusted: no memory/delegate/property tools, injection-hardened prompt, Haiku/Sonnet per `config.modelTier`). Tools from `lib/ai/guest-bot/tools/registry.ts`, built ONLY from the bot's enabled actions, each with a Chatbase-style natural-language `whenToUse` appended to the tool description: `search_knowledge`, `save_guest_details`, `create_ticket` (→ `tasks` with `source:'ai'` + Stream channel card + `chatbot.order_created` event), `handoff_to_human` (`performGuestHandoff` — the status flip structurally mutes the bot, checked BEFORE generation; Stream card, `guest_escalation` notifications, `chatbot.escalated` event). Actions emit workflow events (`source:'chatbot'`, trigger catalog in `lib/workflows/catalog/chatbots.ts`).
 - **Public surface**: `/g/[botSlug]` page (warm cream/serif, mobile-first, allowlisted in `lib/supabase/middleware.ts`) + `/api/guest/chatbots/[slug]/{session,messages}` — HMAC session tokens (`lib/chatbots/guest-session.ts`, localStorage Bearer; secret `CHATBOT_SESSION_SECRET`, falls back to `STREAM_API_SECRET`), layered Upstash rate limits + daily/session caps (`lib/chatbots/limits.ts`), plain-text streaming; non-generation outcomes are JSON `{state}` the client branches on by content-type; guests poll while escalated (no anon Realtime).
 - **Builder**: `components/chatbots/*` — list, template gallery (`lib/chatbots/templates.ts`) + "describe it" AI draft (`/api/properties/[propertyId]/chatbots/generate`, Haiku `Output.object`), tabbed editor (Build / Knowledge / Conversations / Settings+Deploy with QR via `react-qr-code`) beside an always-on sandbox TestConsole (`.../test` route — real runtime, simulated side effects, live knowledge search; `.../train` chunks sources via `lib/chatbots/ingest.ts`). Staff reply surface: conversation page with Supabase Realtime + take-over / return-to-bot (`sendStaffReply`/`setConversationState` in `components/chatbots/actions.ts`).
 - **Custom HTTP actions** (migration 0062, `chatbot_custom_actions`): staff define arbitrary HTTPS API calls the bot can make — Chatbase 4-step wizard in `components/chatbots/custom-actions-panel.tsx` (general → request → params → live test → response field allowlist). Executor `lib/chatbots/custom-actions.ts`: HTTPS-only with DNS-resolved private-IP SSRF guard, no redirects, 10s timeout, 20KB JSON-only responses, dot-path allowlist before the model sees data. Header values AES-256-GCM encrypted at rest (`lib/chatbots/crypto.ts`) and never returned to the client (only names). Tools named `custom_<slug>`; they run live even in the test console.
@@ -163,7 +163,7 @@ Property members build **agentic chatbots for hotel guests** (front desk, room s
 - **WhatsApp/SMS**: per-bot `twilio_number` (Deploy tab) + one shared webhook `/api/guest/channels/twilio` — `To` routes to the bot, the guest's `From` IS the session token, channel `whatsapp|sms`. With `TWILIO_ACCOUNT_SID/AUTH_TOKEN` set, the webhook acks empty and replies via REST in `after()` (15s webhook timeout); without creds it replies synchronous TwiML (and skips signature validation with a warning). Staff replies from the conversation viewer push out via Twilio REST when configured (`lib/chatbots/twilio.ts`).
 - **Feedback**: guests thumb bot replies (PATCH on the guest messages route → `chatbot_messages.feedback`); shown next to timestamps in the staff transcript.
 - **Smoke test** (run before claiming guest-bot changes work): `node --env-file=.env.local --no-network-family-autoselection scripts/chatbot-smoke.mjs` — seeds a throwaway bot, exercises session → knowledge answer → custom action (live dummyjson call through the encrypted-header executor) → thumbs → widget/CSP → Twilio webhook → order→task → handoff → muting over real HTTP against the dev server, cleans up after itself.
-- **In-channel deployment** (migration 0063, `chatbot_channel_deployments` — one bot per channel): resolved RUNTIME-SIDE on the eve session (2026-07-20 — the old web-side `resolveChannelDeployment`/`buildChannelDeploymentTools` merge is deleted): `channel-bot-eve.ts` sends the Stream channel id as `x-hotelclaw-channel`; `apps/agent/agent/lib/agent-config.ts:resolveSessionAgent` swaps in the custom bot's persona (staff-context preamble appended) + model tier, and `apps/agent/agent/tools/channel-deployment.ts` mounts its knowledge search + `custom_<slug>` HTTP actions on top of the catalog property tools. Deployed bots therefore get the durable session, gbrain, and render_ui like the default bot. No deployment row → default channel bot unchanged. Picker lives in the Deploy tab (`setChannelDeployments` — which also resets the channel's eve session so persona changes apply immediately).
+- **In-channel deployment** (migration 0063, `chatbot_channel_deployments` — one bot per channel): resolved RUNTIME-SIDE on the eve session (2026-07-20 — the old web-side `resolveChannelDeployment`/`buildChannelDeploymentTools` merge is deleted): `channel-bot-eve.ts` sends the Stream channel id as `x-hotelclaw-channel`; `apps/agent/agent/lib/agent-config.ts:resolveSessionAgent` swaps in the custom bot's persona (staff-context preamble appended) + model tier, and `apps/agent/agent/tools/channel-deployment.ts` mounts its knowledge search + `custom_<slug>` HTTP actions on top of the catalog property tools. Deployed bots therefore get the durable session, property memory, and render_ui like the default bot. No deployment row → default channel bot unchanged. Picker lives in the Deploy tab (`setChannelDeployments` — which also resets the channel's eve session so persona changes apply immediately).
 - **Analytics tab**: deterministic counts (orders, escalations, thumbs, 14-day volume from `chatbot_usage_daily`) + Haiku-labeled topic/sentiment cached on conversation rows (0063 columns, batch-classified lazily by `classifyConversations` in `lib/chatbots/analytics.ts` when the tab's GET route loads; ≤25/load, settled conversations only, ids validated). "Trending negative" badge on topics with ≥⅓ negative conversations.
 - **Playground compare**: TestConsole → Compare opens `playground-dialog.tsx` — two synced panes sending the same message through the test route with per-pane `override` (modelTier/instructions/onlyFromSources, applied without saving).
 - **Auto-retrain**: `/api/chatbots/auto-retrain` cron (04:30, vercel.json) — retrains bots whose document sources are older than the doc's `body_updated_at` or whose url sources are >24h stale.
@@ -203,7 +203,7 @@ Every feature page that a workflow can read from or act on carries a **⚡ Autom
 - **Suggestions** — `POST /api/properties/:propertyId/workflows/suggestions` (Haiku + `Output.object`). The model proposes plain-English GOALS, **never specs**: the goal is handed to the existing author copilot at `/workflows/new?prefill=`, which owns catalog discovery and validation, so a bad suggestion can at worst waste one copilot turn — it can never smuggle an invented trigger id into a saved workflow. **Four grounding layers**, in order of how much they constrain the answer:
   1. **Deterministic signals** — `lib/workflows/suggestion-signals.ts`, one gather per feature, returning `{id, signal, evidence}` lines describing the property's REAL state ("3 tasks are blocked — 50% of open work", "8 documents haven't been edited in 90+ days", "31% of bookings cancelled"). **No model in the number path**: Tasks reuses `computeInsightsMetrics` / `computeTrendSignals` / `detectAnomalies` (the same functions the dashboards chart) rather than a second, quietly-diverging definition of "overdue"; the rest are bounded SQL. Every gather is `safe()`-wrapped and fail-soft. Each feature also gets a trimmed set of companion signals (most automations start in one surface and end in Tasks or Chat). `GATHERS` is a `Record<AutomationFeature, …>` so exhaustiveness is a compile-time guarantee — no drift test needed.
   2. **The catalog** — the exact triggers/actions the feature supports, so the model can't propose what the engine can't build.
-  3. **gbrain** — institutional memory, with the query **steered by the top deterministic signals** (search "blocked work" only when work is actually blocked). This is what lets a suggestion cite a venue that exists only in a brain-mirrored document. Time-boxed (6s) and skipped entirely on cache hits and brainless properties.
+  3. **property memory** — institutional memory (`memoryContextLines` over `agent_memories`), with the query **steered by the top deterministic signals** (search "blocked work" only when work is actually blocked). Same Postgres as the signals, so no timeout race; skipped on cache hits.
   4. **Industry prior** — hospitality-ops judgement in the system prompt, disciplined by 1–3.
   Suggestions cite signal ids in `basis`; the route **resolves those ids to the evidence lines server-side and drops anything the model invented**, so the "Suggested because" list in the UI is measured fact, not the model's account of its own reasoning (same handshake as the insights brief's `basis`). Redis-cached 24h against a fingerprint that **includes the signal digest**, so suggestions refresh when the property's situation changes rather than merely when time passes. Fail-soft throughout (no Redis ⇒ regenerate, no `ANTHROPIC_API_KEY` ⇒ section hides).
 - **Suggestion length is clamped, never validated.** The `Suggestion` zod schema deliberately has NO `.max()` on title/why/goal — length guidance lives in the field descriptions and a server-side `clamp()`. The first live run produced three well-cited suggestions and threw all of them away on every retry because one `why` was 230 chars against a `max(200)`: in structured output a hard length cap turns a presentation nit into total generation failure.
@@ -223,7 +223,7 @@ The Forms feature and the setup wizard share one persisted form definition: `lib
 
 **Onboarding** (`app/onboarding`) is a full-screen Claude-style wizard (cream canvas, serif questions, chips, Enter-to-advance): name → type/size → departments → role/priorities → invites → AI build. `/api/onboarding/plan` (Haiku, deterministic fallback in `lib/onboarding/plan.ts` keyed by property type) proposes spaces/channels/labels/starter form; `createWorkspace` in `app/onboarding/actions.ts` seeds it all (property+membership fatal, everything else fail-soft) and stores answers in `property_profiles` (0057) so bots can be property-aware. Welcome page shares the visual language.
 
-**Adding a new in-app bot:** create `lib/ai/bots/<name>-bot.ts` with a persona + scoped tool set, call `runBot()` from `lib/ai/run-bot.ts`. Don't reinvent prompt assembly, model settings, or tool wiring — the runtime handles it (gbrain tools and `delegate_to_openclaw` are auto-injected; activation-reason handling, deferral-guard, temperature/stopWhen settings are uniform across bots). Wire your bot to a Next.js API route and a client component on its surface.
+**Adding a new in-app bot:** create `lib/ai/bots/<name>-bot.ts` with a persona + scoped tool set, call `runBot()` from `lib/ai/run-bot.ts`. Don't reinvent prompt assembly, model settings, or tool wiring — the runtime handles it (property-memory tools and `delegate_to_openclaw` are auto-injected; activation-reason handling, deferral-guard, temperature/stopWhen settings are uniform across bots). Wire your bot to a Next.js API route and a client component on its surface.
 
 ## Document editor — Notion-style blocks
 
@@ -262,10 +262,10 @@ read-only transparency gallery of every built-in bot (`lib/agents/builtin.ts`
   must stay in sync; every `execute` INLINE per eve's replay constraint;
   every query scoped by the stamped propertyId, never RLS), skills
   (`agent/skills/dynamic.ts`). Paused/archived agents resolve to null →
-  static fallback instructions, no tools. Brain grants (2026-07-19):
-  `brain_search`/`brain_think`/`brain_capture` are grantable catalog tools
-  (executors mirror `tools/channel-brain.ts`; fail-soft when the property
-  has no binding).
+  static fallback instructions, no tools. Memory is NOT a grant (2026-10-23):
+  the eve memory slots in `agent/memory/*` recall property memory + the
+  person's notes into every property-scoped session and mount
+  `property__remember/forget/search` and `person__…` automatically.
 - **UI**: `components/agents/*` — gallery (`agents-list.tsx`), editor
   (`agent-editor.tsx` — the whole config in plain sight), chat
   (`agent-chat.tsx` — talks to `/eve/v1/*` same-origin with property/agent
@@ -315,8 +315,9 @@ exception like Agents.
   The id arrives as a CLIENT header, so ownership + property + archival are all
   re-checked runtime-side; a project that is not yours degrades silently to the
   plain persona. Fail-soft — a broken project never takes the assistant down.
-- **Brain + rich UI**: `tools/channel-brain.ts` and `tools/channel-render-ui.ts`
-  admit both virtual slugs. `render_ui` specs come back in the tool RESULT as
+- **Memory + rich UI**: memory needs no slug gate (eve slots mount for every
+  property-scoped session); `tools/channel-render-ui.ts` admits both virtual
+  slugs. `render_ui` specs come back in the tool RESULT as
   `ai_ui_spec` and the transcript renders them inline with the same
   `AiUiAttachment` the channel uses.
 - **UI** (`components/assistant/*`): `assistant-workspace.tsx` is a tab strip
@@ -406,6 +407,101 @@ visible and editable in Workflows, and one customized in the builder comes back
   channel persona on the literal word "channel" fails a bot that correctly says
   "ops chat".
 
+## AI chat surfaces on AI Elements + the learning loop (built 2026-10-23)
+
+Every human-facing AI surface now renders through two shared components on
+[AI Elements](https://ai-sdk.dev/elements) (`components/ai-elements/*`, shadcn
+registry files owned by this repo — `prompt-input` was dropped: it is
+Radix-bound and our primitives are base-ui; the house composers stay):
+
+- **`components/ai/eve-conversation.tsx`** — the ONE renderer for an eve
+  session transcript (Assistant, Agents chat, pod-bot test chat, the read-only
+  Fleet session viewer). Input = the reducer items from
+  **`@hotelclaw/chat-ui/transcript`** (moved out of `lib/fleet/transcript.ts`,
+  which is now a re-export shim, so mobile renders the same event log the
+  same way). It draws: `MessageResponse` (Streamdown — code, math, mermaid,
+  incomplete-markdown repair while tokens stream; `app/globals.css` has the
+  `@source` line for its classes, without which streamed markdown is
+  unstyled), a `Reasoning` disclosure, the grouped `ToolTrace`, inline
+  `render_ui` cards, subagent `Task` runs, **parked questions** (eve
+  `ask_question` → options as `Suggestion` chips + free text when allowed)
+  and **tool approvals** (Approve / Cancel card), a turn-failure note, and
+  copy + 👍/👎 `MessageActions`. The reducer keeps EVERY completed text block
+  of a turn (last-wins once dropped the first half of a two-part answer),
+  handles delta AND legacy cumulative streams, tracks
+  `reasoning.*`, `task.*`, `input.requested/resolved` (with `requestId`,
+  `kind`, `display`, `options`, the gated `action`), and treats
+  `turn.waiting {on:"input"}` as the park boundary (`on:"tasks"` is not).
+  Tests: `lib/fleet/__tests__/transcript.test.ts`.
+- **`hooks/use-eve-session.ts`** — the transport both chats used to duplicate
+  (and had drifted on): headers, create/resume by session id, replay-from-0
+  consume with turn counting, `respond(requestId, {optionId|text})` via
+  `inputResponses` (resumes the SAME turn — consume until its park, not the
+  next one), 409 → fresh session, cancel, retried resume that never discards
+  the stored session on a read failure.
+- **`components/ai/bot-panel-conversation.tsx`** — the renderer for the
+  stateless panel bots that stream AI SDK `UIMessage`s: `Tool` with live
+  state badges, `Reasoning`, `MessageResponse`, thumbs. Used by
+  `task-ai-panel.tsx` and `insights-ask-panel.tsx`, which moved to
+  **`useChat` + `DefaultChatTransport`**. Server side, `lib/ai/run-bot.ts`
+  grew **`streamBot()`** (`streamText` → `toUIMessageStream` →
+  `createUIMessageStreamResponse`, `sendReasoning`, provider errors masked)
+  sharing `prepareBot()` with `runBot()` so the two paths can't drift on
+  persona or tools; `streamTaskBot` / `streamInsightsQaBot` are the twins.
+  Routes accept `UIMessage[]` OR legacy `{role, content}` turns
+  (`lib/ai/ui-messages.ts` → `convertToModelMessages` with incomplete tool
+  calls ignored) and authenticate cookie OR Bearer (`resolveApiCaller`) so
+  mobile hits the same handlers. `refreshPinnedPrompt` still uses the
+  non-streaming bot (cached answers).
+
+**The learning loop — how the AI gets better without anyone curating it:**
+
+1. **Auto-capture** (`apps/agent/agent/lib/auto-capture.ts`, wired as
+   `capture["turn.completed"]` on the PROPERTY memory slot only, so a turn
+   costs one extraction). After every successful eve turn Haiku distils ≤3
+   durable facts from the finished turn — property facts to property memory,
+   a person's corrections/preferences to their person slot — tagged `auto`,
+   importance 1. Guards: idempotent on eve's `operationId` (stamped into
+   `source`, probed with `store.existsBySourceToken`), a cost gate (no model
+   call for short tool-less turns), confidence ≥ 0.75, the recent memories are
+   passed as "already known" so it doesn't re-learn, and it is fail-soft.
+2. **Feedback** (migration 0105 `ai_feedback`): 👍/👎 + optional note on any
+   reply, from every surface, via the `recordAiFeedback` server action or
+   `POST /api/properties/:id/ai-feedback` (mobile, Bearer) — both call
+   `lib/ai/feedback.ts:upsertAiFeedback` (update-or-insert; the unique index is
+   expression-based so PostgREST `onConflict` can't name it).
+3. **Nightly distil + consolidate** — `/api/memory/consolidate` (cron 03:15,
+   `CRON_SECRET`) runs `lib/memory/learn.ts`: `distillFeedback` is
+   DETERMINISTIC (a note becomes a per-person `preference` memory quoting what
+   it was about — the person's own words are the memory; bare thumbs teach
+   nothing and are just marked distilled) and `consolidateMemories` asks Haiku
+   to merge overlapping `auto` memories older than 7 days once a scope holds
+   ≥25 of them, writing `consolidated` facts and soft-forgetting the originals
+   (`superseded_at`, never a hard delete; pinned and member-written memories
+   are never touched). Tests: `lib/memory/__tests__/learn.test.ts`.
+4. **The correction rule** lives in `MEMORY_DISCIPLINE` (`@hotelclaw/memory`),
+   so every tier shares it: when a person corrects the bot or states a
+   standing preference, remember it in the SAME turn and apply it; a recalled
+   memory a person contradicts gets forgotten and re-remembered corrected.
+5. The Memory browser shows the `auto` / `feedback` / `consolidated` tags
+   with hover explanations, so what the AI learned on its own is visible and
+   curatable (pin / forget).
+
+**Mobile is a first-class client of all of this** — see `apps/mobile/AGENTS.md`
+("Assistant + AI on mobile"): the eve channel accepts the Supabase access
+token as a Bearer (`supabaseBearerAuth` in `apps/agent/agent/channels/eve.ts`,
+membership-checked like the cookie path), the phone's `useEveSession` is a
+port of the web hook over `expo/fetch` streaming, and the task assistant reads
+the same UI message stream with a 60-line SSE reader.
+
+**Install gotcha that bit this change (pnpm `node-linker=hoisted`):** after a
+major bump, orphaned OLD copies can linger in nested `node_modules` and win
+Node resolution — `apps/web/node_modules/@ai-sdk/anthropic@3` and
+`node_modules/ai/node_modules/@ai-sdk/gateway@3` both survived a clean
+`pnpm install` and broke `import("ai")` with "does not provide an export
+named createProviderToolFactory…". If an AI SDK import fails with a missing
+provider-utils export, look for a stale nested copy before touching versions.
+
 ## Fleet views — pod-bot transparency + ops (built 2026-07-19, inside the Agents section)
 
 For properties that belong to a client (pod), the Agents section grows a
@@ -418,8 +514,8 @@ pushState exception); components in `components/fleet/*`.
   workspace: owner-editable config (tool allow-list from
   `lib/fleet/tool-catalog.ts` — a MANUAL mirror of
   `apps/agent/agent/tools/pod-tools.ts`, keep both in sync; model tier;
-  persona fallback) with a provenance block (brain playbook path, source
-  binding), beside a live test chat driving the REAL pod bot.
+  persona) with a provenance block (persona source, memory), beside a live
+  test chat driving the REAL pod bot.
   `AgentChat` was parameterized for this: `target: {agentId}|{botSlug}`
   emits `x-hotelclaw-agent` or `x-hotelclaw-bot`; bot targets skip
   `recordAgentSession` (FKs `agents`). Paused pod ⇒ banner + disabled chat
@@ -442,9 +538,8 @@ pushState exception); components in `components/fleet/*`.
   channel post). `trigger_workflow` (actions-MCP) tail-consumes in
   `after()` so workflow parks reach the inbox too. Amber badges: Approvals
   sidebar item + the Agents entry in the rail's More menu.
-- **Brain & access** (`brain-view.tsx`, `actions-api-dialog.tsx`) —
-  server-side gbrain `/health` probe (fail-soft), source binding + secret
-  REF NAME only, isolation copy; plus the Actions API key manager
+- **API access** (`access-view.tsx`, `actions-api-dialog.tsx`, route
+  `/agents/fleet/access`) — the Actions API key manager
   (`api_tokens.allowed_tools` multi-select over
   `lib/mcp/actions-tools.ts:ACTIONS_MCP_TOOLS` — the route's `requireTool`
   is typed against it so registrations can't drift; reveal-once, revoke).
@@ -463,39 +558,148 @@ Eve owns the whole durable-agent slot: long-running, multi-step, approval-gated 
 
 **THINKING INDICATOR IS DB-DRIVEN (2026-07-23):** the bot's "thinking" state is `components/chat/ai-thinking-indicator.tsx` — a row PORTALED into `.str-chat__message-list-scroll` (so it scrolls with the conversation like a real message) that watches `channel_bot_sessions.turn_state` over Supabase Realtime (0078 publication + member SELECT RLS) and therefore spans the WHOLE eve turn; after 25s the copy softens to "Still working on it". Stream `typing.start/stop` is GONE from the bot path (web + runtime) — Stream expires typing client-side after seconds while turns run minutes, and its indicator layout misaligned with the Slack message grid. The row reuses Stream's own avatar classes (`str-chat__avatar--one-letter` etc.) so the avatar matches real bot messages exactly; root `_root` rows only (thread turns + `job:` rows excluded). The artifact side panel is drag-resizable (pointer-captured left-edge handle, 380px–85vw; expand button snaps between ~46vw/~72vw presets).
 
-**READ-BEFORE-EDIT + PANEL FIX (2026-07-23):** `read_document` catalog tool → `/api/internal/documents/read` → `readDocumentBodyHtml` (body_json → `generateHTML` with the writer's extension set) gives the bot FULL faithful-HTML doc bodies — required for surgical edits ("add X to the contacts list"): read → edit the HTML → `update_document(mode: replace)` with everything unchanged preserved (verified live; revision stash still guards the replace). Instructions mandate read-before-edit and forbid "can't read the doc" replies. **RENAME (2026-07-25):** the bot can set a document's RECORD title (separate from the body's `<h1>` — the record title is what shows in lists, artifact cards, and search) via `rename_document(document_id, new_title)` or `update_document`'s optional `new_title` (rename + rewrite in one call). Both go through the internal write route, which grew a title-update branch on the UPDATE path (title-only renames skip `writeDocumentBody` and re-mirror to the brain explicitly via `after(syncDocumentToBrain)`, since no Liveblocks snapshot webhook fires for a pure rename). This closed the gap where the bot wrote titled SOP content into 'Untitled' docs but told the user to rename them in the UI — the persona now forbids that deferral. The artifact side panel is a TRUE LAYOUT SPLIT (2026-07-23): a plain `<aside>` flex sibling of Stream's `<Window>` inside `.str-chat__container` (the same mechanism as the thread panel), so the chat column genuinely compresses — no overlay, no fixed positioning, header = "title · Document|Spreadsheet" + expand toggle + open-full-page + close. It mounts `DocumentEditor` for docs and `SheetEditor` for sheets (artifact `kind` widened to `"document"|"sheet"` in `@hotelclaw/chat-ui`; `update_sheet_cells` posts a sheet artifact card that flips to done/edited). **TASK ARTIFACTS (2026-08-26):** `kind` widened again to include `"task"` — `create_task` posts an artifact card per created task (single post, already `status:"done"` + `action:"created"` with `task_id` + href: a task insert is instant, so there's no writing→done flip and `artifact-auto-open.tsx` deliberately skips task cards — nothing live to watch, and a 9-task turn would pop the panel on task 1). The card opens `TaskRoom` in the side panel via `TaskPanelBody` (artifact-side-panel.tsx), which refetches the `["tasks", propertyId]` list once when the id is missing — that cache has NO realtime invalidation, so a seconds-old bot task isn't in the viewer's stale copy and TaskRoom would wrongly say "no longer available". Eve-build gotcha that bit here: the transform's closure capture is token-naive INCLUDING COMMENTS — a comment saying "document tools" captured the whole `tools` record into `__closureVars` until reworded. Never use the Sheet primitive for this — it hardcodes a blurring overlay and a `data-[side=right]:sm:max-w-sm` (384px) width that custom classes can't override across variant stacks (first cut shipped dimmed + too thin because of this).
+**READ-BEFORE-EDIT + PANEL FIX (2026-07-23):** `read_document` catalog tool → `/api/internal/documents/read` → `readDocumentBodyHtml` (body_json → `generateHTML` with the writer's extension set) gives the bot FULL faithful-HTML doc bodies — required for surgical edits ("add X to the contacts list"): read → edit the HTML → `update_document(mode: replace)` with everything unchanged preserved (verified live; revision stash still guards the replace). Instructions mandate read-before-edit and forbid "can't read the doc" replies. **RENAME (2026-07-25):** the bot can set a document's RECORD title (separate from the body's `<h1>` — the record title is what shows in lists, artifact cards, and search) via `rename_document(document_id, new_title)` or `update_document`'s optional `new_title` (rename + rewrite in one call). Both go through the internal write route, which grew a title-update branch on the UPDATE path (title-only renames skip `writeDocumentBody`; the gbrain-era re-mirror hook is gone — Postgres FTS is the only index). This closed the gap where the bot wrote titled SOP content into 'Untitled' docs but told the user to rename them in the UI — the persona now forbids that deferral. The artifact side panel is a TRUE LAYOUT SPLIT (2026-07-23): a plain `<aside>` flex sibling of Stream's `<Window>` inside `.str-chat__container` (the same mechanism as the thread panel), so the chat column genuinely compresses — no overlay, no fixed positioning, header = "title · Document|Spreadsheet" + expand toggle + open-full-page + close. It mounts `DocumentEditor` for docs and `SheetEditor` for sheets (artifact `kind` widened to `"document"|"sheet"` in `@hotelclaw/chat-ui`; `update_sheet_cells` posts a sheet artifact card that flips to done/edited). **TASK ARTIFACTS (2026-08-26):** `kind` widened again to include `"task"` — `create_task` posts an artifact card per created task (single post, already `status:"done"` + `action:"created"` with `task_id` + href: a task insert is instant, so there's no writing→done flip and `artifact-auto-open.tsx` deliberately skips task cards — nothing live to watch, and a 9-task turn would pop the panel on task 1). The card opens `TaskRoom` in the side panel via `TaskPanelBody` (artifact-side-panel.tsx), which refetches the `["tasks", propertyId]` list once when the id is missing — that cache has NO realtime invalidation, so a seconds-old bot task isn't in the viewer's stale copy and TaskRoom would wrongly say "no longer available". Eve-build gotcha that bit here: the transform's closure capture is token-naive INCLUDING COMMENTS — a comment saying "document tools" captured the whole `tools` record into `__closureVars` until reworded. Never use the Sheet primitive for this — it hardcodes a blurring overlay and a `data-[side=right]:sm:max-w-sm` (384px) width that custom classes can't override across variant stacks (first cut shipped dimmed + too thin because of this).
 
 **ARTIFACTS + LIVE SPLIT-SCREEN (2026-07-23):** document writes are now COLLABORATIVE-GRADE and WATCHABLE. (1) `lib/documents/write-body.ts` writes via ProseMirror TRANSACTIONS (`api.update`), not whole-body `setContent`: append inserts at the live end (concurrent human edits merge via Yjs — no clobber), replace clears once then streams blocks in grouped transactions with pacing — anyone viewing the doc watches it being written. (2) The write tools post an **`app_artifact` Stream attachment** (payload + guard in `@hotelclaw/chat-ui:isAppArtifactAttachment`) the moment the write STARTS (status "writing", deterministic id `eve-artifact-<callId>` so replays dedupe) and flip it to "done" via `partialUpdateMessage` — **`sendMessage` with an existing id DEDUPES, it does NOT update**. (3) `ArtifactCard` (`components/chat/artifact-card.tsx`, wired in `slack-attachment.tsx`) → "Watch live" opens `ArtifactSidePanel` (`artifact-side-panel.tsx`, provider in layout.tsx next to InfoPanelProvider): a wide right Sheet mounting the REAL `DocumentEditor` (self-contained RoomProvider; Liveblocks auth comes from the /p layout) — bot edits stream in live, and the viewer can co-edit. HARNESS GOTCHA: artifact cards are bot messages with EMPTY text — `waitForBotReply` must require non-empty text in its find predicate or it latches onto the card forever.
 
-**CHAT AS CONTROL SURFACE — WRITE TOOLS, PHASE 1 (2026-07-23):** the channel bot can now DO things: `update_task` (status/priority/due/assignee-by-name/title/description — tasks DB triggers fire workflow automations automatically per 0026/0040; the executor mirrors the app's assignment notification), `create_document` + `update_document` (REAL content: sanitized HTML → ProseMirror JSON → Liveblocks `withProsemirrorDocument.setContent` with a custom `getSchema` schema — the library default rejects tables — → Postgres snapshot → immediate brain re-mirror; via the service-bearer endpoint `/api/internal/documents/write` + `lib/documents/write-body.ts`, the seed-demo recipe extracted; `/api/*` bypasses proxy middleware so the route self-authenticates), and `archive_document` (eve `approval: always()` — parks to the fleet Approvals inbox). Verified live: "write the freezer SOP" → 2.7KB doc written + brain-synced + deep link in 30s. **Write-path doctrine (from the 2026-07-23 inventory):** tasks/entities have DB triggers → direct service writes fire automations; docs/bookings/forms/meetings do NOT — doc content must use write-body, bookings must use `createBookingChecked` + `emitWorkflowEvent`, form submits must validate + emit `form.submitted`; notifications = plain insert. Phase 2 (planned): meetings/bookings/forms/notify tools + artifact cards in chat (AI-Elements-style attachment opening a split-screen live doc panel — Liveblocks makes bot edits render live for free).
+**CHAT AS CONTROL SURFACE — WRITE TOOLS, PHASE 1 (2026-07-23):** the channel bot can now DO things: `update_task` (status/priority/due/assignee-by-name/title/description — tasks DB triggers fire workflow automations automatically per 0026/0040; the executor mirrors the app's assignment notification), `create_document` + `update_document` (REAL content: sanitized HTML → ProseMirror JSON → Liveblocks `withProsemirrorDocument.setContent` with a custom `getSchema` schema — the library default rejects tables — → Postgres snapshot; via the service-bearer endpoint `/api/internal/documents/write` + `lib/documents/write-body.ts`, the seed-demo recipe extracted; `/api/*` bypasses proxy middleware so the route self-authenticates), and `archive_document` (eve `approval: always()` — parks to the fleet Approvals inbox). Verified live: "write the freezer SOP" → 2.7KB doc written + deep link in 30s. **Write-path doctrine (from the 2026-07-23 inventory):** tasks/entities have DB triggers → direct service writes fire automations; docs/bookings/forms/meetings do NOT — doc content must use write-body, bookings must use `createBookingChecked` + `emitWorkflowEvent`, form submits must validate + emit `form.submitted`; notifications = plain insert. Phase 2 (planned): meetings/bookings/forms/notify tools + artifact cards in chat (AI-Elements-style attachment opening a split-screen live doc panel — Liveblocks makes bot edits render live for free).
 
-**AUTOMATED TESTS for the AI stack (2026-07-23):** three layers. **(1) Unit/contract** — `pnpm test` (vitest): `lib/brain/__tests__/brain-package.test.ts` (crypto roundtrip/tamper, doc-mirror rendering, `chunkStreamText`, curated-surface schemas, KNOWLEDGE_DISCIPLINE invariants) and `lib/agents/__tests__/agent-runtime-sync.test.ts` — DRIFT GUARDS that read apps/agent source text: every catalog id has an executor gate and vice-versa, channel-bot grants valid, RPCs exist in migrations, the eve transform tripwires (no `const url`/`const cred` in dynamic-tool modules, no captured helper fns), the ChannelEvents keys are all supported hooks, role gates check senderId, fleet mirror in sync. Each guard has a documented incident behind it. **(2) DB integration** — `lib/stream/__tests__/channel-bot-queue.test.ts` (claim atomicity, queue, stale recovery, job-row isolation) against the real dev Supabase; self-skips without env — run with `node --env-file=.env.local node_modules/.bin/vitest run` (vitest aliases `server-only` to a stub). **(3) Live end-to-end** — `bot-chat-test.mjs` gained `parallel` (queue-drain, non-member role-gate refusal, full background-job lifecycle incl. the Stream-side result message). Run `suite`, `stress`, AND `parallel` before claiming channel-bot changes work.
+**AUTOMATED TESTS for the AI stack (2026-07-23):** three layers. **(1) Unit/contract** — `pnpm test` (vitest): `lib/memory/__tests__/memory-package.test.ts` (scope wall against a fake query builder, recall formatting, query extraction, tool contracts, `chunkStreamText`, MEMORY_DISCIPLINE invariants) and `lib/agents/__tests__/agent-runtime-sync.test.ts` — DRIFT GUARDS that read apps/agent source text: every catalog id has an executor gate and vice-versa, channel-bot grants valid, RPCs exist in migrations, the eve transform tripwires (no `const url`/`const cred` in dynamic-tool modules, no captured helper fns), the ChannelEvents keys are all supported hooks, role gates check senderId, fleet mirror in sync. Each guard has a documented incident behind it. **(2) DB integration** — `lib/stream/__tests__/channel-bot-queue.test.ts` (claim atomicity, queue, stale recovery, job-row isolation) against the real dev Supabase; self-skips without env — run with `node --env-file=.env.local node_modules/.bin/vitest run` (vitest aliases `server-only` to a stub). **(3) Live end-to-end** — `bot-chat-test.mjs` gained `parallel` (queue-drain, non-member role-gate refusal, full background-job lifecycle incl. the Stream-side result message). Run `suite`, `stress`, AND `parallel` before claiming channel-bot changes work.
 
 **CONCURRENCY: LOSSLESS QUEUE + BACKGROUND JOBS (2026-07-23, migration 0093):** per the eve docs' prescribed pattern ("keep your own per-session queue in the channel or app layer, then deliver the next message after the session parks again" — execution-model-and-durability.md): the webhook CLAIMS the (channel,thread) turn slot atomically in Postgres (`turn_state`/`turn_started_at`; 10-min stale-claim recovery; the Redis TTL lock is gone) — a message that can't claim is ENQUEUED in `channel_bot_queue`, never dropped, and the runtime's `session.waiting` handler drains the queue into the next turn immediately using the fresh continuation token (self-POST via `drainQueueOrIdle`; the next web turn is the fallback drainer). For heavy work, the channel bot has **`start_background_job`** (catalog tool): spawns a DETACHED eve session per job ("Separate sessions still run independently"), acks instantly, keeps the channel free — N users get N parallel jobs; the job's result is delivered by the same events machinery (kind='job' row, headline-prefixed, top-level). GOTCHA: **Stream silently discards messages over ~5KB** (the send "succeeds", the message never exists) — `deliverReply` chunks long results (4.2KB chunks, continuations as thread replies, deterministic ids `eve-<nonce>-N`). Verified: mid-turn message queued+drained+answered; 19KB job report delivered chunked; suite 9/9, stress 3/3.
 
 **CHANNEL-BOT DELIVERY IS EVENT-DRIVEN (2026-07-23):** the webhook no longer holds a function open reading the session stream — it classifies, queues the eve turn (create/resume + `channel_bot_sessions` upsert stamping `turn_nonce`/`channel_type`, migration 0092), and returns in milliseconds. The eve channel's `events` handlers (`apps/agent/agent/channels/eve.ts` + `agent/lib/channel-delivery.ts`) accumulate the turn durably ON THE ROW (`reply_candidate` from message.completed — last wins; `ui_spec` from a render_ui action.result; `pending_approval` from input.requested) and on `session.waiting` post the reply + ai_ui to Stream (deterministic message id `eve-<nonce>`; `delivered_nonce` guard = replay idempotency), store the fresh continuation token, and release the generation lock (Upstash REST; web acquires it, TTL 180s is the crash fallback). `session.failed` posts the ⚠️ (fail-loud preserved). Scope guard: only sessions with `botSlug: hotelclaw` + `channelId` and no agentId — agent chats, pod bots, delegates keep their existing paths, and fleet decision turns (no nonce re-stamp) never double-post. GOTCHAS: eve's `ChannelEvents` has NO `message.received` hook (the nonce is stamped web-side for this reason), and the harness's reply windows are sized to the turn (90s floor), not a function budget. `consumeTurnStream` remains for pod bots + fleet decision turns only. Turn length is now unbounded — an eve turn can run minutes and the reply still lands.
 
-**CHANNEL BOT IS ON EVE + GBRAIN (2026-07-19):** the webhook + classifiers (`ai-auto-classifier`, engagement) are unchanged, but default-bot GENERATION runs as one durable eve session per (channel, thread) — `lib/stream/channel-bot-eve.ts` → the virtual `hotelclaw` agent (`apps/agent/agent/lib/agent-config.ts:CHANNEL_BOT_SLUG`: synthetic config → catalog property tools + Sonnet) + brain tools (`apps/agent/agent/tools/channel-brain.ts`). Context packing sends only unseen messages; engaged-mode memory IS the session (Redis turn-cache unused on this path); NO coalesce loop (eve sessions are not a message queue — mid-turn messages arrive as unseen context next trigger); the acting principal is the sender when they're a member, else the property's earliest owner/manager (test users aren't members). Eve is the ONLY engine for staff channel chat (2026-07-20: the `EVE_DEV` gate and the not-configured legacy state are both GONE — eve mounts unconditionally in dev and deploys as the Vercel Build Output service in prod). Any eve failure FAILS LOUDLY — visible ⚠️ error message posted to the channel, never a silent fallback. Custom-chatbot **channel deployments ride the same eve session** as the default bot: `channel-bot-eve.ts` sends `x-hotelclaw-channel`, the runtime resolves `chatbot_channel_deployments` in `resolveSessionAgent` (persona + tier swap) and mounts the deployment's knowledge search + `custom_<slug>` tools via `apps/agent/agent/tools/channel-deployment.ts` (executor + crypto ported to `agent/lib/custom-actions.ts` / `action-crypto.ts` — keep in sync with the web guest-side originals), so deployed bots get durable memory, gbrain, and render_ui; changing a channel's deployment resets its `channel_bot_sessions` row so the new persona takes effect immediately. The legacy stateless `runBot()` channel path is deleted; `runBot()` remains for panel bots and guest surfaces only. `render_ui` rich cards work on this path too: the chat-UI catalog lives in the workspace package `@hotelclaw/chat-ui` (zod schemas + spec validation + deep-link resolution; `lib/ai/chat-ui/catalog.ts` is now a re-export shim), the eve tool is `apps/agent/agent/tools/channel-render-ui.ts` (same validation + link discipline, but no sink — the validated spec comes back in the tool RESULT as `ai_ui_spec`), and `consumeTurnStream` (`lib/stream/pod-bot-reply.ts`) collects it from the session stream for `ai-reply.ts` to revalidate and post as the `ai_ui` attachment. Turn attribution gotcha: the session stream replays from index 0 and turn text is boilerplate-identical across turns, so `channel-bot-eve.ts` prefixes each turn message with a `[turn <uuid>]` nonce and uses THAT as the consume needle — a text-prefix needle silently captures an earlier turn's reply (and drops the spec).
+**CHANNEL BOT IS ON EVE + MEMORY (2026-07-19; memory replaced the brain 2026-10-23):** the webhook + classifiers (`ai-auto-classifier`, engagement) are unchanged, but default-bot GENERATION runs as one durable eve session per (channel, thread) — `lib/stream/channel-bot-eve.ts` → the virtual `hotelclaw` agent (`apps/agent/agent/lib/agent-config.ts:CHANNEL_BOT_SLUG`: synthetic config → catalog property tools + Sonnet) + the memory slots (`apps/agent/agent/memory/*`). Context packing sends only unseen messages; engaged-mode memory IS the session (Redis turn-cache unused on this path); NO coalesce loop (eve sessions are not a message queue — mid-turn messages arrive as unseen context next trigger); the acting principal is the sender when they're a member, else the property's earliest owner/manager (test users aren't members). Eve is the ONLY engine for staff channel chat (2026-07-20: the `EVE_DEV` gate and the not-configured legacy state are both GONE — eve mounts unconditionally in dev and deploys as the Vercel Build Output service in prod). Any eve failure FAILS LOUDLY — visible ⚠️ error message posted to the channel, never a silent fallback. Custom-chatbot **channel deployments ride the same eve session** as the default bot: `channel-bot-eve.ts` sends `x-hotelclaw-channel`, the runtime resolves `chatbot_channel_deployments` in `resolveSessionAgent` (persona + tier swap) and mounts the deployment's knowledge search + `custom_<slug>` tools via `apps/agent/agent/tools/channel-deployment.ts` (executor + crypto ported to `agent/lib/custom-actions.ts` / `action-crypto.ts` — keep in sync with the web guest-side originals), so deployed bots get durable memory, gbrain, and render_ui; changing a channel's deployment resets its `channel_bot_sessions` row so the new persona takes effect immediately. The legacy stateless `runBot()` channel path is deleted; `runBot()` remains for panel bots and guest surfaces only. `render_ui` rich cards work on this path too: the chat-UI catalog lives in the workspace package `@hotelclaw/chat-ui` (zod schemas + spec validation + deep-link resolution; `lib/ai/chat-ui/catalog.ts` is now a re-export shim), the eve tool is `apps/agent/agent/tools/channel-render-ui.ts` (same validation + link discipline, but no sink — the validated spec comes back in the tool RESULT as `ai_ui_spec`), and `consumeTurnStream` (`lib/stream/pod-bot-reply.ts`) collects it from the session stream for `ai-reply.ts` to revalidate and post as the `ai_ui` attachment. Turn attribution gotcha: the session stream replays from index 0 and turn text is boilerplate-identical across turns, so `channel-bot-eve.ts` prefixes each turn message with a `[turn <uuid>]` nonce and uses THAT as the consume needle — a text-prefix needle silently captures an earlier turn's reply (and drops the spec).
 
-## Substrate — gbrain (ONE shared brain server, per-property OAuth clients)
+## eve 0.83 runtime contract (upgraded from 0.27 on 2026-10-23)
 
-Fleet v2 topology: ONE `gbrain serve --http` (env `BRAIN_MCP_URL`) — **hosted on Railway as of 2026-07-20** (`https://hotelclaw-brain-production.up.railway.app/mcp`, project `hotelclaw-brain`, Dockerfile-deployed pinned to gbrain#f72de97, `--bind 0.0.0.0` REQUIRED behind Railway's edge, volume at /data for GBRAIN_HOME, all real state in the shared Supabase Postgres so the local CLI/provisioning host and the serve share one brain; dev + prod + preview all point here) —, many sources; **tenant isolation is the OAuth client** (write bound to its source, reads to its federated allow-list — enforced server-side, never in tool args). Per-property resolution (`lib/brain/client.ts:resolvePropertyBrain`): pod properties reuse their client's credential (env ref via `clients` row — Tier-1 captures compound with pod-bot knowledge); other properties use `property_brains` (0078: per-property source + AES-GCM-encrypted OAuth client, provisioned by `scripts/provision-property-brain.mjs` on the brain host). Null ⇒ bots run brainless (fail-soft). The agent runtime mirrors this in `apps/agent/agent/lib/property-brain.ts` (+ `brain-crypto.ts` decrypt mirror — keep derivations in sync).
+`apps/agent` runs **eve 0.83.0** (was 0.27.13 — 56 minor releases; the
+research + decisions are in `docs/ai-layer-eve-0.83.md`). What changed in
+the contract this repo codes against:
 
-**Provisioning lifecycle (every property gets a brain — INCLUDING on Vercel, 2026-07-24):** new app-created properties are auto-provisioned at creation — `bootstrapProperty` (onboarding actions) calls `lib/brain/provision.ts:provisionPropertyBrain`, which provisions **over HTTP** against the shared serve (primary transport, works from Vercel): `sources_add` (MCP `tools/call` with `BRAIN_TOKEN_ADMIN`) → `POST /admin/login` (`GBRAIN_ADMIN_BOOTSTRAP_TOKEN` — set on Railway, Vercel prod/preview, and `.env.local`) → `POST /admin/api/register-client` → `POST /admin/api/rescope-client` (fences the client to the property source; requires the Railway pin ≥ gbrain 69bc37f7 — see `infra/railway-brain-serve/README.md`, the canonical deploy config). A client that fails rescope is NEVER stored (no default-scoped credential can land in `property_brains`). The gbrain-CLI transport survives only as a fallback where the HTTP env vars are absent but `GBRAIN_HOME` exists. Failures are fail-soft and surface as a `createWorkspace` warning; owners can also self-serve via the **Provision now** button on `/p/<pid>/agents/brain` (`components/brain/actions.ts`). Script-seeded or missed properties are reconciled by the sweep: `node --env-file=.env.local scripts/provision-property-brain.mjs --all` (idempotent, HTTP-only, runs from any machine; keep its call shapes in sync with `provision.ts`). Verify with `scripts/brain-provision-http-test.mjs` (serve-flow smoke incl. fence assertions) and `lib/brain/__tests__/provision-http.integration.test.ts` (real module path; self-skips without env). **Prompt honesty contract:** the channel bot's static persona (`agent-config.ts:CHANNEL_BOT_INSTRUCTIONS`) no longer claims a brain; `apps/agent/agent/instructions/dynamic.ts` appends a per-session "Knowledge brain" section for the virtual channel bot stating whether brain tools are actually mounted (binding resolved) or explicitly absent.
+- **Sessions are addressed by durable id only.** `POST /eve/v1/session/:id`
+  with `{message}` OR `{inputResponses}` (exactly one). Continuation tokens are
+  GONE (0.31): the `*continuation_token` columns stay in the schema but nothing
+  reads them. A follow-up that answers `409 session_not_active|stranded`
+  (expired, reset, or built by an older runtime) starts a fresh session —
+  every web caller does this (`channel-bot-eve.ts`, `pod-bot-reply.ts`,
+  `agent-chat.tsx`, `assistant-chat.tsx`).
+- **A question or approval HOLDS THE TURN OPEN (0.70).** The stream emits
+  `input.requested` then `turn.waiting {on:"input"}` and the same turn
+  resumes when a person answers; `session.waiting` fires only when the turn
+  truly ends. The channel's delivery therefore has TWO park points
+  (`agent/channels/eve.ts`: `turn.waiting` on input + `session.waiting`), the
+  transcript reducer unblocks the composer on either, and `consumeTurnStream`
+  / `readSessionTail` treat `turn.waiting` on input as the settle point.
+  `turn.waiting {on:"tasks"}` (subagents still working) is NOT a settle point.
+- **Answers go through `inputResponses`.** The web glue addresses a parked
+  question/approval by `requestId` (a freeform reply rides as `text`); a plain
+  message would STEER the held turn and withdraw the question. Approval
+  options are `approve` / `cancel` (`deny` is pre-0.32; the pod card and
+  decision path map it).
+- **Opt-in tools are authored.** `ask_question`, `no_reply`, `sleep` live in
+  `agent/tools/` (0.65 made `ask_question` opt-in — without the file the
+  persona's "pause and ask" rule silently stops working). `glob`/`grep` slots
+  are deleted (opt-in now; a `disableTool()` on an opt-in slot can fail the
+  build). `bash`/`read_file`/`write_file` stay disabled; `web_fetch`/`web_search`
+  (Anthropic native search on the direct provider) are eve defaults and ON.
+- **Model = dynamic selection object.** `agent.ts` returns
+  `{ model, reasoning, modelOptions }` per step (no compiled fallback since
+  0.33): advanced tier Opus 5 at `reasoning: "medium"`, 1-hour Anthropic
+  prompt-cache TTL on both tiers. Limits are `limits.sessionUsage` (0.82);
+  `experimental.workflow.retention: "default"` keeps finished sessions'
+  transcripts readable (private sessions default to retention 0).
+- **Subagent calls are tasks (0.69).** Every `agent`/declared-subagent call
+  returns a receipt and the turn holds via `turn.waiting {on:"tasks"}` until
+  the result lands; `eve__task_wait`/`eve__task_cancel` appear automatically.
+  Skills load via `eve__skill` (0.76) — the `load-skill` action still reports.
+- **Typecheck the runtime**: `pnpm --filter agent typecheck` (tsconfig added
+  2026-10-23; `types: ["eve/workflow-modules"]`). `eve build` from
+  `apps/agent` compiles the agent (0 diagnostics expected) without needing
+  Vercel/Docker; `eve info` lists tools/schedules.
 
-**Brain insight surface (2026-07-24):** the every-property Brain section (`/p/<pid>/agents/brain`) opens on an overview strip (`components/brain/brain-overview.tsx`, loader `lib/brain/overview.ts` — plain-JSON `BrainOverview` in `lib/brain/shared.ts`, no credentials cross the boundary): provisioning status (per-property / pod-inherited / brainless + owner-only **Provision now** → `provisionBrainAction`), serve `/health` badge, doc-mirror coverage from `documents.brain_synced_at` (synced / awaiting-sync / last sync), knowledge map (page counts by slug namespace from the `list_pages` index the browser already fetched), and a recently-learned list. The overview renders in the detail pane when no page is selected and full-screen when the property is brainless.
+## Substrate — property memory (eve memory slots over Postgres; gbrain retired 2026-10-23)
 
-**Everything brain-shaped is defined ONCE in `packages/brain` (`@hotelclaw/brain`, 2026-07-22):** the MCP transport (OAuth client_credentials + SSE-aware tools/call), the disciplined capture shape (`captureEvidence` — page-if-missing + timeline append, never compiled-truth rewrites), the AES-GCM secret crypto (both apps derive through it — no more mirror files), the curated tool descriptions/schemas, the `KNOWLEDGE_DISCIPLINE` instruction text, and the doc-mirror helpers. `lib/brain/client.ts` and `apps/agent/agent/lib/gbrain-http.ts` are thin wrappers over it; eve executors stay INLINE (replay constraint) but import descriptions/schemas.
+Memory is an **eve first-class slot** (`defineMemory` + a custom
+`defineMemoryProvider`, docs/memory/custom-provider) over the app's own
+Postgres — **no second server, no OAuth clients, no provisioning, no document
+mirror**. The gbrain Railway serve, `property_brains` provisioning, the doc
+mirror cron, `packages/brain`, and `infra/` are gone; the `brain_*` columns
+remain in the schema unused.
 
-**Tool surface is CURATED, not MCP discovery** (descriptions in `@hotelclaw/brain`; the serve exposes ~100 ops, bots get FIVE): `brain_search` (cheap hybrid), `brain_get` (full page by slug — search returns chunks), `brain_list` (enumeration, slug-prefix filter, newest first), `brain_think` (synthesized answer + citations + gap analysis; expensive), `brain_capture` (append durable evidence; compiled truth stays human/dream-cycle territory). Pod `brain_write` uses the same capture shape as of 2026-07-22 (no more whole-page overwrites). Deterministic capture writers also feed the brain: meeting summaries (`lib/meetings/summarize.ts` → `operations/meetings`), accepted triage routings (suggestions route → `operations/triage-routing`), workflow `gbrain.capture` steps, and the guest side-channel. Brain failures are structured telemetry (`lib/brain/telemetry.ts`, `[brain:*]` log lines) — never bare `catch {}`.
-
-**DOCUMENTS ARE MIRRORED INTO THE BRAIN (2026-07-22, the SOP-incident fix):** every active document becomes page `documents/<id>` in the property's source — `lib/brain/doc-sync.ts` (100% deterministic `put_page`; body + sheet text + extracted attachment text; deep link built in code), triggered by the Liveblocks snapshot webhook (`after()`) and reconciled by the nightly cron `/api/brain/sync-documents` (03:30, cursor `documents.brain_synced_at`, migration 0088); archive → `delete_page`. Postgres stays canonical — the brain page is a rebuildable index. **File attachments are text-extracted** (migration 0089: `document_attachment_texts` + `documents.attachments_text` at FTS weight C; `lib/documents/attachment-text.ts`, unpdf for PDFs, upload-route `after()` + `scripts/backfill-attachment-texts.mjs`) so PDF SOPs are searchable and brain-visible too. Smoke: `node --env-file=.env.local --no-network-family-autoselection scripts/brain-doc-sync-test.mjs`.
-
-**Brain lifecycle jobs** (gbrain doctrine: sync+embed, daily doctor, nightly dream — "the brain slowly rots" without them) are `localOnly` ops that must run ON the Railway brain host: `scripts/brain-maintenance.sh sync|doctor|dream` is the ready-to-wire runbook (NOT yet scheduled on Railway — do this when touching the brain deployment).
-
-**Knowledge discipline + retrieval ladder (2026-07-22):** every bot tier gets the shared `KNOWLEDGE_DISCIPLINE` standing rules (three source kinds — Documents = authored truth, brain = institutional memory + doc mirror, app tools = live records; check EVERY relevant surface before answering; an empty result speaks only for its source; never assert non-existence until all surfaces returned empty; cite `[brain: <source>/<slug>]` / doc titles). The full procedure is the eve skill `apps/agent/agent/skills/knowledge-lookup.md` (progressive disclosure). The channel bot's tool surface now covers the once-dark domains: `search_tasks` (FTS incl. done, migration 0090), `list_documents`, `list_meetings` (past+future), `list_bookings` (any window), `search_chat_messages` (Stream search, scoped to the SENDER's channels), `list_forms` + `get_form_response_summaries`, `guest_conversation_insights`, and role-gated cached-report readers `get_insight_brief`/`get_weekly_report`/`list_handovers` — these check the REAL sender's membership (`x-hotelclaw-sender` header → `senderId` attribute) so the owner-fallback acting principal can never leak management surfaces to non-member/staff senders. Property profiles (onboarding answers) are injected into every session's context in `instructions/dynamic.ts`.
-
-**Guests never get brain tools** (injection/exfiltration risk): `lib/brain/guest-profile.ts` prefetches the guest's profile page (`guests/<sha-hash>` of phone/email) server-side into the guest-bot prompt, and captures deterministically from `save_guest_details` (fixed shape, no model freetext).
+- **ONE implementation, two runtimes:** `packages/memory` (`@hotelclaw/memory`)
+  owns the store (`createMemoryStore(db)` over any supabase-shaped client:
+  search → `search_agent_memories` FTS RPC → word fallback; pinned; recent;
+  remember (dedupes identical content); forget = soft-retire via
+  `superseded_at`; `listProperty` for the browser), the tool contracts
+  (`memoryToolDescriptions/Schemas`: remember / forget / search), recall
+  formatting (`formatRecall`), the turn-query extractor
+  (`recallQueryFromInput` strips the channel bot's `[turn…]`/`[Now…]`/
+  `[Activation…]` framing), scopes (`propertyScope`, `userScope`,
+  `guestScope` — guest subject ids are sha256 hashes of phone/email), and the
+  `MEMORY_DISCIPLINE` standing rules. `chunkStreamText` moved to
+  `@hotelclaw/chat-ui`.
+- **Data** (migration 0104): `agent_memories` (property_id, `subject_kind`
+  property|user|guest, `subject_id`, `kind` fact|preference|event|outcome|
+  playbook, content ≤2000, source, tags, importance, `pinned`, created_via
+  agent|app|member|import, `superseded_at`, generated `tsv`, reserved
+  `embedding vector(1536)`), member SELECT via `is_member`, writes service-only;
+  `search_agent_memories(...)` is security-definer and granted to service_role
+  only. `agent_memory_documents` is reserved (unused).
+- **Runtime** (`apps/agent/agent/memory/property.ts`, `person.ts` →
+  `lib/memory-provider.ts`): scope = `[propertyId]` / `[propertyId, person]`
+  from VERIFIED auth attributes (`senderId` when the channel bot acts as a
+  fallback principal); `null` scope ⇒ no slot (subagent children, bare
+  sessions). eve recalls at `turn.started` — pinned core facts + up to 8
+  relevance hits as ONE user-role message with a stable id
+  (`<slot>:recall`, superseded each turn, never stacked) — re-recalls pinned
+  facts after compaction, and mounts `property__remember / __forget /
+  __search` + `person__…` (tool executors close over plain strings only —
+  eve build-transform rule). Pod bots get the same slots; `brain_query/
+  brain_write/playbook` are gone and the pod persona is `bots.persona_fallback`.
+- **Web:** `lib/memory/store.ts` (`memoryStore()`, `rememberForProperty` for
+  deterministic writers, `memoryContextLines` prefetch), `lib/memory/tools.ts`
+  (`buildMemoryTools` → `property__search/remember/forget` for every
+  `runBot()` surface; single-turn bots get no automatic recall, so the prompt
+  tells them to search), `lib/memory/guest-profile.ts` (guest side-channel:
+  prefetch into the guest prompt, deterministic `captureGuestDetails`; guests
+  NEVER get memory tools). Deterministic writers: meeting summaries (`event`),
+  accepted triage routings (`outcome`), the workflow step
+  `action.gbrain.capture` (id kept for saved workflows → `rememberForProperty`),
+  the pod outcomes hook. Automation suggestions and triage prefetch memory
+  context instead of calling a brain.
+- **UI:** Agents → **Memory** (`/p/<pid>/agents/memory`,
+  `components/memory/memory-browser.tsx` + `actions.ts`, API
+  `GET /api/properties/[propertyId]/memory`): counts per subject kind, search,
+  grouped listing, owner/manager curation (add a fact, pin = recalled every
+  turn, forget). The agent editor's resolved-config panel shows memory as
+  always-on; the fleet page `/agents/fleet/access` keeps the Actions API keys.
+- **Verify** (`pnpm test`): `lib/memory/__tests__/memory-package.test.ts`
+  (scope wall against a fake builder, recall formatting, query extraction,
+  tool contracts) + `agent-runtime-sync.test.ts` guards (memory slots scope
+  from auth attributes, provider executors capture strings only,
+  `turn.waiting` registered, opt-in tools authored). Live:
+  `bot-capability-test.mjs --only action/memory-remember` asserts the row in
+  `agent_memories`. The classifier capability map no longer lists memory —
+  recall is automatic, so auto mode doesn't need to "volunteer" it.
+- **Knowledge discipline + retrieval ladder:** every bot tier gets
+  `MEMORY_DISCIPLINE` (three source kinds — Documents = authored truth,
+  memory = recalled + searchable institutional memory, app tools = live
+  records; check every surface before asserting absence; cite
+  `[memory #id]` / doc titles). The procedure is the eve skill
+  `apps/agent/agent/skills/knowledge-lookup.md` (step 0: read the recalled
+  block). `search_tasks`, `list_documents`, `list_meetings`, `list_bookings`,
+  `search_chat_messages`, forms/handover/insight readers are unchanged.
+- **What we deliberately did NOT adopt (see the report):** Vercel Drives as
+  the knowledge store (sandbox-mount only — a Next.js route cannot read or
+  write a Drive; single read-write mount; Postgres is already canonical and
+  no sandbox is ever opened by these agents today, so Drives would add cost
+  for a worse search), Vercel Daemons (no persistent storage, no previews,
+  cannot attach to a project rooted at `apps/web`), computer-use/browser
+  extensions (need a prepared apt image; no ops use case yet), and
+  `fileMemory()` on Blob (per-scope 4 KB document — too small for a property's
+  institutional memory; our Postgres provider is the documented alternative).
 
 ## The boundary in one sentence
 

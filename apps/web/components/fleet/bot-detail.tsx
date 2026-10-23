@@ -38,7 +38,6 @@ type BotRow = {
  */
 export function BotDetail({
   propertyId,
-  propertySlug,
   client,
   bot,
   canEdit,
@@ -246,10 +245,9 @@ export function BotDetail({
           <section className="flex flex-col gap-2">
             <Eyebrow>Fallback persona</Eyebrow>
             <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
-              The bot&apos;s real persona lives in the pod&apos;s knowledge
-              brain and is resolved fresh each session. This fallback applies
-              only when the brain is unreachable or the playbook is unseeded —
-              degradation, not the primary voice.
+              The persona the bot runs with. It is resolved fresh each session,
+              and property memory (Agents → Memory) is recalled on top of it
+              every turn — put standing facts there, not in the persona.
             </p>
             <Textarea
               value={personaFallback}
@@ -268,12 +266,10 @@ export function BotDetail({
             <Eyebrow>Provenance</Eyebrow>
             <dl className="grid max-w-2xl grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-sm">
               <dt className="text-xs text-muted-foreground">Persona source</dt>
-              <dd className="truncate font-mono text-xs">
-                playbooks/{propertySlug || "<property>"}/{bot.bot_id}.md
-              </dd>
-              <dt className="text-xs text-muted-foreground">Brain source</dt>
-              <dd className="truncate font-mono text-xs">
-                {client.brain_source || "—"}
+              <dd className="text-xs">the persona configured above (bots.persona_fallback)</dd>
+              <dt className="text-xs text-muted-foreground">Memory</dt>
+              <dd className="text-xs">
+                property memory, recalled every turn — browse it under Agents → Memory
               </dd>
               <dt className="text-xs text-muted-foreground">Chat address</dt>
               <dd className="truncate font-mono text-xs">@{bot.bot_id} in any channel</dd>

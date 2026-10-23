@@ -164,19 +164,8 @@ async function main() {
       bad("no placeholder in the deliverable", finished.body_text.slice(0, 200));
     } else ok("no placeholder in the deliverable");
   } finally {
-    try {
-      const { resolvePropertyBrain, callBrainTool } = await import(
-        "../lib/brain/client.ts"
-      );
-      const binding = await resolvePropertyBrain(ch.property_id);
-      if (binding) {
-        await callBrainTool(binding, "delete_page", { slug: `documents/${doc.id}` });
-      }
-    } catch {
-      /* best effort */
-    }
     await sb.from("documents").delete().eq("id", doc.id);
-    console.log("\n(test doc + brain mirror cleaned up)");
+    console.log("\n(test doc cleaned up)");
   }
 }
 

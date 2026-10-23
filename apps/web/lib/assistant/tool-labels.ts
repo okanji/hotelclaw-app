@@ -53,7 +53,11 @@ const LABELS: Record<string, string> = {
   list_workflows: "Listed workflows",
   trigger_workflow: "Ran a workflow",
   // Knowledge
-  brain_search: "Searched the knowledge brain",
+  property__search: "Searched property memory",
+  property__remember: "Saved to property memory",
+  property__forget: "Retired a memory",
+  person__search: "Checked your notes",
+  person__remember: "Noted a preference",
   brain_get: "Opened a brain page",
   brain_list: "Browsed the brain",
   brain_think: "Reasoned over the brain",

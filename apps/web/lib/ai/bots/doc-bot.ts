@@ -9,7 +9,7 @@ import "server-only";
  *   - "Who last edited this and when?"
  *
  * Persona + doc-scoped tools (get_document, list_doc_threads) plus the
- * runtime's shared gbrain + delegate tools. Document body comes from
+ * runtime's shared memory + delegate tools. Document body comes from
  * the Supabase `documents` table — the Liveblocks webhook keeps
  * `body_text` synced via lib/documents/snapshot.ts (≤60s freshness),
  * so the bot reads what the user sees without a Yjs round-trip.

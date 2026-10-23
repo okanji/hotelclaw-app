@@ -1,0 +1,11 @@
+{
+  "name": "@hotelclaw/memory",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Property memory — the eve-native replacement for the gbrain server. ONE implementation of the memory store (Supabase Postgres: agent_memories + search_agent_memories RPC), the model-facing tool contracts (remember / forget / search), recall formatting, and the MEMORY_DISCIPLINE standing rules. Shared by apps/web (Tier-1 bots, guest profile side-channel, deterministic capture writers, the Memory browser) and apps/agent (the eve memory provider behind agent/memory/*). Ships TS source: apps/web transpiles via next.config transpilePackages, eve's bundler handles it natively. Keep it dependency-free apart from zod (node builtins allowed); NO react, NO server-only, NO supabase import — callers pass their own client.",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

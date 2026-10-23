@@ -2,7 +2,7 @@ import "server-only";
 import { runBot, tool, z, type ToolSet } from "@/lib/ai/run-bot";
 import type { RunnerImpl } from "./types";
 
-// Every AI step runs through runBot() — uniform model settings, gbrain auto-
+// Every AI step runs through runBot() — uniform model settings, memory auto-
 // injection, and step-count guards. For structured-output variants we inject
 // an `emit_*` tool whose Zod schema constrains the model's output; the tool's
 // execute() captures the args into a closure we read after runBot returns.
@@ -312,7 +312,7 @@ export const aiFreeformRunner: RunnerImpl<FreeformConfig, { text: string }> = as
   const content = data ? `${instructions}\n\nInput:\n${data}` : instructions;
 
   // Tool subsetting is deferred — v1 freeform agents get the runtime's default
-  // tool surface (gbrain + delegate via runBot). When we wire surface-specific
+  // tool surface (memory + delegate via runBot). When we wire surface-specific
   // tools (e.g. task tools, doc tools) we'll filter by config.tools here.
   const result = await runBot({
     persona: config.persona?.trim() || DEFAULT_FREEFORM_PERSONA,
