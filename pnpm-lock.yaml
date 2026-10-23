@@ -168,8 +168,8 @@ importers:
         specifier: 0.10.1
         version: 0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       stream-chat-expo:
-        specifier: ^9.7.6
-        version: 9.10.1(1ac2bb38fdd170264e08271ca54efbd8)
+        specifier: 9.7.6
+        version: 9.7.6(3a9cf81ead72aff15778c272a099acb4)
     devDependencies:
       '@types/react':
         specifier: ~19.2.2
@@ -460,8 +460,8 @@ importers:
         specifier: 9.47.1
         version: 9.47.1
       stream-chat-react:
-        specifier: '14'
-        version: 14.14.1(@breezystack/lamejs@1.2.7)(@emoji-mart/data@1.2.1)(@types/react@19.2.18)(emoji-mart@5.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(stream-chat@9.47.1)(typescript@5.9.3)
+        specifier: 14.2.0
+        version: 14.2.0(@breezystack/lamejs@1.2.7)(@emoji-mart/data@1.2.1)(@emoji-mart/react@1.1.1(emoji-mart@5.6.0)(react@19.2.3))(@types/react@19.2.18)(emoji-mart@5.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(stream-chat@9.47.1)(typescript@5.9.3)
       streamdown:
         specifier: ^2.7.1
         version: 2.7.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1192,6 +1192,9 @@ packages:
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
+  '@braintree/sanitize-url@6.0.4':
+    resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
+
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
 
@@ -1716,8 +1719,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@gorhom/bottom-sheet@5.2.14':
-    resolution: {integrity: sha512-uLQFlDjp9z+jrOFcMSEldPqL5JdaXL3vXOh+juhwoNvXgTsEorJLjHTugXu+YccAG/0KJnShzKCrb71MHBsvJg==}
+  '@gorhom/bottom-sheet@5.2.9':
+    resolution: {integrity: sha512-YwieCsEnTQnN2QW4VBKfCGszzxaw2ID7FydusEgqo7qB817fZ45N88kptcuNwZFnnauCjdyzKdrVBWmLmpl9oQ==}
     peerDependencies:
       '@types/react': '*'
       '@types/react-native': '*'
@@ -2039,15 +2042,6 @@ packages:
 
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
-
-  '@khanacademy/perseus-utils@2.1.5':
-    resolution: {integrity: sha512-QZIGpnrwXCH13KR3FK+804+xc3gJGNrj51+D2zj6s2kF0V9H4xgW4XIcPPaN8R0eLW0b5y5Xw/oKW2v/LNB9OQ==}
-
-  '@khanacademy/simple-markdown@2.2.3':
-    resolution: {integrity: sha512-SBReq8B9bzdXJ8ts7TH1/R7TAxQBYCVjISjDYPwiq9Hv04kMJg9zIWPCbfzU8T/LHFsyZLqLBvk8NejUgf/HWw==}
-    peerDependencies:
-      react: 19.2.3
-      react-dom: 19.2.3
 
   '@kurkle/color@0.3.4':
     resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
@@ -3481,17 +3475,6 @@ packages:
       '@stream-io/openai-realtime-api':
         optional: true
 
-  '@stream-io/state-store@1.1.6':
-    resolution: {integrity: sha512-4jZ7vub9EBh+zrNsA8cyW/4U2EuiCkO3T9FgZrbgorO2iBE4k8gP9GAl6w8Ikv+ZcO5jR53CeG+AA48UG3LOVQ==}
-    peerDependencies:
-      react: 19.2.3
-      use-sync-external-store: ^1.5.0
-    peerDependenciesMeta:
-      react:
-        optional: true
-      use-sync-external-store:
-        optional: true
-
   '@stream-io/transliterate@1.5.5':
     resolution: {integrity: sha512-r6Qp0HylAZhHNWHxU1nGfRI2Dtkbs1iqLCnOp1bvKhv8yj0/sEUigN0dk0LGPbE4I7zDO3tppyd7PaTPBvvJkg==}
     engines: {node: '>=12'}
@@ -4205,9 +4188,6 @@ packages:
 
   '@types/node@24.19.2':
     resolution: {integrity: sha512-93d49wCWJkCyN87MxLpNN6KXPCwFw7bVUg79mGUV1OS40JGWwVCr8n61DXCSqz7CV6/VfPkb7xec7uP2M+QHWQ==}
-
-  '@types/prismjs@1.26.6':
-    resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -6479,9 +6459,6 @@ packages:
   fastq@1.20.3:
     resolution: {integrity: sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw==}
 
-  fault@1.0.4:
-    resolution: {integrity: sha512-CJ0HCB5tL5fYTEA7ToAq5+kTwd++Borf1/bifxd9iT70QcXr4MRrO3Llf8Ifs70q+SJcGHFtnIE/Nw6giCtECA==}
-
   fb-dotslash@0.5.8:
     resolution: {integrity: sha512-XHYLKk9J4BupDxi9bSEhkfss0m+Vr9ChTrjhf9l2iw3jB5C7BnY4GVPoMcqbrTutsKJso6yj2nAB6BI/F2oZaA==}
     engines: {node: '>=20'}
@@ -6601,10 +6578,6 @@ packages:
   form-data@4.0.6:
     resolution: {integrity: sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==}
     engines: {node: '>= 6'}
-
-  format@0.2.2:
-    resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
-    engines: {node: '>=0.4.x'}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -6900,9 +6873,6 @@ packages:
   hermes-parser@0.36.1:
     resolution: {integrity: sha512-GApNk4zLHi2UWoWZZkx7LNCOSzLSc5lB55pZ/PhK7ycFeg7u5LcF88p/WbpIi1XUDtE0MpHE3uRR3u3KB7TjSQ==}
 
-  highlight.js@10.7.3:
-    resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
-
   highlight.js@11.11.2:
     resolution: {integrity: sha512-oaXMACAU0kzOMXBjWpNcX+vlwSBCIAiZ9BHa7gA15NOTtT2L/l8OSZDuqS2XppOhZBPJ7hm4o8ep2kyuip2uEQ==}
     engines: {node: '>=12.0.0'}
@@ -6910,9 +6880,6 @@ packages:
   highlight.js@11.12.0:
     resolution: {integrity: sha512-nbfWpyRMcMrPMmDwJB+dhX/eiaPKtc2RB+0QZskqJ3WjRA/FDS0e9hZrx8EC/lbEv8gXy98FcDbNa/dspAaJMg==}
     engines: {node: '>=12.0.0'}
-
-  highlightjs-vue@1.0.0:
-    resolution: {integrity: sha512-PDEfEF102G23vHmPhLyPboFCD+BkMGu+GuJe2d9/eH4FsCwvgBpnc9n0pGE+ffKdph38s6foEZiEjdgHdzp+IA==}
 
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
@@ -7694,9 +7661,6 @@ packages:
   lowercase-keys@3.0.0:
     resolution: {integrity: sha512-ozCC6gdQ+glXOQsveKD0YsDy8DSQFjDTz4zyzEHNV5+JP5D62LmfDZ6o1cycFx9ouG940M5dE8C8CTewdj2YWQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
-  lowlight@1.20.0:
-    resolution: {integrity: sha512-8Ktj+prEb1RoCPkEOrPMYUN/nCggB7qAWe3a7OpMjWQkh3l2RD5wKRQ+o8Q8YuI9RG/xs95waaI/E6ym/7NsTw==}
 
   lowlight@3.3.0:
     resolution: {integrity: sha512-0JNhgFoPvP6U6lE/UdVsSq99tn6DhjjpAj5MxG49ewd2mOBVtwWYIT8ClyABhq198aXXODMU6Ox8DrGy/CpTZQ==}
@@ -8669,10 +8633,6 @@ packages:
     resolution: {integrity: sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA==}
     engines: {node: '>=18'}
 
-  prismjs@1.30.0:
-    resolution: {integrity: sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==}
-    engines: {node: '>=6'}
-
   proc-log@4.2.0:
     resolution: {integrity: sha512-g8+OnU/L2v+wyiVK+D5fA34J7EH8jZ8DDlvwhRCMxmMj7UCBvxiO1mGeN+36JXIKF4zevU4kRBd8lVgG9vLelA==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -9029,12 +8989,6 @@ packages:
       '@types/react':
         optional: true
 
-  react-syntax-highlighter@16.1.2:
-    resolution: {integrity: sha512-4dM0+mYtfnhgwYWAvFx56fgyjIYk2yFopfiICFvMDhRfeSGRNd+ngFALdPD9q7llyGAmiE6pzOSOwI8Lf9ca1w==}
-    engines: {node: '>= 16.20.2'}
-    peerDependencies:
-      react: 19.2.3
-
   react-textarea-autosize@8.5.9:
     resolution: {integrity: sha512-U1DGlIQN5AwgjTyOEnI1oCcMuEr1pv1qOtklB2l4nyMGbHzWrI0eFsYK0zos2YWqAolJyG0IWJaqWmWj5ETh0A==}
     engines: {node: '>=10'}
@@ -9089,9 +9043,6 @@ packages:
   reflect.getprototypeof@1.0.10:
     resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
     engines: {node: '>= 0.4'}
-
-  refractor@5.0.0:
-    resolution: {integrity: sha512-QXOrHQF5jOpjjLfiNk5GFnWhRXvxjUVnlFxkeDmewR5sXkr3iM46Zo+CnRR8B+MDVqkULW4EcLVcRBNOPXHosw==}
 
   regenerate-unicode-properties@10.3.0:
     resolution: {integrity: sha512-9ns8odR8e9q3otKeHj3DE80jZYKg6zVeZKE+zQmRKXFoVUcuiTGeO6iusDhPRoIQQPVPRvH+SfBhrTud4eczuw==}
@@ -9596,10 +9547,9 @@ packages:
     resolution: {integrity: sha512-uyQK/mx5QjHun80FLJTfaWE7JtwfRMKBLkMne6udYOmvH0CawotVa7TfgYHzAnpphn4+TweIx1QKMnRIbipmUg==}
     engines: {node: '>= 0.10.0'}
 
-  stream-chat-expo@9.10.1:
-    resolution: {integrity: sha512-jwGjzG8e2lUkGoELRdUgf3NMvWBLvCwFrFWYeqSo2C3j7RvcvOyMK1HGYYDiIwIxAHEzU0OhiPPdT22nI4mJsg==}
+  stream-chat-expo@9.7.6:
+    resolution: {integrity: sha512-Bp+KaAVlXv/LvDvc5o0dp530MH+7q5k6hnXaX70kamZJgPPlF6S/bRxhivqeRBOai3aWkKLi96fKboRboC8vBQ==}
     peerDependencies:
-      '@shopify/react-native-skia': '>=2.0.0'
       expo: '>=52.0.0'
       expo-audio: '*'
       expo-av: '*'
@@ -9613,10 +9563,7 @@ packages:
       expo-sharing: '*'
       expo-video: '*'
       react-native: '>=0.76.0'
-      victory-native: '>=41.0.0'
     peerDependenciesMeta:
-      '@shopify/react-native-skia':
-        optional: true
       expo-audio:
         optional: true
       expo-av:
@@ -9639,17 +9586,14 @@ packages:
         optional: true
       expo-video:
         optional: true
-      victory-native:
-        optional: true
 
-  stream-chat-react-native-core@9.10.1:
-    resolution: {integrity: sha512-cjyiY/ggBemdvqlqLq9zeLXAeFyq0hrW2XdML8r/67Xw2+KBwTb+aXvikfTLH0bb9LguEu+gpP1AZ7wMmEugjQ==}
+  stream-chat-react-native-core@9.7.6:
+    resolution: {integrity: sha512-lLg1hx9K1nV6kRBpJUsmcM4arkz9zOhTdoZL4EbGCBE3zBdqL/OG8PVX05q9Q2E4w6DmYtLzdWGFuY5tkD85qQ==}
     peerDependencies:
       '@emoji-mart/data': '>=1.1.0'
       '@op-engineering/op-sqlite': '>=14.0.0'
       '@react-native-community/netinfo': '>=11.3.1'
       '@shopify/flash-list': '>=2.1.0'
-      '@shopify/react-native-skia': '>=2.0.0'
       emoji-mart: '>=5.4.0'
       react-native: '>=0.76.0'
       react-native-gesture-handler: '>=2.18.0'
@@ -9657,7 +9601,6 @@ packages:
       react-native-safe-area-context: '>=5.4.1'
       react-native-svg: '>=15.8.0'
       react-native-teleport: '>=0.5.4'
-      victory-native: '>=41.0.0'
     peerDependenciesMeta:
       '@emoji-mart/data':
         optional: true
@@ -9665,18 +9608,15 @@ packages:
         optional: true
       '@shopify/flash-list':
         optional: true
-      '@shopify/react-native-skia':
-        optional: true
       emoji-mart:
         optional: true
-      victory-native:
-        optional: true
 
-  stream-chat-react@14.14.1:
-    resolution: {integrity: sha512-3eYxnIryYnS5wtBm68vvkyJ0RnQRtTyIv1pr5f4JkuZ1+oaPkwAJdZewdKusYGHbDzfET4RTdmnvTeQcXkSNDg==}
+  stream-chat-react@14.2.0:
+    resolution: {integrity: sha512-30XHrOoevUrpCWemvRHIThjOcAODu7iY2i5yVMSAXX4Qwntcacp9cxdNUiQlMhq+KuolcGaxEVz0ySxIpauYCw==}
     peerDependencies:
       '@breezystack/lamejs': ^1.2.7
       '@emoji-mart/data': ^1.1.0
+      '@emoji-mart/react': ^1.1.0
       emoji-mart: ^5.4.0
       modern-normalize: ^3.0.1
       react: 19.2.3
@@ -9686,6 +9626,8 @@ packages:
       '@breezystack/lamejs':
         optional: true
       '@emoji-mart/data':
+        optional: true
+      '@emoji-mart/react':
         optional: true
       emoji-mart:
         optional: true
@@ -9973,6 +9915,9 @@ packages:
 
   ts-morph@26.0.0:
     resolution: {integrity: sha512-ztMO++owQnz8c/gIENcM9XfCEzgoGphTv+nKpYNM1bgsdOVC/jRZuEBf6N+mLLDNg68Kl+GgUZfOySaRiG1/Ug==}
+
+  ts-pattern@5.9.2:
+    resolution: {integrity: sha512-qAf+7M7Jjk7uebZeIo9uEzyintfuRtgHdzM9dqxRKcMi2dt76Ec+FH2wW3bnU9TuGLkZIJLoLs7cCQnU7Tu8ig==}
 
   tsconfig-paths@3.15.0:
     resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
@@ -11484,6 +11429,8 @@ snapshots:
 
   '@borewit/text-codec@0.2.2': {}
 
+  '@braintree/sanitize-url@6.0.4': {}
+
   '@braintree/sanitize-url@7.1.2': {}
 
   '@breezystack/lamejs@1.2.7': {}
@@ -12146,7 +12093,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@gorhom/bottom-sheet@5.2.14(@types/react@19.2.18)(react-native-gesture-handler@2.32.0(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)':
+  '@gorhom/bottom-sheet@5.2.9(@types/react@19.2.18)(react-native-gesture-handler@2.32.0(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@gorhom/portal': 1.0.14(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       invariant: 2.2.4
@@ -12364,14 +12311,6 @@ snapshots:
   '@juggle/resize-observer@3.4.0': {}
 
   '@keyv/serialize@1.1.1': {}
-
-  '@khanacademy/perseus-utils@2.1.5': {}
-
-  '@khanacademy/simple-markdown@2.2.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
-    dependencies:
-      '@khanacademy/perseus-utils': 2.1.5
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
 
   '@kurkle/color@0.3.4': {}
 
@@ -13718,9 +13657,7 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.86.2': {}
 
@@ -13964,11 +13901,6 @@ snapshots:
       '@types/jsonwebtoken': 9.0.10
       '@types/node': 18.19.130
       jsonwebtoken: 9.0.3
-
-  '@stream-io/state-store@1.1.6(react@19.2.3)(use-sync-external-store@1.7.0(react@19.2.3))':
-    optionalDependencies:
-      react: 19.2.3
-      use-sync-external-store: 1.7.0(react@19.2.3)
 
   '@stream-io/transliterate@1.5.5':
     dependencies:
@@ -14727,8 +14659,6 @@ snapshots:
   '@types/node@24.19.2':
     dependencies:
       undici-types: 7.24.6
-
-  '@types/prismjs@1.26.6': {}
 
   '@types/react-dom@19.3.0(@types/react@19.2.18)':
     dependencies:
@@ -16916,7 +16846,7 @@ snapshots:
       '@next/eslint-plugin-next': 16.2.6
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.5(jiti@2.7.0))
@@ -16939,7 +16869,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3(supports-color@8.1.1)
@@ -16954,14 +16884,29 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0)):
+    dependencies:
+      '@nolyfill/is-core-module': 1.0.39
+      debug: 4.4.3(supports-color@8.1.1)
+      eslint: 9.39.5(jiti@2.7.0)
+      get-tsconfig: 4.14.3
+      is-bun-module: 2.0.0
+      stable-hash: 0.0.5
+      tinyglobby: 0.2.17
+      unrs-resolver: 1.12.2
+    optionalDependencies:
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@6.0.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+    transitivePeerDependencies:
+      - supports-color
+
+  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -16996,7 +16941,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
       hasown: 2.0.4
       is-core-module: 2.17.0
       is-glob: 4.0.3
@@ -17650,10 +17595,6 @@ snapshots:
     dependencies:
       reusify: 1.1.0
 
-  fault@1.0.4:
-    dependencies:
-      format: 0.2.2
-
   fb-dotslash@0.5.8: {}
 
   fb-watchman@2.0.4:
@@ -17783,8 +17724,6 @@ snapshots:
       es-set-tostringtag: 2.1.0
       hasown: 2.0.4
       mime-types: 2.1.35
-
-  format@0.2.2: {}
 
   forwarded@0.2.0: {}
 
@@ -18147,13 +18086,9 @@ snapshots:
     dependencies:
       hermes-estree: 0.36.1
 
-  highlight.js@10.7.3: {}
-
   highlight.js@11.11.2: {}
 
   highlight.js@11.12.0: {}
-
-  highlightjs-vue@1.0.0: {}
 
   hoist-non-react-statics@3.3.2:
     dependencies:
@@ -18819,11 +18754,6 @@ snapshots:
       js-tokens: 4.0.0
 
   lowercase-keys@3.0.0: {}
-
-  lowlight@1.20.0:
-    dependencies:
-      fault: 1.0.4
-      highlight.js: 10.7.3
 
   lowlight@3.3.0:
     dependencies:
@@ -20259,8 +20189,6 @@ snapshots:
     dependencies:
       parse-ms: 4.0.0
 
-  prismjs@1.30.0: {}
-
   proc-log@4.2.0: {}
 
   process@0.11.10: {}
@@ -20784,16 +20712,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  react-syntax-highlighter@16.1.2(react@19.2.3):
-    dependencies:
-      '@babel/runtime': 7.29.10
-      highlight.js: 10.7.3
-      highlightjs-vue: 1.0.0
-      lowlight: 1.20.0
-      prismjs: 1.30.0
-      react: 19.2.3
-      refractor: 5.0.0
-
   react-textarea-autosize@8.5.9(@types/react@19.2.18)(react@19.2.3):
     dependencies:
       '@babel/runtime': 7.29.10
@@ -20871,13 +20789,6 @@ snapshots:
       get-intrinsic: 1.3.0
       get-proto: 1.0.1
       which-builtin-type: 1.2.1
-
-  refractor@5.0.0:
-    dependencies:
-      '@types/hast': 3.0.5
-      '@types/prismjs': 1.26.6
-      hastscript: 9.0.1
-      parse-entities: 4.0.2
 
   regenerate-unicode-properties@10.3.0:
     dependencies:
@@ -21520,12 +21431,12 @@ snapshots:
 
   stream-buffers@2.2.0: {}
 
-  stream-chat-expo@9.10.1(1ac2bb38fdd170264e08271ca54efbd8):
+  stream-chat-expo@9.7.6(3a9cf81ead72aff15778c272a099acb4):
     dependencies:
       expo: 57.0.31(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.17)(expo-router@57.0.29)(react-dom@19.2.3(react@19.2.3))(react-native-webview@13.16.1(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
       mime: 4.1.1
       react-native: 0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
-      stream-chat-react-native-core: 9.10.1(51d270375f5834409b285ffdaecb6162)
+      stream-chat-react-native-core: 9.7.6(6ce9c9a7e84b6e1f9b6596683648e022)
     optionalDependencies:
       expo-audio: 57.0.5(expo-asset@57.0.20(expo@57.0.31)(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3))(expo@57.0.31)(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-clipboard: 57.0.2(expo@57.0.31)(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -21548,7 +21459,6 @@ snapshots:
       - debug
       - emoji-mart
       - react
-      - react-dom
       - react-native-gesture-handler
       - react-native-reanimated
       - react-native-safe-area-context
@@ -21558,19 +21468,16 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  stream-chat-react-native-core@9.10.1(51d270375f5834409b285ffdaecb6162):
+  stream-chat-react-native-core@9.7.6(6ce9c9a7e84b6e1f9b6596683648e022):
     dependencies:
-      '@gorhom/bottom-sheet': 5.2.14(@types/react@19.2.18)(react-native-gesture-handler@2.32.0(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      '@khanacademy/simple-markdown': 2.2.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@gorhom/bottom-sheet': 5.2.9(@types/react@19.2.18)(react-native-gesture-handler@2.32.0(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       '@react-native-community/netinfo': 12.0.1(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      '@stream-io/state-store': 1.1.6(react@19.2.3)(use-sync-external-store@1.7.0(react@19.2.3))
       '@ungap/structured-clone': 1.4.0
       dayjs: 1.11.13
       emoji-regex: 10.6.0
       i18next: 25.10.10(typescript@6.0.3)
       intl-pluralrules: 2.0.1
       linkifyjs: 4.4.0
-      lodash: 4.18.1
       lodash-es: 4.18.1
       mime-types: 2.1.35
       path: 0.12.7
@@ -21582,10 +21489,8 @@ snapshots:
       react-native-svg: 15.15.4(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react-native-teleport: 1.2.2(react-dom@19.2.3(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react-native-url-polyfill: 2.0.0(react-native@0.86.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))
-      react-syntax-highlighter: 16.1.2(react@19.2.3)
       stream-chat: 9.47.1
       use-sync-external-store: 1.7.0(react@19.2.3)
-      zod: 4.6.7
     optionalDependencies:
       '@emoji-mart/data': 1.2.1
       emoji-mart: 5.6.0
@@ -21595,17 +21500,15 @@ snapshots:
       - bufferutil
       - debug
       - react
-      - react-dom
       - supports-color
       - typescript
       - utf-8-validate
 
-  stream-chat-react@14.14.1(@breezystack/lamejs@1.2.7)(@emoji-mart/data@1.2.1)(@types/react@19.2.18)(emoji-mart@5.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(stream-chat@9.47.1)(typescript@5.9.3):
+  stream-chat-react@14.2.0(@breezystack/lamejs@1.2.7)(@emoji-mart/data@1.2.1)(@emoji-mart/react@1.1.1(emoji-mart@5.6.0)(react@19.2.3))(@types/react@19.2.18)(emoji-mart@5.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(stream-chat@9.47.1)(typescript@5.9.3):
     dependencies:
-      '@braintree/sanitize-url': 7.1.2
+      '@braintree/sanitize-url': 6.0.4
       '@floating-ui/react': 0.27.20(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@react-aria/focus': 3.22.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      chart.js: 4.6.1
       clsx: 2.1.1
       dayjs: 1.11.23
       emoji-regex: 9.2.2
@@ -21617,29 +21520,26 @@ snapshots:
       lodash.mergewith: 4.6.2
       lodash.throttle: 4.1.1
       lodash.uniqby: 4.7.0
-      mdast-util-to-string: 4.0.0
       nanoid: 3.3.20
       react: 19.2.3
-      react-chartjs-2: 5.3.1(chart.js@4.6.1)(react@19.2.3)
       react-dom: 19.2.3(react@19.2.3)
       react-dropzone: 14.4.1(react@19.2.3)
       react-fast-compare: 3.2.2
       react-markdown: 9.1.0(@types/react@19.2.18)(react@19.2.3)
       react-player: 2.10.1(react@19.2.3)
-      react-syntax-highlighter: 16.1.2(react@19.2.3)
       react-textarea-autosize: 8.5.9(@types/react@19.2.18)(react@19.2.3)
       react-virtuoso: 2.19.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       remark-gfm: 4.0.1
-      remark-parse: 11.0.0
       stream-chat: 9.47.1
-      unified: 11.0.5
+      ts-pattern: 5.9.2
+      tslib: 2.8.1
       unist-builder: 4.0.0
       unist-util-visit: 5.1.0
       use-sync-external-store: 1.7.0(react@19.2.3)
-      zod: 4.6.7
     optionalDependencies:
       '@breezystack/lamejs': 1.2.7
       '@emoji-mart/data': 1.2.1
+      '@emoji-mart/react': 1.1.1(emoji-mart@5.6.0)(react@19.2.3)
       '@stream-io/transliterate': 1.5.5
       emoji-mart: 5.6.0
     transitivePeerDependencies:
@@ -21970,6 +21870,8 @@ snapshots:
     dependencies:
       '@ts-morph/common': 0.27.0
       code-block-writer: 13.0.3
+
+  ts-pattern@5.9.2: {}
 
   tsconfig-paths@3.15.0:
     dependencies:
