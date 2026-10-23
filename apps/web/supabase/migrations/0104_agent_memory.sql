@@ -18,6 +18,19 @@
 -- fallback in the app layer. `embedding` is reserved for a hybrid upgrade
 -- (pgvector already exists from 0061); nothing writes it yet.
 
+-- array_to_string() is only STABLE, so the generated tsv column below needs
+-- an IMMUTABLE wrapper (Postgres rejects the bare call: 42P17 "generation
+-- expression is not immutable" — found applying this to the live project).
+create or replace function public.immutable_tags_text(p_tags text[])
+returns text
+language sql
+immutable
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_to_string(p_tags, ' '), '')
+$$;
+
 create table if not exists public.agent_memories (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references public.properties(id) on delete cascade,
@@ -39,8 +52,8 @@ create table if not exists public.agent_memories (
   updated_at timestamptz not null default now(),
   tsv tsvector generated always as (
     to_tsvector(
-      'english',
-      coalesce(content, '') || ' ' || coalesce(source, '') || ' ' || array_to_string(tags, ' ')
+      'english'::regconfig,
+      coalesce(content, '') || ' ' || coalesce(source, '') || ' ' || public.immutable_tags_text(tags)
     )
   ) stored
 );
