@@ -27,7 +27,7 @@ import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { taskHref } from "@/lib/tasks/task-href";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import type { TaskPriority, TaskRecurrence, TaskStatus } from "@/lib/db/types";
 
 type Task = {
   id: string;
@@ -37,6 +37,8 @@ type Task = {
   priority: TaskPriority;
   assigneeId: string | null;
   dueAt: string | null;
+  /** Repeat cadence (migration 0107). */
+  recurrence?: TaskRecurrence | null;
   createdAt?: string;
   /** Who opened the task (migration 0001 `created_by`). */
   createdBy?: string | null;
@@ -88,6 +90,9 @@ export function TaskDetail({
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId);
   const [dueAt, setDueAt] = useState<string | null>(task.dueAt);
+  const [recurrence, setRecurrence] = useState<TaskRecurrence | null>(
+    task.recurrence ?? null,
+  );
   const [addingSubIssue, setAddingSubIssue] = useState(false);
   const embedded = variant === "embedded";
   // Embedded-only: the utility rail as a dismissible overlay drawer.
@@ -353,6 +358,11 @@ export function TaskDetail({
               onPriorityChange={savePriority}
               onAssigneeChange={saveAssignee}
               onDueAtChange={saveDueAt}
+              recurrence={recurrence}
+              onRecurrenceChange={(r) => {
+                setRecurrence(r);
+                persist({ taskId: task.id, recurrence: r }, invalidate);
+              }}
             />
 
             <div className="mt-3">

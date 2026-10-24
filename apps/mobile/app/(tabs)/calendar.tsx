@@ -25,6 +25,7 @@ import {
   useApi,
   type ApiCalendarEvent,
   type ApiMeeting,
+  type ApiTask,
   type CalendarSource,
 } from "../../lib/api";
 
@@ -86,9 +87,42 @@ export default function CalendarTab() {
       : null,
   );
 
+  // Deadlines: tasks with a due date but no scheduled block become all-day
+  // entries on their due day (mirrors web's calendar-room.tsx). Done tasks
+  // stay off the calendar — a met deadline is noise on a planning surface.
+  const { data: tasks } = useApi<ApiTask[]>(
+    propertyId ? `/api/properties/${propertyId}/tasks` : null,
+  );
+  const deadlines = useMemo<ApiCalendarEvent[]>(() => {
+    const fromMs = new Date(from).getTime();
+    const toMs = new Date(to).getTime();
+    const out: ApiCalendarEvent[] = [];
+    for (const t of tasks ?? []) {
+      if (!t.due_at || t.status === "done" || t.scheduled_start) continue;
+      const due = new Date(t.due_at);
+      if (Number.isNaN(due.getTime())) continue;
+      const day = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const end = new Date(day);
+      end.setDate(end.getDate() + 1);
+      if (day.getTime() >= toMs || end.getTime() <= fromMs) continue;
+      out.push({
+        id: t.id,
+        source: "task",
+        start: day.toISOString(),
+        end: end.toISOString(),
+        all_day: true,
+        title: t.title,
+        description: t.description,
+        location: null,
+        due_only: true,
+      });
+    }
+    return out;
+  }, [tasks, from, to]);
+
   const events = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    const all = [...(data ?? [])].sort(
+    const all = [...(data ?? []), ...deadlines].sort(
       (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
     );
     if (!needle) return all;
@@ -98,7 +132,7 @@ export default function CalendarTab() {
         (e.location ?? "").toLowerCase().includes(needle) ||
         (e.description ?? "").toLowerCase().includes(needle),
     );
-  }, [data, search]);
+  }, [data, deadlines, search]);
 
   // List mode: every event from today forward, grouped by day.
   const sections = useMemo(() => {

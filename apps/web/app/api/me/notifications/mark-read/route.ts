@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 
 const Body = z.object({
   ids: z.array(z.string().uuid()).optional(),
@@ -15,10 +15,7 @@ const Body = z.object({
  * need to also filter by user_id (we still do, defensively).
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

@@ -1,8 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getMembershipForProperty } from "@/lib/auth/session";
+import { createServiceClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/types";
+
+/** Membership check against the CALLER's client (cookie or Bearer), so the
+ *  phone — which has no cookies — gets the same answer as the browser. */
+async function isMember(
+  supabase: SupabaseClient<Database>,
+  propertyId: string,
+  userId: string,
+) {
+  const { data } = await supabase
+    .from("memberships")
+    .select("property_id")
+    .eq("property_id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return Boolean(data);
+}
 
 /**
  * Triage suggestions on one task.
@@ -19,13 +37,10 @@ export async function GET(
   { params }: { params: Promise<{ propertyId: string; taskId: string }> },
 ) {
   const { propertyId, taskId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(_request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const membership = await getMembershipForProperty(propertyId);
-  if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!(await isMember(supabase, propertyId, user.id)))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { data, error } = await supabase
     .from("task_suggestions")
@@ -49,13 +64,10 @@ export async function POST(
   { params }: { params: Promise<{ propertyId: string; taskId: string }> },
 ) {
   const { propertyId, taskId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const membership = await getMembershipForProperty(propertyId);
-  if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!(await isMember(supabase, propertyId, user.id)))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

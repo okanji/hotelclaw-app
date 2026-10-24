@@ -3,6 +3,7 @@ import { YourTasksWidget } from "./widgets/your-tasks-widget";
 import { YourDayWidget } from "./widgets/your-day-widget";
 import { PropertyPulseWidget } from "./widgets/property-pulse-widget";
 import { ActivityWidget } from "./widgets/activity-widget";
+import { WorkspaceActivityWidget } from "./widgets/workspace-activity-widget";
 import { PinnedForYouWidget } from "./widgets/pinned-for-you-widget";
 import { TeamWidget } from "./widgets/team-widget";
 import { RecentDocsWidget } from "./widgets/recent-docs-widget";
@@ -74,6 +75,12 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
     kicker: "For you",
     title: "Recent activity",
     Component: ActivityWidget,
+  },
+  {
+    id: "workspace-activity",
+    kicker: "Who did what",
+    title: "Across the property",
+    Component: WorkspaceActivityWidget,
   },
   {
     id: "pinned-for-you",

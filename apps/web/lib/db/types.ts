@@ -28,6 +28,11 @@ export type MeetingRecurrence = {
   byday?: number[];
 };
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+/** Repeat cadence for a recurring task (migration 0107). */
+/** Saved task view layouts (0109). */
+export type TaskViewLayout = "board" | "list" | "timeline" | "workload";
+
+export type TaskRecurrence = "daily" | "weekly" | "biweekly" | "monthly";
 export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
 
 // ── Custom fields (migrations 0080, 0099) ───────────────────────────────────
@@ -170,6 +175,9 @@ export interface Database {
           timezone: string;
           channel_creation: "everyone" | "management";
           archived_at: string | null;
+          /** Human task-key prefix + counter (0108): tasks read `HC-142`. */
+          task_prefix: string;
+          task_counter: number;
           created_at: string;
         };
         Insert: {
@@ -189,6 +197,7 @@ export interface Database {
           timezone: string;
           channel_creation: "everyone" | "management";
           archived_at: string | null;
+          task_prefix: string;
         }>;
         Relationships: [];
       };
@@ -557,6 +566,64 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      task_views: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          name: string;
+          icon: string | null;
+          layout: TaskViewLayout;
+          filters: Record<string, unknown>;
+          shared: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          name: string;
+          icon?: string | null;
+          layout?: TaskViewLayout;
+          filters?: Record<string, unknown>;
+          shared?: boolean;
+          position?: number;
+        };
+        Update: Partial<{
+          name: string;
+          icon: string | null;
+          layout: TaskViewLayout;
+          filters: Record<string, unknown>;
+          shared: boolean;
+          position: number;
+        }>;
+        Relationships: [];
+      };
+      notification_prefs: {
+        Row: {
+          user_id: string;
+          property_id: string;
+          muted_types: string[];
+          due_reminders_enabled: boolean;
+          due_reminder_hours: number;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          property_id: string;
+          muted_types?: string[];
+          due_reminders_enabled?: boolean;
+          due_reminder_hours?: number;
+        };
+        Update: Partial<{
+          muted_types: string[];
+          due_reminders_enabled: boolean;
+          due_reminder_hours: number;
+        }>;
+        Relationships: [];
+      };
       tasks: {
         Row: {
           id: string;
@@ -580,6 +647,15 @@ export interface Database {
           space_id: string | null;
           project_id: string | null;
           overdue_notified_at: string | null;
+          /** Repeat cadence + the task this occurrence rolled from (0107). */
+          recurrence: TaskRecurrence | null;
+          recurrence_of: string | null;
+          /** Soft delete (0108) — archived tasks leave every board/list query. */
+          archived_at: string | null;
+          /** Per-property sequential key (0108); shown as `<task_prefix>-<number>`. */
+          number: number;
+          /** Stamped once the due-soon reminder went out (0110); re-armed when due_at moves. */
+          due_reminder_sent_at: string | null;
           source: RecordSource;
           source_workflow_id: string | null;
           source_workflow_run_id: string | null;
@@ -605,6 +681,11 @@ export interface Database {
           space_id?: string | null;
           project_id?: string | null;
           overdue_notified_at?: string | null;
+          recurrence?: TaskRecurrence | null;
+          recurrence_of?: string | null;
+          archived_at?: string | null;
+          number?: number;
+          due_reminder_sent_at?: string | null;
           source?: RecordSource;
           source_workflow_id?: string | null;
           source_workflow_run_id?: string | null;
@@ -625,6 +706,10 @@ export interface Database {
           space_id: string | null;
           project_id: string | null;
           overdue_notified_at: string | null;
+          recurrence: TaskRecurrence | null;
+          recurrence_of: string | null;
+          archived_at: string | null;
+          due_reminder_sent_at: string | null;
         }>;
         Relationships: [];
       };

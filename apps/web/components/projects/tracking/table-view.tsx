@@ -75,6 +75,7 @@ const COLUMNS: {
   { key: "progress", label: "Progress", className: "w-[200px] shrink-0" },
   { key: null, label: "Start", className: "hidden w-16 shrink-0 text-right xl:block" },
   { key: "target", label: "Target", className: "w-16 shrink-0 text-right" },
+  { key: null, label: "Lead", className: "hidden w-32 shrink-0 md:block" },
   { key: null, label: "Teams", className: "hidden w-40 shrink-0 lg:block" },
   { key: null, label: "People", className: "hidden w-20 shrink-0 sm:block" },
 ];
@@ -220,6 +221,23 @@ export function ProjectsTableView({
                 {/* Target */}
                 <div className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                   {shortDate(p.target_date)}
+                </div>
+
+                {/* Lead */}
+                <div className="hidden w-32 shrink-0 md:block">
+                  {(() => {
+                    const lead = p.lead_user_id
+                      ? members.find((m) => m.id === p.lead_user_id)
+                      : undefined;
+                    return lead ? (
+                      <span className="inline-flex max-w-full items-center gap-1.5 text-xs text-foreground">
+                        <ContributorStack ids={[lead.id]} members={members} size="size-4" />
+                        <span className="truncate">{lead.name ?? "Member"}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-faint-foreground">—</span>
+                    );
+                  })()}
                 </div>
 
                 {/* Teams involved */}

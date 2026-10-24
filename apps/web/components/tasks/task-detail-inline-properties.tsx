@@ -3,12 +3,14 @@
 import { type ReactNode } from "react";
 import {
   CalendarPlus,
+  Check,
   ExternalLink,
   FileText,
   Link2,
   MoreHorizontal,
   Paperclip,
   Plus,
+  Repeat,
   Tag,
   UserRound,
   X,
@@ -34,7 +36,12 @@ import type {
   TaskDetailRemovers,
 } from "./task-detail-mutations";
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
-import type { EntityColor, TaskPriority, TaskStatus } from "@/lib/db/types";
+import type {
+  EntityColor,
+  TaskPriority,
+  TaskRecurrence,
+  TaskStatus,
+} from "@/lib/db/types";
 import { useQuery } from "@tanstack/react-query";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
@@ -52,6 +59,15 @@ import {
 
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
+
+/** Repeat cadence labels (migration 0107). When the task is completed, the
+ *  next occurrence is created with the due date pushed by one cadence. */
+const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
+  daily: "Repeats daily",
+  weekly: "Repeats weekly",
+  biweekly: "Every 2 weeks",
+  monthly: "Repeats monthly",
+};
 
 function formatTargetDate(iso: string | null) {
   if (!iso) return "Target date";
@@ -89,6 +105,8 @@ export function TaskDetailInlineProperties({
   onPriorityChange,
   onAssigneeChange,
   onDueAtChange,
+  recurrence = null,
+  onRecurrenceChange,
 }: {
   propertyId: string;
   status: TaskStatus;
@@ -104,6 +122,9 @@ export function TaskDetailInlineProperties({
   onPriorityChange: (p: TaskPriority) => void;
   onAssigneeChange: (id: string | null) => void;
   onDueAtChange: (iso: string | null) => void;
+  /** Repeat cadence (migration 0107). Omit to hide the control. */
+  recurrence?: TaskRecurrence | null;
+  onRecurrenceChange?: (r: TaskRecurrence | null) => void;
 }) {
   const statusLabel =
     COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
@@ -219,6 +240,45 @@ export function TaskDetailInlineProperties({
             onChange={onDueAtChange}
           />
         </Popover>
+
+        {onRecurrenceChange ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className={cn(
+                    CHIP_BASE,
+                    recurrence ? "text-foreground" : "text-muted-foreground",
+                  )}
+                />
+              }
+            >
+              <ChipIcon><Repeat className="size-3.5" /></ChipIcon>
+              <span className="truncate">
+                {recurrence ? RECURRENCE_LABEL[recurrence] : "Repeat"}
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map((r) => (
+                <DropdownMenuItem
+                  key={r}
+                  onClick={() => onRecurrenceChange(r)}
+                  className="gap-2"
+                >
+                  <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
+                  {recurrence === r ? <Check className="size-3.5" /> : null}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem
+                onClick={() => onRecurrenceChange(null)}
+                className="gap-2 text-muted-foreground"
+              >
+                Does not repeat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger

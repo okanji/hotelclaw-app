@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Ctx = {
@@ -22,16 +24,35 @@ export function CommandPaletteProvider({
 }) {
   const [open, setOpen] = useState(false);
 
+  const router = useRouter();
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((o) => !o);
+        return;
+      }
+      // `N` → new task (gr8r / Linear convention). Bare key only: never while
+      // typing, never with a modifier, and only inside a property.
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const el = document.activeElement as HTMLElement | null;
+        const typing =
+          !!el &&
+          (el.tagName === "INPUT" ||
+            el.tagName === "TEXTAREA" ||
+            el.tagName === "SELECT" ||
+            el.isContentEditable);
+        if (typing) return;
+        const m = window.location.pathname.match(/^\/p\/([^/]+)/);
+        if (!m) return;
+        e.preventDefault();
+        router.push(`/p/${m[1]}/tasks/new`);
       }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [router]);
 
   return (
     <CommandPaletteCtx.Provider

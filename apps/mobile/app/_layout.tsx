@@ -52,6 +52,10 @@ function AuthedStack() {
               <Stack.Screen name="document/[documentId]" />
               <Stack.Screen name="assistant" />
               <Stack.Screen name="assistant/[chatId]" />
+              <Stack.Screen name="inbox" />
+              <Stack.Screen name="activity" />
+              <Stack.Screen name="projects" />
+              <Stack.Screen name="project/[projectId]" />
             </Stack.Protected>
             <Stack.Protected guard={!session}>
               <Stack.Screen name="login" />

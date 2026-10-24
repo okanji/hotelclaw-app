@@ -37,7 +37,35 @@ export const UpdateTaskSchema = z.object({
   dueAt: z.string().nullable().optional(),
   labels: z.array(z.string().min(1).max(40)).optional(),
   projectName: z.string().max(120).nullable().optional(),
+  /** Repeat cadence (migration 0107); null clears it. */
+  recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).nullable().optional(),
 });
+
+/** Push a due date forward by one cadence, keeping the time of day. */
+export function nextOccurrence(
+  dueAt: string | null,
+  recurrence: "daily" | "weekly" | "biweekly" | "monthly",
+  from: Date = new Date(),
+): string {
+  // No due date: the next one is due a cadence from NOW, at 17:00.
+  const base = dueAt ? new Date(dueAt) : new Date(from.setHours(17, 0, 0, 0));
+  const next = new Date(base);
+  switch (recurrence) {
+    case "daily":
+      next.setDate(next.getDate() + 1);
+      break;
+    case "weekly":
+      next.setDate(next.getDate() + 7);
+      break;
+    case "biweekly":
+      next.setDate(next.getDate() + 14);
+      break;
+    case "monthly":
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return next.toISOString();
+}
 
 export type CreateTaskInput = z.input<typeof CreateTaskSchema>;
 export type UpdateTaskInput = z.input<typeof UpdateTaskSchema>;
@@ -210,7 +238,9 @@ export async function updateTaskFor(
   // assigned/unassigned notifications (and re-anchor the card on a status move).
   const { data: before } = await supabase
     .from("tasks")
-    .select("assignee_id, title, property_id, status")
+    .select(
+      "assignee_id, title, property_id, status, description, priority, due_at, labels, space_id, project_id, project_name, parent_id, recurrence",
+    )
     .eq("id", parsed.data.taskId)
     .maybeSingle();
 
@@ -226,6 +256,8 @@ export async function updateTaskFor(
   if (parsed.data.labels !== undefined) patch.labels = parsed.data.labels;
   if (parsed.data.projectName !== undefined)
     patch.project_name = parsed.data.projectName;
+  if (parsed.data.recurrence !== undefined)
+    patch.recurrence = parsed.data.recurrence;
 
   // Changing status moves the card to a different column — drop it at the
   // top so it doesn't inherit a stale position from its old column.
@@ -249,6 +281,41 @@ export async function updateTaskFor(
     .single();
 
   if (error || !row) return { error: error?.message ?? "Update failed" };
+
+  // Recurring task completed → roll the next occurrence forward (gr8r's
+  // model, migration 0107). The finished one stays done with its history;
+  // the new one inherits owner / team / project / labels / cadence, gets the
+  // due date pushed by one cadence, and starts with no sub-issues.
+  const cadence = (parsed.data.recurrence ?? before?.recurrence) ?? null;
+  if (
+    cadence &&
+    before &&
+    parsed.data.status === "done" &&
+    before.status !== "done"
+  ) {
+    const position = await topPositionFor(supabase, before.property_id, "todo");
+    const { error: rollError } = await supabase.from("tasks").insert({
+      property_id: before.property_id,
+      title: before.title,
+      description: before.description ?? null,
+      status: "todo",
+      priority: before.priority,
+      assignee_id: before.assignee_id,
+      created_by: userId,
+      position,
+      parent_id: before.parent_id ?? null,
+      space_id: before.space_id ?? null,
+      project_id: before.project_id ?? null,
+      project_name: before.project_name ?? null,
+      labels: before.labels ?? [],
+      due_at: nextOccurrence(before.due_at, cadence),
+      recurrence: cadence,
+      recurrence_of: parsed.data.taskId,
+    });
+    if (rollError) {
+      console.error("[tasks] recurrence roll-forward failed", parsed.data.taskId, rollError);
+    }
+  }
 
   if (
     parsed.data.assigneeId !== undefined &&

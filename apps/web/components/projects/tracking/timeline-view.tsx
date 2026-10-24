@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { propertyMilestonesQueryOptions, type PropertyMilestone } from "@/lib/query/milestone-queries";
 import { ChevronLeft, ChevronRight, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -129,6 +131,23 @@ export function ProjectsTimelineView({
   }, [projects, windowStart, windowEnd]);
 
   const anyDated = projects.some((p) => p.start_date || p.target_date);
+
+  // Milestones (migration 0106) — diamonds on each project's bar, placed by
+  // whole-day offset inside the visible window.
+  const { data: allMilestones = [] } = useQuery(
+    propertyMilestonesQueryOptions(propertyId),
+  );
+  const milestonesByProject = useMemo(() => {
+    const m = new Map<string, { ms: PropertyMilestone; day: number }[]>();
+    for (const ms of allMilestones) {
+      const [y, mo, d] = ms.due_date.split("-").map(Number);
+      const date = new Date(y!, (mo ?? 1) - 1, d ?? 1);
+      if (date < windowStart || date > windowEnd) continue;
+      const day = diffDays(date, windowStart);
+      m.set(ms.project_id, [...(m.get(ms.project_id) ?? []), { ms, day }]);
+    }
+    return m;
+  }, [allMilestones, windowStart, windowEnd]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -280,6 +299,7 @@ export function ProjectsTimelineView({
                   key={row.project.id}
                   item={row}
                   propertyId={propertyId}
+                  milestones={milestonesByProject.get(row.project.id) ?? []}
                 />
               ))
             )}
@@ -439,9 +459,11 @@ function ProjectLabel({
 function TimelineRow({
   item,
   propertyId,
+  milestones,
 }: {
   item: Placed;
   propertyId: string;
+  milestones: { ms: PropertyMilestone; day: number }[];
 }) {
   const { project } = item;
   const meta = PROJECT_STATUS_META[project.status];
@@ -453,6 +475,27 @@ function TimelineRow({
       className="relative border-b border-border"
       style={{ height: ROW_HEIGHT }}
     >
+      {/* Milestone diamonds sit above the bar so a reached/pending date is
+          readable at a glance; the full name + date lives in the tooltip. */}
+      {milestones.map(({ ms, day }) => (
+        <Link
+          key={ms.id}
+          href={href}
+          title={`${ms.name} · ${new Date(ms.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}${ms.completed_at ? " · reached" : ""}`}
+          aria-label={`Milestone ${ms.name}`}
+          className="absolute top-0.5 z-20 flex -translate-x-1/2 items-center"
+          style={{ left: day * DAY_WIDTH + DAY_WIDTH / 2 }}
+        >
+          <Diamond
+            className={cn(
+              "size-3",
+              ms.completed_at
+                ? "fill-success text-success"
+                : "fill-foreground text-foreground",
+            )}
+          />
+        </Link>
+      ))}
       {item.kind === "bar" ? (
         (() => {
           const left = item.startDay * DAY_WIDTH + 2;

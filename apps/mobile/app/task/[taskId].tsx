@@ -1,12 +1,17 @@
-import { Stack, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { ActivityItem } from "../../components/ActivityFeed";
 import { AiPixelGrid, AiShimmerLabel } from "../../components/AiLoader";
 import { TriageSuggestions } from "../../components/TriageSuggestions";
 import { TaskAiSheet } from "../../components/TaskAiSheet";
@@ -19,7 +24,9 @@ import {
   STATUS_LABEL,
   relativeDay,
 } from "../../components/ui";
+import { useAuth } from "../../contexts/AuthContext";
 import { usePropertyContext } from "../../contexts/PropertyContext";
+import { useActivityLog, useActivityLookup } from "../../lib/activity";
 import {
   apiFetch,
   useApi,
@@ -28,12 +35,18 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../../lib/api";
+import { useCatalogues } from "../../lib/catalogues";
+import { supabase } from "../../lib/supabase";
 
 const STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked", "done"];
 const PRIORITIES: TaskPriority[] = ["none", "low", "medium", "high", "urgent"];
 
+type SubIssue = { id: string; title: string; status: TaskStatus };
+
 export default function TaskDetailScreen() {
+  const router = useRouter();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
+  const { session } = useAuth();
   const { activeProperty } = usePropertyContext();
   const propertyId = activeProperty?.property_id;
   const base = propertyId ? `/api/properties/${propertyId}` : null;
@@ -42,6 +55,38 @@ export default function TaskDetailScreen() {
     base && taskId ? `${base}/tasks/${taskId}` : null,
   );
   const { data: members } = useApi<ApiMember[]>(base ? `${base}/members` : null);
+  const catalogues = useCatalogues(propertyId);
+
+  // Field-change history (activity_log, migration 0106) — who moved,
+  // reassigned or rescheduled this task. Comments stay on the web for now.
+  const historyScope = useMemo(() => ({ kind: "task" as const, id: taskId ?? "" }), [taskId]);
+  const { rows: history } = useActivityLog(propertyId, historyScope, 60);
+  const lookup = useActivityLookup(session?.user.id, members, catalogues.projects, catalogues.spaces);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Sub-issues: tasks whose parent is this one. Plain RLS read (reference
+  // data); creating one goes through the API so triage + notifications run.
+  const [subIssues, setSubIssues] = useState<SubIssue[]>([]);
+  const [newSub, setNewSub] = useState("");
+  const [addingSub, setAddingSub] = useState(false);
+  useEffect(() => {
+    if (!taskId) return;
+    let cancelled = false;
+    void supabase
+      .from("tasks")
+      .select("id, title, status")
+      .eq("parent_id", taskId)
+      .order("position", { ascending: true })
+      .then(({ data: rows }) => {
+        if (!cancelled) setSubIssues((rows ?? []) as SubIssue[]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, data?.updated_at]);
+
+  const [newLabel, setNewLabel] = useState("");
+  const [dueOpen, setDueOpen] = useState(false);
 
   // Local echo so a tap feels instant: optimistic field overrides layered on
   // top of the fetched row (the server response stays the source of truth —
@@ -148,6 +193,18 @@ export default function TaskDetailScreen() {
 
         {propertyId && taskId ? <TaskAiSheet propertyId={propertyId} taskId={taskId} /> : null}
 
+        <Section title="Due date">
+          <DueDateField
+            value={task.due_at}
+            open={dueOpen}
+            onOpen={() => setDueOpen(true)}
+            onChange={(iso) => {
+              setDueOpen(false);
+              void patch({ dueAt: iso }, { due_at: iso });
+            }}
+          />
+        </Section>
+
         <Section title="Status">
           <View style={styles.options}>
             {STATUSES.map((s) => (
@@ -196,6 +253,123 @@ export default function TaskDetailScreen() {
           </View>
         </Section>
 
+        <Section title="Labels">
+          <View style={styles.options}>
+            {(task.labels ?? []).map((l) => (
+              <Pressable
+                key={l}
+                onPress={() => {
+                  const next = (task.labels ?? []).filter((x) => x !== l);
+                  void patch({ labels: next }, { labels: next });
+                }}
+                style={styles.labelChip}
+                accessibilityLabel={`Remove label ${l}`}
+              >
+                <Text style={styles.labelText}>{l}</Text>
+                <Ionicons name="close" size={14} color="#6b7280" />
+              </Pressable>
+            ))}
+            <View style={styles.labelInputWrap}>
+              <TextInput
+                style={styles.labelInput}
+                placeholder="Add label"
+                placeholderTextColor="#9ca3af"
+                value={newLabel}
+                onChangeText={setNewLabel}
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  const v = newLabel.trim();
+                  if (!v) return;
+                  const next = Array.from(new Set([...(task.labels ?? []), v]));
+                  setNewLabel("");
+                  void patch({ labels: next }, { labels: next });
+                }}
+              />
+            </View>
+          </View>
+        </Section>
+
+        {task.project_id ? (
+          <Pressable
+            onPress={() =>
+              router.navigate({ pathname: "/project/[projectId]", params: { projectId: task.project_id! } })
+            }
+            style={styles.projectLink}
+          >
+            <Ionicons name="folder-open-outline" size={16} color="#374151" />
+            <Text style={styles.projectLinkText}>
+              {task.project_name ?? catalogues.projects.find((p) => p.id === task.project_id)?.name ?? "Project"}
+            </Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        ) : null}
+
+        <Section title={`Sub-issues${subIssues.length ? ` · ${subIssues.filter((x) => x.status === "done").length}/${subIssues.length}` : ""}`}>
+          {subIssues.map((si) => (
+            <Pressable
+              key={si.id}
+              onPress={() => router.navigate({ pathname: "/task/[taskId]", params: { taskId: si.id } })}
+              style={styles.subRow}
+            >
+              <Ionicons
+                name={si.status === "done" ? "checkmark-circle" : "ellipse-outline"}
+                size={18}
+                color={si.status === "done" ? STATUS_COLOR.done : "#9ca3af"}
+              />
+              <Text style={[styles.subTitle, si.status === "done" && styles.subDone]} numberOfLines={2}>
+                {si.title}
+              </Text>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          ))}
+          <View style={styles.subRow}>
+            <Ionicons name="add" size={18} color="#9ca3af" />
+            <TextInput
+              style={styles.subInput}
+              placeholder="Add a sub-issue"
+              placeholderTextColor="#9ca3af"
+              value={newSub}
+              onChangeText={setNewSub}
+              editable={!addingSub}
+              returnKeyType="done"
+              onSubmitEditing={async () => {
+                const title = newSub.trim();
+                if (!title || !propertyId || addingSub) return;
+                setAddingSub(true);
+                try {
+                  await apiFetch(`/api/properties/${propertyId}/tasks`, {
+                    method: "POST",
+                    body: { title, parentId: taskId, projectId: task.project_id, spaceId: task.space_id },
+                  });
+                  setNewSub("");
+                  refetch();
+                } catch (err) {
+                  setSaveError(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setAddingSub(false);
+                }
+              }}
+            />
+          </View>
+        </Section>
+
+        {(history ?? []).filter((r) => r.verb !== "created").length > 0 ? (
+          <Section title="History">
+            {(history ?? [])
+              .filter((r) => r.verb !== "created")
+              .slice(0, historyOpen ? undefined : 5)
+              .map((r) => (
+                <ActivityItem key={r.id} row={r} lookup={lookup} />
+              ))}
+            {(history ?? []).filter((r) => r.verb !== "created").length > 5 ? (
+              <Pressable onPress={() => setHistoryOpen((v) => !v)} hitSlop={8}>
+                <Text style={styles.more}>{historyOpen ? "Show less" : "Show all changes"}</Text>
+              </Pressable>
+            ) : null}
+          </Section>
+        ) : null}
+
         {saving ? (
           <View style={styles.savingRow}>
             <AiPixelGrid />
@@ -204,6 +378,65 @@ export default function TaskDetailScreen() {
         ) : null}
       </ScrollView>
     </>
+  );
+}
+
+/** Due date — native picker (inline on iOS, dialog on Android), with Clear. */
+function DueDateField({
+  value,
+  open,
+  onOpen,
+  onChange,
+}: {
+  value: string | null;
+  open: boolean;
+  onOpen: () => void;
+  onChange: (iso: string | null) => void;
+}) {
+  const current = value ? new Date(value) : new Date();
+  const label = value
+    ? new Date(value).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : "No due date";
+  return (
+    <View style={styles.dueRow}>
+      {Platform.OS === "ios" ? (
+        <DateTimePicker
+          value={current}
+          mode="date"
+          onChange={(event, d) => {
+            if (event.type === "set" && d) {
+              const next = new Date(d);
+              next.setHours(17, 0, 0, 0);
+              onChange(next.toISOString());
+            }
+          }}
+        />
+      ) : (
+        <>
+          <Pressable style={styles.option} onPress={onOpen}>
+            <Text style={styles.optionText}>{label}</Text>
+          </Pressable>
+          {open ? (
+            <DateTimePicker
+              value={current}
+              mode="date"
+              onChange={(event, d) => {
+                if (event.type === "set" && d) {
+                  const next = new Date(d);
+                  next.setHours(17, 0, 0, 0);
+                  onChange(next.toISOString());
+                } else onChange(value);
+              }}
+            />
+          ) : null}
+        </>
+      )}
+      {value ? (
+        <Pressable style={styles.option} onPress={() => onChange(null)} hitSlop={6}>
+          <Text style={styles.optionText}>Clear</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -290,4 +523,34 @@ const styles = StyleSheet.create({
   optionTextSelected: { color: "#ffffff" },
   savingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   savingText: { fontSize: 14, color: "#6b7280" },
+  dueRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  labelChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#f3f4f6",
+  },
+  labelText: { fontSize: 13, fontWeight: "500", color: "#374151" },
+  labelInputWrap: { minWidth: 110 },
+  labelInput: { fontSize: 14, color: "#111827", paddingVertical: 7, paddingHorizontal: 4 },
+  projectLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "#f3f4f6",
+  },
+  projectLinkText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#111827" },
+  chevron: { fontSize: 18, color: "#9ca3af" },
+  subRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+  subTitle: { flex: 1, fontSize: 15, color: "#111827" },
+  subDone: { color: "#9ca3af", textDecorationLine: "line-through" },
+  subInput: { flex: 1, fontSize: 15, color: "#111827", paddingVertical: 2 },
+  more: { fontSize: 13, color: "#6b7280", paddingVertical: 4 },
 });

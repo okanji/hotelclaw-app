@@ -4,6 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePropertyContext } from "../../contexts/PropertyContext";
+import { useNotifications } from "../../lib/notifications";
 
 /**
  * Account tab. This is where switching property lives — Slack puts the
@@ -15,6 +16,7 @@ export default function YouTab() {
   const { session, signOut } = useAuth();
   const { memberships, activeProperty, setActivePropertyId, loading, error } =
     usePropertyContext();
+  const { unseenCount } = useNotifications(session?.user.id);
 
   const email = session?.user.email ?? "";
   const name =
@@ -48,6 +50,34 @@ export default function YouTab() {
             {/* Documents live here rather than in the tab bar: iOS caps at 5
                 tabs, and on a phone docs are looked up occasionally while
                 chat/tasks/calendar are checked constantly. */}
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.navigate("/inbox")}
+            >
+              <Text style={styles.linkText}>🔔  Inbox</Text>
+              <View style={styles.linkRight}>
+                {unseenCount > 0 ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{unseenCount}</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.chevron}>›</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.navigate("/activity")}
+            >
+              <Text style={styles.linkText}>👀  Who did what</Text>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.navigate("/projects")}
+            >
+              <Text style={styles.linkText}>🗂️  Projects</Text>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
             <Pressable
               style={styles.linkRow}
               onPress={() => router.navigate("/assistant")}
@@ -137,6 +167,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   linkText: { fontSize: 16, fontWeight: "500" },
+  linkRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 7,
+    backgroundColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadText: { color: "#ffffff", fontSize: 12, fontWeight: "700" },
   chevron: { fontSize: 20, color: "#9ca3af" },
   sectionLabel: {
     fontSize: 13,

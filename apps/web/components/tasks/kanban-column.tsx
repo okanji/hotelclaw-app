@@ -14,6 +14,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ArrowDownWideNarrow,
+  CheckCheck,
   ChevronRight,
   ChevronsRight,
   MoreHorizontal,
@@ -22,6 +24,9 @@ import {
   Workflow,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { moveTask, updateTask } from "./actions";
+import { PRIORITY_META } from "./kanban";
 import { cn } from "@/lib/utils";
 import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
@@ -91,6 +96,37 @@ export function KanbanColumn({
   const { setNodeRef } = useDroppable({ id: column.id });
   const [adding, setAdding] = useState(false);
   const empty = taskIds.length === 0;
+
+  // Column-level actions (gr8r's column menu): end-of-shift "clear the
+  // column" moves, run through the SAME per-task actions as the cards so
+  // notifications, recurrence roll-forward and the activity log all fire.
+  async function markAllDone() {
+    const ids = [...taskIds];
+    const results = await Promise.all(
+      ids.map((id) => updateTask({ taskId: id, status: "done" })),
+    );
+    const failed = results.filter((r) => "error" in r).length;
+    onChanged();
+    if (failed) toast.error(`${failed} of ${ids.length} tasks could not be completed`);
+    else toast.success(`Marked ${ids.length} ${ids.length === 1 ? "task" : "tasks"} done`);
+  }
+  async function sortByPriority() {
+    const ordered = [...taskIds]
+      .map((id) => tasksById[id])
+      .filter((t): t is Task => Boolean(t))
+      .sort(
+        (a, b) =>
+          PRIORITY_META[b.priority].rank - PRIORITY_META[a.priority].rank ||
+          a.position - b.position,
+      );
+    await Promise.all(
+      ordered.map((t, i) =>
+        moveTask({ taskId: t.id, status: column.id, position: (i + 1) * 1024 }),
+      ),
+    );
+    onChanged();
+    toast.success("Sorted by priority");
+  }
 
   // Windowed rendering — see COLUMN_PAGE. The scroll container doubles as
   // the IntersectionObserver root, so we keep our own ref alongside
@@ -258,6 +294,18 @@ export function KanbanColumn({
                 <Workflow className="size-3.5" />
                 Automate this column…
               </DropdownMenuItem>
+              {column.id !== "done" && taskIds.length > 0 ? (
+                <DropdownMenuItem onClick={markAllDone}>
+                  <CheckCheck className="size-3.5" />
+                  Mark all done
+                </DropdownMenuItem>
+              ) : null}
+              {taskIds.length > 1 ? (
+                <DropdownMenuItem onClick={sortByPriority}>
+                  <ArrowDownWideNarrow className="size-3.5" />
+                  Sort by priority
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button

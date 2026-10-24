@@ -19,6 +19,11 @@ const SOURCE_LABEL: Record<ApiCalendarEvent["source"], string> = {
   external: "External calendar",
 };
 
+function sourceLabel(event: ApiCalendarEvent): string {
+  if (event.source === "task" && event.due_only) return "Task due";
+  return sourceLabel(event);
+}
+
 function whenLabel(event: ApiCalendarEvent): string {
   const day = new Date(event.start).toLocaleDateString(undefined, {
     weekday: "long",
@@ -122,7 +127,7 @@ export function EventDetailSheet({
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.title}>{event.title}</Text>
           <Text style={styles.when}>{whenLabel(event)}</Text>
-          <Text style={styles.kind}>{SOURCE_LABEL[event.source]}</Text>
+          <Text style={styles.kind}>{sourceLabel(event)}</Text>
 
           {event.location ? (
             <Field label="Location" value={event.location} />

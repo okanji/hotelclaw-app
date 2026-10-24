@@ -130,6 +130,9 @@ export type ApiTask = {
   project_id: string | null;
   source: RecordSource;
   updated_at: string;
+  /** Calendar time block, when the task has been scheduled (migration 0017). */
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
 };
 
 /** Team / project catalogues for the filter facets. Read straight from
@@ -173,6 +176,8 @@ export type ApiCalendarEvent = {
   title: string;
   description: string | null;
   location: string | null;
+  /** Synthesised client-side from a task's due date (no scheduled block). */
+  due_only?: boolean;
 };
 
 /** A single meeting row, as returned by `GET .../meetings/:id`. Only

@@ -33,6 +33,7 @@ const UpdateSchema = z.object({
   dueAt: z.string().nullable().optional(),
   labels: z.array(z.string().min(1).max(40)).optional(),
   projectName: z.string().max(120).nullable().optional(),
+  recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).nullable().optional(),
 });
 
 const MoveSchema = z.object({

@@ -169,6 +169,52 @@ automations) but silently skip all three.
   Native date/time pickers come from `@react-native-community/datetimepicker`
   (native module — adding it required a rebuild).
 
+## Inbox, who-did-what, projects, task detail (built 2026-10-23)
+
+Closing the coverage audit's top gaps that need no native rebuild. All
+reached from the **You** tab (the tab bar is full at five):
+
+- **Inbox** (`app/inbox.tsx`, `lib/notifications.ts`): the same
+  `notifications` rows the web bell shows, read through
+  `GET /api/me/notifications` with the Bearer session (the route and
+  `/mark-read` now accept Bearer), live over Realtime on the user's rows,
+  filter chips (All / Unread / Mentions / Tasks / Alerts = web's
+  `views.ts:matchesView` slices), mark-all-read. `notificationView` is the
+  TEXT twin of web's `notification-item.tsx`; rows open the task / channel /
+  project natively and fall back to the web app for pages the phone lacks
+  (meetings, workflows, insights, invites). The You row carries an unread
+  badge.
+- **Who did what** (`app/activity.tsx`, `lib/activity.ts`,
+  `components/ActivityFeed.tsx`): `activity_log` (migration 0106) read
+  straight under RLS + Realtime, kind chips, day buckets. `describeActivity`
+  mirrors web's sentence vocabulary — keep both in step when a verb is added.
+- **Projects** (`app/projects.tsx`, `app/project/[projectId].tsx`,
+  `lib/projects.ts`): list with progress + status; detail with Overview
+  (status, lead, dates, stacked progress, **milestones** with reach/unreach
+  + inline add, recent activity), Tasks by status, Activity. Milestone
+  writes go straight to `project_milestones` (member-wide RLS policy; the
+  activity trigger attributes them to `auth.uid()`), which is why there is
+  no API route for them.
+- **Task detail** grew: due date (native picker, 17:00 local, Clear),
+  labels (add / remove via PATCH `labels`), the project link, **sub-issues**
+  (RLS read of `parent_id` children; creating one POSTs `/tasks` with
+  `parentId` so triage + notifications run), and **History** (the task's
+  `activity_log` rows, creation row excluded). Comments stay web-only
+  (Liveblocks).
+- **Calendar**: due-only tasks appear as all-day "Task due" entries
+  (synthesised from `/tasks` like web's `calendar-room.tsx`; done tasks
+  excluded). `ApiCalendarEvent.due_only` marks them for the detail sheet.
+- **Lint rule that bit here:** `react-hooks/set-state-in-effect` rejects a
+  `load()` that sets state synchronously inside `useEffect`. The hooks kick
+  the fetch off with `void Promise.resolve().then(load)`; the Realtime
+  subscription does the reloads.
+
+Still web-only after this pass (ranked by the audit): push notifications
+(needs `expo-notifications` + a token table + a native build), daily-ops
+routines, task comments (Liveblocks auth needs Bearer, or embed the task page
+in `WebSurface`), photo attachments, shift brief / handover / check-in,
+mentions + threads feeds, a Home "today" view, spaces, bookings, forms.
+
 ## Assistant + AI on mobile (built 2026-10-23)
 
 The phone is a full client of the eve agent runtime, not a viewer of it.

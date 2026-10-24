@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveApiCaller } from "@/lib/auth/api-caller";
 import { getNotifications } from "@/lib/notifications/server";
 
 /**
@@ -10,10 +10,8 @@ import { getNotifications } from "@/lib/notifications/server";
  * Read goes through the user-scoped client; RLS scopes by user_id.
  */
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Cookie OR Bearer (mobile): both run as the user, so RLS scopes rows.
+  const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

@@ -29,6 +29,8 @@ export type ProjectRow = {
   start_date: string | null;
   target_date: string | null;
   position: number;
+  /** The accountable person (migration 0106). */
+  lead_user_id: string | null;
 };
 
 /** A soft-deleted project or space, as listed in the archive. */
@@ -146,7 +148,7 @@ export function projectsQueryOptions(propertyId: string) {
       const { data, error } = await supabase
         .from("projects")
         .select(
-          "id, property_id, name, description, color, icon, status, start_date, target_date, position",
+          "id, property_id, name, description, color, icon, status, start_date, target_date, position, lead_user_id",
         )
         .eq("property_id", propertyId)
         .is("archived_at", null)
@@ -192,7 +194,7 @@ export function projectsTrackingQueryOptions(propertyId: string) {
         supabase
           .from("projects")
           .select(
-            "id, property_id, name, description, color, icon, status, start_date, target_date, position",
+            "id, property_id, name, description, color, icon, status, start_date, target_date, position, lead_user_id",
           )
           .eq("property_id", propertyId)
           .is("archived_at", null)

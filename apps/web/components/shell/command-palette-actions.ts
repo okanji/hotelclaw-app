@@ -51,6 +51,14 @@ export type PaletteAction = {
 export function paletteActions(propertyId: string): PaletteAction[] {
   const base = `/p/${propertyId}`;
   return [
+    // -- Create --
+    {
+      id: "new-task",
+      label: "Create task",
+      keywords: ["new task", "add task", "todo", "n"],
+      icon: ClipboardPlus,
+      href: `${base}/tasks/new`,
+    },
     // -- Navigation (one per rail section) --
     {
       id: "go-home",

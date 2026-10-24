@@ -3,16 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CircleDot,
   FileText,
-  FolderInput,
   Pin,
   PinOff,
   Plus,
   Search,
-  Sparkles,
-  Tag,
-  UserPlus,
   X,
 } from "lucide-react";
 import {
@@ -28,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { MAX_PINNED_RESOURCES } from "@/components/documents/doc-pin-card";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
-import type { ActivityEvent } from "@/lib/query/activity-queries";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 
 export type ScopedTask = { id: string; title: string; status: TaskStatus };
@@ -209,114 +203,6 @@ export function ProjectProgressList({
                 </span>
               </div>
             </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/* ── Activity: recent task events in this space / project ─────────────────── */
-
-const STATUS_LABEL: Record<string, string> = {
-  todo: "To do",
-  in_progress: "In progress",
-  blocked: "Blocked",
-  done: "Done",
-};
-
-/** Map an event type to its glyph + a human sentence about the task. */
-function describeEvent(e: ActivityEvent): {
-  Icon: typeof Sparkles;
-  text: React.ReactNode;
-} {
-  const title = (
-    <span className="font-medium text-foreground">{e.title || "a task"}</span>
-  );
-  switch (e.eventType) {
-    case "task.created":
-      return { Icon: Plus, text: <>Created {title}</> };
-    case "task.status_changed":
-      return {
-        Icon: CircleDot,
-        text: (
-          <>
-            Moved {title} to{" "}
-            <span className="text-foreground">
-              {STATUS_LABEL[e.toValue ?? ""] ?? e.toValue}
-            </span>
-          </>
-        ),
-      };
-    case "task.assigned":
-      return { Icon: UserPlus, text: <>Reassigned {title}</> };
-    case "task.label_added":
-      return { Icon: Tag, text: <>Labelled {title}</> };
-    case "task.added_to_space":
-      return { Icon: FolderInput, text: <>Added {title} to this space</> };
-    case "task.added_to_project":
-      return { Icon: FolderInput, text: <>Added {title} to a project</> };
-    default:
-      return { Icon: Sparkles, text: <>Updated {title}</> };
-  }
-}
-
-/** Compact relative time: just now, 5m, 3h, 2d, 4w, then an absolute date. */
-function timeAgo(iso: string): string {
-  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (secs < 60) return "just now";
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
-  const wks = Math.floor(days / 7);
-  if (wks < 5) return `${wks}w`;
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/**
- * Recent activity for a space / project — newest first, each row a glyph + a
- * sentence + relative time. Source events carry no actor, so lines describe the
- * change, not who made it.
- */
-export function ActivityFeed({
-  events,
-  pending,
-}: {
-  events: ActivityEvent[];
-  pending?: boolean;
-}) {
-  if (pending && events.length === 0) {
-    return (
-      <p className="py-1 text-sm text-muted-foreground">Loading…</p>
-    );
-  }
-  if (events.length === 0) {
-    return (
-      <p className="py-1 text-sm text-muted-foreground">
-        No activity yet — it&apos;ll show here as tasks move.
-      </p>
-    );
-  }
-  return (
-    <ul role="list" className="flex flex-col gap-4">
-      {events.map((e) => {
-        const { Icon, text } = describeEvent(e);
-        return (
-          <li key={e.id} className="flex items-start gap-2.5">
-            <Icon
-              className="mt-[0.3125rem] size-3.5 shrink-0 text-muted-foreground"
-              strokeWidth={1.5}
-            />
-            <p className="min-w-0 flex-1 text-base leading-6 text-muted-foreground">
-              {text}
-              <span className="text-muted-foreground"> · {timeAgo(e.at)}</span>
-            </p>
           </li>
         );
       })}

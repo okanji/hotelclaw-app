@@ -255,6 +255,32 @@ Everything here lives behind **migration 0106** (`activity_log`,
   one project on the project page), today line + auto-scroll to today, one
   scroll container with a sticky left pane. The project page gained a
   **Timeline** tab mounting it over the project's tasks.
+- **Recurring tasks (migration 0107).** `tasks.recurrence`
+  (`daily|weekly|biweekly|monthly`) + `recurrence_of`. The roll-forward lives
+  in `lib/tasks/mutations.ts:updateTaskFor` (the shared web + mobile write
+  path): when a recurring task goes to `done`, the NEXT occurrence is
+  inserted — same owner / team / project / labels / cadence, `due_at` pushed
+  by one cadence via `nextOccurrence` (tested in `lib/tasks/__tests__/
+  recurrence.test.ts`), no sub-issues, `recurrence_of` pointing back. Raw DB
+  status writes (workflow runners) do NOT roll forward. UI: the "Repeat" chip
+  in `task-detail-inline-properties.tsx`. `routines` (0082) remain the
+  per-team recurring CHECKLISTS; this is for one repeating job with an owner.
+- **Column menu actions** (`kanban-column.tsx`): "Mark all done" and "Sort
+  by priority" — end-of-shift clears that run through the per-task actions
+  (`updateTask` / `moveTask`) so notifications, recurrence and the activity
+  log all fire. **`N`** anywhere inside a property opens `/tasks/new`
+  (`command-palette-context.tsx`; bare key, never while typing) and the
+  palette gained a "Create task" action.
+- **Bearer-capable routes added for mobile:** `/api/me/notifications` (+
+  `/mark-read`) and `tasks/[taskId]/suggestions` now resolve the caller via
+  `resolveApiCaller` (the suggestions route was cookie-only, so the phone's
+  triage cards silently 401'd). The single-task GET also returns the
+  columns the phone needs (`created_by`, `scheduled_*`, `space_id`,
+  `project_id`, `parent_id`, `recurrence`, `source`).
+- **Home gained "Across the property"** (`workspace-activity-widget.tsx`,
+  the last 8 `activity_log` rows); the projects table shows the **Lead**
+  column and the projects tracking timeline draws **milestone diamonds**
+  above each bar.
 - **Calendar deadlines.** Due-only tasks never reached the calendar (the
   events endpoint returns scheduled blocks only; the "client-side due
   markers" the old comment promised didn't exist). `calendar-room.tsx` now

@@ -1,4 +1,9 @@
-import type { RecordSource, TaskPriority, TaskStatus } from "@/lib/db/types";
+import type {
+  RecordSource,
+  TaskPriority,
+  TaskRecurrence,
+  TaskStatus,
+} from "@/lib/db/types";
 
 /** A task as returned by `GET /api/properties/[id]/tasks`. */
 export type Task = {
@@ -22,6 +27,9 @@ export type Task = {
   position: number;
   updated_at: string;
   created_at?: string;
+  /** Repeat cadence (migration 0107); the next occurrence is created on completion. */
+  recurrence?: TaskRecurrence | null;
+  recurrence_of?: string | null;
   /** Creation provenance (migration 0050) — 'workflow' rows get a ⚡ badge. */
   source?: RecordSource | null;
   source_workflow_id?: string | null;
