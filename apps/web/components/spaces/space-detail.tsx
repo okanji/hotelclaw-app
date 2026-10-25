@@ -51,6 +51,7 @@ import {
   RailProgress,
   railValueClass,
   WorkspaceShell,
+  useUrlTab,
   ws,
   type WorkspaceTab,
 } from "@/components/projects/workspace-shell";
@@ -239,7 +240,7 @@ export function SpaceDetail({
   );
 
   const [name, setName] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useUrlTab("overview");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (space) setName(space.name);

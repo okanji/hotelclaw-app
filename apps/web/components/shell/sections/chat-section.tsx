@@ -62,8 +62,6 @@ export function ChatSection({
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <DmsSection propertyId={propertyId} userId={userId} />
-
       <SidebarGroup>
         <SidebarGroupLabel>Channels</SidebarGroupLabel>
         {canCreateChannel ? (
@@ -109,6 +107,10 @@ export function ChatSection({
           ) : null}
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {/* Channels before DMs, as in Slack — team conversation is the
+          section's main body; DMs follow. */}
+      <DmsSection propertyId={propertyId} userId={userId} />
 
       <CreateChannelDialog
         propertyId={propertyId}

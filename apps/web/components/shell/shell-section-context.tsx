@@ -51,6 +51,8 @@ function sectionFromPath(pathname: string): ShellSection | null {
   // own.
   if (pathname.includes("/projects")) return "home";
   if (pathname.includes("/spaces")) return "home";
+  // The archive lists archived projects/teams — a Home-sidebar footer row.
+  if (/\/archive(\/|$)/.test(pathname)) return "home";
   // Forms is a first-class rail section (in More); the Documents sidebar
   // keeps a convenience group pointing at the same routes.
   if (pathname.includes("/forms")) return "forms";
@@ -113,6 +115,7 @@ const ALL_SECTIONS: ShellSection[] = [
   "workflows",
   "chatbots",
   "bookings",
+  "agents",
   "assistant",
 ];
 

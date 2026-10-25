@@ -92,7 +92,7 @@ export function FormsSection({ propertyId }: { propertyId: string }) {
 
       {forms.length > 0 ? (
         <SidebarGroup>
-          <SidebarGroupLabel>Your forms</SidebarGroupLabel>
+          <SidebarGroupLabel>Forms</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {forms.map((f) => {

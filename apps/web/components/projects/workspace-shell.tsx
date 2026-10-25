@@ -1,11 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
 
 const RAIL_STORAGE_KEY = "workspace:rail-collapsed";
+
+/**
+ * The active workspace tab, backed by `?tab=` so a view is linkable — the
+ * Home sidebar's per-project sub-items (Overview / Tasks / Timeline) deep-link
+ * straight to one. `replaceState` (not push): flipping tabs shouldn't fill the
+ * back stack. Next syncs native history calls into `useSearchParams`, so every
+ * reader — the sidebar's active row included — follows along. The default tab
+ * keeps a clean URL.
+ */
+export function useUrlTab(fallback: string): [string, (id: string) => void] {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") ?? fallback;
+  const setTab = useCallback(
+    (id: string) => {
+      const url = new URL(window.location.href);
+      if (id === fallback) url.searchParams.delete("tab");
+      else url.searchParams.set("tab", id);
+      window.history.replaceState(null, "", url);
+    },
+    [fallback],
+  );
+  return [tab, setTab];
+}
 
 /**
  * Type scale for a workspace. Reading content sits at 15px with relaxed
@@ -61,9 +85,9 @@ export function WorkspaceShell({
   activeTab?: string;
   onActiveTabChange?: (id: string) => void;
 }) {
-  const [internalActive, setInternalActive] = useState(defaultTab ?? tabs[0]?.id);
-  const active = activeTab ?? internalActive;
-  const setActive = onActiveTabChange ?? setInternalActive;
+  const [urlTab, setUrlTab] = useUrlTab(defaultTab ?? tabs[0]?.id ?? "");
+  const active = activeTab ?? urlTab;
+  const setActive = onActiveTabChange ?? setUrlTab;
   const current = tabs.find((t) => t.id === active) ?? tabs[0];
 
   // Collapse state for the right properties rail, persisted across pages.

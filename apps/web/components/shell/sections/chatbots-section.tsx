@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -12,7 +13,6 @@ import {
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -44,33 +44,37 @@ export function ChatbotsSection({ propertyId }: { propertyId: string }) {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Chatbots</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link href={`${base}?new=1`} />}
-              tooltip="Create a chatbot"
-            >
-              <Plus />
-              <span>New chatbot</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          {pinned.map((v) => {
+          {/* Root first, then create, then the saved cuts. */}
+          {pinned.map((v, i) => {
             const href = v.id === "all" ? base : `${base}?view=${v.id}`;
             const active =
               (onList && view === v.id) || (onEditor && v.id === "all");
             return (
-              <SidebarMenuItem key={v.id}>
-                <SidebarMenuButton
-                  render={<Link href={href} />}
-                  isActive={active}
-                  tooltip={v.label}
-                >
-                  <v.icon />
-                  <span>{v.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <Fragment key={v.id}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href={href} />}
+                    isActive={active}
+                    tooltip={v.label}
+                  >
+                    <v.icon />
+                    <span>{v.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {i === 0 ? (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={`${base}?new=1`} />}
+                tooltip="Create a chatbot"
+              >
+                <Plus />
+                <span>New chatbot</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+                ) : null}
+              </Fragment>
             );
           })}
           <SidebarMenuItem>

@@ -37,16 +37,21 @@ type ViewDef = {
   attention?: boolean;
 };
 
-/** Top-level views — the inbox and the unread cut. */
+/** Top-level views — the inbox and the unread cut. The inbox row reads
+ *  "All" because the You block above every sidebar already says "Inbox". */
 export const PRIMARY_VIEWS: ViewDef[] = [
-  { id: "inbox", label: "Inbox", icon: Inbox },
+  { id: "inbox", label: "All", icon: Inbox },
   { id: "unread", label: "Unread", icon: CircleDot },
-  /**
-   * Not a notification slice: the property-wide "who did what" feed read
-   * from `activity_log` (migration 0106). The inbox answers "what needs me";
-   * this answers "what changed", for everyone, with the actor on every row.
-   */
-  { id: "workspace", label: "Workspace", icon: Activity },
+];
+
+/**
+ * Not a notification slice: the property-wide "who did what" feed read from
+ * `activity_log` (migration 0106). The inbox answers "what needs me"; this
+ * answers "what changed", for everyone, with the actor on every row — so it
+ * gets its own sidebar group instead of sitting among the inbox cuts.
+ */
+export const WORKSPACE_VIEWS: ViewDef[] = [
+  { id: "workspace", label: "All activity", icon: Activity },
 ];
 
 /** Type filters — the "folders" of the inbox. */
@@ -60,7 +65,7 @@ export const FILTER_VIEWS: ViewDef[] = [
 ];
 
 const VIEW_BY_ID = new Map<ActivityViewId, ViewDef>(
-  [...PRIMARY_VIEWS, ...FILTER_VIEWS].map((v) => [v.id, v]),
+  [...PRIMARY_VIEWS, ...FILTER_VIEWS, ...WORKSPACE_VIEWS].map((v) => [v.id, v]),
 );
 
 export function viewDef(id: ActivityViewId): ViewDef {

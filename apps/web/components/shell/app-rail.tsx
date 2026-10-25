@@ -503,8 +503,22 @@ export function AppRail({
         // section now, so Home must not read as "already active" from within
         // Insights (its own routeKey is the more specific `/home/insights`).
         !(item.section === "home" && pathname.includes("/home/insights"));
-    if (alreadyInSection) return;
-    const target = resolveTarget(propertyId, item);
+    // First click into a section resumes where you left off (last path).
+    // Clicking the section you're ALREADY in goes to its root (gr8r / Slack /
+    // Linear convention) — otherwise a deep page had no one-click way out, and
+    // the second click silently did nothing. `section === item.section` also
+    // counts routes the section owns without its routeKey (Home's
+    // /projects, /spaces, /my-tasks). Chat/DMs have no single root page.
+    const inSection = alreadyInSection || section === item.section;
+    let target: string | undefined;
+    if (inSection) {
+      if (isChatPair) return;
+      const here = window.location.pathname + window.location.search;
+      if (here === item.href) return;
+      target = item.href;
+    } else {
+      target = resolveTarget(propertyId, item);
+    }
     if (!target) return;
 
     // Every section's content is rendered by a persistent surface in the

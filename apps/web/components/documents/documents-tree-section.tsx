@@ -508,13 +508,14 @@ function DocumentsHomeItem({
       <SidebarMenuButton
         render={<Link href={href} draggable={false} />}
         isActive={isActive}
-        tooltip="Home"
+        tooltip="All documents"
         className={cn(
           isOver && "bg-accent-pressed",
         )}
       >
         <Home />
-        <span className="truncate">Home</span>
+        {/* Not "Home" — that's the rail's Home section. */}
+        <span className="truncate">All documents</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

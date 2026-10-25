@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox } from "lucide-react";
+import { AtSign } from "lucide-react";
 import {
   SidebarMenuButton,
   SidebarMenuItem,
@@ -44,10 +44,10 @@ export function InboxSidebarLink({
       <SidebarMenuButton
         render={<Link href={href} onClick={handleClick} />}
         isActive={pathname.startsWith(href)}
-        tooltip="Inbox"
+        tooltip="Mentions"
       >
-        <Inbox />
-        <span>Inbox</span>
+        <AtSign />
+        <span>Mentions</span>
         {unread > 0 ? (
           <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-xs font-medium leading-none text-sidebar-foreground/70 tabular-nums">
             {unread > 99 ? "99+" : unread}

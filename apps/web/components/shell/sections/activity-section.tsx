@@ -21,6 +21,7 @@ import {
 import {
   FILTER_VIEWS,
   PRIMARY_VIEWS,
+  WORKSPACE_VIEWS,
   matchesView,
   viewFromParam,
   type ActivityViewId,
@@ -81,7 +82,7 @@ export function ActivitySection({
             heading (notion-spec §3). The mark-all-read affordance sits
             right-aligned in the same row. */}
         <div className="flex items-center justify-between">
-          <SidebarGroupLabel>Activity</SidebarGroupLabel>
+          <SidebarGroupLabel>Notifications</SidebarGroupLabel>
           {unseenCount > 0 ? (
             <Button
               type="button"
@@ -143,6 +144,27 @@ export function ActivitySection({
                     {unreadByView[v.id]}
                   </SidebarMenuBadge>
                 ) : null}
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {WORKSPACE_VIEWS.map((v) => (
+              <SidebarMenuItem key={v.id}>
+                <SidebarMenuButton
+                  render={<button type="button" />}
+                  onClick={() => go(v.id)}
+                  isActive={active === v.id}
+                  tooltip={v.label}
+                >
+                  <v.icon />
+                  <span>{v.label}</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>

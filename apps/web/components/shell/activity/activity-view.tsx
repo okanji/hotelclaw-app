@@ -35,7 +35,7 @@ export function ActivityView({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <PageHeader
-        title={view === "inbox" ? "Activity" : def.label}
+        title={view === "inbox" ? "Inbox" : def.label}
         icon={<Icon />}
         meta={
           view === "workspace" ? "Everything that changed, and who changed it" : undefined

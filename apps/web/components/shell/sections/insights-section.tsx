@@ -91,19 +91,6 @@ function ScopeNav({ propertyId }: { propertyId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {projects.length > 0 ? (
-        <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projects.map((p) =>
-                row(p.name, FolderKanban, { kind: "project", id: p.id }),
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ) : null}
-
       {spaces.length > 0 ? (
         <SidebarGroup>
           <SidebarGroupLabel>Teams</SidebarGroupLabel>
@@ -111,6 +98,19 @@ function ScopeNav({ propertyId }: { propertyId: string }) {
             <SidebarMenu>
               {spaces.map((s) =>
                 row(s.name, Users, { kind: "space", id: s.id }),
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ) : null}
+
+      {projects.length > 0 ? (
+        <SidebarGroup>
+          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {projects.map((p) =>
+                row(p.name, FolderKanban, { kind: "project", id: p.id }),
               )}
             </SidebarMenu>
           </SidebarGroupContent>

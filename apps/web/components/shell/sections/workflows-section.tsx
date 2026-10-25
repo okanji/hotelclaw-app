@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -64,34 +65,39 @@ export function WorkflowsSection({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Workflows</SidebarGroupLabel>
-        <SidebarGroupContent>
+                <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}/new`} />}
-                isActive={onNew}
-                tooltip="Build a workflow with AI"
-              >
-                <Sparkles />
-                <span>Build with AI</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {pinned.map((v) => {
+            {/* Root first, then create, then the saved cuts (audit
+                2026-10-25 — a create row never leads the list). */}
+            {pinned.map((v, i) => {
               const href = v.id === "all" ? base : `${base}?view=${v.id}`;
               const active =
                 (onList && view === v.id) || (onBuilder && v.id === "all");
               return (
-                <SidebarMenuItem key={v.id}>
-                  <SidebarMenuButton
-                    render={<Link href={href} />}
-                    isActive={active}
-                    tooltip={v.label}
-                  >
-                    <v.icon />
-                    <span>{v.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <Fragment key={v.id}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href={href} />}
+                      isActive={active}
+                      tooltip={v.label}
+                    >
+                      <v.icon />
+                      <span>{v.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {i === 0 ? (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        render={<Link href={`${base}/new`} />}
+                        isActive={onNew}
+                        tooltip="Build a workflow with AI"
+                      >
+                        <Sparkles />
+                        <span>New workflow</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ) : null}
+                </Fragment>
               );
             })}
           </SidebarMenu>

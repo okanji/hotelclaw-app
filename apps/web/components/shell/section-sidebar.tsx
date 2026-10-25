@@ -3,11 +3,13 @@
 import { Suspense, type ReactNode } from "react";
 import {
   SidebarContent,
+  SidebarGroup,
   SidebarHeader,
   SidebarMenu,
 } from "@/components/ui/sidebar";
 import { PropertySwitcher } from "./property-switcher";
 import { SearchButton } from "./search-button";
+import { NewMenu, YouBlock } from "./you-block";
 import { useShellSection } from "./shell-section-context";
 import { HomeSection } from "./sections/home-section";
 import { InsightsSection } from "./sections/insights-section";
@@ -78,12 +80,23 @@ export function SectionSidebar({
           memberships={memberships}
           email={user.email}
         />
-        <SidebarMenu>
-          <SearchButton />
-        </SidebarMenu>
+        {/* Search + the global create menu share one row, the same spot in
+            every section. */}
+        <div className="flex items-center gap-0.5">
+          <SidebarMenu className="min-w-0 flex-1">
+            <SearchButton />
+          </SidebarMenu>
+          <NewMenu propertyId={currentPropertyId} />
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Personal block — identical in every section (see you-block.tsx).
+            Inside the scroll area so an expanded Favorites list can't squeeze
+            the section content off-screen. */}
+        <SidebarGroup className="pt-0">
+          <YouBlock propertyId={currentPropertyId} userId={user.id} />
+        </SidebarGroup>
         {/* All sections stay mounted; only visibility toggles. Each loads its
             data once (on property entry), so switching the rail is an instant
             show/hide — no remount, no re-fetch, no skeleton. */}

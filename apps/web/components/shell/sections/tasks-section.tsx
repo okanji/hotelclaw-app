@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid, UserCheck } from "lucide-react";
+import { LayoutGrid, Plus, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SidebarGroup,
@@ -44,14 +44,18 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
 
   return (
     <>
+      {/* No "Tasks" label — the rail already names the section. Root first,
+          then a filter, then create (audit 2026-10-25). Teams/projects below
+          are board FILTERS and say so: their real pages live in the Home
+          sidebar, and "My tasks" (the personal agenda) is in the You block —
+          hence "Assigned to me" for this board cut. */}
       <SidebarGroup>
-        <SidebarGroupLabel>Tasks</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={base} />}
-                isActive={onTasks && !scoped}
+                isActive={onTasks && !scoped && !pathname.startsWith(`${base}/new`)}
                 tooltip="All tasks"
               >
                 <LayoutGrid />
@@ -62,10 +66,21 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
               <SidebarMenuButton
                 render={<Link href={`${base}?view=mine`} />}
                 isActive={onTasks && mine}
-                tooltip="My tasks"
+                tooltip="Assigned to me"
               >
                 <UserCheck />
-                <span>My tasks</span>
+                <span>Assigned to me</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={`${base}/new`} />}
+                isActive={pathname.startsWith(`${base}/new`)}
+                tooltip="New task"
+              >
+                <Plus />
+                <span className="flex-1">New task</span>
+                <span className="text-xs font-normal text-faint-foreground">N</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -74,7 +89,7 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
 
       {spaces.length > 0 ? (
         <SidebarGroup>
-          <SidebarGroupLabel>Teams</SidebarGroupLabel>
+          <SidebarGroupLabel>Filter by team</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {spaces.map((s) => (
@@ -103,7 +118,7 @@ export function TasksSection({ propertyId }: { propertyId: string }) {
 
       {projects.length > 0 ? (
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarGroupLabel>Filter by project</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {projects.map((p) => (

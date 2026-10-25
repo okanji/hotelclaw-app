@@ -83,9 +83,18 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Agents</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={base} />}
+                isActive={onList && view === "all"}
+                tooltip="All agents"
+              >
+                <LayoutGrid />
+                <span>All agents</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={`${base}?new=1`} />}
@@ -93,16 +102,6 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
               >
                 <Plus />
                 <span>New agent</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={base} />}
-                isActive={onList && view === "all"}
-                tooltip="Your agents"
-              >
-                <LayoutGrid />
-                <span>Your agents</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

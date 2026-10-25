@@ -6,6 +6,7 @@ import { useShellSection } from "./shell-section-context";
 import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
 import { LastPathRecorder } from "./last-path-recorder";
+import { RouteTitle } from "./route-title";
 import type { Membership } from "@/lib/auth/session";
 
 /**
@@ -139,6 +140,8 @@ export function LeftShell({
       {/* Records each section's last route to localStorage so the rail and
           property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />
+      {/* Route-aware document.title. Renders nothing. */}
+      {!forceExpanded && <RouteTitle propertyId={currentPropertyId} />}
       <div className="flex min-h-0 flex-1">
         <AppRail
           propertyId={currentPropertyId}

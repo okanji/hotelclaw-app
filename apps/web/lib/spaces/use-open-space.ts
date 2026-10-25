@@ -21,8 +21,9 @@ const IN_SPACES_SURFACE = /^\/p\/[^/]+\/spaces(?:\/|$)/;
 export function useOpenSpace(propertyId: string) {
   const router = useRouter();
   return useCallback(
-    (spaceId: string) => {
-      const href = `/p/${propertyId}/spaces/${spaceId}`;
+    (spaceId: string, tab?: string) => {
+      // `tab` deep-links a workspace view (`?tab=`, see useUrlTab).
+      const href = `/p/${propertyId}/spaces/${spaceId}${tab ? `?tab=${tab}` : ""}`;
       if (IN_SPACES_SURFACE.test(window.location.pathname)) {
         window.history.pushState(null, "", href);
         // `usePathname` updates on Next-instrumented pushState, but the surface

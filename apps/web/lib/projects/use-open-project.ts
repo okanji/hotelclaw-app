@@ -20,8 +20,9 @@ const IN_PROJECTS_SURFACE = /^\/p\/[^/]+\/projects(?:\/|$)/;
 export function useOpenProject(propertyId: string) {
   const router = useRouter();
   return useCallback(
-    (projectId: string) => {
-      const href = `/p/${propertyId}/projects/${projectId}`;
+    (projectId: string, tab?: string) => {
+      // `tab` deep-links a workspace view (`?tab=`, see useUrlTab).
+      const href = `/p/${propertyId}/projects/${projectId}${tab ? `?tab=${tab}` : ""}`;
       if (IN_PROJECTS_SURFACE.test(window.location.pathname)) {
         window.history.pushState(null, "", href);
         window.dispatchEvent(new Event("hotelclaw:pathname"));
