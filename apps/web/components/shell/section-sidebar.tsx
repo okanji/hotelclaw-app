@@ -51,7 +51,7 @@ export function SectionSidebar({
   user,
   width,
 }: Props) {
-  const { section } = useShellSection();
+  const { section, holdSectionForNavigation } = useShellSection();
 
   const currentRole = memberships.find(
     (m) => m.property_id === currentPropertyId,
@@ -60,6 +60,11 @@ export function SectionSidebar({
 
   return (
     <aside
+      // Any click in here (rows, sub-rows, the You block, the New menu —
+      // portaled menus bubble through the React tree) keeps this sidebar
+      // through the navigation it causes. See holdSectionForNavigation.
+      onClickCapture={holdSectionForNavigation}
+      data-section-sidebar=""
       // Notion's sidebar is a FLUSH plane, not a detached rounded card: it
       // runs full height against the rail on its left and the content pane on
       // its right, and its only separation is a 1px warm inset shadow on the

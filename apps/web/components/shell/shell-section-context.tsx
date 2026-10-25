@@ -84,6 +84,12 @@ type ShellSectionContextValue = {
   section: ShellSection;
   setSection: (section: ShellSection) => void;
   /**
+   * Keep the current section through the NEXT navigation — called by the
+   * section sidebar on click so following one of its links never swaps the
+   * sidebar out from under the user.
+   */
+  holdSectionForNavigation: () => void;
+  /**
    * When `true`, the secondary sidebar is hidden so a surface can claim the
    * full content width. Transient + surface-driven (the workflow canvas
    * builder sets this) — reset on every navigation.
@@ -168,26 +174,65 @@ export function ShellSectionProvider({
   // Adjust the section during render when navigation lands on a route that
   // pins one (e.g. opening a doc from the command palette). This is React's
   // sanctioned "adjust state on a changed value" pattern — no effect needed.
+  //
+  // EXCEPT when the navigation started inside the section sidebar: a sidebar
+  // click changes the PAGE, never the sidebar under your cursor (ClickUp /
+  // gr8r). Without this, the You block's Inbox (→ /activity) swapped the
+  // Tasks sidebar for Activity's, a favorite doc swapped in the Docs tree,
+  // Chat's Meetings link swapped in Meetings — every item below the one you
+  // clicked changed. Rail clicks, ⌘K, notifications, deep links and reloads
+  // still pin the section as before.
   const [prevPathname, setPrevPathname] = useState(pathname);
+  const [holdSection, setHoldSection] = useState(false);
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     const pinned = sectionFromPath(pathname);
-    if (pinned && pinned !== section) setSection(pinned);
+    if (holdSection) setHoldSection(false);
+    else if (pinned && pinned !== section) setSection(pinned);
     // Any navigation cancels a hidden-sidebar request — surfaces opt in fresh
     // on mount so leaving the workflow canvas always restores the sidebar.
     if (sidebarHidden) setSidebarHidden(false);
   }
 
+  // Armed by a sidebar click; consumed by the next pathname change. If the
+  // click didn't navigate (a chevron, a dialog opener) it disarms on the next
+  // press OUTSIDE the sidebar, or after a few seconds — generous because a
+  // server-rendered target (meetings, forms, bookings) can take a while to
+  // commit in dev — so a later unrelated navigation still pins normally.
+  const holdSectionForNavigation = useCallback(() => setHoldSection(true), []);
+  useEffect(() => {
+    if (!holdSection) return;
+    const timer = window.setTimeout(() => setHoldSection(false), 5000);
+    const onPointerDown = (e: PointerEvent) => {
+      const el = e.target as Element | null;
+      // Portaled menus opened FROM the sidebar (the New menu) live outside
+      // it in the DOM; their click re-arms through the React tree anyway.
+      if (!el?.closest?.("[data-section-sidebar]")) setHoldSection(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [holdSection]);
+
   const value = useMemo<ShellSectionContextValue>(
     () => ({
       section,
       setSection,
+      holdSectionForNavigation,
       sidebarHidden,
       setSidebarHidden,
       sidebarCollapsed,
       setSidebarCollapsed,
     }),
-    [section, sidebarHidden, sidebarCollapsed, setSidebarCollapsed],
+    [
+      section,
+      holdSectionForNavigation,
+      sidebarHidden,
+      sidebarCollapsed,
+      setSidebarCollapsed,
+    ],
   );
 
   return (
