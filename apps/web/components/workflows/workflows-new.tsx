@@ -15,7 +15,7 @@ export function WorkflowsNew({ propertyId }: { propertyId: string }) {
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="px-6 pt-12 pb-12">
+        <PageShell className="pt-12 pb-12">
           <NewWorkflowClient propertyId={propertyId} />
         </PageShell>
       </div>

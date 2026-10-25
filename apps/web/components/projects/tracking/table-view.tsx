@@ -106,7 +106,7 @@ export function ProjectsTableView({
   }
 
   return (
-    <div className="h-full overflow-y-auto px-8 py-2 sm:px-14">
+    <div className="h-full overflow-y-auto px-(--page-gutter) py-2">
       {/* Header */}
       {/* Table header: 36px, 14px/16.8 weight 400 TERTIARY (notion-spec-v2 §6)
           — not 12px faint, which is the metadata rung. */}

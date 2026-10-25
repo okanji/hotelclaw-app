@@ -29,6 +29,8 @@ export type ActivityScope =
   | { kind: "project"; id: string }
   | { kind: "space"; id: string }
   | { kind: "task"; id: string }
+  /** Any one entity's own rows by id — e.g. an initiative (0111). */
+  | { kind: "entity"; id: string }
   | { kind: "actor"; id: string };
 
 /**
@@ -70,6 +72,7 @@ export function matchesFamily(row: ActivityLogRow, family: ActivityFamily) {
       return (
         row.entity_kind === "project" ||
         row.entity_kind === "milestone" ||
+        row.entity_kind === "initiative" ||
         row.verb === "project_changed" ||
         row.verb === "project_removed"
       );
@@ -105,6 +108,7 @@ export function activityLogQueryOptions(
           q = q.eq("space_id", scope.id);
           break;
         case "task":
+        case "entity":
           q = q.eq("entity_id", scope.id);
           break;
         case "actor":

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, FlaskConical, History, LayoutPanelLeft, List, Redo2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Check, FlaskConical, History, LayoutPanelLeft, List, Play, Redo2, Undo2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -9,6 +10,8 @@ import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import { validateSpec } from "@/lib/workflows/validate";
 import { STEP_FIELDS } from "@/lib/workflows/field-defs";
+import { canRunNow } from "@/lib/workflows/summary";
+import { runWorkflowNowRequest } from "../workflow-actions";
 import { PageShell } from "@/components/ui/page-shell";
 import { AiCopilot } from "./ai-copilot";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
@@ -97,6 +100,17 @@ export function BuilderShell({
       toast.error(`Couldn't ${next ? "turn on" : "pause"} this workflow`);
     } finally {
       setTogglingLive(false);
+    }
+  }
+  const router = useRouter();
+  const [runningNow, setRunningNow] = useState(false);
+  async function runNow() {
+    setRunningNow(true);
+    try {
+      const runId = await runWorkflowNowRequest(propertyId, workflowId);
+      if (runId) router.push(`/p/${propertyId}/workflows/${workflowId}/runs/${runId}`);
+    } finally {
+      setRunningNow(false);
     }
   }
   const [saving, setSaving] = useState(false);
@@ -424,6 +438,22 @@ export function BuilderShell({
             <FlaskConical className="size-3.5" aria-hidden />
             Test
           </button>
+          {canRunNow(savedSpec.trigger.event_type) ? (
+            <button
+              type="button"
+              disabled={!liveEnabled || runningNow}
+              onClick={() => void runNow()}
+              title={
+                liveEnabled
+                  ? "Run the saved workflow now, for real — same as its trigger firing"
+                  : "Turn the workflow on to run it"
+              }
+              className="inline-flex items-center gap-1.5 rounded-md bg-background px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+            >
+              <Play className="size-3.5" aria-hidden />
+              {runningNow ? "Starting…" : "Run now"}
+            </button>
+          ) : null}
           {/*
             Live switch. Creating a workflow lands you here with the toast
             "turn it on when you're ready" — until this existed, there was

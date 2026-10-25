@@ -1,21 +1,27 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CloseSidebarIcon } from "./clickup-icons";
 import { useShellSection } from "./shell-section-context";
-import { AppRail } from "./app-rail";
 import { SectionSidebar } from "./section-sidebar";
 import { LastPathRecorder } from "./last-path-recorder";
 import { RouteTitle } from "./route-title";
 import type { Membership } from "@/lib/auth/session";
 
 /**
- * Secondary-sidebar width bounds. The default sits a touch under the measured
- * Notion sidebar width of 270 (docs/notion-spec.md §4) — per user preference,
- * 2026-08-15. The user can drag the right edge between MIN and MAX;
- * dragging well past MIN collapses the sidebar (Notion behavior), and the
- * chosen width persists in the `sidebar_width` cookie so the server can
- * restore it on first paint.
+ * Sidebar width bounds. The default sits a touch under the measured Notion
+ * sidebar width of 270 (docs/notion-spec.md §4) — per user preference,
+ * 2026-08-15. The user can drag the right edge between MIN and MAX; dragging
+ * well past MIN collapses the sidebar (Notion behavior), and the chosen width
+ * persists in the `sidebar_width` cookie so the server can restore it on
+ * first paint.
  */
 export const DEFAULT_SIDEBAR_WIDTH = 250;
 export const MIN_SIDEBAR_WIDTH = 200;
@@ -35,9 +41,8 @@ type User = {
 };
 
 /**
- * The whole left region: icon rail (with account menu) + secondary sidebar.
- * Every rail section — Activity included — renders its content in the
- * secondary sidebar.
+ * The whole left region: the one sidebar (see `SectionSidebar`) with its
+ * resize handle, the collapse shortcut, and the » button that brings it back.
  */
 export function LeftShell({
   currentPropertyId,
@@ -122,43 +127,70 @@ export function LeftShell({
     }
   }, [persistWidth, setSidebarCollapsed]);
 
-  const currentRole = memberships.find(
-    (m) => m.property_id === currentPropertyId,
-  )?.role;
-  const isManagement = currentRole === "owner" || currentRole === "manager";
+  // Linear-style sidebar toggle — ⌘\ (Mac) / Ctrl\ (Win/Linux). Ignored while
+  // typing so it doesn't swallow a literal backslash in an input/editor. The
+  // desktop shell owns it; the mobile drawer copy must not double-bind.
+  useEffect(() => {
+    if (forceExpanded) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "\\" || !(e.metaKey || e.ctrlKey)) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.isContentEditable ||
+          el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [forceExpanded, sidebarCollapsed, setSidebarCollapsed]);
 
   return (
     // `data-sidebar-open` lets the main pane (a following sibling styled with
     // `peer-data-[sidebar-open]:…`) react to the sidebar being attached.
-    // The root paints bg-sidebar so the m-2 gutter around the floating icon
-    // rail (see AppRail) reads as the chrome plane, continuous with the
-    // section sidebar beside it — not a white strip cut out of the shell.
     <div
       data-sidebar-open={showSidebar ? "" : undefined}
       className={cn("relative flex shrink-0 flex-col bg-sidebar", className)}
     >
-      {/* Records each section's last route to localStorage so the rail and
-          property switcher can jump straight back to it. Renders nothing. */}
+      {/* Records each section's last route to localStorage so the sidebar
+          and property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />
       {/* Route-aware document.title. Renders nothing. */}
       {!forceExpanded && <RouteTitle propertyId={currentPropertyId} />}
-      <div className="flex min-h-0 flex-1">
-        <AppRail
-          propertyId={currentPropertyId}
-          userId={user.id}
-          user={user}
-          memberships={memberships}
-          isManagement={isManagement}
-        />
-        {showSidebar && (
+      {(forceExpanded || !sidebarHidden) && (
+        // Width slot that animates open/closed (ClickUp-style slide). The
+        // sidebar stays MOUNTED while collapsed — the slot just shrinks to
+        // 0 and clips it — so reopening is instant and keeps scroll/data
+        // state. `inert` keeps the clipped sidebar out of the tab order.
+        // No transition mid-drag, or resizing would lag the cursor. In the
+        // mobile drawer the slot dissolves (`contents`) and the sidebar
+        // goes full-width as before.
+        <div
+          inert={!showSidebar}
+          className={cn(
+            "flex min-h-0 flex-1 max-md:contents md:w-(--sidebar-slot-width) md:overflow-hidden",
+            !dragging &&
+              "md:transition-[width] md:duration-200 md:ease-out motion-reduce:transition-none",
+          )}
+          style={
+            {
+              "--sidebar-slot-width": showSidebar ? `${width}px` : "0px",
+            } as React.CSSProperties
+          }
+        >
           <SectionSidebar
             currentPropertyId={currentPropertyId}
             memberships={memberships}
             user={user}
             width={width}
           />
-        )}
-      </div>
+        </div>
+      )}
       {showSidebar && !forceExpanded && (
         // Drag-to-resize handle over the sidebar's right edge (the root's
         // right edge — the sidebar is the last flex child). Wider hit area
@@ -178,6 +210,34 @@ export function LeftShell({
             dragging ? "bg-ring" : "hover:bg-border",
           )}
         />
+      )}
+      {!showSidebar && !forceExpanded && (
+        // Linear's » at the top-left of the page while the sidebar is
+        // hidden: the one piece of shell that survives a collapse. Fixed so
+        // it escapes the zero-width slot; quiet (fill on hover only).
+        <TooltipProvider delay={0}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(false)}
+                  aria-label="Open sidebar"
+                  className="fixed top-2 left-2 z-30 flex size-[30px] items-center justify-center rounded-md text-faint-foreground outline-hidden transition-colors hover:bg-accent hover:text-secondary-ink focus-visible:shadow-focus max-md:hidden"
+                >
+                  {/* ClickUp's closeLeft glyph, mirrored to point at the sidebar. */}
+                  <CloseSidebarIcon className="size-4 -scale-x-100" />
+                </button>
+              }
+            />
+            <TooltipContent side="right">
+              Open sidebar
+              <kbd className="ml-1.5 font-sans text-xs font-normal opacity-60">
+                ⌘\
+              </kbd>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       {dragging && (
         // While dragging, blanket the viewport so iframes/editors under the

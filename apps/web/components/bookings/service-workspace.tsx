@@ -11,12 +11,13 @@ import {
   Pencil,
   Plus,
   Search,
+  Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -78,7 +79,7 @@ export function ServiceWorkspace({
         ? "Rentals"
         : "Appointments";
 
-  // ONE width for the workspace, masthead included — decided by the service
+  // ONE width for the workspace body — decided by the service
   // KIND, not by the open tab, so switching Reservations → Floor plan never
   // shifts the left edge. A restaurant is a host console (floor plan +
   // timetable) and a rental with units is a unit schedule: both ARE the data
@@ -89,18 +90,23 @@ export function ServiceWorkspace({
     tableMode || (rentalMode && ownResources.length > 0) ? "bleed" : "page";
 
   return (
-    <PageShell width={shellWidth} className="space-y-4">
-      {/* Same masthead tier as every other index page (`ui/section-header`
-          size="page" — 40/48 weight 700, no rule). */}
-      <SectionHeader
-        size="page"
-        className="mb-10 flex-wrap gap-y-3"
-        title={`${service.emoji ? `${service.emoji} ` : ""}${service.name}`}
-        description={`${kindNoun}${
+    <>
+      <PageHeader
+        breadcrumbs={[
+          {
+            label: "Bookings",
+            href: `/p/${propertyId}/bookings`,
+            icon: <Ticket />,
+          },
+          {
+            label: `${service.emoji ? `${service.emoji} ` : ""}${service.name}`,
+          },
+        ]}
+        meta={`${kindNoun}${
           schedule.priceLabel ? ` · ${schedule.priceLabel}` : ""
         }${!service.active ? " · paused" : ""}`}
         actions={
-          <>
+          <div className="flex items-center gap-1.5">
             {propertySlug && service.public_bookable ? (
               <Button
                 variant="ghost"
@@ -115,7 +121,9 @@ export function ServiceWorkspace({
                 }}
               >
                 <ExternalLink data-slot="icon" />
-                {isEvent ? "Ticket page" : "Public page"}
+                <span className="max-sm:hidden">
+                  {isEvent ? "Ticket page" : "Public page"}
+                </span>
               </Button>
             ) : null}
             {isEvent ? (
@@ -132,36 +140,39 @@ export function ServiceWorkspace({
               <Plus data-slot="icon" />
               {isEvent ? "Sell tickets" : "New booking"}
             </Button>
-          </>
+          </div>
         }
       />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell width={shellWidth} className={cn("space-y-4", shellWidth === "bleed" && "px-4")}>
+          {isEvent ? (
+            <TicketingView bookings={scoped} schedule={schedule} />
+          ) : tableMode ? (
+            <TableServiceView
+              propertyId={propertyId}
+              service={service}
+              bookings={scoped}
+              resources={resources}
+            />
+          ) : (
+            <DaySheetView
+              service={service}
+              bookings={scoped}
+              resources={resources}
+              rentalMode={rentalMode}
+            />
+          )}
 
-      {isEvent ? (
-        <TicketingView bookings={scoped} schedule={schedule} />
-      ) : tableMode ? (
-        <TableServiceView
-          propertyId={propertyId}
-          service={service}
-          bookings={scoped}
-          resources={resources}
-        />
-      ) : (
-        <DaySheetView
-          service={service}
-          bookings={scoped}
-          resources={resources}
-          rentalMode={rentalMode}
-        />
-      )}
-
-      {pageDialogOpen ? (
-        <EventPageDialog
-          service={service}
-          propertySlug={propertySlug}
-          onClose={() => setPageDialogOpen(false)}
-        />
-      ) : null}
-    </PageShell>
+          {pageDialogOpen ? (
+            <EventPageDialog
+              service={service}
+              propertySlug={propertySlug}
+              onClose={() => setPageDialogOpen(false)}
+            />
+          ) : null}
+        </PageShell>
+      </div>
+    </>
   );
 }
 

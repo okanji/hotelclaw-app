@@ -6,6 +6,10 @@ import { PageHeader } from "@/components/shell/page-header";
 import { ArrowLeft, FileText, Hash, Square, Video } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { JoinMeetingButton } from "@/components/meetings/join-meeting-button";
+import { RegenerateSummaryButton } from "@/components/meetings/regenerate-summary-button";
+import { meetingState, stateBadge, type MeetingState } from "@/lib/meetings/status";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +28,25 @@ export default async function MeetingDetailPage({
   const detail = await getMeetingDetail(supabase, meetingId);
   if (!detail) notFound();
 
+  // force-dynamic: a request-time clock is the point (stale states resolve).
+  // eslint-disable-next-line react-hooks/purity -- server component, per request
+  const now = Date.now();
+  const state = meetingState(
+    {
+      ...detail,
+      has_summary: detail.summary !== null,
+      transcript: detail.transcript
+        ? { status: detail.transcript.status, created_at: detail.transcript.created_at }
+        : null,
+    },
+    now,
+  );
+  const badge = stateBadge(state);
+  const joinable = state.phase === "live" && detail.stream_call_type === "default";
+
+  // Regenerate re-runs the summary from the mirrored transcript, so it needs
+  // one (`lib/meetings/summarize.ts:regenerateMeetingSummary`).
+  const hasStoredTranscript = Boolean(detail.transcript?.raw_jsonl);
   const transcriptText = detail.transcript?.raw_jsonl
     ? renderTranscript(detail.transcript.raw_jsonl, detail.transcript.speakers)
     : null;
@@ -33,7 +56,16 @@ export default async function MeetingDetailPage({
       <PageHeader
         title={detail.title}
         icon={<Video />}
+        meta={<span title={badge.hint}><StatusBadge tone={badge.tone}>{badge.label}</StatusBadge></span>}
         actions={
+          <div className="flex items-center gap-3">
+          {joinable ? (
+            <JoinMeetingButton
+              meetingId={detail.id}
+              callId={detail.stream_call_id}
+              callType={detail.stream_call_type}
+            />
+          ) : null}
           <Link
             href={`/p/${propertyId}/meetings`}
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -41,9 +73,10 @@ export default async function MeetingDetailPage({
             <ArrowLeft className="size-3.5" />
             All meetings
           </Link>
+          </div>
         }
       />
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto py-6">
         {/* A meeting's notes are a reading surface — the 720px prose column
             (`ui/page-shell`), one edge from the metadata header to the
             transcript. */}
@@ -51,7 +84,7 @@ export default async function MeetingDetailPage({
         <article className="space-y-6">
           <header className="space-y-1 text-xs text-muted-foreground">
             <p>
-              {new Date(detail.started_at).toLocaleString()}
+              {new Date(state.startAt).toLocaleString()}
               {detail.host_name ? ` · Started by ${detail.host_name}` : ""}
               {detail.transcript?.duration_seconds
                 ? ` · ${formatDuration(detail.transcript.duration_seconds)}`
@@ -80,15 +113,16 @@ export default async function MeetingDetailPage({
             <SummarySection
               summary={detail.summary}
               propertyId={propertyId}
+              meetingId={detail.id}
+              canRegenerate={hasStoredTranscript}
             />
           ) : (
-            <EmptyState
-              title={
-                detail.ended_at ? "Generating summary…" : "Meeting in progress"
-              }
-            >
-              The summary appears here once the transcript is processed.
-            </EmptyState>
+            <NoSummaryState
+              state={state}
+              hasTranscript={transcriptText !== null}
+              meetingId={detail.id}
+              canRegenerate={hasStoredTranscript}
+            />
           )}
 
           {transcriptText ? (
@@ -111,14 +145,76 @@ export default async function MeetingDetailPage({
   );
 }
 
+/**
+ * What to show instead of notes — per lifecycle state, never a perpetual
+ * spinner. A failed summary offers "Regenerate summary" (re-runs it from the
+ * stored transcript) and points at the transcript below.
+ */
+function NoSummaryState({
+  state,
+  hasTranscript,
+  meetingId,
+  canRegenerate,
+}: {
+  state: MeetingState;
+  hasTranscript: boolean;
+  meetingId: string;
+  canRegenerate: boolean;
+}) {
+  if (state.phase === "upcoming") {
+    return (
+      <EmptyState icon={Video} title="Not started yet">
+        Notes appear here after the meeting, once its transcript is processed.
+      </EmptyState>
+    );
+  }
+  if (state.phase === "live") {
+    return (
+      <EmptyState icon={Video} title="Meeting in progress">
+        The summary appears here a few minutes after the call ends.
+      </EmptyState>
+    );
+  }
+  const { label, hint } = stateBadge(state);
+  const title =
+    state.outcome === "processing" || state.outcome === "summarizing"
+      ? "Generating summary…"
+      : state.outcome === "summary_failed"
+        ? "The summary didn't generate"
+        : state.outcome === "no_call"
+          ? "No call for this event"
+          : state.outcome === "transcript_failed"
+            ? "The transcript couldn't be fetched"
+            : "No recording or transcript was captured";
+  const regenerate =
+    state.outcome === "summary_failed" && canRegenerate ? (
+      <RegenerateSummaryButton meetingId={meetingId} />
+    ) : undefined;
+  return (
+    <EmptyState icon={FileText} title={title} action={regenerate}>
+      {hint}
+      {state.outcome === "summary_failed" && hasTranscript
+        ? " Read the full transcript below."
+        : state.outcome === "no_transcript"
+          ? " To get notes, import a transcript from the Meetings page."
+          : ""}
+      <span className="sr-only"> ({label})</span>
+    </EmptyState>
+  );
+}
+
 function SummarySection({
   summary,
   propertyId,
+  meetingId,
+  canRegenerate,
 }: {
   summary: NonNullable<
     Awaited<ReturnType<typeof getMeetingDetail>>
   >["summary"];
   propertyId: string;
+  meetingId: string;
+  canRegenerate: boolean;
 }) {
   if (!summary) return null;
   return (
@@ -186,9 +282,18 @@ function SummarySection({
         </Link>
       ) : null}
 
-      <p className="text-xs text-faint-foreground">
-        Generated by {summary.model}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-faint-foreground">
+          Generated by {summary.model}
+        </p>
+        {canRegenerate ? (
+          <RegenerateSummaryButton
+            meetingId={meetingId}
+            label="Regenerate"
+            variant="ghost"
+          />
+        ) : null}
+      </div>
     </section>
   );
 }

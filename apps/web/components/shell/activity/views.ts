@@ -13,9 +13,10 @@ import {
 import type { NotificationRow } from "@/lib/notifications/types";
 
 /**
- * The Activity section is an inbox: the secondary sidebar is the FILTER NAV
- * (these views), and the main pane is the single feed for whichever view is
- * active (read from `?view=`). One source of truth for both surfaces so they
+ * The Activity section is an inbox: the page header's tab strip is the FILTER
+ * NAV (these views), and the feed below is the single list for whichever view
+ * is active (read from `?view=`). The sidebar's Inbox node keeps a few of the
+ * same views as shortcuts. One source of truth for every surface so they
  * never drift into the "two different lists" confusion they had before.
  */
 export type ActivityViewId =
@@ -68,6 +69,33 @@ const VIEW_BY_ID = new Map<ActivityViewId, ViewDef>(
   [...PRIMARY_VIEWS, ...FILTER_VIEWS, ...WORKSPACE_VIEWS].map((v) => [v.id, v]),
 );
 
+/** Every notification view (everything but the activity_log feed). */
+export const NOTIFICATION_VIEWS: ViewDef[] = [...PRIMARY_VIEWS, ...FILTER_VIEWS];
+
+/** Unread count per notification view — the badge on each tab / shortcut. */
+export function unreadCountsByView(
+  notifications: NotificationRow[],
+): Record<ActivityViewId, number> {
+  const counts = {} as Record<ActivityViewId, number>;
+  for (const v of [...NOTIFICATION_VIEWS, ...WORKSPACE_VIEWS]) counts[v.id] = 0;
+  for (const n of notifications) {
+    if (n.seen_at) continue;
+    for (const v of NOTIFICATION_VIEWS) {
+      if (matchesView(n, v.id)) counts[v.id] += 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * The task a notification is about, when it's about exactly one — drives the
+ * inbox's split pane (the task opens beside the list instead of navigating).
+ */
+export function notificationTaskId(n: NotificationRow): string | null {
+  const id = n.payload?.taskId;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
 export function viewDef(id: ActivityViewId): ViewDef {
   return VIEW_BY_ID.get(id) ?? PRIMARY_VIEWS[0];
 }
@@ -108,7 +136,11 @@ export function matchesView(n: NotificationRow, view: ActivityViewId): boolean {
         n.type === "workflow"
       );
     case "reports":
-      return n.type === "briefing" || n.type === "meeting_summary";
+      return (
+        n.type === "briefing" ||
+        n.type === "meeting_summary" ||
+        n.type === "project_update"
+      );
     case "invites":
       return n.type === "invite_received";
     default:

@@ -12,7 +12,8 @@ import {
 } from "@/lib/query/assistant-queries";
 import { PROJECT_TINTS, asTint, type AssistantProject } from "@/lib/assistant/types";
 import { PageShell } from "@/components/ui/page-shell";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader } from "@/components/shell/page-header";
+import { NewIcon } from "@/components/shell/clickup-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TintIcon } from "@/components/ui/tint-card";
 import { Button } from "@/components/ui/button";
@@ -56,11 +57,16 @@ export function ProjectsList({
   const [creating, setCreating] = useState(openNew);
 
   return (
-    <PageShell className="px-10 py-8">
-      <SectionHeader
-        size="page"
-        title="Projects"
-        description="Group related conversations under shared instructions, memory, and context."
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          {
+            label: "Assistant",
+            href: `/p/${propertyId}/assistant`,
+            icon: <NewIcon />,
+          },
+          { label: "Projects" },
+        ]}
         actions={
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus />
@@ -68,58 +74,61 @@ export function ProjectsList({
           </Button>
         }
       />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell>
+          {projects.length === 0 ? (
+            <EmptyState
+              icon={FolderOpen}
+              title="No projects yet"
+              action={
+                <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
+                  Create your first project
+                </Button>
+              }
+            >
+              Group related conversations under shared instructions, memory, and
+              context. Everything you tell a project once
+              — how you want things written, what it should remember, which
+              documents matter — applies to every chat inside it.
+            </EmptyState>
+          ) : (
+            <ul role="list" className="grid gap-3 sm:grid-cols-2">
+              {projects.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={`/p/${propertyId}/assistant/projects/${project.id}`}
+                    className="flex h-full flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <TintIcon tone={asTint(project.tint)}>{project.emoji}</TintIcon>
+                      <span className="min-w-0 flex-1 truncate text-base font-medium">
+                        {project.name}
+                      </span>
+                    </div>
+                    {project.description ? (
+                      <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">
+                        {project.description}
+                      </p>
+                    ) : null}
+                    <p className="mt-auto pt-1 text-xs text-faint-foreground">
+                      {chatCounts[project.id]
+                        ? `${chatCounts[project.id]} conversation${chatCounts[project.id] === 1 ? "" : "s"}`
+                        : "No conversations yet"}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {projects.length === 0 ? (
-        <EmptyState
-          className="mt-6"
-          icon={FolderOpen}
-          title="No projects yet"
-          action={
-            <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
-              Create your first project
-            </Button>
-          }
-        >
-          A project keeps a body of work together: everything you tell it once
-          — how you want things written, what it should remember, which
-          documents matter — applies to every chat inside it.
-        </EmptyState>
-      ) : (
-        <ul role="list" className="mt-6 grid gap-3 sm:grid-cols-2">
-          {projects.map((project) => (
-            <li key={project.id}>
-              <Link
-                href={`/p/${propertyId}/assistant/projects/${project.id}`}
-                className="flex h-full flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
-              >
-                <div className="flex items-center gap-2.5">
-                  <TintIcon tone={asTint(project.tint)}>{project.emoji}</TintIcon>
-                  <span className="min-w-0 flex-1 truncate text-base font-medium">
-                    {project.name}
-                  </span>
-                </div>
-                {project.description ? (
-                  <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">
-                    {project.description}
-                  </p>
-                ) : null}
-                <p className="mt-auto pt-1 text-xs text-faint-foreground">
-                  {chatCounts[project.id]
-                    ? `${chatCounts[project.id]} conversation${chatCounts[project.id] === 1 ? "" : "s"}`
-                    : "No conversations yet"}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <NewProjectDialog
-        propertyId={propertyId}
-        open={creating}
-        onOpenChange={setCreating}
-      />
-    </PageShell>
+          <NewProjectDialog
+            propertyId={propertyId}
+            open={creating}
+            onOpenChange={setCreating}
+          />
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type { Event } from "stream-chat";
 
 /**
@@ -23,7 +23,7 @@ import type { Event } from "stream-chat";
  * only the first POST creates a row; the other two return `{ deduped: true }`.
  */
 export function ChatEventNotifier({ propertyId }: { propertyId: string }) {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
 
   useEffect(() => {
     if (!client?.user?.id) return;

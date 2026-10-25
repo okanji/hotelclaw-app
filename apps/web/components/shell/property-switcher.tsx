@@ -98,9 +98,17 @@ export function PropertySwitcher({
               />
             }
           >
-            {/* Org name + chevron only — the property's logo lives in the rail
-                now (RailOrgSwitcher). Weight 500 primary ink at 14px: this is
-                a UI row, not a display title (notion-spec §3). */}
+            {/* Tile + name + chevron (Linear's workspace row). Weight 500
+                primary ink at 14px: this is a UI row, not a display title
+                (notion-spec §3). */}
+            <span
+              className={cn(
+                "flex size-5 shrink-0 items-center justify-center rounded-md text-xs font-medium uppercase",
+                propertyTileTint(currentPropertyId),
+              )}
+            >
+              {propertyInitial(current?.property.name ?? "Property")}
+            </span>
             <span className="min-w-0 truncate text-sm font-medium">
               {current?.property.name ?? "Property"}
             </span>

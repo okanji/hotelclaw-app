@@ -32,6 +32,17 @@ import { emitWorkflowEvent } from "@/lib/workflows/event-emitter";
 
 const SUMMARY_MODEL: ModelKey = "xai:grok-4-fast-non-reasoning-latest";
 
+const SUMMARY_INSTRUCTIONS =
+  "You summarize meeting transcripts for a hotel-operations team. " +
+  "Be specific: name people involved, capture deadlines, distinguish " +
+  "decisions from open questions. If the transcript is too short or " +
+  "garbled to summarize, return summary_md = 'Meeting too short to summarize.' " +
+  "with empty arrays.";
+
+/** `meeting_transcripts.source_url` for plain-text imports (raw_jsonl then
+ *  holds the pasted text, not JSONL). */
+const IMPORTED_SOURCE = "imported://transcript";
+
 type JsonlLine = {
   type?: string;
   start_time?: string;
@@ -141,7 +152,7 @@ export async function processImportedTranscript(args: {
     .from("meeting_transcripts")
     .insert({
       meeting_id: meeting.id,
-      source_url: "imported://transcript",
+      source_url: IMPORTED_SOURCE,
       raw_jsonl: text,
       speakers,
       duration_seconds: null,
@@ -160,12 +171,7 @@ export async function processImportedTranscript(args: {
     const result = await generateObject({
       model: getModel(SUMMARY_MODEL),
       schema: SummarySchema,
-      instructions:
-        "You summarize meeting transcripts for a hotel-operations team. " +
-        "Be specific: name people involved, capture deadlines, distinguish " +
-        "decisions from open questions. If the transcript is too short or " +
-        "garbled to summarize, return summary_md = 'Meeting too short to summarize.' " +
-        "with empty arrays.",
+      instructions: SUMMARY_INSTRUCTIONS,
       prompt: `Meeting title: ${meeting.title}\n\nTranscript:\n${rendered}`,
     });
     summary = result.object;
@@ -252,12 +258,7 @@ export async function processTranscriptReady(args: {
     const result = await generateObject({
       model: getModel(SUMMARY_MODEL),
       schema: SummarySchema,
-      instructions:
-        "You summarize meeting transcripts for a hotel-operations team. " +
-        "Be specific: name people involved, capture deadlines, distinguish " +
-        "decisions from open questions. If the transcript is too short or " +
-        "garbled to summarize, return summary_md = 'Meeting too short to summarize.' " +
-        "with empty arrays.",
+      instructions: SUMMARY_INSTRUCTIONS,
       prompt: `Meeting title: ${args.meeting.title}\n\nTranscript:\n${rendered}`,
     });
     summary = result.object;
@@ -342,6 +343,141 @@ export async function processTranscriptReady(args: {
       content: `${args.meeting.title || "Meeting"} (${new Date().toISOString().slice(0, 10)}): ${detail}`.slice(0, 2000),
       source: `meeting ${args.meeting.id}`,
       tags: ["meeting", "decision"],
+    });
+  }
+}
+
+/**
+ * "Regenerate summary" — re-run steps 3–5 from the transcript already
+ * mirrored in `meeting_transcripts.raw_jsonl` (latest row), no Stream fetch.
+ *
+ * `meeting_summaries` keeps history (latest by created_at wins), so this
+ * INSERTS a new row; the page flips via the table's realtime publication.
+ * Side effects are first-summary-only: when a prior summary exists we
+ * refresh its document's body and reuse its doc + chat message ids instead
+ * of re-posting to the channel, re-notifying and re-writing memory. When
+ * none exists (the "summary failed" case) the full step-5 fan-out runs,
+ * exactly as the webhook would have.
+ *
+ * Throws on a missing transcript or a model failure — the caller runs this
+ * inside `after()` and logs.
+ */
+export async function regenerateMeetingSummary(meetingId: string): Promise<void> {
+  const service = createServiceClient();
+  const { data: m } = await service
+    .from("meetings")
+    .select("id, property_id, channel_id, host_id, title, stream_call_id")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!m) throw new Error(`meeting ${meetingId} not found`);
+  const meeting: MeetingMeta = {
+    id: m.id,
+    propertyId: m.property_id,
+    channelId: m.channel_id,
+    hostId: m.host_id,
+    title: m.title,
+    streamCallId: m.stream_call_id,
+  };
+
+  const { data: transcriptRow } = await service
+    .from("meeting_transcripts")
+    .select("id, source_url, raw_jsonl, speakers, duration_seconds")
+    .eq("meeting_id", meetingId)
+    .not("raw_jsonl", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!transcriptRow?.raw_jsonl) {
+    throw new Error(`meeting ${meetingId} has no stored transcript`);
+  }
+
+  const imported = transcriptRow.source_url === IMPORTED_SOURCE;
+  let rendered: string;
+  let speakers: Speaker[];
+  if (imported) {
+    rendered = transcriptRow.raw_jsonl.slice(0, 120_000);
+    speakers = (transcriptRow.speakers as Speaker[] | null) ?? [];
+  } else {
+    const lines = parseJsonl(transcriptRow.raw_jsonl);
+    // Re-resolve names: a profile renamed since the call reads correctly now.
+    speakers = await resolveSpeakers(service, uniqueSpeakerIds(lines));
+    rendered = renderTranscriptForLLM(lines, speakers);
+  }
+
+  const result = await generateObject({
+    model: getModel(SUMMARY_MODEL),
+    schema: SummarySchema,
+    instructions: SUMMARY_INSTRUCTIONS,
+    prompt: `Meeting title: ${meeting.title}\n\nTranscript:\n${rendered}`,
+  });
+  const summary = result.object;
+
+  const { data: prior } = await service
+    .from("meeting_summaries")
+    .select("document_id, chat_message_id")
+    .eq("meeting_id", meetingId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let documentId: string | null = prior?.document_id ?? null;
+  let chatMessageId: string | null = prior?.chat_message_id ?? null;
+  if (prior) {
+    if (documentId) {
+      await service
+        .from("documents")
+        .update({
+          body_text: transcriptDocumentBody(summary, rendered, speakers),
+        })
+        .eq("id", documentId);
+    }
+  } else {
+    documentId = await createTranscriptDocument({
+      service,
+      meeting,
+      summary,
+      rendered,
+      speakers,
+    });
+    chatMessageId = await postSummaryToChannel({
+      meeting,
+      summary,
+      speakers,
+      durationSeconds: transcriptRow.duration_seconds ?? null,
+    });
+  }
+
+  const { error: insertErr } = await service.from("meeting_summaries").insert({
+    meeting_id: meeting.id,
+    transcript_id: transcriptRow.id,
+    model: SUMMARY_MODEL,
+    summary_md: summary.summary_md,
+    action_items: summary.action_items,
+    decisions: summary.decisions,
+    document_id: documentId,
+    chat_message_id: chatMessageId,
+  });
+  if (insertErr) {
+    throw new Error(`meeting_summaries insert failed: ${insertErr.message}`);
+  }
+
+  if (!prior) {
+    await emitWorkflowEvent({
+      propertyId: meeting.propertyId,
+      source: "stream.call",
+      eventType: "meeting.summary_ready",
+      entityId: meeting.id,
+      entityKind: "meeting",
+      payload: {
+        meeting: { id: meeting.id, title: meeting.title, channel_id: meeting.channelId },
+        summary: { summary_md: summary.summary_md, decisions: summary.decisions },
+        action_items: summary.action_items,
+      },
+    });
+    await notifyParticipants({
+      meeting,
+      speakers,
+      summaryPreview: summary.summary_md,
     });
   }
 }
@@ -445,14 +581,11 @@ function renderTranscriptForLLM(
   return out.join("\n");
 }
 
-async function createTranscriptDocument(args: {
-  service: ReturnType<typeof createServiceClient>;
-  meeting: MeetingMeta;
-  summary: z.infer<typeof SummarySchema>;
-  rendered: string;
-  speakers: Speaker[];
-}): Promise<string | null> {
-  const { service, meeting, summary, speakers } = args;
+function transcriptDocumentBody(
+  summary: z.infer<typeof SummarySchema>,
+  rendered: string,
+  speakers: Speaker[],
+): string {
   const speakerLine =
     speakers.length > 0
       ? `**Participants:** ${speakers.map((s) => s.name).join(", ")}\n\n`
@@ -473,7 +606,19 @@ async function createTranscriptDocument(args: {
 
   const body =
     `${speakerLine}${summary.summary_md}\n\n${actionBlock}${decisionsBlock}` +
-    `## Full transcript\n\n\`\`\`\n${args.rendered}\n\`\`\``;
+    `## Full transcript\n\n\`\`\`\n${rendered}\n\`\`\``;
+  return body;
+}
+
+async function createTranscriptDocument(args: {
+  service: ReturnType<typeof createServiceClient>;
+  meeting: MeetingMeta;
+  summary: z.infer<typeof SummarySchema>;
+  rendered: string;
+  speakers: Speaker[];
+}): Promise<string | null> {
+  const { service, meeting, summary, speakers } = args;
+  const body = transcriptDocumentBody(summary, args.rendered, speakers);
 
   // The Liveblocks Yjs doc is created on first connect; we don't pre-seed it
   // from here (would need `liveblocks.sendYjsBinaryUpdate` with a constructed

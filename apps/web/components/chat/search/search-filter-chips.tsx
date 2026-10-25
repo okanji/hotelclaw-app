@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type { Channel as StreamChannel } from "stream-chat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -156,7 +156,7 @@ function ChannelChip({
   channelId: string;
   onRemove: () => void;
 }) {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const me = client?.user?.id;
   const { data } = useQuery({
     queryKey: ["search-channel-name", propertyId, channelId, me],
@@ -456,7 +456,7 @@ function FromPicker({
 }
 
 function InPicker({ onPick }: { onPick: (channelId: string) => void }) {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const me = client?.user?.id;
   const [q, setQ] = useState("");
   const { data: channels = [] } = useQuery<StreamChannel[]>({

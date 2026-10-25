@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   BarChart3,
+  Bot,
   BookOpen,
   Copy,
   MessagesSquare,
@@ -16,6 +16,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shell/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,182 +175,199 @@ export function ChatbotDetail({
     // (measured) — it clipped. Bleed keeps ONE left edge (masthead, tab strip,
     // builder column and console all start at the shell's padding) while
     // giving the editor room. See DESIGN.md § Page width.
-    <PageShell
-      width="bleed"
-      className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16"
-    >
-      <header className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/p/${propertyId}/chatbots`}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
-          aria-label="Back to chatbots"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-        <span className="text-xl">{config.appearance.avatarEmoji}</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={saveName}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            if (e.key === "Escape") setName(bot.name);
-          }}
-          aria-label="Chatbot name"
-          className="min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none placeholder:text-muted-foreground"
-          placeholder="Untitled chatbot"
-        />
-        <ChatbotStatusBadge status={status} />
-        <Button variant="outline" size="sm" onClick={copyGuestLink}>
-          <Copy data-slot="icon" />
-          Guest link
-        </Button>
-        {dirty ? (
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        ) : null}
-        {status !== "published" ? (
-          <Button
-            size="sm"
-            onClick={() => setBotStatus("published")}
-            disabled={savingStatus}
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        start={
+          <nav
+            aria-label="Breadcrumb"
+            className="flex min-w-0 items-center gap-0.5 text-sm font-medium"
           >
-            Publish
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setBotStatus("paused")}
-            disabled={savingStatus}
-          >
-            Pause
-          </Button>
-        )}
-      </header>
-
-      <div className="mt-6 grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-        <Tabs
-          value={tab}
-          onValueChange={(t) => setTab(t as typeof tab)}
-          className="flex min-w-0 flex-col"
-        >
-          {/* View-tab pill row (notion-spec-v2 §6): no underline rail, no
-              container fill — the active tab IS the warm hover fill. */}
-          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto">
-            <TabTrigger value="build" icon={Wand2} label="Build" />
-            <TabTrigger
-              value="knowledge"
-              icon={BookOpen}
-              label="Knowledge"
-              count={sources.length}
-            />
-            <TabTrigger
-              value="skills"
-              icon={Puzzle}
-              label="Skills"
-              count={skillCount}
-            />
-            <TabTrigger
-              value="conversations"
-              icon={MessagesSquare}
-              label="Conversations"
-              count={conversations.length}
-            />
-            <TabTrigger value="analytics" icon={BarChart3} label="Analytics" />
-            <TabTrigger value="share" icon={Share2} label="Share" />
-            <TabTrigger value="settings" icon={Settings2} label="Settings" />
-          </TabsList>
-
-          <TabsContent value="build" className="mt-5 space-y-6">
-            <BuildSection config={config} onChange={updateConfig} />
-          </TabsContent>
-
-          <TabsContent value="knowledge" className="mt-5">
-            <KnowledgePanel
-              propertyId={propertyId}
-              chatbotId={bot.id}
-              sources={sources}
-              documents={documents}
-              lastTrainedAt={bot.last_trained_at}
-            />
-          </TabsContent>
-
-          <TabsContent value="skills" className="mt-5 space-y-6">
-            <SkillsIntro count={skillCount} />
-            <ActionsPanel
-              config={config}
-              channels={channels}
-              spaces={spaces}
-              services={services}
-              knowledge={{
-                total: sources.length,
-                trained: sources.filter((s) => s.status === "trained").length,
+            <Link
+              href={`/p/${propertyId}/chatbots`}
+              className="flex shrink-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-secondary-ink transition-[background-color] outline-none hover:bg-accent focus-visible:shadow-focus"
+            >
+              <Bot className="size-4 text-faint-foreground" />
+              Chatbots
+            </Link>
+            <span aria-hidden className="px-0.5 text-faint-foreground">
+              /
+            </span>
+            <span className="shrink-0 px-0.5 text-sm leading-none">
+              {config.appearance.avatarEmoji}
+            </span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") setName(bot.name);
               }}
-              onChange={(actions) => updateConfig({ actions })}
+              aria-label="Chatbot name"
+              className="field-sizing-content min-w-24 max-w-[40ch] truncate rounded-md bg-transparent px-1 py-0.5 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground hover:bg-accent focus-visible:bg-accent"
+              placeholder="Untitled chatbot"
             />
-            <CustomActionsPanel
-              propertyId={propertyId}
-              chatbotId={bot.id}
-              actions={customActions}
-            />
-          </TabsContent>
-
-          <TabsContent value="conversations" className="mt-5">
-            <ConversationsTab
-              propertyId={propertyId}
-              chatbotId={bot.id}
-              conversations={conversations}
-            />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="mt-5">
-            {/* Mounted on demand — the route runs a lazy Haiku labeling pass. */}
-            {tab === "analytics" ? (
-              <AnalyticsTab propertyId={propertyId} chatbotId={bot.id} />
+          </nav>
+        }
+        actions={
+          <div className="flex items-center gap-1.5">
+            <ChatbotStatusBadge status={status} />
+            <Button variant="outline" size="sm" onClick={copyGuestLink}>
+              <Copy data-slot="icon" />
+              <span className="max-sm:hidden">Guest link</span>
+            </Button>
+            {dirty ? (
+              <Button size="sm" onClick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
             ) : null}
-          </TabsContent>
+            {status !== "published" ? (
+              <Button
+                size="sm"
+                onClick={() => setBotStatus("published")}
+                disabled={savingStatus}
+              >
+                Publish
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBotStatus("paused")}
+                disabled={savingStatus}
+              >
+                Pause
+              </Button>
+            )}
+          </div>
+        }
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-16">
+        <PageShell width="bleed">
 
-          <TabsContent value="share" className="mt-5 space-y-6">
-            <ShareIntro status={status} />
-            <DeployPanel
-              chatbotId={bot.id}
-              propertyId={propertyId}
-              publicSlug={bot.public_slug}
-              status={status}
-              allowedDomains={bot.allowed_domains ?? []}
-              twilioNumber={bot.twilio_number ?? null}
-              channels={channels}
-              deployedChannelIds={deployedChannelIds}
-            />
-          </TabsContent>
+          <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+            <Tabs
+              value={tab}
+              onValueChange={(t) => setTab(t as typeof tab)}
+              className="flex min-w-0 flex-col"
+            >
+              {/* View-tab pill row (notion-spec-v2 §6): no underline rail, no
+                  container fill — the active tab IS the warm hover fill. */}
+              <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto">
+                <TabTrigger value="build" icon={Wand2} label="Build" />
+                <TabTrigger
+                  value="knowledge"
+                  icon={BookOpen}
+                  label="Knowledge"
+                  count={sources.length}
+                />
+                <TabTrigger
+                  value="skills"
+                  icon={Puzzle}
+                  label="Skills"
+                  count={skillCount}
+                />
+                <TabTrigger
+                  value="conversations"
+                  icon={MessagesSquare}
+                  label="Conversations"
+                  count={conversations.length}
+                />
+                <TabTrigger value="analytics" icon={BarChart3} label="Analytics" />
+                <TabTrigger value="share" icon={Share2} label="Share" />
+                <TabTrigger value="settings" icon={Settings2} label="Settings" />
+              </TabsList>
 
-          <TabsContent value="settings" className="mt-5 space-y-6">
-            <SettingsSection
-              bot={bot}
-              config={config}
-              spaces={spaces}
-              onChange={updateConfig}
-            />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="build" className="mt-5 space-y-6">
+                <BuildSection config={config} onChange={updateConfig} />
+              </TabsContent>
 
-        {/* Sticky test console — visible whichever tab is active, so every
-            edit can be tried immediately. Tests run against SAVED config. */}
-        <div className="lg:sticky lg:top-0 lg:self-start">
-          <TestConsole
-            propertyId={propertyId}
-            chatbotId={bot.id}
-            greeting={config.greeting}
-            suggestedQuestions={config.suggestedQuestions}
-            avatarEmoji={config.appearance.avatarEmoji}
-            dirty={dirty}
-            config={config}
-          />
-        </div>
+              <TabsContent value="knowledge" className="mt-5">
+                <KnowledgePanel
+                  propertyId={propertyId}
+                  chatbotId={bot.id}
+                  sources={sources}
+                  documents={documents}
+                  lastTrainedAt={bot.last_trained_at}
+                />
+              </TabsContent>
+
+              <TabsContent value="skills" className="mt-5 space-y-6">
+                <SkillsIntro count={skillCount} />
+                <ActionsPanel
+                  config={config}
+                  channels={channels}
+                  spaces={spaces}
+                  services={services}
+                  knowledge={{
+                    total: sources.length,
+                    trained: sources.filter((s) => s.status === "trained").length,
+                  }}
+                  onChange={(actions) => updateConfig({ actions })}
+                />
+                <CustomActionsPanel
+                  propertyId={propertyId}
+                  chatbotId={bot.id}
+                  actions={customActions}
+                />
+              </TabsContent>
+
+              <TabsContent value="conversations" className="mt-5">
+                <ConversationsTab
+                  propertyId={propertyId}
+                  chatbotId={bot.id}
+                  conversations={conversations}
+                />
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-5">
+                {/* Mounted on demand — the route runs a lazy Haiku labeling pass. */}
+                {tab === "analytics" ? (
+                  <AnalyticsTab propertyId={propertyId} chatbotId={bot.id} />
+                ) : null}
+              </TabsContent>
+
+              <TabsContent value="share" className="mt-5 space-y-6">
+                <ShareIntro status={status} />
+                <DeployPanel
+                  chatbotId={bot.id}
+                  propertyId={propertyId}
+                  publicSlug={bot.public_slug}
+                  status={status}
+                  allowedDomains={bot.allowed_domains ?? []}
+                  twilioNumber={bot.twilio_number ?? null}
+                  channels={channels}
+                  deployedChannelIds={deployedChannelIds}
+                />
+              </TabsContent>
+
+              <TabsContent value="settings" className="mt-5 space-y-6">
+                <SettingsSection
+                  bot={bot}
+                  config={config}
+                  spaces={spaces}
+                  onChange={updateConfig}
+                />
+              </TabsContent>
+            </Tabs>
+
+            {/* Sticky test console — visible whichever tab is active, so every
+                edit can be tried immediately. Tests run against SAVED config. */}
+            <div className="lg:sticky lg:top-0 lg:self-start">
+              <TestConsole
+                propertyId={propertyId}
+                chatbotId={bot.id}
+                greeting={config.greeting}
+                suggestedQuestions={config.suggestedQuestions}
+                avatarEmoji={config.appearance.avatarEmoji}
+                dirty={dirty}
+                config={config}
+              />
+            </div>
+          </div>
+        </PageShell>
       </div>
-    </PageShell>
+    </div>
   );
 }
 

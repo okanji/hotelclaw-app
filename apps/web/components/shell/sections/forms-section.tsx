@@ -55,7 +55,6 @@ export function FormsSection({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Forms</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>

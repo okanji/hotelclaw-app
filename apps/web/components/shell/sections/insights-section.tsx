@@ -19,12 +19,12 @@ import { scopeKey, type InsightScope } from "@/lib/insights/scope";
 import { useInsightsTab } from "@/components/insights/insights-tab-context";
 
 /**
- * Secondary sidebar for the Insights section. The dashboard VIEWS
- * (Overview / Work / Operations / Reports) now live in an in-page red-underline
- * tab strip on the surface itself; the sidebar carries the other axis — the
- * LENS the whole page reads through (the property, one project, one team, or
- * one person), shared with the surface via `useInsightsTab`. Staff never get
- * either: the whole surface is their personal "My week", labelled here.
+ * Insights node body in the sidebar tree — lens SHORTCUTS only. The page owns
+ * both controls (the view tab strip and the header's `ScopeSwitcher` lens
+ * picker), so it works with this row collapsed; these rows write the same
+ * `useInsightsTab` scope, in the switcher's order (Teams, Projects, People).
+ * Staff never get either: the whole surface is their personal "My week",
+ * labelled here.
  */
 export function InsightsSection({
   propertyId,

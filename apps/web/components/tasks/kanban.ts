@@ -34,6 +34,14 @@ export type Task = {
   source?: RecordSource | null;
   source_workflow_id?: string | null;
   source_workflow_run_id?: string | null;
+  /** Planning (migration 0111): points, cycle, project milestone. */
+  estimate?: number | null;
+  cycle_id?: string | null;
+  milestone_id?: string | null;
+  /** Human key (migration 0108): per-property `number` and the server-built
+   *  `<task_prefix>-<number>` string. Render via `taskKey(task)`. */
+  number?: number | null;
+  key?: string | null;
 };
 
 /**
@@ -194,15 +202,9 @@ export const PRIORITY_META: Record<
   },
 };
 
-/**
- * Short, stable visual identifier derived from a task's UUID — used in card
- * meta rows (`T-AB12`) so the board reads more like Linear/Jira. Not a real
- * sequential id; just a consistent, scannable 4-char glyph per task.
- */
-export function taskShortId(id: string): string {
-  const compact = id.replace(/-/g, "").toUpperCase().slice(0, 4);
-  return `T-${compact || "0000"}`;
-}
+// Task keys live in `lib/tasks/task-key.ts` (pure, tested); re-exported so
+// existing `./kanban` imports keep working.
+export { taskKey, taskShortId } from "@/lib/tasks/task-key";
 
 export const PRIORITY_IDS: TaskPriority[] = ["urgent", "high", "medium", "low"];
 

@@ -7,17 +7,20 @@ import {
   Bell,
   BellOff,
   CalendarPlus,
+  Check,
   ChevronDown,
   ChevronRight,
   ClipboardCopy,
   ExternalLink,
   FileText,
   Flag,
+  Hash,
   History,
   Link2,
   OctagonAlert,
   Paperclip,
   Plus,
+  Repeat,
   SquarePlus,
   Star,
   Tag,
@@ -34,18 +37,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
+import { COLUMNS, PRIORITY_META } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import { TaskProjectSpacePicker } from "./task-project-space-picker";
 import { TaskCustomFields } from "./task-custom-fields";
+import { RECURRENCE_LABEL } from "./task-detail-inline-properties";
+import { TaskPlanningChips } from "@/components/cycles/task-planning-chips";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import type { EntityColor } from "@/lib/db/types";
 
@@ -59,7 +60,11 @@ import type {
   TaskDetailRemovers,
 } from "./task-detail-mutations";
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import type {
+  TaskPriority,
+  TaskRecurrence,
+  TaskStatus,
+} from "@/lib/db/types";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 import {
   AssigneeMenuContent,
@@ -118,7 +123,10 @@ export function TaskDetailSidebar({
   onPriorityChange,
   onAssigneeChange,
   onDueAtChange,
+  recurrence = null,
+  onRecurrenceChange,
   onCopyTitle,
+  onCopyId,
   onCopyLink,
   onDelete,
   onEscalate,
@@ -142,7 +150,12 @@ export function TaskDetailSidebar({
   onPriorityChange: (p: TaskPriority) => void;
   onAssigneeChange: (id: string | null) => void;
   onDueAtChange: (iso: string | null) => void;
+  /** Repeat cadence (migration 0107). Omit the handler to hide the row. */
+  recurrence?: TaskRecurrence | null;
+  onRecurrenceChange?: (r: TaskRecurrence | null) => void;
   onCopyTitle: () => void;
+  /** Copies the short task key (`taskShortId`). Omit to hide the row. */
+  onCopyId?: () => void;
   onCopyLink: () => void;
   onDelete: () => void;
   onEscalate: () => void;
@@ -170,7 +183,20 @@ export function TaskDetailSidebar({
           onSelect={onAssigneeChange}
         />
         <DueDatePicker dueAt={dueAt} onChange={onDueAtChange} />
+        {onRecurrenceChange ? (
+          <RecurrencePicker
+            recurrence={recurrence}
+            onSelect={onRecurrenceChange}
+          />
+        ) : null}
         <TaskProjectSpacePicker propertyId={propertyId} taskId={taskId} />
+        {/* Estimate / Cycle / Milestone (0111) — after project, since the
+            milestone choices come from the task's project. */}
+        <TaskPlanningChips
+          propertyId={propertyId}
+          taskId={taskId}
+          variant="row"
+        />
         {(meta?.labels ?? []).map((label) => (
           <MetaChipRow
             key={label}
@@ -272,6 +298,13 @@ export function TaskDetailSidebar({
           label="Copy title"
           onClick={onCopyTitle}
         />
+        {onCopyId ? (
+          <SidebarActionRow
+            icon={<Hash className="size-3.5" />}
+            label="Copy ID"
+            onClick={onCopyId}
+          />
+        ) : null}
         <SidebarActionRow
           icon={<Link2 className="size-3.5" />}
           label="Copy link"
@@ -751,6 +784,53 @@ function DueDatePicker({
       />
       <DueDatePopoverContent align="end" dueAt={dueAt} onChange={onChange} />
     </Popover>
+  );
+}
+
+function RecurrencePicker({
+  recurrence,
+  onSelect,
+}: {
+  recurrence: TaskRecurrence | null;
+  onSelect: (r: TaskRecurrence | null) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
+          >
+            <SidebarPropertyRow
+              icon={<Repeat className="size-3.5" />}
+              label={recurrence ? RECURRENCE_LABEL[recurrence] : "Repeat"}
+              muted={!recurrence}
+            />
+          </button>
+        }
+      />
+      <DropdownMenuContent align="end" className="w-44">
+        {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map((r) => (
+          <DropdownMenuItem
+            key={r}
+            onClick={() => onSelect(r)}
+            className="gap-2"
+          >
+            <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
+            {recurrence === r ? <Check className="size-3.5" /> : null}
+          </DropdownMenuItem>
+        ))}
+        {recurrence ? (
+          <DropdownMenuItem
+            onClick={() => onSelect(null)}
+            className="gap-2 text-muted-foreground"
+          >
+            Does not repeat
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

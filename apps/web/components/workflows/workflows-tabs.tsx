@@ -51,7 +51,7 @@ export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
   ];
 
   return (
-    <TabNav aria-label="Workflows sections" className="px-3">
+    <TabNav aria-label="Workflows sections" className="px-(--page-gutter)">
       {tabs.map((t) => (
         <TabNavItem
           key={t.key}

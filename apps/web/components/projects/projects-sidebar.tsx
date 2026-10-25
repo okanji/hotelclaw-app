@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Archive,
   ChevronRight,
   FileText,
   FolderKanban,
@@ -39,6 +38,7 @@ import type { EntityColor } from "@/lib/db/types";
 import { LABEL_INK } from "@/components/labels/label-tokens";
 import { useOpenSpace } from "@/lib/spaces/use-open-space";
 import { useOpenProject } from "@/lib/projects/use-open-project";
+import { useStoredToggle } from "@/components/shell/use-stored-toggle";
 import { CreateEntityDialog } from "./create-entity-dialog";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 
@@ -54,7 +54,16 @@ const DOT = LABEL_DOT;
  * the page's `?tab=` (see `useUrlTab`). The Tasks sidebar only offers them as
  * board filters.
  */
-export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
+export function ProjectsSidebar({
+  propertyId,
+  showTeams = true,
+  showProjects = true,
+}: {
+  propertyId: string;
+  /** Customize sidebar can hide either group (`use-nav-prefs.ts`). */
+  showTeams?: boolean;
+  showProjects?: boolean;
+}) {
   const pathname = usePathname();
   const qc = useQueryClient();
   const openSpace = useOpenSpace(propertyId);
@@ -100,18 +109,22 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
   const [expanded, toggleExpanded] = useExpandedIds();
+  // Each group folds from its label (Linear's "Your teams ▾").
+  const [teamsOpen, toggleTeams] = useStoredToggle("hotelclaw:teams-open", true);
+  const [projectsOpen, toggleProjects] = useStoredToggle("hotelclaw:projects-open", true);
 
   return (
     <>
+      {showTeams ? (
       <SidebarGroup>
-        <SidebarGroupLabel>Teams</SidebarGroupLabel>
+        <GroupToggle label="Teams" open={teamsOpen} onToggle={toggleTeams} />
         <SidebarGroupAction
           title="New team"
           onClick={() => setDialog({ open: true, kind: "space" })}
         >
           <Plus />
         </SidebarGroupAction>
-        <SidebarGroupContent>
+        <SidebarGroupContent className={cn(!teamsOpen && "hidden")}>
           {spaces.length === 0 ? (
             <p className="px-2 py-1.5 text-xs text-pretty text-sidebar-foreground/60">
               Add departments like F&amp;B or Maintenance.
@@ -142,16 +155,18 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
           )}
         </SidebarGroupContent>
       </SidebarGroup>
+      ) : null}
 
+      {showProjects ? (
       <SidebarGroup>
-        <SidebarGroupLabel>Projects</SidebarGroupLabel>
+        <GroupToggle label="Projects" open={projectsOpen} onToggle={toggleProjects} />
         <SidebarGroupAction
           title="New project"
           onClick={() => setDialog({ open: true, kind: "project" })}
         >
           <Plus />
         </SidebarGroupAction>
-        <SidebarGroupContent>
+        <SidebarGroupContent className={cn(!projectsOpen && "hidden")}>
           {projects.length === 0 ? (
             <p className="px-2 py-1.5 text-xs text-pretty text-sidebar-foreground/60">
               No projects yet. Create one to group work across teams.
@@ -183,8 +198,8 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
               ))}
             </SidebarMenu>
           )}
-          {/* Footer rows (gr8r ends its Projects group the same way). Both
-              pages were otherwise reachable only from breadcrumbs. */}
+          {/* Footer row (gr8r ends its Projects group the same way).
+              Initiatives and Archive live in the More launcher. */}
           <SidebarMenu className="mt-1">
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -197,20 +212,10 @@ export function ProjectsSidebar({ propertyId }: { propertyId: string }) {
                 <span>All projects</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`/p/${propertyId}/archive`} />}
-                isActive={pathname.startsWith(`/p/${propertyId}/archive`)}
-                tooltip="Archive"
-                className="text-faint-foreground"
-              >
-                <Archive />
-                <span>Archive</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+      ) : null}
 
       <CreateEntityDialog
         open={dialog.open}
@@ -366,4 +371,33 @@ function useExpandedIds(): [Set<string>, (id: string) => void] {
       return next;
     });
   return [ids, toggle];
+}
+
+/** A group label that folds its list, matching the Favorites group. */
+function GroupToggle({
+  label,
+  open,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <SidebarGroupLabel
+      render={<button type="button" />}
+      onClick={onToggle}
+      aria-expanded={open}
+      className="group/toggle w-[calc(100%-2rem)] cursor-pointer rounded-md hover:bg-sidebar-accent"
+    >
+      <span className="text-left">{label}</span>
+      <ChevronRight
+        className={cn(
+          "opacity-0 transition-[transform,opacity] group-hover/toggle:opacity-100",
+          open && "rotate-90",
+          !open && "opacity-100",
+        )}
+      />
+    </SidebarGroupLabel>
+  );
 }

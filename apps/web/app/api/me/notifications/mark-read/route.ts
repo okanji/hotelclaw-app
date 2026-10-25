@@ -5,11 +5,16 @@ import { resolveApiCaller } from "@/lib/auth/api-caller";
 const Body = z.object({
   ids: z.array(z.string().uuid()).optional(),
   all: z.boolean().optional(),
+  /** Reverse direction: clear `seen_at` (Inbox "Mark unread"). ids only. */
+  unseen: z.boolean().optional(),
 });
 
 /**
  * POST /api/me/notifications/mark-read
- *   body: { ids?: string[], all?: boolean }
+ *   body: { ids?: string[], all?: boolean, unseen?: boolean }
+ *
+ * `unseen: true` flips the given ids back to unread (`seen_at = null`). It
+ * requires explicit ids — there is no "mark all unread".
  *
  * RLS guarantees the update only affects rows the user owns, so we don't
  * need to also filter by user_id (we still do, defensively).
@@ -29,6 +34,22 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
+  }
+
+  if (parsed.data.unseen) {
+    const ids = parsed.data.ids ?? [];
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "specify ids" }, { status: 400 });
+    }
+    const { error } = await supabase
+      .from("notifications")
+      .update({ seen_at: null })
+      .eq("user_id", user.id)
+      .in("id", ids);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   const now = new Date().toISOString();

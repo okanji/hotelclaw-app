@@ -6,37 +6,25 @@ import { useRouter } from "next/navigation";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ArrowUp,
   Ban,
-  Bot,
-  CalendarCheck,
-  CalendarClock,
   CheckCircle2,
   Circle,
   CircleSlash,
-  ClipboardList,
   Clock,
-  Database,
-  FileText,
-  ListChecks,
   Loader2,
-  MessageSquare,
-  Mic,
   MoreHorizontal,
-  Play,
   Search,
   Sparkles,
-  Webhook,
   Workflow,
   XCircle,
-  Zap,
 } from "lucide-react";
-import { getTrigger } from "@/lib/workflows/catalog";
-import type { TriggerEventType } from "@/lib/workflows/spec";
+import { builderPrefillHref } from "@/lib/workflows/features";
+import { canRunNow } from "@/lib/workflows/summary";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
@@ -49,7 +37,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useViewerId } from "@/components/activity/activity-log";
 import { WorkflowsTabs } from "./workflows-tabs";
+import { FlowSummary } from "./flow-summary";
+import {
+  DeleteWorkflowDialog,
+  duplicateWorkflowRequest,
+  runWorkflowNowRequest,
+} from "./workflow-actions";
 
 type WorkflowRow = {
   id: string;
@@ -60,6 +55,8 @@ type WorkflowRow = {
   /** Current version's trigger event type (e.g. "task.overdue"), or null for a
    *  workflow with no saved version yet. Drives the trigger badge. */
   trigger_event_type: string | null;
+  step_types: string[];
+  created_by: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
   created_at: string;
@@ -138,7 +135,7 @@ function formatRelative(iso: string | null) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-type Filter = "all" | "active" | "disabled" | "failing";
+type Filter = "all" | "mine" | "active" | "disabled" | "failing";
 
 export function WorkflowsList({ propertyId }: { propertyId: string }) {
   useWorkflowsRealtime(propertyId);
@@ -146,6 +143,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
   const { data: workflows } = useSuspenseQuery(workflowsListQueryOptions(propertyId));
   const queryClient = useQueryClient();
   const router = useRouter();
+  const viewerId = useViewerId();
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -160,12 +158,13 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
     const q = query.trim().toLowerCase();
     return workflows.filter((w) => {
       if (q && !`${w.name} ${w.description ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filter === "mine" && w.created_by !== viewerId) return false;
       if (filter === "active" && !w.enabled) return false;
       if (filter === "disabled" && w.enabled) return false;
       if (filter === "failing" && w.last_run_status !== "failed") return false;
       return true;
     });
-  }, [workflows, query, filter]);
+  }, [workflows, query, filter, viewerId]);
 
   function setRows(updater: (rows: WorkflowRow[]) => WorkflowRow[]) {
     queryClient.setQueryData<WorkflowRow[]>(queryKey, (old) => (old ? updater(old) : old));
@@ -195,7 +194,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
     }
   }
 
-  async function deleteWorkflow(w: WorkflowRow) {
+  async function deleteWorkflow(w: WorkflowRow): Promise<void> {
     const prev = workflows;
     setRows((rows) => rows.filter((r) => r.id !== w.id));
     try {
@@ -232,7 +231,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="px-10 pt-8 pb-12">
+        <PageShell className="pt-8 pb-12">
           {has ? (
             <>
               <Toolbar
@@ -260,6 +259,14 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
                         router.push(`/p/${propertyId}/workflows/${w.id}/runs`)
                       }
                       onEdit={() => router.push(`/p/${propertyId}/workflows/${w.id}`)}
+                      onRunNow={async () => {
+                        const runId = await runWorkflowNowRequest(propertyId, w.id);
+                        if (runId) router.push(`/p/${propertyId}/workflows/${w.id}/runs/${runId}`);
+                      }}
+                      onDuplicate={async () => {
+                        const id = await duplicateWorkflowRequest(propertyId, w.id);
+                        if (id) router.push(`/p/${propertyId}/workflows/${id}`);
+                      }}
                       onDelete={() => deleteWorkflow(w)}
                     />
                   ))}
@@ -301,6 +308,7 @@ function Toolbar({
 }) {
   const filters: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
+    { key: "mine", label: "Mine" },
     { key: "active", label: "Active" },
     { key: "disabled", label: "Disabled" },
   ];
@@ -354,6 +362,8 @@ function Row({
   onToggle,
   onViewRuns,
   onEdit,
+  onRunNow,
+  onDuplicate,
   onDelete,
 }: {
   w: WorkflowRow;
@@ -362,8 +372,11 @@ function Row({
   onToggle: () => void;
   onViewRuns: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onRunNow: () => void;
+  onDuplicate: () => void;
+  onDelete: () => Promise<void>;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const status = w.last_run_status ? RUN_STATUS[w.last_run_status] : null;
   const StatusIcon = status?.icon ?? Circle;
   const relative = formatRelative(w.last_run_at);
@@ -372,6 +385,7 @@ function Row({
     <li className="group relative flex items-center gap-3 pr-2 pl-3 hover:bg-accent">
       <Link
         href={`/p/${propertyId}/workflows/${w.id}`}
+        title={w.description ?? undefined}
         className={cn(
           "flex min-w-0 flex-1 items-start gap-3 py-2.5",
           !w.enabled && "opacity-55",
@@ -388,13 +402,8 @@ function Row({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">{w.name}</span>
-            <TriggerBadge type={w.trigger_event_type} />
           </div>
-          {w.description ? (
-            <p className="truncate text-xs leading-relaxed text-muted-foreground">
-              {w.description}
-            </p>
-          ) : null}
+          <FlowSummary trigger={w.trigger_event_type} stepTypes={w.step_types} />
         </div>
       </Link>
 
@@ -426,66 +435,35 @@ function Row({
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
+            {canRunNow(w.trigger_event_type) ? (
+              <DropdownMenuItem
+                disabled={!w.enabled}
+                onClick={onRunNow}
+                title={w.enabled ? undefined : "Turn it on to run it"}
+              >
+                Run now
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem onClick={onToggle}>
-              {w.enabled ? "Disable" : "Enable"}
+              {w.enabled ? "Turn off" : "Turn on"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onViewRuns}>View runs</DropdownMenuItem>
             <DropdownMenuItem onClick={onEdit}>Edit workflow</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicate}>Duplicate</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              Delete
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
+              Delete…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <DeleteWorkflowDialog
+        name={w.name}
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        onConfirm={onDelete}
+      />
     </li>
-  );
-}
-
-// The badge answers the one question the list can't otherwise: "what makes
-// this run?" We deliberately surface the TRIGGER (the cause) rather than the
-// engine's instant/durable execution mode — that distinction is internal and
-// reads as "fires only once", which is misleading for a recurring workflow.
-// Icon is keyed on the trigger family; the label comes straight from the
-// trigger catalog so it stays in sync with the builder's vocabulary.
-const TRIGGER_ICONS: { prefix: string; icon: typeof Clock }[] = [
-  { prefix: "task.", icon: ListChecks },
-  { prefix: "chat.", icon: MessageSquare },
-  { prefix: "doc.", icon: FileText },
-  { prefix: "meeting.", icon: Mic },
-  { prefix: "calendar.", icon: CalendarClock },
-  { prefix: "entity.", icon: Database },
-  { prefix: "schedule.", icon: Clock },
-  { prefix: "manual.", icon: Play },
-  { prefix: "webhook.", icon: Webhook },
-  { prefix: "form.", icon: ClipboardList },
-  { prefix: "chatbot.", icon: Bot },
-  { prefix: "booking.", icon: CalendarCheck },
-];
-
-function TriggerBadge({ type }: { type: string | null }) {
-  if (!type) {
-    return (
-      <Badge
-        variant="secondary"
-        className="bg-muted text-muted-foreground/70"
-        title="This workflow has no trigger set up yet"
-      >
-        Draft
-      </Badge>
-    );
-  }
-  const label = getTrigger(type as TriggerEventType)?.label ?? type;
-  const Icon = TRIGGER_ICONS.find((t) => type.startsWith(t.prefix))?.icon ?? Zap;
-  return (
-    <Badge
-      variant="secondary"
-      className="bg-muted text-muted-foreground"
-      title={`Runs ${label.charAt(0).toLowerCase()}${label.slice(1)}`}
-    >
-      <Icon data-icon="inline-start" />
-      {label}
-    </Badge>
   );
 }
 
@@ -504,31 +482,75 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
   );
 }
 
+// Linear's Loops page opens on "Create a new loop": a prompt box first, start
+// fresh second, templates third. The prompt hands off to the builder's copilot
+// via ?prefill= (the same door the ⚡ Automations suggestions use), so the AI
+// conversation — clarifying questions included — happens in one place.
 function EmptyState({ propertyId }: { propertyId: string }) {
+  const router = useRouter();
+  const [goal, setGoal] = useState("");
+  const submit = () => {
+    const g = goal.trim();
+    if (g) router.push(builderPrefillHref(propertyId, g));
+  };
   return (
-    <div className="rounded-lg bg-muted p-12 text-center">
-      <Workflow className="mx-auto mb-4 size-5 text-faint-foreground" aria-hidden />
-      <h2 className="text-base font-semibold text-foreground">
-        Put your busywork on autopilot
-      </h2>
-      <p className="mx-auto mt-2 max-w-[440px] text-sm leading-relaxed text-muted-foreground">
-        Describe what you want in plain English and AI will build it. For example:
-        “When a task labeled guest-complaint is created, summarize it and notify the
-        manager on duty.”
-      </p>
-      <div className="mt-6 flex items-center justify-center gap-2">
+    <div className="mx-auto max-w-2xl pt-6">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Create a workflow</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Put busywork on autopilot — it runs on its own whenever its trigger happens.
+          </p>
+        </div>
         <Link
           href={`/p/${propertyId}/workflows/new`}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+          className="inline-flex h-7 shrink-0 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
         >
-          <Sparkles className="size-4" />
-          Build with AI
+          Start fresh
         </Link>
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+        className="rounded-lg bg-card p-3 shadow-ring focus-within:shadow-focus"
+      >
+        <textarea
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          rows={2}
+          aria-label="Describe the workflow"
+          placeholder="Describe it — e.g. “When a task labeled guest-complaint is created, notify the manager on duty”"
+          className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-faint-foreground"
+        />
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1 text-xs text-faint-foreground">
+            <Sparkles className="size-3.5" aria-hidden />
+            AI builds it — you review before it turns on
+          </span>
+          <button
+            type="submit"
+            disabled={!goal.trim()}
+            aria-label="Build with AI"
+            className="inline-flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:bg-primary/80 disabled:opacity-40"
+          >
+            <ArrowUp className="size-4" />
+          </button>
+        </div>
+      </form>
+      <div className="mt-4 text-center">
         <Link
           href={`/p/${propertyId}/workflows/templates`}
-          className="inline-flex h-7 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
+          className="text-xs font-medium text-primary-ink hover:underline"
         >
-          Browse templates
+          Or start from a template →
         </Link>
       </div>
     </div>

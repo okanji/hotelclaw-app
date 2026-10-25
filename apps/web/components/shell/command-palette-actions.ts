@@ -28,8 +28,18 @@ import {
 
 // ---- Actions ----------------------------------------------------------------
 
+export type PaletteGroup = "create" | "navigate";
+
 export type PaletteAction = {
   id: string;
+  /**
+   * Which palette group the action belongs to. `create` actions are the
+   * handful shown on the empty palette ("Quick actions"); `navigate` rows
+   * ("Go to …") only appear once the query matches them or the person types
+   * the `>` command prefix — 13 jump rows in the resting state buried the
+   * channels and people the palette is mostly opened for.
+   */
+  group: PaletteGroup;
   /** Sentence-case row label. */
   label: string;
   /** Extra match terms beyond the label (synonyms, rail names). */
@@ -54,6 +64,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     // -- Create --
     {
       id: "new-task",
+      group: "create",
       label: "Create task",
       keywords: ["new task", "add task", "todo", "n"],
       icon: ClipboardPlus,
@@ -62,6 +73,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     // -- Navigation (one per rail section) --
     {
       id: "go-home",
+      group: "navigate",
       label: "Go to home",
       keywords: ["overview", "widgets"],
       icon: Home,
@@ -69,6 +81,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-tasks",
+      group: "navigate",
       label: "Go to tasks",
       keywords: ["board", "todo", "work"],
       icon: ListChecks,
@@ -76,6 +89,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-chat",
+      group: "navigate",
       label: "Go to chat",
       keywords: ["channels", "messages"],
       icon: MessagesSquare,
@@ -83,6 +97,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-documents",
+      group: "navigate",
       label: "Go to documents",
       keywords: ["docs", "notes", "pages", "wiki"],
       icon: FileText,
@@ -90,6 +105,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-calendar",
+      group: "navigate",
       label: "Go to calendar",
       keywords: ["schedule", "events"],
       icon: CalendarDays,
@@ -97,6 +113,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-meetings",
+      group: "navigate",
       label: "Go to meetings",
       keywords: ["video", "calls"],
       icon: Video,
@@ -104,6 +121,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-bookings",
+      group: "navigate",
       label: "Go to bookings",
       keywords: ["reservations", "tables", "services"],
       icon: Ticket,
@@ -111,6 +129,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-forms",
+      group: "navigate",
       label: "Go to forms",
       keywords: ["surveys", "responses"],
       icon: ClipboardList,
@@ -118,6 +137,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-chatbots",
+      group: "navigate",
       label: "Go to chatbots",
       keywords: ["guest", "bots", "widget"],
       icon: Bot,
@@ -125,6 +145,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-workflows",
+      group: "navigate",
       label: "Go to workflows",
       keywords: ["automations", "triggers"],
       icon: Workflow,
@@ -132,6 +153,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-agents",
+      group: "navigate",
       label: "Go to agents",
       keywords: ["ai", "fleet", "memory"],
       icon: Sparkles,
@@ -139,6 +161,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     },
     {
       id: "go-assistant",
+      group: "navigate",
       label: "Go to assistant",
       keywords: ["ai", "copilot", "projects"],
       icon: Sparkle,
@@ -147,6 +170,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     {
       // Served from /home/insights (its own rail entry — see app-rail.tsx).
       id: "go-insights",
+      group: "navigate",
       label: "Go to insights",
       keywords: ["metrics", "reports", "my week", "analytics"],
       icon: LineChart,
@@ -155,6 +179,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
     // -- Creation (real affordances only) --
     {
       id: "new-workflow",
+      group: "create",
       label: "New workflow",
       keywords: ["create", "automation", "add"],
       icon: Zap,
@@ -164,6 +189,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
       // `?new=1` is the forms sidebar's own deep link (forms-section.tsx);
       // FormsList opens the create dialog then strips the param.
       id: "new-form",
+      group: "create",
       label: "New form",
       keywords: ["create", "survey", "add"],
       icon: ClipboardPlus,
@@ -173,6 +199,7 @@ export function paletteActions(propertyId: string): PaletteAction[] {
       // The Assistant sidebar's "New chat" is plain navigation to the
       // section root (no create param exists) — mirror that exactly.
       id: "new-assistant-chat",
+      group: "create",
       label: "New assistant chat",
       keywords: ["create", "conversation", "ai"],
       icon: MessageSquarePlus,
@@ -202,11 +229,12 @@ export type RecentKind =
   | "dm"
   | "person"
   | "task"
+  | "document"
   | "message";
 
 /**
  * Minimal record of a selected palette item.
- * - action/task: `href` is the destination
+ * - action/task/document: `href` is the destination
  * - channel/dm: `id` is `<channelType>:<channelId>`
  * - message:    `id` is `<channelType>:<channelId>:<messageId>`
  * - person:     `id` is the user id (re-opens/creates the DM)
@@ -225,6 +253,7 @@ const RECENT_KINDS: RecentKind[] = [
   "dm",
   "person",
   "task",
+  "document",
   "message",
 ];
 

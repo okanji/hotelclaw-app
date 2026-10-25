@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  * those room providers if needed — not here.
  */
 export function ConnectionStatus() {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const [online, setOnline] = useState(true);
 
   useEffect(() => {

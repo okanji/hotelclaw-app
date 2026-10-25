@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   documentBoardsQueryOptions,
@@ -239,11 +240,14 @@ function Directory({
     () => docsList.filter((d) => !d.space_id).length,
     [docsList],
   );
-  const editsThisWeek = useMemo(() => {
-    const cutoff = Date.now() - ONE_WEEK_MS;
-    return docsList.filter((d) => new Date(d.updated_at).getTime() >= cutoff)
-      .length;
-  }, [docsList]);
+  // Stable per mount — reading the clock during render is impure.
+  const [weekAgo] = useState(() => Date.now() - ONE_WEEK_MS);
+  const editsThisWeek = useMemo(
+    () =>
+      docsList.filter((d) => new Date(d.updated_at).getTime() >= weekAgo)
+        .length,
+    [docsList, weekAgo],
+  );
 
   const queryTokens = useMemo(
     () => (searching ? tokenize(trimmed) : []),
@@ -253,106 +257,103 @@ function Directory({
   const isEmptyProperty = !isPending && docsList.length === 0;
 
   return (
-    // The masthead owns the top gutter, NOT this scroller: a sticky child's
-    // offset is measured from the scroll container's CONTENT box, so a `pt-12`
-    // here would park the toolbar 48px down the pane and let rows scroll
-    // through the gap above it (measured).
-    <div className="flex h-full w-full flex-col overflow-y-auto px-8 pb-16 sm:px-14">
-      {/* ONE width for the whole Directory: `PageShell` owns it, and every
-          element from the masthead to the last row shares its edge. */}
-      <PageShell className="flex flex-col">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 pt-12">
-          <div className="flex min-w-0 flex-col gap-3">
-            <h1 className="text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
-              Directory
-            </h1>
-            {/* Whitespace-separated stat one-liner — the same shape the Home
-                widgets use. Stats never get rules (DESIGN.md). */}
-            <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-sm text-muted-foreground">
-              <Stat label="In the library" value={docsList.length} />
-              <Stat label="On boards" value={boards.length} />
-              <Stat label="Edits this week" value={editsThisWeek} />
-            </dl>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <AutomationsButton
-              propertyId={propertyId}
-              feature="docs"
-              variant="outline"
-            />
+    <div className="flex h-full w-full flex-col">
+      <PageHeader
+        title="Docs"
+        icon={<FileText />}
+        meta={
+          isPending ? undefined : (
+            <span className="tabular-nums">
+              {docsList.length} in the library · {boards.length} on boards ·{" "}
+              {editsThisWeek} edited this week
+            </span>
+          )
+        }
+        actions={
+          <div className="flex items-center gap-1.5">
+            <AutomationsButton propertyId={propertyId} feature="docs" />
             <DocsActivitySheet propertyId={propertyId} />
           </div>
-        </header>
+        }
+      />
+      {/* No top padding on this scroller: a sticky child's offset is measured
+          from the scroll container's CONTENT box, so a `pt-*` here would park
+          the sticky toolbar below the pane top and let rows scroll through
+          the gap above it (measured). The toolbar carries its own py-3.
+          ONE width for the whole Directory: `PageShell` owns it, and every
+          element from the toolbar to the last row shares its edge. */}
+      <div className="min-h-0 flex-1 overflow-y-auto pb-16">
+        <PageShell className="flex flex-col">
+          {isEmptyProperty ? (
+            <EmptyDirectory propertyId={propertyId} onGenerate={onGenerate} />
+          ) : (
+            <>
+              <DirectoryToolbar
+                propertyId={propertyId}
+                view={view}
+                onChange={patchView}
+                teams={teams}
+                generalCount={generalCount}
+                onGenerate={onGenerate}
+                resultCount={searching ? shown.length : null}
+              />
 
-        {isEmptyProperty ? (
-          <EmptyDirectory propertyId={propertyId} onGenerate={onGenerate} />
-        ) : (
-          <>
-            <DirectoryToolbar
-              propertyId={propertyId}
-              view={view}
-              onChange={patchView}
-              teams={teams}
-              generalCount={generalCount}
-              onGenerate={onGenerate}
-              resultCount={searching ? shown.length : null}
-            />
+              {docsError ? (
+                <p className="mb-6 text-sm text-destructive">
+                  Could not load documents. Try refreshing the page.
+                </p>
+              ) : null}
 
-            {docsError ? (
-              <p className="mb-6 text-sm text-destructive">
-                Could not load documents. Try refreshing the page.
-              </p>
-            ) : null}
-
-            {/* Boards are a curated shelf, not a search surface — while the
-                user is looking for something specific they're just noise. */}
-            {searching ? null : (
-              <div className="mb-10">
-                <DocBoardsSection propertyId={propertyId} />
-              </div>
-            )}
-
-            <UnpinZone id="unpin-zone:directory" className="rounded-md">
-              {isPending ? (
-                <ListSkeleton />
-              ) : shown.length === 0 ? (
-                <NoMatches
-                  searching={searching}
-                  fetching={searchFetching}
-                  onReset={() =>
-                    patchView({ query: "", kind: "all", team: "all" })
-                  }
-                />
-              ) : (
-                <div className="flex flex-col gap-8">
-                  {groups.map((g) => (
-                    <section key={g.label ?? "_all"}>
-                      {g.label ? (
-                        <div className="mb-1 flex items-baseline justify-between gap-3 px-2">
-                          <Eyebrow>{g.label}</Eyebrow>
-                          <span className="text-xs text-faint-foreground tabular-nums">
-                            {g.items.length}
-                          </span>
-                        </div>
-                      ) : null}
-                      <ul role="list" className="flex flex-col">
-                        {g.items.map((r) => (
-                          <DocumentRow
-                            key={r.id}
-                            propertyId={propertyId}
-                            row={r}
-                            tokens={queryTokens}
-                          />
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
+              {/* Boards are a curated shelf, not a search surface — while the
+                  user is looking for something specific they're just noise. */}
+              {searching ? null : (
+                <div className="mb-10">
+                  <DocBoardsSection propertyId={propertyId} />
                 </div>
               )}
-            </UnpinZone>
-          </>
-        )}
-      </PageShell>
+
+              <UnpinZone id="unpin-zone:directory" className="rounded-md">
+                {isPending ? (
+                  <ListSkeleton />
+                ) : shown.length === 0 ? (
+                  <NoMatches
+                    searching={searching}
+                    fetching={searchFetching}
+                    onReset={() =>
+                      patchView({ query: "", kind: "all", team: "all" })
+                    }
+                  />
+                ) : (
+                  <div className="flex flex-col gap-8">
+                    {groups.map((g) => (
+                      <section key={g.label ?? "_all"}>
+                        {g.label ? (
+                          <div className="mb-1 flex items-baseline justify-between gap-3 px-2">
+                            <Eyebrow>{g.label}</Eyebrow>
+                            <span className="text-xs text-faint-foreground tabular-nums">
+                              {g.items.length}
+                            </span>
+                          </div>
+                        ) : null}
+                        <ul role="list" className="flex flex-col">
+                          {g.items.map((r) => (
+                            <DocumentRow
+                              key={r.id}
+                              propertyId={propertyId}
+                              row={r}
+                              tokens={queryTokens}
+                            />
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </UnpinZone>
+            </>
+          )}
+        </PageShell>
+      </div>
     </div>
   );
 }
@@ -611,19 +612,6 @@ function groupRows(
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Shared helpers                                                            */
 /* ────────────────────────────────────────────────────────────────────────── */
-
-/** Value-then-faint-label, identical to the Home widgets' `Stats` one-liner
- *  (components/home/editorial-section.tsx) — one stat voice across the app. */
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dd className="text-base font-semibold tabular-nums text-foreground">
-        {value}
-      </dd>
-      <dt className="text-faint-foreground">{label}</dt>
-    </div>
-  );
-}
 
 function UnpinZone({
   id,

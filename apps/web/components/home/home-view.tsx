@@ -15,10 +15,11 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Check, Eye, RotateCcw } from "lucide-react";
+import { Check, Eye, Home as HomeIcon, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 import { QuickAccessRow } from "./quick-access";
 import {
   DropdownMenu,
@@ -70,9 +71,10 @@ import { IntelligenceBriefWidget } from "./widgets/intelligence-brief-widget";
  * `page` (960px), the app-wide default, so the masthead and every section
  * below it share one left edge. (Home was briefly a 720px prose column; its
  * content is list rows with right-aligned metadata, not prose, and those rows
- * read better with the extra measure.) It opens the way a Notion page opens —
- * a 40px/48px weight-700 title,
- * one 14px muted line, and then content. There is deliberately **no boxed KPI
+ * read better with the extra measure.) The page chrome is the app-wide
+ * compact `PageHeader` ("Home" + the view-as / filter / customize controls);
+ * the greeting is page CONTENT at the section tier, then the metrics line,
+ * then content. There is deliberately **no boxed KPI
  * strip under the title**: the role-tuned numbers are a single quiet inline
  * metrics line (12px faint labels beside 24px weight-600 tabular values,
  * separated by whitespace, no card chrome), because they are heterogeneous
@@ -181,65 +183,65 @@ export function HomeView({
 
   return (
     <DashboardFilterProvider value={filter}>
-    {/* The scroll box keeps ≥32px of horizontal padding at every width so the
-        block-gutter grips (−28px) live inside it and never widen the page. */}
-    <div className="h-full w-full overflow-y-auto px-8 pt-8 pb-24 sm:px-14 sm:pt-10">
-      <PageShell className="flex flex-col">
-        {/* Page controls sit above the title in their own quiet row, the way a
-            Notion page header does — the title itself stays unencumbered. */}
-        <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
-          {realRole ? (
-            <ViewAsMenu
-              realRole={realRole}
-              viewAs={viewAs}
-              onChange={(next) => {
-                setViewAs(next);
-                setViewAsUser(null);
-              }}
-              members={
-                realRole === "owner"
-                  ? (members ?? [])
-                      .filter((m) => m.id !== userId)
-                      .map((m) => ({
-                        id: m.id,
-                        name: m.name ?? "Unnamed",
-                        role: asHomeRole(m.role) ?? "staff",
-                      }))
-                  : []
-              }
-              viewAsUser={viewAsUser}
-              onChangeUser={(next) => {
-                setViewAsUser(next);
-                setViewAs(null);
+    <div className="flex h-full w-full flex-col">
+      <PageHeader
+        title="Home"
+        icon={<HomeIcon />}
+        actions={
+          <div className="flex items-center gap-1.5">
+            {realRole ? (
+              <ViewAsMenu
+                realRole={realRole}
+                viewAs={viewAs}
+                onChange={(next) => {
+                  setViewAs(next);
+                  setViewAsUser(null);
+                }}
+                members={
+                  realRole === "owner"
+                    ? (members ?? [])
+                        .filter((m) => m.id !== userId)
+                        .map((m) => ({
+                          id: m.id,
+                          name: m.name ?? "Unnamed",
+                          role: asHomeRole(m.role) ?? "staff",
+                        }))
+                    : []
+                }
+                viewAsUser={viewAsUser}
+                onChangeUser={(next) => {
+                  setViewAsUser(next);
+                  setViewAs(null);
+                }}
+              />
+            ) : null}
+            <DashboardFilterMenu
+              propertyId={propertyId}
+              value={filter}
+              onChange={setFilter}
+            />
+            <CustomizeMenu
+              items={DASHBOARD_WIDGETS}
+              visibleCount={visible.length}
+              isHidden={isHidden}
+              onToggle={toggleHidden}
+              onReset={reset}
+              presets={DASHBOARD_PRESETS}
+              onApplyPreset={(presetId) => {
+                const preset = DASHBOARD_PRESETS.find(
+                  (candidate) => candidate.id === presetId,
+                );
+                if (preset) applyLayout(preset.order, preset.hidden);
               }}
             />
-          ) : null}
-          <DashboardFilterMenu
-            propertyId={propertyId}
-            value={filter}
-            onChange={setFilter}
-          />
-          <CustomizeMenu
-            items={DASHBOARD_WIDGETS}
-            visibleCount={visible.length}
-            isHidden={isHidden}
-            onToggle={toggleHidden}
-            onReset={reset}
-            presets={DASHBOARD_PRESETS}
-            onApplyPreset={(presetId) => {
-              const preset = DASHBOARD_PRESETS.find(
-                (candidate) => candidate.id === presetId,
-              );
-              if (preset) applyLayout(preset.order, preset.hidden);
-            }}
-          />
-        </div>
-
-        <SectionHeader
-          size="page"
-          title={greeting}
-          description={sublineFor(role)}
-        />
+          </div>
+        }
+      />
+    {/* The page gutter (40px from `sm`) also keeps the block-gutter grips
+        (−28px) inside the scroll box, so they never widen the page. */}
+    <div className="min-h-0 flex-1 overflow-y-auto pt-6 pb-24">
+      <PageShell className="flex flex-col">
+        <SectionHeader title={greeting} />
 
         <MetricsLine items={metrics} />
 
@@ -332,6 +334,7 @@ export function HomeView({
         />
       </PageShell>
     </div>
+    </div>
     </DashboardFilterProvider>
   );
 }
@@ -343,19 +346,6 @@ const ROLE_LABEL: Record<HomeRole, string> = {
   manager: "Manager",
   staff: "Staff",
 };
-
-function sublineFor(role: HomeLens): string {
-  switch (role) {
-    case "owner":
-      return "Here's where the property stands today — the analyst's read up top, the rest of the picture below.";
-    case "manager":
-      return "Here's what needs you to decide today, then the team's momentum and your own work.";
-    case "staff":
-      return "Here's your shift at a glance — what changed, and what's yours to move.";
-    default:
-      return "A snapshot of your day and what the team is moving — rearrange it to your liking, or hide what you don't need.";
-  }
-}
 
 type HomeMetric = {
   label: string;
@@ -374,7 +364,7 @@ type HomeMetric = {
 function MetricsLine({ items }: { items: HomeMetric[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="mt-8 flex flex-wrap items-baseline gap-x-10 gap-y-3">
+    <div className="mt-4 flex flex-wrap items-baseline gap-x-10 gap-y-3">
       {items.map((item) => (
         <Link
           key={item.label}

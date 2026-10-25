@@ -68,7 +68,7 @@ export function GuestFormFields({
               )}
             </label>
             {field.description ? (
-              <p className="-mt-1 text-xs text-guest-ink-soft">
+              <p className="-mt-1 text-xs whitespace-pre-line text-guest-ink-soft">
                 {field.description}
               </p>
             ) : null}
@@ -208,6 +208,18 @@ function FieldInput({
         </div>
       );
     }
+    case "consent":
+      return (
+        <div className="flex gap-2">
+          <OptionChip
+            accent={accent}
+            active={value === true}
+            onClick={() => onChange(field.id, value === true ? undefined : true)}
+          >
+            I agree
+          </OptionChip>
+        </div>
+      );
     default:
       // short_text / email / phone
       return (

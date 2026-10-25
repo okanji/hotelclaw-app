@@ -14,7 +14,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/section-header";
 import { AutomationsButton } from "@/components/workflows/automations-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -38,6 +37,7 @@ import { NewChatbotDialog } from "./new-chatbot-dialog";
 import { deleteChatbot } from "./actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 export type ChatbotListItem = {
   id: string;
@@ -114,64 +114,56 @@ export function ChatbotsList({
   });
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        className="flex-wrap gap-y-3"
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
         title="Chatbots"
-        description="Build AI chatbots your guests talk to — a front desk that answers questions, room service that takes orders, a restaurant that books tables. They act on real requests: tickets for your team, channel pings, human handoff."
+        icon={<Bot />}
         actions={
-          <>
-            <AutomationsButton
-              propertyId={propertyId}
-              feature="chatbots"
-              variant="outline"
-            />
-            <Button onClick={() => setNewOpen(true)}>
+          <div className="flex items-center gap-1.5">
+            <AutomationsButton propertyId={propertyId} feature="chatbots" />
+            <Button size="sm" onClick={() => setNewOpen(true)}>
               <Plus data-slot="icon" />
               New chatbot
             </Button>
-          </>
+          </div>
         }
       />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          {visible.length === 0 ? (
+            <ChatbotsEmpty onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {visible.map((bot) => (
+                <ChatbotCard
+                  key={bot.id}
+                  bot={bot}
+                  href={`${base}/${bot.id}`}
+                  messagesToday={usageToday[bot.id] ?? 0}
+                  onDelete={() => setDeleting(bot)}
+                />
+              ))}
+            </div>
+          )}
 
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
-
-      {visible.length === 0 ? (
-        <ChatbotsEmpty onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {visible.map((bot) => (
-            <ChatbotCard
-              key={bot.id}
-              bot={bot}
-              href={`${base}/${bot.id}`}
-              messagesToday={usageToday[bot.id] ?? 0}
-              onDelete={() => setDeleting(bot)}
-            />
-          ))}
-        </div>
-      )}
-
-      <NewChatbotDialog
-        propertyId={propertyId}
-        open={newOpen}
-        onOpenChange={setNewOpen}
-      />
-      <DeleteChatbotDialog
-        bot={deleting}
-        onOpenChange={(o) => {
-          if (!o) setDeleting(null);
-        }}
-        onDeleted={() => {
-          setDeleting(null);
-          router.refresh();
-        }}
-      />
-    </PageShell>
+          <NewChatbotDialog
+            propertyId={propertyId}
+            open={newOpen}
+            onOpenChange={setNewOpen}
+          />
+          <DeleteChatbotDialog
+            bot={deleting}
+            onOpenChange={(o) => {
+              if (!o) setDeleting(null);
+            }}
+            onDeleted={() => {
+              setDeleting(null);
+              router.refresh();
+            }}
+          />
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

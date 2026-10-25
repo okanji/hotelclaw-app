@@ -1,31 +1,27 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { useMemo } from "react";
 import {
   SidebarContent,
-  SidebarGroup,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CloseSidebarIcon } from "./clickup-icons";
 import { PropertySwitcher } from "./property-switcher";
 import { SearchButton } from "./search-button";
-import { NewMenu, YouBlock } from "./you-block";
+import { FavoritesGroup, NewMenu, YouBlock } from "./you-block";
+import { WorkspaceNav } from "./workspace-nav";
+import { UserMenu } from "./user-menu";
+import { defaultPins } from "./nav-apps";
+import { useNavPrefs } from "./use-nav-prefs";
 import { useShellSection } from "./shell-section-context";
-import { HomeSection } from "./sections/home-section";
-import { InsightsSection } from "./sections/insights-section";
-import { ActivitySection } from "./sections/activity-section";
-import { ChatSection } from "./sections/chat-section";
-import { DmsSection } from "./sections/dms-section";
-import { TasksSection } from "./sections/tasks-section";
-import { CalendarSection } from "@/components/calendar/calendar-section";
-import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
-import { MeetingsSection } from "./sections/meetings-section";
-import { WorkflowsSection } from "./sections/workflows-section";
-import { ChatbotsSection } from "./sections/chatbots-section";
-import { AgentsSection } from "./sections/agents-section";
-import { AssistantSection } from "./sections/assistant-section";
-import { BookingsSection } from "./sections/bookings-section";
-import { FormsSection } from "./sections/forms-section";
+import { ProjectsSidebar } from "@/components/projects/projects-sidebar";
 import type { Membership } from "@/lib/auth/session";
 
 type Props = {
@@ -42,8 +38,13 @@ type Props = {
 };
 
 /**
- * The second sidebar — content swaps with the active rail section. Property
- * switcher header + section content. Collapsed/opened via the rail button.
+ * THE sidebar — one tree, Linear / ClickUp style (the Slack-style icon rail
+ * is gone, 2026-10-25): property switcher + search + create up top, then the
+ * personal block (Inbox / My tasks / Assistant), the PINNED Workspace apps +
+ * the More launcher (`workspace-nav.tsx`), Favorites, the Teams + Projects
+ * lists, and the account menu in the footer. Nodes expand independently; a
+ * click moves the lit row and opens the node it landed in. What's pinned and
+ * which lower groups show is the person's Customize-sidebar choice.
  */
 export function SectionSidebar({
   currentPropertyId,
@@ -51,147 +52,108 @@ export function SectionSidebar({
   user,
   width,
 }: Props) {
-  const { section, holdSectionForNavigation } = useShellSection();
-
   const currentRole = memberships.find(
     (m) => m.property_id === currentPropertyId,
   )?.role;
-  const isChannelAdmin = currentRole === "owner" || currentRole === "manager";
+  const isManagement = currentRole === "owner" || currentRole === "manager";
+  const defaults = useMemo(() => defaultPins(isManagement), [isManagement]);
+  const { hidden } = useNavPrefs(defaults);
 
   return (
     <aside
-      // Any click in here (rows, sub-rows, the You block, the New menu —
-      // portaled menus bubble through the React tree) keeps this sidebar
-      // through the navigation it causes. See holdSectionForNavigation.
-      onClickCapture={holdSectionForNavigation}
       data-section-sidebar=""
       // Notion's sidebar is a FLUSH plane, not a detached rounded card: it
-      // runs full height against the rail on its left and the content pane on
-      // its right, and its only separation is a 1px warm inset shadow on the
-      // right edge (docs/notion-spec.md §2 — "a shadow, not a border"). No
-      // margin, no radius, no stroke. Width arrives as a custom property so
-      // the mobile drawer can override it with `max-md:w-full`.
-      className="relative flex shrink-0 flex-col overflow-hidden bg-sidebar shadow-(--sidebar-edge-shadow) max-md:h-full max-md:w-full max-md:shadow-none md:w-(--section-sidebar-width)"
+      // runs full height against the content pane on its right, and its only
+      // separation is a 1px warm inset shadow on that edge (docs/notion-spec.md
+      // §2 — "a shadow, not a border"). No margin, no radius, no stroke. Width
+      // arrives as a custom property so the mobile drawer can override it
+      // with `max-md:w-full`.
+      className="group/section-sidebar relative flex shrink-0 flex-col overflow-hidden bg-sidebar shadow-(--sidebar-edge-shadow) max-md:h-full max-md:w-full max-md:shadow-none md:w-(--section-sidebar-width)"
       style={
         { "--section-sidebar-width": `${width}px` } as React.CSSProperties
       }
     >
       <div className="flex min-h-0 w-full flex-1 flex-col">
-      {/* 8px inner padding is the sidebar's single horizontal rhythm — the
-          same inset the rows and group labels use (notion-spec §4). */}
-      <SidebarHeader className="gap-1 p-2">
-        <PropertySwitcher
-          currentPropertyId={currentPropertyId}
-          memberships={memberships}
-          email={user.email}
-        />
-        {/* Search + the global create menu share one row, the same spot in
-            every section. */}
-        <div className="flex items-center gap-0.5">
-          <SidebarMenu className="min-w-0 flex-1">
-            <SearchButton />
-          </SidebarMenu>
-          <NewMenu propertyId={currentPropertyId} />
-        </div>
-      </SidebarHeader>
+        {/* 8px inner padding is the sidebar's single horizontal rhythm — the
+            same inset the rows and group labels use (notion-spec §4). */}
+        {/* The header breathes more than the rows below it: 10px between the
+            switcher and Search, 16px before the first nav row, so the
+            workspace identity and the search/create row read as their own
+            band rather than as the first two items of the list. */}
+        <SidebarHeader className="gap-2.5 px-2 pt-2 pb-4">
+          <div className="flex items-center gap-0.5">
+            <PropertySwitcher
+              currentPropertyId={currentPropertyId}
+              memberships={memberships}
+              email={user.email}
+            />
+            <SidebarCollapseButton />
+          </div>
+          {/* Search + the global create menu share one row. */}
+          <div className="flex items-center gap-0.5">
+            <SidebarMenu className="min-w-0 flex-1">
+              <SearchButton />
+            </SidebarMenu>
+            <NewMenu propertyId={currentPropertyId} />
+          </div>
+        </SidebarHeader>
 
-      <SidebarContent>
-        {/* Personal block — identical in every section (see you-block.tsx).
-            Inside the scroll area so an expanded Favorites list can't squeeze
-            the section content off-screen. */}
-        <SidebarGroup className="pt-0">
+        <SidebarContent>
           <YouBlock propertyId={currentPropertyId} userId={user.id} />
-        </SidebarGroup>
-        {/* All sections stay mounted; only visibility toggles. Each loads its
-            data once (on property entry), so switching the rail is an instant
-            show/hide — no remount, no re-fetch, no skeleton. */}
-        <SectionPane active={section === "home"}>
-          <HomeSection propertyId={currentPropertyId} />
-        </SectionPane>
-        <SectionPane active={section === "insights"}>
-          <InsightsSection
-            propertyId={currentPropertyId}
-            isManagement={isChannelAdmin}
-          />
-        </SectionPane>
-        <SectionPane active={section === "activity"}>
-          <Suspense fallback={null}>
-            <ActivitySection propertyId={currentPropertyId} userId={user.id} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "chat"}>
-          <ChatSection
+          <WorkspaceNav
             propertyId={currentPropertyId}
             userId={user.id}
-            isChannelAdmin={isChannelAdmin}
+            isManagement={isManagement}
           />
-        </SectionPane>
-        <SectionPane active={section === "dms"}>
-          <DmsSection propertyId={currentPropertyId} userId={user.id} />
-        </SectionPane>
-        <SectionPane active={section === "tasks"}>
-          <Suspense fallback={null}>
-            <TasksSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "calendar"}>
-          <CalendarSection propertyId={currentPropertyId} />
-        </SectionPane>
-        <SectionPane active={section === "docs"}>
-          <DocumentsTreeSection propertyId={currentPropertyId} />
-        </SectionPane>
-        <SectionPane active={section === "forms"}>
-          <Suspense fallback={null}>
-            <FormsSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "workflows"}>
-          <Suspense fallback={null}>
-            <WorkflowsSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "meetings"}>
-          <MeetingsSection propertyId={currentPropertyId} />
-        </SectionPane>
-        <SectionPane active={section === "chatbots"}>
-          <Suspense fallback={null}>
-            <ChatbotsSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "assistant"}>
-          <Suspense fallback={null}>
-            <AssistantSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "agents"}>
-          <Suspense fallback={null}>
-            <AgentsSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-        <SectionPane active={section === "bookings"}>
-          <Suspense fallback={null}>
-            <BookingsSection propertyId={currentPropertyId} />
-          </Suspense>
-        </SectionPane>
-      </SidebarContent>
+          {hidden.includes("favorites") ? null : (
+            <FavoritesGroup propertyId={currentPropertyId} />
+          )}
+          {/* Teams + Projects as destinations (Linear's "Your teams"): each
+              row expands into its workspace views. */}
+          <ProjectsSidebar
+            propertyId={currentPropertyId}
+            showTeams={!hidden.includes("teams")}
+            showProjects={!hidden.includes("projects")}
+          />
+        </SidebarContent>
+
+        <SidebarFooter className="p-2 pt-1">
+          <UserMenu user={user} />
+        </SidebarFooter>
       </div>
     </aside>
   );
 }
 
 /**
- * Wraps one section so all five can stay mounted simultaneously. The active
- * section renders transparently (`display: contents`, so its `SidebarGroup`s
- * lay out as direct children of `SidebarContent`, exactly as before); the rest
- * are `display: none` but still mounted — keeping their data, subscriptions
- * and scroll position warm so a rail switch is instant, with no loading state.
+ * ClickUp-style « close button: invisible until the pointer is over the
+ * sidebar (or the button has keyboard focus), so the header stays quiet. The
+ * matching » "Open sidebar" button floats at the content pane's top-left
+ * while collapsed (see `LeftShell`). Desktop only — the mobile drawer always
+ * shows the sidebar.
  */
-function SectionPane({
-  active,
-  children,
-}: {
-  active: boolean;
-  children: ReactNode;
-}) {
-  return <div className={active ? "contents" : "hidden"}>{children}</div>;
+function SidebarCollapseButton() {
+  const { setSidebarCollapsed } = useShellSection();
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            aria-label="Close sidebar"
+            className="ml-auto flex size-[30px] shrink-0 items-center justify-center rounded-md text-secondary-ink opacity-0 outline-hidden transition-[opacity,background-color] group-hover/section-sidebar:opacity-100 hover:bg-sidebar-accent focus-visible:opacity-100 focus-visible:shadow-focus max-md:hidden"
+          >
+            <CloseSidebarIcon className="size-4" />
+          </button>
+        }
+      />
+      <TooltipContent side="bottom">
+        Close sidebar
+        <kbd className="ml-1.5 font-sans text-xs font-normal opacity-60">
+          ⌘\
+        </kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
 }

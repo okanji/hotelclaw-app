@@ -22,14 +22,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
+import { COLUMNS, PRIORITY_META } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import type {
   TaskDetailOpeners,
@@ -55,6 +51,7 @@ import {
   PROPERTY_CHIP_CLASS as CHIP_BASE,
   PropertyChipIcon as ChipIcon,
 } from "./task-property-menus";
+import { TaskPlanningChips } from "@/components/cycles/task-planning-chips";
 
 
 
@@ -62,7 +59,7 @@ type Member = { id: string; name: string | null; avatarUrl: string | null };
 
 /** Repeat cadence labels (migration 0107). When the task is completed, the
  *  next occurrence is created with the due date pushed by one cadence. */
-const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
+export const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
   daily: "Repeats daily",
   weekly: "Repeats weekly",
   biweekly: "Every 2 weeks",
@@ -107,6 +104,7 @@ export function TaskDetailInlineProperties({
   onDueAtChange,
   recurrence = null,
   onRecurrenceChange,
+  taskId,
 }: {
   propertyId: string;
   status: TaskStatus;
@@ -125,6 +123,9 @@ export function TaskDetailInlineProperties({
   /** Repeat cadence (migration 0107). Omit to hide the control. */
   recurrence?: TaskRecurrence | null;
   onRecurrenceChange?: (r: TaskRecurrence | null) => void;
+  /** Enables the planning chips (Estimate / Cycle / Milestone, 0111), which
+   *  read + write the task themselves. Omit to hide them. */
+  taskId?: string;
 }) {
   const statusLabel =
     COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
@@ -278,6 +279,10 @@ export function TaskDetailInlineProperties({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : null}
+
+        {taskId ? (
+          <TaskPlanningChips propertyId={propertyId} taskId={taskId} />
         ) : null}
 
         <DropdownMenu>

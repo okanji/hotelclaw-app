@@ -6,8 +6,11 @@ import {
   ChatView,
   MessageList,
   Window,
-  useChatContext,
 } from "stream-chat-react";
+import {
+  StreamConnectError,
+  useStreamConnection,
+} from "@/lib/stream/client-provider";
 import { SlackThread } from "./threads/slack-thread";
 import type {
   Channel as StreamChannel,
@@ -71,7 +74,11 @@ export function ChannelView({
   propertyId,
   messageId = null,
 }: Props) {
-  const { client } = useChatContext();
+  // `null` until Stream has connected a user — the shell no longer waits
+  // for the connection, so a hard load lands here before it exists. The
+  // effect below re-runs when the client flips to non-null.
+  const { client: rawClient, status } = useStreamConnection();
+  const client = status === "ready" ? rawClient : null;
 
   // Warm path — derived synchronously, no effect, no state.
   const warmChannel = client ? findWarmChannel(client, channelId) : null;
@@ -122,6 +129,7 @@ export function ChannelView({
   const channel = warmChannel ?? coldForThis?.channel ?? null;
 
   if (!channel) {
+    if (status === "error") return <StreamConnectError />;
     // Cold query finished and found nothing → not a member / archived / gone.
     if (coldForThis) {
       return (

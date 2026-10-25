@@ -37,7 +37,7 @@ export function WorkflowRunDetail({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="px-10 pt-10 pb-12">
+        <PageShell className="pt-10 pb-12">
           <RunInspectorClient
             propertyId={propertyId}
             workflowId={workflowId}

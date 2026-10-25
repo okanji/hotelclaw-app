@@ -10,6 +10,7 @@ import {
   Flag,
   FolderKanban,
   Hash,
+  IterationCcw,
   ListFilter,
   PenLine,
   Plus,
@@ -47,6 +48,8 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
+import { cyclesQueryOptions } from "@/lib/query/cycle-queries";
+import { cycleLabel } from "@/lib/cycles/plan";
 import {
   customFieldsQueryOptions,
   type CustomFieldRow,
@@ -100,6 +103,7 @@ export type BoardFilters = {
   spaceIds: string[]; // teams; `NONE` sentinel = no team
   projectIds: string[]; // `NONE` sentinel = no project
   labelIds: string[];
+  cycleIds: string[]; // `NONE` sentinel = in no cycle
   due: DueBucket[];
   sources: RecordSource[];
   /** Custom-field filters (migration 0080): field id → selected values.
@@ -120,6 +124,7 @@ export const EMPTY_FILTERS: BoardFilters = {
   spaceIds: [],
   projectIds: [],
   labelIds: [],
+  cycleIds: [],
   due: [],
   sources: [],
   fieldValues: {},
@@ -141,6 +146,7 @@ export type StaticFacetKey =
   | "space"
   | "project"
   | "label"
+  | "cycle"
   | "due"
   | "source";
 
@@ -172,6 +178,7 @@ export const FACET_ORDER: StaticFacetKey[] = [
   "space",
   "project",
   "label",
+  "cycle",
   "due",
   "source",
 ];
@@ -185,6 +192,7 @@ const FACET_FIELD: Record<StaticFacetKey, keyof BoardFilters> = {
   space: "spaceIds",
   project: "projectIds",
   label: "labelIds",
+  cycle: "cycleIds",
   due: "due",
   source: "sources",
 };
@@ -200,6 +208,7 @@ const FACET_META: Record<
   space: { label: "Team", Icon: Hash, searchable: true },
   project: { label: "Project", Icon: FolderKanban, searchable: true },
   label: { label: "Label", Icon: Tag, searchable: true },
+  cycle: { label: "Cycle", Icon: IterationCcw, searchable: true },
   due: { label: "Due", Icon: CalendarClock, searchable: false },
   source: { label: "Source", Icon: Zap, searchable: false },
 };
@@ -256,6 +265,7 @@ export function clearFacets(filters: BoardFilters): BoardFilters {
     spaceIds: [],
     projectIds: [],
     labelIds: [],
+    cycleIds: [],
     due: [],
     sources: [],
     fieldValues: {},
@@ -331,6 +341,12 @@ export function matchesFacets(
   if (filters.labelIds.length) {
     const labels = task.labels ?? [];
     if (!filters.labelIds.some((l) => labels.includes(l))) return false;
+  }
+  if (filters.cycleIds.length) {
+    const ok = filters.cycleIds.some((c) =>
+      c === NONE ? task.cycle_id == null : task.cycle_id === c,
+    );
+    if (!ok) return false;
   }
   if (filters.due.length) {
     const buckets = taskDueBuckets(task, now);
@@ -417,6 +433,8 @@ export type FacetData = {
   spaces: { id: string; name: string; color: EntityColor }[];
   projects: { id: string; name: string; color: EntityColor }[];
   labels: { id: string; name: string; color: EntityColor }[];
+  /** Live cycles (current + upcoming, plus recent past), labelled with their team. */
+  cycles: { id: string; label: string; current: boolean }[];
   customFields: CustomFieldRow[];
 };
 
@@ -531,6 +549,28 @@ function buildOptions(
         keywords: l.name,
         node: <ColorDot color={l.color} />,
       }));
+    case "cycle":
+      return [
+        {
+          value: NONE,
+          label: "No cycle",
+          keywords: "none no cycle unplanned",
+          node: <IterationCcw className="size-3.5 text-muted-foreground" />,
+        },
+        ...data.cycles.map<Option>((c) => ({
+          value: c.id,
+          label: c.current ? `${c.label} · current` : c.label,
+          keywords: `${c.label} ${c.current ? "current" : ""}`,
+          node: (
+            <IterationCcw
+              className={cn(
+                "size-3.5",
+                c.current ? "text-foreground" : "text-muted-foreground",
+              )}
+            />
+          ),
+        })),
+      ];
     case "due":
       return (["overdue", "today", "week", "none"] as DueBucket[]).map<Option>(
         (b) => ({
@@ -926,10 +966,33 @@ export function ActiveFilterBar({
   const { data: customFields = [] } = useQuery(
     customFieldsQueryOptions(propertyId),
   );
+  const { data: cyclesPayload } = useQuery(cyclesQueryOptions(propertyId));
+
+  const cycles = useMemo(() => {
+    const list = cyclesPayload?.cycles ?? [];
+    const teamName = (id: string | null) =>
+      id ? (spaces.find((s) => s.id === id)?.name ?? "Team") : "Property";
+    // Current first, then upcoming, then the most recent finished ones.
+    const rank = { current: 0, upcoming: 1, past: 2 } as const;
+    return [...list]
+      .sort(
+        (a, b) =>
+          rank[a.phase] - rank[b.phase] ||
+          (a.phase === "past"
+            ? b.starts_on.localeCompare(a.starts_on)
+            : a.starts_on.localeCompare(b.starts_on)),
+      )
+      .filter((c, i, arr) => c.phase !== "past" || arr.indexOf(c) < 40)
+      .map((c) => ({
+        id: c.id,
+        label: `${teamName(c.space_id)} · ${cycleLabel(c)}`,
+        current: c.phase === "current",
+      }));
+  }, [cyclesPayload, spaces]);
 
   const data: FacetData = useMemo(
-    () => ({ members, spaces, projects, labels, customFields }),
-    [members, spaces, projects, labels, customFields],
+    () => ({ members, spaces, projects, labels, cycles, customFields }),
+    [members, spaces, projects, labels, cycles, customFields],
   );
 
   const active: FacetKey[] = [

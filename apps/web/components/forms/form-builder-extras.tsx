@@ -27,7 +27,7 @@ import {
 } from "@/lib/forms/schema";
 
 /**
- * Builder companions used by the Build tab: the propose-then-apply AI edit
+ * Builder companions used by `form-builder.tsx`: the propose-then-apply AI edit
  * popover and the "Options from" data-source picker for choice fields.
  */
 
@@ -45,15 +45,13 @@ export type BuilderShared = {
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   patchField: (id: string, patch: Partial<FormField>) => void;
-  addField: (preset: FieldPreset) => void;
+  /** Insert a new field built from `preset` at `index` and open it. */
+  insertField: (index: number, preset: FieldPreset) => void;
   duplicateField: (id: string) => void;
   removeField: (id: string) => void;
   reorder: (activeId: string, overId: string) => void;
-  /** Replace the whole working schema (AI edit). */
+  /** Replace the whole working schema (AI edit) — autosaves like any edit. */
   applySchema: (schema: FormSchema) => void;
-  dirty: boolean;
-  saving: boolean;
-  save: () => void;
 };
 
 /**
@@ -61,8 +59,8 @@ export type BuilderShared = {
  * returns a revised schema (stable field ids preserved server-side), and a
  * field-level diff renders for review — each added/removed/modified row is a
  * toggle to include or exclude that specific change. Apply builds the final
- * schema from only the included changes; it lands in the working copy,
- * visible on the canvas but not persisted until Save.
+ * schema from only the included changes; it lands in the working copy and
+ * autosaves like any other edit.
  */
 export function AiEditPopover({ shared }: { shared: BuilderShared }) {
   const [open, setOpen] = useState(false);
@@ -137,8 +135,8 @@ export function AiEditPopover({ shared }: { shared: BuilderShared }) {
     shared.applySchema(applySchemaDiff(shared.schema, proposal, included));
     toast.success(
       includedCount > 0
-        ? `${includedCount} ${includedCount === 1 ? "change" : "changes"} applied — review and Save`
-        : "Question order updated — review and Save",
+        ? `${includedCount} ${includedCount === 1 ? "change" : "changes"} applied`
+        : "Question order updated",
     );
     setPrompt("");
     discardProposal();

@@ -125,6 +125,13 @@ export function useEveSession(options: UseEveSessionOptions): UseEveSession {
       });
 
       let sawData = false;
+      // The replay starts from index 0, so its first chunks hold only the
+      // EARLIEST turns. Publishing those would shrink a long transcript to
+      // its first exchange and wipe the optimistic echo of the message just
+      // sent — the pane flashed its empty state for the whole model latency.
+      // During a send/respond consume, hold the previous items until the
+      // replay has caught up to the turn being consumed.
+      const caughtUp = () => expectedTurns === null || userTurns >= expectedTurns;
       try {
         for (;;) {
           // Resume (expectedTurns === null) races an idle window: a parked
@@ -158,13 +165,13 @@ export function useEveSession(options: UseEveSessionOptions): UseEveSession {
               // Partial writes on abort — skip.
             }
           }
-          publish(reducer.items);
+          if (caughtUp()) publish(reducer.items);
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
       } finally {
         reader.cancel().catch(() => {});
-        publish(reducer.items);
+        if (caughtUp()) publish(reducer.items);
         turnsRef.current = Math.max(turnsRef.current, userTurns);
       }
     },

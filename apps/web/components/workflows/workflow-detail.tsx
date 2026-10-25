@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { LibraryBig, Sparkles, Workflow } from "lucide-react";
+import { History, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { workflowDetailQueryOptions } from "@/lib/query/workflow-queries";
 import { classifyMode } from "@/lib/workflows/spec";
 import { PageHeader } from "@/components/shell/page-header";
@@ -31,6 +31,15 @@ export function WorkflowDetail({
           { label: "Workflows", icon: <Workflow />, href: `/p/${propertyId}/workflows` },
           { label: data.workflow.name },
         ]}
+        actions={
+          <Link
+            href={`/p/${propertyId}/workflows/${workflowId}/runs`}
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <History className="size-3.5" aria-hidden />
+            Runs
+          </Link>
+        }
       />
       {spec ? (
         // The builder is a canvas surface — BuilderShell owns its own width
@@ -49,7 +58,7 @@ export function WorkflowDetail({
         </WorkflowRoom>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <PageShell className="px-10 pt-10 pb-12">
+          <PageShell className="pt-10 pb-12">
             <div className="rounded-lg bg-muted p-12 text-center">
               <Workflow className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium text-foreground">

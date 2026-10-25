@@ -25,9 +25,8 @@ type User = {
 /**
  * Mobile navigation (below `md:`): the 44px transparent top bar (the same
  * height and chrome as the desktop `AppTopBar` — no fill, no bottom border)
- * with a hamburger that opens the full LeftShell (icon rail + section
- * sidebar) in a left drawer. Desktop never renders this — the rail and
- * sidebar sit inline there.
+ * with a hamburger that opens the full LeftShell (the sidebar tree) in a
+ * left drawer. Desktop never renders this — the sidebar sits inline there.
  */
 export function MobileTopBar({
   currentPropertyId,
@@ -45,7 +44,7 @@ export function MobileTopBar({
   const { section } = useShellSection();
 
   // Close the drawer on any navigation — real route changes (sidebar links)
-  // and rail pushState section swaps both land here.
+  // and pushState section hops both land here.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setOpen(false), [pathname, section]);
 

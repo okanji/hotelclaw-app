@@ -98,6 +98,30 @@ export function useNotificationActions(userId: string) {
     [markSeen],
   );
 
+  /** Optimistically flip one read row back to unread and persist it. */
+  const markUnread = useCallback(
+    (n: NotificationRow) => {
+      if (!n.seen_at) return;
+      qc.setQueryData<NotificationRow[]>(["notifications", userId], (prev) =>
+        (prev ?? []).map((row) =>
+          row.id === n.id ? { ...row, seen_at: null } : row,
+        ),
+      );
+      void fetch("/api/me/notifications/mark-read", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [n.id], unseen: true }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+        })
+        .catch(() => {
+          qc.invalidateQueries({ queryKey: ["notifications", userId] });
+        });
+    },
+    [qc, userId],
+  );
+
   const markAllRead = useCallback(() => {
     const current =
       qc.getQueryData<NotificationRow[]>(["notifications", userId]) ?? [];
@@ -113,5 +137,5 @@ export function useNotificationActions(userId: string) {
     });
   }, [qc, userId, markSeen]);
 
-  return { markSeen, markRead, markAllRead };
+  return { markSeen, markRead, markUnread, markAllRead };
 }

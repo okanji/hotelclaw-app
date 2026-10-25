@@ -14,12 +14,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { taskShortId, type Task } from "./kanban";
+import { taskKey, type Task } from "./kanban";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
 import { TaskScopeChips } from "./task-scope-chips";
 import { OptionChip } from "./custom-field-chip";
+import { EstimateChip } from "@/components/cycles/estimate-chip";
 import { taskHref } from "@/lib/tasks/task-href";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
@@ -150,6 +151,7 @@ function CardPropertyRow({
         appearance="bare"
       />
       <TaskScopeChips task={task} />
+      <EstimateChip estimate={task.estimate} />
       {labels?.map((o) => <OptionChip key={o.id} option={o} />)}
     </div>
   );
@@ -246,7 +248,7 @@ function CardHeader({
   return (
     <div className="flex items-center justify-between gap-2 leading-4">
       <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground tabular-nums">
-        {taskShortId(task.id)}
+        {taskKey(task)}
         <WorkflowProvenanceBadge source={task.source} appearance="glyph" />
       </span>
       <AssigneeSlot info={assignee} assigneeId={task.assignee_id} />

@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { MessagesSquare } from "lucide-react";
+import { Bot, MessagesSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SectionHeader } from "@/components/ui/section-header";
 import { OutcomeBadge } from "@/components/chatbots/conversations-list";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
 } from "@/lib/db/types";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 /**
  * Property-wide guest-conversation inbox — every bot, newest first, with
@@ -41,67 +41,62 @@ export default async function AllConversationsPage({
   const rows = conversations ?? [];
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        title="Conversations"
-        description={
-          <>
-            Every guest conversation across your chatbots. Escalations are
-            marked &ldquo;With staff&rdquo; — open one to reply.
-          </>
-        }
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Chatbots", href: `/p/${propertyId}/chatbots`, icon: <Bot /> },
+          { label: "Conversations" },
+        ]}
+        meta="Escalations show “With staff” — open one to reply"
       />
-
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
-
-      {rows.length === 0 ? (
-        <EmptyState icon={MessagesSquare} title="No conversations yet">
-          Publish a chatbot and share its QR code — guest chats land here.
-        </EmptyState>
-      ) : (
-        <ul className="divide-y divide-border rounded-md shadow-ring">
-          {rows.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/p/${propertyId}/chatbots/${c.chatbot_id}/conversations/${c.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">
-                    {c.guest_name ?? "Anonymous guest"}
-                    {c.room_number ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · Room {c.room_number}
-                      </span>
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          {rows.length === 0 ? (
+            <EmptyState icon={MessagesSquare} title="No conversations yet">
+              Publish a chatbot and share its QR code — guest chats land here.
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-border rounded-md shadow-ring">
+              {rows.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/p/${propertyId}/chatbots/${c.chatbot_id}/conversations/${c.id}`}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">
+                        {c.guest_name ?? "Anonymous guest"}
+                        {c.room_number ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · Room {c.room_number}
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {botNames.get(c.chatbot_id) ?? "Chatbot"} · {c.message_count}{" "}
+                        message{c.message_count === 1 ? "" : "s"}
+                        {c.last_message_at
+                          ? ` · ${new Date(c.last_message_at).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}`
+                          : ""}
+                      </p>
+                    </div>
+                    {(c.status as ChatbotConversationStatus) === "human" ? (
+                      <StatusBadge tone="info">With staff</StatusBadge>
                     ) : null}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {botNames.get(c.chatbot_id) ?? "Chatbot"} · {c.message_count}{" "}
-                    message{c.message_count === 1 ? "" : "s"}
-                    {c.last_message_at
-                      ? ` · ${new Date(c.last_message_at).toLocaleString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}`
-                      : ""}
-                  </p>
-                </div>
-                {(c.status as ChatbotConversationStatus) === "human" ? (
-                  <StatusBadge tone="info">With staff</StatusBadge>
-                ) : null}
-                <OutcomeBadge outcome={c.outcome as ChatbotConversationOutcome} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </PageShell>
+                    <OutcomeBadge outcome={c.outcome as ChatbotConversationOutcome} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PageShell>
+      </div>
+    </div>
   );
 }

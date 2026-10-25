@@ -28,7 +28,8 @@ type User = {
 };
 
 /**
- * Account menu pinned to the bottom of the icon rail — avatar-only trigger.
+ * Account menu pinned to the sidebar footer — a nav row (avatar + name) that
+ * opens the account menu above it.
  */
 export function UserMenu({ user }: { user: User }) {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -49,24 +50,24 @@ export function UserMenu({ user }: { user: User }) {
       <DropdownMenu>
         <DropdownMenuTrigger
           className={cn(
-            "flex size-9 items-center justify-center rounded-md outline-none transition-[background-color]",
-            // The rail scopes `dark` + remaps --sidebar to --rail, so the
-            // sidebar tokens resolve to the rail's own warm dark plane —
-            // no hardcoded white alphas needed.
-            "text-sidebar-foreground hover:bg-sidebar-accent",
+            // The sidebar row contract: 30px, 7px radius, 8px inset, 14px
+            // label in secondary ink, warm hover fill only.
+            "flex h-[30px] w-full min-w-0 items-center gap-2.5 rounded-[7px] px-2 text-left text-sm text-sidebar-foreground outline-hidden transition-colors",
+            "hover:bg-sidebar-accent data-[popup-open]:bg-sidebar-accent",
             "focus-visible:shadow-focus",
           )}
           title={displayName}
           aria-label={`Account menu for ${displayName}`}
         >
-          <Avatar className="size-6">
+          <Avatar className="size-5">
             <AvatarImage src={user.avatarUrl ?? undefined} />
-            <AvatarFallback className="text-xs">
+            <AvatarFallback className="text-[10px]">
               {initials || "?"}
             </AvatarFallback>
           </Avatar>
+          <span className="min-w-0 flex-1 truncate">{displayName}</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="end" className="min-w-56">
+        <DropdownMenuContent side="top" align="start" className="min-w-56">
           <DropdownMenuGroup>
             {/* The account name is a heading, not a section label — 14px
                 primary ink, not the 12px faint rung menus use for groups. */}

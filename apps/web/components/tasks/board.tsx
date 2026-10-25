@@ -35,6 +35,7 @@ import { KanbanGroupedView } from "./kanban-grouped-view";
 import { ListView } from "./list-view";
 import { TimelineView } from "./timeline-view";
 import { WorkloadView } from "./workload-view";
+import { publishVisibleTaskOrder } from "@/lib/tasks/visible-task-order";
 import { PRIORITY_META, type Task } from "./kanban";
 import type { TaskStatus } from "@/lib/db/types";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
@@ -310,6 +311,22 @@ export function TasksBoard({
   // Both "Active" and "Backlog" presets hide the Done column in views that
   // can collapse it. "All" leaves every column visible.
   const hideDone = filters.statusPreset !== "all";
+
+  // Prev/next on task detail follows what's on screen. The status kanban and
+  // the list publish their own exact order (they own collapse / saved sort);
+  // the other views publish the filtered + sorted set. Child effects run
+  // first, so this one must stay out of their way.
+  const selfPublishes =
+    view === "list" || (view === "board" && groupBy === "status");
+  useEffect(() => {
+    if (selfPublishes) return;
+    publishVisibleTaskOrder(
+      propertyId,
+      filteredTasks
+        .filter((t) => !(hideDone && t.status === "done"))
+        .map((t) => t.id),
+    );
+  }, [selfPublishes, filteredTasks, hideDone, propertyId]);
 
   if (isPending) return <TasksBoardSkeleton />;
 

@@ -26,7 +26,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("workflows")
     .select(
-      "id, name, description, enabled, mode, current_version_id, last_run_at, last_run_status, created_at, updated_at",
+      "id, name, description, enabled, mode, current_version_id, created_by, last_run_at, last_run_status, created_at, updated_at",
     )
     .eq("property_id", propertyId)
     .is("archived_at", null)

@@ -9,6 +9,8 @@ import {
   Archive,
   Check,
   ChevronRight,
+  Inbox,
+  IterationCcw,
   Layers,
   MoreHorizontal,
   Workflow,
@@ -30,6 +32,8 @@ import {
   tasksQueryOptions,
 } from "@/lib/query/section-queries";
 import { spaceMemberIdsQueryOptions } from "@/lib/query/project-queries";
+import { triageQueueQueryOptions } from "@/lib/query/triage-queries";
+import { cyclesHref } from "@/lib/query/cycle-queries";
 import {
   archiveSpace,
   pinSpaceResource,
@@ -101,6 +105,8 @@ type SpaceDetailData = {
   docs: { id: string; title: string }[];
   pinnedDocs: { id: string; title: string }[];
   pinnedForms: { id: string; title: string; status: string }[];
+  /** Teams nested under this one (`spaces.parent_space_id`, 0071). */
+  subTeams: { id: string; name: string; color: EntityColor; icon: string | null }[];
 };
 
 function spaceDetailQuery(spaceId: string) {
@@ -108,7 +114,7 @@ function spaceDetailQuery(spaceId: string) {
     queryKey: ["space-detail", spaceId] as const,
     queryFn: async (): Promise<SpaceDetailData> => {
       const supabase = createBrowserClient();
-      const [space, links, tasks, docs, pins] = await Promise.all([
+      const [space, links, tasks, docs, pins, subTeams] = await Promise.all([
         supabase
           .from("spaces")
           .select("id, name, description, color, icon, created_at")
@@ -130,6 +136,12 @@ function spaceDetailQuery(spaceId: string) {
           .from("space_pinned_resources")
           .select("document_id, form_id, position")
           .eq("space_id", spaceId)
+          .order("position", { ascending: true }),
+        supabase
+          .from("spaces")
+          .select("id, name, color, icon")
+          .eq("parent_space_id", spaceId)
+          .is("archived_at", null)
           .order("position", { ascending: true }),
       ]);
       let projects: SpaceDetailData["projects"] = [];
@@ -196,6 +208,7 @@ function spaceDetailQuery(spaceId: string) {
         docs: spaceDocs,
         pinnedDocs,
         pinnedForms,
+        subTeams: (subTeams.data ?? []) as SpaceDetailData["subTeams"],
       };
     },
   };
@@ -221,6 +234,11 @@ export function SpaceDetail({
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
   const { data: people = [] } = useQuery(propertyMembersQueryOptions(propertyId));
   const { data: memberIds = [] } = useQuery(spaceMemberIdsQueryOptions(spaceId));
+  // Pending triage for THIS team — the "Go to → Triage" count.
+  const { data: triageQueue = [] } = useQuery(
+    triageQueueQueryOptions(propertyId),
+  );
+  const triageCount = triageQueue.filter((t) => t.space_id === spaceId).length;
   const roster = useMemo(() => {
     const s = new Set(memberIds);
     return people.filter((p) => s.has(p.id));
@@ -621,8 +639,51 @@ export function SpaceDetail({
     },
   ];
 
+  const subTeams = data?.subTeams ?? [];
   const rightRail = (
     <div className="flex flex-col">
+      {/* Linear's team home "Go to" list — every destination scoped to
+          this team. Projects are listed below; Initiatives/Views have no
+          team scope here yet. */}
+      <RailGroup label="Go to">
+        <GoToRow
+          href={`/p/${propertyId}/triage?team=${spaceId}`}
+          icon={<Inbox className="size-3.5" />}
+          label="Triage"
+          count={triageCount}
+        />
+        <GoToRow
+          href={`/p/${propertyId}/tasks?space=${spaceId}`}
+          icon={<Layers className="size-3.5" />}
+          label="Tasks"
+          count={tasks.length}
+        />
+        <GoToRow
+          href={cyclesHref(propertyId, spaceId)}
+          icon={<IterationCcw className="size-3.5" />}
+          label="Cycles"
+        />
+      </RailGroup>
+
+      {subTeams.length > 0 ? (
+        <RailGroup label="Sub-teams">
+          {subTeams.map((t) => (
+            <GoToRow
+              key={t.id}
+              href={`/p/${propertyId}/spaces/${t.id}`}
+              icon={
+                t.icon ? (
+                  <span className="text-sm leading-none">{t.icon}</span>
+                ) : (
+                  <span className={cn("size-2 rounded-full", DOT[t.color])} />
+                )
+              }
+              label={t.name || "Untitled team"}
+            />
+          ))}
+        </RailGroup>
+      ) : null}
+
       <RailGroup label="Properties">
         <PropertyRow label="Members">
           {roster.length > 0 ? (
@@ -654,15 +715,6 @@ export function SpaceDetail({
               No members
             </span>
           )}
-        </PropertyRow>
-        <PropertyRow label="Tasks">
-          <Link
-            href={`/p/${propertyId}/tasks?space=${spaceId}`}
-            className={railValueClass}
-          >
-            <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="tabular-nums">{tasks.length}</span>
-          </Link>
         </PropertyRow>
         <PropertyRow label="Documents">
           <span className="px-1.5 py-0.5 text-sm text-foreground tabular-nums">
@@ -768,5 +820,32 @@ export function SpaceDetail({
       onActiveTabChange={setActiveTab}
       rightRail={rightRail}
     />
+  );
+}
+
+/** One destination in the rail's "Go to" / "Sub-teams" lists. */
+function GoToRow({
+  href,
+  icon,
+  label,
+  count,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  count?: number;
+}) {
+  return (
+    <Link href={href} className={cn(railValueClass, "py-1")}>
+      <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {count ? (
+        <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
+          {count}
+        </span>
+      ) : null}
+    </Link>
   );
 }

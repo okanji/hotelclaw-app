@@ -8,8 +8,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { CalendarView } from "@/lib/calendar/view-range";
 
-export type CalendarView = "day" | "week" | "month";
+export type { CalendarView };
 
 type Ctx = {
   /** The "anchor" date — week/day view derives its window from this. */
@@ -17,7 +18,7 @@ type Ctx = {
   setFocusDate: (d: Date) => void;
   view: CalendarView;
   setView: (v: CalendarView) => void;
-  /** Source ids the user has hidden via sidebar checkboxes. */
+  /** Source ids the user has hidden via the toolbar's Calendars popover. */
   hiddenSources: Set<string>;
   toggleSource: (id: string) => void;
   /** Team-availability overlay: user ids the user wants overlaid. */

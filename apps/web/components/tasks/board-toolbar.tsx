@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarRange,
   Check,
   Columns3,
   List,
   Search,
-  Settings2,
+  SlidersHorizontal,
   Users,
   X,
 } from "lucide-react";
@@ -16,13 +16,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { isChoiceField } from "@/lib/tasks/custom-field-options";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
@@ -30,9 +23,12 @@ import { cn } from "@/lib/utils";
 import { SORT_LABELS } from "./kanban";
 import { TriageDial } from "./triage-dial";
 import { AutomationsButton } from "@/components/workflows/automations-button";
-import { CustomFieldManager } from "./custom-field-manager";
+import { CustomFieldManagerDialog } from "./custom-field-manager";
 import { useQuery } from "@tanstack/react-query";
-import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
+import {
+  customFieldsQueryOptions,
+  type CustomFieldRow,
+} from "@/lib/query/custom-field-queries";
 import {
   EMPTY_FILTERS,
   FilterMenu,
@@ -116,11 +112,13 @@ export function BoardToolbar({
   onChangeGroupBy,
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
+  // Search is a glyph until asked for (Linear's header): the input unfolds
+  // on click or `/` and folds away again once it is empty and blurred.
+  const [searchOpen, setSearchOpen] = useState(filters.search.length > 0);
+  const searchVisible = searchOpen || filters.search.length > 0;
 
   // `/` focuses search (Linear/GitHub convention). Skip when typing in
-  // another input so we don't steal keystrokes mid-edit. Search lives inside
-  // the Filter popover now, but the global shortcut still works — the
-  // popover opens on focus via the ref + click.
+  // another input so we don't steal keystrokes mid-edit.
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -128,7 +126,9 @@ export function BoardToolbar({
       const tag = t?.tagName;
       if (t?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA") return;
       e.preventDefault();
-      searchRef.current?.focus();
+      setSearchOpen(true);
+      // The input may not exist yet on this frame.
+      requestAnimationFrame(() => searchRef.current?.focus());
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -140,18 +140,22 @@ export function BoardToolbar({
     customFieldsQueryOptions(propertyId),
   );
 
-  const sortDifferent =
-    filters.sortKeys.length > 0 || filters.sortBy !== "manual";
-
   return (
-    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border px-3">
-      {/* Left — status preset pills (All / Active / Backlog). */}
-      <TabNav variant="pill" aria-label="Status filter">
+    // Linear's view row: presets + Filter on the left, ONE Display control on
+    // the right. Everything that configures how the list LOOKS (layout,
+    // grouping, ordering, fields) lives behind Display; only the two
+    // AI/automation entry points keep a glyph of their own. The row is 40px
+    // with the content pulled up (`pb-1`) so the pills sit clear of the rule.
+    <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-(--page-gutter) pb-1">
+      {/* Left — status preset pills (All / Active / Backlog). Compact pill,
+          full-size label. */}
+      <TabNav variant="pill" aria-label="Status filter" className="gap-0.5">
         {STATUS_TABS.map(({ id, label }) => (
           <TabNavItem
             key={id}
             active={filters.statusPreset === id}
             onClick={() => onChange({ ...filters, statusPreset: id })}
+            className="h-7 px-2.5"
           >
             {label}
           </TabNavItem>
@@ -167,132 +171,95 @@ export function BoardToolbar({
         customFields={customFields}
       />
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-0.5">
         {/* Visible / total hint — only when filters are actively narrowing. */}
         {(activeFilterCount > 0 || filters.search.length > 0) && total > 0 ? (
-          <span className="mr-1 hidden text-xs text-faint-foreground tabular-nums sm:inline">
+          <span className="mr-1.5 hidden text-xs text-faint-foreground tabular-nums sm:inline">
             {visible} of {total}
           </span>
         ) : null}
 
-        {/* View mode — explicit labeled buttons for clarity while keeping
-            the same minimal toolbar density. */}
-        <TabNav variant="pill" aria-label="View mode">
-          {VIEW_TABS.map(({ id, label, Icon }) => (
-            <TabNavItem key={id} active={view === id} onClick={() => onChangeView(id)}>
-              <Icon />
-              <span>{label}</span>
-            </TabNavItem>
-          ))}
-        </TabNav>
-
-        {/* Group-by — only meaningful for the board view. */}
-        {view === "board" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 gap-1 px-2 text-xs"
-                />
-              }
-            >
-              <Columns3 className="size-3.5" />
-              Group:{" "}
-              {groupBy.startsWith("field:")
-                ? (customFields.find((f) => `field:${f.id}` === groupBy)?.name ??
-                  "Field")
-                : GROUP_LABELS[groupBy as "status" | "space" | "project"]}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={6}>
-              {(["status", "space", "project"] as const).map((g) => (
-                <DropdownMenuItem key={g} onClick={() => onChangeGroupBy(g)}>
-                  <span className="flex-1">{GROUP_LABELS[g]}</span>
-                  {g === groupBy ? <Check className="size-3.5" /> : null}
-                </DropdownMenuItem>
-              ))}
-              {/* Choice custom fields group too (ClickUp's group-by-dropdown/
-                  label) — a column per option, None last. */}
-              {customFields.some((f) => isChoiceField(f.type)) ? (
-                <>
-                  <DropdownMenuSeparator />
-                  {customFields
-                    .filter((f) => isChoiceField(f.type))
-                    .map((f) => {
-                      const id = `field:${f.id}` as const;
-                      return (
-                        <DropdownMenuItem
-                          key={f.id}
-                          onClick={() => onChangeGroupBy(id)}
-                        >
-                          <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                          {id === groupBy ? <Check className="size-3.5" /> : null}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-
-        <CustomFieldManager propertyId={propertyId} />
-
-        <TriageDial propertyId={propertyId} />
-
-        <AutomationsButton propertyId={propertyId} feature="tasks" />
-
-        {/* Search — compact input. `/` keyboard shortcut still focuses it. */}
-        <div className="relative ml-1">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            ref={searchRef}
-            type="search"
-            name="board-search"
-            aria-label="Search tasks"
-            placeholder="Search…"
-            value={filters.search}
-            onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            className={cn(
-              // The QUERY is a value the user types, so it reads on the UI
-              // rung (14px), not the metadata rung — a 12px input is the
-              // single loudest "this is a dashboard" tell (notion-spec-v2 §2).
-              // The `/` hint beside it stays 12px; that IS metadata.
-              "h-7 w-44 rounded-md bg-accent pr-7 pl-7 text-sm shadow-none",
-              "placeholder:text-faint-foreground",
-              "transition-colors",
-              "focus-visible:shadow-focus focus-visible:outline-none",
-              "[&::-webkit-search-cancel-button]:hidden",
-            )}
-          />
-          {filters.search ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => onChange({ ...filters, search: "" })}
-              className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-accent"
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : (
-            <kbd
+        {/* Search — a glyph that unfolds into the input. */}
+        {searchVisible ? (
+          <div className="relative mr-1">
+            <Search
               aria-hidden
-              className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md px-1 font-sans text-xs text-faint-foreground"
-            >
-              /
-            </kbd>
-          )}
-        </div>
+              className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              ref={searchRef}
+              type="search"
+              name="board-search"
+              aria-label="Search tasks"
+              placeholder="Search…"
+              autoFocus
+              value={filters.search}
+              onChange={(e) => onChange({ ...filters, search: e.target.value })}
+              onBlur={() => {
+                if (!filters.search) setSearchOpen(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  onChange({ ...filters, search: "" });
+                  setSearchOpen(false);
+                  e.currentTarget.blur();
+                }
+              }}
+              className={cn(
+                // The QUERY is a value the user types, so it reads on the UI
+                // rung (14px), not the metadata rung.
+                "h-7 w-48 rounded-md bg-accent pr-7 pl-7 text-sm shadow-none",
+                "placeholder:text-faint-foreground",
+                "transition-colors",
+                "focus-visible:shadow-focus focus-visible:outline-none",
+                "[&::-webkit-search-cancel-button]:hidden",
+              )}
+            />
+            {filters.search ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange({ ...filters, search: "" });
+                  setSearchOpen(false);
+                }}
+                className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-accent-pressed"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <button
+            type="button"
+            aria-label="Search tasks"
+            title="Search  /"
+            onClick={() => setSearchOpen(true)}
+            className={TOOLBAR_ICON_BUTTON}
+          >
+            <Search className="size-4" />
+          </button>
+        )}
 
-        <SortMenu
+        <TriageDial propertyId={propertyId} showLabel={false} />
+
+        <AutomationsButton
+          propertyId={propertyId}
+          feature="tasks"
+          showLabel={false}
+          className="text-muted-foreground"
+        />
+
+        <DisplayMenu
+          propertyId={propertyId}
           filters={filters}
           onChange={onChange}
-          modified={sortDifferent}
+          view={view}
+          onChangeView={onChangeView}
+          groupBy={groupBy}
+          onChangeGroupBy={onChangeGroupBy}
+          customFields={customFields}
         />
       </div>
     </div>
@@ -300,91 +267,182 @@ export function BoardToolbar({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Sort menu                                                                  */
+/* Display menu                                                               */
 /* -------------------------------------------------------------------------- */
 
-function SortMenu({
+/**
+ * Linear's "Display" popover: layout, grouping, ordering and the fields
+ * manager in one place. The trigger carries a dot whenever the list is
+ * showing something other than its defaults (a non-status grouping or a
+ * non-manual order), so a customised view is visible from the bar.
+ */
+function DisplayMenu({
+  propertyId,
   filters,
   onChange,
-  modified,
+  view,
+  onChangeView,
+  groupBy,
+  onChangeGroupBy,
+  customFields,
 }: {
+  propertyId: string;
   filters: BoardFilters;
   onChange: (next: BoardFilters) => void;
-  modified: boolean;
+  view: ViewMode;
+  onChangeView: (view: ViewMode) => void;
+  groupBy: BoardGroupBy;
+  onChangeGroupBy: (groupBy: BoardGroupBy) => void;
+  customFields: CustomFieldRow[];
 }) {
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const sortModified =
+    filters.sortKeys.length > 0 || filters.sortBy !== "manual";
+  const modified = sortModified || (view === "board" && groupBy !== "status");
+  const choiceFields = customFields.filter((f) => isChoiceField(f.type));
+
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Sort${
-              filters.sortKeys.length > 0
-                ? ` by ${filters.sortKeys
-                    .map((k) => SORT_LABELS[k].toLowerCase())
-                    .join(", then ")}`
-                : modified
-                  ? ` by ${SORT_LABELS[filters.sortBy].toLowerCase()}`
-                  : ""
-            }`}
-            title="Sort"
-            className={TOOLBAR_ICON_BUTTON}
-          />
-        }
-      >
-        <span className="relative inline-flex">
-          <Settings2 className="size-4" />
-          {modified ? (
-            <span
-              aria-hidden
-              className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary ring-2 ring-background"
+    <>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              title="Display options"
+              className={cn(
+                "ml-0.5 gap-1.5 px-2 text-muted-foreground",
+                "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
+                "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
+              )}
             />
+          }
+        >
+          <span className="relative inline-flex">
+            <SlidersHorizontal className="size-3.5" />
+            {modified ? (
+              <span
+                aria-hidden
+                className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary ring-2 ring-background"
+              />
+            ) : null}
+          </span>
+          Display
+        </PopoverTrigger>
+        <PopoverContent align="end" sideOffset={6} className="w-64 gap-0 p-0">
+          <PopoverSection label="Layout">
+            <div
+              role="radiogroup"
+              aria-label="Layout"
+              className="grid grid-cols-4 gap-1 px-0.5 pb-0.5"
+            >
+              {VIEW_TABS.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === id}
+                  onClick={() => onChangeView(id)}
+                  className={cn(
+                    "flex h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
+                    "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
+                    view === id
+                      ? "bg-accent text-foreground"
+                      : "text-secondary-ink",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </PopoverSection>
+
+          {view === "board" ? (
+            <PopoverSection label="Grouping">
+              {(["status", "space", "project"] as const).map((g) => (
+                <PopoverRow
+                  key={g}
+                  onClick={() => onChangeGroupBy(g)}
+                  selected={g === groupBy}
+                >
+                  <span className="flex-1">{GROUP_LABELS[g]}</span>
+                </PopoverRow>
+              ))}
+              {/* Choice custom fields group too (ClickUp's group-by-dropdown/
+                  label) — a column per option, None last. */}
+              {choiceFields.map((f) => {
+                const id = `field:${f.id}` as const;
+                return (
+                  <PopoverRow
+                    key={f.id}
+                    onClick={() => onChangeGroupBy(id)}
+                    selected={id === groupBy}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                  </PopoverRow>
+                );
+              })}
+            </PopoverSection>
           ) : null}
-        </span>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-56 gap-0 p-0">
-        <PopoverSection label="Ordering">
-          <PopoverRow
-            onClick={() =>
-              onChange({ ...filters, sortBy: "manual", sortKeys: [] })
-            }
-            selected={
-              filters.sortKeys.length === 0 && filters.sortBy === "manual"
-            }
-          >
-            <span className="flex-1">Manual order</span>
-          </PopoverRow>
-          {(["priority", "due_at"] as const).map((key) => {
-            const index = filters.sortKeys.indexOf(key);
-            const selected = index !== -1;
-            return (
-              <PopoverRow
-                key={key}
-                onClick={() =>
-                  onChange({
-                    ...filters,
-                    sortBy: "manual",
-                    // Click to stack; click again to unstack (ClickUp's
-                    // click-in-succession multi-sort).
-                    sortKeys: selected
-                      ? filters.sortKeys.filter((k) => k !== key)
-                      : [...filters.sortKeys, key],
-                  })
-                }
-                selected={selected}
-              >
-                <span className="flex-1">{SORT_LABELS[key]}</span>
-                {selected && filters.sortKeys.length > 1 ? (
-                  <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-faint-foreground">
-                    {index + 1}
-                  </span>
-                ) : null}
-              </PopoverRow>
-            );
-          })}
-        </PopoverSection>
-      </PopoverContent>
-    </Popover>
+
+          <PopoverSection label="Ordering">
+            <PopoverRow
+              onClick={() =>
+                onChange({ ...filters, sortBy: "manual", sortKeys: [] })
+              }
+              selected={
+                filters.sortKeys.length === 0 && filters.sortBy === "manual"
+              }
+            >
+              <span className="flex-1">Manual order</span>
+            </PopoverRow>
+            {(["priority", "due_at"] as const).map((key) => {
+              const index = filters.sortKeys.indexOf(key);
+              const selected = index !== -1;
+              return (
+                <PopoverRow
+                  key={key}
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      sortBy: "manual",
+                      // Click to stack; click again to unstack (ClickUp's
+                      // click-in-succession multi-sort).
+                      sortKeys: selected
+                        ? filters.sortKeys.filter((k) => k !== key)
+                        : [...filters.sortKeys, key],
+                    })
+                  }
+                  selected={selected}
+                >
+                  <span className="flex-1">{SORT_LABELS[key]}</span>
+                  {selected && filters.sortKeys.length > 1 ? (
+                    <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-faint-foreground">
+                      {index + 1}
+                    </span>
+                  ) : null}
+                </PopoverRow>
+              );
+            })}
+          </PopoverSection>
+
+          <PopoverSection label="Fields">
+            <PopoverRow onClick={() => setFieldsOpen(true)} selected={false}>
+              <span className="flex-1">Manage custom fields…</span>
+            </PopoverRow>
+          </PopoverSection>
+        </PopoverContent>
+      </Popover>
+      {fieldsOpen ? (
+        <CustomFieldManagerDialog
+          propertyId={propertyId}
+          open={fieldsOpen}
+          onOpenChange={setFieldsOpen}
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -10,7 +10,6 @@ import {
   Check,
   ChevronRight,
   FileText,
-  Layers,
   MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,12 +68,17 @@ import { CatchUpBanner } from "@/components/insights/catch-up-banner";
 import { WorkspaceDescription } from "./workspace-description";
 import {
   DocsPanel,
-  ProgressOverview,
   TasksPanel,
   type ScopedTask,
 } from "./workspace-panels";
 import { HEALTH_META, projectHealth } from "./tracking/tracking-shared";
 import { MilestonesPanel } from "./milestones-panel";
+import { ProjectProgressBlock } from "./progress-block";
+import { UpdatesSection } from "./project-updates";
+import { ProjectInitiativesPicker } from "./project-initiatives-picker";
+import { HealthDot } from "@/components/initiatives/health";
+import { declaredHealthQueryOptions } from "@/lib/query/initiative-queries";
+import { milestoneProgress } from "@/lib/initiatives/planning";
 import { TimelineView } from "@/components/tasks/timeline-view";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
@@ -93,7 +97,12 @@ const STATUS_DOT: Record<ProjectStatus, string> = {
 };
 const DOT = LABEL_DOT;
 
-type DetailTask = ScopedTask & { assignee_id: string | null };
+type DetailTask = ScopedTask & {
+  assignee_id: string | null;
+  /** Effort points (0111); null = unestimated, counted as 1 in scope. */
+  estimate: number | null;
+  milestone_id: string | null;
+};
 
 type ProjectDetailData = {
   project: {
@@ -129,7 +138,7 @@ function projectDetailQuery(projectId: string) {
         supabase.from("project_spaces").select("space_id").eq("project_id", projectId),
         supabase
           .from("tasks")
-          .select("id, title, status, assignee_id")
+          .select("id, title, status, assignee_id, estimate, milestone_id")
           .eq("project_id", projectId)
           .order("position", { ascending: true }),
         supabase
@@ -169,6 +178,9 @@ export function ProjectDetail({
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
   const { data: people = [] } = useQuery(propertyMembersQueryOptions(propertyId));
+  // The latest written update's call — shown beside the computed pace read.
+  const { data: declaredIndex } = useQuery(declaredHealthQueryOptions(propertyId));
+  const declared = declaredIndex?.projects[projectId]?.health ?? null;
 
   const project = data?.project;
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
@@ -212,6 +224,7 @@ export function ProjectDetail({
     );
     return people.filter((p) => ids.has(p.id));
   }, [tasks, people]);
+  const milestonePct = useMemo(() => milestoneProgress(tasks), [tasks]);
   const counts = useMemo(() => {
     const c: Record<TaskStatus, number> = {
       todo: 0,
@@ -375,38 +388,27 @@ export function ProjectDetail({
         />
       </div>
 
+      {/* Live state lives in this row (visible on every tab and at widths
+          where the rail is hidden); the rail holds the attributes — lead,
+          members, dates, teams, initiatives. Neither repeats the other, and
+          issue counts live in Overview's Progress block. */}
       <MetadataRow>
         <MetadataItem label="Status">
           <StatusMenu status={project.status} onSelect={setStatus} inline />
         </MetadataItem>
         <MetadataItem label="Health">
-          <HealthValue
-            status={project.status}
-            targetDate={project.target_date}
-            done={counts.done}
-            total={tasks.length}
-            inline
-          />
+          <span className="inline-flex items-center gap-2">
+            {declared ? <HealthDot health={declared} /> : null}
+            <HealthValue
+              status={project.status}
+              targetDate={project.target_date}
+              done={counts.done}
+              total={tasks.length}
+              inline
+              computedLabel={Boolean(declared)}
+            />
+          </span>
         </MetadataItem>
-        <MetadataItem label="Issues">
-          <Link
-            href={`/p/${propertyId}/tasks?project=${projectId}`}
-            className="inline-flex items-center gap-1 text-foreground transition-colors hover:text-foreground"
-          >
-            <Layers className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <span className="tabular-nums">{tasks.length}</span>
-          </Link>
-        </MetadataItem>
-        {linkedSpaces.length > 0 ? (
-          <MetadataItem label="Teams">
-            <span className="tabular-nums">{linkedSpaces.length}</span>
-          </MetadataItem>
-        ) : null}
-        {project.target_date ? (
-          <MetadataItem label="Target">
-            <RailDate value={project.target_date} />
-          </MetadataItem>
-        ) : null}
       </MetadataRow>
 
       <ScopeStatStrip
@@ -436,8 +438,12 @@ export function ProjectDetail({
       label: "Overview",
       content: (
         <div className="flex flex-col gap-10">
-          <ProgressOverview tasks={tasks} />
-          <MilestonesPanel projectId={projectId} />
+          <UpdatesSection
+            propertyId={propertyId}
+            target={{ kind: "project", id: projectId }}
+          />
+          <MilestonesPanel projectId={projectId} progress={milestonePct} />
+          <ProjectProgressBlock tasks={tasks} people={contributors} />
           {linkedSpaces.length > 0 ? (
             <OverviewSection
               title="Spaces"
@@ -572,17 +578,6 @@ export function ProjectDetail({
   const rightRail = (
     <div className="flex flex-col">
       <RailGroup label="Properties">
-        <PropertyRow label="Status">
-          <StatusMenu status={project.status} onSelect={setStatus} />
-        </PropertyRow>
-        <PropertyRow label="Health">
-          <HealthValue
-            status={project.status}
-            targetDate={project.target_date}
-            done={counts.done}
-            total={tasks.length}
-          />
-        </PropertyRow>
         <PropertyRow label="Lead">
           <LeadPicker
             people={people}
@@ -601,15 +596,6 @@ export function ProjectDetail({
             </span>
           )}
         </PropertyRow>
-        <PropertyRow label="Issues">
-          <Link
-            href={`/p/${propertyId}/tasks?project=${projectId}`}
-            className={railValueClass}
-          >
-            <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="tabular-nums">{tasks.length}</span>
-          </Link>
-        </PropertyRow>
         <PropertyRow label="Dates">
           <DatesValue start={project.start_date} target={project.target_date} />
         </PropertyRow>
@@ -619,6 +605,9 @@ export function ProjectDetail({
             linkedSpaces={linkedSpaces}
             onToggle={toggleSpace}
           />
+        </PropertyRow>
+        <PropertyRow label="Initiatives">
+          <ProjectInitiativesPicker propertyId={propertyId} projectId={projectId} />
         </PropertyRow>
         <PropertyRow label="Created">
           <span className="px-1.5 py-1">
@@ -709,12 +698,18 @@ function HealthValue({
   done,
   total,
   inline,
+  computedLabel,
 }: {
   status: ProjectStatus;
   targetDate: string | null;
   done: number;
   total: number;
   inline?: boolean;
+  /**
+   * Mark this as the computed pace read — set when a declared (written)
+   * health sits beside it, so the two can't be mistaken for each other.
+   */
+  computedLabel?: boolean;
 }) {
   const health = projectHealth({
     status,
@@ -732,6 +727,11 @@ function HealthValue({
     >
       <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
       {meta.label}
+      {computedLabel ? (
+        <span className="text-faint-foreground" title="Computed from pace against the target date">
+          (pace)
+        </span>
+      ) : null}
     </span>
   );
 }

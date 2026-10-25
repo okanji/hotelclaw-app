@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Library } from "lucide-react";
+import { Library, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/section-header";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { ActionsApiKeys } from "./actions-api-dialog";
 
@@ -16,15 +16,14 @@ import { ActionsApiKeys } from "./actions-api-dialog";
  */
 export function AccessView({ propertyId, isOwner }: { propertyId: string; isOwner: boolean }) {
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        eyebrow="Fleet"
-        eyebrowTone="brand"
-        title="API access"
-        description="Who can reach this property from outside. Keys are shown once and stored hashed; secrets never appear here afterwards."
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Agents", href: `/p/${propertyId}/agents`, icon: <Sparkles /> },
+          { label: "API access" },
+        ]}
         actions={
-          <Button
+          <Button nativeButton={false}
             variant="outline"
             size="sm"
             render={<Link href={`/p/${propertyId}/agents/memory`} />}
@@ -34,15 +33,23 @@ export function AccessView({ propertyId, isOwner }: { propertyId: string; isOwne
           </Button>
         }
       />
-      <div className="h-10" />
-      <section className="flex flex-col gap-4">
-        <Eyebrow>Actions API</Eyebrow>
-        {isOwner ? (
-          <ActionsApiKeys propertyId={propertyId} />
-        ) : (
-          <p className="text-sm text-muted-foreground">Only owners manage API keys.</p>
-        )}
-      </section>
-    </PageShell>
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <Eyebrow>Actions API</Eyebrow>
+              <p className="text-sm text-muted-foreground">
+                Keys are shown once and stored hashed.
+              </p>
+            </div>
+            {isOwner ? (
+              <ActionsApiKeys propertyId={propertyId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Only owners manage API keys.</p>
+            )}
+          </section>
+        </PageShell>
+      </div>
+    </div>
   );
 }

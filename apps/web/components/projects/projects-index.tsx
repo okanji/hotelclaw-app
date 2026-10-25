@@ -4,10 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CalendarRange, Columns3, Plus, Table2 } from "lucide-react";
+import {
+  Archive,
+  CalendarRange,
+  Columns3,
+  FolderKanban,
+  Plus,
+  Table2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader, PageHeaderRow } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import {
   projectSpacesQueryOptions,
@@ -157,22 +164,22 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
   /*
    * WIDTH — `bleed`, for the whole page. Two of the three views (board,
    * timeline) are data canvases that want the pane, and all three share this
-   * masthead and tab strip, so one full-width edge keeps the page from
+   * header and tab strip, so one full-width edge keeps the page from
    * shifting sideways when the view changes.
    */
   return (
     <PageShell width="bleed" className="flex h-full flex-col overflow-hidden">
-      <div className="flex flex-col gap-5 border-b border-border px-8 pt-12 pb-5 sm:px-14 sm:pt-14">
-        <SectionHeader
-          size="page"
-          title="Projects"
-          actions={<>
+      <PageHeader
+        title="Projects"
+        icon={<FolderKanban />}
+        actions={
+          <>
             <Button
-              type="button"
               size="icon-sm"
               variant="ghost"
               title="Archive"
               aria-label="Archive"
+              nativeButton={false}
               render={<Link href={`/p/${propertyId}/archive`} />}
             >
               <Archive className="size-4" />
@@ -181,48 +188,49 @@ export function ProjectsIndex({ propertyId }: { propertyId: string }) {
               <Plus className="size-4" />
               New project
             </Button>
-          </>}
-        />
-
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <TabNav variant="pill" aria-label="Project views">
-              {VIEW_TABS.map((t) => (
-                <TabNavItem
-                  key={t.id}
-                  active={view === t.id}
-                  onClick={() => changeView(t.id)}
-                >
-                  <t.Icon />
-                  {t.label}
-                </TabNavItem>
-              ))}
-            </TabNav>
-            <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
-            <ProjectsFilterBar
-              filters={filters}
-              onChange={changeFilters}
-              data={{ spaces, members: memberList }}
-            />
-          </div>
-          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+          </>
+        }
+      />
+      <PageHeaderRow
+        className="border-b border-border"
+        aside={
+          <>
             {filtering
               ? `${shown.length} of ${projects.length}`
               : shown.length}{" "}
             {(filtering ? projects.length : shown.length) === 1
               ? "project"
               : "projects"}
-          </span>
-        </div>
-      </div>
+          </>
+        }
+      >
+        <TabNav variant="pill" aria-label="Project views">
+          {VIEW_TABS.map((t) => (
+            <TabNavItem
+              key={t.id}
+              active={view === t.id}
+              onClick={() => changeView(t.id)}
+            >
+              <t.Icon />
+              {t.label}
+            </TabNavItem>
+          ))}
+        </TabNav>
+        <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+        <ProjectsFilterBar
+          filters={filters}
+          onChange={changeFilters}
+          data={{ spaces, members: memberList }}
+        />
+      </PageHeaderRow>
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {isPending ? (
-          <p className="px-8 pt-10 text-sm text-muted-foreground sm:px-14">
+          <p className="px-(--page-gutter) pt-10 text-sm text-muted-foreground">
             Loading projects…
           </p>
         ) : shown.length === 0 ? (
-          <div className="px-8 pt-10 sm:px-14">
+          <div className="px-(--page-gutter) pt-10">
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <p className="text-sm text-muted-foreground">
                 {filtering

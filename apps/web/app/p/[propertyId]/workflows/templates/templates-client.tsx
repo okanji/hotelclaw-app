@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import {
 import { WorkflowSpec, classifyMode } from "@/lib/workflows/spec";
 import { WorkflowSpecPreview } from "@/components/workflows/spec-preview";
 import { surfaceMeta } from "@/components/workflows/builder/surface-badge";
+import { FlowSummary } from "@/components/workflows/flow-summary";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import type { Surface } from "@/lib/workflows/catalog/types";
 
 /** Cover tint by the template's primary surface (fallback: rotate). */
@@ -36,6 +38,28 @@ const SURFACE_TINTS: Partial<Record<string, keyof typeof COVER_TINTS>> = {
   external: "coral",
   system: "cream",
 };
+
+// Category tabs, Linear's Loops gallery pattern. Unknown categories fall back
+// to a title-cased slug so a new seed row never hides.
+const CATEGORY_LABELS: Record<string, string> = {
+  tasks: "Tasks",
+  guests: "Guests",
+  comms: "Communication",
+  reports: "Reports",
+};
+const categoryLabel = (c: string) =>
+  CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1);
+
+/** Trigger + step types straight off a template spec, for the flow line. */
+function specFlow(spec: Record<string, unknown>) {
+  const s = spec as { trigger?: { event_type?: string }; steps?: Record<string, { type?: string }> };
+  return {
+    trigger: s.trigger?.event_type ?? null,
+    steps: Object.values(s.steps ?? {})
+      .map((st) => st?.type)
+      .filter((t): t is string => typeof t === "string"),
+  };
+}
 
 type Template = {
   id: string;
@@ -57,6 +81,13 @@ export function TemplatesClient({
   const router = useRouter();
   const [forking, setForking] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<Template | null>(null);
+  const [category, setCategory] = useState<string>("all");
+  const categories = useMemo(
+    () => [...new Set(templates.map((t) => t.category))].sort(),
+    [templates],
+  );
+  const shown =
+    category === "all" ? templates : templates.filter((t) => t.category === category);
 
   async function fork(template: Template) {
     if (forking) return;
@@ -108,8 +139,22 @@ export function TemplatesClient({
   }
 
   return (
+    <>
+    {categories.length > 1 ? (
+      <TabNav variant="pill" aria-label="Template categories" className="mb-4">
+        <TabNavItem active={category === "all"} onClick={() => setCategory("all")}>
+          All
+        </TabNavItem>
+        {categories.map((c) => (
+          <TabNavItem key={c} active={category === c} onClick={() => setCategory(c)}>
+            {categoryLabel(c)}
+          </TabNavItem>
+        ))}
+      </TabNav>
+    ) : null}
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {templates.map((t, i) => {
+      {shown.map((t, i) => {
+        const flow = specFlow(t.spec);
         const primary = t.surfaces[0];
         const meta = primary ? surfaceMeta(primary as Surface) : undefined;
         const Glyph = meta?.icon ?? Workflow;
@@ -125,6 +170,7 @@ export function TemplatesClient({
                 (s) => surfaceMeta(s as Surface)?.label ?? s,
               )}
             >
+              <FlowSummary trigger={flow.trigger} stepTypes={flow.steps} className="pt-1" />
               <div className="mt-auto flex items-center justify-end gap-2 pt-1">
                 <Button variant="outline" size="xs" onClick={() => setPreviewing(t)}>
                   <Eye data-icon="inline-start" aria-hidden />
@@ -162,6 +208,7 @@ export function TemplatesClient({
         </DialogContent>
       </Dialog>
     </ul>
+    </>
   );
 }
 

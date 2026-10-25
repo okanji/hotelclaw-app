@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type { MessageResponse } from "stream-chat";
 import { Inbox as InboxIcon } from "lucide-react";
 import { MentionRow } from "./mention-row";
@@ -28,7 +28,7 @@ export function InboxView({
   propertyId: string;
   userId: string;
 }) {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
 
   // Visiting the inbox = "I've seen these". Clears the sidebar badge.
   useMarkMentionsSeenOnMount(userId);

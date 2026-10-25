@@ -62,7 +62,7 @@ a dashboard, it's violating one of these:
 5. **Sentence case, letter-spacing `normal`.** Section labels are 12px/12px
    weight 500 faint — **not** uppercase, **not** tracked.
 6. **One width per page, top to bottom.** A page picks a single width via
-   `PageShell` and *everything* in it shares that edge — masthead, toolbar,
+   `PageShell` and *everything* in it shares that edge — toolbar, filters,
    list, table. Reading surfaces get the 720px column; everything else gets
    960px; true canvases go full-bleed.
 7. **Type is sized by ROLE, not by density.** Content is 16px, UI chrome is
@@ -88,8 +88,9 @@ measured, and getting it backwards is what made the old dark shell read muddy.
 Both planes stay in the same warm hue family — a theme switch must never shift
 temperature.
 
-`--rail` is the icon rail's warm near-black chrome, the one deliberately dark
-surface in both themes.
+`--rail` is the warm near-black chrome — the one deliberately dark surface in
+both themes. It was the icon rail's plane; the rail is gone (one Linear-style
+sidebar since 2026-10-25) and the token stays for any future dark chrome.
 
 ### Ink ramp — four rungs, use the right one
 
@@ -299,7 +300,8 @@ metadata 12.** Nothing else.
 
 | Role | Element | Size / line-height | Weight | Colour |
 |---|---|---|---|---|
-| — | Page title | `40px / 48px` | **700** | foreground |
+| **UI** | Page title — the compact `PageHeader` bar | `14px` | 500 | foreground |
+| — | Entity title on a detail page (project / initiative / team name) | `40px / 48px` | **700** | foreground |
 | — | H2 block | `24px / 31.2px` | 600 | foreground |
 | **Content** | prose, block text, callout body, **board & gallery card titles**, modal search input | `16px / 24px` | 400 | foreground |
 | **Content** | Section title | `16px / 24px` | 600 | foreground |
@@ -321,7 +323,8 @@ metadata 12.** Nothing else.
 labels/captions/shortcuts. Our old habit of `text-xs` rows is why the app
 reads cramped. Nothing goes below 12px — no `text-[10px]`, no `text-[0.625rem]`.
 
-Headings are `font-semibold` (the 40px page title is the only `font-bold`).
+Headings are `font-semibold` (the 40px detail-page entity title is the only
+`font-bold`; index pages have no big title at all — see § Page header).
 `text-balance` on headings, `text-pretty` on paragraphs, `tabular-nums` on
 numbers that change.
 
@@ -334,34 +337,84 @@ numbers that change.
 | Sidebar width | `270px`, `8px` inner padding |
 | Sidebar / list row | `30px` tall, `6px` radius, `1px` gap (31px pitch) |
 | Row icon | `12–16px`, `8px` gap to label |
-| Topbar | `44px` tall, **transparent** — no fill, no bottom border |
+| Topbar (`PageHeader`) | `44px` tall (`h-11`), `--page-gutter` (24px → 40px from `sm`), **transparent** — no fill, no bottom border |
 | Menu / dropdown item | `28px` tall, `6px` radius, `3px 6px` padding |
-| **Page width** | `PageShell` — `page` **960px** (default) · `prose` **720px** · `bleed` (none) |
+| **Page width** | `PageShell` — `page` **960px** (default, LEFT-anchored) · `prose` **720px** (centred) · `bleed` (none) |
+| **Page edge** | `--page-gutter` — one value for topbar, view row, `PageShell` and canvases (`px-(--page-gutter)`) |
 | Table row / header | `37px` / `36px`; cell padding `7.5px 8px` |
 | Board card | `260px` wide, `8px 10px` padding |
 | Divider | `1px` `--border`, full panel width |
 
+### Page header — Linear's compact bar, on every page (2026-10-25)
+
+Every page under `/p/[propertyId]` opens with the same chrome:
+`PageHeader` (`components/shell/page-header.tsx`) — a **44px (`h-11`)
+transparent bar, `px-(--page-gutter)`, full width of the content plane**. There are no
+mastheads: no 40px page title, no lede paragraph under it.
+
+- **Left** — an index page passes `title` + `icon` (the app's nav icon:
+  "Projects", "Bookings", "Docs"…, 14px / 500). A detail or nested page passes
+  `breadcrumbs` (`Bookings / 🍽 Dinner`, `Agents / Memory`), or a bespoke trail
+  through `start` when a crumb needs an emoji, a color dot or an inline-editable
+  name (chatbot editor). `meta` is the quiet 14px faint slot beside it — a count,
+  a cadence, a date ("12 issues to triage", "Weekly · starts Mon").
+- **Right** — `actions`: the page's primary button (`size="sm"`, rightmost) and
+  its secondary controls (ghost / outline `sm`, `AutomationsButton` in its
+  default toolbar variant, scope pickers, customize menus). Wrap several in a
+  `flex items-center gap-1.5` row.
+- **Second row — only when the page has tabs or filters**: `PageHeaderRow`
+  directly below, same `--page-gutter`, `pb-2`. View tabs on the left as
+  `TabNav variant="pill"`, filters after a `h-4 w-px` divider, a quiet count on
+  the right via `aside`. Add `border-b` when the content below is a full-bleed
+  list/canvas that needs a seam.
+- **Body** — the scroll container sits under the bar
+  (`min-h-0 flex-1 overflow-y-auto pt-4 pb-16` — NO horizontal padding) and
+  holds the page's ONE `PageShell`, which supplies the gutter.
+- **One left edge (2026-10-26).** The page title, the view tabs and the
+  content start at the same x on every page: `--page-gutter`. The 960px
+  measure is anchored LEFT (it caps line length; it doesn't centre), prose
+  stays centred. Full-bleed canvases pad their toolbar and first column with
+  `px-(--page-gutter)`; lists with a hover lead column (grip / checkbox) tuck
+  it into the margin so the title text lands on the edge (`list-view.tsx`). A sticky in-page toolbar
+  (Docs) means NO top padding on that scroller.
+- **Detail pages** (`WorkspaceShell`: project / team / initiative) get the same
+  bar — breadcrumb + actions — with the view tabs as the `PageHeaderRow`; the
+  entity's own (editable) name is page CONTENT at the 40px tier below.
+- **Description copy** moves into the empty state or a tooltip (`title` on the
+  tab) — or goes. Marketing copy ("Build AI chatbots your guests talk to…")
+  is deleted, not relocated.
+- Exceptions that already own a top bar of the same metrics: chat channel
+  header, the Assistant's conversation tab strip, the workflow builder canvas,
+  the Calendar toolbar, and the Tasks board (whose `BoardToolbar` is its second
+  row).
+
 ### Page width — one per page, and only `PageShell` decides it
 
 **A page picks ONE width and every element in it shares that edge, from the
-masthead to the last row.** Width is set in exactly one place —
+toolbar to the last row.** (The compact `PageHeader` bar above it is
+full-width chrome of the content plane, not part of the measure.) Width is set
+in exactly one place —
 `components/ui/page-shell.tsx`:
 
 | `width` | max-width | use for |
 |---|---|---|
 | `page` | **960px** | **the default** — index, list, detail, settings |
 | `prose` | 720px | reading surfaces: document editor + header, brain page detail, `ReportMarkdown`, meeting notes |
-| `bleed` | none | surfaces that ARE the data canvas: kanban board / timeline / workload, calendar grids, bookings floor plan + timetable, the workflow builder, two-pane workspaces (agent, pod-bot, chatbot detail). Their masthead goes full width too, so the edge still holds. |
+| `bleed` | none | surfaces that ARE the data canvas: kanban board / timeline / workload, calendar grids, bookings floor plan + timetable, the workflow builder, two-pane workspaces (agent, pod-bot, chatbot detail). Their toolbar goes full width too, so the edge still holds. |
 
 Rules:
 - **Never** put a `max-w-*` page container on a surface — `PageShell` owns it.
   (`max-w-*` that shortens a *lede's* measure or truncates a cell is fine; it
   has no `mx-auto`, so it cannot create a second left edge.)
 - **Never** nest two `PageShell`s with different widths.
-- The page's own gutter goes on `PageShell`'s `className`; it lands on the
-  OUTER box, outside the measure, so padding can never shrink the content
-  width. That two-element structure is deliberate — see the comment in
-  `page-shell.tsx`.
+- **The page gutter is built into `PageShell`** (`page`/`prose`:
+  `px-(--page-gutter)` — 24px narrow, 40px from `sm`). Don't add horizontal padding to
+  the shell or to the scroll box around it; pass only vertical spacing
+  (`pt-8 pb-12`). Pages used to pick their own (16px `px-4` on the scroll box
+  vs 40px `px-10` on the shell) and the content edge jumped between sections.
+  The gutter lands on the OUTER box, outside the measure, so it can never
+  shrink the content width — see `page-shell.tsx`. `bleed` canvases apply
+  the same token themselves.
 
 **Why this is a rule and not a preference.** v2 briefly wired the 720px column
 into `SectionHeader size="page"` itself, chasing Notion's prose-column /
@@ -410,7 +463,8 @@ primitives — **use these instead of hand-rolling**:
 |---|---|---|
 | `EmptyState` | every "nothing here yet" moment | a **dashed gray box**; a `size-12 rounded-full bg-muted` icon plate |
 | `Eyebrow` (`tone="app" \| "brand" \| "guest"`) | the small section label above a heading or date group | uppercase, `tracking-*`, or a colored label on app surfaces |
-| `SectionHeader` (`size="page" \| "section" \| "panel"`) | title + description + right-aligned actions. **Imposes NO width** — `PageShell` owns that, so the masthead shares its page's edge. | the ~70th inline `flex items-center justify-between` header; a serif page title; a full-width `<hr>` under the masthead (use whitespace); adding `max-w-*` here to "fix" alignment — fix it on the `PageShell` |
+| `PageHeader` + `PageHeaderRow` (`components/shell/page-header`) | **the top of every page** — see § Page header | a `SectionHeader size="page"` masthead; a big `<h1>` + lede; a hand-rolled `h-11` bar |
+| `SectionHeader` (`size="section" \| "panel"`) | in-page section title + one-line description + right-aligned actions. **Imposes NO width** — `PageShell` owns that. `size="page"` still compiles but is **no longer used for page tops** — the compact `PageHeader` replaced it. | the ~70th inline `flex items-center justify-between` header; a serif page title; a full-width `<hr>` under a section (use whitespace); adding `max-w-*` here to "fix" alignment — fix it on the `PageShell` |
 | `StatGroup` + `Stat` | dashboard/agenda metric strips | stat *cards*; **vertical rules between columns**; icons inside stats |
 | `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states — renders as a **pill**: `rounded-pill bg-pill-<tone> text-pill-<tone>-ink` | picking badge colors per domain; a `border-<tone>/30` stroke; a Tailwind-palette wash |
 | `Chip` (`tone="app" \| "guest"`, `selected`) | toggleable filter/option pills | bespoke `rounded-full border` toggles; hover that changes the border |

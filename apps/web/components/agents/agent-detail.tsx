@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { TintIcon } from "@/components/ui/tint-card";
 import {
   parseAgentConfig,
   type AgentConfig,
@@ -18,6 +16,7 @@ import { AgentEditor } from "./agent-editor";
 import { AgentChat, type AgentChatSession } from "./agent-chat";
 import { ResolvedConfig } from "./resolved-config";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 /**
  * Agent workspace: transparent config editor on the left, a live chat with
@@ -84,40 +83,32 @@ export function AgentDetail({
     // Two-pane workspace (config beside a live chat) — a canvas surface, so
     // the header bar and both panes share the full pane width and one edge.
     <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          render={<Link href={`/p/${agent.property_id}/agents`} />}
-          aria-label="Back to agents"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <TintIcon tone="lavender" className="text-base">
-          {config.avatarEmoji || "🤖"}
-        </TintIcon>
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">
-            {name}
-          </h1>
-          <p className="truncate text-xs text-muted-foreground">
-            {config.description || "Internal agent"}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {status === "active" ? (
-            <StatusBadge tone="success">Active</StatusBadge>
-          ) : (
-            <StatusBadge tone="warning">Paused</StatusBadge>
-          )}
-          <Button variant="outline" size="sm" onClick={toggleStatus} disabled={saving}>
-            {status === "active" ? "Pause" : "Activate"}
-          </Button>
-          <Button size="sm" onClick={save} disabled={saving || !dirty}>
-            {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        className="border-b border-border"
+        breadcrumbs={[
+          {
+            label: "Agents",
+            href: `/p/${agent.property_id}/agents`,
+            icon: <Sparkles />,
+          },
+          { label: `${config.avatarEmoji || "🤖"} ${name || "Untitled agent"}` },
+        ]}
+        actions={
+          <div className="flex items-center gap-1.5">
+            {status === "active" ? (
+              <StatusBadge tone="success">Active</StatusBadge>
+            ) : (
+              <StatusBadge tone="warning">Paused</StatusBadge>
+            )}
+            <Button variant="outline" size="sm" onClick={toggleStatus} disabled={saving}>
+              {status === "active" ? "Pause" : "Activate"}
+            </Button>
+            <Button size="sm" onClick={save} disabled={saving || !dirty}>
+              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
         <div className="min-h-0 overflow-y-auto px-6 py-6">

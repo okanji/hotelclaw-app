@@ -262,7 +262,7 @@ export function KanbanGroupedView({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto p-3">
+      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto px-(--page-gutter) py-3">
         {columns.map((col) => (
           <Column
             key={col.key}

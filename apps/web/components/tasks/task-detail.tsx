@@ -6,14 +6,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThreads } from "@liveblocks/react/suspense";
 import { Composer, Thread } from "@liveblocks/react-ui";
 import "@liveblocks/react-ui/styles.css";
-import { ListChecks, Paperclip, PanelRight, Smile } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ListChecks,
+  Paperclip,
+  PanelRight,
+  Smile,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask, escalateTask, updateTask } from "./actions";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { PresenceBar } from "./presence-bar";
-import { taskShortId } from "./kanban";
+import { STATUS_IDS, taskKey } from "./kanban";
 import {
   SubIssuesPanel,
   TaskDetailSidebar,
@@ -23,7 +30,13 @@ import { TaskAiPanel } from "./task-ai-panel";
 import { TaskTriageSuggestions } from "./task-triage-suggestions";
 import { TaskHistory } from "@/components/activity/task-history";
 import { useTaskDetailMutations } from "./task-detail-mutations";
-import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
+import {
+  propertyMembersQueryOptions,
+  tasksQueryOptions,
+} from "@/lib/query/section-queries";
+import { resolveTaskSequence } from "@/lib/tasks/task-sequence";
+import { useVisibleTaskOrder } from "@/lib/tasks/visible-task-order";
+import { useOpenTask } from "@/lib/tasks/use-open-task";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { taskHref } from "@/lib/tasks/task-href";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
@@ -46,6 +59,8 @@ type Task = {
   source?: string | null;
   sourceWorkflowId?: string | null;
   sourceWorkflowRunId?: string | null;
+  /** Human key `<task_prefix>-<number>` (0108); falls back to the UUID glyph. */
+  key?: string | null;
 };
 
 function formatRelative(iso: string) {
@@ -95,7 +110,8 @@ export function TaskDetail({
   );
   const [addingSubIssue, setAddingSubIssue] = useState(false);
   const embedded = variant === "embedded";
-  // Embedded-only: the utility rail as a dismissible overlay drawer.
+  // The utility rail as a dismissible overlay drawer — always in embedded
+  // hosts, and on the full page below the width where the rail docks.
   const [railOpen, setRailOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const savedTitle = useRef(task.title);
@@ -125,6 +141,45 @@ export function TaskDetail({
   );
 
   const mutations = useTaskDetailMutations(propertyId, task.id);
+
+  // Previous / next (Linear's ↑ ↓ / k j): the order the board / list last
+  // showed (filters + sort), else plain board order. Full page only —
+  // embedded hosts (triage, chat panel) own their own list navigation.
+  const { data: allTasks } = useQuery({
+    ...tasksQueryOptions(propertyId),
+    enabled: !embedded,
+  });
+  const visibleOrder = useVisibleTaskOrder(propertyId);
+  const sequence = resolveTaskSequence(
+    allTasks,
+    task.id,
+    STATUS_IDS,
+    visibleOrder,
+  );
+  const openTask = useOpenTask(propertyId);
+  const { prevId, nextId } = sequence;
+  useEffect(() => {
+    if (embedded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== "j" && e.key !== "k") return;
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      )
+        return;
+      const target = e.key === "j" ? nextId : prevId;
+      if (!target) return;
+      e.preventDefault();
+      openTask(target);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [embedded, nextId, prevId, openTask]);
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
@@ -185,6 +240,11 @@ export function TaskDetail({
     persist({ taskId: task.id, dueAt: next });
   }
 
+  function saveRecurrence(next: TaskRecurrence | null) {
+    setRecurrence(next);
+    persist({ taskId: task.id, recurrence: next });
+  }
+
   function copyTaskLink() {
     const url =
       typeof window !== "undefined"
@@ -192,6 +252,11 @@ export function TaskDetail({
         : taskHref(propertyId, task.id);
     void navigator.clipboard.writeText(url);
     toast.success("Link copied");
+  }
+
+  function copyTaskId() {
+    void navigator.clipboard.writeText(taskKey(task));
+    toast.success("ID copied");
   }
 
   function copyTitle() {
@@ -263,7 +328,10 @@ export function TaskDetail({
     onPriorityChange: savePriority,
     onAssigneeChange: saveAssignee,
     onDueAtChange: saveDueAt,
+    recurrence,
+    onRecurrenceChange: saveRecurrence,
     onCopyTitle: copyTitle,
+    onCopyId: copyTaskId,
     onCopyLink: copyTaskLink,
     onDelete: removeTask,
     onEscalate: escalate,
@@ -272,7 +340,9 @@ export function TaskDetail({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // `@container/task`: the rail docks by the width this view actually
+    // gets (the shell sidebar eats a variable share), not the viewport.
+    <div className="@container/task flex h-full min-h-0 flex-col">
       {embedded ? null : (
         <PageHeader
           breadcrumbs={[
@@ -281,8 +351,39 @@ export function TaskDetail({
               href: `/p/${propertyId}/tasks`,
               icon: <ListChecks />,
             },
-            { label: taskShortId(task.id) },
+            { label: taskKey(task) },
           ]}
+          actions={
+            <>
+              {sequence.index >= 0 && sequence.total > 1 ? (
+                <span className="mr-1 text-xs text-faint-foreground tabular-nums">
+                  {sequence.index + 1} / {sequence.total}
+                </span>
+              ) : null}
+              <IconGhostButton
+                label="Previous task (k)"
+                disabled={!prevId}
+                onClick={() => prevId && openTask(prevId)}
+              >
+                <ChevronUp className="size-4" />
+              </IconGhostButton>
+              <IconGhostButton
+                label="Next task (j)"
+                disabled={!nextId}
+                onClick={() => nextId && openTask(nextId)}
+              >
+                <ChevronDown className="size-4" />
+              </IconGhostButton>
+              <span className="@4xl/task:hidden">
+                <IconGhostButton
+                  label="Task details & actions"
+                  onClick={() => setRailOpen(true)}
+                >
+                  <PanelRight className="size-4" />
+                </IconGhostButton>
+              </span>
+            </>
+          }
         />
       )}
       <div className="relative flex min-h-0 flex-1">
@@ -295,14 +396,14 @@ export function TaskDetail({
                 moves into a slim row that also carries the rail toggle. */}
             <PageShell
               className={cn(
-                "px-10 pt-16 pb-12",
+                "pt-16 pb-12",
                 embedded && "px-6 pt-5 pb-10",
               )}
             >
             {embedded ? (
               <div className="mb-5 flex items-center justify-between">
                 <span className="font-mono text-xs font-medium text-faint-foreground">
-                  {taskShortId(task.id)}
+                  {taskKey(task)}
                 </span>
                 <IconGhostButton
                   label="Task details & actions"
@@ -343,8 +444,13 @@ export function TaskDetail({
               )}
             />
 
+            {/* The inline strip is the narrow-width home of properties. On
+                the full page, once the rail docks (@4xl), the rail is the
+                single home — Linear shows properties in one place. */}
+            <div className={cn(!embedded && "@4xl/task:hidden")}>
             <TaskDetailInlineProperties
               propertyId={propertyId}
+              taskId={task.id}
               status={status}
               priority={priority}
               assigneeId={assigneeId}
@@ -359,11 +465,9 @@ export function TaskDetail({
               onAssigneeChange={saveAssignee}
               onDueAtChange={saveDueAt}
               recurrence={recurrence}
-              onRecurrenceChange={(r) => {
-                setRecurrence(r);
-                persist({ taskId: task.id, recurrence: r }, invalidate);
-              }}
+              onRecurrenceChange={saveRecurrence}
             />
+            </div>
 
             <div className="mt-3">
               <TaskTriageSuggestions propertyId={propertyId} taskId={task.id} />
@@ -443,8 +547,7 @@ export function TaskDetail({
           </div>
         </div>
 
-        {embedded ? (
-          railOpen ? (
+        {railOpen ? (
             <>
               {/* Click-away layer: a whisper of tint so the drawer reads as a
                   layer, and any click on the task beneath dismisses it. */}
@@ -452,16 +555,25 @@ export function TaskDetail({
                 type="button"
                 aria-label="Close task details"
                 onClick={() => setRailOpen(false)}
-                className="absolute inset-0 z-10 cursor-default bg-black/5 duration-300 animate-in fade-in motion-reduce:animate-none"
+                className={cn(
+                  "absolute inset-0 z-10 cursor-default bg-black/5 duration-300 animate-in fade-in motion-reduce:animate-none",
+                  !embedded && "@4xl/task:hidden",
+                )}
               />
               <TaskDetailSidebar
                 {...sidebarProps}
-                className="absolute inset-y-2 right-2 z-20 max-w-[calc(100%-1rem)] rounded-card border-l-0 bg-popover shadow-popover duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-right-4 motion-reduce:animate-none"
+                className={cn(
+                  "absolute inset-y-2 right-2 z-20 max-w-[calc(100%-1rem)] rounded-card border-l-0 bg-popover shadow-popover duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-right-4 motion-reduce:animate-none",
+                  !embedded && "@4xl/task:hidden",
+                )}
               />
             </>
-          ) : null
-        ) : (
-          <TaskDetailSidebar {...sidebarProps} />
+        ) : null}
+        {embedded ? null : (
+          <TaskDetailSidebar
+            {...sidebarProps}
+            className="hidden @4xl/task:flex"
+          />
         )}
       </div>
 
@@ -475,10 +587,12 @@ function IconGhostButton({
   label,
   children,
   onClick,
+  disabled,
 }: {
   label: string;
   children: React.ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -486,7 +600,8 @@ function IconGhostButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+      disabled={disabled}
+      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>

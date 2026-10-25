@@ -9,10 +9,10 @@ import { Eyebrow } from "@/components/ui/eyebrow"
  *
  * Sizing follows the measured Notion type ramp (docs/notion-spec-v2.md §2):
  *
- *   `page`    — the H1 page title: `40px / 48px` weight **700**, sans,
- *               letter-spacing normal. Use once per page, at the top.
- *               (This used to be a `font-serif text-4xl` display title —
- *               the app shell has no serif voice.)
+ *   `page`    — `40px / 48px` weight **700**. **No longer used for page
+ *               tops** (2026-10-25): every page opens with the compact
+ *               `PageHeader` bar (`components/shell/page-header`). Kept so
+ *               old call sites compile; don't add new ones.
  *   `section` — (default) the **H2 block**: `24px / 31.2px` weight 600.
  *               v1 sized this 16px; v2 measured 24px off a real Notion H2 and
  *               it is what gives a page its document rhythm.

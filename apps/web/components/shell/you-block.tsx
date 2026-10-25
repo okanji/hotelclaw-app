@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronRight,
   ClipboardList,
   FileText,
   FolderKanban,
-  Inbox,
   ListTodo,
   Plus,
-  Star,
-  UserCheck,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -43,16 +39,24 @@ import { useOpenDocument } from "@/lib/documents/use-open-document";
 import { CreateDocumentDialog } from "@/components/documents/create-document-dialog";
 import { CreateEntityDialog } from "@/components/projects/create-entity-dialog";
 import { useNotifications } from "./use-notifications";
+import { InboxIcon, MyTasksIcon, NewIcon } from "./clickup-icons";
+import { NavNode, target } from "./nav-node";
+import { useSectionNavigation } from "./use-section-navigation";
+import { useStoredToggle } from "./use-stored-toggle";
+import { ActivitySection } from "./sections/activity-section";
+import { AssistantSection } from "./sections/assistant-section";
 
 /**
- * The personal block pinned at the top of EVERY section sidebar (gr8r /
- * ClickUp's Home sidebar): Inbox, My tasks, Favorites. These used to be
- * scattered — My tasks + Favorites lived only in the Home sidebar, and the
- * notification inbox only behind the Activity rail item — so "my stuff" was
- * reachable from one section at a time.
+ * The personal block at the top of the sidebar — Linear's Inbox / My issues /
+ * Agent, ClickUp's Inbox / My Tasks: the three things that are about YOU,
+ * before the Workspace tree that is about the property. Icons are ClickUp's
+ * own glyphs (`clickup-icons.tsx`); the row metrics live in the shared
+ * `SidebarMenuButton`.
  *
- * Inbox is the NOTIFICATION inbox (`/activity`, ClickUp's meaning). Chat's
- * @-mention feed at `/inbox` is labelled "Mentions" to keep the two apart.
+ * Inbox is the NOTIFICATION inbox (`/activity`, ClickUp's meaning); its
+ * children are the inbox's filter views. Chat's @-mention feed and thread
+ * replies live under the Chat node, labelled "Mentions" / "Replies" to keep
+ * them apart. Assistant's children are its projects + recent conversations.
  */
 export function YouBlock({
   propertyId,
@@ -62,8 +66,8 @@ export function YouBlock({
   userId: string;
 }) {
   const pathname = usePathname();
-  const view = useSearchParams().get("view");
   const base = `/p/${propertyId}`;
+  const { navigate } = useSectionNavigation(propertyId);
   const { unseenCount } = useNotifications(userId);
 
   // Same cut as gr8r's My Tasks badge: mine, open, due today or overdue —
@@ -81,49 +85,72 @@ export function YouBlock({
     ).length;
   }, [tasks, userId]);
 
-  const inboxActive =
-    pathname.startsWith(`${base}/activity`) &&
-    (view === null || view === "inbox");
+  const inbox = useMemo(
+    () => target(base, "activity", "/activity", "/activity"),
+    [base],
+  );
+  const assistant = useMemo(
+    () => target(base, "assistant", "/assistant", "/assistant"),
+    [base],
+  );
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          render={<Link href={`${base}/activity`} />}
-          isActive={inboxActive}
-          tooltip="Inbox"
-        >
-          <Inbox />
-          <span>Inbox</span>
-        </SidebarMenuButton>
-        {unseenCount > 0 ? (
-          <SidebarMenuBadge>{unseenCount > 99 ? "99+" : unseenCount}</SidebarMenuBadge>
-        ) : null}
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          render={<Link href={`${base}/my-tasks`} />}
-          isActive={pathname.startsWith(`${base}/my-tasks`)}
-          tooltip="My tasks"
-        >
-          <UserCheck />
-          <span>My tasks</span>
-        </SidebarMenuButton>
-        {dueMine > 0 ? (
-          <SidebarMenuBadge title="Due today or overdue">
-            {dueMine > 99 ? "99+" : dueMine}
-          </SidebarMenuBadge>
-        ) : null}
-      </SidebarMenuItem>
-      <FavoritesItem propertyId={propertyId} />
-    </SidebarMenu>
+    <SidebarGroup className="pt-0">
+      <SidebarGroupContent>
+        <SidebarMenu>
+          <NavNode
+            item={inbox}
+            label="Inbox"
+            icon={InboxIcon}
+            count={unseenCount}
+            navigate={navigate}
+          >
+            <Suspense fallback={null}>
+              <ActivitySection propertyId={propertyId} userId={userId} />
+            </Suspense>
+          </NavNode>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              render={<Link href={`${base}/my-tasks`} />}
+              isActive={pathname.startsWith(`${base}/my-tasks`)}
+              tooltip="My tasks"
+            >
+              <MyTasksIcon />
+              <span className="flex-1">My tasks</span>
+              {dueMine > 0 ? (
+                <span
+                  title="Due today or overdue"
+                  className="shrink-0 text-xs font-medium text-faint-foreground tabular-nums"
+                >
+                  {dueMine > 99 ? "99+" : dueMine}
+                </span>
+              ) : null}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <NavNode
+            item={assistant}
+            label="Assistant"
+            icon={NewIcon}
+            navigate={navigate}
+          >
+            <Suspense fallback={null}>
+              <AssistantSection propertyId={propertyId} />
+            </Suspense>
+          </NavNode>
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
 const FAVORITES_OPEN_KEY = "hotelclaw:favorites-open";
 
-/** Starred docs, folded under one row so the block stays three lines tall. */
-function FavoritesItem({ propertyId }: { propertyId: string }) {
+/**
+ * Starred docs as their own group (Linear's Favorites sits between Workspace
+ * and Your teams). The label toggles the list; the group hides entirely when
+ * nothing is starred, so an empty workspace doesn't carry a dead heading.
+ */
+export function FavoritesGroup({ propertyId }: { propertyId: string }) {
   const pathname = usePathname();
   const openDocument = useOpenDocument(propertyId);
   const { pinnedIds } = usePinnedDocs(propertyId);
@@ -135,72 +162,55 @@ function FavoritesItem({ propertyId }: { propertyId: string }) {
       .filter((d): d is NonNullable<typeof d> => !!d)
       .slice(0, 8);
   }, [pinnedIds, docs]);
+  const [open, toggle] = useStoredToggle(FAVORITES_OPEN_KEY, true);
 
-  // Read after mount — localStorage on the server render would mismatch.
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (window.localStorage.getItem(FAVORITES_OPEN_KEY) === "1") setOpen(true);
-    } catch {
-      // Storage unavailable — start collapsed.
-    }
-  }, []);
-  function toggle() {
-    setOpen((o) => {
-      try {
-        window.localStorage.setItem(FAVORITES_OPEN_KEY, o ? "0" : "1");
-      } catch {
-        // Preference only.
-      }
-      return !o;
-    });
-  }
+  if (favorites.length === 0) return null;
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
+    <SidebarGroup>
+      <SidebarGroupLabel
         render={<button type="button" />}
         onClick={toggle}
         aria-expanded={open}
-        tooltip="Favorites"
+        className="w-full cursor-pointer rounded-md hover:bg-sidebar-accent"
       >
-        <Star />
-        <span>Favorites</span>
-      </SidebarMenuButton>
-      <SidebarMenuAction onClick={toggle} aria-label={open ? "Collapse favorites" : "Expand favorites"}>
-        <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
-      </SidebarMenuAction>
+        <span className="flex-1 text-left">Favorites</span>
+      </SidebarGroupLabel>
+      <SidebarGroupAction
+        onClick={toggle}
+        aria-label={open ? "Collapse favorites" : "Expand favorites"}
+      >
+        <ChevronRight
+          className={cn("transition-transform", open && "rotate-90")}
+        />
+      </SidebarGroupAction>
       {open ? (
-        <SidebarMenuSub>
-          {favorites.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-pretty text-faint-foreground">
-              Star a document to keep it here.
-            </p>
-          ) : (
-            favorites.map((d) => (
-              <SidebarMenuSubItem key={d.id}>
-                <SidebarMenuSubButton
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {favorites.map((d) => (
+              <SidebarMenuItem key={d.id}>
+                <SidebarMenuButton
                   render={<button type="button" />}
                   onClick={() => openDocument(d.id)}
                   isActive={pathname.includes(`/documents/${d.id}`)}
+                  tooltip={d.title || "Untitled"}
                 >
                   <FileText />
                   <span>{d.title || "Untitled"}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))
-          )}
-        </SidebarMenuSub>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
       ) : null}
-    </SidebarMenuItem>
+    </SidebarGroup>
   );
 }
 
 /**
- * The one "create anything" entry, in the same spot in every section (gr8r's
- * top-bar "New ▾"). Each item reuses the create flow its own section already
- * owns — no second implementation of any of them.
+ * The one "create anything" entry, beside Search at the top of the sidebar
+ * (gr8r's top-bar "New ▾"). Each item reuses the create flow its own section
+ * already owns — no second implementation of any of them.
  */
 export function NewMenu({ propertyId }: { propertyId: string }) {
   const router = useRouter();

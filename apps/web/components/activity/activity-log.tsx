@@ -11,14 +11,20 @@ import {
   CheckCircle2,
   Diamond,
   FolderInput,
+  Gauge,
+  Inbox,
+  Megaphone,
   Pencil,
   Plus,
   RotateCcw,
   SignalHigh,
   Tag,
+  Target,
+  Timer,
   Trash2,
   UserMinus,
   UserPlus,
+  XCircle,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -62,9 +68,16 @@ const PROJECT_STATUS_LABEL: Record<string, string> = {
   archived: "Archived",
 };
 
+const UPDATE_HEALTH_LABEL: Record<string, string> = {
+  on_track: "On track",
+  at_risk: "At risk",
+  off_track: "Off track",
+};
+
 function statusLabel(kind: ActivityLogRow["entity_kind"], v: unknown) {
   if (typeof v !== "string") return "—";
-  return kind === "project"
+  // Initiatives share the project vocabulary (planned / active / completed).
+  return kind === "project" || kind === "initiative"
     ? (PROJECT_STATUS_LABEL[v] ?? v)
     : (TASK_STATUS_LABEL[v as TaskStatus] ?? v);
 }
@@ -167,7 +180,13 @@ export function describeActivity(
     typeof id === "string" ? (L.spaces.get(id)?.name ?? "a team") : null;
 
   const project = row.project_id ? (L.projects.get(row.project_id) ?? null) : null;
-  const title = row.entity_title ?? (row.entity_kind === "task" ? "a task" : "a project");
+  const title =
+    row.entity_title ??
+    (row.entity_kind === "task"
+      ? "a task"
+      : row.entity_kind === "initiative"
+        ? "an initiative"
+        : "a project");
 
   const taskObj = {
     label: title,
@@ -177,6 +196,12 @@ export function describeActivity(
     label: title,
     href: row.verb === "deleted" ? null : `/p/${L.propertyId}/projects/${row.entity_id}`,
   };
+  const initiativeObj = {
+    label: title,
+    href: row.verb === "deleted" ? null : `/p/${L.propertyId}/initiatives/${row.entity_id}`,
+  };
+  const healthExtra =
+    typeof d.health === "string" ? `— ${UPDATE_HEALTH_LABEL[d.health] ?? d.health}` : null;
   const milestoneObj = {
     label: title,
     href: row.project_id ? `/p/${L.propertyId}/projects/${row.project_id}` : null,
@@ -231,9 +256,74 @@ export function describeActivity(
         return { ...base, Icon: Trash2, verb: "archived project", object: projectObj };
       case "restored":
         return { ...base, Icon: RotateCcw, verb: "restored project", object: projectObj };
+      case "update_posted":
+        return {
+          ...base,
+          Icon: Megaphone,
+          verb: "posted an update on",
+          object: projectObj,
+          extra: healthExtra,
+        };
       default:
         return { ...base, Icon: Activity, verb: "updated project", object: projectObj };
     }
+  }
+
+  if (row.entity_kind === "initiative") {
+    switch (row.verb) {
+      case "created":
+        return { ...base, Icon: Target, verb: "created initiative", object: initiativeObj };
+      case "status_changed":
+        return {
+          ...base,
+          Icon: ArrowRightLeft,
+          verb: "set",
+          object: initiativeObj,
+          extra: `to ${statusLabel("initiative", d.to)}`,
+        };
+      case "dates_changed": {
+        const t = shortDate(d.to);
+        return {
+          ...base,
+          Icon: CalendarClock,
+          verb: t ? "set the target of" : "cleared the target of",
+          object: initiativeObj,
+          extra: t ? `to ${t}` : null,
+        };
+      }
+      case "lead_changed":
+        return {
+          ...base,
+          Icon: UserPlus,
+          verb: d.to ? "handed" : "removed the owner of",
+          object: initiativeObj,
+          extra: d.to ? `to ${d.to === L.meId ? "you" : personName(d.to)}` : null,
+        };
+      case "archived":
+        return { ...base, Icon: Trash2, verb: "archived initiative", object: initiativeObj };
+      case "unarchived":
+        return { ...base, Icon: RotateCcw, verb: "restored initiative", object: initiativeObj };
+      case "update_posted":
+        return {
+          ...base,
+          Icon: Megaphone,
+          verb: "posted an update on",
+          object: initiativeObj,
+          extra: healthExtra,
+        };
+      default:
+        return { ...base, Icon: Target, verb: "updated initiative", object: initiativeObj };
+    }
+  }
+
+  if (row.entity_kind === "cycle") {
+    // Cycles (0111) are owned by the cycles surface; render generically.
+    return {
+      ...base,
+      Icon: Timer,
+      verb: row.verb.replace(/_/g, " "),
+      object: { label: title, href: `/p/${L.propertyId}/cycles` },
+    };
   }
 
   if (row.entity_kind === "milestone") {
@@ -383,6 +473,48 @@ export function describeActivity(
         extra: to ? `to ${to}` : "from its team",
       };
     }
+    case "estimate_changed":
+      return {
+        ...base,
+        Icon: Gauge,
+        verb: typeof d.to === "number" ? "estimated" : "cleared the estimate of",
+        object: taskObj,
+        extra:
+          typeof d.to === "number" ? `at ${d.to} ${d.to === 1 ? "point" : "points"}` : null,
+      };
+    case "cycle_changed":
+      return {
+        ...base,
+        Icon: Timer,
+        verb: d.to ? "moved" : "removed",
+        object: taskObj,
+        extra: d.to ? (d.from ? "to another cycle" : "into a cycle") : "from its cycle",
+      };
+    case "milestone_changed":
+      return {
+        ...base,
+        Icon: Diamond,
+        verb: d.to ? "set the milestone of" : "cleared the milestone of",
+        object: taskObj,
+      };
+    case "triage_queued":
+      return { ...base, Icon: Inbox, verb: "sent", object: taskObj, extra: "to triage" };
+    case "triage_accepted":
+      return {
+        ...base,
+        Icon: CheckCircle2,
+        verb: "accepted",
+        object: taskObj,
+        extra: "from triage",
+      };
+    case "triage_declined":
+      return {
+        ...base,
+        Icon: XCircle,
+        verb: "declined",
+        object: taskObj,
+        extra: typeof d.note === "string" && d.note ? `— “${d.note}”` : "in triage",
+      };
     case "parent_changed":
       return {
         ...base,

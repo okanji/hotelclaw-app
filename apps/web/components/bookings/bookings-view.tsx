@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   MoreHorizontal,
   Plus,
+  Ticket,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ServiceWorkspace } from "./service-workspace";
@@ -45,7 +46,7 @@ import { setBookingStatus, deleteService } from "./actions";
 import { BOOKING_STATUS_UI } from "@/lib/bookings/status-colors";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader } from "@/components/shell/page-header";
 import { AutomationsButton } from "@/components/workflows/automations-button";
 import { PageShell } from "@/components/ui/page-shell";
 
@@ -123,6 +124,14 @@ export function BookingStatusBadge({
   }
 }
 
+
+/** The compact header's crumb for each non-agenda sidebar view. */
+const VIEW_TITLES = {
+  pending: "Pending",
+  services: "Services",
+  floor: "Floor plan",
+  timetable: "Timetable",
+} as const;
 export function BookingsView({
   propertyId,
   propertySlug = null,
@@ -286,7 +295,7 @@ export function BookingsView({
 
   if (workspaceService) {
     return (
-      <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
+      <div className="flex h-full w-full flex-col overflow-hidden">
         <ServiceWorkspace
           propertyId={propertyId}
           propertySlug={propertySlug}
@@ -308,23 +317,28 @@ export function BookingsView({
   const shellWidth = view === "floor" || view === "timetable" ? "bleed" : "page";
 
   return (
-    <div className="flex h-full w-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <PageShell width={shellWidth}>
-      {/* Masthead — the same page tier every other index uses (`ui/section-header`
-          size="page": 40/48 weight 700, no rule under it; header and content
-          separate by whitespace, docs/notion-spec.md §1/§3). */}
-      <SectionHeader
-        size="page"
-        className="mb-14 flex-wrap gap-y-3"
-        title="Bookings"
-        description="Tables, tickets, rentals — chatbots and walk-ins book against the same live availability."
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <PageHeader
+        {...(view === "agenda"
+          ? { title: "Bookings", icon: <Ticket /> }
+          : {
+              breadcrumbs: [
+                {
+                  label: "Bookings",
+                  href: `/p/${propertyId}/bookings`,
+                  icon: <Ticket />,
+                },
+                { label: VIEW_TITLES[view] },
+              ],
+            })}
         actions={
-          <>
+          <div className="flex items-center gap-1.5">
             <AutomationsButton propertyId={propertyId} feature="bookings" />
             {propertySlug ? (
               <Button
                 variant="ghost"
                 size="sm"
+                title="Open the public booking page"
                 onClick={() => {
                   window.open(
                     `${window.location.origin}/book/${propertySlug}`,
@@ -334,7 +348,7 @@ export function BookingsView({
                 }}
               >
                 <ExternalLink data-slot="icon" />
-                Public page
+                <span className="max-sm:hidden">Public page</span>
               </Button>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => setEditingService("new")}>
@@ -345,276 +359,272 @@ export function BookingsView({
               <Plus data-slot="icon" />
               New booking
             </Button>
-          </>
+          </div>
         }
       />
-
-      {/* Services */}
-      <section className={cn("space-y-4", view !== "services" && "hidden")}>
-        <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
-          Services
-        </h2>
-        {services.length === 0 ? (
-          <EmptyState
-            icon={CalendarCheck}
-            title="No bookable services yet"
-            action={
-              <Button onClick={() => setEditingService("new")}>
-                <Plus data-slot="icon" />
-                New service
-              </Button>
-            }
-          >
-            Create your first — a dinner table, a massage, a sunset tour —
-            then enable &ldquo;Take bookings&rdquo; on a chatbot so guests can
-            book it themselves.
-          </EmptyState>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                eventStats={eventStatsByService.get(service.id)}
-                onEdit={() => setEditingService(service)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Pending — every unconfirmed future booking, the work-to-zero list. */}
-      <section className={cn("space-y-4", view !== "pending" && "hidden")}>
-        <h2 className="text-2xl leading-[1.3] font-semibold text-balance text-foreground">
-          Waiting on a yes
-        </h2>
-        {pendingBookings.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            Nothing pending — every booking is confirmed.
-          </p>
-        ) : (
-          <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
-            {pendingBookings.map((booking) => (
-              <BookingRow
-                key={booking.id}
-                booking={booking}
-                service={serviceById.get(booking.service_id)}
-                showDate
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Booking-engine pulse — page-headline stat cards (ui/stat-card, the
-          Claude-dashboard tier). */}
-      {view === "agenda" ? (
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(() => {
-            const today = todayKey();
-            const active = (b: BookingListItem) =>
-              b.status === "pending" || b.status === "confirmed" || b.status === "seated";
-            const todays = bookings.filter(
-              (b) => dateKey(b.starts_at) === today && active(b),
-            );
-            const week = bookings.filter(
-              (b) =>
-                active(b) &&
-                dateKey(b.starts_at) >= today &&
-                dateKey(b.starts_at) <= shiftDate(today, 7),
-            );
-            const stats = [
-              { label: "Bookings today", value: todays.length },
-              {
-                label: "Guests today",
-                value: todays.reduce((sum, b) => sum + b.party_size, 0),
-              },
-              { label: "Pending approval", value: pendingCount, warn: pendingCount > 0 },
-              { label: "Next 7 days", value: week.length },
-            ];
-            return stats.map((s) => (
-              <StatCard
-                key={s.label}
-                label={s.label}
-                value={s.value}
-                pill={
-                  s.warn ? (
-                    <StatCardPill tone="warning">Needs a yes</StatCardPill>
-                  ) : undefined
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell width={shellWidth} className={shellWidth === "bleed" ? "px-4" : undefined}>
+          {/* Services */}
+          <section className={cn("space-y-4", view !== "services" && "hidden")}>
+            {services.length === 0 ? (
+              <EmptyState
+                icon={CalendarCheck}
+                title="No bookable services yet"
+                action={
+                  <Button onClick={() => setEditingService("new")}>
+                    <Plus data-slot="icon" />
+                    New service
+                  </Button>
                 }
-              />
-            ));
-          })()}
-        </div>
-      ) : null}
-
-      {/* Day agenda + the per-day visual views (floor / timetable) share the
-          date navigation. */}
-      <section
-        className={cn(
-          "space-y-3",
-          view !== "agenda" && view !== "floor" && view !== "timetable" && "hidden",
-        )}
-      >
-        {/* The day toolbar shares the page's one edge — the shell above owns
-            the width, so this never re-centres itself. */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Previous day"
-              onClick={() => setDay((d) => shiftDate(d, -1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <button
-              type="button"
-              onClick={() => setDay(todayKey())}
-              className="h-7 min-w-44 rounded-md px-2 text-center text-sm font-medium transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-            >
-              {day === todayKey() ? `Today — ${dayLabel}` : dayLabel}
-            </button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Next day"
-              onClick={() => setDay((d) => shiftDate(d, 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            {(view === "floor" || view === "timetable") && services.length > 1 ? (
-              <NativeSelect
-                value={focusService?.id ?? ""}
-                onChange={(e) => setServiceId(e.target.value)}
-                wrapperClassName="w-auto"
-                aria-label="Service"
               >
-                {(view === "floor" ? floorServices : services).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.emoji ? `${s.emoji} ` : ""}
-                    {s.name}
-                  </option>
+                Create your first — a dinner table, a massage, a sunset tour —
+                then enable &ldquo;Take bookings&rdquo; on a chatbot so guests can
+                book it themselves.
+              </EmptyState>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {services.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    eventStats={eventStatsByService.get(service.id)}
+                    onEdit={() => setEditingService(service)}
+                  />
                 ))}
-              </NativeSelect>
-            ) : null}
-            {pendingCount > 0 ? (
-              <StatusBadge tone="warning" dot={false}>
-                {pendingCount} pending confirmation
-              </StatusBadge>
-            ) : null}
-          </div>
-        </div>
-
-        {view === "agenda" ? (
-          <div className="space-y-3">
-            {/* Status filter chips (resOS pattern) — work the day by state. */}
-            {dayBookings.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {(
-                  [
-                    ["all", "All"],
-                    ["pending", "Pending"],
-                    ["confirmed", "Confirmed"],
-                    ["seated", "Seated"],
-                    ["completed", "Done"],
-                  ] as const
-                ).map(([value, label]) => {
-                  const count =
-                    value === "all"
-                      ? dayBookings.length
-                      : dayBookings.filter((b) => b.status === value).length;
-                  // Zero-count chips stay (disabled) so the row doesn't reflow
-                  // as statuses change under Realtime.
-                  const empty = value !== "all" && count === 0;
-                  return (
-                    <Chip
-                      key={value}
-                      size="sm"
-                      selected={statusFilter === value}
-                      disabled={empty}
-                      onClick={() => setStatusFilter(value)}
-                      className={cn(empty && "opacity-40")}
-                    >
-                      {label}
-                      <span className="tabular-nums opacity-70">{count}</span>
-                    </Chip>
-                  );
-                })}
               </div>
-            ) : null}
-            {dayBookings.length === 0 ? (
+            )}
+          </section>
+
+          {/* Pending — every unconfirmed future booking, the work-to-zero list. */}
+          <section className={cn("space-y-4", view !== "pending" && "hidden")}>
+            {pendingBookings.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
-                No bookings this day.
+                Nothing pending — every booking is confirmed.
               </p>
             ) : (
               <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
-                {dayBookings
-                  .filter((b) => statusFilter === "all" || b.status === statusFilter)
-                  .map((booking) => (
-                    <BookingRow
-                      key={booking.id}
-                      booking={booking}
-                      service={serviceById.get(booking.service_id)}
-                    />
-                  ))}
+                {pendingBookings.map((booking) => (
+                  <BookingRow
+                    key={booking.id}
+                    booking={booking}
+                    service={serviceById.get(booking.service_id)}
+                    showDate
+                  />
+                ))}
               </ul>
             )}
-          </div>
-        ) : null}
+          </section>
 
-        {view === "floor" ? (
-          focusService ? (
-            <FloorPlanView
-              key={focusService.id}
-              propertyId={propertyId}
-              service={focusService}
-              resources={resources.filter((r) => r.service_id === focusService.id)}
-              bookings={bookings}
-              day={day}
-            />
-          ) : (
-            <EmptyState
-              icon={LayoutGrid}
-              title="No floor plan yet"
-              action={
-                <Button onClick={() => setEditingService("new")}>
-                  <Plus data-slot="icon" />
-                  New table service
+          {/* Booking-engine pulse — page-headline stat cards (ui/stat-card, the
+              Claude-dashboard tier). */}
+          {view === "agenda" ? (
+            <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(() => {
+                const today = todayKey();
+                const active = (b: BookingListItem) =>
+                  b.status === "pending" || b.status === "confirmed" || b.status === "seated";
+                const todays = bookings.filter(
+                  (b) => dateKey(b.starts_at) === today && active(b),
+                );
+                const week = bookings.filter(
+                  (b) =>
+                    active(b) &&
+                    dateKey(b.starts_at) >= today &&
+                    dateKey(b.starts_at) <= shiftDate(today, 7),
+                );
+                const stats = [
+                  { label: "Bookings today", value: todays.length },
+                  {
+                    label: "Guests today",
+                    value: todays.reduce((sum, b) => sum + b.party_size, 0),
+                  },
+                  { label: "Pending approval", value: pendingCount, warn: pendingCount > 0 },
+                  { label: "Next 7 days", value: week.length },
+                ];
+                return stats.map((s) => (
+                  <StatCard
+                    key={s.label}
+                    label={s.label}
+                    value={s.value}
+                    pill={
+                      s.warn ? (
+                        <StatCardPill tone="warning">Needs a yes</StatCardPill>
+                      ) : undefined
+                    }
+                  />
+                ));
+              })()}
+            </div>
+          ) : null}
+
+          {/* Day agenda + the per-day visual views (floor / timetable) share the
+              date navigation. */}
+          <section
+            className={cn(
+              "space-y-3",
+              view !== "agenda" && view !== "floor" && view !== "timetable" && "hidden",
+            )}
+          >
+            {/* The day toolbar shares the page's one edge — the shell above owns
+                the width, so this never re-centres itself. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Previous day"
+                  onClick={() => setDay((d) => shiftDate(d, -1))}
+                >
+                  <ChevronLeft className="size-4" />
                 </Button>
-              }
-            >
-              A floor plan belongs to a service whose booking mode is
-              &ldquo;Tables &amp; floor plan&rdquo; — create one (or edit an
-              existing service), then come back here to lay out the room.
-            </EmptyState>
-          )
-        ) : null}
+                <button
+                  type="button"
+                  onClick={() => setDay(todayKey())}
+                  className="h-7 min-w-44 rounded-md px-2 text-center text-sm font-medium transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
+                >
+                  {day === todayKey() ? `Today — ${dayLabel}` : dayLabel}
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Next day"
+                  onClick={() => setDay((d) => shiftDate(d, 1))}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                {(view === "floor" || view === "timetable") && services.length > 1 ? (
+                  <NativeSelect
+                    value={focusService?.id ?? ""}
+                    onChange={(e) => setServiceId(e.target.value)}
+                    wrapperClassName="w-auto"
+                    aria-label="Service"
+                  >
+                    {(view === "floor" ? floorServices : services).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.emoji ? `${s.emoji} ` : ""}
+                        {s.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                ) : null}
+                {pendingCount > 0 ? (
+                  <StatusBadge tone="warning" dot={false}>
+                    {pendingCount} pending confirmation
+                  </StatusBadge>
+                ) : null}
+              </div>
+            </div>
 
-        {view === "timetable" ? (
-          focusService ? (
-            <>
-              <Timetable
-                key={focusService.id}
-                service={focusService}
-                resources={resources.filter((r) => r.service_id === focusService.id)}
-                bookings={bookings}
-                day={day}
-              />
-              <p className="text-xs text-muted-foreground md:hidden">
-                The timetable is a desktop tool — use the Agenda list here.
-              </p>
-            </>
-          ) : (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Create a service first.
-            </p>
-          )
-        ) : null}
-      </section>
-      </PageShell>
+            {view === "agenda" ? (
+              <div className="space-y-3">
+                {/* Status filter chips (resOS pattern) — work the day by state. */}
+                {dayBookings.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        ["all", "All"],
+                        ["pending", "Pending"],
+                        ["confirmed", "Confirmed"],
+                        ["seated", "Seated"],
+                        ["completed", "Done"],
+                      ] as const
+                    ).map(([value, label]) => {
+                      const count =
+                        value === "all"
+                          ? dayBookings.length
+                          : dayBookings.filter((b) => b.status === value).length;
+                      // Zero-count chips stay (disabled) so the row doesn't reflow
+                      // as statuses change under Realtime.
+                      const empty = value !== "all" && count === 0;
+                      return (
+                        <Chip
+                          key={value}
+                          size="sm"
+                          selected={statusFilter === value}
+                          disabled={empty}
+                          onClick={() => setStatusFilter(value)}
+                          className={cn(empty && "opacity-40")}
+                        >
+                          {label}
+                          <span className="tabular-nums opacity-70">{count}</span>
+                        </Chip>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {dayBookings.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    No bookings this day.
+                  </p>
+                ) : (
+                  <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
+                    {dayBookings
+                      .filter((b) => statusFilter === "all" || b.status === statusFilter)
+                      .map((booking) => (
+                        <BookingRow
+                          key={booking.id}
+                          booking={booking}
+                          service={serviceById.get(booking.service_id)}
+                        />
+                      ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+
+            {view === "floor" ? (
+              focusService ? (
+                <FloorPlanView
+                  key={focusService.id}
+                  propertyId={propertyId}
+                  service={focusService}
+                  resources={resources.filter((r) => r.service_id === focusService.id)}
+                  bookings={bookings}
+                  day={day}
+                />
+              ) : (
+                <EmptyState
+                  icon={LayoutGrid}
+                  title="No floor plan yet"
+                  action={
+                    <Button onClick={() => setEditingService("new")}>
+                      <Plus data-slot="icon" />
+                      New table service
+                    </Button>
+                  }
+                >
+                  A floor plan belongs to a service whose booking mode is
+                  &ldquo;Tables &amp; floor plan&rdquo; — create one (or edit an
+                  existing service), then come back here to lay out the room.
+                </EmptyState>
+              )
+            ) : null}
+
+            {view === "timetable" ? (
+              focusService ? (
+                <>
+                  <Timetable
+                    key={focusService.id}
+                    service={focusService}
+                    resources={resources.filter((r) => r.service_id === focusService.id)}
+                    bookings={bookings}
+                    day={day}
+                  />
+                  <p className="text-xs text-muted-foreground md:hidden">
+                    The timetable is a desktop tool — use the Agenda list here.
+                  </p>
+                </>
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Create a service first.
+                </p>
+              )
+            ) : null}
+          </section>
+        </PageShell>
+      </div>
 
       {dialogs}
     </div>

@@ -307,7 +307,7 @@ export function ProjectsBoardView({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="flex h-full gap-4 overflow-x-auto px-8 py-8 sm:px-14">
+      <div className="flex h-full gap-4 overflow-x-auto px-(--page-gutter) py-4">
         {STATUS_ORDER.map((status) => (
           <Column
             key={status}

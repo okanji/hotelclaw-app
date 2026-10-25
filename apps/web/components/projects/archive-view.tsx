@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, FolderOpen, Layers, RotateCcw, Trash2 } from "lucide-react";
+import { FolderOpen, Layers, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 import {
   archivedQueryOptions,
   type ArchivedEntity,
 } from "@/lib/query/project-queries";
-import type { EntityColor } from "@/lib/db/types";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
 import {
   deleteProject,
@@ -89,59 +88,54 @@ export function ArchiveView({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header className="flex flex-col gap-3">
-        <Link
-          href={`/p/${propertyId}/projects`}
-          className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Projects
-        </Link>
-        <h1 className="text-[2.5rem] leading-[3rem] font-bold text-foreground">
-          Archive
-        </h1>
-        <p className="max-w-[56ch] text-base leading-6 text-pretty text-muted-foreground">
-          Archived projects and teams. Restore one to bring it back, or delete
-          it permanently. Tasks and documents are kept — they&apos;re only
-          unlinked from a deleted project or space.
-        </p>
-      </header>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          {
+            label: "Projects",
+            href: `/p/${propertyId}/projects`,
+            icon: <FolderOpen />,
+          },
+          { label: "Archive" },
+        ]}
+        meta="Deleting unlinks tasks and docs — it never deletes them"
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
 
-      {/* Masthead and content separate by WHITESPACE (notion-spec-v2 §1/§3). */}
-      <div className="h-9" />
-
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Nothing archived. Archived projects and teams show up here.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-10">
-          <Section
-            title="Projects"
-            Icon={FolderOpen}
-            items={projects}
-            kind="project"
-            busy={busy}
-            onRestore={onRestore}
-            onDelete={onDelete}
-          />
-          <Section
-            title="Teams"
-            Icon={Layers}
-            items={spaces}
-            kind="space"
-            busy={busy}
-            onRestore={onRestore}
-            onDelete={onDelete}
-          />
-        </div>
-      )}
-    </PageShell>
+          {isPending ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : isEmpty ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nothing archived. Archived projects and teams show up here.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-10">
+              <Section
+                title="Projects"
+                Icon={FolderOpen}
+                items={projects}
+                kind="project"
+                busy={busy}
+                onRestore={onRestore}
+                onDelete={onDelete}
+              />
+              <Section
+                title="Teams"
+                Icon={Layers}
+                items={spaces}
+                kind="space"
+                busy={busy}
+                onRestore={onRestore}
+                onDelete={onDelete}
+              />
+            </div>
+          )}
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

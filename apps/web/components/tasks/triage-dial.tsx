@@ -64,7 +64,14 @@ function triageSettingsQueryOptions(propertyId: string) {
   });
 }
 
-export function TriageDial({ propertyId }: { propertyId: string }) {
+export function TriageDial({
+  propertyId,
+  showLabel = true,
+}: {
+  propertyId: string;
+  /** Icon-only when false — for toolbars that are already a row of glyphs. */
+  showLabel?: boolean;
+}) {
   const queryClient = useQueryClient();
   const { data, isPending } = useQuery(triageSettingsQueryOptions(propertyId));
 
@@ -94,12 +101,14 @@ export function TriageDial({ propertyId }: { propertyId: string }) {
         render={
           <Button
             type="button"
-            size="sm"
+            size={showLabel ? "sm" : "icon-sm"}
             variant="ghost"
-            className="h-7 gap-1 px-2 text-xs"
+            title="AI triage"
+            aria-label="AI triage"
+            className={showLabel ? "gap-1 px-2 text-xs" : "text-muted-foreground"}
           >
             <Sparkles className="size-3.5 shrink-0" />
-            AI triage
+            {showLabel ? "AI triage" : null}
           </Button>
         }
       />

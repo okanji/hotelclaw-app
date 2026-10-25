@@ -6,6 +6,7 @@ import { History, Workflow } from "lucide-react";
 import { allPropertyRunsQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { cn } from "@/lib/utils";
+import { runStatusLabel, triggerLabel } from "@/lib/workflows/summary";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="px-10 pt-8 pb-12">
+        <PageShell className="pt-8 pb-12">
           {runs.length > 0 ? (
             <ul
               role="list"
@@ -45,11 +46,11 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                     <RunStatusRing status={r.status} />
                     <span
                       className={cn(
-                        "w-16 shrink-0 truncate text-xs",
+                        "w-20 shrink-0 truncate text-xs",
                         runStatusLabelClass(r.status),
                       )}
                     >
-                      {r.status}
+                      {runStatusLabel(r.status)}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                       {r.workflow_name}
@@ -59,8 +60,8 @@ export function AllRunsList({ propertyId }: { propertyId: string }) {
                         test
                       </Badge>
                     ) : null}
-                    <span className="hidden w-28 truncate text-xs text-muted-foreground sm:block">
-                      {r.trigger_kind ?? "manual"}
+                    <span className="hidden w-48 truncate text-xs text-muted-foreground sm:block">
+                      {triggerLabel(r.trigger_kind) ?? "Manual run"}
                     </span>
                     <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
                       {formatDuration(r.started_at, r.finished_at)}

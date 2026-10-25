@@ -1,5 +1,7 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
+import type { MeetingRecurrence } from "@/lib/db/types";
+import type { MeetingStatusInput } from "@/lib/meetings/status";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -15,6 +17,15 @@ export type MeetingListItem = {
   duration_seconds: number | null;
   has_summary: boolean;
   speakers: Array<{ id: string; name: string }>;
+  /** Lifecycle inputs for `lib/meetings/status.ts`. */
+  created_at: string;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  stream_call_id: string;
+  stream_call_type: string;
+  recurrence: MeetingRecurrence | null;
+  transcript: MeetingStatusInput["transcript"];
+  attendee_count: number;
 };
 
 /**
@@ -42,22 +53,32 @@ export async function getMeetings(
     ended_at: string | null;
     host_id: string | null;
     channel_id: string | null;
+    created_at: string;
+    scheduled_start: string | null;
+    scheduled_end: string | null;
+    stream_call_id: string;
+    stream_call_type: string;
+    recurrence: MeetingRecurrence | null;
     meeting_transcripts: Array<{
       id: string;
       duration_seconds: number | null;
       speakers: Array<{ id: string; name: string }>;
+      status: string;
       created_at: string;
     }>;
     meeting_summaries: Array<{ id: string; created_at: string }>;
+    meeting_attendees: Array<{ user_id: string }>;
   };
 
   const { data: rawMeetings, error } = await supabase
     .from("meetings")
     .select(
-      "id, title, started_at, ended_at, host_id, channel_id, meeting_transcripts(id, duration_seconds, speakers, created_at), meeting_summaries(id, created_at)",
+      "id, title, started_at, ended_at, host_id, channel_id, created_at, scheduled_start, scheduled_end, stream_call_id, stream_call_type, recurrence, meeting_transcripts(id, duration_seconds, speakers, status, created_at), meeting_summaries(id, created_at), meeting_attendees(user_id)",
     )
     .eq("property_id", propertyId)
-    .order("started_at", { ascending: false })
+    // Newest rows first so the limit keeps recent + upcoming work; the page
+    // re-groups by lifecycle (lib/meetings/status.ts) anyway.
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -89,7 +110,9 @@ export async function getMeetings(
   const channelName = new Map((channels ?? []).map((c) => [c.id, c.name]));
 
   return meetings.map((m) => {
-    const latestTranscript = (m.meeting_transcripts ?? [])[0];
+    const latestTranscript = [...(m.meeting_transcripts ?? [])].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    )[0];
     return {
       id: m.id,
       title: m.title,
@@ -102,6 +125,16 @@ export async function getMeetings(
       duration_seconds: latestTranscript?.duration_seconds ?? null,
       has_summary: (m.meeting_summaries ?? []).length > 0,
       speakers: latestTranscript?.speakers ?? [],
+      created_at: m.created_at,
+      scheduled_start: m.scheduled_start,
+      scheduled_end: m.scheduled_end,
+      stream_call_id: m.stream_call_id,
+      stream_call_type: m.stream_call_type,
+      recurrence: m.recurrence,
+      transcript: latestTranscript
+        ? { status: latestTranscript.status, created_at: latestTranscript.created_at }
+        : null,
+      attendee_count: (m.meeting_attendees ?? []).length,
     };
   });
 }
@@ -114,8 +147,16 @@ export type MeetingDetail = {
   host_name: string | null;
   channel_id: string | null;
   channel_name: string | null;
+  /** Lifecycle inputs for `lib/meetings/status.ts`. */
+  created_at: string;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  stream_call_id: string;
+  stream_call_type: string;
+  recurrence: MeetingRecurrence | null;
   transcript: {
     id: string;
+    status: string;
     raw_jsonl: string | null;
     speakers: Array<{ id: string; name: string }>;
     duration_seconds: number | null;
@@ -143,8 +184,15 @@ export async function getMeetingDetail(
     ended_at: string | null;
     host_id: string | null;
     channel_id: string | null;
+    created_at: string;
+    scheduled_start: string | null;
+    scheduled_end: string | null;
+    stream_call_id: string;
+    stream_call_type: string;
+    recurrence: MeetingRecurrence | null;
     meeting_transcripts: Array<{
       id: string;
+      status: string;
       raw_jsonl: string | null;
       speakers: Array<{ id: string; name: string }>;
       duration_seconds: number | null;
@@ -164,7 +212,7 @@ export async function getMeetingDetail(
   const { data: rawMeeting, error } = await supabase
     .from("meetings")
     .select(
-      "id, title, started_at, ended_at, host_id, channel_id, meeting_transcripts(id, raw_jsonl, speakers, duration_seconds, created_at), meeting_summaries(id, summary_md, action_items, decisions, model, created_at, document_id)",
+      "id, title, started_at, ended_at, host_id, channel_id, created_at, scheduled_start, scheduled_end, stream_call_id, stream_call_type, recurrence, meeting_transcripts(id, status, raw_jsonl, speakers, duration_seconds, created_at), meeting_summaries(id, summary_md, action_items, decisions, model, created_at, document_id)",
     )
     .eq("id", meetingId)
     .maybeSingle();
@@ -198,8 +246,12 @@ export async function getMeetingDetail(
       : Promise.resolve({ data: null as { name: string } | null }),
   ]);
 
-  const transcript = (meeting.meeting_transcripts ?? [])[0] ?? null;
-  const summary = (meeting.meeting_summaries ?? [])[0] ?? null;
+  // Embedded arrays carry no order guarantee — latest by created_at wins.
+  const latest = <T extends { created_at: string }>(rows: T[] | null) =>
+    [...(rows ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ??
+    null;
+  const transcript = latest(meeting.meeting_transcripts);
+  const summary = latest(meeting.meeting_summaries);
 
   return {
     id: meeting.id,
@@ -209,9 +261,16 @@ export async function getMeetingDetail(
     host_name: hostRow.data?.full_name ?? null,
     channel_id: meeting.channel_id,
     channel_name: channelRow.data?.name ?? null,
+    created_at: meeting.created_at,
+    scheduled_start: meeting.scheduled_start,
+    scheduled_end: meeting.scheduled_end,
+    stream_call_id: meeting.stream_call_id,
+    stream_call_type: meeting.stream_call_type,
+    recurrence: meeting.recurrence,
     transcript: transcript
       ? {
           id: transcript.id,
+          status: transcript.status,
           raw_jsonl: transcript.raw_jsonl ?? null,
           speakers: transcript.speakers ?? [],
           duration_seconds: transcript.duration_seconds ?? null,

@@ -1,16 +1,14 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
-import { TintIcon } from "@/components/ui/tint-card";
 import { AgentChat } from "@/components/agents/agent-chat";
 import {
   POD_TOOL_CATALOG,
@@ -20,6 +18,7 @@ import {
 import { CLIENT_STATUS_UI, MODEL_TIER_UI } from "@/lib/fleet/status-colors";
 import { updateBot } from "./actions";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 type BotRow = {
   id: string;
@@ -114,38 +113,32 @@ export function BotDetail({
     // Two-pane workspace (config beside the live test chat) — a canvas
     // surface: header bar and both panes share the full pane width.
     <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          render={<Link href={`/p/${propertyId}/agents/fleet`} />}
-          aria-label="Back to pod bots"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <TintIcon tone="lavender" className="text-base">
-          {podBotEmoji(bot.bot_id)}
-        </TintIcon>
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">
-            {displayName}
-          </h1>
-          <p className="truncate font-mono text-xs text-muted-foreground">
-            @{bot.bot_id} · {client.name}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>
-          {canEdit ? (
-            <Button size="sm" onClick={save} disabled={saving || !dirty}>
-              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-            </Button>
-          ) : null}
-        </div>
-      </header>
+      <PageHeader
+        className="border-b border-border"
+        breadcrumbs={[
+          {
+            label: "Agents",
+            href: `/p/${propertyId}/agents`,
+            icon: <Sparkles />,
+          },
+          { label: "Pod bots", href: `/p/${propertyId}/agents/fleet` },
+          { label: `${podBotEmoji(bot.bot_id)} ${displayName}` },
+        ]}
+        meta={<span className="font-mono text-xs">@{bot.bot_id}</span>}
+        actions={
+          <div className="flex items-center gap-1.5">
+            <StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>
+            {canEdit ? (
+              <Button size="sm" onClick={save} disabled={saving || !dirty}>
+                {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
 
       {paused ? (
-        <div className="flex items-center gap-2 border-b border-border bg-warning/10 px-6 py-2 text-sm text-warning">
+        <div className="flex items-center gap-2 border-b border-border bg-warning/10 px-4 py-2 text-sm text-warning">
           <ShieldAlert className="size-4 shrink-0" />
           This pod is {client.status} — its bots don&apos;t answer in channels
           or here until it&apos;s active again.

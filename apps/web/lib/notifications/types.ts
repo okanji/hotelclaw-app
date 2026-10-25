@@ -12,6 +12,22 @@ export type NotificationRow = {
   created_at: string;
 };
 
+/**
+ * A written status update on a project or initiative (migration 0111) —
+ * sent to the project lead / initiative owners. Exactly one of
+ * `projectId` / `initiativeId` is set.
+ */
+export type ProjectUpdatePayload = {
+  updateId: string;
+  projectId?: string;
+  initiativeId?: string;
+  entityName: string;
+  health: "on_track" | "at_risk" | "off_track";
+  excerpt: string | null;
+  byUserId: string;
+  byUserName: string | null;
+};
+
 export type TaskAssignedPayload = {
   taskId: string;
   taskTitle: string;

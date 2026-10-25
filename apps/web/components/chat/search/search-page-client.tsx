@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useChatContext } from "stream-chat-react";
+import {
+  StreamConnectError,
+  useConnectedStreamClient,
+  useStreamConnection,
+} from "@/lib/stream/client-provider";
 import { Search, X } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -25,7 +29,8 @@ type Props = {
 export function SearchPageClient({ propertyId }: Props) {
   const router = useRouter();
   const urlParams = useSearchParams();
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
+  const { status: streamStatus } = useStreamConnection();
 
   // Snapshot URL state. Source of truth for everything except the draft query
   // (we debounce keystrokes so we don't push a new entry on every character).
@@ -166,9 +171,13 @@ export function SearchPageClient({ propertyId }: Props) {
           </Button>
         }
       />
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Connecting to chat…
-        </div>
+        {streamStatus === "error" ? (
+          <StreamConnectError />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            Connecting to chat…
+          </div>
+        )}
       </div>
     );
   }

@@ -4,9 +4,12 @@ import {
   ChannelList,
   ComponentProvider,
   getChannel,
-  useChatContext,
   useComponentContext,
 } from "stream-chat-react";
+import {
+  StreamConnectError,
+  useStreamConnection,
+} from "@/lib/stream/client-provider";
 import type { ChannelFilters, ChannelOptions, ChannelSort } from "stream-chat";
 import { SidebarMenu } from "@/components/ui/sidebar";
 import { ChannelPreviewRow } from "./channel-preview-row";
@@ -36,12 +39,13 @@ export function ChannelListSection({
   channelKind,
   emptyState,
 }: Props) {
-  const { client } = useChatContext();
+  const { client, status } = useStreamConnection();
 
-  // While the Chat client is connecting, show the same skeleton we'll show
-  // once ChannelList takes over its own loading. Avoids a "Connecting…" text
-  // flash before the shimmer.
-  if (!client) {
+  // The shell renders before Stream connects; <ChannelList> must not mount
+  // (it queries on mount) until a user is connected. Show the same skeleton
+  // ChannelList uses for its own loading so there's no visual seam.
+  if (status === "error") return <StreamConnectError compact />;
+  if (status !== "ready") {
     return <SidebarRowsSkeleton withAvatar={channelKind === "messaging"} />;
   }
 

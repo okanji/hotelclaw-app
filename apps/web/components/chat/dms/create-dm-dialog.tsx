@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ type Props = {
 
 export function CreateDmDialog({ propertyId, open, onOpenChange }: Props) {
   const openChannel = useOpenChannel(propertyId);
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Member[]>([]);
   const [pending, startTransition] = useTransition();

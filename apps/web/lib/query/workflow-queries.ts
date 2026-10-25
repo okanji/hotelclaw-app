@@ -18,6 +18,7 @@ type WorkflowListItem = {
    *  this is everything the feature lens (lib/workflows/features.ts) needs to
    *  answer "does this automation touch Docs?" without fetching specs. */
   step_types: string[];
+  created_by: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
   created_at: string;

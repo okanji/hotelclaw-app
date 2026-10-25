@@ -113,7 +113,8 @@ export function coerceBookingAnswers(
         if (ids.length) out[field.id] = ids;
         break;
       }
-      case "yes_no": {
+      case "yes_no":
+      case "consent": {
         if (typeof value === "boolean") out[field.id] = value;
         else {
           const s = String(value).trim().toLowerCase();

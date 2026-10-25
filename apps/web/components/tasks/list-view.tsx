@@ -99,6 +99,7 @@ import {
   SortNotice,
 } from "./list-column-controls";
 import { BulkFieldMenus } from "./list-bulk-edit";
+import { publishVisibleTaskOrder } from "@/lib/tasks/visible-task-order";
 
 /**
  * The tasks LIST view — a configurable table, not a fixed five-column
@@ -131,9 +132,20 @@ type Props = {
 };
 
 /** Fixed gutters: the select checkbox / drag handle, and the row menu. */
+// The grip + checkbox lead column sits in the page margin: rows pad by
+// (--page-gutter − LEAD − cell inset), so a task's title lands on the page
+// edge shared by the header and tabs (Linear's list).
 const LEAD_WIDTH = 40;
 const TRAIL_WIDTH = 40;
 const TITLE_MIN = 240;
+
+// Stable fallbacks: a fresh `= []` per render (while a query is pending or
+// has failed) changes every memo below on every render, and the order effect
+// then loops ("Maximum update depth exceeded" — seen on My tasks).
+const NO_FIELDS: never[] = [];
+const NO_FIELD_VALUES: never[] = [];
+const NO_MEMBERS: never[] = [];
+const NO_SPACES: never[] = [];
 
 export function ListView({
   propertyId,
@@ -147,14 +159,14 @@ export function ListView({
   const qc = useQueryClient();
 
   /* ── Data behind the columns ──────────────────────────────────────────── */
-  const { data: fields = [] } = useQuery(customFieldsQueryOptions(propertyId));
-  const { data: fieldValueRows = [] } = useQuery(
+  const { data: fields = NO_FIELDS } = useQuery(customFieldsQueryOptions(propertyId));
+  const { data: fieldValueRows = NO_FIELD_VALUES } = useQuery(
     propertyTaskFieldValuesQueryOptions(propertyId),
   );
-  const { data: members = [] } = useQuery(
+  const { data: members = NO_MEMBERS } = useQuery(
     propertyMembersQueryOptions(propertyId),
   );
-  const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
+  const { data: spaces = NO_SPACES } = useQuery(spacesQueryOptions(propertyId));
   const { data: savedLayout } = useQuery(
     taskViewLayoutQueryOptions(propertyId),
   );
@@ -308,6 +320,17 @@ export function ListView({
     if (draggingRef.current) return;
     setOrder(buildOrder(grouped));
   }, [grouped]);
+
+  // Publish the rows as shown (status groups in order, saved sort applied)
+  // so task-detail prev/next follows this list rather than board order.
+  useEffect(() => {
+    const ids: string[] = [];
+    for (const status of STATUS_IDS) {
+      if (hideDone && status === "done") continue;
+      ids.push(...order[status]);
+    }
+    publishVisibleTaskOrder(propertyId, ids);
+  }, [order, hideDone, propertyId]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -662,7 +685,7 @@ function CalcFooterRow({
 }) {
   return (
     <div
-      className="sticky bottom-0 z-20 mt-auto grid h-8 items-center border-t border-border bg-card px-2"
+      className="sticky bottom-0 z-20 mt-auto grid h-8 items-center border-t border-border bg-card pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2"
       style={{ gridTemplateColumns: gridTemplate }}
     >
       <span />
@@ -732,7 +755,7 @@ function HeaderRow({
 
   return (
     <div
-      className="sticky top-0 z-20 grid h-9 items-center border-b border-border bg-card px-2 text-sm/[1.2] font-normal text-muted-foreground"
+      className="sticky top-0 z-20 grid h-9 items-center border-b border-border bg-card pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2 text-sm/[1.2] font-normal text-muted-foreground"
       style={{ gridTemplateColumns: gridTemplate }}
     >
       <span />
@@ -924,7 +947,7 @@ function StatusSection({
 
   return (
     <section className="border-b border-border last:border-0">
-      <header className="flex h-9 items-center gap-2 px-4">
+      <header className="flex h-9 items-center gap-2 px-(--page-gutter)">
         <button
           type="button"
           onClick={onToggleCollapsed}
@@ -961,7 +984,7 @@ function StatusSection({
       {!collapsed ? (
         <div ref={setNodeRef} className={cn(isOver && "bg-accent/40")}>
           {count === 0 ? (
-            <div className="px-6 py-4 text-sm text-faint-foreground">
+            <div className="px-(--page-gutter) py-4 text-sm text-faint-foreground">
               No tasks in this status.
             </div>
           ) : (
@@ -1063,7 +1086,7 @@ function ListRow({
       className={cn(
         // The measured 37px database row (notion-spec-v2 §6); the only rule
         // is the 1px warm divider between rows.
-        "group grid min-h-[37px] items-center border-t border-border px-2 py-1 text-sm",
+        "group grid min-h-[37px] items-center border-t border-border pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2 py-1 text-sm",
         "hover:bg-accent",
         selected && "bg-accent-pressed",
         (pending || isDragging) && "opacity-60",

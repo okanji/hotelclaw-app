@@ -25,6 +25,8 @@ export const CreateTaskSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
   spaceId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
+  /** File into the triage queue (0111) instead of straight onto the board. */
+  triage: z.boolean().optional(),
 });
 
 export const UpdateTaskSchema = z.object({
@@ -39,6 +41,10 @@ export const UpdateTaskSchema = z.object({
   projectName: z.string().max(120).nullable().optional(),
   /** Repeat cadence (migration 0107); null clears it. */
   recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).nullable().optional(),
+  /** Planning (0111): points, cycle, project milestone. null clears each. */
+  estimate: z.number().int().min(0).max(100).nullable().optional(),
+  cycleId: z.string().uuid().nullable().optional(),
+  milestoneId: z.string().uuid().nullable().optional(),
 });
 
 /** Push a due date forward by one cadence, keeping the time of day. */
@@ -185,14 +191,21 @@ export async function createTaskFor(
       parent_id: parsed.data.parentId ?? null,
       space_id: spaceId,
       project_id: parsed.data.projectId ?? null,
+      // Only stamped when asked — a normal create leaves it NULL.
+      ...(parsed.data.triage ? { triage_state: "pending" as const } : {}),
     })
     .select("id")
     .single();
 
   if (error || !data) return { error: error?.message ?? "Insert failed" };
 
-  // Notify the assignee if it's not the creator themselves.
-  if (parsed.data.assigneeId && parsed.data.assigneeId !== userId) {
+  // Notify the assignee if it's not the creator themselves. A triage
+  // submission waits: `acceptTriageTaskFor` notifies once it's accepted.
+  if (
+    parsed.data.assigneeId &&
+    parsed.data.assigneeId !== userId &&
+    !parsed.data.triage
+  ) {
     await emitTaskAssignmentNotifications({
       taskId: data.id,
       propertyId: parsed.data.propertyId,
@@ -258,6 +271,37 @@ export async function updateTaskFor(
     patch.project_name = parsed.data.projectName;
   if (parsed.data.recurrence !== undefined)
     patch.recurrence = parsed.data.recurrence;
+  if (parsed.data.estimate !== undefined) patch.estimate = parsed.data.estimate;
+
+  // Cycle + milestone ids arrive from the client, and RLS alone would accept
+  // a row from ANOTHER property the caller also belongs to — fence both to
+  // the task's own property (and a milestone to the task's project).
+  if (parsed.data.cycleId !== undefined) {
+    if (parsed.data.cycleId && before) {
+      const { data: cycle } = await supabase
+        .from("cycles")
+        .select("id")
+        .eq("id", parsed.data.cycleId)
+        .eq("property_id", before.property_id)
+        .maybeSingle();
+      if (!cycle) return { error: "Cycle not found" };
+    }
+    patch.cycle_id = parsed.data.cycleId;
+  }
+  if (parsed.data.milestoneId !== undefined) {
+    if (parsed.data.milestoneId && before) {
+      const { data: milestone } = await supabase
+        .from("project_milestones")
+        .select("project_id")
+        .eq("id", parsed.data.milestoneId)
+        .eq("property_id", before.property_id)
+        .maybeSingle();
+      if (!milestone || milestone.project_id !== before.project_id) {
+        return { error: "Milestone not found on this task's project" };
+      }
+    }
+    patch.milestone_id = parsed.data.milestoneId;
+  }
 
   // Changing status moves the card to a different column — drop it at the
   // top so it doesn't inherit a stale position from its old column.

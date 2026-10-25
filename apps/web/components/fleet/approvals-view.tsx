@@ -15,9 +15,9 @@ import {
   ChevronRight,
   Inbox,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   fleetSessionsQueryOptions,
@@ -26,6 +26,7 @@ import {
 import { podBotEmoji, podToolInfo } from "@/lib/fleet/tool-catalog";
 import { decideApproval } from "./actions";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 /**
  * Approvals inbox. Rows come straight from bot_chat_sessions
@@ -53,49 +54,46 @@ export function ApprovalsView({
   const pending = sessions.filter((s) => s.status === "awaiting_approval");
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        eyebrow="Fleet"
-        eyebrowTone="brand"
-        title="Approvals"
-        description="Money-moving actions the bots have parked for a human decision. Nothing executes until someone approves — here, or by replying to the bot in its channel."
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Agents", href: `/p/${propertyId}/agents`, icon: <Sparkles /> },
+          { label: "Approvals" },
+        ]}
       />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          {pending.length === 0 ? (
+            <EmptyState icon={ShieldCheck} title="Nothing waiting on you">
+              When a bot hits a gated action (refunds, rate overrides, comps), it
+              parks the request and it shows up here.
+            </EmptyState>
+          ) : (
+            <ul role="list" className="flex flex-col gap-4">
+              {pending.map((session) => (
+                <ApprovalCard
+                  key={session.id}
+                  propertyId={propertyId}
+                  session={session}
+                  canDecide={canDecide}
+                  onDecided={() =>
+                    void qc.invalidateQueries({
+                      queryKey: ["fleet-sessions", propertyId],
+                    })
+                  }
+                />
+              ))}
+            </ul>
+          )}
 
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
-
-      {pending.length === 0 ? (
-        <EmptyState icon={ShieldCheck} title="Nothing waiting on you">
-          When a bot hits a gated action (refunds, rate overrides, comps), it
-          parks the request and it shows up here.
-        </EmptyState>
-      ) : (
-        <ul role="list" className="flex flex-col gap-4">
-          {pending.map((session) => (
-            <ApprovalCard
-              key={session.id}
-              propertyId={propertyId}
-              session={session}
-              canDecide={canDecide}
-              onDecided={() =>
-                void qc.invalidateQueries({
-                  queryKey: ["fleet-sessions", propertyId],
-                })
-              }
-            />
-          ))}
-        </ul>
-      )}
-
-      {!canDecide && pending.length > 0 ? (
-        <p className="mt-6 text-xs text-muted-foreground">
-          Only owners and managers can decide approvals.
-        </p>
-      ) : null}
-    </PageShell>
+          {!canDecide && pending.length > 0 ? (
+            <p className="mt-6 text-xs text-muted-foreground">
+              Only owners and managers can decide approvals.
+            </p>
+          ) : null}
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

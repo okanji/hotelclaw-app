@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { MessagesSquare, Workflow } from "lucide-react";
-import { SectionHeader } from "@/components/ui/section-header";
+import { MessagesSquare, Sparkles, Workflow } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Chip } from "@/components/ui/chip";
@@ -18,6 +17,7 @@ import { SESSION_STATUS_UI } from "@/lib/fleet/status-colors";
 import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { SessionTranscriptSheet } from "./session-transcript";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 type SessionFilter = "all" | "awaiting" | "workflow" | "chat";
 
@@ -61,80 +61,77 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        eyebrow="Fleet"
-        eyebrowTone="brand"
-        title="Sessions"
-        description="Every durable conversation and workflow run the pod bots hold in this property. Open one to read its full event log — every message, tool call, and approval, exactly as it happened."
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Agents", href: `/p/${propertyId}/agents`, icon: <Sparkles /> },
+          { label: "Sessions" },
+        ]}
       />
-
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
-
-      {sessions.length === 0 ? (
-        <EmptyState icon={MessagesSquare} title="No sessions yet">
-          Address a bot in a channel (e.g. @frontdesk) or trigger a workflow
-          through the actions API and its session will appear here.
-        </EmptyState>
-      ) : (
-        <div className="space-y-3">
-          {/* Kind/state filter chips (bookings-agenda pattern) — zero-count
-              chips stay (disabled) so the row doesn't reflow as sessions
-              change under Realtime. */}
-          <div className="flex flex-wrap gap-1.5">
-            {FILTERS.map(([value, label]) => {
-              const count = sessions.filter((s) =>
-                matchesFilter(s, value),
-              ).length;
-              const empty = value !== "all" && count === 0;
-              return (
-                <Chip
-                  key={value}
-                  size="sm"
-                  selected={filter === value}
-                  disabled={empty}
-                  onClick={() => setFilter(value)}
-                  className={cn(empty && "opacity-40")}
-                >
-                  {label}
-                  <span className="tabular-nums opacity-70">{count}</span>
-                </Chip>
-              );
-            })}
-          </div>
-
-          {filtered.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No sessions match this filter.
-            </p>
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          {sessions.length === 0 ? (
+            <EmptyState icon={MessagesSquare} title="No sessions yet">
+              Address a bot in a channel (e.g. @frontdesk) or trigger a workflow
+              through the actions API and its session will appear here.
+            </EmptyState>
           ) : (
-            <ul role="list" className="flex flex-col divide-y divide-border">
-              {filtered.map((session) => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  href={
-                    session.eve_session_id
-                      ? `${pathname}?session=${encodeURIComponent(session.eve_session_id)}`
-                      : null
-                  }
-                />
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+            <div className="space-y-3">
+              {/* Kind/state filter chips (bookings-agenda pattern) — zero-count
+                  chips stay (disabled) so the row doesn't reflow as sessions
+                  change under Realtime. */}
+              <div className="flex flex-wrap gap-1.5">
+                {FILTERS.map(([value, label]) => {
+                  const count = sessions.filter((s) =>
+                    matchesFilter(s, value),
+                  ).length;
+                  const empty = value !== "all" && count === 0;
+                  return (
+                    <Chip
+                      key={value}
+                      size="sm"
+                      selected={filter === value}
+                      disabled={empty}
+                      onClick={() => setFilter(value)}
+                      className={cn(empty && "opacity-40")}
+                    >
+                      {label}
+                      <span className="tabular-nums opacity-70">{count}</span>
+                    </Chip>
+                  );
+                })}
+              </div>
 
-      <SessionTranscriptSheet
-        propertyId={propertyId}
-        session={openSession}
-        onClose={close}
-      />
-    </PageShell>
+              {filtered.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  No sessions match this filter.
+                </p>
+              ) : (
+                <ul role="list" className="flex flex-col divide-y divide-border">
+                  {filtered.map((session) => (
+                    <SessionRow
+                      key={session.id}
+                      session={session}
+                      href={
+                        session.eve_session_id
+                          ? `${pathname}?session=${encodeURIComponent(session.eve_session_id)}`
+                          : null
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <SessionTranscriptSheet
+            propertyId={propertyId}
+            session={openSession}
+            onClose={close}
+          />
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

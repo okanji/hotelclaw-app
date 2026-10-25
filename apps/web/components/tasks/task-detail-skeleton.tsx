@@ -9,7 +9,7 @@ import { PageShell } from "@/components/ui/page-shell";
 export function TaskDetailSkeleton() {
   return (
     <div className="flex h-full min-h-0 flex-col" aria-busy="true">
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-4 text-sm text-muted-foreground">
+      <header className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-(--page-gutter) text-sm text-muted-foreground">
         <ListChecks className="size-4" />
         <span>Tasks</span>
         <ChevronRight className="size-3.5 text-muted-foreground" />
@@ -18,7 +18,7 @@ export function TaskDetailSkeleton() {
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto">
-            <PageShell className="px-10 pt-16 pb-12">
+            <PageShell className="pt-16 pb-12">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="mt-4 h-4 w-full max-w-md" />
             {/* Inline properties strip */}

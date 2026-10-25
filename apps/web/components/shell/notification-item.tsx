@@ -7,6 +7,7 @@ import {
   Hourglass,
   ListChecks,
   Mail,
+  Megaphone,
   MessageSquareText,
   OctagonAlert,
   Sparkles,
@@ -25,6 +26,7 @@ import type {
   TaskCommentMentionPayload,
   NotificationRow,
   ProjectAtRiskPayload,
+  ProjectUpdatePayload,
   TaskAssignedPayload,
   TaskEscalatedPayload,
   TaskSlipPayload,
@@ -216,6 +218,37 @@ export function notificationView(
         href: p.taskId ? `/p/${propertyId}/tasks/${p.taskId}` : null,
         kicker: "Escalated",
         preview: p.taskTitle ?? "a task",
+        actor: byName,
+        channel: null,
+      };
+    }
+    case "project_update": {
+      // A written status update on a project or initiative (migration 0111).
+      const p = n.payload as Partial<ProjectUpdatePayload>;
+      const byName = p.byUserName ?? "Someone";
+      const health =
+        p.health === "off_track"
+          ? "Off track"
+          : p.health === "at_risk"
+            ? "At risk"
+            : "On track";
+      return {
+        icon: <Megaphone className="size-3.5" />,
+        lead: (
+          <>
+            <strong className="font-semibold">{byName}</strong> posted an
+            update on{" "}
+            <span className="font-medium">{p.entityName ?? "a project"}</span>
+          </>
+        ),
+        sub: p.excerpt ? `${health} · ${p.excerpt}` : health,
+        href: p.projectId
+          ? `/p/${propertyId}/projects/${p.projectId}`
+          : p.initiativeId
+            ? `/p/${propertyId}/initiatives/${p.initiativeId}`
+            : null,
+        kicker: `${health} update`,
+        preview: p.excerpt ?? p.entityName ?? null,
         actor: byName,
         channel: null,
       };

@@ -143,7 +143,7 @@ export function TaskAutomationCard({
     mappings.assignee || mappings.priority || mappings.dueDate || mappings.labels;
 
   return (
-    <section className="space-y-4">
+    <section className="@container space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium">After submitting</p>
@@ -189,7 +189,7 @@ export function TaskAutomationCard({
 
           {enabled ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 @lg:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="automation-team">Team</Label>
                   <NativeSelect
@@ -272,7 +272,7 @@ export function TaskAutomationCard({
                   {config.labels.map((label) => (
                     <span
                       key={label}
-                      className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                      className="inline-flex items-center gap-1 rounded-md bg-card px-2 py-0.5 text-xs font-medium shadow-ring"
                     >
                       {label}
                       <button
@@ -387,7 +387,7 @@ function MappedChip({ label }: { label: string }) {
   return (
     // min-h (not a fixed h-8): "From the Assignee question" wraps to two
     // lines inside the narrow grid column, and a fixed height clipped it.
-    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs leading-tight font-medium text-muted-foreground">
+    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-card px-2.5 py-1 text-xs leading-tight shadow-ring font-medium text-muted-foreground">
       <Wand2 className="size-3.5 shrink-0" />
       <span>From the {label.replace("+ ", "")}</span>
     </span>

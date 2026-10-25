@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, Video } from "lucide-react";
+import { CalendarClock, CalendarPlus, Sparkles, Video } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -19,12 +19,14 @@ type RecentMeeting = {
   title: string;
   started_at: string;
   ended_at: string | null;
+  scheduled_start: string | null;
   has_summary: boolean;
 };
 
 /**
- * Secondary-sidebar content for the Meetings section: an "All meetings"
- * jump link plus the 12 most recent meetings as a compact list. The full
+ * Secondary-sidebar content for the Meetings section: "All meetings" +
+ * "Schedule meeting" (deep-links `?schedule=1`, which the index opens then
+ * strips), the next few scheduled meetings, and the most recent ones. The full
  * page (with summaries / participants / transcripts) renders in the main
  * content area at /meetings.
  */
@@ -40,17 +42,18 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
       const { data, error } = await supabase
         .from("meetings")
         .select(
-          "id, title, started_at, ended_at, meeting_summaries(id)",
+          "id, title, started_at, ended_at, scheduled_start, meeting_summaries(id)",
         )
         .eq("property_id", propertyId)
-        .order("started_at", { ascending: false })
-        .limit(12);
+        .order("created_at", { ascending: false })
+        .limit(40);
       if (error) throw new Error(error.message);
       return (data ?? []).map((m) => ({
         id: m.id,
         title: m.title,
         started_at: m.started_at ?? new Date(0).toISOString(),
         ended_at: m.ended_at,
+        scheduled_start: m.scheduled_start,
         has_summary: (m.meeting_summaries ?? []).length > 0,
       }));
     },
@@ -60,7 +63,17 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
     staleTime: 30_000,
   });
 
-  const meetings = data ?? [];
+  const all = data ?? [];
+  // Rendered client-side after the query resolves, so reading the clock here
+  // is stable enough (a row crossing "now" just moves on the next refetch).
+  const nowIso = new Date().toISOString();
+  const isUpcoming = (m: RecentMeeting) =>
+    !m.ended_at && m.scheduled_start !== null && m.scheduled_start > nowIso;
+  const upcoming = all
+    .filter(isUpcoming)
+    .sort((a, b) => a.scheduled_start!.localeCompare(b.scheduled_start!))
+    .slice(0, 5);
+  const meetings = all.filter((m) => !isUpcoming(m)).slice(0, 12);
 
   return (
     <>
@@ -77,16 +90,49 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
                 <span>All meetings</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={`${base}?schedule=1`} />}
+                tooltip="Schedule meeting"
+              >
+                <CalendarPlus />
+                <span>Schedule meeting</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {upcoming.length > 0 ? (
+        <SidebarGroup>
+          <SidebarGroupLabel>Upcoming</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {upcoming.map((m) => (
+                <SidebarMenuItem key={m.id}>
+                  <SidebarMenuButton
+                    render={<Link href={`${base}/${m.id}`} />}
+                    isActive={pathname === `${base}/${m.id}`}
+                    tooltip={m.title}
+                    size="sm"
+                  >
+                    <CalendarClock />
+                    <span className="truncate">{m.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ) : null}
 
       <SidebarGroup>
         <SidebarGroupLabel>Recent</SidebarGroupLabel>
         <SidebarGroupContent>
           {meetings.length === 0 ? (
             <p className="px-2 py-1.5 text-xs text-faint-foreground">
-              No meetings yet. Click <strong>Meet</strong> in any channel.
+              No meetings yet. Start one from a channel&apos;s{" "}
+              <strong>Meet</strong> button, or schedule one above.
             </p>
           ) : (
             <SidebarMenu>

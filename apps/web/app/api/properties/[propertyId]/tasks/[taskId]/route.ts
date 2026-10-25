@@ -20,7 +20,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, status, priority, assignee_id, created_by, due_at, scheduled_start, scheduled_end, labels, project_name, space_id, project_id, parent_id, recurrence, source, created_at, updated_at",
+      "id, title, description, status, priority, assignee_id, created_by, due_at, scheduled_start, scheduled_end, labels, project_name, space_id, project_id, parent_id, recurrence, source, created_at, updated_at, estimate, cycle_id, milestone_id, triage_state",
     )
     .eq("property_id", propertyId)
     .eq("id", taskId)

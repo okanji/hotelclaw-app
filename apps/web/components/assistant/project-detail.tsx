@@ -19,6 +19,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { PageHeader } from "@/components/shell/page-header";
+import { NewIcon } from "@/components/shell/clickup-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AssistantComposer } from "./assistant-composer";
+import { seedChat } from "./assistant-workspace";
 import { ScheduledCard } from "./scheduled-card";
 import {
   addProjectResource,
@@ -121,6 +124,15 @@ export function ProjectDetail({
         return;
       }
       // Hand off to the tabbed workspace; `?c=` opens it as a tab there.
+      // Seed the shared chats cache first: the workspace renders a pane only
+      // for rows it can see, and a stale list would show an empty tab until
+      // the next refetch.
+      seedChat(qc, propertyId, {
+        id: result.chatId,
+        title: message?.slice(0, 140) || "New chat",
+        project_id: project.id,
+      });
+      setInput("");
       const query = new URLSearchParams({ c: result.chatId });
       if (message) {
         // The workspace can't carry a draft across a navigation, so the chat
@@ -134,43 +146,19 @@ export function ProjectDetail({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-workspace px-10 py-8">
-        <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-          <Link
-            href={`/p/${propertyId}/assistant/projects`}
-            className="hover:text-foreground"
-          >
-            Projects
-          </Link>
-          <span aria-hidden className="px-1.5 text-faint-foreground">
-            /
-          </span>
-          <span className="text-foreground">{project.name}</span>
-        </nav>
-
-        {/* Masthead. The icon sits ABOVE the title rather than beside it —
-            Notion's page-icon placement — which lets the title, description and
-            everything below share one left edge instead of being indented past
-            a tile. Title runs at the page tier (40/48/700, `SectionHeader`
-            size="page"): the reference sets this in a serif display face, but
-            `font-serif` is guest-world only (DESIGN.md §Type), so the house
-            sans carries the same scale and weight instead. */}
-        <header className="mt-5 flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <TintIcon tone={asTint(project.tint)} className="text-base">
-              {project.emoji}
-            </TintIcon>
-            <h1 className="mt-3 text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
-              {project.name}
-            </h1>
-            {project.description ? (
-              <p className="mt-2 max-w-prose text-base leading-relaxed text-pretty text-muted-foreground">
-                {project.description}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 items-center gap-0.5 pt-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeader
+        breadcrumbs={[
+          {
+            label: "Assistant",
+            href: `/p/${propertyId}/assistant`,
+            icon: <NewIcon />,
+          },
+          { label: "Projects", href: `/p/${propertyId}/assistant/projects` },
+          { label: project.name },
+        ]}
+        actions={
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -220,114 +208,133 @@ export function ProjectDetail({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </header>
-
-        {/* A CONTAINER query, not a viewport breakpoint. The shell's rail +
-            secondary sidebar eat ~364px, so `lg:` (a 1024px viewport) leaves
-            this page barely 660px — the split fired there and squeezed the
-            composer to ~350px, wrapping its own placeholder. The split should
-            depend on the space this page actually has. */}
-        <div className="@container mt-8">
-        <div className="grid gap-10 @3xl:grid-cols-[minmax(0,1fr)_360px]">
-          {/* Working column */}
-          <div className="min-w-0">
-            <AssistantComposer
-              size="hero"
-              autoFocus
-              propertyId={propertyId}
-              value={input}
-              onChange={setInput}
-              onSubmit={() => {
-                const message = input.trim();
-                if (!message) return;
-                setInput("");
-                void start(message);
-              }}
-              busy={starting}
-              placeholder={`Ask anything about ${project.name}…`}
-            />
-
-            {/* Recents. Rows are separated by hairlines and run tall (44px of
-                content + padding) — at this width a dense list reads as a
-                dropdown, not as the body of the page. */}
-            <section className="mt-8">
-              <h2 className="text-sm text-muted-foreground">Recents</h2>
-              {chats.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nothing here yet. Anything you ask in this project inherits
-                  its instructions, memory, and context.
+        }
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="w-full max-w-workspace px-(--page-gutter) py-8">
+          <header className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
+              <TintIcon tone={asTint(project.tint)} className="text-base">
+                {project.emoji}
+              </TintIcon>
+              <h1 className="mt-3 text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
+                {project.name}
+              </h1>
+              {project.description ? (
+                <p className="mt-2 max-w-prose text-base leading-relaxed text-pretty text-muted-foreground">
+                  {project.description}
                 </p>
-              ) : (
-                <ul role="list" className="mt-1 flex flex-col divide-y divide-border">
-                  {chats.map((chat) => (
-                    <li key={chat.id}>
-                      <Link
-                        href={`/p/${propertyId}/assistant?c=${chat.id}`}
-                        className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3.5 transition-colors hover:bg-accent"
-                      >
-                        {/* A scheduled brief appears without anyone opening
-                            it, so the icon has to say where it came from —
-                            otherwise it reads as a conversation you forgot
-                            having. */}
-                        {chat.source === "scheduled" ? (
-                          <Clock
-                            className="size-4 shrink-0 text-faint-foreground"
-                            aria-label="Scheduled run"
-                          />
-                        ) : (
-                          <MessageSquare className="size-4 shrink-0 text-faint-foreground" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                          {chat.title}
-                        </span>
-                        <time
-                          className="shrink-0 text-xs text-faint-foreground"
-                          dateTime={chat.last_message_at}
-                          title={new Date(chat.last_message_at).toLocaleString()}
-                        >
-                          {formatRecency(chat.last_message_at)}
-                        </time>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
+              ) : null}
+            </div>
+          </header>
 
-          {/* Context rail — ONE card with hairline-divided sections, not three
-              floating cards. Three cards read as three unrelated widgets; the
-              reference groups them because they are one thing: what this
-              project knows before you type. */}
-          <aside className="@3xl:sticky @3xl:top-8 h-fit divide-y divide-border rounded-card bg-card shadow-card">
-            <TextSection
-              title="Instructions"
-              hint="How the assistant should work here — tone, format, standing rules."
-              value={project.instructions}
-              placeholder="Always cite the document you took a policy from. Prices in KES."
-              onSave={(instructions) => patch({ instructions })}
-            />
-            <TextSection
-              title="Memory"
-              hint="Durable facts this project carries between conversations."
-              badge="Only you"
-              value={project.memory}
-              placeholder="The villa has four bedrooms. Grace is the head housekeeper."
-              onSave={(memory) => patch({ memory })}
-            />
-            <ContextSection
-              propertyId={propertyId}
-              projectId={project.id}
-              resources={resources}
-            />
-            <ScheduledCard
-              propertyId={propertyId}
-              projectId={project.id}
-              projectName={project.name}
-              timezone={timezone}
-            />
-          </aside>
-        </div>
+          {/* A CONTAINER query, not a viewport breakpoint. The shell's rail +
+              secondary sidebar eat ~364px, so `lg:` (a 1024px viewport) leaves
+              this page barely 660px — the split fired there and squeezed the
+              composer to ~350px, wrapping its own placeholder. The split should
+              depend on the space this page actually has. */}
+          <div className="@container mt-8">
+          <div className="grid gap-10 @3xl:grid-cols-[minmax(0,1fr)_360px]">
+            {/* Working column */}
+            <div className="min-w-0">
+              <AssistantComposer
+                size="hero"
+                autoFocus
+                propertyId={propertyId}
+                value={input}
+                onChange={setInput}
+                onSubmit={() => {
+                  const message = input.trim();
+                  if (!message) return;
+                  // Cleared only once the chat exists — see `start`.
+                  void start(message);
+                }}
+                busy={starting}
+                placeholder={`Ask anything about ${project.name}…`}
+              />
+
+              {/* Recents. Rows are separated by hairlines and run tall (44px of
+                  content + padding) — at this width a dense list reads as a
+                  dropdown, not as the body of the page. */}
+              <section className="mt-8">
+                <h2 className="text-sm text-muted-foreground">Recents</h2>
+                {chats.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Nothing here yet. Anything you ask in this project inherits
+                    its instructions, memory, and context.
+                  </p>
+                ) : (
+                  <ul role="list" className="mt-1 flex flex-col divide-y divide-border">
+                    {chats.map((chat) => (
+                      <li key={chat.id}>
+                        <Link
+                          href={`/p/${propertyId}/assistant?c=${chat.id}`}
+                          className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3.5 transition-colors hover:bg-accent"
+                        >
+                          {/* A scheduled brief appears without anyone opening
+                              it, so the icon has to say where it came from —
+                              otherwise it reads as a conversation you forgot
+                              having. */}
+                          {chat.source === "scheduled" ? (
+                            <Clock
+                              className="size-4 shrink-0 text-faint-foreground"
+                              aria-label="Scheduled run"
+                            />
+                          ) : (
+                            <MessageSquare className="size-4 shrink-0 text-faint-foreground" />
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                            {chat.title}
+                          </span>
+                          <time
+                            className="shrink-0 text-xs text-faint-foreground"
+                            dateTime={chat.last_message_at}
+                            title={new Date(chat.last_message_at).toLocaleString()}
+                          >
+                            {formatRecency(chat.last_message_at)}
+                          </time>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+
+            {/* Context rail — ONE card with hairline-divided sections, not three
+                floating cards. Three cards read as three unrelated widgets; the
+                reference groups them because they are one thing: what this
+                project knows before you type. */}
+            <aside className="@3xl:sticky @3xl:top-8 h-fit divide-y divide-border rounded-card bg-card shadow-card">
+              <TextSection
+                title="Instructions"
+                hint="How the assistant should work here — tone, format, standing rules."
+                value={project.instructions}
+                placeholder="Always cite the document you took a policy from. Prices in KES."
+                onSave={(instructions) => patch({ instructions })}
+              />
+              <TextSection
+                title="Memory"
+                hint="Durable facts this project carries between conversations."
+                badge="Only you"
+                value={project.memory}
+                placeholder="The villa has four bedrooms. Grace is the head housekeeper."
+                onSave={(memory) => patch({ memory })}
+              />
+              <ContextSection
+                propertyId={propertyId}
+                projectId={project.id}
+                resources={resources}
+              />
+              <ScheduledCard
+                propertyId={propertyId}
+                projectId={project.id}
+                projectName={project.name}
+                timezone={timezone}
+              />
+            </aside>
+          </div>
+          </div>
         </div>
       </div>
     </div>

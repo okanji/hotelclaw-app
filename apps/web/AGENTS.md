@@ -14,6 +14,56 @@ hardcode hex colors — a token exists. New surfaces use the primitives;
 existing ones convert when touched.
 
 <!-- BEGIN:nextjs-agent-rules -->
+# Shell navigation — one sidebar tree, no rail (2026-10-25)
+
+The Slack-style icon rail is gone. The shell is ONE Linear / ClickUp-style
+sidebar (`components/shell/section-sidebar.tsx`): property switcher + search +
+create, the personal block (`you-block.tsx`: Inbox / My tasks / Assistant),
+the **Workspace** group, Favorites, the Teams + Projects lists, and the
+account menu in the footer.
+
+**Pins + launcher (the Slack / ClickUp / Linear model, re-planned 2026-10-25).**
+Every app is declared once in `nav-apps.ts` (`NAV_APPS`: id, label, icon,
+path, optional shell `section`, tint, group). The Workspace group shows ONLY
+the person's pinned apps — default Home, Tasks, Chat, Planner, Docs (+
+Insights for management; `defaultPins`) — and ends in **More**, which opens
+the launcher (`app-launcher.tsx`: a grid of every app grouped Work / Build &
+automate / Admin, with badges) and its **Customize sidebar** dialog (pin /
+unpin / reorder apps; show or hide Favorites, Teams, Projects). Prefs are
+per device in localStorage via the `useNavPrefs` external store
+(`use-nav-prefs.ts`; `pins: null` = never customized, so the role-aware
+default applies). An unpinned app you're IN gets a temporary row
+(`appForPath`), so the lit row always shows where you are. Bookings,
+Meetings, Initiatives, Forms, Workflows, Chatbots, Agents, Org chart and
+Archive live in the launcher by default. Realtime-driven badges for unpinned
+section apps (bookings, approvals) refresh on refetch, not live, because
+their section bodies aren't mounted.
+
+**Nodes.** Section apps are `NavNode`s (`nav-node.tsx`): the label navigates
+(last-path resume, root on a second click), the chevron expands the old
+per-section sidebar in place, and the body stays mounted while closed.
+Nodes expand **independently** — opening one never folds the others
+(explicit user preference; landing in a section opens its node, nothing
+closes). Teams / Projects / Favorites fold from their group labels.
+Children carry destinations only — the Tasks node is just Triage + Cycles
+(+ the current cycle); the Tasks row itself opens the board, create is + New
+/ `N`, and filters belong in the page toolbar. Routing (pushState fast path
+vs. a real push for server-rendered sections — `SERVER_RENDERED` in
+`use-section-navigation.ts`, which includes triage/cycles/initiatives) lives
+there too. Collapse is `⌘\`, the hover-revealed « in the header, or a drag
+past the minimum. **Command palette** (`command-palette.tsx`, ⌘K):
+Slack-style prefix grammar — `>` commands, `#` channels, `@` people/DMs
+(`parseQuery`; the scope is echoed as a chip in the input). Actions carry a
+`group` (`create` | `navigate`, `command-palette-actions.ts`): the four
+create actions show on the resting palette as "Quick actions", the "Go to"
+rows only once the query matches or `>` is typed, so the empty state leads
+with recents, channels, people, open tasks and recent documents. Documents
+search the keyword RPC (`/documents/search`, body text + preview) once the
+term is ≥2 chars; the `↵` affordance on the selected row keeps a fixed
+width so the meta column aligns. **Adding an app** = a `NAV_APPS` entry (+ a `body()` case in
+`workspace-nav.tsx` if it has a section sidebar, a `sectionFromPath` case,
+and a `SECTION_PREFIX` entry in `lib/shell/last-path.ts` if it should resume).
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -292,13 +342,131 @@ Everything here lives behind **migration 0106** (`activity_log`,
   existing task details dialog on click. The `internal:tasks` source toggle
   hides them with the blocks.
 
+## Linear-parity planning — triage, cycles, estimates, initiatives, updates (built 2026-10-25)
+
+A walk through Linear's public demo (`linear.app/demo`) surfaced five gaps;
+all ship behind **migrations 0111 + 0112** (applied). Every new task column is
+nullable, so mobile and older builds are untouched. Sidebar: **Triage** (pending
+count) + **Cycles** (+ one "current cycle" row per cadence) under the Tasks node
+(`sections/tasks-section.tsx`); **Initiatives** heads the Projects group footer.
+All three routes are server-rendered → listed in `SERVER_RENDERED`
+(`use-section-navigation.ts`); `sectionFromPath` maps triage/cycles → tasks,
+initiatives → home.
+
+- **Triage queue.** `tasks.triage_state` `pending|accepted|declined` (null =
+  never triaged). `getTasks` returns only null/accepted, so pending and
+  declined tasks never reach a board. Intake: guest-chatbot `create_ticket`
+  (untrusted guests — staff vet them; the triage bot's suggestions run in
+  `after()`) and `createTaskFor({ triage: true })` ("Create triage issue",
+  `POST /api/properties/:id/triage`). Server half `lib/tasks/triage-queue.ts`:
+  accept/decline are GUARDED updates on `triage_state = 'pending'` (two
+  deciders can't both win → "Already triaged" / 409); accept applies team /
+  assignee / priority / project overrides in the same update, tops the column,
+  sends `task_assigned` via `emitTaskAssignmentNotifications` (nobody is told
+  about a task still pending), and resolves pending `task_suggestions`. Pure
+  half `lib/tasks/triage-logic.ts` (tested). UI `/p/<pid>/triage`
+  (`components/triage/*`): list + the real `TaskDetail` (embedded) with Accept
+  (popover pre-filled from task + AI suggestion) / Decline (optional reason);
+  keys `1`/`2`/`j`/`k`. NOT `TaskRoom` — it reads the `["tasks"]` cache, which
+  excludes pending tasks; for the same reason `TaskRoom`'s not-found state asks
+  the single-task route and links pending tasks to `/triage?task=`. Queries in
+  `lib/query/triage-queries.ts` (`["triage", pid]`, `["triage-count", pid]`,
+  `useTriageRealtime`). 0112 logs `triage_queued` for tasks INSERTED pending.
+- **Cycles + estimates.** `cycles` (inclusive local-date windows numbered per
+  property + team; `space_id` null = property-wide) and `cycle_settings` (one
+  cadence per team). Tasks gained `estimate` (points; unestimated counts 1),
+  `cycle_id`, `milestone_id`. **No cron:** `lib/cycles/ensure.ts:ensureCycles`
+  runs on every cycles page load / API call — materialises current +
+  `upcoming_count` cycles, closes ended ones, and (`auto_rollover`) moves
+  not-done work to the current cycle via the service client (logged `system`);
+  idempotent (23505 from a race is ignored). Pure logic + tests in
+  `lib/cycles/{dates,plan,scope,burnup}.ts` (dates in `properties.timezone`;
+  started = in_progress|blocked; capacity = avg completed of the last 3).
+  **Burn-up is replayed, not stored** — `buildBurnup` undoes logged
+  activity_log changes day by day, so rolled-over work still counts in its old
+  cycle. UI `/cycles?space=` (timeline, current expanded), `/cycles/[id]`
+  (by status + "Moved on", side panel with breakdowns), `/cycles/current`
+  redirect; task strip chips Estimate / Cycle / Milestone
+  (`components/cycles/task-planning-chips.tsx`); board Cycle filter. Gotcha:
+  changing a cadence's length/start deletes EMPTY upcoming cycles so the new
+  shape applies at once. Any member can edit cadences (RLS = members).
+- **Initiatives.** `initiatives` (planned|active|completed, owner, lead team,
+  target) grouping projects many-to-many (`initiative_projects`). Pages
+  `/initiatives` (Active / Planned / All) and `/initiatives/[id]`;
+  `components/initiatives/*`, `lib/query/initiative-queries.ts`. Health = the
+  latest update's declared health, else the worst effective health of its
+  open projects (`lib/initiatives/planning.ts`, tested).
+- **Status updates.** `project_updates` (exactly one of project / initiative):
+  a person's health call (on_track|at_risk|off_track) + note; author-only
+  edit/delete via RLS; composer + feed `components/projects/project-updates.tsx`
+  on both Overviews. Declared health sits beside the computed pace health
+  ("(pace)"). Posting notifies the project lead + owners of linked initiatives
+  (type `project_update`, renderer case in `notification-item.tsx`, inbox
+  Reports filter).
+- **Milestone progress.** % = done ÷ all tasks with that `milestone_id`
+  (`milestones-panel.tsx`, timeline tooltips); manual reach/unreach unchanged.
+  Project Overview gained a Progress block (scope / started / completed in
+  points, per assignee).
+- **Activity.** New verbs (`estimate_changed`, `cycle_changed`,
+  `milestone_changed`, `triage_*`, `update_posted`, initiative verbs) render in
+  `components/activity/activity-log.tsx`; `{kind: "entity", id}` scope reads
+  one initiative's feed. Not wired yet: mobile screens, bot/catalog tools for
+  these entities, workflow triggers.
+
+## Page audit vs Linear (2026-10-25) — controls on the page, detail-page parity
+
+- **One page header everywhere — Linear's compact bar.** Every page opens
+  with `PageHeader` (`components/shell/page-header.tsx`: h-11, title + icon or
+  breadcrumbs left, actions right) plus an optional `PageHeaderRow` for view
+  tabs / filters; no `SectionHeader size="page"` mastheads, no ledes (DESIGN.md
+  § Page header). My tasks' Assigned / Created lists fill the pane and scroll
+  inside `ListView`'s own container (no `-mx-*` bleed, which clipped the last
+  column).
+- **Page controls live on the page, never only in a sidebar body** (the tree
+  hides bodies of collapsed rows). Calendar toolbar owns Day / Week / Month /
+  **Year** (keys D/W/M/Y) and a Calendars popover (`calendar-sources-menu.tsx`:
+  source toggles, accounts, connect, the 5-min external re-sync); Year view is
+  `year-grid.tsx` (density dots from the same filtered feed); all per-view math
+  (range, paging with day clamping, density) is `lib/calendar/view-range.ts`
+  (tested, `never` checks on every view switch). Inbox header owns the view
+  tabs, a view-scoped Mark all as read and per-row Mark read; task
+  notifications open in an embedded split pane at ≥1280px (mark-UNREAD is not
+  supported by the API yet). Insights mounts `ScopeSwitcher` in its header.
+  Sidebar bodies of these apps hold shortcuts only.
+- **My tasks** tabs `?tab=focus|assigned|created|activity` are pure lenses
+  (`lib/tasks/my-tasks-lens.ts`) over the shared tasks cache rendered with the
+  board's `ListView` (shares the board's saved column layout). Memoize lens
+  rows — and `ListView`'s query fallbacks are module constants — because a
+  fresh array per render loops its order effect ("Maximum update depth").
+- **Meetings lifecycle is derived, not stored** — `lib/meetings/status.ts`
+  (pure, tested) decides Upcoming / Live / Past and the past outcome (summary
+  ready / summarizing / summary failed / transcript failed / processing ≤1h /
+  no transcript / no call). Scheduled rows' `started_at` is the DB default, so
+  never use it for scheduled meetings; walk-up calls without `ended_at` stop
+  being Live after 6h. Schedule = the calendar `EventDialog`; Start =
+  `useMeeting().start({channelId})`; Join = `startScheduled`. No re-summarize
+  route yet (`raw_jsonl` is stored, so one is feasible).
+- **Task detail**: the right rail is the single home of properties at
+  ≥`@4xl/task` (container query on TaskDetail's root); below that, or
+  `variant="embedded"`, the inline strip shows and the rail opens as a drawer.
+  Planning rows = `TaskPlanningChips variant="row"`. Header prev/next + `k`/`j`
+  use `lib/tasks/task-sequence.ts` (board order — the board's toolbar
+  filters/sort are local state, not followed).
+- **Project Overview** has ONE Progress block (points + per-status tally); the
+  inline row holds live state (Status, Health), the rail holds attributes.
+  **Team rail** has "Go to" (Triage `?team=`, Tasks `?space=`, Cycles) and
+  "Sub-teams" (`parent_space_id`).
+- Every full page load still waits on the Stream connection
+  (`lib/stream/client-provider.tsx`), now behind a shell-shaped placeholder;
+  rendering the shell before Stream connects is the real fix (pending).
+
 ## Automations everywhere — the lightning button (built 2026-08-14)
 
 Every feature page that a workflow can read from or act on carries a **⚡ Automations button** in its header, so automation is discovered from the surface you're standing on rather than only from the Workflows section.
 
 - **The lens** — `lib/workflows/features.ts` (client-safe, pure catalog metadata). An `AutomationFeature` is NOT a catalog `Surface`: surfaces include plumbing buckets (`ai`/`control`/`system`/`external`), and `chatbot.*` triggers are filed under `external` next to webhooks. So each feature declares the surfaces it claims **plus** optional id prefixes, and `workflowTouchesFeature()` matches a workflow's trigger + step ids against both. `featureRole()` splits "starts here" (trigger) from "ends up here" (action) — the modal labels the difference. Deliberately generous: one extra row beats hiding the one the user opened the modal to find. Drift-guarded in `lib/workflows/__tests__/features.test.ts` (every feature matches ≥1 real catalog entry; no two features claim the same surface).
 - **The data** — `GET /api/properties/:propertyId/workflows` returns `step_types` alongside `trigger_event_type`, so the lens runs client-side off the SHARED workflows list query with no new endpoint and no spec fetch. The modal's on/off switches write through that same cache, so toggling here and in the Workflows section stay consistent.
-- **The UI** — `components/workflows/automations-button.tsx` (`<AutomationsButton propertyId feature="docs" />`; `variant="toolbar"` for dense h-9 toolbars/icon rows, `variant="outline"` for SectionHeader mastheads; count badge = enabled workflows touching the feature) mounts `automations-dialog.tsx` ONLY once clicked, so an unclicked button costs nothing and never triggers a model call. Wired into tasks board toolbar, chat channel header, documents home, meetings, calendar, forms, bookings, chatbots.
+- **The UI** — `components/workflows/automations-button.tsx` (`<AutomationsButton propertyId feature="docs" />`; `variant="toolbar"` (default) for the compact `PageHeader` and dense toolbars, `variant="outline"` for in-page section headers; count badge = enabled workflows touching the feature) mounts `automations-dialog.tsx` ONLY once clicked, so an unclicked button costs nothing and never triggers a model call. Wired into tasks board toolbar, chat channel header, documents home, meetings, calendar, forms, bookings, chatbots.
 - **Suggestions** — `POST /api/properties/:propertyId/workflows/suggestions` (Haiku + `Output.object`). The model proposes plain-English GOALS, **never specs**: the goal is handed to the existing author copilot at `/workflows/new?prefill=`, which owns catalog discovery and validation, so a bad suggestion can at worst waste one copilot turn — it can never smuggle an invented trigger id into a saved workflow. **Four grounding layers**, in order of how much they constrain the answer:
   1. **Deterministic signals** — `lib/workflows/suggestion-signals.ts`, one gather per feature, returning `{id, signal, evidence}` lines describing the property's REAL state ("3 tasks are blocked — 50% of open work", "8 documents haven't been edited in 90+ days", "31% of bookings cancelled"). **No model in the number path**: Tasks reuses `computeInsightsMetrics` / `computeTrendSignals` / `detectAnomalies` (the same functions the dashboards chart) rather than a second, quietly-diverging definition of "overdue"; the rest are bounded SQL. Every gather is `safe()`-wrapped and fail-soft. Each feature also gets a trimmed set of companion signals (most automations start in one surface and end in Tasks or Chat). `GATHERS` is a `Record<AutomationFeature, …>` so exhaustiveness is a compile-time guarantee — no drift test needed.
   2. **The catalog** — the exact triggers/actions the feature supports, so the model can't propose what the engine can't build.
@@ -308,6 +476,36 @@ Every feature page that a workflow can read from or act on carries a **⚡ Autom
 - **Suggestion length is clamped, never validated.** The `Suggestion` zod schema deliberately has NO `.max()` on title/why/goal — length guidance lives in the field descriptions and a server-side `clamp()`. The first live run produced three well-cited suggestions and threw all of them away on every retry because one `why` was 230 chars against a `max(200)`: in structured output a hard length cap turns a presentation nit into total generation failure.
 - **Adding a surface**: add the feature to `AUTOMATION_FEATURES` + `FEATURES` in `features.ts`, then drop `<AutomationsButton>` in that page's header. Nothing else — the modal, count, and suggestions all derive from the catalog.
 - **`?prefill=` is UTF-8-safe** as of this change: `builderPrefillHref()` base64s UTF-8 bytes and `decodePrefillGoal` reverses it (`btoa` throws on non-Latin1, so a suggestion title with an en dash used to break the link). ASCII payloads round-trip identically, so older prefill links still work.
+
+## Workflows section vs Linear Loops (audited 2026-10-26)
+
+Linear's automations are now **Loops** (`linear.app/demo/loops`): a "Create a
+new loop" prompt box first, then a category-tabbed template gallery whose cards
+read **Trigger → Action**; each loop has Run history, Run now (schedule /
+manual-ish triggers, enabled loops only) and versions. What we took:
+
+- **"What does it do?" in one line** — `lib/workflows/summary.ts`
+  (`triggerLabel`, `primaryAction` = first non-`control.*` step + "+N",
+  `canRunNow`, `runStatusLabel`; tested in `lib/workflows/__tests__/summary.test.ts`)
+  rendered by `components/workflows/flow-summary.tsx` on list rows and template
+  cards. Run logs + the run inspector show catalog labels, never raw
+  `task.created` / `instant|durable`.
+- **Run now** — `POST …/workflows/:id/run {runNow: true}`: only for
+  `RUN_NOW_TRIGGERS` (manual.run / schedule.*), 409 while the workflow is off,
+  runs synchronously via `runWorkflowNow` with the payload the real trigger
+  would emit, returns the run id (UI opens it). In the builder header beside
+  Test and in the list row menu. The legacy `{}` body still just emits a
+  `manual.run` event.
+- **List** — Mine lens (`created_by` now in the list API), row menu Run now /
+  Turn on-off / Duplicate (`workflow-actions.tsx`, copy starts off) / Delete…
+  behind a confirm dialog (delete = archive). Empty state is Linear's
+  prompt-first creator → `builderPrefillHref` so the copilot owns the
+  conversation. Builder page header links to the workflow's **Runs**.
+- **Templates** — category tabs (`workflow_templates.category`).
+- **Verify**: `node --env-file=.env.local --no-network-family-autoselection
+  scripts/workflows-smoke.mjs` — ephemeral member, real cookie-authed routes:
+  create → list fields → run-now gating → run succeeds + side effect lands →
+  run log → duplicate → delete; hard-cleans after itself.
 
 ## Forms & onboarding — one schema, four surfaces
 
@@ -636,7 +834,7 @@ pushState exception); components in `components/fleet/*`.
   stale; outcome posts to the Stream channel; workflow sessions skip the
   channel post). `trigger_workflow` (actions-MCP) tail-consumes in
   `after()` so workflow parks reach the inbox too. Amber badges: Approvals
-  sidebar item + the Agents entry in the rail's More menu.
+  sidebar item + the Agents row in the sidebar's More fold.
 - **API access** (`access-view.tsx`, `actions-api-dialog.tsx`, route
   `/agents/fleet/access`) — the Actions API key manager
   (`api_tokens.allowed_tools` multi-select over

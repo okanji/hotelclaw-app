@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { publishVisibleTaskOrder } from "@/lib/tasks/visible-task-order";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   shallow,
@@ -116,6 +117,17 @@ export function KanbanView({
     if (draggingRef.current) return;
     setBoard(buildBoard(tasks));
   }, [tasks]);
+
+  // Publish the on-screen order (columns left→right, cards top→bottom,
+  // hidden/collapsed columns skipped) so task-detail prev/next follows it.
+  useEffect(() => {
+    const ids: string[] = [];
+    for (const column of COLUMNS) {
+      if (collapsed[column.id] || (hideDone && column.id === "done")) continue;
+      ids.push(...board.columns[column.id]);
+    }
+    publishVisibleTaskOrder(propertyId, ids);
+  }, [board.columns, collapsed, hideDone, propertyId]);
 
   // Teammates dragging cards right now -> { taskId: their name }.
   const othersDragging = useOthersMapped(
@@ -409,7 +421,7 @@ export function KanbanView({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto p-3">
+      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto px-(--page-gutter) py-3">
         {COLUMNS.map((column) => {
           // Done column can be force-collapsed by the toolbar's "Hide done"
           // toggle without touching the per-column collapse state.

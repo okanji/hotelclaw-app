@@ -115,8 +115,7 @@ export function SpaceAutomationsPanel({
           ))}
         </ul>
       )}
-      <Button
-        type="button"
+      <Button nativeButton={false}
         size="sm"
         variant="outline"
         className="w-fit"

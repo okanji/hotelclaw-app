@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { propertyMilestonesQueryOptions, type PropertyMilestone } from "@/lib/query/milestone-queries";
+import { milestoneTasksQueryOptions } from "@/lib/query/initiative-queries";
+import { milestoneProgress, type MilestoneProgress } from "@/lib/initiatives/planning";
 import { ChevronLeft, ChevronRight, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -137,6 +139,9 @@ export function ProjectsTimelineView({
   const { data: allMilestones = [] } = useQuery(
     propertyMilestonesQueryOptions(propertyId),
   );
+  // Task progress per milestone (0111 `tasks.milestone_id`) for the tooltips.
+  const { data: milestoneTasks = [] } = useQuery(milestoneTasksQueryOptions(propertyId));
+  const milestonePct = useMemo(() => milestoneProgress(milestoneTasks), [milestoneTasks]);
   const milestonesByProject = useMemo(() => {
     const m = new Map<string, { ms: PropertyMilestone; day: number }[]>();
     for (const ms of allMilestones) {
@@ -300,6 +305,7 @@ export function ProjectsTimelineView({
                   item={row}
                   propertyId={propertyId}
                   milestones={milestonesByProject.get(row.project.id) ?? []}
+                  milestonePct={milestonePct}
                 />
               ))
             )}
@@ -456,14 +462,32 @@ function ProjectLabel({
   );
 }
 
+/** Diamond tooltip: name · date · reached · "67% of 3" when tasks are tagged. */
+function milestoneTitle(ms: PropertyMilestone, prog: MilestoneProgress | undefined) {
+  const date = new Date(ms.due_date).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return [
+    ms.name,
+    date,
+    ms.completed_at ? "reached" : null,
+    prog ? `${prog.pct}% of ${prog.total}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function TimelineRow({
   item,
   propertyId,
   milestones,
+  milestonePct,
 }: {
   item: Placed;
   propertyId: string;
   milestones: { ms: PropertyMilestone; day: number }[];
+  milestonePct: Map<string, MilestoneProgress>;
 }) {
   const { project } = item;
   const meta = PROJECT_STATUS_META[project.status];
@@ -481,7 +505,7 @@ function TimelineRow({
         <Link
           key={ms.id}
           href={href}
-          title={`${ms.name} · ${new Date(ms.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}${ms.completed_at ? " · reached" : ""}`}
+          title={milestoneTitle(ms, milestonePct.get(ms.id))}
           aria-label={`Milestone ${ms.name}`}
           className="absolute top-0.5 z-20 flex -translate-x-1/2 items-center"
           style={{ left: day * DAY_WIDTH + DAY_WIDTH / 2 }}

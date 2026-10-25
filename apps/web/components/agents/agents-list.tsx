@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { MoreHorizontal, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
@@ -33,6 +32,7 @@ import { NewAgentDialog } from "./new-agent-dialog";
 import { AgentBuilderDialog } from "./agent-builder-dialog";
 import { deleteAgent } from "./actions";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 
 type PodBotSummary = {
   id: string;
@@ -75,138 +75,134 @@ export function AgentsList({
   }
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        className="flex-wrap gap-y-3"
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
         title="Agents"
-        description="Build internal AI agents for your team — give each one instructions, tools, skills, and resources, then chat with it. Everything an agent can see or do is configured and visible here, including the AI that ships with the app."
+        icon={<Sparkles />}
         actions={
-          <>
-            <Button variant="outline" onClick={() => setDescribeOpen(true)}>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setDescribeOpen(true)}>
               <Sparkles data-slot="icon" />
               Describe it
             </Button>
-            <Button onClick={() => setNewOpen(true)}>
+            <Button size="sm" onClick={() => setNewOpen(true)}>
               <Plus data-slot="icon" />
               New agent
             </Button>
-          </>
+          </div>
         }
       />
-
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
-
-      {view !== "builtin" ? (
-        <>
-          {agents.length === 0 ? (
-            <EmptyState
-              icon={Sparkles}
-              title="No agents yet"
-              action={
-                <Button onClick={() => setNewOpen(true)}>
-                  <Plus data-slot="icon" />
-                  New agent
-                </Button>
-              }
-            >
-              Create your first agent — a duty-manager brief, a policy
-              expert, a bookings analyst — and shape exactly what it can see
-              and do.
-            </EmptyState>
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell className="flex flex-col">
+          {view !== "builtin" ? (
+            <>
+              {agents.length === 0 ? (
+                <EmptyState
+                  icon={Sparkles}
+                  title="No agents yet"
+                  action={
+                    <Button onClick={() => setNewOpen(true)}>
+                      <Plus data-slot="icon" />
+                      New agent
+                    </Button>
+                  }
+                >
+                  Create your first agent — a duty-manager brief, a policy
+                  expert, a bookings analyst — and shape exactly what it can see
+                  and do.
+                </EmptyState>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {agents.map((agent) => (
+                    <AgentCard
+                      key={agent.id}
+                      agent={agent}
+                      href={`${base}/${agent.id}`}
+                      onDelete={() => setDeleting(agent)}
+                    />
+                  ))}
+                </div>
+              )}
+              {podBots.length > 0 ? (
+                <div className="mt-14">
+                  <Eyebrow>Pod bots</Eyebrow>
+                  <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
+                    The operated fleet bots serving this property — address them
+                    with @name in any channel. Configuration and sessions live in
+                    the Fleet views.
+                  </p>
+                  <ul role="list" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {podBots.map((bot) => (
+                      <li key={bot.id}>
+                        <Link
+                          href={`${base}/fleet/${bot.id}`}
+                          className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
+                        >
+                          <div className="flex items-center gap-3">
+                            <TintIcon tone="lavender" className="text-base">
+                              {podBotEmoji(bot.bot_id)}
+                            </TintIcon>
+                            <div className="min-w-0">
+                              <p className="truncate text-base leading-6 font-normal">
+                                {bot.display_name}
+                              </p>
+                              <p className="truncate font-mono text-xs text-muted-foreground">
+                                @{bot.bot_id}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="tabular-nums">
+                              {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
+                            </span>
+                            <span>
+                              {bot.model_tier === "advanced"
+                                ? "Advanced model"
+                                : "Standard model"}
+                            </span>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="mt-14">
+                <Eyebrow>Built-in AI</Eyebrow>
+                <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
+                  The assistants that ship with the app. They can&apos;t be edited,
+                  but what each one reads and does is documented below.
+                </p>
+                <BuiltinGrid className="mt-6" />
+              </div>
+            </>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {agents.map((agent) => (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  href={`${base}/${agent.id}`}
-                  onDelete={() => setDeleting(agent)}
-                />
-              ))}
-            </div>
+            <BuiltinGrid />
           )}
-          {podBots.length > 0 ? (
-            <div className="mt-14">
-              <Eyebrow>Pod bots</Eyebrow>
-              <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
-                The operated fleet bots serving this property — address them
-                with @name in any channel. Configuration and sessions live in
-                the Fleet views.
-              </p>
-              <ul role="list" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {podBots.map((bot) => (
-                  <li key={bot.id}>
-                    <Link
-                      href={`${base}/fleet/${bot.id}`}
-                      className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-3">
-                        <TintIcon tone="lavender" className="text-base">
-                          {podBotEmoji(bot.bot_id)}
-                        </TintIcon>
-                        <div className="min-w-0">
-                          <p className="truncate text-base leading-6 font-normal">
-                            {bot.display_name}
-                          </p>
-                          <p className="truncate font-mono text-xs text-muted-foreground">
-                            @{bot.bot_id}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="tabular-nums">
-                          {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
-                        </span>
-                        <span>
-                          {bot.model_tier === "advanced"
-                            ? "Advanced model"
-                            : "Standard model"}
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="mt-14">
-            <Eyebrow>Built-in AI</Eyebrow>
-            <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
-              The assistants that ship with the app. They can&apos;t be edited,
-              but what each one reads and does is documented below.
-            </p>
-            <BuiltinGrid className="mt-6" />
-          </div>
-        </>
-      ) : (
-        <BuiltinGrid />
-      )}
 
-      <AgentBuilderDialog
-        propertyId={propertyId}
-        open={describeOpen}
-        onOpenChange={setDescribeOpen}
-      />
-      <NewAgentDialog
-        propertyId={propertyId}
-        open={newOpen}
-        onOpenChange={setNewOpen}
-      />
-      <DeleteAgentDialog
-        agent={deleting}
-        onOpenChange={(o) => {
-          if (!o) setDeleting(null);
-        }}
-        onDeleted={() => {
-          setDeleting(null);
-          router.refresh();
-        }}
-      />
-    </PageShell>
+          <AgentBuilderDialog
+            propertyId={propertyId}
+            open={describeOpen}
+            onOpenChange={setDescribeOpen}
+          />
+          <NewAgentDialog
+            propertyId={propertyId}
+            open={newOpen}
+            onOpenChange={setNewOpen}
+          />
+          <DeleteAgentDialog
+            agent={deleting}
+            onOpenChange={(o) => {
+              if (!o) setDeleting(null);
+            }}
+            onDeleted={() => {
+              setDeleting(null);
+              router.refresh();
+            }}
+          />
+        </PageShell>
+      </div>
+    </div>
   );
 }
 

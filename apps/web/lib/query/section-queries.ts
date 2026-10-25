@@ -71,7 +71,7 @@ export function documentsQueryOptions(propertyId: string) {
 export function mentionsQueryOptions(
   propertyId: string,
   userId: string,
-  client: StreamChat | undefined,
+  client: StreamChat | null | undefined,
 ) {
   return queryOptions({
     queryKey: ["mentions", propertyId, userId] as const,

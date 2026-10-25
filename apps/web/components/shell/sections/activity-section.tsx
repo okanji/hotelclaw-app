@@ -2,36 +2,33 @@
 
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CheckCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useNotifications } from "@/components/shell/use-notifications";
 import {
-  useNotifications,
-  useNotificationActions,
-} from "@/components/shell/use-notifications";
-import {
-  FILTER_VIEWS,
-  PRIMARY_VIEWS,
-  WORKSPACE_VIEWS,
-  matchesView,
+  unreadCountsByView,
+  viewDef,
   viewFromParam,
   type ActivityViewId,
 } from "@/components/shell/activity/views";
 
+/** The few inbox cuts worth a sidebar shortcut; the page tabs have them all. */
+// No "Mentions" here: Chat's node already has a Mentions row (the @-feed),
+// and two same-named rows a few lines apart read as a duplicate. The inbox's
+// mention filter is one tab away in the page header.
+const SHORTCUTS: ActivityViewId[] = ["unread", "workspace"];
+
 /**
- * Activity secondary sidebar — the inbox's FILTER NAV (not a feed). Each item
- * scopes the main-pane feed via `?view=<id>`; the badge is that view's unread
- * count. This is the one list of "where to look"; the rows themselves live
- * only in the main pane, so the two panes no longer duplicate each other.
+ * Inbox node body — destinations only. The full filter strip, Mark all as
+ * read, and per-row actions live in the inbox page header
+ * (`activity/activity-view.tsx`), because this body is hidden whenever the
+ * row is collapsed. These are shortcuts into the same `?view=` URLs.
  */
 export function ActivitySection({
   propertyId,
@@ -43,133 +40,51 @@ export function ActivitySection({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { notifications, unseenCount } = useNotifications(userId);
-  const { markAllRead } = useNotificationActions(userId);
+  const { notifications } = useNotifications(userId);
 
   const base = `/p/${propertyId}/activity`;
   const onActivity = pathname === base || pathname.startsWith(`${base}/`);
-  const active: ActivityViewId = onActivity
+  const active: ActivityViewId | null = onActivity
     ? viewFromParam(searchParams.get("view"))
-    : "inbox";
+    : null;
 
-  /** Unread count per view — the actionable number shown as a badge. */
-  const unreadByView = useMemo(() => {
-    const counts = {} as Record<ActivityViewId, number>;
-    for (const v of [...PRIMARY_VIEWS, ...FILTER_VIEWS]) counts[v.id] = 0;
-    for (const n of notifications) {
-      if (n.seen_at) continue;
-      for (const v of [...PRIMARY_VIEWS, ...FILTER_VIEWS]) {
-        if (matchesView(n, v.id)) counts[v.id] += 1;
-      }
-    }
-    return counts;
-  }, [notifications]);
+  const unreadByView = useMemo(
+    () => unreadCountsByView(notifications),
+    [notifications],
+  );
 
   const go = useCallback(
     (view: ActivityViewId) => {
-      router.replace(view === "inbox" ? base : `${base}?view=${view}`, {
-        scroll: false,
-      });
+      router.replace(`${base}?view=${view}`, { scroll: false });
     },
     [router, base],
   );
 
   return (
-    <>
-      <SidebarGroup>
-        {/* The rail already names the section, so this is a 12px/12px w500
-            faint group label like every other sidebar group — not a display
-            heading (notion-spec §3). The mark-all-read affordance sits
-            right-aligned in the same row. */}
-        <div className="flex items-center justify-between">
-          <SidebarGroupLabel>Notifications</SidebarGroupLabel>
-          {unseenCount > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              title="Mark all read"
-              onClick={markAllRead}
-              className="text-faint-foreground hover:bg-sidebar-accent"
-            >
-              <CheckCheck className="size-4" />
-            </Button>
-          ) : null}
-        </div>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {PRIMARY_VIEWS.map((v) => (
-              <SidebarMenuItem key={v.id}>
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {SHORTCUTS.map((id) => {
+            const v = viewDef(id);
+            return (
+              <SidebarMenuItem key={id}>
                 <SidebarMenuButton
                   render={<button type="button" />}
-                  onClick={() => go(v.id)}
-                  isActive={active === v.id}
+                  onClick={() => go(id)}
+                  isActive={active === id}
                   tooltip={v.label}
                 >
                   <v.icon />
                   <span>{v.label}</span>
                 </SidebarMenuButton>
-                {unreadByView[v.id] > 0 ? (
-                  <SidebarMenuBadge>{unreadByView[v.id]}</SidebarMenuBadge>
+                {unreadByView[id] > 0 ? (
+                  <SidebarMenuBadge>{unreadByView[id]}</SidebarMenuBadge>
                 ) : null}
               </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupLabel>Filters</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {FILTER_VIEWS.map((v) => (
-              <SidebarMenuItem key={v.id}>
-                <SidebarMenuButton
-                  render={<button type="button" />}
-                  onClick={() => go(v.id)}
-                  isActive={active === v.id}
-                  tooltip={v.label}
-                >
-                  <v.icon
-                    className={cn(
-                      v.attention && "text-warning",
-                    )}
-                  />
-                  <span>{v.label}</span>
-                </SidebarMenuButton>
-                {unreadByView[v.id] > 0 ? (
-                  <SidebarMenuBadge
-                    className={cn(v.attention && "bg-warning")}
-                  >
-                    {unreadByView[v.id]}
-                  </SidebarMenuBadge>
-                ) : null}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {WORKSPACE_VIEWS.map((v) => (
-              <SidebarMenuItem key={v.id}>
-                <SidebarMenuButton
-                  render={<button type="button" />}
-                  onClick={() => go(v.id)}
-                  isActive={active === v.id}
-                  tooltip={v.label}
-                >
-                  <v.icon />
-                  <span>{v.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    </>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }

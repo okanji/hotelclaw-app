@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { PageHeader, PageHeaderRow } from "@/components/shell/page-header";
 
 const RAIL_STORAGE_KEY = "workspace:rail-collapsed";
 
@@ -57,9 +59,11 @@ export type WorkspaceTab = {
  * Shared chrome for a Space / Project workspace, Linear-style: a main column
  * (header + tabs + active tab) and an optional right **properties rail**.
  *
+ * Chrome: the app-wide compact `PageHeader` (breadcrumb + actions) with the
+ * view tabs as its second row, full width of the content plane.
+ *
  * Width: the main column IS this page's `PageShell` (`page`, 960), so the
- * breadcrumb, the view tabs, the header and the active tab's content all share
- * one left edge from the top of the page to the bottom. The rail sits outside
+ * entity header and the active tab's content share one left edge. The rail sits outside
  * that column (the same shape as the task detail's sidebar) and the
  * [main | rail] pair is centered by the row around them.
  */
@@ -73,10 +77,10 @@ export function WorkspaceShell({
   activeTab,
   onActiveTabChange,
 }: {
-  /** Optional breadcrumb trail — shown above the view switcher (Linear-style). */
+  /** Breadcrumb trail — the left side of the compact page header. */
   breadcrumb?: React.ReactNode;
   header: React.ReactNode;
-  /** Page-level actions (e.g. a ⋯ overflow menu) shown top-right of the header. */
+  /** Page-level actions (e.g. a ⋯ overflow menu) — right side of the page header. */
   headerActions?: React.ReactNode;
   tabs: WorkspaceTab[];
   rightRail?: React.ReactNode;
@@ -106,70 +110,51 @@ export function WorkspaceShell({
     });
   }
 
+  const actions =
+    headerActions || rightRail ? (
+      <WorkspaceHeaderActions
+        headerActions={headerActions}
+        rightRail={rightRail}
+        railCollapsed={railCollapsed}
+        onToggleRail={toggleRail}
+      />
+    ) : null;
+
   return (
-    <div className="flex h-full min-h-0 justify-center">
-      <div className="flex w-full min-w-0 justify-center">
-        {/* `mx-0` cancels PageShell's own centering — the row centers the
-            [main | rail] pair, so auto margins here would only shove the rail
-            away from the column it belongs to. */}
-        <PageShell className="mx-0 flex min-w-0 flex-1 flex-col overflow-y-auto px-8 pt-8 pb-20 sm:px-12 sm:pt-12">
-          {breadcrumb ? (
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">{breadcrumb}</div>
-              {headerActions || rightRail ? (
-                <WorkspaceHeaderActions
-                  headerActions={headerActions}
-                  rightRail={rightRail}
-                  railCollapsed={railCollapsed}
-                  onToggleRail={toggleRail}
-                />
+    <div className="flex h-full min-h-0 flex-col">
+      {/* The app-wide compact header: breadcrumb left, actions right, the
+          view tabs as its second row. Full width of the content plane; the
+          column below keeps its own 960 measure. */}
+      <PageHeader start={breadcrumb} actions={actions} />
+      <PageHeaderRow className="border-b border-border">
+        <TabNav variant="pill" aria-label="Workspace views">
+          {tabs.map((t) => (
+            <TabNavItem
+              key={t.id}
+              active={t.id === current?.id}
+              onClick={() => setActive(t.id)}
+            >
+              {t.label}
+              {typeof t.count === "number" && t.count > 0 ? (
+                <span className="text-xs tabular-nums text-faint-foreground">
+                  {t.count}
+                </span>
               ) : null}
-            </div>
-          ) : null}
+            </TabNavItem>
+          ))}
+        </TabNav>
+      </PageHeaderRow>
 
-          <nav
-            aria-label="Workspace views"
-            className="mb-12 flex flex-wrap items-center gap-0.5"
-          >
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setActive(t.id)}
-                className={cn(
-                  "flex h-7 items-center gap-1 rounded-md px-2.5 text-sm font-medium transition-colors",
-                  t.id === current?.id
-                    ? "bg-accent-pressed text-foreground"
-                    : "text-secondary-ink hover:bg-accent",
-                )}
-              >
-                {t.label}
-                {typeof t.count === "number" && t.count > 0 ? (
-                  <span className="px-1 text-xs tabular-nums text-faint-foreground">
-                    {t.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </nav>
-
-          <div className="mb-10 flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">{header}</div>
-            {!breadcrumb && (headerActions || rightRail) ? (
-              <WorkspaceHeaderActions
-                headerActions={headerActions}
-                rightRail={rightRail}
-                railCollapsed={railCollapsed}
-                onToggleRail={toggleRail}
-              />
-            ) : null}
-          </div>
-
+      <div className="flex min-h-0 w-full min-w-0 flex-1">
+        {/* The main column fills the row and its measure is left-anchored on
+            the page edge (PageShell); the rail sits at the pane's right. */}
+        <PageShell className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-8 pb-20 sm:pt-10">
+          <div className="mb-10 min-w-0">{header}</div>
           <div className="min-h-0 flex-1">{current?.content}</div>
         </PageShell>
 
         {rightRail && !railCollapsed ? (
-          <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-12 pb-20 md:flex">
+          <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-border px-6 pt-8 pb-20 md:flex">
             {rightRail}
           </aside>
         ) : null}

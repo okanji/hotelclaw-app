@@ -2311,7 +2311,7 @@ export default defineDynamic({
       if (grants.has("create_form")) {
         tools.create_form = defineTool({
           description:
-            "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section). select/multi_select need options. Created as DRAFT unless publish=true. Returns the builder link.",
+            "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section, consent). select/multi_select need options; consent is an \"I agree\" tickbox whose label is the statement (waivers, house rules). Created as DRAFT unless publish=true. Returns the builder link.",
           inputSchema: z.object({
             title: z.string().min(2).max(200),
             description: z.string().max(1000).optional(),
@@ -2332,6 +2332,7 @@ export default defineDynamic({
                     "rating",
                     "date",
                     "section",
+                    "consent",
                   ]),
                   required: z.boolean().default(false),
                   options: z.array(z.string().min(1).max(120)).max(20).optional(),

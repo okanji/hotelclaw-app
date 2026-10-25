@@ -14,9 +14,10 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader, PageHeaderRow } from "@/components/shell/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
@@ -41,14 +42,17 @@ import { MyWeekView } from "./my-week-view";
 import { InsightsAskPanel } from "./insights-ask-panel";
 import { InsightsFollowButton } from "./insights-follow-button";
 import { ApiAccessButton } from "./api-access-dialog";
+import { ScopeSwitcher } from "./scope-switcher";
 
 export type InsightsSubView = "main" | "reports";
 
 /**
- * The Insights section — its own rail section, navigated by the views listed in
- * its secondary sidebar (Overview · Work · Operations · Reports, in
- * `InsightsSection`). The active view is shared state (`useInsightsTab`) so the
- * sidebar and this surface stay in lockstep. The automatic intelligence brief
+ * The Insights section. The page owns both of its axes: the VIEW tab strip
+ * (Overview · Work · Operations · Reports) and the LENS picker in the header
+ * (`ScopeSwitcher` — property / team / project / person). The sidebar's
+ * Insights node lists the same lenses as shortcuts; both write the shared
+ * `useInsightsTab` state, so they stay in lockstep and the page works with
+ * its sidebar row collapsed. The automatic intelligence brief
  * leads Overview; the deterministic sections it cites are split across the
  * dashboard views, each drag-reorderable and hideable within its view
  * (`INSIGHT_SECTIONS` + `useDashboardLayout`, persisted per user). Reports keeps
@@ -72,7 +76,7 @@ export function InsightsView({
   // View state (active dashboard tab + lens) is shared with the secondary
   // sidebar that lists the views — see `InsightsTabProvider`. Reports is
   // URL-driven (`view`), so it isn't in the shared state; the pathname wins.
-  const { dashTab, setDashTab, scope } = useInsightsTab();
+  const { dashTab, setDashTab, scope, setScope } = useInsightsTab();
   const { data, isPending } = useQuery(
     insightsMetricsQueryOptions(propertyId, scope),
   );
@@ -108,7 +112,6 @@ export function InsightsView({
       : dashAvailable
         ? dashTab
         : "overview";
-  const activeMeta = INSIGHT_TABS.find((t) => t.id === activeTab)!;
 
   // Lens/role gating scoped to the active dashboard tab: filtered-out sections
   // keep their saved position, they just don't render (or appear in the
@@ -140,62 +143,63 @@ export function InsightsView({
   }
 
   const heading = isStaff ? "My week" : "Insights";
-  const blurb = isStaff
-    ? "Your momentum, your stuck items, and the team's weekly update."
-    : activeMeta.blurb;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
+      <PageHeader
+        title={heading}
+        icon={<LineChart />}
+        actions={
+          !isStaff ? (
+            <div className="flex items-center gap-1.5">
+              <ScopeSwitcher
+                propertyId={propertyId}
+                scope={scope}
+                onChange={setScope}
+              />
+              {role === "owner" ? (
+                <ApiAccessButton propertyId={propertyId} />
+              ) : null}
+              <InsightsFollowButton propertyId={propertyId} scope={scope} />
+              {!isReports ? (
+                <CustomizeMenu
+                  items={availableDefs}
+                  visibleCount={shown.length}
+                  isHidden={isHidden}
+                  onToggle={toggleHidden}
+                  onReset={reset}
+                />
+              ) : null}
+            </div>
+          ) : undefined
+        }
+      />
+      {!isStaff ? (
+        <PageHeaderRow>
+          <TabNav variant="pill" aria-label="Insights views">
+            {INSIGHT_TABS.filter((t) => !t.propertyOnly || isProperty).map(
+              (t) => (
+                <TabNavItem
+                  key={t.id}
+                  active={activeTab === t.id}
+                  title={t.blurb}
+                  onClick={() =>
+                    t.id === "reports"
+                      ? goReports()
+                      : goDash(t.id as InsightDashTab)
+                  }
+                >
+                  {t.label}
+                </TabNavItem>
+              ),
+            )}
+          </TabNav>
+        </PageHeaderRow>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full px-8 pt-12 pb-24 sm:px-14 sm:pt-16">
+        <div className="w-full pt-6 pb-24">
           <PageShell>
-          <SectionHeader
-            size="page"
-            className="flex-wrap gap-y-3"
-            title={heading}
-            description={blurb}
-            actions={
-              !isStaff ? (
-                <>
-                  {role === "owner" ? (
-                    <ApiAccessButton propertyId={propertyId} />
-                  ) : null}
-                  <InsightsFollowButton propertyId={propertyId} scope={scope} />
-                  {!isReports ? (
-                    <CustomizeMenu
-                      items={availableDefs}
-                      visibleCount={shown.length}
-                      isHidden={isHidden}
-                      onToggle={toggleHidden}
-                      onReset={reset}
-                    />
-                  ) : null}
-                </>
-              ) : undefined
-            }
-          />
-
-          {!isStaff ? (
-            <TabNav variant="underline" className="mt-8">
-              {INSIGHT_TABS.filter((t) => !t.propertyOnly || isProperty).map(
-                (t) => (
-                  <TabNavItem
-                    key={t.id}
-                    active={activeTab === t.id}
-                    onClick={() =>
-                      t.id === "reports"
-                        ? goReports()
-                        : goDash(t.id as InsightDashTab)
-                    }
-                  >
-                    {t.label}
-                  </TabNavItem>
-                ),
-              )}
-            </TabNav>
-          ) : null}
-
-          <div className="mt-10 @container">
+          <div className="@container">
             {isPending || !data ? (
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
                 <InsightsSkeleton />

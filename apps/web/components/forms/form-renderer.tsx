@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   computeVisibleFieldIds,
@@ -213,7 +214,7 @@ export function FormRenderer({
   // answers, signatures) span both tracks; everything else flows into the
   // grid. Falls back to one column on small screens.
   const spansBoth = (field: FormField) =>
-    ["section", "info", "long_text", "file", "signature"].includes(field.type);
+    ["section", "info", "long_text", "file", "signature", "consent"].includes(field.type);
 
   return (
     <form
@@ -258,6 +259,8 @@ export function FormRenderer({
               "space-y-2",
               !roomy && "space-y-1.5",
               twoColumn && spansBoth(field) && "sm:col-span-2",
+              // A consent statement reads as one bordered agreement block.
+              field.type === "consent" && "rounded-card p-4 shadow-ring",
             )}
           >
             <Label
@@ -268,7 +271,9 @@ export function FormRenderer({
               {field.required ? <span className="text-destructive">*</span> : null}
             </Label>
             {field.description ? (
-              <p className="text-sm text-muted-foreground">{field.description}</p>
+              <p className="text-sm whitespace-pre-line text-muted-foreground">
+                {field.description}
+              </p>
             ) : null}
             <FormFieldInput
               field={field}
@@ -667,6 +672,26 @@ export function FormFieldInput({
           onChange={onChange}
           disabled={disabled}
         />
+      );
+    case "consent":
+      return (
+        <label
+          className={cn(
+            "flex w-fit cursor-pointer items-center gap-2.5 text-sm has-disabled:cursor-default",
+            large && "text-base",
+          )}
+        >
+          <Checkbox
+            id={inputId}
+            checked={value === true}
+            disabled={disabled}
+            autoFocus={autoFocus}
+            // Unticking clears the answer rather than storing `false`, so an
+            // optional consent left unticked is simply unanswered.
+            onCheckedChange={(checked) => onChange(checked ? true : null)}
+          />
+          I agree
+        </label>
       );
     case "section":
     case "info":

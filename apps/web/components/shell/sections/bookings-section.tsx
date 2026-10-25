@@ -86,7 +86,6 @@ export function BookingsSection({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Bookings</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>

@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, FolderOpen, MessageSquare, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shell/page-header";
+import { NewIcon } from "@/components/shell/clickup-icons";
 import {
   assistantChatsKey,
   assistantChatsQueryOptions,
@@ -39,6 +42,35 @@ import { createChat } from "./actions";
 
 /** Bounded so the cookie stays small and the strip stays legible. */
 const MAX_OPEN_TABS = 12;
+
+/**
+ * Put a just-created chat at the top of the cached list so the pane that
+ * renders from that list exists immediately. Shared with the project page,
+ * which hands off to this workspace through a real navigation and would
+ * otherwise land on a tab whose row the stale cache does not hold yet.
+ */
+export function seedChat(
+  qc: QueryClient,
+  propertyId: string,
+  chat: { id: string; title: string; project_id: string | null },
+) {
+  const now = new Date().toISOString();
+  const row: AssistantChat = {
+    id: chat.id,
+    title: chat.title,
+    project_id: chat.project_id,
+    eve_session_id: null,
+    continuation_token: null,
+    pinned: false,
+    source: "user",
+    workflow_id: null,
+    last_message_at: now,
+    created_at: now,
+  };
+  qc.setQueryData<AssistantChat[]>(assistantChatsKey(propertyId), (prev) =>
+    prev?.some((c) => c.id === row.id) ? prev : [row, ...(prev ?? [])],
+  );
+}
 
 export function AssistantWorkspace({
   propertyId,
@@ -178,8 +210,19 @@ export function AssistantWorkspace({
           toast.error(result.error);
           return;
         }
-        await qc.invalidateQueries({ queryKey: assistantChatsKey(propertyId) });
+        // Seed the cache with the new row and open it IN THE SAME TICK. The
+        // first cut awaited a refetch here, which left the person staring at
+        // an emptied composer for a round trip and then a blank pane until
+        // the list caught up — the message they had just typed looked lost.
+        // The background invalidate reconciles the optimistic row.
+        seedChat(qc, propertyId, {
+          id: result.chatId,
+          title: opts.message?.slice(0, 140) || "New chat",
+          project_id: opts.projectId ?? null,
+        });
         openChat(result.chatId, { pending: opts.message });
+        if (opts.message) setHomeInput("");
+        void qc.invalidateQueries({ queryKey: assistantChatsKey(propertyId) });
       } finally {
         setCreating(false);
       }
@@ -224,6 +267,26 @@ export function AssistantWorkspace({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* With conversations open, the tab strip IS the page's top bar (the
+          chat-surface exception, like a channel header). With none open, the
+          home screen gets the app-wide compact header. */}
+      {openIds.length === 0 ? (
+        <PageHeader
+          title="Assistant"
+          icon={<NewIcon />}
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/p/${propertyId}/assistant/projects`} />}
+            >
+              <FolderOpen />
+              Projects
+            </Button>
+          }
+        />
+      ) : null}
       {openIds.length > 0 ? (
         <ChatTabs
           tabs={tabs}
@@ -274,10 +337,11 @@ export function AssistantWorkspace({
           input={homeInput}
           onInput={setHomeInput}
           busy={creating}
+          // The draft stays in the box until the chat is open — clearing it
+          // first made the prompt vanish during the create round trip.
           onSubmit={() => {
             const message = homeInput.trim();
             if (!message) return;
-            setHomeInput("");
             void startChat({ message });
           }}
           onOpenChat={(chatId) => openChat(chatId)}
@@ -327,9 +391,9 @@ function AssistantHome({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-content px-6 py-14">
-        <h1 className="text-center text-3xl font-semibold tracking-normal text-balance">
+        <h2 className="text-center text-3xl font-semibold tracking-normal text-balance">
           What can I help with?
-        </h1>
+        </h2>
         <p className="mx-auto mt-2 max-w-md text-center text-base text-pretty text-muted-foreground">
           Your assistant sees everything you do — tasks, documents, the
           calendar, bookings, your conversations, and the property brain.

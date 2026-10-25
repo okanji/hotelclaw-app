@@ -390,23 +390,10 @@
   --series-7: oklch(0.65 0.10 210);
   --series-8: oklch(0.60 0.10 140);
   --radius: 0.375rem;
-  /* Width of the icon rail (first sidebar). Sized so the longest 12px label
-     fits without ellipsis: 56px with no side padding = 56px of row.
-     History worth keeping: it was 52px with 11px labels, which broke the
-     spec's 12px floor (notion-spec §3 — nothing goes below 12px); raising
-     the labels to 12px took it to 68px, measured against SF Pro at weight
-     500 with "Assistant" as the longest string. The 2026-08-26 island
-     restyle trimmed it twice: padding slack (px-1 → px-0.5), then the
-     labels dropped to weight 400 and the "Assistant" rail label became
-     "AI", leaving "Calendar" / "My week" (~54px at 12px/400) as the
-     binding strings inside the 56px row. 2026-10-25: side padding dropped
-     (px-0.5 → px-0), rail 60px → 56px, row unchanged. Going thinner than this means
-     shortening those labels — not shaving padding.
-     RE-MEASURE THIS IF --font-sans EVER CHANGES AGAIN. */
-  --rail-width: 3.5rem;
-  /* The icon rail's surface — warm near-black chrome, same in both themes.
-     AppRail pins its local --sidebar to this so every sidebar-token consumer
-     inside it (badge ring cutouts, washes) matches. */
+  /* Warm near-black chrome, same in both themes. Formerly the icon rail's
+     surface (the rail was retired for a single Linear-style sidebar,
+     2026-10-25); kept as the one dark-plane token for any future dark
+     chrome, see DESIGN.md. */
   --rail: #211f1b;
   /* Sidebar and chrome are the SAME plane as --background (Notion's sidebar
      is not a separate card). */
@@ -492,6 +479,11 @@
      is the middle rung this app was already reaching for by hand with its old
      820px/920px/max-w-6xl one-offs. */
   --page-width: 960px;
+  /* THE page edge → `px-(--page-gutter)`. One value for the topbar, its view
+     row, `PageShell` and every full-bleed canvas, so the title, the tabs and
+     the first column of content share ONE left edge on every page (Linear).
+     Pages used to choose 16px or 40px each and the edge jumped. */
+  --page-gutter: 24px;
   /* Two-pane working surfaces → `max-w-workspace`. The pane is ~1170px at a
      1456px viewport, so this fills it without going full-bleed, and leaves a
      ~780px working column beside a 360px context rail — both usable. */
@@ -1073,5 +1065,12 @@ html[data-hotelclaw-embed] .documents-toolbar {
 @media (prefers-reduced-motion: reduce) {
   .ai-blur-in {
     animation: none;
+  }
+}
+
+/* The page gutter widens once the pane can afford it (see --page-gutter). */
+@media (min-width: 40rem) {
+  :root {
+    --page-gutter: 40px;
   }
 }

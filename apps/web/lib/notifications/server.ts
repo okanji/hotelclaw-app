@@ -23,7 +23,8 @@ export type NotificationType =
   | "insight_alert"
   | "guest_escalation"
   | "task_escalated"
-  | "ai_message";
+  | "ai_message"
+  | "project_update";
 
 export type NotificationPayload = Record<string, unknown>;
 

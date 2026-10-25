@@ -496,13 +496,14 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   )
 }
 
-// The Notion nav row (notion-spec §3/§4/§6): 30px tall, 6px radius, 8px
-// inset, 14px label at weight 500 in SECONDARY ink, 14px icon at 8px gap.
-// Hover is the warm 5% fill and NOTHING else — no label color flip, no
-// border, no shadow. The active row is that same fill at rest plus full ink
-// (no accent bar, no bold, no colored background).
+// The ClickUp nav row (measured from app.clickup.com's home sidebar,
+// 2026-10-25): 30px tall, 7px radius, 8px inset, 14px label at weight 400,
+// 16px icon in TERTIARY ink at a 10px gap; hover lifts the icon to secondary
+// ink. Hover is the warm 5% fill — no label color flip, no border, no shadow.
+// The active row is that same fill at rest plus full ink (no accent bar, no
+// bold, no colored background).
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-medium text-sidebar-foreground outline-hidden transition-colors group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-faint-foreground data-active:[&_svg]:text-sidebar-accent-foreground [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-[7px] px-2 text-left text-sm font-normal text-sidebar-foreground outline-hidden transition-colors group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground hover:[&_svg]:text-secondary-ink data-active:[&_svg]:text-sidebar-accent-foreground [&>span:last-child]:truncate",
   {
     variants: {
       variant: {

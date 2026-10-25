@@ -138,7 +138,7 @@ export function TeamDetail({
             </div>
           </div>
         </div>
-        <Button
+        <Button nativeButton={false}
           variant="outline"
           size="sm"
           render={<Link href={`/p/${propertyId}/tasks?space=${team.id}`} />}

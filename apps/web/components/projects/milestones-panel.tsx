@@ -17,6 +17,7 @@ import {
   deleteMilestone,
   updateMilestone,
 } from "./milestone-actions";
+import type { MilestoneProgress } from "@/lib/initiatives/planning";
 import { OverviewSection } from "./workspace-shell";
 
 const MS_PER_DAY = 86_400_000;
@@ -87,10 +88,17 @@ export function useMilestonesRealtime(projectId: string) {
 export function MilestonesPanel({
   projectId,
   action,
+  progress,
 }: {
   projectId: string;
   /** Extra header action (the Overview passes nothing; the rail may). */
   action?: React.ReactNode;
+  /**
+   * Task progress per milestone id (`milestoneProgress` over the project's
+   * tasks with `milestone_id`) — renders Linear's "67% of 3". Manual
+   * reach/unreach stays the milestone's own state; the % is evidence.
+   */
+  progress?: Map<string, MilestoneProgress>;
 }) {
   const qc = useQueryClient();
   const { data: milestones = [] } = useQuery(projectMilestonesQueryOptions(projectId));
@@ -187,6 +195,7 @@ export function MilestonesPanel({
             const done = Boolean(m.completed_at);
             const n = daysUntil(m.due_date);
             const late = !done && n < 0;
+            const prog = progress?.get(m.id);
             return (
               <li
                 key={m.id}
@@ -219,6 +228,22 @@ export function MilestonesPanel({
                 >
                   {m.name}
                 </span>
+                {prog ? (
+                  <span
+                    className="flex shrink-0 items-center gap-2"
+                    title={`${prog.done} of ${prog.total} issues done`}
+                  >
+                    <span className="hidden h-1 w-12 overflow-hidden rounded-full bg-muted sm:block">
+                      <span
+                        className="block h-full rounded-full bg-success/90"
+                        style={{ width: `${prog.pct}%` }}
+                      />
+                    </span>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {prog.pct}% of {prog.total}
+                    </span>
+                  </span>
+                ) : null}
                 <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                   {formatMilestoneDate(m.due_date)}
                 </span>

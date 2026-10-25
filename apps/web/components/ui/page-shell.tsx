@@ -25,6 +25,17 @@ import { cn } from "@/lib/utils"
  * | `prose`   | 720px     | reading surfaces: the document editor, brain pages, rendered reports, meeting notes |
  * | `bleed`   | none      | canvas surfaces that ARE the data view: kanban board, calendar grid, timetable, floor plan, workload. The masthead goes full width too, so the edge still holds. |
  */
+/**
+ * The page gutter — the content's distance from the pane edge whenever the
+ * pane is narrower than the measure. Built in (not per page) so every page
+ * sits at the same left edge: pages used to choose between 16px (`px-4` on
+ * their scroll box) and 40px (`px-10` on the shell), and the content jumped
+ * when you moved between them. The value is the `--page-gutter` token, which
+ * `PageHeader`, `PageHeaderRow` and the bleed canvases use too — so the title,
+ * the tabs and the content share one left edge.
+ */
+export const PAGE_GUTTER = "px-(--page-gutter)"
+
 function PageShell({
   width = "page",
   className,
@@ -33,8 +44,7 @@ function PageShell({
 }: React.ComponentProps<"div"> & {
   width?: "page" | "prose" | "bleed"
 }) {
-  // TWO elements on purpose. The page's own gutter (`className="px-10 py-8"`)
-  // goes on the OUTER box; the measure goes on the INNER one. If the padding
+  // TWO elements on purpose. The gutter (PAGE_GUTTER) goes on the OUTER box; the measure goes on the INNER one. If the padding
   // sat inside the max-width instead, every page would render a different
   // content width and a different left edge depending on how much padding it
   // happened to declare — measured before this fix: /documents was 960px wide
@@ -46,7 +56,7 @@ function PageShell({
     <div
       data-slot="page-shell"
       data-width={width}
-      className={cn("w-full", className)}
+      className={cn("w-full", width !== "bleed" && PAGE_GUTTER, className)}
       {...props}
     >
       {width === "bleed" ? (
@@ -55,7 +65,11 @@ function PageShell({
         <div
           data-slot="page-shell-measure"
           className={cn(
-            "mx-auto w-full",
+            // Anchored LEFT, not centred: the measure caps line length, but the
+            // content starts at the same edge as the page title and tabs above
+            // it. Prose is the exception — a document reads centred.
+            "w-full",
+            width === "prose" && "mx-auto",
             width === "page" && "max-w-page",
             width === "prose" && "max-w-content"
           )}

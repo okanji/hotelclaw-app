@@ -196,7 +196,7 @@ export function EventPageDialog({
 
         <DialogFooter className="sm:justify-between">
           {pageUrl ? (
-            <Button
+            <Button nativeButton={false}
               variant="ghost"
               size="sm"
               render={<a href={pageUrl} target="_blank" rel="noreferrer" />}

@@ -1,3 +1,7 @@
+// This module holds the service-role client (bypasses RLS). `server-only`
+// makes any import from a client component a BUILD error instead of a
+// silent `undefined` key — see lib/security/__tests__/secret-env-boundary.
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/db/types";

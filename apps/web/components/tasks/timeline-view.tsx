@@ -474,7 +474,7 @@ export function TimelineView({
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
       {/* Toolbar — 36px, matching the board toolbar above it. */}
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-(--page-gutter)">
         <ToggleGroup
           value={[zoom]}
           onValueChange={(v) => {
@@ -536,7 +536,7 @@ export function TimelineView({
           style={{ width: LABEL_WIDTH }}
         >
           <div
-            className="sticky top-0 z-10 flex items-end border-b border-border bg-card px-3 pb-1.5 text-xs font-medium text-faint-foreground"
+            className="sticky top-0 z-10 flex items-end border-b border-border bg-card pl-(--page-gutter) pr-3 pb-1.5 text-xs font-medium text-faint-foreground"
             style={{ height: AXIS_HEIGHT }}
           >
             Task
@@ -547,7 +547,7 @@ export function TimelineView({
                 return (
                   <div
                     key="ms"
-                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted/60 px-3 text-xs font-medium text-muted-foreground"
+                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted/60 pl-(--page-gutter) pr-3 text-xs font-medium text-muted-foreground"
                     style={{ top: r.y, height: r.h }}
                   >
                     <Diamond className="size-3" />
@@ -559,7 +559,7 @@ export function TimelineView({
                 return (
                   <header
                     key={`g-${r.group.key}`}
-                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted px-3"
+                    className="absolute inset-x-0 flex items-center gap-2 border-b border-border bg-muted pl-(--page-gutter) pr-3"
                     style={{ top: r.y, height: r.h }}
                   >
                     {r.group.icon}
@@ -573,7 +573,7 @@ export function TimelineView({
                 return (
                   <div
                     key={`h-${i}`}
-                    className="absolute inset-x-0 flex items-center border-b border-border px-3 text-xs text-faint-foreground"
+                    className="absolute inset-x-0 flex items-center border-b border-border pl-(--page-gutter) pr-3 text-xs text-faint-foreground"
                     style={{ top: r.y, height: r.h }}
                   >
                     {r.text}
@@ -585,7 +585,7 @@ export function TimelineView({
                   key={r.task.id}
                   type="button"
                   onClick={() => openTask(r.task.id)}
-                  className="absolute inset-x-0 flex items-center gap-2 border-b border-border px-3 text-left transition-colors hover:bg-accent"
+                  className="absolute inset-x-0 flex items-center gap-2 border-b border-border pl-(--page-gutter) pr-3 text-left transition-colors hover:bg-accent"
                   style={{ top: r.y, height: r.h }}
                 >
                   <StatusIcon status={r.task.status} className="size-3.5 shrink-0" />

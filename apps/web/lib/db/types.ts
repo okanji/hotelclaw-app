@@ -95,7 +95,11 @@ export type EntityColor =
 export type ProjectStatus = "active" | "planned" | "completed" | "archived";
 /** Who performed an `activity_log` row (migration 0106). */
 export type ActivityActorKind = "user" | "system" | "workflow" | "ai";
-export type ActivityEntityKind = "task" | "project" | "milestone";
+export type ActivityEntityKind = "task" | "project" | "milestone" | "initiative" | "cycle";
+/** Linear-parity planning layer (migration 0111). */
+export type TriageState = "pending" | "accepted" | "declined";
+export type InitiativeStatus = "planned" | "active" | "completed";
+export type UpdateHealth = "on_track" | "at_risk" | "off_track";
 export type WorkflowMode = "instant" | "durable";
 // Kept in sync with the CHECKs in migration 0057_forms.sql.
 export type FormStatus = "draft" | "published" | "closed";
@@ -656,6 +660,14 @@ export interface Database {
           number: number;
           /** Stamped once the due-soon reminder went out (0110); re-armed when due_at moves. */
           due_reminder_sent_at: string | null;
+          /** Planning layer (0111): points, cycle, milestone, triage queue. */
+          estimate: number | null;
+          cycle_id: string | null;
+          milestone_id: string | null;
+          triage_state: TriageState | null;
+          triaged_by: string | null;
+          triaged_at: string | null;
+          triage_note: string | null;
           source: RecordSource;
           source_workflow_id: string | null;
           source_workflow_run_id: string | null;
@@ -686,6 +698,13 @@ export interface Database {
           archived_at?: string | null;
           number?: number;
           due_reminder_sent_at?: string | null;
+          estimate?: number | null;
+          cycle_id?: string | null;
+          milestone_id?: string | null;
+          triage_state?: TriageState | null;
+          triaged_by?: string | null;
+          triaged_at?: string | null;
+          triage_note?: string | null;
           source?: RecordSource;
           source_workflow_id?: string | null;
           source_workflow_run_id?: string | null;
@@ -710,6 +729,13 @@ export interface Database {
           recurrence_of: string | null;
           archived_at: string | null;
           due_reminder_sent_at: string | null;
+          estimate: number | null;
+          cycle_id: string | null;
+          milestone_id: string | null;
+          triage_state: TriageState | null;
+          triaged_by: string | null;
+          triaged_at: string | null;
+          triage_note: string | null;
         }>;
         Relationships: [];
       };
@@ -3515,6 +3541,164 @@ export interface Database {
           completed_at: string | null;
           position: number;
         }>;
+        Relationships: [];
+      };
+      // ── Planning layer (migration 0111) ───────────────────────────────
+      cycles: {
+        Row: {
+          id: string;
+          property_id: string;
+          /** Team running the cadence; null = property-wide. */
+          space_id: string | null;
+          number: number;
+          name: string | null;
+          /** Inclusive local dates (YYYY-MM-DD). */
+          starts_on: string;
+          ends_on: string;
+          completed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          space_id?: string | null;
+          number: number;
+          name?: string | null;
+          starts_on: string;
+          ends_on: string;
+          completed_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string | null;
+          starts_on: string;
+          ends_on: string;
+          completed_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      cycle_settings: {
+        Row: {
+          id: string;
+          property_id: string;
+          space_id: string | null;
+          enabled: boolean;
+          duration_weeks: number;
+          /** 0 = Sunday … 6 = Saturday. */
+          start_weekday: number;
+          upcoming_count: number;
+          auto_rollover: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          space_id?: string | null;
+          enabled?: boolean;
+          duration_weeks?: number;
+          start_weekday?: number;
+          upcoming_count?: number;
+          auto_rollover?: boolean;
+        };
+        Update: Partial<{
+          enabled: boolean;
+          duration_weeks: number;
+          start_weekday: number;
+          upcoming_count: number;
+          auto_rollover: boolean;
+        }>;
+        Relationships: [];
+      };
+      initiatives: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          description: string | null;
+          icon: string | null;
+          color: EntityColor;
+          status: InitiativeStatus;
+          owner_id: string | null;
+          lead_space_id: string | null;
+          target_date: string | null;
+          position: number;
+          archived_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          description?: string | null;
+          icon?: string | null;
+          color?: EntityColor;
+          status?: InitiativeStatus;
+          owner_id?: string | null;
+          lead_space_id?: string | null;
+          target_date?: string | null;
+          position?: number;
+          archived_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          description: string | null;
+          icon: string | null;
+          color: EntityColor;
+          status: InitiativeStatus;
+          owner_id: string | null;
+          lead_space_id: string | null;
+          target_date: string | null;
+          position: number;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      initiative_projects: {
+        Row: {
+          initiative_id: string;
+          project_id: string;
+          property_id: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          initiative_id: string;
+          project_id: string;
+          property_id: string;
+          position?: number;
+        };
+        Update: Partial<{ position: number }>;
+        Relationships: [];
+      };
+      /** Written status updates — exactly one of project_id / initiative_id. */
+      project_updates: {
+        Row: {
+          id: string;
+          property_id: string;
+          project_id: string | null;
+          initiative_id: string | null;
+          author_id: string | null;
+          health: UpdateHealth;
+          body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          project_id?: string | null;
+          initiative_id?: string | null;
+          author_id: string;
+          health: UpdateHealth;
+          body?: string;
+        };
+        Update: Partial<{ health: UpdateHealth; body: string }>;
         Relationships: [];
       };
     };

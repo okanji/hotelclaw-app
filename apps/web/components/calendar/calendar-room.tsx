@@ -19,18 +19,24 @@ import {
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
   addDays,
   addMinutes,
-  endOfDay,
-  endOfWeek,
   MINUTES_PER_DAY,
   snapToGrain,
   startOfDay,
   startOfWeek,
   weekDays,
 } from "@/lib/calendar/time";
+import {
+  CALENDAR_VIEWS,
+  shiftFocusDate,
+  viewRange,
+  VIEW_SHORTCUTS,
+  type CalendarView,
+} from "@/lib/calendar/view-range";
 import {
   calendarEventsQueryOptions,
   freeBusyQueryOptions,
@@ -44,6 +50,8 @@ import { rescheduleTask } from "@/components/tasks/actions";
 import { useCalendarPrefs } from "./calendar-prefs-context";
 import { WeekGrid } from "./week-grid";
 import { MonthGrid } from "./month-grid";
+import { YearGrid } from "./year-grid";
+import { CalendarSourcesMenu } from "./calendar-sources-menu";
 import { EventDialog } from "./event-dialog";
 import { TeamOverlayPanel } from "./team-overlay-panel";
 import {
@@ -60,8 +68,16 @@ import { CalendarAiKnowledge } from "./calendar-ai-knowledge";
 import { CalendarAiTools } from "./calendar-ai-tools";
 import type { CalendarEvent, TaskEvent } from "@/lib/calendar/types";
 
-/** "May 18 – 24, 2026" / "May 18, 2026" / "May 2026". */
-function formatRange(view: "day" | "week" | "month", focus: Date): string {
+const VIEW_LABEL: Record<CalendarView, string> = {
+  day: "Day",
+  week: "Week",
+  month: "Month",
+  year: "Year",
+};
+
+/** "May 18 – 24, 2026" / "May 18, 2026" / "May 2026" / "2026". */
+function formatRange(view: CalendarView, focus: Date): string {
+  if (view === "year") return String(focus.getFullYear());
   if (view === "day") {
     return focus.toLocaleDateString(undefined, {
       weekday: "long",
@@ -110,34 +126,44 @@ export function CalendarRoom({
   propertyId: string;
   currentUserId: string;
 }) {
-  const { focusDate, setFocusDate, view, hiddenSources, overlayUsers } =
-    useCalendarPrefs();
+  const {
+    focusDate,
+    setFocusDate,
+    view,
+    setView,
+    hiddenSources,
+    overlayUsers,
+  } = useCalendarPrefs();
 
-  // Query a slightly larger window than the visible viewport so an event
-  // partially crossing the boundary stays in the cache when the user pages.
+  // The fetched window per view (`viewRange`: month pads ±1 week for the
+  // grid's spill-over rows; year is Jan 1 → next Jan 1 for the density map).
   const range = useMemo(() => {
-    if (view === "day") {
-      const start = startOfDay(focusDate);
-      return { from: start.toISOString(), to: endOfDay(start).toISOString() };
-    }
-    if (view === "month") {
-      const monthStart = new Date(focusDate);
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-      const monthEnd = new Date(monthStart);
-      monthEnd.setMonth(monthEnd.getMonth() + 1);
-      // Pad ±1 week so the surrounding weeks of the 6-row grid have data.
-      return {
-        from: addDays(monthStart, -7).toISOString(),
-        to: addDays(monthEnd, 7).toISOString(),
-      };
-    }
-    const start = startOfWeek(focusDate);
-    return {
-      from: start.toISOString(),
-      to: endOfWeek(focusDate).toISOString(),
-    };
+    const r = viewRange(view, focusDate);
+    return { from: r.from.toISOString(), to: r.to.toISOString() };
   }, [focusDate, view]);
+
+  // D / W / M / Y switch views (Google Calendar's letters). Bare keys only:
+  // never while typing, never with a modifier, never inside an open dialog.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) ||
+          el.closest("[role=dialog]"))
+      ) {
+        return;
+      }
+      const next = VIEW_SHORTCUTS[e.key.toLowerCase()];
+      if (!next) return;
+      e.preventDefault();
+      setView(next);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setView]);
 
   useCalendarRealtime(propertyId, currentUserId);
 
@@ -357,7 +383,7 @@ export function CalendarRoom({
     broadcast({ type: "calendar-invalidate" });
   }
 
-  // Apply the sidebar's hide-checkbox filter client-side. The query stays
+  // Apply the Calendars popover's show/hide filter client-side. The query stays
   // dense; CSS-level filtering keeps round-trips at zero when the user
   // toggles a calendar's visibility.
   const events = useMemo<CalendarEvent[]>(() => {
@@ -386,11 +412,7 @@ export function CalendarRoom({
   >(null);
 
   function shiftFocus(direction: -1 | 1) {
-    const next = new Date(focusDate);
-    if (view === "day") next.setDate(next.getDate() + direction);
-    else if (view === "month") next.setMonth(next.getMonth() + direction);
-    else next.setDate(next.getDate() + 7 * direction);
-    setFocusDate(next);
+    setFocusDate(shiftFocusDate(view, focusDate, direction));
   }
 
   const days = view === "week" ? weekDays(focusDate) : [startOfDay(focusDate)];
@@ -415,7 +437,7 @@ export function CalendarRoom({
     <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-x-clip">
       {/* Topbar: transparent, no fill, no bottom rule — the grid's own
           all-day band is the first line on the page (notion-spec §4). */}
-      <header className="flex h-11 shrink-0 items-center justify-between gap-3 px-4">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3 px-(--page-gutter)">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -429,7 +451,7 @@ export function CalendarRoom({
               variant="ghost"
               size="icon-sm"
               onClick={() => shiftFocus(-1)}
-              aria-label="Previous"
+              aria-label={`Previous ${view}`}
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -437,7 +459,7 @@ export function CalendarRoom({
               variant="ghost"
               size="icon-sm"
               onClick={() => shiftFocus(1)}
-              aria-label="Next"
+              aria-label={`Next ${view}`}
             >
               <ChevronRight className="size-4" />
             </Button>
@@ -447,6 +469,28 @@ export function CalendarRoom({
           </h1>
         </div>
         <div className="flex items-center gap-3">
+          <ToggleGroup
+            value={[view]}
+            onValueChange={(v) => {
+              const next = (v as CalendarView[])[0];
+              if (next) setView(next);
+            }}
+            variant="outline"
+            size="sm"
+            spacing={0}
+            aria-label="Calendar view"
+          >
+            {CALENDAR_VIEWS.map((v) => (
+              <ToggleGroupItem
+                key={v}
+                value={v}
+                title={`${VIEW_LABEL[v]} view (${v[0].toUpperCase()})`}
+              >
+                {VIEW_LABEL[v]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <CalendarSourcesMenu propertyId={propertyId} />
           <CalendarPresenceBar />
           <AutomationsButton propertyId={propertyId} feature="calendar" />
           <Button
@@ -473,7 +517,16 @@ export function CalendarRoom({
 
       <div className="flex min-h-0 flex-1">
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          {view === "month" ? (
+          {view === "year" ? (
+            <YearGrid
+              focusDate={focusDate}
+              events={events}
+              onSelectDay={(d) => {
+                setFocusDate(d);
+                setView("day");
+              }}
+            />
+          ) : view === "month" ? (
             <MonthGrid
               focusDate={focusDate}
               events={events}

@@ -1,9 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Archive, MessageSquareText, Plus, Settings2, Video } from "lucide-react";
+import { Archive, Plus, Settings2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { channelCreationQueryOptions } from "@/lib/query/chat-queries";
 import {
@@ -20,13 +20,13 @@ import { CreateChannelDialog } from "@/components/chat/create-channel-dialog";
 import { ArchivedChannelsDialog } from "@/components/chat/archived-channels-dialog";
 import { ChannelPolicyDialog } from "@/components/chat/channel-policy-dialog";
 import { InboxSidebarLink } from "@/components/chat/inbox/inbox-sidebar-link";
+import { RepliesIcon } from "@/components/shell/clickup-icons";
 import { DmsSection } from "./dms-section";
 
 /**
- * Secondary-sidebar content for the Chat section: Mentions + Threads quick
- * links, the direct-message list, then the team channel list with create /
- * archived controls. DMs also have their own rail section — surfacing them
- * here too mirrors Slack, where channels and DMs share one pane.
+ * The Chat node's children: Mentions + Replies quick links, the team channel
+ * list with create / archived controls, then direct messages — channels and
+ * DMs share one pane, as in Slack.
  */
 export function ChatSection({
   propertyId,
@@ -38,6 +38,7 @@ export function ChatSection({
   isChannelAdmin: boolean;
 }) {
   const pathname = usePathname();
+  const threadsHref = `/p/${propertyId}/threads`;
   const [channelOpen, setChannelOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -56,8 +57,29 @@ export function ChatSection({
         <SidebarGroupContent>
           <SidebarMenu>
             <InboxSidebarLink propertyId={propertyId} userId={userId} />
-            <ThreadsLink propertyId={propertyId} pathname={pathname} />
-            <MeetingsLink propertyId={propertyId} pathname={pathname} />
+            <SidebarMenuItem>
+              {/* `threads/page.tsx` is null and `<ThreadsSurface>` in the
+                  property layout owns rendering, so a plain click is a
+                  zero-roundtrip `pushState`; modifier-clicks fall through. */}
+              <SidebarMenuButton
+                render={
+                  <Link
+                    href={threadsHref}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                      e.preventDefault();
+                      window.history.pushState(null, "", threadsHref);
+                      window.dispatchEvent(new Event("hotelclaw:pathname"));
+                    }}
+                  />
+                }
+                isActive={pathname.startsWith(threadsHref)}
+                tooltip="Replies"
+              >
+                <RepliesIcon />
+                <span>Replies</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -132,68 +154,5 @@ export function ChatSection({
         </>
       ) : null}
     </>
-  );
-}
-
-/**
- * Threads link. `threads/page.tsx` is null and `<ThreadsSurface>` in the
- * property layout owns rendering, so clicking is a zero-roundtrip
- * `pushState` — same instant feel as a channel switch. Modifier-clicks fall
- * through so "open in new tab" still works via the underlying anchor.
- */
-function ThreadsLink({
-  propertyId,
-  pathname,
-}: {
-  propertyId: string;
-  pathname: string;
-}) {
-  const href = `/p/${propertyId}/threads`;
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    window.history.pushState(null, "", href);
-    window.dispatchEvent(new Event("hotelclaw:pathname"));
-  }
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<Link href={href} onClick={handleClick} />}
-        isActive={pathname.startsWith(href)}
-        tooltip="Threads"
-      >
-        <MessageSquareText />
-        <span>Threads</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
-
-/**
- * Cross-section discovery link to the meetings index. Meetings *are* tied
- * to channels (started from the chat header), so it makes sense to also
- * surface them in the chat sidebar — not just on the dedicated rail icon.
- * Unlike Threads/Inbox, the meetings page isn't a persistent surface, so
- * this hop is a real `router.push` (Link default), not a pushState.
- */
-function MeetingsLink({
-  propertyId,
-  pathname,
-}: {
-  propertyId: string;
-  pathname: string;
-}) {
-  const href = `/p/${propertyId}/meetings`;
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<Link href={href} />}
-        isActive={pathname.startsWith(href)}
-        tooltip="Meetings"
-      >
-        <Video />
-        <span>Meetings</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
   );
 }

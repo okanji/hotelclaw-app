@@ -164,7 +164,7 @@ export function TaskCreatePage({
       />
       <div className="flex-1 overflow-y-auto">
         {/* One page width for the whole create surface — PageShell owns it. */}
-        <PageShell className="px-10 pt-16 pb-12">
+        <PageShell className="pt-16 pb-12">
         <form
           onSubmit={(e) => {
             e.preventDefault();

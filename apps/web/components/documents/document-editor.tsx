@@ -601,7 +601,7 @@ function EditorInner({
           <Toolbar.SectionCollaboration />
         </Toolbar>
       </div>
-      <div className="flex-1 overflow-auto px-6 pb-24">
+      <div className="flex-1 overflow-auto pb-24">
         <AiReviewBar editor={editor} />
         <ThreadIndicatorEditorContext.Provider value={editor}>
           {/* The document IS the reading surface: header (cover/icon/hover

@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
+  ArrowRight,
   ClipboardList,
   Copy,
+  LayoutTemplate,
   MessageSquareShare,
   MoreHorizontal,
   PenLine,
@@ -17,7 +19,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AutomationsButton } from "@/components/workflows/automations-button";
-import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader } from "@/components/shell/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,7 +34,9 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -41,8 +46,9 @@ import { GenerateFormDialog } from "./generate-form-dialog";
 import { ShareFormDialog } from "./share-form-dialog";
 import { PinFormDialog } from "./pin-form-dialog";
 import { createForm, deleteForm } from "./actions";
+import { inputFields, parseFormSchema } from "@/lib/forms/schema";
+import { STARTER_FORMS, type StarterForm } from "@/lib/forms/templates";
 import type { FormStatus } from "@/lib/db/types";
-import { PageShell } from "@/components/ui/page-shell";
 
 export type FormListItem = {
   id: string;
@@ -58,9 +64,14 @@ export type FormListItem = {
   updated_at: string;
 };
 
-/** Forms index — cards for every form in the property, plus create/AI entry
- *  points. Server actions handle writes; `router.refresh()` re-runs the
- *  server fetch so counts and rows stay authoritative. */
+/**
+ * Forms library — the studio platform's library layout under Linear's
+ * compact page header: one card per form that says what it is in plain
+ * words (who answers, how often, whether it needs a signature, its status)
+ * with an "Edit form" action, plus starter forms so a property has a waiver
+ * and a maintenance request on day one. Server actions handle writes;
+ * `router.refresh()` re-runs the server fetch so counts stay authoritative.
+ */
 export function FormsList({
   propertyId,
   forms,
@@ -77,79 +88,122 @@ export function FormsList({
   const [deleting, setDeleting] = useState<FormListItem | null>(null);
   const [sharing, setSharing] = useState<FormListItem | null>(null);
   const [pinning, setPinning] = useState<FormListItem | null>(null);
+  const [creatingStarter, startStarter] = useTransition();
   const base = `/p/${propertyId}/forms`;
 
   // The Forms section sidebar deep-links the create flows (`?new=1` /
   // `?ai=1`). React to the param on every navigation (not just mount — the
   // component stays mounted when only the query string changes), then strip
   // it so closing the dialog leaves a clean URL and the link works again.
+  const wantsNew = params.get("new") === "1";
+  const wantsAi = params.get("ai") === "1";
+  const paramsKey = params.toString();
+  const [seenParams, setSeenParams] = useState<string | null>(null);
+  if (paramsKey !== seenParams) {
+    setSeenParams(paramsKey);
+    if (wantsNew) setNewOpen(true);
+    if (wantsAi) setGenerateOpen(true);
+  }
   useEffect(() => {
-    if (params.get("new") === "1") setNewOpen(true);
-    if (params.get("ai") === "1") setGenerateOpen(true);
-    if (params.get("new") === "1" || params.get("ai") === "1") {
-      window.history.replaceState(null, "", base);
-    }
-  }, [params, base]);
+    if (wantsNew || wantsAi) window.history.replaceState(null, "", base);
+  }, [wantsNew, wantsAi, base]);
+
+  function createStarter(starter: StarterForm) {
+    startStarter(async () => {
+      const result = await createForm({
+        propertyId,
+        title: starter.title,
+        description: starter.description,
+        schema: starter.schema,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${starter.title} added — edit the wording, then publish`);
+      router.push(`${base}/${result.formId}`);
+    });
+  }
+
+  const published = forms.filter((f) => f.status === "published").length;
 
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <SectionHeader
-        size="page"
-        className="flex-wrap gap-y-3"
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
         title="Forms"
-        description="Build intake and feedback forms for the team — maintenance requests, surveys, checklists. Publish one and share the fill link, or let a workflow react to submissions."
+        icon={<ClipboardList />}
+        meta={
+          forms.length > 0 ? (
+            <span className="tabular-nums">
+              {forms.length} {forms.length === 1 ? "form" : "forms"} · {published} published
+            </span>
+          ) : null
+        }
         actions={
-          <>
-            <AutomationsButton
-              propertyId={propertyId}
-              feature="forms"
-              variant="outline"
-            />
-            <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+          <div className="flex items-center gap-1.5">
+            <AutomationsButton propertyId={propertyId} feature="forms" />
+            <StarterMenu onPick={createStarter} disabled={creatingStarter} />
+            <Button variant="ghost" size="sm" onClick={() => setGenerateOpen(true)}>
               <Sparkles data-slot="icon" />
-              Generate with AI
+              <span className="hidden sm:inline">Draft with AI</span>
             </Button>
-            <Button onClick={() => setNewOpen(true)}>
+            <Button size="sm" onClick={() => setNewOpen(true)}>
               <Plus data-slot="icon" />
               New form
             </Button>
-          </>
+          </div>
         }
       />
 
-      {/* Masthead and content separate by WHITESPACE. The full-width rule
-          that used to sit here read as a seam under a 720px document
-          column (notion-spec-v2 §1/§3). */}
-      <div className="h-10" />
+      <div className="@container flex-1 overflow-y-auto px-(--page-gutter) pt-2 pb-12">
+        {forms.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title="No forms yet"
+            className="mt-8"
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <StarterMenu
+                  onPick={createStarter}
+                  disabled={creatingStarter}
+                  label="Start from a template"
+                  variant="outline"
+                />
+                <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}>
+                  <Sparkles data-slot="icon" />
+                  Draft with AI
+                </Button>
+                <Button size="sm" onClick={() => setNewOpen(true)}>
+                  <Plus data-slot="icon" />
+                  New form
+                </Button>
+              </div>
+            }
+          >
+            Start from a waiver, maintenance request or incident report and edit
+            the wording, describe what you need and let AI draft it, or build your
+            own.
+          </EmptyState>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
+            {forms.map((form) => (
+              <FormCard
+                key={form.id}
+                form={form}
+                href={`${base}/${form.id}`}
+                fillHref={`${base}/${form.id}/fill`}
+                responseCount={responseCounts[form.id] ?? 0}
+                propertyId={propertyId}
+                onDelete={() => setDeleting(form)}
+                onShare={() => setSharing(form)}
+                onPin={() => setPinning(form)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-      {forms.length === 0 ? (
-        <EmptyState
-          onCreate={() => setNewOpen(true)}
-          onGenerate={() => setGenerateOpen(true)}
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {forms.map((form) => (
-            <FormCard
-              key={form.id}
-              form={form}
-              href={`${base}/${form.id}`}
-              fillHref={`${base}/${form.id}/fill`}
-              responseCount={responseCounts[form.id] ?? 0}
-              propertyId={propertyId}
-              onDelete={() => setDeleting(form)}
-              onShare={() => setSharing(form)}
-              onPin={() => setPinning(form)}
-            />
-          ))}
-        </div>
-      )}
-
-      <NewFormDialog
-        propertyId={propertyId}
-        open={newOpen}
-        onOpenChange={setNewOpen}
-      />
+      <NewFormDialog propertyId={propertyId} open={newOpen} onOpenChange={setNewOpen} />
       <GenerateFormDialog
         propertyId={propertyId}
         open={generateOpen}
@@ -187,7 +241,62 @@ export function FormsList({
           router.refresh();
         }}
       />
-    </PageShell>
+    </div>
+  );
+}
+
+function StarterMenu({
+  onPick,
+  disabled,
+  label = "Templates",
+  variant = "ghost",
+}: {
+  onPick: (starter: StarterForm) => void;
+  disabled?: boolean;
+  label?: string;
+  variant?: "ghost" | "outline";
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant={variant} size="sm" disabled={disabled} />}
+      >
+        <LayoutTemplate data-slot="icon" />
+        <span className={variant === "ghost" ? "hidden sm:inline" : undefined}>{label}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-72">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+            Starter forms — added as drafts
+          </DropdownMenuLabel>
+          {STARTER_FORMS.map((starter) => (
+            <DropdownMenuItem
+              key={starter.key}
+              onClick={() => onPick(starter)}
+              className="items-start"
+            >
+              <span aria-hidden className="text-base leading-5">
+                {starter.icon}
+              </span>
+              <span className="grid gap-0.5">
+                <span className="text-sm">{starter.title}</span>
+                <span className="text-xs text-muted-foreground">{starter.description}</span>
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** One plain-words row on a library card. */
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 text-sm">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="truncate text-right">{value}</dd>
+    </div>
   );
 }
 
@@ -212,6 +321,9 @@ function FormCard({
 }) {
   const router = useRouter();
   const [duplicating, startDuplicate] = useTransition();
+  const schema = parseFormSchema(form.schema);
+  const questions = inputFields(schema).length;
+  const signs = schema.fields.some((f) => f.type === "signature");
 
   function duplicate() {
     startDuplicate(async () => {
@@ -231,114 +343,98 @@ function FormCard({
   }
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent">
-      <Link href={href} className="absolute inset-0" aria-label={form.title} />
+    <article className="group flex flex-col gap-4 rounded-card bg-card p-5 shadow-card">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <TintIcon tone="honey">
-            {form.icon || <ClipboardList />}
-          </TintIcon>
+        <div className="flex min-w-0 items-start gap-3">
+          <TintIcon tone="honey">{form.icon || <ClipboardList />}</TintIcon>
           <div className="min-w-0">
-            <p className="truncate text-base leading-6 font-normal">{form.title}</p>
-            {form.description ? (
-              <p className="truncate text-sm text-muted-foreground">
-                {form.description}
-              </p>
-            ) : null}
+            <Link
+              href={href}
+              className="block truncate text-base font-medium hover:underline hover:underline-offset-2"
+            >
+              {form.title}
+            </Link>
+            <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">
+              {form.description || "A form you built."}
+            </p>
           </div>
         </div>
-        <div className="relative z-10 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-                  aria-label="Form actions"
-                />
-              }
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push(href)}>
-                <PenLine data-slot="icon" />
-                Open
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                aria-label="Form actions"
+              />
+            }
+          >
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push(href)}>
+              <PenLine data-slot="icon" />
+              Edit
+            </DropdownMenuItem>
+            {form.status === "published" ? (
+              <DropdownMenuItem onClick={() => router.push(fillHref)}>
+                <ClipboardList data-slot="icon" />
+                Fill
               </DropdownMenuItem>
-              {form.status === "published" ? (
-                <DropdownMenuItem onClick={() => router.push(fillHref)}>
-                  <ClipboardList data-slot="icon" />
-                  Fill
-                </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem onClick={duplicate} disabled={duplicating}>
-                <Copy data-slot="icon" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onShare}>
-                <MessageSquareShare data-slot="icon" />
-                Share to chat
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onPin}>
-                <Pin data-slot="icon" />
-                Pin to space
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2 data-slot="icon" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            ) : null}
+            <DropdownMenuItem onClick={duplicate} disabled={duplicating}>
+              <Copy data-slot="icon" />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onShare}>
+              <MessageSquareShare data-slot="icon" />
+              Share to chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onPin}>
+              <Pin data-slot="icon" />
+              Pin to space
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 data-slot="icon" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <FormStatusBadge status={form.status} />
-        <span>
-          {responseCount} {responseCount === 1 ? "response" : "responses"}
-        </span>
-        <span>
-          {new Date(form.created_at).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </span>
-      </div>
-    </div>
-  );
-}
 
-function EmptyState({
-  onCreate,
-  onGenerate,
-}: {
-  onCreate: () => void;
-  onGenerate: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <ClipboardList className="size-5 text-faint-foreground" aria-hidden />
-      <div>
-        <p className="text-sm font-medium">No forms yet</p>
-        <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
-          Create a form from scratch, or describe what you need and let AI
-          draft the fields for you.
-        </p>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={onGenerate}>
-          <Sparkles data-slot="icon" />
-          Generate with AI
+      <dl className="divide-y divide-border border-y border-border">
+        <InfoRow label="Status" value={<FormStatusBadge status={form.status} />} />
+        <InfoRow
+          label="Questions"
+          value={questions === 0 ? "None yet" : `${questions}`}
+        />
+        <InfoRow
+          label="Answered"
+          value={
+            form.anonymous
+              ? "Anonymously"
+              : form.allow_multiple
+                ? "As often as needed"
+                : "Once per person"
+          }
+        />
+        <InfoRow label="Signature" value={signs ? "Asked for" : "Not needed"} />
+        <InfoRow
+          label="Responses"
+          value={<span className="tabular-nums">{responseCount}</span>}
+        />
+      </dl>
+
+      <div className="mt-auto">
+        <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
+          Edit form
+          <ArrowRight data-slot="icon" />
         </Button>
-        <Button onClick={onCreate}>
-          <Plus data-slot="icon" />
-          New form
-        </Button>
       </div>
-    </div>
+    </article>
   );
 }
 

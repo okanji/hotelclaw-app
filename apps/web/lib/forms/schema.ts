@@ -29,6 +29,11 @@ export const FORM_FIELD_TYPES = [
   "people",
   "signature",
   "info",
+  // Studio form-builder port (2026-10-25): a consent statement the
+  // respondent ticks to agree to (waivers, house rules, data consent). The
+  // label is the title, `description` is the statement; the answer is a
+  // boolean and a REQUIRED consent only validates when it is `true`.
+  "consent",
 ] as const;
 
 export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
@@ -349,7 +354,8 @@ export function validateFieldAnswer(
     (Array.isArray(value) && value.length === 0);
 
   if (empty) {
-    return field.required ? "This field is required" : null;
+    if (!field.required) return null;
+    return field.type === "consent" ? "Tick the box to agree" : "This field is required";
   }
 
   switch (field.type) {
@@ -397,6 +403,9 @@ export function validateFieldAnswer(
     }
     case "yes_no":
       return typeof value === "boolean" ? null : "Answer yes or no";
+    case "consent":
+      if (typeof value !== "boolean") return "Tick the box to agree";
+      return field.required && value !== true ? "Tick the box to agree" : null;
     case "rating": {
       const max = field.maxRating ?? 5;
       const n = typeof value === "number" ? value : Number(value);
@@ -482,6 +491,8 @@ export function formatAnswer(field: FormField, value: FormAnswerValue | undefine
     }
     case "yes_no":
       return value === true ? "Yes" : "No";
+    case "consent":
+      return value === true ? "Agreed" : "Not agreed";
     case "rating":
       return `${value}/${field.maxRating ?? 5}`;
     case "file": {
@@ -528,6 +539,7 @@ export const FIELD_TYPE_META: Record<
   people: { label: "People", description: "Pick a member of this property" },
   signature: { label: "Signature", description: "Draw or type a signature" },
   info: { label: "Information", description: "Read-only text between questions" },
+  consent: { label: "Consent", description: "A statement to tick and agree to" },
 };
 
 /**

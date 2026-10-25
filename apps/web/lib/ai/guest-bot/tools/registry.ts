@@ -13,6 +13,7 @@ import "server-only";
  * return `{ simulated: true, … }` instead of writing — knowledge search
  * stays live so staff can verify their sources actually answer.
  */
+import { after } from "next/server";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -280,6 +281,9 @@ function buildCreateTicketTool(
           priority: cfg.priority,
           status: "todo",
           source: "ai",
+          // Guests are untrusted: their tickets wait in the Triage queue
+          // (0111) until a teammate accepts them onto the board.
+          triage_state: "pending",
         })
         .select("id")
         .single();
@@ -314,6 +318,7 @@ function buildCreateTicketTool(
             `**${title}**`,
             details,
             guestLine,
+            "_Waiting in Triage for a teammate to accept._",
           ]
             .filter(Boolean)
             .join("\n"),
@@ -338,6 +343,25 @@ function buildCreateTicketTool(
           details,
         },
       });
+
+      // The service-role insert skips `createTaskFor`, which is what runs
+      // intake triage for staff-created tasks — run it here so the queue
+      // shows the AI's team/assignee/priority pick. Off the reply path;
+      // `after` nests fine inside the Twilio webhook's own `after`.
+      const ticketId = task.id;
+      const runTriage = async () => {
+        try {
+          const { triageTask } = await import("@/lib/ai/bots/triage-bot");
+          await triageTask({ propertyId: scope.propertyId, taskId: ticketId });
+        } catch (err) {
+          console.error("[guest-bot] ticket triage failed", ticketId, err);
+        }
+      };
+      try {
+        after(runTriage);
+      } catch {
+        void runTriage();
+      }
 
       return {
         ok: true,

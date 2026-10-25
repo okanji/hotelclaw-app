@@ -58,7 +58,7 @@ export function CustomFieldManager({ propertyId }: { propertyId: string }) {
         Fields
       </Button>
       {open ? (
-        <ManagerDialog
+        <CustomFieldManagerDialog
           propertyId={propertyId}
           open={open}
           onOpenChange={setOpen}
@@ -68,7 +68,7 @@ export function CustomFieldManager({ propertyId }: { propertyId: string }) {
   );
 }
 
-function ManagerDialog({
+export function CustomFieldManagerDialog({
   propertyId,
   open,
   onOpenChange,

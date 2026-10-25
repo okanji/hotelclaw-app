@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionHeader } from "@/components/ui/section-header";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageHeader } from "@/components/shell/page-header";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -72,52 +73,43 @@ export function OrgView({
   // gave the page two left edges; the diagram scrolls horizontally inside its
   // own container (see `tree-scroller`), so it does not need the extra width.
   return (
-    <div className="flex h-full w-full flex-col overflow-y-auto pt-12 pb-16 sm:pt-16">
-      <PageShell className="px-8 sm:px-14">
-      <SectionHeader
-        size="page"
-        title="Org chart"
-        description={
-          <>
-            How the property is organized — teams and who runs them, reporting
-            lines, and each person&apos;s role. Everyone works from the same
-            picture, and so do the AI assistants.
-          </>
-        }
-      />
-
-      {isPending || !data ? (
-        <div className="mt-12 flex flex-col gap-3">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      ) : selectedTeam ? (
-        <div className="mt-10">
-          <TeamDetail
-            propertyId={propertyId}
-            team={selectedTeam}
-            org={data}
-            openTaskCount={data.openTaskCounts[selectedTeam.id] ?? 0}
-            isManagement={isManagement}
-            onBack={() => setSelectedTeamId(null)}
-          />
-        </div>
-      ) : (
-        <>
-          <div className="mt-8">
-            <OrgProposals propertyId={propertyId} org={data} />
-          </div>
-          <OrgBody
-            propertyId={propertyId}
-            propertyName={propertyName}
-            org={data}
-            isManagement={isManagement}
-            onSelectTeam={setSelectedTeamId}
-          />
-        </>
-      )}
-      </PageShell>
+    <div className="flex h-full w-full flex-col">
+      <PageHeader title="Org chart" icon={<Network />} />
+      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+        <PageShell>
+          {isPending || !data ? (
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : selectedTeam ? (
+            <div>
+              <TeamDetail
+                propertyId={propertyId}
+                team={selectedTeam}
+                org={data}
+                openTaskCount={data.openTaskCounts[selectedTeam.id] ?? 0}
+                isManagement={isManagement}
+                onBack={() => setSelectedTeamId(null)}
+              />
+            </div>
+          ) : (
+            <>
+              <div>
+                <OrgProposals propertyId={propertyId} org={data} />
+              </div>
+              <OrgBody
+                propertyId={propertyId}
+                propertyName={propertyName}
+                org={data}
+                isManagement={isManagement}
+                onSelectTeam={setSelectedTeamId}
+              />
+            </>
+          )}
+        </PageShell>
+      </div>
     </div>
   );
 }

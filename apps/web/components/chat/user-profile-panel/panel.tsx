@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type { Channel as StreamChannel } from "stream-chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,7 @@ function ProfileBody({
   onClose: () => void;
 }) {
   const openChannel = useOpenChannel(propertyId);
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const [pending, startTransition] = useTransition();
 
   const { data, isLoading, error } = useQuery<ProfileResponse>({

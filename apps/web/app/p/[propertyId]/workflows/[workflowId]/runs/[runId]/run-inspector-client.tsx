@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { runStatusLabel, triggerLabel } from "@/lib/workflows/summary";
 import { createClient } from "@/lib/supabase/client";
 import { getStep } from "@/lib/workflows/catalog";
 import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
@@ -169,7 +170,7 @@ export function RunInspectorClient({
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <StatusBadge tone={STATUS_TONES[run.status] ?? "neutral"}>
-            {run.status}
+            {runStatusLabel(run.status)}
           </StatusBadge>
           {run.is_dry_run ? (
             <Badge
@@ -182,9 +183,9 @@ export function RunInspectorClient({
             </Badge>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            Triggered by {run.trigger_kind ?? "—"} ·{" "}
-            {formatDuration(run.started_at, run.finished_at, "running…")} ·{" "}
-            {run.mode}
+            Trigger: {triggerLabel(run.trigger_kind) ?? "Manual run"} ·{" "}
+            {formatDuration(run.started_at, run.finished_at, "running…")}
+            {run.mode === "durable" ? " · can wait between steps" : ""}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -293,7 +294,7 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
           {formatDuration(step.started_at, step.finished_at, "running…")}
         </span>
         <StatusBadge tone={STATUS_TONES[step.status] ?? "neutral"}>
-          {step.status}
+          {runStatusLabel(step.status)}
         </StatusBadge>
         <ChevronDown
           className={cn(

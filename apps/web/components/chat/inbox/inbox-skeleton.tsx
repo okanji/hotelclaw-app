@@ -8,7 +8,7 @@ export function InboxSkeleton() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col" aria-busy="true">
       {/* Header — mirrors PageHeader (h-11, border-b, px-4). */}
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4">
+      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-(--page-gutter)">
         <Skeleton className="size-4 rounded-sm" />
         <Skeleton className="h-3.5 w-20" />
       </header>

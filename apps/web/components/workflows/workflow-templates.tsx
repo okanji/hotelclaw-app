@@ -20,7 +20,7 @@ export function WorkflowTemplates({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="px-10 pt-10 pb-12">
+        <PageShell className="pt-10 pb-12">
           {/* The orientation line is a lede — it wraps early for readability.
               It shares the page's left edge like everything else. */}
           <p className="mb-4 max-w-content text-sm text-pretty text-muted-foreground">

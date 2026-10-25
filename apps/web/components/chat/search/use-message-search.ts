@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type {
   MessageFilters,
   MessageResponse,
@@ -32,7 +32,7 @@ type Params = {
 const PAGE_SIZE = 25;
 
 export function useMessageSearch({ propertyId, state, enabled = true }: Params) {
-  const { client } = useChatContext();
+  const client = useConnectedStreamClient();
   const me = client?.user?.id;
 
   const ready =

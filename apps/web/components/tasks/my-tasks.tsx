@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 import type { MessageResponse } from "stream-chat";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,8 @@ import {
   Check,
   ChevronRight,
   CircleDashed,
+  Eye,
+  EyeOff,
   GripVertical,
   Play,
   Sparkles,
@@ -32,6 +34,22 @@ import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-shell";
+import { SectionHeader } from "@/components/ui/section-header";
+import { PageHeader, PageHeaderRow } from "@/components/shell/page-header";
+import { MyTasksIcon } from "@/components/shell/clickup-icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { useUrlTab } from "@/components/projects/workspace-shell";
+import { ActivityLogFeed } from "@/components/activity/activity-log";
+import { useAssigneesMap } from "@/lib/tasks/use-assignees";
+import {
+  assignedRows,
+  createdRows,
+  openCount,
+  parseMyTasksTab,
+  type MyTasksTab,
+} from "@/lib/tasks/my-tasks-lens";
+import type { TaskStatus } from "@/lib/db/types";
 import {
   tasksQueryOptions,
   propertyMembersQueryOptions,
@@ -42,9 +60,13 @@ import { MentionRow } from "@/components/chat/inbox/mention-row";
 import { ShiftBriefWidget } from "@/components/home/widgets/shift-brief-widget";
 import { updateTask } from "./actions";
 import { PRIORITY_META, type Task } from "./kanban";
+import { ListView } from "./list-view";
 
 /**
- * My Tasks — the personal agenda, deliberately NOT another board. The board
+ * My Tasks — Linear's "My issues" shape: a Focus tab (the personal agenda
+ * below) plus Assigned / Created lenses over the board's real List view and
+ * an Activity tab of your own `activity_log` rows. Focus is deliberately NOT
+ * another board. The board
  * answers "what state is the team's work in"; this page answers "what
  * should I do next": the shift brief on top, work grouped by when it's due
  * (overdue → today → this week → later) with drag-to-reschedule between
@@ -89,8 +111,225 @@ export function MyTasks({
   userId: string;
   firstName: string | null;
 }) {
+  const [rawTab, setTab] = useUrlTab("focus");
+  const tab = parseMyTasksTab(rawTab);
+  const { data: tasks = [] } = useQuery(tasksQueryOptions(propertyId));
+  const counts = useMemo(
+    () => ({
+      assigned: openCount(assignedRows(tasks, userId)),
+      created: openCount(createdRows(tasks, userId)),
+    }),
+    [tasks, userId],
+  );
+
+  // Memoized: ListView re-derives its row order whenever `rows` changes
+  // identity, so an inline `assignedRows(...)` call re-rendered forever
+  // ("Maximum update depth exceeded").
+  const assigned = useMemo(() => assignedRows(tasks, userId), [tasks, userId]);
+  const created = useMemo(() => createdRows(tasks, userId), [tasks, userId]);
+
+  // Stable per mount — see FocusTab.
+  const [now] = useState(() => new Date());
+  const hour = now.getHours();
+  const greeting = `${
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+  }${firstName ? `, ${firstName.split(" ")[0]}` : ""}`;
+  const dateLine = now.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const tabs: Array<{ id: MyTasksTab; label: string; count?: number }> = [
+    { id: "focus", label: "Focus" },
+    { id: "assigned", label: "Assigned", count: counts.assigned },
+    { id: "created", label: "Created", count: counts.created },
+    { id: "activity", label: "Activity" },
+  ];
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title="My tasks"
+        icon={<MyTasksIcon />}
+        meta={dateLine}
+      />
+      {/* URL-addressable (`?tab=`), the workspace-shell pattern. */}
+      <PageHeaderRow>
+        <TabNav variant="pill" aria-label="My tasks views">
+          {tabs.map((t) => (
+            <TabNavItem key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
+              {t.label}
+              {t.count ? (
+                <span className="text-xs tabular-nums text-faint-foreground">{t.count}</span>
+              ) : null}
+            </TabNavItem>
+          ))}
+        </TabNav>
+      </PageHeaderRow>
+
+      {tab === "focus" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+          <PageShell>
+            <SectionHeader title={greeting} />
+            <FocusTab propertyId={propertyId} userId={userId} />
+          </PageShell>
+        </div>
+      ) : tab === "assigned" ? (
+        <LensList
+          propertyId={propertyId}
+          tasks={tasks}
+          rows={assigned}
+          emptyTitle="Nothing assigned to you"
+          emptyBody="Anything new lands here the moment it's yours."
+        />
+      ) : tab === "created" ? (
+        <LensList
+          propertyId={propertyId}
+          tasks={tasks}
+          rows={created}
+          emptyTitle="You haven't created any open tasks"
+          emptyBody="Tasks you file — for yourself or for someone else — collect here."
+        />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
+          <PageShell>
+            <ActivityLogFeed
+              propertyId={propertyId}
+              scope={{ kind: "actor", id: userId }}
+              meId={userId}
+              showPersonFilter={false}
+            />
+          </PageShell>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Assigned / Created — the board's real List view (same rows, inline cell
+ * edits, column + sort controls, sub-issue expansion) over one lens of the
+ * shared tasks cache. Done work is hidden until "Show completed", then sits
+ * in its own section at the bottom, where the list view puts it.
+ */
+function LensList({
+  propertyId,
+  tasks,
+  rows,
+  emptyTitle,
+  emptyBody,
+}: {
+  propertyId: string;
+  tasks: Task[];
+  rows: Task[];
+  emptyTitle: string;
+  emptyBody: string;
+}) {
   const qc = useQueryClient();
-  const { client } = useChatContext();
+  const [showDone, setShowDone] = useState(false);
+  const assigneeIds = useMemo(() => rows.map((t) => t.assignee_id), [rows]);
+  const assignees = useAssigneesMap(assigneeIds);
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const t of tasks) {
+      if (!t.parent_id) continue;
+      const list = map.get(t.parent_id) ?? [];
+      list.push(t);
+      map.set(t.parent_id, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.position - b.position);
+    return map;
+  }, [tasks]);
+
+  const open = openCount(rows);
+  const done = rows.length - open;
+
+  const onChanged = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+  }, [qc, propertyId]);
+
+  // Same full-page create the board opens (TasksSurface reads `?status=`).
+  const openCreate = useCallback(
+    (status: TaskStatus) => {
+      window.history.pushState(null, "", `/p/${propertyId}/tasks/new?status=${status}`);
+      window.dispatchEvent(new Event("hotelclaw:pathname"));
+    },
+    [propertyId],
+  );
+
+  if (open === 0 && !showDone) {
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto px-(--page-gutter) pt-4 pb-16">
+        <EmptyState
+          icon={Check}
+          title={emptyTitle}
+          action={
+            done > 0 ? (
+              <Button variant="outline" size="sm" onClick={() => setShowDone(true)}>
+                Show {done} completed
+              </Button>
+            ) : null
+          }
+        >
+          {emptyBody}
+        </EmptyState>
+      </div>
+    );
+  }
+
+  return (
+    // The board's list layout: the list fills the pane below a h-9 count
+    // bar and scrolls on BOTH axes inside its own container (sticky column
+    // header + footer included). It used to sit in the page column with a
+    // `-mx-*` bleed, which made it wider than the page and clipped the last
+    // column behind a page-level horizontal scrollbar.
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-y border-border px-(--page-gutter) text-sm text-muted-foreground">
+        <span className="tabular-nums">
+          {open} open{done > 0 ? ` · ${done} done` : ""}
+        </span>
+        {done > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            aria-pressed={showDone}
+            onClick={() => setShowDone((v) => !v)}
+          >
+            {showDone ? <EyeOff /> : <Eye />}
+            {showDone ? "Hide completed" : "Show completed"}
+          </Button>
+        ) : null}
+      </div>
+      <ListView
+        propertyId={propertyId}
+        tasks={rows}
+        childrenByParent={childrenByParent}
+        assignees={assignees}
+        hideDone={!showDone}
+        onChanged={onChanged}
+        onOpenFullCreate={openCreate}
+      />
+    </div>
+  );
+}
+
+/**
+ * The Focus tab — the personal agenda, deliberately NOT another board: the
+ * pulse, the shift brief, work grouped by when it's due with
+ * drag-to-reschedule, replies owed, and work waiting on others.
+ */
+function FocusTab({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
+  const qc = useQueryClient();
+  const client = useConnectedStreamClient();
   const { data: tasks = [], isPending } = useQuery(tasksQueryOptions(propertyId));
   const { data: members = [] } = useQuery(propertyMembersQueryOptions(propertyId));
   const { data: mentionHits = [] } = useQuery(
@@ -214,24 +453,8 @@ export function MyTasks({
 
   const draggingTask = draggingId ? tasks.find((t) => t.id === draggingId) : null;
 
-  const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const dateLine = now.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
   return (
-    <PageShell className="flex h-full flex-col overflow-y-auto px-8 pt-12 pb-16 sm:px-14 sm:pt-16">
-      <header>
-        <p className="text-sm text-muted-foreground">{dateLine}</p>
-        <h1 className="mt-1 text-[2.5rem] leading-[3rem] font-bold text-balance">
-          {greeting}
-          {firstName ? `, ${firstName.split(" ")[0]}` : ""}
-        </h1>
-      </header>
-
+    <>
       {/* Personal pulse — whitespace-separated stats, no card chrome. */}
       <div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
         <Stat label="To act on today" value={dueTodayCount} emphasize={dueTodayCount > 0} />
@@ -386,7 +609,7 @@ export function MyTasks({
           </PortalDragOverlay>
         </DndContext>
       )}
-    </PageShell>
+    </>
   );
 }
 

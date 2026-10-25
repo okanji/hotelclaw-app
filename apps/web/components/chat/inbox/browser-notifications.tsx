@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useChatContext } from "stream-chat-react";
+import { useConnectedStreamClient } from "@/lib/stream/client-provider";
 
 const STORAGE_KEY = "hotelclaw:browser-notifications";
 
@@ -13,7 +14,8 @@ const STORAGE_KEY = "hotelclaw:browser-notifications";
  * Permission is requested lazily on first event after opt-in.
  */
 export function BrowserNotifications() {
-  const { client, channel: activeChannel } = useChatContext();
+  const { channel: activeChannel } = useChatContext();
+  const client = useConnectedStreamClient();
 
   useEffect(() => {
     if (!client) return;
