@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, MessageSquare, Plus, Search, SquarePen } from "lucide-react";
+import { FolderOpen, Plus, Search, SquarePen } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   assistantChatsKey,
@@ -16,6 +16,7 @@ import { asTint } from "@/lib/assistant/types";
 import { TintIcon } from "@/components/ui/tint-card";
 import {
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
@@ -24,9 +25,9 @@ import {
 } from "@/components/ui/sidebar";
 
 /**
- * Secondary sidebar for the Assistant section — new chat, projects, and the
- * recents list, in that order: the two things you do and then the thing you
- * come back to.
+ * Secondary sidebar for the Assistant section — new chat, then projects
+ * (a few recent rows, "+" in the group header, "All projects" as the way
+ * in), then the recents list.
  *
  * It owns the Realtime invalidation for both assistant tables (0102), so a
  * chat renamed by its first turn, or one started in another tab of the same
@@ -87,7 +88,6 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Assistant</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -100,52 +100,55 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
                 <span>New chat</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Projects</SidebarGroupLabel>
+        <SidebarGroupAction
+          render={<Link href={`${projectsBase}?new=1`} />}
+          title="New project"
+        >
+          <Plus />
+        </SidebarGroupAction>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {projects.slice(0, 5).map((project) => (
+              <SidebarMenuItem key={project.id}>
+                <SidebarMenuButton
+                  render={<Link href={`${projectsBase}/${project.id}`} />}
+                  isActive={pathname === `${projectsBase}/${project.id}`}
+                  tooltip={project.name}
+                >
+                  {/* Icon-sized tint chip so project rows share the menu's
+                      16px icon column instead of growing the row. */}
+                  <TintIcon
+                    tone={asTint(project.tint)}
+                    className="size-4 rounded-[4px] text-[0.5625rem] leading-none"
+                  >
+                    {project.emoji}
+                  </TintIcon>
+                  <span className="truncate">{project.name}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={projectsBase} />}
-                isActive={pathname.startsWith(projectsBase)}
+                isActive={pathname === projectsBase}
                 tooltip="Standing work with its own instructions and memory"
+                className="text-muted-foreground"
               >
                 <FolderOpen />
-                <span>Projects</span>
+                <span>
+                  {projects.length > 5 ? `All projects (${projects.length})` : "All projects"}
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
-
-      {projects.length > 0 ? (
-        <SidebarGroup>
-          <SidebarGroupLabel>Your projects</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projects.slice(0, 8).map((project) => (
-                <SidebarMenuItem key={project.id}>
-                  <SidebarMenuButton
-                    render={<Link href={`${projectsBase}/${project.id}`} />}
-                    isActive={pathname === `${projectsBase}/${project.id}`}
-                    tooltip={project.name}
-                  >
-                    <TintIcon tone={asTint(project.tint)} className="text-[0.6875rem]">
-                      {project.emoji}
-                    </TintIcon>
-                    <span className="truncate">{project.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href={`${projectsBase}?new=1`} />}
-                  tooltip="Create a project"
-                >
-                  <Plus />
-                  <span>New project</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ) : null}
 
       <SidebarGroup>
         <SidebarGroupLabel>Recents</SidebarGroupLabel>
@@ -182,7 +185,6 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
                     render={<Link href={`${base}?c=${chat.id}`} />}
                     tooltip={chat.title}
                   >
-                    <MessageSquare />
                     <span className="truncate">{chat.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

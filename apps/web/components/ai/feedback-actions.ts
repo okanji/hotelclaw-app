@@ -7,8 +7,6 @@ import {
   type AiFeedbackInput,
 } from "@/lib/ai/feedback";
 
-export type { AiFeedbackInput };
-
 /** Record a thumbs up/down on an AI reply (migration 0105), as the caller. */
 export async function recordAiFeedback(
   input: AiFeedbackInput,

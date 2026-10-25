@@ -38,7 +38,8 @@ import {
   type TranscriptItem,
 } from "@/lib/fleet/transcript";
 import { cn } from "@/lib/utils";
-import { recordAiFeedback, type AiFeedbackInput } from "./feedback-actions";
+import { recordAiFeedback } from "./feedback-actions";
+import type { AiFeedbackInput } from "@/lib/ai/feedback";
 
 /**
  * The ONE renderer for an eve session transcript, built on AI Elements.

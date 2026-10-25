@@ -208,7 +208,7 @@ function InsightCarousel({
           </button>
         </span>
       </div>
-      <div ref={viewportRef} className="-mx-2 overflow-hidden">
+      <div ref={viewportRef} className="-mx-2 -my-4 overflow-hidden py-4">
         <div
           className="flex items-stretch transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${current * 100}%)` }}

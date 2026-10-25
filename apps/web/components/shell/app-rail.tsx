@@ -563,7 +563,7 @@ export function AppRail({
         // near-black --rail token (inline so it beats the unlayered `.dark`
         // token block), so the surface AND every sidebar-token consumer
         // inside (hover fills, badge ring cutouts) read off the rail.
-        className="dark m-2 flex w-(--rail-width) shrink-0 flex-col items-center rounded-card bg-sidebar px-0.5 pt-2 pb-3 shadow-card"
+        className="dark m-2 flex w-(--rail-width) shrink-0 flex-col items-center rounded-card bg-sidebar px-0 pt-2 pb-3 shadow-card"
         style={{ "--sidebar": "var(--rail)" } as React.CSSProperties}
         aria-label="Sections"
       >

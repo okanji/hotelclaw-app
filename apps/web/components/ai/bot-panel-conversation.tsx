@@ -31,7 +31,8 @@ import {
 import { AiLoader } from "@/components/ui/ai-loader";
 import { toolLabel } from "@/lib/assistant/tool-labels";
 import { cn } from "@/lib/utils";
-import { recordAiFeedback, type AiFeedbackInput } from "./feedback-actions";
+import { recordAiFeedback } from "./feedback-actions";
+import type { AiFeedbackInput } from "@/lib/ai/feedback";
 
 /**
  * Renderer for the stateless panel bots (task assistant, "Ask the numbers")
