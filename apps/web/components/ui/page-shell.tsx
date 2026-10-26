@@ -21,7 +21,8 @@ import { cn } from "@/lib/utils"
  *
  * | width     | max-width | use for |
  * |-----------|-----------|---------|
- * | `page`    | 960px     | **the default** — index, list, detail, settings |
+ * | `full`    | none (gutter kept) | index, list, feed and dashboard pages — right-aligned meta hugs the pane edge (Linear's lists) |
+ * | `page`    | 960px     | **the default** — detail, create, settings: anything with long lines of reading or form fields |
  * | `prose`   | 720px     | reading surfaces: the document editor, brain pages, rendered reports, meeting notes |
  * | `bleed`   | none      | canvas surfaces that ARE the data view: kanban board, calendar grid, timetable, floor plan, workload. The masthead goes full width too, so the edge still holds. |
  */
@@ -42,7 +43,7 @@ function PageShell({
   children,
   ...props
 }: React.ComponentProps<"div"> & {
-  width?: "page" | "prose" | "bleed"
+  width?: "full" | "page" | "prose" | "bleed"
 }) {
   // TWO elements on purpose. The gutter (PAGE_GUTTER) goes on the OUTER box; the measure goes on the INNER one. If the padding
   // sat inside the max-width instead, every page would render a different

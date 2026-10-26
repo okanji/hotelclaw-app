@@ -87,7 +87,7 @@ export function ServiceWorkspace({
   // in the 960px page column.
   const ownResources = resources.filter((r) => r.service_id === service.id);
   const shellWidth =
-    tableMode || (rentalMode && ownResources.length > 0) ? "bleed" : "page";
+    tableMode || (rentalMode && ownResources.length > 0) ? "bleed" : "full";
 
   return (
     <>
@@ -144,7 +144,7 @@ export function ServiceWorkspace({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width={shellWidth} className={cn("space-y-4", shellWidth === "bleed" && "px-4")}>
+        <PageShell width={shellWidth} className={cn("space-y-4", shellWidth === "bleed" && "px-(--page-gutter)")}>
           {isEvent ? (
             <TicketingView bookings={scoped} schedule={schedule} />
           ) : tableMode ? (

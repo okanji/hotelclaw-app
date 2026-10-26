@@ -33,9 +33,11 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { revokeInvite, updateInviteRole } from "@/lib/invites/actions";
 import type { Role } from "@/lib/db/types";
+import { FULL_ROLES, type FullRole } from "@/lib/auth/roles";
 
 /** Roles a pending invite can be switched to, most-privileged first. */
-const ROLE_ORDER: Role[] = ["owner", "manager", "staff"];
+// Invitable roles — guest invites carry a scope list and get their own flow (0118).
+const ROLE_ORDER: FullRole[] = [...FULL_ROLES];
 
 type InviteRow = {
   token: string;

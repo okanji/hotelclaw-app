@@ -14,7 +14,7 @@ export function DocumentListSkeleton() {
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-7 w-28 rounded-md" />
       </div>
-      <PageShell className="pt-4">
+      <PageShell width="full" className="pt-4">
         <Skeleton className="mb-6 h-8 w-full max-w-sm rounded-md" />
         <ul className="flex flex-col gap-px">
           {Array.from({ length: 8 }).map((_, i) => (

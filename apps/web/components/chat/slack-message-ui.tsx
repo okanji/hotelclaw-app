@@ -52,7 +52,6 @@ import {
   Poll,
   QuotedMessage as DefaultQuotedMessage,
   ReminderNotification as DefaultReminderNotification,
-  StreamedMessageText as DefaultStreamedMessageText,
   useChatContext,
   useComponentContext,
   useMessageContext,
@@ -72,11 +71,7 @@ import {
   messageHasSingleAttachment,
   messageTextHasEmojisOnly,
 } from "stream-chat-react";
-import {
-  AiStepsDisclosure,
-  isAiSteps,
-  type AiStep,
-} from "@/components/chat/ai-steps-disclosure";
+import { BotReply } from "@/components/ai/agent-turn/bot-reply";
 import { SlackAddReactionPill } from "@/components/chat/slack-add-reaction-pill";
 import { SlackMessageActions } from "@/components/chat/slack-message-actions";
 import { SlackMessageReactions } from "@/components/chat/slack-message-reactions";
@@ -241,13 +236,20 @@ const SlackMessageUIWithContext = ({
     PinIndicator = DefaultPinIndicator,
     QuotedMessage = DefaultQuotedMessage,
     ReminderNotification = DefaultReminderNotification,
-    StreamedMessageText = DefaultStreamedMessageText,
   } = useComponentContext("SlackMessageUI");
 
   const isAIGenerated = useMemo(
     () => isMessageAIGenerated?.(message),
     [isMessageAIGenerated, message],
   );
+  // The channel bot's replies: the runtime stamps `ai_generated` and the
+  // turn nonce on every message it posts. Stream's `isMessageAIGenerated`
+  // hook is not configured in this app (it was undefined for every message,
+  // so nothing keyed on it ever rendered — 2026-10-26).
+  const isBotReply =
+    isAIGenerated === true ||
+    (message as { ai_generated?: unknown }).ai_generated === true ||
+    typeof (message as { eve_turn?: unknown }).eve_turn === "string";
   const isDeleted = isMessageDeleted(message);
 
   const finalAttachments = useMemo(
@@ -489,30 +491,34 @@ const SlackMessageUIWithContext = ({
                 <div className="str-chat__message-bubble">
                   {poll && <Poll poll={poll} />}
                   {message.quoted_message && <QuotedMessage />}
-                  {leadingAttachments.length ? (
-                    <Attachment
+                  {isBotReply ? (
+                    // The channel bot's reply as an agent turn: trace →
+                    // artifacts → Streamdown text → render_ui cards → park
+                    // controls → copy / thumbs / context (agent-turn/*).
+                    <BotReply
+                      message={message}
+                      leadingAttachments={leadingAttachments}
+                      aiUiAttachments={aiUiBelowText}
                       actionHandler={handleAction}
-                      attachments={leadingAttachments}
+                      Attachment={Attachment}
                     />
-                  ) : null}
-                  {isAIGenerated ? (
-                    <StreamedMessageText message={message} renderText={renderText} />
                   ) : (
-                    <MessageText message={message} renderText={renderText} />
+                    <>
+                      {leadingAttachments.length ? (
+                        <Attachment
+                          actionHandler={handleAction}
+                          attachments={leadingAttachments}
+                        />
+                      ) : null}
+                      <MessageText message={message} renderText={renderText} />
+                      {aiUiBelowText.length ? (
+                        <Attachment
+                          actionHandler={handleAction}
+                          attachments={aiUiBelowText}
+                        />
+                      ) : null}
+                    </>
                   )}
-                  {aiUiBelowText.length ? (
-                    <Attachment
-                      actionHandler={handleAction}
-                      attachments={aiUiBelowText}
-                    />
-                  ) : null}
-                  {/* What the bot did to produce this reply, collapsed.
-                      `eve_steps` is stamped by the runtime at delivery. */}
-                  {isAiSteps((message as unknown as { eve_steps?: unknown }).eve_steps) ? (
-                    <AiStepsDisclosure
-                      steps={(message as unknown as { eve_steps: AiStep[] }).eve_steps}
-                    />
-                  ) : null}
                 </div>
                 <div className="str-chat__message-reactions-host">
                   {hasReactions ? (

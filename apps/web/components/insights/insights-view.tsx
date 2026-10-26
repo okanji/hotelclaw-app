@@ -198,7 +198,7 @@ export function InsightsView({
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="w-full pt-6 pb-24">
-          <PageShell>
+          <PageShell width="full">
           <div className="@container">
             {isPending || !data ? (
               <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">

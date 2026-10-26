@@ -2,7 +2,9 @@
 // once the Supabase project is provisioned, regenerate with:
 //   pnpm dlx supabase gen types typescript --project-id <id> > lib/db/types.ts
 
-export type Role = "owner" | "manager" | "staff";
+/** Membership role ladder — helpers + the invitable subset live in lib/auth/roles.ts.
+ *  `guest` is scope-limited (migration 0118); the DB CHECK admits it from there on. */
+export type Role = "owner" | "manager" | "staff" | "guest";
 
 /**
  * A document change the AI staged (mirrors `ProposedDocEdit` in
@@ -27,7 +29,15 @@ export type MeetingRecurrence = {
   count?: number;
   byday?: number[];
 };
+/**
+ * LEGACY status projection (0001 CHECK). Since 0114 the truth is
+ * `tasks.status_id` → a `statuses` row; this literal is derived from the row's
+ * category by trigger and kept for every reader that predates lists. Writing
+ * it still works (the trigger resolves it to a status of the task's list).
+ */
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+/** ClickUp's status categories (0114). `active` rows may be flagged blocked. */
+export type StatusCategory = "open" | "unstarted" | "active" | "done" | "closed";
 /** Repeat cadence for a recurring task (migration 0107). */
 /** Saved task view layouts (0109). */
 export type TaskViewLayout = "board" | "list" | "timeline" | "workload";
@@ -671,6 +681,11 @@ export interface Database {
           source: RecordSource;
           source_workflow_id: string | null;
           source_workflow_run_id: string | null;
+          /** Lists + pipelines (0114): the list is required, status_id is the
+           *  truth behind `status`, completed_at = entered a done|closed status. */
+          list_id: string;
+          status_id: string;
+          completed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -680,6 +695,11 @@ export interface Database {
           title: string;
           description?: string | null;
           status?: TaskStatus;
+          /** Both optional: the 0114 resolver fills list (parent → space default
+           *  → General) and status (legacy literal → the list's set). */
+          list_id?: string;
+          status_id?: string;
+          completed_at?: string | null;
           priority?: TaskPriority;
           assignee_id?: string | null;
           created_by?: string | null;
@@ -713,6 +733,9 @@ export interface Database {
           title: string;
           description: string | null;
           status: TaskStatus;
+          list_id: string;
+          status_id: string;
+          completed_at: string | null;
           priority: TaskPriority;
           assignee_id: string | null;
           due_at: string | null;
@@ -739,11 +762,126 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      // ── Lists + status pipelines (migration 0114) ─────────────────────────
+      status_sets: {
+        Row: {
+          id: string;
+          property_id: string;
+          name: string;
+          /** The property's fallback set; exactly one per property. */
+          is_default: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          name: string;
+          is_default?: boolean;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      statuses: {
+        Row: {
+          id: string;
+          status_set_id: string;
+          property_id: string;
+          name: string;
+          category: StatusCategory;
+          /** Only on `active` rows — projects to the legacy 'blocked' literal. */
+          is_blocked: boolean;
+          color: EntityColor;
+          position: number;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          status_set_id: string;
+          property_id: string;
+          name: string;
+          category: StatusCategory;
+          is_blocked?: boolean;
+          color?: EntityColor;
+          position?: number;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          name: string;
+          category: StatusCategory;
+          is_blocked: boolean;
+          color: EntityColor;
+          position: number;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      lists: {
+        Row: {
+          id: string;
+          property_id: string;
+          /** null = property-level (the "General" catch-all). */
+          space_id: string | null;
+          name: string;
+          description: string | null;
+          icon: string | null;
+          color: EntityColor;
+          position: number;
+          /** The EFFECTIVE set; `inherits_statuses` says whether it follows the
+           *  space/property default or is pinned/forked. */
+          status_set_id: string;
+          inherits_statuses: boolean;
+          /** The catch-all list of its space (or property when space_id is null). */
+          is_default: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          space_id?: string | null;
+          name: string;
+          description?: string | null;
+          icon?: string | null;
+          color?: EntityColor;
+          position?: number;
+          status_set_id: string;
+          inherits_statuses?: boolean;
+          is_default?: boolean;
+          created_by?: string | null;
+          archived_at?: string | null;
+        };
+        Update: Partial<{
+          space_id: string | null;
+          name: string;
+          description: string | null;
+          icon: string | null;
+          color: EntityColor;
+          position: number;
+          status_set_id: string;
+          inherits_statuses: boolean;
+          archived_at: string | null;
+        }>;
+        Relationships: [];
+      };
       custom_fields: {
         Row: {
           id: string;
           property_id: string;
           space_id: string | null;
+          /** 0114: scope to one list (null + null space = property-wide). */
+          list_id: string | null;
           name: string;
           type: CustomFieldType;
           options: CustomFieldOption[];
@@ -756,6 +894,7 @@ export interface Database {
           id?: string;
           property_id: string;
           space_id?: string | null;
+          list_id?: string | null;
           name: string;
           type: CustomFieldType;
           options?: CustomFieldOption[];
@@ -765,6 +904,7 @@ export interface Database {
         };
         Update: Partial<{
           space_id: string | null;
+          list_id: string | null;
           name: string;
           options: CustomFieldOption[];
           position: number;
@@ -1039,6 +1179,8 @@ export interface Database {
           // Org chart (migration 0071): team hierarchy.
           parent_space_id: string | null;
           lead_user_id: string | null;
+          /** 0114: the pipeline its inheriting lists follow; null = ancestor's / property default. */
+          default_status_set_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1052,6 +1194,7 @@ export interface Database {
           archived_at?: string | null;
           parent_space_id?: string | null;
           lead_user_id?: string | null;
+          default_status_set_id?: string | null;
         };
         Update: Partial<{
           name: string;
@@ -1062,6 +1205,7 @@ export interface Database {
           archived_at: string | null;
           parent_space_id: string | null;
           lead_user_id: string | null;
+          default_status_set_id: string | null;
         }>;
         Relationships: [];
       };
@@ -2779,6 +2923,7 @@ export interface Database {
           // Progress line for the chat thinking row (0095) — short human
           // label the runtime advances per tool batch, null between turns.
           turn_activity: string | null;
+          turn_usage: unknown;
           // Stream message id of the question this session parked on (0098).
           // A reply in that message's thread routes the answer back here —
           // the only path a background job can be answered by.
@@ -2807,6 +2952,7 @@ export interface Database {
           kind?: "chat" | "job";
           job_headline?: string | null;
           turn_activity?: string | null;
+          turn_usage?: unknown;
           question_message_id?: string | null;
           last_turn_at?: string | null;
         };
@@ -2826,6 +2972,7 @@ export interface Database {
           kind: "chat" | "job";
           job_headline: string | null;
           turn_activity: string | null;
+          turn_usage: unknown;
           question_message_id: string | null;
           last_turn_at: string | null;
         }>;
@@ -2841,6 +2988,17 @@ export interface Database {
           turn_nonce: string;
           label: string;
           created_at: string;
+          // Structured trace (0113): one row per action / task / reasoning
+          // block / park, settled in place by eve call or task id.
+          kind: string;
+          call_id: string | null;
+          task_id: string | null;
+          tool_name: string | null;
+          input: unknown;
+          output: unknown;
+          detail: string | null;
+          status: string;
+          settled_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2849,8 +3007,24 @@ export interface Database {
           thread_key?: string;
           turn_nonce: string;
           label: string;
+          kind?: string;
+          call_id?: string | null;
+          task_id?: string | null;
+          tool_name?: string | null;
+          input?: unknown;
+          output?: unknown;
+          detail?: string | null;
+          status?: string;
+          settled_at?: string | null;
         };
-        Update: Partial<{ label: string }>;
+        Update: Partial<{
+          label: string;
+          kind: string;
+          output: unknown;
+          detail: string | null;
+          status: string;
+          settled_at: string | null;
+        }>;
         Relationships: [];
       };
       channel_bot_queue: {

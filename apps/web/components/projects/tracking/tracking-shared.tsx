@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 import type { ProjectTracking } from "@/lib/query/project-queries";
 import type { EntityColor, ProjectStatus } from "@/lib/db/types";
 import { LABEL_DOT } from "@/components/labels/label-tokens";
+import type { DeclaredHealthIndex } from "@/lib/query/initiative-queries";
+import type { PropertyMilestone } from "@/lib/query/milestone-queries";
+import type { ProjectGroup } from "./project-display";
 
 /* -------------------------------------------------------------------------- */
 /* Shared contract for the projects tracking views                            */
@@ -22,7 +25,6 @@ export type ProjectMember = {
   avatarUrl: string | null;
 };
 
-export type ProjectsViewMode = "board" | "table" | "timeline";
 
 export type ProjectTeam = { id: string; name: string; color: EntityColor };
 
@@ -34,6 +36,13 @@ export type ProjectsViewProps = {
   teamsByProject?: Map<string, ProjectTeam[]>;
   /** Invalidate the tracking + projects queries after a mutation. */
   onChanged: () => void;
+  /** Open the new-project dialog (group header "+"). */
+  onCreate?: () => void;
+  /** Grouped + ordered rows per the display options (List / Timeline). */
+  groups?: ProjectGroup[];
+  /** Latest declared health per project (project updates). */
+  declared?: DeclaredHealthIndex;
+  milestonesByProject?: Map<string, PropertyMilestone[]>;
 };
 
 /** Compact "teams involved" chips (first two + overflow count). */

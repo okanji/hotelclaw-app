@@ -132,7 +132,7 @@ export function MeetingsIndex({
       />
       <div className="flex-1 overflow-y-auto pt-2 pb-12">
         {/* One width for the page — search, groups, and empty states share it. */}
-        <PageShell className="flex flex-col gap-6">
+        <PageShell width="full" className="flex flex-col gap-6">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-48 flex-1 sm:max-w-72">
               <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-faint-foreground" />

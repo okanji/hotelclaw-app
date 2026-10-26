@@ -15,8 +15,11 @@ import {
   findAlreadyNotifiedUserIds,
 } from "@/lib/notifications/server";
 import type { Role } from "@/lib/db/types";
+import { FULL_ROLES } from "@/lib/auth/roles";
 
-const Roles = ["owner", "manager", "staff"] as const;
+// Guests become invitable with 0118 (they also need a scope list); until
+// then the DB CHECK would reject the row, so only full roles are offered.
+const Roles = FULL_ROLES;
 
 const CreateSchema = z.object({
   propertyId: z.string().uuid(),

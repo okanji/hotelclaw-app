@@ -42,7 +42,7 @@ export function WorkflowRunsList({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-10 pb-12">
+        <PageShell width="full" className="pt-10 pb-12">
           {runs.length > 0 ? (
             <ul className="divide-y divide-border">
               {runs.map((r) => (

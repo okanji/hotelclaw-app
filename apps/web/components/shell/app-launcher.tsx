@@ -4,10 +4,12 @@ import { useState } from "react";
 import { ArrowDown, ArrowUp, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +27,6 @@ import { MoreIcon } from "./clickup-icons";
 import {
   NAV_APPS,
   NAV_APP_BY_ID,
-  NAV_GROUP_LABEL,
   type NavApp,
   type NavAppId,
 } from "./nav-apps";
@@ -35,10 +36,10 @@ export type NavBadges = Partial<Record<NavAppId, { count?: number; dot?: boolean
 type Prefs = ReturnType<typeof useNavPrefs>;
 
 /**
- * The sidebar's "More" row → a launcher of EVERY app (ClickUp's More grid,
- * Slack's "Agents & tools"), so the sidebar itself only carries what the
- * person pinned. Tiles open the app (section apps resume where you left
- * off); the footer opens Customize, where pins are managed.
+ * The sidebar's "More" row — Linear's: a small menu dropping BELOW the row
+ * with only the apps that aren't already in the sidebar, then "Customize
+ * sidebar". (It used to be a ClickUp-style grid of every app, which repeated
+ * what the sidebar already showed.) Section apps resume where you left off.
  */
 export function AppLauncher({
   prefs,
@@ -50,110 +51,60 @@ export function AppLauncher({
   /** Navigate to an app (the sidebar owns section resume + routing). */
   onOpenApp: (app: NavApp) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
+  const unpinned = NAV_APPS.filter((a) => !prefs.pins.includes(a.id));
 
   // Something needs attention in an app you can't see in the sidebar.
-  const hiddenAlert = NAV_APPS.some((a) => {
+  const hiddenAlert = unpinned.some((a) => {
     const b = badges[a.id];
-    return !prefs.pins.includes(a.id) && !!b && (!!b.dot || (b.count ?? 0) > 0);
+    return !!b && (!!b.dot || (b.count ?? 0) > 0);
   });
-
-  function openApp(app: NavApp) {
-    setOpen(false);
-    onOpenApp(app);
-  }
-
-  const groups = (["work", "build", "admin"] as const).map((g) => ({
-    id: g,
-    apps: NAV_APPS.filter((a) => a.group === g),
-  }));
 
   return (
     <>
       <SidebarMenuItem>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger
-            render={
-              <SidebarMenuButton
-                aria-label="More apps"
-                tooltip="More apps"
-                isActive={open}
-              />
-            }
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<SidebarMenuButton aria-label="More apps" tooltip="More apps" />}
           >
             <MoreIcon />
             <span className="flex-1">More</span>
             {hiddenAlert ? (
               <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-warning" />
             ) : null}
-          </PopoverTrigger>
-          <PopoverContent side="right" align="start" sideOffset={8} className="w-[22rem] gap-3 p-3">
-            {groups.map((g) => (
-              <section key={g.id} className="flex flex-col gap-1.5">
-                <h3 className="px-1 text-xs font-medium text-faint-foreground">
-                  {NAV_GROUP_LABEL[g.id]}
-                </h3>
-                <div className="grid grid-cols-3 gap-1">
-                  {g.apps.map((app) => (
-                    <LauncherTile
-                      key={app.id}
-                      app={app}
-                      badge={badges[app.id]}
-                      onOpen={() => openApp(app)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setCustomizing(true);
-              }}
-              className="flex h-8 items-center justify-center gap-1.5 rounded-md text-sm text-secondary-ink shadow-ring transition-colors outline-hidden hover:bg-accent focus-visible:shadow-focus"
-            >
-              <Settings2 className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            {unpinned.length === 0 ? (
+              <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                Every app is in your sidebar.
+              </p>
+            ) : (
+              unpinned.map((app) => {
+                const b = badges[app.id];
+                const count = b?.count ?? 0;
+                return (
+                  <DropdownMenuItem key={app.id} onClick={() => onOpenApp(app)} title={app.hint}>
+                    <app.icon />
+                    <span className="flex-1 truncate">{app.label}</span>
+                    {count > 0 ? (
+                      <CountBadge tone="warning">{count > 99 ? "99+" : count}</CountBadge>
+                    ) : b?.dot ? (
+                      <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
+                    ) : null}
+                  </DropdownMenuItem>
+                );
+              })
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setCustomizing(true)}>
+              <Settings2 />
               Customize sidebar
-            </button>
-          </PopoverContent>
-        </Popover>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarMenuItem>
       <CustomizeNavDialog open={customizing} onOpenChange={setCustomizing} prefs={prefs} />
     </>
-  );
-}
-
-function LauncherTile({
-  app,
-  badge,
-  onOpen,
-}: {
-  app: NavApp;
-  badge?: { count?: number; dot?: boolean };
-  onOpen: () => void;
-}) {
-  const count = badge?.count ?? 0;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      title={app.hint}
-      className="relative flex flex-col items-center gap-1.5 rounded-md px-1 py-2.5 text-xs text-secondary-ink outline-hidden transition-colors hover:bg-accent focus-visible:shadow-focus"
-    >
-      <TintIcon tone={app.tone}>
-        <app.icon />
-      </TintIcon>
-      <span className="max-w-full truncate">{app.label}</span>
-      {count > 0 ? (
-        <CountBadge tone="warning" className="absolute top-1 right-2">
-          {count > 99 ? "99+" : count}
-        </CountBadge>
-      ) : badge?.dot ? (
-        <span aria-hidden="true" className="absolute top-2 right-3 size-1.5 rounded-full bg-warning" />
-      ) : null}
-    </button>
   );
 }
 

@@ -129,7 +129,7 @@ export function ChatbotsList({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell className="flex flex-col">
+        <PageShell width="full" className="flex flex-col">
           {visible.length === 0 ? (
             <ChatbotsEmpty onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
           ) : (

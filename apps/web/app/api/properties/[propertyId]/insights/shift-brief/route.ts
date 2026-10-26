@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest, after } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty } from "@/lib/auth/session";
+import { isFullMember } from "@/lib/auth/roles";
 import {
   generateShiftBrief,
   getCachedShiftBrief,
@@ -32,9 +33,13 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const membership = await getMembershipForProperty(propertyId);
-  if (!membership) {
+  // Full members only: the brief gathers property-wide activity (0118 guests
+  // would see a digest of work they were never shared).
+  if (!membership || !isFullMember(membership.role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+  // Bound to a const so the narrowing survives into the after() closure.
+  const role = membership.role;
 
   try {
     const cached = await getCachedShiftBrief(propertyId, user.id);
@@ -43,7 +48,7 @@ export async function GET(
         await generateShiftBrief({
           propertyId,
           userId: user.id,
-          role: membership.role,
+          role,
         });
       } catch (err) {
         console.error("[shift-brief] revalidation failed", err);
@@ -71,7 +76,9 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const membership = await getMembershipForProperty(propertyId);
-  if (!membership) {
+  // Full members only: the brief gathers property-wide activity (0118 guests
+  // would see a digest of work they were never shared).
+  if (!membership || !isFullMember(membership.role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const parsed = Body.safeParse(await request.json().catch(() => null));

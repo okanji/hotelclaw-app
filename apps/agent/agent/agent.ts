@@ -15,8 +15,8 @@ import { AGENT_TIER_MODELS, type AgentConfig } from "@hotelclaw/agent-config";
  *   - advanced (Opus 5): `reasoning: "medium"` — Opus thinks by default, and
  *     medium keeps turn latency near the Sonnet baseline while buying the
  *     intelligence (sweep low/medium/high against real turns before changing).
- *     Reasoning stays out of the transcript (the chat's progress line reports
- *     tool activity instead).
+ *     The reasoning SUMMARY is kept (display "summarized") so the
+ *     chat's turn trace can show it as a collapsed "Thought" row.
  *   - standard (Haiku 4.5): provider defaults — Haiku rejects `effort` and
  *     adaptive thinking, so NOTHING reasoning-related is sent for it.
  *
@@ -41,7 +41,11 @@ function tierSelection(tier: AgentConfig["modelTier"]) {
       promptCache: { anthropic: { ttl: "1h" as const } },
       providerOptions: {
         anthropic: {
-          thinking: { type: "adaptive", display: "omitted" },
+          // "summarized": the model's reasoning summary reaches the stream
+          // as reasoning.* events, which the channel keeps as a "Thought"
+          // row in the turn trace (2026-10-26; was "omitted"). Display
+          // only — it changes nothing about how the model thinks.
+          thinking: { type: "adaptive", display: "summarized" },
         },
       },
     },

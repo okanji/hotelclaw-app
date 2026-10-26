@@ -68,20 +68,21 @@ export function ActivityFeed({
   }
 
   return (
-    // One page width for the feed — `PageShell` owns it (was a bare
-    // `max-w-3xl`, the last surviving page-container one-off outside the
-    // guest world). The `PageHeader` above is full-pane chrome, so this
-    // column is the page's only content edge.
-    <PageShell className="py-6 sm:py-8">
+    // Full width, like Linear's and GitHub's inboxes: the time stamps hug
+    // the pane's right edge instead of floating at a 960px measure with an
+    // empty half beside them. Rows bleed their hover fill 12px into the
+    // gutter (-mx-3 / px-3) so icons and text sit ON the page edge shared
+    // with the title and tabs.
+    <PageShell width="bleed" className="px-(--page-gutter) py-6 sm:py-8">
       <div className="flex flex-col gap-7">
         {groups.map((group) => (
           <section key={group.key} className="flex flex-col gap-1.5">
-            <Eyebrow tone="brand" className="px-3">
+            <Eyebrow tone="brand">
               {group.label}
             </Eyebrow>
             <ul
               role="list"
-              className="flex flex-col divide-y divide-border"
+              className="flex flex-col gap-px"
             >
               {group.items.map((n) => (
                 <FeedRow
@@ -126,13 +127,13 @@ function FeedRow({
   return (
     // The hover action is a SIBLING of the row button (no nested buttons);
     // while it shows, the row's time cluster yields its slot to it.
-    <li className="group/row relative">
+    <li className="group/row relative -mx-3">
       <button
         type="button"
         onClick={onSelect}
         aria-current={selected ? "true" : undefined}
         className={cn(
-          "flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent",
+          "flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent",
           selected && "bg-accent",
         )}
       >

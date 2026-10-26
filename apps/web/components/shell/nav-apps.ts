@@ -4,11 +4,9 @@ import {
   Bot,
   CalendarDays,
   ClipboardList,
-  FileText,
   Home,
   LineChart,
   ListChecks,
-  MessagesSquare,
   Network,
   Sparkles,
   Target,
@@ -32,9 +30,7 @@ import type { ShellSection } from "./shell-section-context";
 export type NavAppId =
   | "home"
   | "tasks"
-  | "chat"
   | "calendar"
-  | "docs"
   | "meetings"
   | "bookings"
   | "insights"
@@ -65,9 +61,7 @@ export type NavApp = {
 export const NAV_APPS: NavApp[] = [
   { id: "home", label: "Home", hint: "Your property dashboard", icon: Home, path: "/home", section: "home", tone: "lavender", group: "work" },
   { id: "tasks", label: "Tasks", hint: "Board, triage and cycles", icon: ListChecks, path: "/tasks", section: "tasks", tone: "blue", group: "work" },
-  { id: "chat", label: "Chat", hint: "Channels, DMs and mentions", icon: MessagesSquare, path: "/chat", section: "chat", tone: "sage", group: "work" },
   { id: "calendar", label: "Planner", hint: "Calendar and scheduling", icon: CalendarDays, path: "/calendar", section: "calendar", tone: "coral", group: "work" },
-  { id: "docs", label: "Docs", hint: "SOPs, notes and sheets", icon: FileText, path: "/documents", section: "docs", tone: "honey", group: "work" },
   { id: "bookings", label: "Bookings", hint: "Reservations, tables and tickets", icon: Ticket, path: "/bookings", section: "bookings", tone: "lavender", group: "work" },
   { id: "meetings", label: "Meetings", hint: "Calls, recordings and notes", icon: Video, path: "/meetings", section: "meetings", tone: "blue", group: "work" },
   { id: "insights", label: "Insights", hint: "Dashboards, reports and briefs", icon: LineChart, path: "/home/insights", section: "insights", tone: "sage", group: "work" },
@@ -89,15 +83,11 @@ export const NAV_GROUP_LABEL: Record<NavApp["group"], string> = {
 };
 
 /**
- * Fresh-sidebar pins: the daily drivers. Five, like Slack's rail — Insights
- * is added for management (their daily read), Bookings/Meetings and the
- * build tools wait in the launcher until someone pins them.
+ * Fresh-sidebar pins: the property's shared spaces. Chat and Docs are not
+ * apps here — they sit in the personal block under Assistant (`you-block.tsx`)
+ * as fixed rows. Insights and the rest wait in More until someone pins them.
  */
-export function defaultPins(isManagement: boolean): NavAppId[] {
-  const pins: NavAppId[] = ["home", "tasks", "chat", "calendar", "docs"];
-  if (isManagement) pins.push("insights");
-  return pins;
-}
+export const DEFAULT_PINS: NavAppId[] = ["home", "tasks", "calendar"];
 
 /** The app a pathname belongs to — so an unpinned app you're IN still shows. */
 export function appForPath(propertyId: string, pathname: string): NavAppId | null {
@@ -106,8 +96,8 @@ export function appForPath(propertyId: string, pathname: string): NavAppId | nul
   if (rest.startsWith("/home/insights")) return "insights";
   if (rest.startsWith("/initiatives")) return "initiatives";
   if (rest.startsWith("/archive")) return "archive";
-  // Routes that live under another app's node.
-  if (/^\/(dms|inbox|threads)(\/|$)/.test(rest)) return "chat";
+  // Routes that live under another app's node (Chat / Docs are fixed rows
+  // in the personal block, so their routes belong to no app here).
   if (/^\/(triage|cycles)(\/|$)/.test(rest)) return "tasks";
   // Longest-prefix match over the remaining apps.
   let best: NavApp | null = null;

@@ -28588,6 +28588,9 @@ const CHANNEL_BOT_INSTRUCTIONS = [
 	"You are the app's full control surface — people use you instead of clicking through the UI. You can also: schedule/update/cancel meetings; create bookings and move them through their lifecycle; read and edit spreadsheets (read_sheet first, then update_sheet_cells); build/publish/share forms; create projects; move tasks between projects, label them, escalate them, or delete them (approval-gated); notify a person or team; post to other channels; and run manually-triggered workflows. Route each request to the matching tool and reply with the link. If a request maps to NO tool (e.g. billing, member invites, property settings), say so and point at where in the app to do it — never pretend.",
 	"Destructive or high-impact actions (delete_task, cancel_meeting, cancelling bookings, closing forms): confirm with the requester first unless their message already named the exact target and asked for exactly that.",
 	"When ONE request will create more than about three records (a project plus its tasks, a batch of tasks, several documents), say what you are about to create in a short list and get a yes before creating any of it. A single task, document, or form needs no such check — just do it and reply with the link. Ask for that go-ahead (and any other decision you put to the user) with render_ui Options chips — e.g. [\"Go ahead — build it\", \"Trim it down\"] — never a bare 'say go' or a numbered list in text.",
+	"When someone asks you to CREATE or SET UP something and leaves the goal open (\"create some tasks and projects\"), do not ask what it should be about — PROPOSE. Pick the most useful concrete default from what you can see (the channel, open work, recent chatter, the property), lay out the plan in a short list, and put the go-ahead on Options chips. One reply, one decision for them; they will correct a wrong guess faster than they will answer an open question.",
+	"Every option you offer must be something you can ACT on the moment it is tapped. Never offer an option whose only effect is another question from you (\"An event — I'll describe it next\"); if a direction needs more from them, say what in the option's own words and let the reply carry it. And an option's `value` is what gets posted in THEIR name — keep it equal to its label (or omit it). Never put a sentence they did not write into their mouth.",
+	"render_ui Options chips render BELOW your text. Never write \"above\", \"pick one above\", or restate the choices in prose: end your text with the question, once, and let the chips carry the choices.",
 	"When someone asks you to SET UP an initiative or event and everything involved (a wedding, a renovation, a season opening), think across ALL your surfaces, not just tasks: propose supporting documents (run sheets, SOPs, BEOs), an intake or RSVP form, kickoff meetings, and bookings alongside the project and its tasks — and include them in the plan you confirm before creating. A task whose deliverable is a document (\"day-of run sheet\") usually wants that document created as a stub too. This is not scope-widening: 'everything involved' is the requester asking for the full setup.",
 	"Some tools are approval-gated by the system (archiving documents, deleting tasks, cancelling meetings, changing booking status, notifying people, posting to other channels). Call them normally — the channel shows the requester an action preview and waits for their decision. Never try to work around the gate, and never claim the action is done before the decision comes back."
 ].join("\n");
@@ -28862,7 +28865,7 @@ function tierSelection(tier) {
 			promptCache: { anthropic: { ttl: "1h" } },
 			providerOptions: { anthropic: { thinking: {
 				type: "adaptive",
-				display: "omitted"
+				display: "summarized"
 			} } }
 		}
 	};
@@ -67377,7 +67380,7 @@ const CHAT_UI_TOOL_DESCRIPTION = [
 	"- Card — props { title, subtitle?, link?: {kind,id}, badge?: { label, tone?: \"neutral\"|\"success\"|\"warning\"|\"info\"|\"destructive\" }, fields?: [{ label, value }] (≤8) }.",
 	"- StatRow — container for Stat children; props {}.",
 	"- Stat — props { label, value, hint? } — one headline number.",
-	"- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS EVERY time your reply asks the user to decide anything: pick one of N, yes/no, this-or-that, and EVERY confirmation — a reply ending \"say go and I'll build it\" MUST carry Options like [\"Go ahead — build it\", \"Adjust something first\"]. Tapping sends the option as the user's next message: `value` is the exact message sent (defaults to label), so make it a complete, self-contained reply (\"Go ahead as-is\", not \"1\"). The chips ARE the list of choices: NEVER also write the choices in your text as a numbered/bulleted list, and never write \"reply with a number\" or \"tap an option below\" — end your text with the question itself and let the chips carry the choices. The user can always type their own answer instead, so don't add a catch-all \"something else\" option.",
+	"- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS EVERY time your reply asks the user to decide anything: pick one of N, yes/no, this-or-that, and EVERY confirmation — a reply ending \"say go and I'll build it\" MUST carry Options like [\"Go ahead — build it\", \"Adjust something first\"]. Tapping sends the option as the user's next message, IN THEIR NAME: `value` is the exact message sent and defaults to label — leave it out, or keep it identical to the label; never a sentence the user did not write. Make each label a complete, self-contained reply (\"Go ahead as-is\", not \"1\") that you can act on immediately — never an option whose only effect is that you ask another question. The chips ARE the list of choices: NEVER also write the choices in your text as a numbered/bulleted list, and never write \"reply with a number\", \"tap an option below\" or \"pick one above\" (they render BELOW your text) — end your text with the question itself, once, and let the chips carry the choices. The user can always type their own answer instead, so don't add a catch-all \"something else\" option.",
 	"Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: \"task\"|\"project\"|\"document\"|\"meeting\"|\"form\"|\"space\", id: \"<uuid>\" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.",
 	"Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
 	"Placement: the rendered spec appears directly BELOW your message text, so write your reply to read into it (context and question last when using Options). Call at most once per reply — a second call replaces the first. Never repeat rendered data in your text: for tables/cards/stats keep the text to a one-line lead-in; for Options write your reply normally and end with the question."
@@ -67455,7 +67458,7 @@ function chunkStreamText(text, { limit = STREAM_CHUNK_LIMIT, maxChunks = 8 } = {
 	return chunks;
 }
 init_supabase();
-const ROW_COLUMNS$1 = "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval, question_message_id";
+const ROW_COLUMNS$1 = "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval, question_message_id, turn_usage";
 function pendingQuestions(row) {
 	const approval = row.pending_approval;
 	return (Array.isArray(approval?.requests) ? approval.requests : []).filter((r) => typeof r.prompt === "string" && r.prompt.trim());
@@ -67641,7 +67644,7 @@ const TOOL_ACTIVITY = {
 	}
 };
 const ACTIVITY_DETAIL_ARGS = {
-	load_skill: ["skill"],
+	load_skill: ["name", "skill"],
 	search_documents: ["query"],
 	search_tasks: ["query"],
 	search_chat_messages: ["query"],
@@ -67744,17 +67747,106 @@ async function recordActivity(row, label) {
 		channel_id: row.channel_id,
 		thread_key: row.thread_key,
 		turn_nonce: row.turn_nonce,
-		label
+		label,
+		kind: "thinking"
 	});
 	if (error) console.error("[channel-delivery] activity insert failed", error.message);
 }
 async function setLiveActivity(row, label) {
 	await updateSessionRow(row.id, { turn_activity: label });
 }
+function clipForTrace(value, maxChars = 4e3) {
+	if (value === null || value === void 0) return null;
+	const clipString = (s, n) => s.length > n ? `${s.slice(0, n - 1)}…` : s;
+	const walk = (v, depth) => {
+		if (typeof v === "string") return clipString(v, 600);
+		if (typeof v !== "object" || v === null) return v;
+		if (depth > 4) return "…";
+		if (Array.isArray(v)) return v.slice(0, 40).map((x) => walk(x, depth + 1));
+		const out = {};
+		for (const [k, x] of Object.entries(v).slice(0, 40)) out[k] = walk(x, depth + 1);
+		return out;
+	};
+	const bounded = walk(value, 0);
+	const text = JSON.stringify(bounded);
+	if (text && text.length > maxChars) return typeof value === "string" ? clipString(value, maxChars) : {
+		_truncated: true,
+		preview: clipString(text, maxChars)
+	};
+	return bounded;
+}
+function firstSentence(value, max = 120) {
+	const flat = (typeof value === "string" ? value : value && typeof value === "object" ? JSON.stringify(value) : value === void 0 || value === null ? "" : String(value)).replace(/\s+/g, " ").trim();
+	if (!flat) return null;
+	const m = flat.match(/^(.+?[.!?])(\s|$)/);
+	const sentence = m ? m[1] : flat;
+	return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
+}
+async function recordStep(row, step) {
+	if (!step.silent) await setLiveActivity(row, step.label);
+	if (!row.turn_nonce) return;
+	const { error } = await serviceClient().from("channel_bot_activity").insert({
+		property_id: row.property_id,
+		channel_id: row.channel_id,
+		thread_key: row.thread_key,
+		turn_nonce: row.turn_nonce,
+		label: step.label,
+		kind: step.kind,
+		call_id: step.callId ?? null,
+		task_id: step.taskId ?? null,
+		tool_name: step.toolName ?? null,
+		input: step.input === void 0 ? null : clipForTrace(step.input),
+		detail: step.detail ?? null,
+		status: step.status ?? "running"
+	});
+	if (error) console.error("[channel-delivery] step insert failed", error.message);
+}
+async function settleStep(row, key, outcome) {
+	if (!row.turn_nonce) return;
+	if (!key.callId && !key.taskId) return;
+	let query = serviceClient().from("channel_bot_activity").update({
+		status: outcome.status,
+		settled_at: (/* @__PURE__ */ new Date()).toISOString(),
+		...outcome.output === void 0 ? {} : { output: clipForTrace(outcome.output) },
+		...outcome.detail === void 0 ? {} : { detail: outcome.detail },
+		...outcome.label ? { label: outcome.label } : {}
+	}).eq("channel_id", row.channel_id).eq("thread_key", row.thread_key).eq("turn_nonce", row.turn_nonce);
+	query = key.callId ? query.eq("call_id", key.callId) : query.eq("task_id", key.taskId);
+	const { error } = await query;
+	if (error) console.error("[channel-delivery] step settle failed", error.message);
+}
+async function accumulateUsage(row, usage, modelId) {
+	const prior = row.turn_usage ?? {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheReadTokens: 0,
+		cacheWriteTokens: 0,
+		costUsd: null,
+		steps: 0,
+		modelId: null,
+		contextTokens: 0
+	};
+	const n = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+	const next = {
+		inputTokens: prior.inputTokens + n(usage?.inputTokens),
+		outputTokens: prior.outputTokens + n(usage?.outputTokens),
+		cacheReadTokens: prior.cacheReadTokens + n(usage?.cacheReadTokens),
+		cacheWriteTokens: prior.cacheWriteTokens + n(usage?.cacheWriteTokens),
+		costUsd: typeof usage?.costUsd === "number" ? (prior.costUsd ?? 0) + usage.costUsd : prior.costUsd,
+		steps: prior.steps + (usage ? 1 : 0),
+		modelId: modelId ?? prior.modelId,
+		contextTokens: usage ? n(usage.inputTokens) + n(usage.cacheReadTokens) + n(usage.cacheWriteTokens) : prior.contextTokens ?? 0
+	};
+	await updateSessionRow(row.id, { turn_usage: next });
+}
 async function turnActivitySteps(row) {
 	if (!row.turn_nonce) return [];
-	const { data } = await serviceClient().from("channel_bot_activity").select("label, created_at").eq("channel_id", row.channel_id).eq("thread_key", row.thread_key).eq("turn_nonce", row.turn_nonce).order("created_at", { ascending: true }).limit(40);
-	return (data ?? []).map((r) => ({
+	const { data } = await serviceClient().from("channel_bot_activity").select("label, created_at, kind").eq("channel_id", row.channel_id).eq("thread_key", row.thread_key).eq("turn_nonce", row.turn_nonce).order("created_at", { ascending: true }).limit(40);
+	return (data ?? []).filter((r) => ![
+		"reasoning",
+		"question",
+		"approval"
+	].includes(r.kind)).map((r) => ({
 		label: r.label,
 		at: r.created_at
 	}));
@@ -67806,6 +67898,11 @@ function renderQuestion(request) {
 	if (options.length === 0) return head;
 	const lines = options.map((o, i) => `${i + 1}. **${o.label}**${o.description ? ` — ${o.description}` : ""}`);
 	const hasCard = options.length >= 2;
+	if (hasCard) return [
+		head,
+		"",
+		isApproval ? "_Nothing happens until you decide._" : request.allowFreeform ? "_Pick one below, or answer in your own words._" : "_Pick one below._"
+	].join("\n");
 	const hint = isApproval ? hasCard ? "_Tap an option to decide — or reply with a number or the option name. Nothing happens until you do._" : "_Reply with a number or the option name to decide. Nothing happens until you do._" : request.allowFreeform ? hasCard ? "_Tap an option below, or answer in your own words._" : "_Reply with a number, or answer in your own words._" : hasCard ? "_Tap an option below, or reply with a number._" : "_Reply with a number or the option name._";
 	return [
 		head,
@@ -67883,6 +67980,7 @@ async function deliverReply(row) {
 			optionCards.push({
 				type: "ai_ui",
 				spec: validated.spec,
+				park_request_id: request.requestId ?? null,
 				...row.kind === "job" ? { reply_to_self: true } : {}
 			});
 		}
@@ -67895,6 +67993,8 @@ async function deliverReply(row) {
 		threadHint
 	].filter(Boolean).join("\n\n");
 	const steps = await turnActivitySteps(row);
+	const parkedRequests = questions.map(toMessageRequest);
+	const usage = row.turn_usage ?? null;
 	if (!text) {
 		if (attachments) {
 			await channel.sendMessage({
@@ -67938,6 +68038,8 @@ async function deliverReply(row) {
 				ai_generated: true,
 				...row.turn_nonce ? { eve_turn: row.turn_nonce } : {},
 				...isRoot && steps.length > 0 ? { eve_steps: steps } : {},
+				...isRoot && parkedRequests.length > 0 ? { eve_requests: parkedRequests } : {},
+				...isRoot && usage ? { eve_usage: usage } : {},
 				...isRoot && attachments ? { attachments } : {},
 				...isRoot ? parentId ? {
 					parent_id: parentId,
@@ -67954,6 +68056,61 @@ async function deliverReply(row) {
 		}
 	}
 	if (isQuestionPark && rootMessageId) await updateSessionRow(row.id, { question_message_id: rootMessageId });
+}
+function toMessageRequest(request) {
+	const kind = request.kind === "question" || request.kind === "tool-approval" || request.kind === "session-limit" ? request.kind : request.display === "confirmation" ? "tool-approval" : "question";
+	return {
+		requestId: request.requestId ?? "",
+		kind,
+		prompt: (request.prompt ?? "").trim(),
+		display: request.display ?? null,
+		allowFreeform: request.allowFreeform === true,
+		options: (request.options ?? []).slice(0, 6).map((o) => ({
+			id: o.id,
+			label: o.label.slice(0, 80),
+			description: o.description ? o.description.slice(0, 120) : null,
+			style: o.style ?? null
+		})),
+		action: kind === "tool-approval" && request.toolName ? {
+			toolName: request.toolName,
+			input: clipForTrace(request.input, 1200)
+		} : null,
+		outcome: null,
+		answer: null
+	};
+}
+async function settleRequests(row, resolutions) {
+	if (resolutions.length === 0) return;
+	for (const r of resolutions) {
+		const status = r.outcome === "answered" || r.outcome === "approved" ? "completed" : r.outcome === "denied" || r.outcome === "cancelled" ? "rejected" : "cancelled";
+		await settleStep(row, { callId: `request:${r.requestId}` }, {
+			status,
+			detail: r.response?.text?.trim() || (r.response?.optionId ? `Chose ${r.response.optionId}` : r.outcome)
+		});
+	}
+	const messageId = row.question_message_id;
+	if (!messageId) return;
+	const server = streamServer();
+	if (!server) return;
+	try {
+		const { message } = await server.getMessage(messageId);
+		const stamped = message.eve_requests;
+		const existing = Array.isArray(stamped) ? stamped : [];
+		if (existing.length === 0) return;
+		const next = existing.map((req) => {
+			const hit = resolutions.find((r) => r.requestId === req.requestId);
+			if (!hit) return req;
+			const chosen = hit.response?.optionId ? req.options.find((o) => o.id === hit.response?.optionId)?.label ?? hit.response.optionId : hit.response?.text ?? null;
+			return {
+				...req,
+				outcome: hit.outcome,
+				answer: chosen
+			};
+		});
+		await server.partialUpdateMessage(messageId, { set: { eve_requests: next } }, botUserId());
+	} catch (err) {
+		console.error("[channel-delivery] request settle failed", err);
+	}
 }
 async function deliverFailure(row, reason) {
 	const server = streamServer();
@@ -68194,22 +68351,43 @@ var eve_default = eveChannel({
 		},
 		"actions.requested": async (data, _channel, ctx) => {
 			if (!channelBotSession(ctx)) return;
-			const described = (data.actions ?? []).map((a) => {
-				const toolName = a.kind === "tool-call" && typeof a.toolName === "string" ? a.toolName : a.kind === "load-skill" ? "load_skill" : a.kind === "subagent-call" || a.kind === "remote-agent-call" ? "subagent" : "";
+			const payload = data;
+			const described = (payload.actions ?? []).map((a) => {
+				const callId = typeof a.callId === "string" ? a.callId : null;
+				const kind = a.kind === "tool-call" || a.kind === "workflow-tool-call" ? "tool" : a.kind === "load-skill" ? "skill" : a.kind === "subagent-call" || a.kind === "remote-agent-call" ? "subagent" : null;
 				return {
-					toolName,
-					input: toolName === "subagent" && typeof a.description === "string" ? {
+					kind,
+					callId,
+					toolName: kind === "tool" && typeof a.toolName === "string" ? a.toolName : kind === "skill" ? "load_skill" : kind === "subagent" ? "subagent" : "",
+					input: kind === "subagent" && typeof a.description === "string" ? {
 						description: a.description,
 						...a.input
-					} : a.input
+					} : kind === "skill" && typeof a.name === "string" ? {
+						name: a.name,
+						...a.input
+					} : a.input,
+					presented: (callId ? payload.presentation?.[callId]?.label : void 0)?.trim() || null
 				};
-			}).filter((a) => a.toolName);
+			}).filter((a) => !!a.kind && !!a.toolName && a.toolName !== "eve__task_wait" && a.toolName !== "eve__task_cancel");
 			if (described.length === 0) return;
 			const row = await findSessionRow(ctx.session.id, { retries: 0 });
 			if (!row?.turn_nonce) return;
-			const label = await activityLabel(described, row.property_id);
-			if (!label) return;
-			await recordActivity(row, label);
+			const labels = [];
+			for (const action of described) {
+				const label = action.presented ?? await activityLabel([action], row.property_id) ?? action.toolName;
+				labels.push(label);
+				await recordStep(row, {
+					kind: action.kind,
+					label,
+					callId: action.callId,
+					toolName: action.toolName,
+					input: action.input,
+					status: "running",
+					silent: true
+				});
+			}
+			const rest = labels.length - 1;
+			await setLiveActivity(row, rest > 0 ? `${labels[0]} +${rest} more…` : labels[0]);
 		},
 		"message.completed": async (data, _channel, ctx) => {
 			if (!channelBotSession(ctx)) return;
@@ -68225,12 +68403,87 @@ var eve_default = eveChannel({
 			if (!channelBotSession(ctx)) return;
 			const row = await findSessionRow(ctx.session.id, { retries: 0 });
 			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
-			await setLiveActivity(row, "Working on it");
-			const result = data.result;
+			const payload = data;
+			const result = payload.result;
+			const callId = typeof result?.callId === "string" ? result.callId : null;
+			if (callId) {
+				const status = payload.status === "failed" || result?.isError ? "failed" : payload.status === "rejected" ? "rejected" : "completed";
+				const completeLabel = payload.presentation?.[callId]?.label?.trim() || null;
+				await settleStep(row, { callId }, {
+					status,
+					output: result?.output,
+					detail: status === "failed" ? payload.error?.message ?? firstSentence(result?.output) ?? "Failed" : status === "rejected" ? "Not approved" : firstSentence(result?.output),
+					label: completeLabel
+				});
+				await setLiveActivity(row, completeLabel ?? "Working on it");
+			} else await setLiveActivity(row, "Working on it");
 			if (result?.toolName !== "render_ui") return;
 			const spec = result.output?.ai_ui_spec;
 			if (!spec) return;
 			await updateSessionRow(row.id, { ui_spec: spec });
+		},
+		"reasoning.completed": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const text = typeof data.reasoning === "string" ? data.reasoning.trim() : "";
+			if (!text) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+			const sentences = text.match(/[^.!?\n]+[.!?]?/g) ?? [text];
+			const last = sentences[sentences.length - 1]?.trim() || "Thinking";
+			await recordStep(row, {
+				kind: "reasoning",
+				label: last.length > 50 ? `${last.slice(0, 49)}…` : last,
+				detail: text.slice(0, 6e3),
+				status: "completed"
+			});
+		},
+		"task.started": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const task = data;
+			if (typeof task.taskId !== "string") return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+			await recordStep(row, {
+				kind: "task",
+				label: `${task.name?.trim() || (task.kind === "agent" ? "Subagent" : "Task")}: working`,
+				taskId: task.taskId,
+				callId: task.callId ?? null,
+				toolName: task.kind === "agent" ? "subagent" : "task",
+				status: "running",
+				silent: true
+			});
+		},
+		"task.settled": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const task = data;
+			if (typeof task.taskId !== "string") return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce) return;
+			const name = task.name?.trim() || "Task";
+			const detail = task.status === "failed" ? `Failed${task.error?.message ? `: ${firstSentence(task.error.message, 100)}` : ""}` : task.status === "cancelled" ? task.cancel?.reason === "task_cancel" ? "Stopped early since it was no longer needed" : task.cancel?.reason === "turn_cancelled" ? "Stopped by request" : task.cancel?.reason === "turn_ended" ? "Stopped when the turn ended" : "Stopped" : firstSentence(task.output, 100) ?? "Done";
+			await settleStep(row, { taskId: task.taskId }, {
+				status: task.status ?? "completed",
+				output: task.output,
+				detail,
+				label: `${name}: ${task.status === "completed" ? "done" : task.status ?? "done"}`
+			});
+			if (task.status === "completed") await setLiveActivity(row, `Reviewing ${name}'s results…`);
+		},
+		"step.started": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const modelId = data.modelId;
+			if (typeof modelId !== "string") return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce || row.turn_usage?.modelId === modelId) return;
+			await accumulateUsage(row, null, modelId);
+		},
+		"step.completed": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const usage = data.usage;
+			if (!usage) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce) return;
+			await accumulateUsage(row, usage);
 		},
 		"input.requested": async (data, _channel, ctx) => {
 			if (!channelBotSession(ctx)) return;
@@ -68239,7 +68492,8 @@ var eve_default = eveChannel({
 				const options = Array.isArray(r.options) ? r.options.map((o) => ({
 					id: typeof o.id === "string" ? o.id : "",
 					label: typeof o.label === "string" ? o.label : "",
-					description: typeof o.description === "string" ? o.description : null
+					description: typeof o.description === "string" ? o.description : null,
+					style: typeof o.style === "string" ? o.style : null
 				})).filter((o) => o.id && o.label) : [];
 				return {
 					toolName: typeof action.toolName === "string" ? action.toolName : "unknown",
@@ -68264,6 +68518,46 @@ var eve_default = eveChannel({
 					channelId: row.channel_id
 				}
 			});
+			for (const r of requests) {
+				if (!r.requestId) continue;
+				const isApproval = r.kind === "tool-approval" || r.display === "confirmation";
+				await recordStep(row, {
+					kind: isApproval ? "approval" : "question",
+					label: isApproval ? `Waiting for approval: ${r.toolName}` : r.kind === "session-limit" ? "Waiting: session budget reached" : "Waiting for an answer",
+					callId: `request:${r.requestId}`,
+					toolName: isApproval ? r.toolName : null,
+					input: isApproval ? r.input : null,
+					detail: r.prompt,
+					status: "running",
+					silent: true
+				});
+			}
+		},
+		"input.resolved": async (data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const resolutions = (data.resolutions ?? []).flatMap((r) => {
+				if (typeof r.requestId !== "string" || typeof r.outcome !== "string") return [];
+				const response = r.response ?? null;
+				return [{
+					requestId: r.requestId,
+					outcome: r.outcome,
+					response
+				}];
+			});
+			if (resolutions.length === 0) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row) return;
+			await settleRequests(row, resolutions);
+		},
+		"turn.cancelled": async (_data, _channel, ctx) => {
+			if (!channelBotSession(ctx)) return;
+			const row = await findSessionRow(ctx.session.id, { retries: 0 });
+			if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+			await recordStep(row, {
+				kind: "thinking",
+				label: "Stopped",
+				status: "cancelled"
+			});
 		},
 		"turn.failed": async (data, _channel, ctx) => {
 			if (!channelBotSession(ctx)) return;
@@ -68277,8 +68571,16 @@ var eve_default = eveChannel({
 		},
 		"turn.waiting": async (data, _channel, ctx) => {
 			if (!channelBotSession(ctx)) return;
-			if (data.on !== "input") return;
 			const sessionId = ctx.session.id;
+			if (data.on === "tasks") {
+				const row = await findSessionRow(sessionId, { retries: 0 });
+				if (!row?.turn_nonce) return;
+				const { data: working } = await serviceClient().from("channel_bot_activity").select("label").eq("channel_id", row.channel_id).eq("thread_key", row.thread_key).eq("turn_nonce", row.turn_nonce).eq("kind", "task").eq("status", "running");
+				const names = (working ?? []).map((w) => String(w.label).replace(/: working$/, ""));
+				await setLiveActivity(row, names.length === 1 ? `Waiting on ${names[0]}…` : `Waiting on ${names.length || "its"} tasks…`);
+				return;
+			}
+			if (data.on !== "input") return;
 			await deliverOnce(sessionId);
 			const row = await findSessionRow(sessionId, { retries: 0 });
 			if (row) await updateSessionRow(row.id, { turn_state: "idle" });
@@ -82728,7 +83030,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		})
 	});
 	if (grants.has("create_form")) tools.create_form = defineTool({
-		description: "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section). select/multi_select need options. Created as DRAFT unless publish=true. Returns the builder link.",
+		description: "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section, consent). select/multi_select need options; consent is an \"I agree\" tickbox whose label is the statement (waivers, house rules). Created as DRAFT unless publish=true. Returns the builder link.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_71,
 			closure: {}
@@ -84204,7 +84506,8 @@ function __eve_dynamic_input_schema_71(__vars) {
 				"yes_no",
 				"rating",
 				"date",
-				"section"
+				"section",
+				"consent"
 			]),
 			required: boolean().default(false),
 			options: array(string().min(1).max(120)).max(20).optional()
@@ -88762,7 +89065,7 @@ async function error_handler_default(error, event) {
 		console.error(error);
 	}
 }
-installWorkflowDeploymentId("eve_4d27270b9f5ace1ecbad5e1be2629a96");
+installWorkflowDeploymentId("eve_a98e980362f0ea201562a19bff8ebba5");
 applyLocalWorkflowWorldDeliveryTimeoutDefaults();
 const workflowWorld = authenticateLocalWorkflowDeliveries(await aa({
 	dataDir: resolveLocalWorkflowWorldDataDirectory(process.cwd()),

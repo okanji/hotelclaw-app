@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronRight,
+  MessagesSquare,
   ClipboardList,
   FileText,
   FolderKanban,
@@ -41,10 +42,12 @@ import { CreateEntityDialog } from "@/components/projects/create-entity-dialog";
 import { useNotifications } from "./use-notifications";
 import { InboxIcon, MyTasksIcon, NewIcon } from "./clickup-icons";
 import { NavNode, target } from "./nav-node";
-import { useSectionNavigation } from "./use-section-navigation";
+import { usePrewarmSections, useSectionNavigation } from "./use-section-navigation";
 import { useStoredToggle } from "./use-stored-toggle";
 import { ActivitySection } from "./sections/activity-section";
 import { AssistantSection } from "./sections/assistant-section";
+import { ChatSection } from "./sections/chat-section";
+import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
 
 /**
  * The personal block at the top of the sidebar — Linear's Inbox / My issues /
@@ -57,13 +60,19 @@ import { AssistantSection } from "./sections/assistant-section";
  * children are the inbox's filter views. Chat's @-mention feed and thread
  * replies live under the Chat node, labelled "Mentions" / "Replies" to keep
  * them apart. Assistant's children are its projects + recent conversations.
+ *
+ * Chat and Docs follow Assistant as FIXED rows (not pinnable apps): they are
+ * where a person talks and writes all day, so they sit with the personal
+ * block rather than in the Workspace pins.
  */
 export function YouBlock({
   propertyId,
   userId,
+  isManagement,
 }: {
   propertyId: string;
   userId: string;
+  isManagement: boolean;
 }) {
   const pathname = usePathname();
   const base = `/p/${propertyId}`;
@@ -93,6 +102,14 @@ export function YouBlock({
     () => target(base, "assistant", "/assistant", "/assistant"),
     [base],
   );
+  // Chat resumes by channel, so it has no route key.
+  const chat = useMemo(() => target(base, "chat", "/chat"), [base]);
+  const docs = useMemo(
+    () => target(base, "docs", "/documents", "/documents"),
+    [base],
+  );
+  const prewarm = useMemo(() => [chat, docs], [chat, docs]);
+  usePrewarmSections(propertyId, userId, prewarm);
 
   return (
     <SidebarGroup className="pt-0">
@@ -136,6 +153,16 @@ export function YouBlock({
             <Suspense fallback={null}>
               <AssistantSection propertyId={propertyId} />
             </Suspense>
+          </NavNode>
+          <NavNode item={chat} label="Chat" icon={MessagesSquare} navigate={navigate}>
+            <ChatSection
+              propertyId={propertyId}
+              userId={userId}
+              isChannelAdmin={isManagement}
+            />
+          </NavNode>
+          <NavNode item={docs} label="Docs" icon={FileText} navigate={navigate}>
+            <DocumentsTreeSection propertyId={propertyId} />
           </NavNode>
         </SidebarMenu>
       </SidebarGroupContent>

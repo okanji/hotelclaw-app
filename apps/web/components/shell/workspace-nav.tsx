@@ -4,8 +4,11 @@ import { Suspense, useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
@@ -16,25 +19,24 @@ import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { pendingBookingsCountQueryOptions } from "@/lib/query/booking-queries";
 import { pendingApprovalsCountQueryOptions } from "@/lib/query/fleet-queries";
 import { CalendarSection } from "@/components/calendar/calendar-section";
-import { DocumentsTreeSection } from "@/components/documents/documents-tree-section";
 import { AppLauncher, type NavBadges } from "./app-launcher";
 import { NavNode, target } from "./nav-node";
 import {
   NAV_APPS,
   NAV_APP_BY_ID,
   appForPath,
-  defaultPins,
+  DEFAULT_PINS,
   type NavApp,
   type NavAppId,
 } from "./nav-apps";
 import { useNavPrefs } from "./use-nav-prefs";
+import { useStoredToggle } from "./use-stored-toggle";
 import {
   usePrewarmSections,
   useSectionNavigation,
   type SectionTarget,
 } from "./use-section-navigation";
 import { InsightsSection } from "./sections/insights-section";
-import { ChatSection } from "./sections/chat-section";
 import { TasksSection } from "./sections/tasks-section";
 import { MeetingsSection } from "./sections/meetings-section";
 import { WorkflowsSection } from "./sections/workflows-section";
@@ -50,13 +52,16 @@ import { FormsSection } from "./sections/forms-section";
  * into "Agents & tools"; ClickUp's rail shows a few pinned apps and a "More"
  * grid with "Customize navigation"; Linear's Workspace group ends in a
  * "More" popover with "Customize sidebar". So the sidebar carries the daily
- * drivers (default: Home, Tasks, Chat, Planner, Docs, + Insights for
- * management) and every other app — Bookings, Meetings, Forms, Workflows,
- * Chatbots, Agents, Initiatives, Org chart, Archive — is one click away in
- * the More launcher (`app-launcher.tsx`), pinnable from Customize.
+ * shared spaces (default: Home, Tasks, Planner — Chat and Docs sit in the
+ * personal block under Assistant) and every other app — Insights, Bookings,
+ * Meetings, Forms, Workflows, Chatbots, Agents, Initiatives, Org chart,
+ * Archive — is one click away in
+ * the More menu (`app-launcher.tsx` — only the UNPINNED apps, Linear's
+ * popover), pinnable from Customize.
  *
  * An unpinned app you're currently IN still gets a row (at the end), so the
- * lit row always tells you where you are.
+ * lit row always tells you where you are. The "Workspace" label folds the
+ * group (Linear's "Workspace ▾"); the choice persists per device.
  */
 export function WorkspaceNav({
   propertyId,
@@ -69,9 +74,9 @@ export function WorkspaceNav({
 }) {
   const base = `/p/${propertyId}`;
   const router = useRouter();
+  const [open, toggleOpen] = useStoredToggle("hotelclaw:workspace-open", true);
   const { navigate, pathname } = useSectionNavigation(propertyId);
-  const defaults = useMemo(() => defaultPins(isManagement), [isManagement]);
-  const prefs = useNavPrefs(defaults);
+  const prefs = useNavPrefs(DEFAULT_PINS);
 
   // Amber dot on Workflows while any enabled workflow's most recent run
   // failed — ambient "an automation needs attention" without a count.
@@ -97,15 +102,14 @@ export function WorkspaceNav({
     workflows: { dot: failingWorkflows > 0 },
   };
 
-  // Section targets keep their historical route keys (chat resumes by
-  // channel, so it has none).
+  // Section targets keep their historical route keys.
   const targets = useMemo(() => {
     const map = new Map<NavAppId, SectionTarget>();
     for (const app of NAV_APPS) {
       if (app.section) {
         map.set(
           app.id,
-          target(base, app.section, app.path, app.id === "chat" ? undefined : app.path),
+          target(base, app.section, app.path, app.path),
         );
       }
     }
@@ -146,14 +150,8 @@ export function WorkspaceNav({
             <TasksSection propertyId={propertyId} />
           </Suspense>
         );
-      case "chat":
-        return (
-          <ChatSection propertyId={propertyId} userId={userId} isChannelAdmin={isManagement} />
-        );
       case "calendar":
         return <CalendarSection propertyId={propertyId} />;
-      case "docs":
-        return <DocumentsTreeSection propertyId={propertyId} />;
       // Management reads the property through lenses; staff get their
       // personal "My week" — a plain row.
       case "insights":
@@ -197,7 +195,21 @@ export function WorkspaceNav({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+      <SidebarGroupLabel
+        render={<button type="button" />}
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className="w-full cursor-pointer rounded-md hover:bg-sidebar-accent"
+      >
+        <span className="flex-1 text-left">Workspace</span>
+      </SidebarGroupLabel>
+      <SidebarGroupAction
+        onClick={toggleOpen}
+        aria-label={open ? "Collapse workspace" : "Expand workspace"}
+      >
+        <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
+      </SidebarGroupAction>
+      {open ? (
       <SidebarGroupContent>
         <SidebarMenu>
           {rows.map((app) => {
@@ -236,6 +248,7 @@ export function WorkspaceNav({
           <AppLauncher prefs={prefs} badges={badges} onOpenApp={openApp} />
         </SidebarMenu>
       </SidebarGroupContent>
+      ) : null}
     </SidebarGroup>
   );
 }

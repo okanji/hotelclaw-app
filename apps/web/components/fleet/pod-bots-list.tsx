@@ -43,7 +43,7 @@ export function PodBotsList({
         actions={<StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>}
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell className="flex flex-col">
+        <PageShell width="full" className="flex flex-col">
           {bots.length === 0 ? (
             <EmptyState icon={Bot} title="No pod bots yet">
               Bots are provisioned per client during onboarding — none exist for

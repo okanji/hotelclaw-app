@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, MessageCircleQuestion } from "lucide-react";
-import {
-  AiElapsed,
-  AiPixelGrid,
-  AiShimmerLabel,
-} from "@/components/ui/ai-loader";
+import { MessageCircleQuestion } from "lucide-react";
+import { AiPixelGrid } from "@/components/ui/ai-loader";
 import { createClient } from "@/lib/supabase/client";
+import { TurnTrace } from "@/components/ai/agent-turn/turn-trace";
+import {
+  TURN_STEP_COLUMNS,
+  parseTurnStep,
+  upsertTurnStep,
+  type TurnStep,
+} from "@/components/ai/agent-turn/turn-activity";
 
 /** A background job currently worth showing: still working, or parked on a
  *  question nobody has answered yet. */
@@ -69,7 +72,7 @@ export function AiThinkingIndicator({
   // is the live one; earlier ones stay visible so the user can see the path
   // taken rather than just the current stop. Keyed by row id so the mount-time
   // backfill and the realtime feed can merge without duplicating a step.
-  const [steps, setSteps] = useState<{ id: string; label: string }[]>([]);
+  const [steps, setSteps] = useState<TurnStep[]>([]);
   const [jobs, setJobs] = useState<ActiveJob[]>([]);
   const [longRunning, setLongRunning] = useState(false);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
@@ -148,18 +151,21 @@ export function AiThinkingIndicator({
         if (data.turn_state === "running" && data.turn_nonce) {
           supabase
             .from("channel_bot_activity")
-            .select("id, label")
+            .select(TURN_STEP_COLUMNS)
             .eq("channel_id", streamChannelId)
             .eq("thread_key", "_root")
             .eq("turn_nonce", data.turn_nonce)
             .order("created_at", { ascending: true })
             .then(({ data: rows }) => {
               if (cancelled || !rows?.length) return;
+              const parsed = rows
+                .map((r) => parseTurnStep(r as Record<string, unknown>))
+                .filter((r): r is TurnStep => r !== null);
               // Prepend history; keep any live inserts that raced this query
               // (dedup by row id) in their arrival order after it.
               setSteps((prev) => [
-                ...rows,
-                ...prev.filter((s) => !rows.some((r) => r.id === s.id)),
+                ...parsed,
+                ...prev.filter((s) => !parsed.some((r) => r.id === s.id)),
               ]);
             });
         }
@@ -180,12 +186,12 @@ export function AiThinkingIndicator({
         for (const row of data ?? []) applyRow(row);
       });
 
-    const pushStep = (id: unknown, label: unknown) => {
-      if (typeof id !== "string" || typeof label !== "string" || !label.trim())
-        return;
-      setSteps((prev) =>
-        prev.some((s) => s.id === id) ? prev : [...prev, { id, label }],
-      );
+    // Structured rows (0113): an INSERT opens a step, an UPDATE settles it
+    // in place (status, output, duration) — the trace shows both edges.
+    const pushStep = (row: unknown) => {
+      const step = parseTurnStep((row ?? {}) as Record<string, unknown>);
+      if (!step) return;
+      setSteps((prev) => upsertTurnStep(prev, step));
     };
 
     const channel = supabase
@@ -195,19 +201,15 @@ export function AiThinkingIndicator({
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "channel_bot_activity",
           filter: `channel_id=eq.${streamChannelId}`,
         },
         (payload) => {
-          const inserted = payload.new as {
-            id?: string;
-            thread_key?: string;
-            label?: string;
-          };
-          if (inserted.thread_key !== "_root") return;
-          pushStep(inserted.id, inserted.label);
+          const row = payload.new as { thread_key?: string } | undefined;
+          if (!row || row.thread_key !== "_root") return;
+          pushStep(row);
         },
       )
       .on(
@@ -347,34 +349,19 @@ export function AiThinkingIndicator({
                   >
                     Hotelclaw
                   </span>
-                  {/* Activity feed: the steps already taken, muted and dimmed,
-                  with the live one spinning at the bottom. Shows the path
-                  taken rather than only the current stop — a long turn stops
-                  looking like a hang. Capped so a 20-tool turn can't push the
-                  conversation off screen. */}
-                  {steps
-                    .slice(0, -1)
-                    .slice(-4)
-                    .map((step) => (
-                      <span
-                        key={step.id}
-                        className="flex items-center gap-2 pt-0.5 text-sm text-muted-foreground/60"
-                      >
-                        <Check className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{step.label}</span>
-                      </span>
-                    ))}
-                  {/* The live step: pixel-grid wavefront + shimmer + a turn
-                  timer that starts when the turn claims and unmounts (resets)
-                  when it delivers. Long eve turns read as deliberate work. */}
-                  <span className="flex items-center gap-2.5 pt-0.5 text-sm">
-                    <AiPixelGrid />
-                    <AiShimmerLabel className="min-w-0 truncate">
-                      {activity ??
-                        (longRunning ? "Still working on it…" : "Thinking…")}
-                    </AiShimmerLabel>
-                    <AiElapsed />
-                  </span>
+                  {/* The turn as a live trace (agent-turn/turn-trace.tsx):
+                  the summary line is eve's status line — the latest work,
+                  never reset to a generic "Thinking" between steps (the
+                  reference channel's rule) — and it opens into the steps
+                  so far, each settling in place as its result lands. */}
+                  <TurnTrace
+                    live
+                    steps={steps}
+                    activity={
+                      activity ?? (longRunning ? "Still working on it…" : "Thinking…")
+                    }
+                    className="pt-0.5"
+                  />
                 </div>
               </div>
             ) : null}

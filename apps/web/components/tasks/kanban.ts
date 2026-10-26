@@ -1,5 +1,7 @@
 import type {
+  EntityColor,
   RecordSource,
+  StatusCategory,
   TaskPriority,
   TaskRecurrence,
   TaskStatus,
@@ -10,7 +12,17 @@ export type Task = {
   id: string;
   title: string;
   description: string | null;
+  /** LEGACY category projection (0114) — read `status_name` / `status_category`
+   *  for the real pipeline status; `lib/tasks/statuses.ts` predicates take both. */
   status: TaskStatus;
+  /** Lists + pipelines (0114). Optional so older cached rows still type. */
+  list_id?: string;
+  status_id?: string;
+  status_name?: string | null;
+  status_category?: StatusCategory | null;
+  status_color?: EntityColor | null;
+  status_blocked?: boolean | null;
+  completed_at?: string | null;
   priority: TaskPriority;
   assignee_id: string | null;
   /** Returned by the tasks API; used by My Tasks' "waiting on others" lens. */

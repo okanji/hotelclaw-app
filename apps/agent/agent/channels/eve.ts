@@ -3,14 +3,20 @@ import { localDev, type AuthFn } from "eve/channels/auth";
 import { createServerClient } from "@supabase/ssr";
 import { serviceClient } from "../lib/supabase";
 import {
+  accumulateUsage,
   activityLabel,
+  firstSentence,
   recordActivity,
+  recordStep,
   setLiveActivity,
+  settleRequests,
+  settleStep,
   deliverFailure,
   deliverReply,
   drainQueueOrIdle,
   findSessionRow,
   updateSessionRow,
+  type StepKind,
 } from "../lib/channel-delivery";
 
 // The property the caller wants to work in. Verified against memberships
@@ -310,39 +316,80 @@ export default eveChannel({
       await recordActivity(row, "Thinking");
     },
 
+    // One trace row PER action (0113), labelled the way eve's reference
+    // channel labels them (docs/channels/slack.mdx "Delivery"): the tool's
+    // own `label.start` projection when eve supplies one in `presentation`
+    // (built-ins: web_search, web_fetch, eve__skill, eve__search), else our
+    // subject-aware TOOL_ACTIVITY map. The live status line shows the first
+    // action plus "+N more", and never names the model's own task-control
+    // calls (`eve__task_wait` / `eve__task_cancel`).
     "actions.requested": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      const actions = (data as unknown as { actions?: readonly Record<string, unknown>[] })
-        .actions ?? [];
-      // Every action kind carries `input`, which is where the progress label
-      // gets its SUBJECT (which document, which skill, which query). eve's
-      // control-plane kinds have no `toolName` — map them onto synthetic ones
-      // so `load-skill` reads as the skill it is loading rather than nothing.
+      const payload = data as unknown as {
+        actions?: readonly Record<string, unknown>[];
+        presentation?: Record<string, { label?: string } | undefined>;
+      };
+      const actions = payload.actions ?? [];
       const described = actions
         .map((a) => {
-          const toolName =
-            a.kind === "tool-call" && typeof a.toolName === "string"
-              ? a.toolName
+          const callId = typeof a.callId === "string" ? a.callId : null;
+          const kind: StepKind | null =
+            a.kind === "tool-call" || a.kind === "workflow-tool-call"
+              ? "tool"
               : a.kind === "load-skill"
-                ? "load_skill"
+                ? "skill"
                 : a.kind === "subagent-call" || a.kind === "remote-agent-call"
+                  ? "subagent"
+                  : null;
+          const toolName =
+            kind === "tool" && typeof a.toolName === "string"
+              ? a.toolName
+              : kind === "skill"
+                ? "load_skill"
+                : kind === "subagent"
                   ? "subagent"
                   : "";
           // Subagent kinds carry their human description at the top level,
-          // not inside `input` — fold it in so the label can use it.
+          // not inside `input` — fold it in so the label can use it. Skill
+          // loads carry the skill as `name`.
           const input =
-            toolName === "subagent" && typeof a.description === "string"
+            kind === "subagent" && typeof a.description === "string"
               ? { description: a.description, ...(a.input as object | null) }
-              : a.input;
-          return { toolName, input };
+              : kind === "skill" && typeof a.name === "string"
+                ? { name: a.name, ...(a.input as object | null) }
+                : a.input;
+          const presented = callId ? payload.presentation?.[callId]?.label : undefined;
+          return { kind, callId, toolName, input, presented: presented?.trim() || null };
         })
-        .filter((a) => a.toolName);
+        .filter(
+          (a): a is typeof a & { kind: StepKind } =>
+            !!a.kind &&
+            !!a.toolName &&
+            a.toolName !== "eve__task_wait" &&
+            a.toolName !== "eve__task_cancel",
+        );
       if (described.length === 0) return;
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce) return;
-      const label = await activityLabel(described, row.property_id);
-      if (!label) return;
-      await recordActivity(row, label);
+
+      const labels: string[] = [];
+      for (const action of described) {
+        const label =
+          action.presented ??
+          ((await activityLabel([action], row.property_id)) ?? action.toolName);
+        labels.push(label);
+        await recordStep(row, {
+          kind: action.kind,
+          label,
+          callId: action.callId,
+          toolName: action.toolName,
+          input: action.input,
+          status: "running",
+          silent: true,
+        });
+      }
+      const rest = labels.length - 1;
+      await setLiveActivity(row, rest > 0 ? `${labels[0]} +${rest} more…` : labels[0]);
     },
 
     // EVERY completed assistant message of the turn is kept, in order.
@@ -383,15 +430,171 @@ export default eveChannel({
       const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
       if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
 
-      await setLiveActivity(row, "Working on it");
+      const payload = data as unknown as {
+        result?: {
+          callId?: string;
+          toolName?: string;
+          name?: string;
+          output?: unknown;
+          isError?: boolean;
+        };
+        status?: "completed" | "failed" | "rejected";
+        error?: { code?: string; message?: string };
+        presentation?: Record<string, { label?: string } | undefined>;
+      };
+      const result = payload.result;
+      const callId = typeof result?.callId === "string" ? result.callId : null;
+      if (callId) {
+        const status =
+          payload.status === "failed" || result?.isError
+            ? "failed"
+            : payload.status === "rejected"
+              ? "rejected"
+              : "completed";
+        // eve's `label.complete` projection, when the tool defines one.
+        const completeLabel = payload.presentation?.[callId]?.label?.trim() || null;
+        await settleStep(
+          row,
+          { callId },
+          {
+            status,
+            output: result?.output,
+            detail:
+              status === "failed"
+                ? payload.error?.message ?? firstSentence(result?.output) ?? "Failed"
+                : status === "rejected"
+                  ? "Not approved"
+                  : firstSentence(result?.output),
+            label: completeLabel,
+          },
+        );
+        // slack.mdx: "A tool finishes → the tool's label.complete text, when
+        // it defines one; otherwise the status stays." Our catalog tools
+        // define none, and the model's next generation can run minutes, so
+        // a neutral line replaces the finished tool's label rather than
+        // blaming it for time it didn't spend.
+        await setLiveActivity(row, completeLabel ?? "Working on it");
+      } else {
+        await setLiveActivity(row, "Working on it");
+      }
 
-      const result = data.result as
-        | { toolName?: string; output?: { ai_ui_spec?: unknown } }
-        | undefined;
       if (result?.toolName !== "render_ui") return;
-      const spec = result.output?.ai_ui_spec;
+      const spec = (result.output as { ai_ui_spec?: unknown } | undefined)?.ai_ui_spec;
       if (!spec) return;
       await updateSessionRow(row.id, { ui_spec: spec });
+    },
+
+    // Reasoning summary (Anthropic adaptive thinking, display "summarized" —
+    // agent.ts). Kept as its own trace row so the chat can offer it as a
+    // Reasoning disclosure; the live line shows the latest finished
+    // sentence, per the reference channel's status table.
+    "reasoning.completed": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const text =
+        typeof (data as { reasoning?: unknown }).reasoning === "string"
+          ? ((data as { reasoning: string }).reasoning).trim()
+          : "";
+      if (!text) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      const sentences = text.match(/[^.!?\n]+[.!?]?/g) ?? [text];
+      const last = sentences[sentences.length - 1]?.trim() || "Thinking";
+      await recordStep(row, {
+        kind: "reasoning",
+        label: last.length > 50 ? `${last.slice(0, 49)}…` : last,
+        detail: text.slice(0, 6000),
+        status: "completed",
+      });
+    },
+
+    // Subagent / background task lifecycle (eve ≥ 0.69: every agent call is
+    // a task). Rows mirror the reference channel's task card: the agent
+    // name and the first sentence of its brief while working, then how it
+    // ended.
+    "task.started": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const task = data as unknown as {
+        taskId?: string;
+        callId?: string;
+        name?: string;
+        kind?: "agent" | "tool";
+      };
+      if (typeof task.taskId !== "string") return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      const name = task.name?.trim() || (task.kind === "agent" ? "Subagent" : "Task");
+      await recordStep(row, {
+        kind: "task",
+        label: `${name}: working`,
+        taskId: task.taskId,
+        callId: task.callId ?? null,
+        toolName: task.kind === "agent" ? "subagent" : "task",
+        status: "running",
+        silent: true,
+      });
+    },
+
+    "task.settled": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const task = data as unknown as {
+        taskId?: string;
+        name?: string;
+        status?: "completed" | "failed" | "cancelled";
+        output?: unknown;
+        error?: { message?: string };
+        cancel?: { reason?: string };
+      };
+      if (typeof task.taskId !== "string") return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce) return;
+      const name = task.name?.trim() || "Task";
+      const detail =
+        task.status === "failed"
+          ? `Failed${task.error?.message ? `: ${firstSentence(task.error.message, 100)}` : ""}`
+          : task.status === "cancelled"
+            ? task.cancel?.reason === "task_cancel"
+              ? "Stopped early since it was no longer needed"
+              : task.cancel?.reason === "turn_cancelled"
+                ? "Stopped by request"
+                : task.cancel?.reason === "turn_ended"
+                  ? "Stopped when the turn ended"
+                  : "Stopped"
+            : firstSentence(task.output, 100) ?? "Done";
+      await settleStep(
+        row,
+        { taskId: task.taskId },
+        {
+          status: task.status ?? "completed",
+          output: task.output,
+          detail,
+          label: `${name}: ${task.status === "completed" ? "done" : task.status ?? "done"}`,
+        },
+      );
+      if (task.status === "completed") {
+        await setLiveActivity(row, `Reviewing ${name}'s results…`);
+      }
+    },
+
+    // Usage per model step → the turn's running total (shown as the
+    // ai-elements Context meter on the delivered reply).
+    "step.started": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const modelId = (data as { modelId?: unknown }).modelId;
+      if (typeof modelId !== "string") return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.turn_usage?.modelId === modelId) return;
+      await accumulateUsage(row, null, modelId);
+    },
+
+    "step.completed": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const usage = (data as { usage?: unknown }).usage as
+        | Parameters<typeof accumulateUsage>[1]
+        | undefined;
+      if (!usage) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce) return;
+      await accumulateUsage(row, usage);
     },
 
     // Input park — THREE request kinds share this event (eve's InputRequest
@@ -420,6 +623,7 @@ export default eveChannel({
                 label: typeof o.label === "string" ? o.label : "",
                 description:
                   typeof o.description === "string" ? o.description : null,
+                style: typeof o.style === "string" ? o.style : null,
               }))
               .filter((o) => o.id && o.label)
           : [];
@@ -449,6 +653,55 @@ export default eveChannel({
           channelId: row.channel_id,
         },
       });
+      // The park itself is a step of the turn — a trace row per request,
+      // closed by input.resolved (settleRequests) with the outcome.
+      for (const r of requests) {
+        if (!r.requestId) continue;
+        const isApproval = r.kind === "tool-approval" || r.display === "confirmation";
+        await recordStep(row, {
+          kind: isApproval ? "approval" : "question",
+          label: isApproval
+            ? `Waiting for approval: ${r.toolName}`
+            : r.kind === "session-limit"
+              ? "Waiting: session budget reached"
+              : "Waiting for an answer",
+          callId: `request:${r.requestId}`,
+          toolName: isApproval ? r.toolName : null,
+          input: isApproval ? r.input : null,
+          detail: r.prompt,
+          status: "running",
+          silent: true,
+        });
+      }
+    },
+
+    // The person answered (or the question was withdrawn): retire the park
+    // in place, the way the reference channel does — buttons gone, outcome
+    // shown — instead of leaving a live-looking question in the history.
+    "input.resolved": async (data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const raw = (data as unknown as { resolutions?: readonly Record<string, unknown>[] })
+        .resolutions ?? [];
+      const resolutions = raw.flatMap((r) => {
+        if (typeof r.requestId !== "string" || typeof r.outcome !== "string") return [];
+        const response = (r.response ?? null) as
+          | { optionId?: string | null; text?: string | null }
+          | null;
+        return [{ requestId: r.requestId, outcome: r.outcome, response }];
+      });
+      if (resolutions.length === 0) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row) return;
+      await settleRequests(row, resolutions);
+    },
+
+    // The turn was cancelled (eve /cancel, or Stop at the session-limit
+    // prompt). session.waiting follows and delivers whatever accumulated.
+    "turn.cancelled": async (_data, _channel, ctx) => {
+      if (!channelBotSession(ctx as HandlerCtx)) return;
+      const row = await findSessionRow((ctx as HandlerCtx).session.id, { retries: 0 });
+      if (!row?.turn_nonce || row.delivered_nonce === row.turn_nonce) return;
+      await recordStep(row, { kind: "thinking", label: "Stopped", status: "cancelled" });
     },
 
     // Non-terminal turn failure: session.waiting follows and the turn's
@@ -477,8 +730,31 @@ export default eveChannel({
     // drain carries them into the next turn instead).
     "turn.waiting": async (data, _channel, ctx) => {
       if (!channelBotSession(ctx as HandlerCtx)) return;
-      if ((data as unknown as { on?: string }).on !== "input") return;
       const sessionId = (ctx as HandlerCtx).session.id;
+      if ((data as unknown as { on?: string }).on === "tasks") {
+        // Not a settle point — the turn holds while its subagents work.
+        // Status line per the reference channel: "Waiting on researcher…"
+        // or "Waiting on 3 tasks…".
+        const row = await findSessionRow(sessionId, { retries: 0 });
+        if (!row?.turn_nonce) return;
+        const { data: working } = await serviceClient()
+          .from("channel_bot_activity")
+          .select("label")
+          .eq("channel_id", row.channel_id)
+          .eq("thread_key", row.thread_key)
+          .eq("turn_nonce", row.turn_nonce)
+          .eq("kind", "task")
+          .eq("status", "running");
+        const names = (working ?? []).map((w) => String(w.label).replace(/: working$/, ""));
+        await setLiveActivity(
+          row,
+          names.length === 1
+            ? `Waiting on ${names[0]}…`
+            : `Waiting on ${names.length || "its"} tasks…`,
+        );
+        return;
+      }
+      if ((data as unknown as { on?: string }).on !== "input") return;
       await deliverOnce(sessionId);
       const row = await findSessionRow(sessionId, { retries: 0 });
       if (row) await updateSessionRow(row.id, { turn_state: "idle" });

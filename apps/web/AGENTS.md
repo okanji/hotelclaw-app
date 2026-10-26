@@ -18,24 +18,25 @@ existing ones convert when touched.
 
 The Slack-style icon rail is gone. The shell is ONE Linear / ClickUp-style
 sidebar (`components/shell/section-sidebar.tsx`): property switcher + search +
-create, the personal block (`you-block.tsx`: Inbox / My tasks / Assistant),
+create, the personal block (`you-block.tsx`: Inbox / My tasks / Assistant, then
+Chat and Docs as FIXED rows — not pinnable apps, 2026-10-26),
 the **Workspace** group, Favorites, the Teams + Projects lists, and the
 account menu in the footer.
 
 **Pins + launcher (the Slack / ClickUp / Linear model, re-planned 2026-10-25).**
 Every app is declared once in `nav-apps.ts` (`NAV_APPS`: id, label, icon,
 path, optional shell `section`, tint, group). The Workspace group shows ONLY
-the person's pinned apps — default Home, Tasks, Chat, Planner, Docs (+
-Insights for management; `defaultPins`) — and ends in **More**, which opens
-the launcher (`app-launcher.tsx`: a grid of every app grouped Work / Build &
-automate / Admin, with badges) and its **Customize sidebar** dialog (pin /
-unpin / reorder apps; show or hide Favorites, Teams, Projects). Prefs are
+the person's pinned apps — default Home, Tasks, Planner (`DEFAULT_PINS`) — and ends in **More**, Linear's
+menu (`app-launcher.tsx`): a small dropdown under the row listing only the
+apps NOT pinned (with badges), then **Customize sidebar** (pin / unpin /
+reorder apps; show or hide Favorites, Teams, Projects). The "Workspace" label
+folds the group like Favorites / Teams (`hotelclaw:workspace-open`). Prefs are
 per device in localStorage via the `useNavPrefs` external store
 (`use-nav-prefs.ts`; `pins: null` = never customized, so the role-aware
 default applies). An unpinned app you're IN gets a temporary row
-(`appForPath`), so the lit row always shows where you are. Bookings,
-Meetings, Initiatives, Forms, Workflows, Chatbots, Agents, Org chart and
-Archive live in the launcher by default. Realtime-driven badges for unpinned
+(`appForPath`), so the lit row always shows where you are. Insights,
+Bookings, Meetings, Initiatives, Forms, Workflows, Chatbots, Agents, Org
+chart and Archive live in the launcher by default. Realtime-driven badges for unpinned
 section apps (bookings, approvals) refresh on refetch, not live, because
 their section bodies aren't mounted.
 
@@ -44,7 +45,22 @@ their section bodies aren't mounted.
 per-section sidebar in place, and the body stays mounted while closed.
 Nodes expand **independently** — opening one never folds the others
 (explicit user preference; landing in a section opens its node, nothing
-closes). Teams / Projects / Favorites fold from their group labels.
+closes). Teams / Projects / Favorites fold from their group labels. The Projects group
+opens with an "All projects" row (ClickUp's "All Tasks" first row), and that
+page is Linear's (`linear.app/demo/projects/all`, audited 2026-10-26):
+"All projects" chip + filters, and on the right Display options + a
+Health / Teams / Leads summary panel (click a row to narrow). Display
+options (`tracking/project-display.tsx`, per-device store) = layout List /
+Board / **Timeline (default)**, grouping status / health / lead / none,
+ordering, show completed, list properties. Timeline (`timeline-view.tsx`):
+the date header + tracks run full width UNDER a sticky list column (icon ·
+name · health · status · "…" · lead), status-tinted groups with "+", name
+above each bar, next milestone + % at its end, milestone diamonds, Month /
+Quarter / Year zoom; undated rows schedule in one click (4-week ghost
+bar). List (`list-view.tsx`): Name + next milestone · Health "On track ·
+5w" (latest project update wins, else the computed pace read) · Lead ·
+Target date · Tasks · Status %. The old Table view is gone. The per-row
+"…" menu (gr8r's) opens, sets status, copies the link.
 Children carry destinations only — the Tasks node is just Triage + Cycles
 (+ the current cycle); the Tasks row itself opens the board, create is + New
 / `N`, and filters belong in the page toolbar. Routing (pushState fast path
@@ -704,44 +720,91 @@ visible and editable in Workflows, and one customized in the builder comes back
   channel persona on the literal word "channel" fails a bot that correctly says
   "ops chat".
 
-## AI chat surfaces on AI Elements + the learning loop (built 2026-10-23)
+## AI chat surfaces on shadcn/ui AI Elements + the learning loop (built 2026-10-23; moved to shadcn/ui AI Elements 2026-10-26)
 
-Every human-facing AI surface now renders through two shared components on
-[AI Elements](https://ai-sdk.dev/elements) (`components/ai-elements/*`, shadcn
-registry files owned by this repo — `prompt-input` was dropped: it is
-Radix-bound and our primitives are base-ui; the house composers stay):
+Every human-facing AI surface renders through ONE vocabulary: the
+**shadcn/ui AI Elements** patterns (`ui.shadcn.com/docs/ai-elements` — the
+successor of Vercel's AI Elements, which is deprecated at the end of
+November 2026; "Vercel Elements" is not a product) composed from the Base
+UI-native primitives in `components/ui/` (`trace`, `code-block`, `item`,
+`message`, `bubble`, `message-scroller`, `hover-card`, `tooltip`), with
+every SHAPE and WORDING rule in **`@hotelclaw/chat-ui/turn`** so the phone
+draws the same turn. `components/ai-elements/*` is GONE (2026-10-26) — the
+xyflow canvas wrappers the workflow builder used were never chat patterns
+and now live in `components/workflows/builder/canvas/elements/*`; the
+project skill `.claude/skills/ai-elements` documents the deprecated Vercel
+CLI, so never run `ai-elements add`.
 
+- **`@hotelclaw/chat-ui/turn`** (pure; web + mobile + runtime) — `TurnStep`
+  (one row of a turn: kind thinking | reasoning | tool | skill | subagent |
+  task | question | approval | waiting | step; status running | completed |
+  failed | rejected | cancelled; bounded input / output / detail; times),
+  `parseTurnStep` (a `channel_bot_activity` row), `transcriptTurnSteps` (an
+  eve transcript item → steps; open parks excluded, settled ones become
+  lines), `panelTurnSteps` (AI SDK UI-message reasoning + tool parts →
+  steps), `traceSummary` ("Worked through N steps, 1 failed" + duration),
+  `stepTitle` / `settledLabel` / `runningLabel` (the tense rules: the
+  runtime labels a step as it STARTS, "Reading “X”…"; a settled row reads
+  "Read “X”"; `toolLabel` is the done tense and `runningLabel` turns it
+  present), `stepGlyph` (icon class → lucide on web, Ionicons on the phone),
+  `TOOL_LABELS` / `toolLabel` / `SILENT_TOOLS` (`lib/assistant/tool-labels.ts`
+  re-exports), `ParkRequest` (= the runtime's `eve_requests` entry = the
+  reducer's `InputRequest`) with `parkTitle` / `parkOptions` /
+  `settledParkLabel` / `parkInputLines` / `displayReplyText` (strips the
+  fallback "⚠️ Approval needed" block wherever a Confirmation card renders),
+  `TurnUsage` + `contextUsage` (the Context meter's arithmetic),
+  `extractSources` (web_search output → links). **A new label, tense rule
+  or park wording goes HERE, never in a renderer** — both apps read it.
+- **`components/ai/agent-turn/*`** — the pieces every surface composes:
+  `turn-trace.tsx` (`TurnTrace`, the ONE trace renderer on `Trace`: Chain
+  of Thought summary → Tool rows with Code Block input/output, Reasoning
+  "Thinking"/"Thought", Subagent rows, Sources, settled parks as lines;
+  `live` mode for a running turn), `park-controls.tsx` (`ParkControls`:
+  Confirmation = `Item` + Cancel outline / Approve filled honouring eve's
+  `style`; question = Suggestion button row + free text; settled = one
+  Trace line; `onChoose` / `onAnswer` decide what a tap does, so the
+  channel posts the person's own message and the Assistant answers via
+  `inputResponses`), `turn-usage.tsx` (`TurnUsageMeter`, Context pattern:
+  Hover Card + Progress), `turn-activity.ts` (the channel's fetch-by-nonce
+  store), `bot-reply.tsx` (the channel bot's turn — see the next section).
+  `components/ai/markdown.tsx` is the Message pattern's markdown:
+  Streamdown (cjk / math / mermaid plugins, incomplete-markdown repair) with
+  fenced code routed to the Code Block primitive through `components.code`
+  (Streamdown sets `data-block` on fenced code only; ```mermaid goes back to
+  Streamdown's own renderer); `app/globals.css` keeps the `@source` line for
+  Streamdown's classes. `components/ai/reply-actions.tsx` is the Message
+  pattern's footer (`MessageFooter`: Copy swapping to a check, Good / Bad
+  response as `aria-pressed` toggles, the 👎 note) used by all four surfaces.
 - **`components/ai/eve-conversation.tsx`** — the ONE renderer for an eve
-  session transcript (Assistant, Agents chat, pod-bot test chat, the read-only
-  Fleet session viewer). Input = the reducer items from
-  **`@hotelclaw/chat-ui/transcript`** (moved out of `lib/fleet/transcript.ts`,
-  which is now a re-export shim, so mobile renders the same event log the
-  same way). It draws: `MessageResponse` (Streamdown — code, math, mermaid,
-  incomplete-markdown repair while tokens stream; `app/globals.css` has the
-  `@source` line for its classes, without which streamed markdown is
-  unstyled), a `Reasoning` disclosure, the grouped `ToolTrace`, inline
-  `render_ui` cards, subagent `Task` runs, **parked questions** (eve
-  `ask_question` → options as `Suggestion` chips + free text when allowed)
-  and **tool approvals** (Approve / Cancel card), a turn-failure note, and
-  copy + 👍/👎 `MessageActions`. The reducer keeps EVERY completed text block
-  of a turn (last-wins once dropped the first half of a two-part answer),
-  handles delta AND legacy cumulative streams, tracks
-  `reasoning.*`, `task.*`, `input.requested/resolved` (with `requestId`,
-  `kind`, `display`, `options`, the gated `action`), and treats
+  session transcript (Assistant, Agents chat, pod-bot test chat, the
+  read-only Fleet session viewer), built the way the Chat pattern says:
+  `MessageScrollerProvider autoScroll` → `MessageScroller` → each turn a
+  `MessageScrollerItem` (`scrollAnchor` on the person's turn, so a new
+  question settles near the top and the reply streams under it; the view
+  follows only at the live edge), the person's text a `Bubble align="end"
+  variant="muted"`, the agent's turn `TurnTrace(transcriptTurnSteps(item))`
+  → `Markdown` → inline `render_ui` cards → `ParkControls` for OPEN parks →
+  a failure note → `ReplyActions`. Input = the reducer items from
+  **`@hotelclaw/chat-ui/transcript`** (shared with mobile). The reducer keeps
+  EVERY completed text block of a turn (last-wins once dropped the first
+  half of a two-part answer), handles delta AND legacy cumulative streams,
+  tracks `reasoning.*`, `task.*`, `input.requested/resolved` (with
+  `requestId`, `kind`, `display`, `options`, the gated `action`), and treats
   `turn.waiting {on:"input"}` as the park boundary (`on:"tasks"` is not).
-  Tests: `lib/fleet/__tests__/transcript.test.ts`.
+  `mono` (fleet) shows raw tool names as row labels; `showReasoning=false`
+  drops Thought rows. Tests: `lib/fleet/__tests__/transcript.test.ts`.
 - **`hooks/use-eve-session.ts`** — the transport both chats used to duplicate
   (and had drifted on): headers, create/resume by session id, replay-from-0
   consume with turn counting, `respond(requestId, {optionId|text})` via
   `inputResponses` (resumes the SAME turn — consume until its park, not the
   next one), 409 → fresh session, cancel, retried resume that never discards
   the stored session on a read failure.
-- **`components/ai/bot-panel-conversation.tsx`** — the renderer for the
-  stateless panel bots that stream AI SDK `UIMessage`s: `Tool` with live
-  state badges, `Reasoning`, `MessageResponse`, thumbs. Used by
-  `task-ai-panel.tsx` and `insights-ask-panel.tsx`, which moved to
+- **`components/ai/bot-panel-conversation.tsx`** — the same composition for
+  the stateless panel bots that stream AI SDK `UIMessage`s
+  (`TurnTrace(panelTurnSteps(parts))`, `Markdown`, `ReplyActions`). Used by
+  `task-ai-panel.tsx` and `insights-ask-panel.tsx`, which run on
   **`useChat` + `DefaultChatTransport`**. Server side, `lib/ai/run-bot.ts`
-  grew **`streamBot()`** (`streamText` → `toUIMessageStream` →
+  has **`streamBot()`** (`streamText` → `toUIMessageStream` →
   `createUIMessageStreamResponse`, `sendReasoning`, provider errors masked)
   sharing `prepareBot()` with `runBot()` so the two paths can't drift on
   persona or tools; `streamTaskBot` / `streamInsightsQaBot` are the twins.
@@ -750,6 +813,17 @@ Radix-bound and our primitives are base-ui; the house composers stay):
   calls ignored) and authenticate cookie OR Bearer (`resolveApiCaller`) so
   mobile hits the same handlers. `refreshPinnedPrompt` still uses the
   non-streaming bot (cached answers).
+- **Installing a shadcn primitive here:** `pnpm dlx shadcn@latest add …`
+  fails in this repo with "Unexpected store location" (dlx runs the global
+  pnpm 8 against the pnpm 10 store). Fetch the registry item directly —
+  `curl https://ui.shadcn.com/r/styles/base-nova/<name>.json`, write
+  `files[0].content` to `components/ui/<name>.tsx`, rewrite `from "cn"` →
+  `@/lib/utils`, `@/registry/base-nova/ui/*` → `@/components/ui/*`, and
+  swap the registry's `IconPlaceholder` for the lucide icon it names — then
+  add the item's `dependencies` with `corepack pnpm add … --filter web`
+  (`@shadcn/react` for Message Scroller). Pattern docs are plain markdown at
+  `/docs/ai-elements/base/<name>.md`, primitives at
+  `/docs/components/base/<name>.md`.
 
 **The learning loop — how the AI gets better without anyone curating it:**
 
@@ -788,8 +862,11 @@ Radix-bound and our primitives are base-ui; the house composers stay):
 ("Assistant + AI on mobile"): the eve channel accepts the Supabase access
 token as a Bearer (`supabaseBearerAuth` in `apps/agent/agent/channels/eve.ts`,
 membership-checked like the cookie path), the phone's `useEveSession` is a
-port of the web hook over `expo/fetch` streaming, and the task assistant reads
-the same UI message stream with a 60-line SSE reader.
+port of the web hook over `expo/fetch` streaming, the task assistant reads
+the same UI message stream with a 60-line SSE reader, and
+`apps/mobile/components/ai/*` are the RN twins of the agent-turn pieces over
+the same `@hotelclaw/chat-ui/turn` shapes (trace, parks, footer, context
+meter), on the channel bot too.
 
 **Install gotcha that bit this change (pnpm `node-linker=hoisted`):** after a
 major bump, orphaned OLD copies can linger in nested `node_modules` and win
@@ -798,6 +875,73 @@ Node resolution — `apps/web/node_modules/@ai-sdk/anthropic@3` and
 `pnpm install` and broke `import("ai")` with "does not provide an export
 named createProviderToolFactory…". If an AI SDK import fails with a missing
 provider-utils export, look for a stale nested copy before touching versions.
+
+## Channel-bot turn UI — the kitchen-sink agent turn on shadcn/ui AI Elements (built 2026-10-26)
+
+The channel bot's reply is rendered as an agent turn on the patterns above,
+and the runtime side follows eve's own reference channel
+(`node_modules/eve/docs/channels/slack.mdx` "Delivery" / "Task card" /
+"HITL") for what a turn shows.
+
+- **Runtime (migration 0113)** — `channel_bot_activity` grew from a label
+  feed into a structured trace: `kind` (thinking | reasoning | tool | skill
+  | subagent | task | question | approval | waiting), `call_id` / `task_id`
+  / `tool_name`, bounded `input` / `output` (`clipForTrace`), `detail`
+  (reasoning text, "how it ended", error), `status`, `settled_at`;
+  `channel_bot_sessions.turn_usage` sums eve's `step.completed` usage (+ the
+  last step's input as `contextTokens`). `agent/channels/eve.ts` records one
+  row PER action from `actions.requested` (preferring eve's
+  `presentation[callId].label` — the tool's own `label.start` — over the
+  `TOOL_ACTIVITY` map; `eve__task_wait` / `eve__task_cancel` hidden), settles
+  it from `action.result` (status + output + `label.complete`), keeps
+  `reasoning.completed` (agent.ts now sends Anthropic thinking `display:
+  "summarized"`), `task.started` / `task.settled` (eve's task-card wording:
+  "Stopped early since it was no longer needed" …), `step.started` /
+  `step.completed` (usage), `turn.waiting {on:"tasks"}` ("Waiting on
+  researcher…"), `turn.cancelled`, and **`input.resolved`** →
+  `settleRequests`, which finds the park row by `call_id =
+  request:<requestId>` (the row's own nonce names the delivered message,
+  `eve-<nonce>` — the session row has already moved on to the resume turn by
+  then) and `partialUpdateMessage`s the message's `eve_requests` with
+  outcome + answer so every reader — web AND phone, via Stream's
+  message.updated — sees the park settle in place. `deliverReply` stamps
+  `eve_steps` (labels + times: the summary line without a query),
+  **`eve_requests`** (structured parks: kind, prompt, options with eve's
+  `style`, clipped action input) and **`eve_usage`**; park Options cards
+  carry `park_request_id`; the numbered-option fallback text is gone when a
+  card ships. Fixed en route: `load_skill` labels read `input.name`.
+- **Web (`components/ai/agent-turn/bot-reply.tsx`)** — replaces the
+  text-then-steps render for every message with `ai_generated` / `eve_turn`
+  (**Stream's `isMessageAIGenerated` hook was never configured in this app
+  — it is undefined for every message, so anything keyed on it never
+  rendered**). Order per the Chat pattern: `TurnTrace` (summary "Worked
+  through N steps · 15s" from `eve_steps`; the structured rows load on first
+  open via the module store keyed by nonce, `useTurnSteps`, no per-message
+  realtime) → artifact cards → text through `Markdown` (approval block
+  stripped by `displayReplyText`) → `render_ui` cards (park Options cards
+  are superseded by `ParkControls` when `eve_requests` exists) →
+  `ParkControls` (a tap posts the option's LABEL as the person's own channel
+  message via `use-quick-reply-sender.ts`; `reply_to_self` parks thread
+  under the card) → `ReplyActions` (surface `channel`) with the
+  `TurnUsageMeter`. `ai-thinking-indicator.tsx` renders the same `TurnTrace`
+  live from the realtime rows (INSERT opens a step, UPDATE settles it).
+- **Mobile** (`apps/mobile/components/ai/BotReply.tsx` +
+  `attachments/CustomAttachments.tsx`) renders the same turn through
+  stream-chat-expo's `WithComponents` slots — `MessageContentTopView` (the
+  trace), `MessageText` (the reply through the phone's Markdown, approval
+  block stripped; non-bot messages keep Stream's renderer),
+  `MessageContentBottomView` (cards → `ParkControls` → `ReplyActions` +
+  `ContextMeter`). See `apps/mobile/AGENTS.md`.
+- **Persona** (`agent-config.ts` + the Options description in
+  `packages/chat-ui/index.ts`): propose-don't-interview for open creation
+  asks, every option actionable on tap, option `value` = label (never a
+  sentence in the user's name), chips render BELOW the text.
+- **Verify**: `bot-chat-test.mjs send … "create some tasks and projects"`
+  → one reply with a plan + go-ahead chips, trace above, context meter
+  below; `… "archive the document titled '…'"` → Confirmation Item; tap
+  Cancel → the card settles to "Not approved: archive document" without a
+  reload. Dev-loop gotchas (webhook cold compile, background `pnpm dev`) are
+  in memory `channel-bot-dev-loop`.
 
 ## Fleet views — pod-bot transparency + ops (built 2026-07-19, inside the Agents section)
 

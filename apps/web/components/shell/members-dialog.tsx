@@ -29,6 +29,7 @@ import {
 import { removeMember, updateMemberRole } from "@/lib/members/actions";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/db/types";
+import { FULL_ROLES, type FullRole } from "@/lib/auth/roles";
 
 type Props = {
   propertyId: string;
@@ -53,7 +54,9 @@ const ROLE_META: Record<string, { label: string; tone: RoleTone }> = {
 const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
 
 /** Order the role picker offers. Most-privileged first, matching the badge sort. */
-const ROLE_ORDER: Role[] = ["owner", "manager", "staff"];
+// The role picker — guests are managed through the guest-access dialog
+// (0118), never by flipping a role here.
+const ROLE_ORDER: FullRole[] = [...FULL_ROLES];
 
 /** Everyone who belongs to the current property, with avatar, email, and role. */
 export function MembersDialog({
@@ -154,7 +157,7 @@ function MemberRow({
     tone: "neutral" as RoleTone,
   };
 
-  function changeRole(next: Role) {
+  function changeRole(next: FullRole) {
     if (next === member.role) return;
     startTransition(async () => {
       const result = await updateMemberRole({

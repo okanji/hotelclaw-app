@@ -309,6 +309,8 @@ const NotifyRoleStep = z.object({
   ...StepCommon,
   type: z.literal("action.notify.role"),
   config: z.object({
+    // Deliberately NOT lib/auth/roles ROLES: a role-wide notification must
+    // never fan out to guests (0118), who only see what they were shared.
     role: z.enum(["owner", "manager", "staff"]),
     title: TplString,
     body: z.string().optional(),

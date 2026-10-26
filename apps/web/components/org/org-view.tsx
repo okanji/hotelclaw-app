@@ -76,7 +76,7 @@ export function OrgView({
     <div className="flex h-full w-full flex-col">
       <PageHeader title="Org chart" icon={<Network />} />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell>
+        <PageShell width="full">
           {isPending || !data ? (
             <div className="flex flex-col gap-3">
               <Skeleton className="h-6 w-40" />

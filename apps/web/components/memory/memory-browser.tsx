@@ -121,7 +121,7 @@ export function MemoryBrowser({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell className="flex flex-col">
+        <PageShell width="full" className="flex flex-col">
           {/* Stat strip — plain numbers, no card chrome. */}
           <dl className="grid grid-cols-2 gap-y-6 sm:grid-cols-4">
             {(["property", "user", "guest"] as const).map((k) => (

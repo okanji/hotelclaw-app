@@ -36,10 +36,28 @@ export type DeliveryRow = {
    *  for background jobs, whose `job:<uuid>` thread key no inbound message
    *  can ever produce. */
   question_message_id: string | null;
+  /** Token usage accumulated over the turn's model steps (0113). */
+  turn_usage: TurnUsage | null;
 };
 
 const ROW_COLUMNS =
-  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval, question_message_id";
+  "id, property_id, channel_id, channel_type, thread_key, turn_nonce, reply_candidate, ui_spec, delivered_nonce, kind, job_headline, pending_approval, question_message_id, turn_usage";
+
+/** eve's per-step usage shape (step.completed / session.waiting), summed
+ *  over the turn, plus the model that ran it. */
+export type TurnUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: number | null;
+  steps: number;
+  modelId: string | null;
+  /** The LAST step's input (fresh + cached) — i.e. how full the context
+   *  window was when the turn ended. The sums above are what the turn
+   *  spent; this is what the Context meter reads. */
+  contextTokens: number;
+};
 
 /** One entry of `pending_approval.requests` as stamped by the eve channel's
  *  `input.requested` handler. */
@@ -47,11 +65,20 @@ export type PendingRequest = {
   toolName?: string;
   /** The gated tool's arguments — the payload an action preview must show. */
   input?: unknown;
+  callId?: string | null;
+  /** eve's request discriminator: question | tool-approval | session-limit. */
+  kind?: string | null;
   prompt?: string | null;
   requestId?: string | null;
   display?: string | null;
   allowFreeform?: boolean;
-  options?: Array<{ id: string; label: string; description: string | null }>;
+  options?: Array<{
+    id: string;
+    label: string;
+    description: string | null;
+    /** eve option styling hint: default | primary | danger. */
+    style?: string | null;
+  }>;
 };
 
 /**
@@ -207,7 +234,10 @@ const TOOL_ACTIVITY: Record<string, { base: string; detail?: string }> = {
  * order. First non-empty string wins.
  */
 const ACTIVITY_DETAIL_ARGS: Record<string, string[]> = {
-  load_skill: ["skill"],
+  // eve's load-skill action carries `{ name }` (docs/concepts/built-in-tools)
+  // — the old `skill` key never matched, so every load read as a bare
+  // "Loading a skill…".
+  load_skill: ["name", "skill"],
   search_documents: ["query"],
   search_tasks: ["query"],
   search_chat_messages: ["query"],
@@ -269,6 +299,9 @@ const UUID_RX =
  *
  * INSERT, never read-modify-write: handlers run as durable workflow steps and
  * parallel tool batches would race an array append.
+ *
+ * Label-only form (kind `thinking`); `recordStep` below is the structured
+ * form every action / task / reasoning row uses since 0113.
  */
 export async function recordActivity(
   row: DeliveryRow,
@@ -297,6 +330,7 @@ export async function recordActivity(
     thread_key: row.thread_key,
     turn_nonce: row.turn_nonce,
     label,
+    kind: "thinking",
   });
   if (error) {
     // Cosmetic surface — never let it break a turn.
@@ -319,6 +353,175 @@ export async function setLiveActivity(
   await updateSessionRow(row.id, { turn_activity: label });
 }
 
+/** The step kinds a turn trace can hold (0113). */
+export type StepKind =
+  | "thinking"
+  | "reasoning"
+  | "tool"
+  | "skill"
+  | "subagent"
+  | "task"
+  | "question"
+  | "approval"
+  | "waiting";
+
+export type StepStatus = "running" | "completed" | "failed" | "rejected" | "cancelled";
+
+/** Bound a value for the trace columns: strings clipped, objects
+ *  re-serialised with their long strings clipped, everything under ~4KB.
+ *  The trace is a reading aid — the full payload stays in eve's own
+ *  session log. */
+export function clipForTrace(value: unknown, maxChars = 4000): unknown {
+  if (value === null || value === undefined) return null;
+  const clipString = (s: string, n: number) =>
+    s.length > n ? `${s.slice(0, n - 1)}…` : s;
+  const walk = (v: unknown, depth: number): unknown => {
+    if (typeof v === "string") return clipString(v, 600);
+    if (typeof v !== "object" || v === null) return v;
+    if (depth > 4) return "…";
+    if (Array.isArray(v)) return v.slice(0, 40).map((x) => walk(x, depth + 1));
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v).slice(0, 40)) out[k] = walk(x, depth + 1);
+    return out;
+  };
+  const bounded = walk(value, 0);
+  const text = JSON.stringify(bounded);
+  if (text && text.length > maxChars) {
+    return typeof value === "string"
+      ? clipString(value, maxChars)
+      : { _truncated: true, preview: clipString(text, maxChars) };
+  }
+  return bounded;
+}
+
+/** First sentence of a result, the way eve's task card summarises "how it
+ *  ended" (slack.mdx: "the first sentence of the result … cut to about 100
+ *  characters"). */
+export function firstSentence(value: unknown, max = 120): string | null {
+  const text =
+    typeof value === "string"
+      ? value
+      : value && typeof value === "object"
+        ? JSON.stringify(value)
+        : value === undefined || value === null
+          ? ""
+          : String(value);
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
+  const m = flat.match(/^(.+?[.!?])(\s|$)/);
+  const sentence = m ? m[1] : flat;
+  return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
+}
+
+/**
+ * Structured step row (0113): one per action / task / reasoning block /
+ * park. Sets the live label too unless `silent`. INSERT-only like
+ * recordActivity; settlement is a targeted UPDATE by call/task id.
+ */
+export async function recordStep(
+  row: DeliveryRow,
+  step: {
+    kind: StepKind;
+    label: string;
+    callId?: string | null;
+    taskId?: string | null;
+    toolName?: string | null;
+    input?: unknown;
+    detail?: string | null;
+    status?: StepStatus;
+    /** Don't advance the live label (e.g. a second action in a batch). */
+    silent?: boolean;
+  },
+): Promise<void> {
+  if (!step.silent) await setLiveActivity(row, step.label);
+  if (!row.turn_nonce) return;
+  const { error } = await serviceClient().from("channel_bot_activity").insert({
+    property_id: row.property_id,
+    channel_id: row.channel_id,
+    thread_key: row.thread_key,
+    turn_nonce: row.turn_nonce,
+    label: step.label,
+    kind: step.kind,
+    call_id: step.callId ?? null,
+    task_id: step.taskId ?? null,
+    tool_name: step.toolName ?? null,
+    input: step.input === undefined ? null : clipForTrace(step.input),
+    detail: step.detail ?? null,
+    status: step.status ?? "running",
+  });
+  if (error) {
+    console.error("[channel-delivery] step insert failed", error.message);
+  }
+}
+
+/** Close a running step row (by eve call id or task id) with how it ended. */
+export async function settleStep(
+  row: DeliveryRow,
+  key: { callId?: string | null; taskId?: string | null },
+  outcome: {
+    status: StepStatus;
+    output?: unknown;
+    detail?: string | null;
+    /** A `label.complete` projection replaces the start label. */
+    label?: string | null;
+  },
+): Promise<void> {
+  if (!row.turn_nonce) return;
+  if (!key.callId && !key.taskId) return;
+  let query = serviceClient()
+    .from("channel_bot_activity")
+    .update({
+      status: outcome.status,
+      settled_at: new Date().toISOString(),
+      ...(outcome.output === undefined ? {} : { output: clipForTrace(outcome.output) }),
+      ...(outcome.detail === undefined ? {} : { detail: outcome.detail }),
+      ...(outcome.label ? { label: outcome.label } : {}),
+    })
+    .eq("channel_id", row.channel_id)
+    .eq("thread_key", row.thread_key)
+    .eq("turn_nonce", row.turn_nonce);
+  query = key.callId ? query.eq("call_id", key.callId) : query.eq("task_id", key.taskId!);
+  const { error } = await query;
+  if (error) {
+    console.error("[channel-delivery] step settle failed", error.message);
+  }
+}
+
+/** Sum a model step's usage into the turn (eve step.completed). */
+export async function accumulateUsage(
+  row: DeliveryRow,
+  usage: Partial<Record<"inputTokens" | "outputTokens" | "cacheReadTokens" | "cacheWriteTokens" | "costUsd", number | null | undefined>> | null | undefined,
+  modelId?: string | null,
+): Promise<void> {
+  const prior: TurnUsage = row.turn_usage ?? {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    costUsd: null,
+    steps: 0,
+    modelId: null,
+    contextTokens: 0,
+  };
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const next: TurnUsage = {
+    inputTokens: prior.inputTokens + n(usage?.inputTokens),
+    outputTokens: prior.outputTokens + n(usage?.outputTokens),
+    cacheReadTokens: prior.cacheReadTokens + n(usage?.cacheReadTokens),
+    cacheWriteTokens: prior.cacheWriteTokens + n(usage?.cacheWriteTokens),
+    costUsd:
+      typeof usage?.costUsd === "number"
+        ? (prior.costUsd ?? 0) + usage.costUsd
+        : prior.costUsd,
+    steps: prior.steps + (usage ? 1 : 0),
+    modelId: modelId ?? prior.modelId,
+    contextTokens: usage
+      ? n(usage.inputTokens) + n(usage.cacheReadTokens) + n(usage.cacheWriteTokens)
+      : prior.contextTokens ?? 0,
+  };
+  await updateSessionRow(row.id, { turn_usage: next });
+}
+
 /** The turn's steps, oldest first, for stamping onto the delivered message. */
 export async function turnActivitySteps(
   row: DeliveryRow,
@@ -326,13 +529,17 @@ export async function turnActivitySteps(
   if (!row.turn_nonce) return [];
   const { data } = await serviceClient()
     .from("channel_bot_activity")
-    .select("label, created_at")
+    .select("label, created_at, kind")
     .eq("channel_id", row.channel_id)
     .eq("thread_key", row.thread_key)
     .eq("turn_nonce", row.turn_nonce)
     .order("created_at", { ascending: true })
     .limit(40);
-  return (data ?? []).map((r) => ({ label: r.label, at: r.created_at }));
+  // Mobile's `eve_steps` reader shows a flat list of labels — reasoning
+  // blocks and park rows aren't steps it should count.
+  return (data ?? [])
+    .filter((r) => !["reasoning", "question", "approval"].includes(r.kind as string))
+    .map((r) => ({ label: r.label, at: r.created_at }));
 }
 
 /** One requested action, reduced to what a progress label needs. */
@@ -455,6 +662,18 @@ function renderQuestion(request: PendingRequest): string {
   // (same threshold, keep in sync) — the hint offers the tap first, and the
   // numbered list stays as the fallback for surfaces without the card.
   const hasCard = options.length >= 2;
+  // Both chat clients render the Options card (web: ai-elements Suggestion /
+  // Confirmation; mobile: AiUiAttachment chips), so the numbered list would
+  // only duplicate the chips. It stays for the <2-option case, where no card
+  // ships and typing the option is the only way to answer.
+  if (hasCard) {
+    const hint = isApproval
+      ? "_Nothing happens until you decide._"
+      : request.allowFreeform
+        ? "_Pick one below, or answer in your own words._"
+        : "_Pick one below._";
+    return [head, "", hint].join("\n");
+  }
   const hint = isApproval
     ? hasCard
       ? "_Tap an option to decide — or reply with a number or the option name. Nothing happens until you do._"
@@ -573,7 +792,12 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // revalidate defensively before attaching (same discipline the web glue
   // applied).
   let attachments:
-    | Array<{ type: string; spec: unknown; reply_to_self?: boolean }>
+    | Array<{
+        type: string;
+        spec: unknown;
+        reply_to_self?: boolean;
+        park_request_id?: string | null;
+      }>
     | undefined;
   if (row.ui_spec) {
     const validated = validateChatUiSpec(row.ui_spec);
@@ -618,6 +842,10 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
       optionCards.push({
         type: "ai_ui",
         spec: validated.spec,
+        // Ties the card to its request so the web can render it as the
+        // structured park control (and settle it on input.resolved)
+        // instead of a generic quick-reply row.
+        park_request_id: request.requestId ?? null,
         ...(row.kind === "job" ? { reply_to_self: true } : {}),
       });
     }
@@ -642,6 +870,11 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // record of what the bot did outlives the transient thinking row and can be
   // opened later. Progressive disclosure: the client renders it collapsed.
   const steps = await turnActivitySteps(row);
+  // The parked requests, structured (0113): the web renders them as
+  // ai-elements Suggestion chips / Confirmation cards and settles them in
+  // place when input.resolved stamps the outcome (see settleRequests).
+  const parkedRequests = questions.map(toMessageRequest);
+  const usage = row.turn_usage ?? null;
 
   if (!text) {
     if (attachments) {
@@ -711,6 +944,8 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
         ...(row.turn_nonce ? { eve_turn: row.turn_nonce } : {}),
         // Steps behind this reply, root chunk only (see `steps`).
         ...(isRoot && steps.length > 0 ? { eve_steps: steps } : {}),
+        ...(isRoot && parkedRequests.length > 0 ? { eve_requests: parkedRequests } : {}),
+        ...(isRoot && usage ? { eve_usage: usage } : {}),
         ...(isRoot && attachments ? { attachments } : {}),
         ...(isRoot
           ? parentId
@@ -729,6 +964,139 @@ export async function deliverReply(row: DeliveryRow): Promise<void> {
   // thread routes back to THIS session (0098).
   if (isQuestionPark && rootMessageId) {
     await updateSessionRow(row.id, { question_message_id: rootMessageId });
+  }
+}
+
+/** The structured park payload stamped on the delivered message
+ *  (`eve_requests`). Mirrors eve's InputRequest minus the raw action
+ *  payload size — inputs are clipped for the same ~5KB reason the reply
+ *  text is chunked. */
+export type MessageRequest = {
+  requestId: string;
+  kind: "question" | "tool-approval" | "session-limit" | "unknown";
+  prompt: string;
+  display: string | null;
+  allowFreeform: boolean;
+  options: Array<{ id: string; label: string; description: string | null; style: string | null }>;
+  action: { toolName: string; input: unknown } | null;
+  /** Filled by settleRequests (input.resolved). */
+  outcome: string | null;
+  answer: string | null;
+};
+
+function toMessageRequest(request: PendingRequest): MessageRequest {
+  const kind =
+    request.kind === "question" ||
+    request.kind === "tool-approval" ||
+    request.kind === "session-limit"
+      ? request.kind
+      : request.display === "confirmation"
+        ? "tool-approval"
+        : "question";
+  return {
+    requestId: request.requestId ?? "",
+    kind,
+    prompt: (request.prompt ?? "").trim(),
+    display: request.display ?? null,
+    allowFreeform: request.allowFreeform === true,
+    options: (request.options ?? []).slice(0, 6).map((o) => ({
+      id: o.id,
+      label: o.label.slice(0, 80),
+      description: o.description ? o.description.slice(0, 120) : null,
+      style: o.style ?? null,
+    })),
+    action:
+      kind === "tool-approval" && request.toolName
+        ? { toolName: request.toolName, input: clipForTrace(request.input, 1200) }
+        : null,
+    outcome: null,
+    answer: null,
+  };
+}
+
+/**
+ * input.resolved: settle the delivered park in place — eve's reference
+ * channel "retires" a resolved request (slack.mdx HITL: the card loses its
+ * buttons and shows the answer). The Stream message is edited, not
+ * re-posted: `partialUpdateMessage` on the question's anchor message
+ * stamps outcome + answer onto each `eve_requests` entry, and the park
+ * rows in the trace close with the same outcome.
+ */
+export async function settleRequests(
+  row: DeliveryRow,
+  resolutions: Array<{
+    requestId: string;
+    outcome: string;
+    response?: { optionId?: string | null; text?: string | null } | null;
+  }>,
+): Promise<void> {
+  if (resolutions.length === 0) return;
+  // By the time eve emits input.resolved, the web glue has already opened
+  // the RESUME turn: the row carries a fresh turn_nonce and a cleared
+  // question_message_id. So the park is found by its own request id — the
+  // trace row records the nonce it was delivered under, and the delivered
+  // message id is deterministic from that nonce (`eve-<nonce>`).
+  const server = streamServer();
+  const touched = new Map<string, Array<(typeof resolutions)[number]>>();
+  for (const r of resolutions) {
+    const { data: park } = await serviceClient()
+      .from("channel_bot_activity")
+      .select("id, turn_nonce")
+      .eq("channel_id", row.channel_id)
+      .eq("thread_key", row.thread_key)
+      .eq("call_id", `request:${r.requestId}`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!park) continue;
+    const status: StepStatus =
+      r.outcome === "answered" || r.outcome === "approved"
+        ? "completed"
+        : r.outcome === "denied" || r.outcome === "cancelled"
+          ? "rejected"
+          : "cancelled";
+    await serviceClient()
+      .from("channel_bot_activity")
+      .update({
+        status,
+        settled_at: new Date().toISOString(),
+        detail:
+          r.response?.text?.trim() ||
+          (r.response?.optionId ? `Chose ${r.response.optionId}` : r.outcome),
+      })
+      .eq("id", park.id);
+    const list = touched.get(park.turn_nonce) ?? [];
+    list.push(r);
+    touched.set(park.turn_nonce, list);
+  }
+
+  if (!server) return;
+  for (const [nonce, batch] of touched) {
+    const messageId = `eve-${nonce}`;
+    try {
+      const { message } = await server.getMessage(messageId);
+      const stamped = (message as unknown as { eve_requests?: unknown }).eve_requests;
+      const existing = Array.isArray(stamped) ? (stamped as MessageRequest[]) : [];
+      if (existing.length === 0) continue;
+      const next = existing.map((req) => {
+        const hit = batch.find((r) => r.requestId === req.requestId);
+        if (!hit) return req;
+        const chosen = hit.response?.optionId
+          ? req.options.find((o) => o.id === hit.response?.optionId)?.label ??
+            hit.response.optionId
+          : hit.response?.text ?? null;
+        return { ...req, outcome: hit.outcome, answer: chosen };
+      });
+      await server.partialUpdateMessage(
+        messageId,
+        { set: { eve_requests: next } } as unknown as Parameters<
+          typeof server.partialUpdateMessage
+        >[1],
+        botUserId(),
+      );
+    } catch (err) {
+      console.error("[channel-delivery] request settle failed", { messageId }, err);
+    }
   }
 }
 

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createInvite } from "@/lib/invites/actions";
 import type { Role } from "@/lib/db/types";
+import type { FullRole } from "@/lib/auth/roles";
 
 type Props = {
   propertyId: string;
@@ -24,7 +25,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-const ROLES: { id: Role; label: string; hint: string }[] = [
+// Guest (scope-limited, 0118) gets its own invite flow with a scope picker.
+const ROLES: { id: FullRole; label: string; hint: string }[] = [
   { id: "staff", label: "Staff", hint: "Can chat, create tasks" },
   { id: "manager", label: "Manager", hint: "Staff + invite + manage channels" },
   { id: "owner", label: "Owner", hint: "Full control" },
@@ -42,7 +44,7 @@ type SuccessState = {
 
 export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Role>("staff");
+  const [role, setRole] = useState<FullRole>("staff");
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [pending, startTransition] = useTransition();
 

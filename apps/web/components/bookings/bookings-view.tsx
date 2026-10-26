@@ -314,7 +314,7 @@ export function BookingsView({
   // floor plan and the timetable ARE the data canvas and take the pane; the
   // agenda / pending / services screens are lists and sit in the 960px page
   // column. Nothing inside the shell re-caps its own width.
-  const shellWidth = view === "floor" || view === "timetable" ? "bleed" : "page";
+  const shellWidth = view === "floor" || view === "timetable" ? "bleed" : "full";
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -363,7 +363,7 @@ export function BookingsView({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width={shellWidth} className={shellWidth === "bleed" ? "px-4" : undefined}>
+        <PageShell width={shellWidth} className={shellWidth === "bleed" ? "px-(--page-gutter)" : undefined}>
           {/* Services */}
           <section className={cn("space-y-4", view !== "services" && "hidden")}>
             {services.length === 0 ? (

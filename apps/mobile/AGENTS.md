@@ -215,9 +215,10 @@ routines, task comments (Liveblocks auth needs Bearer, or embed the task page
 in `WebSurface`), photo attachments, shift brief / handover / check-in,
 mentions + threads feeds, a Home "today" view, spaces, bookings, forms.
 
-## Assistant + AI on mobile (built 2026-10-23)
+## Assistant + AI on mobile (built 2026-10-23; agent-turn parity with web 2026-10-26)
 
-The phone is a full client of the eve agent runtime, not a viewer of it.
+The phone is a full client of the eve agent runtime, not a viewer of it —
+and it draws an AI turn exactly the way the web does, over the same shapes.
 
 - **Auth**: eve's channel accepts the Supabase access token as
   `Authorization: Bearer <jwt>` + `x-hotelclaw-property` (`supabaseBearerAuth`
@@ -241,20 +242,69 @@ The phone is a full client of the eve agent runtime, not a viewer of it.
   a chat started on the phone continues on the web and vice versa; `?prefill=`
   carries a starter prompt). Entry points: the ✨ button in the Channels
   header pill and the "Assistant" row in You.
-- **`components/ai/EveTranscript.tsx`** renders the reducer items: user
-  bubbles (framing stripped with the shared `displayUserText`), `Markdown`
-  (a dependency-free subset: headings, lists, bold, code, fenced blocks),
-  collapsed tool activity, `render_ui` cards through the existing
-  `AiUiAttachment` (keep the no-horizontal-ScrollView rule), parked questions
-  as chips / free text and approvals as Approve / Cancel, and 👍/👎 posting to
-  `/api/properties/:id/ai-feedback` (the learning loop).
+- **The agent-turn pieces (`components/ai/*`) — RN twins of the web's
+  `components/ai/agent-turn/*`, over `@hotelclaw/chat-ui/turn`.** The shared
+  module owns every shape and every word (step kinds and statuses, the
+  tense rules behind "Reading “X”…" → "Read “X”", `toolLabel`, the
+  "Worked through N steps · 15s" summary, park titles and settled lines, the
+  context-meter arithmetic); a new label or wording goes THERE, never in a
+  renderer, so both apps change together.
+  - `TurnTrace.tsx` — the steps behind a turn: summary row that opens into
+    rows by kind (Thought with its text, tools with input/output in a mono
+    block, subagents with how they ended, tappable web sources, settled
+    parks as lines); `live` mode shows the running step with a spinner.
+    Long payloads clip to 18 lines with "Show all N lines" — **no nested
+    ScrollView** (the inverted-list rule below).
+  - `ParkControls.tsx` — an approval as a card (shield icon, eve's own
+    prompt, the gated input as "key: value" lines, Cancel outline / Approve
+    filled, eve's `style` hint wins); a question as WRAPPING chips plus free
+    text when allowed; settled = one line. `onChoose` / `onAnswer` decide
+    what a tap does (channel: post the person's own message; Assistant:
+    `inputResponses`).
+  - `ReplyActions.tsx` — copy (`expo-clipboard`), 👍/👎 toggles, the 👎 note,
+    posting to `/api/properties/:id/ai-feedback` (Bearer); `ContextMeter.tsx`
+    — "32% context" that opens into a bar and the token rows.
+  - `Markdown.tsx` — the dependency-free subset (headings, lists incl.
+    task boxes, block quotes, rules, fenced code with a language tag, bold /
+    italic / strike / inline code, links: `/p/<pid>/tasks|documents/<id>`
+    navigates natively, other internal paths open the web app, absolute
+    URLs open the browser).
+- **`components/ai/EveTranscript.tsx`** composes them over the reducer items
+  in the Chat-pattern order: user bubble; then per agent turn
+  `TurnTrace(transcriptTurnSteps(item))` → `Markdown` → `render_ui` cards
+  through the existing `AiUiAttachment` → `ParkControls` for OPEN parks → a
+  failure line → `ReplyActions`. The loader shows only before the turn's
+  first event; after that the live trace says what is happening.
 - **Task assistant** (`components/TaskAiSheet.tsx`, on task detail): same
   route as web (`POST .../tasks/:taskId/ai`, Bearer), same streamed AI SDK
   UI-message protocol, read by `lib/ui-stream.ts` (text / reasoning / tool
-  parts; posts legacy `{role, content}` turns — the route accepts both).
-- The in-channel bot path is unchanged for mobile: the webhook → eve → Stream
-  post, with `AiThinkingIndicator` watching `channel_bot_sessions` over
-  Realtime.
+  parts; posts legacy `{role, content}` turns — the route accepts both),
+  rendered as `TurnTrace(panelTurnSteps(…))` + `Markdown` + `ReplyActions`.
+- **The channel bot's reply is an agent turn too** (`components/ai/BotReply.tsx`,
+  mounted by `attachments/CustomAttachments.tsx` through stream-chat-expo's
+  `WithComponents` slots): `MessageContentTopView` = `BotReplyTrace` (the
+  trace from the message's `eve_steps`, rows fetched by `eve_turn` nonce on
+  first open via `lib/turn-activity.ts` — one fetch per nonce per app
+  session), `MessageText` = `BotMessageText` (bot replies through our
+  Markdown with the runtime's fallback "Approval needed" block stripped by
+  `displayReplyText`; every other message is handed back to Stream's own
+  `renderText` so mentions / links / long-press are untouched),
+  `MessageContentBottomView` = the custom cards (park Options cards dropped
+  when `eve_requests` exists) then `BotReplyControls` (`ParkControls` +
+  `ReplyActions` + `ContextMeter` off `eve_usage`). A tap on Approve /
+  Cancel / a chip posts the option LABEL as the person's own channel message
+  — into the bot message's thread when it lives in one, or into the bot
+  message's OWN thread when the card carries `reply_to_self` (background-job
+  parks route by that message id) — and the runtime's `input.resolved`
+  handler edits `eve_requests` on the message, so Stream's message.updated
+  settles the card for every reader. `custom-types.d.ts` types the eve
+  fields on `CustomMessageData`. A bot message = `ai_generated === true` or
+  a string `eve_turn` (Stream's `isMessageAIGenerated` is not configured).
+- **`AiThinkingIndicator`** watches `channel_bot_sessions` AND the
+  structured `channel_bot_activity` rows (event `*`: an INSERT opens a
+  step, an UPDATE settles it) and renders the same `TurnTrace` live, with
+  eve's status line as the summary; it backfills the running turn's rows
+  on mount so opening a channel mid-turn shows the path so far.
 
 ## Documents are the real editor, in a WebView
 

@@ -240,7 +240,7 @@ export function HomeView({
     {/* The page gutter (40px from `sm`) also keeps the block-gutter grips
         (−28px) inside the scroll box, so they never widen the page. */}
     <div className="min-h-0 flex-1 overflow-y-auto pt-6 pb-24">
-      <PageShell className="flex flex-col">
+      <PageShell width="full" className="flex flex-col">
         <SectionHeader title={greeting} />
 
         <MetricsLine items={metrics} />

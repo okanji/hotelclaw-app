@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { panelTurnSteps, runningLabel } from "@hotelclaw/chat-ui/turn";
 import { AiLoader } from "./AiLoader";
 import { Markdown } from "./ai/Markdown";
-import { apiFetch } from "../lib/api";
+import { ReplyActions } from "./ai/ReplyActions";
+import { TurnTrace } from "./ai/TurnTrace";
 import {
   streamPanelBot,
   toLegacyTurns,
@@ -14,20 +16,13 @@ import {
 /**
  * "Ask AI about this task" — mobile twin of web's `task-ai-panel.tsx`. Same
  * route (`POST /api/properties/:id/tasks/:taskId/ai`, Bearer), same streamed
- * UI-message protocol, rendered inline on the task detail screen: tool
- * activity while it reads the task, then the answer streaming in. Thumbs
- * feed the learning loop. The transcript lives in component state; task
- * conversations are short and scoped.
+ * UI-message protocol, rendered inline on the task detail screen with the
+ * same agent-turn anatomy as every other AI surface: the trace (`TurnTrace`
+ * over `panelTurnSteps` — reasoning + tool rows) while it reads the task,
+ * then the answer streaming in, then copy · 👍/👎 for the learning loop. The
+ * transcript lives in component state; task conversations are short and
+ * scoped.
  */
-const TOOL_LABELS: Record<string, string> = {
-  get_task_details: "Reading the task",
-  get_subtasks: "Checking sub-tasks",
-  get_related_tasks: "Checking related tasks",
-  property__search: "Searching memory",
-  property__remember: "Saving to memory",
-  delegate_task: "Handing off to an agent",
-};
-
 const SUGGESTIONS = ["What's left on this?", "Who's blocked?", "Suggest next steps"];
 
 export function TaskAiSheet({ propertyId, taskId }: { propertyId: string; taskId: string }) {
@@ -180,67 +175,31 @@ function AssistantBlock({
   propertyId: string;
   taskId: string;
 }) {
-  const [rating, setRating] = useState<1 | -1 | null>(null);
-  const rate = async (value: 1 | -1) => {
-    setRating(value);
-    try {
-      await apiFetch(`/api/properties/${propertyId}/ai-feedback`, {
-        method: "POST",
-        body: {
-          surface: "task",
-          sessionId: taskId,
-          messageKey: message.id,
-          rating: value,
-          excerpt: message.text.slice(0, 600),
-        },
-      });
-    } catch {
-      // best-effort
-    }
-  };
+  const steps = panelTurnSteps(
+    [{ text: message.reasoning, streaming: live && !message.text }],
+    message.tools,
+  );
+  const runningStep = live ? steps.find((s) => s.status === "running") : undefined;
+  const activity = runningStep
+    ? runningStep.kind === "reasoning"
+      ? "Thinking…"
+      : `${runningLabel(runningStep.label)}…`
+    : message.text
+      ? "Writing…"
+      : "Reading the task…";
   return (
     <View style={styles.assistant}>
-      {message.tools.length > 0 ? (
-        <View style={styles.toolRail}>
-          {message.tools.map((t) => (
-            <View key={t.toolCallId} style={styles.toolRow}>
-              <Ionicons
-                name={
-                  t.state === "output-available"
-                    ? "checkmark"
-                    : t.state === "output-error"
-                      ? "alert-circle-outline"
-                      : "ellipse-outline"
-                }
-                size={12}
-                color="#9ca3af"
-              />
-              <Text style={styles.toolText}>
-                {TOOL_LABELS[t.toolName] ?? t.toolName.replace(/_/g, " ")}
-              </Text>
-            </View>
-          ))}
-        </View>
+      {steps.length > 0 || (live && !message.text) ? (
+        <TurnTrace steps={steps} live={live && !message.text} activity={activity} />
       ) : null}
       {message.text ? <Markdown size={14}>{message.text}</Markdown> : null}
       {message.error ? <Text style={styles.error}>{message.error}</Text> : null}
       {message.text && !live ? (
-        <View style={styles.feedbackRow}>
-          <Pressable hitSlop={8} onPress={() => void rate(1)}>
-            <Ionicons
-              name={rating === 1 ? "thumbs-up" : "thumbs-up-outline"}
-              size={14}
-              color={rating === 1 ? "#15803d" : "#9ca3af"}
-            />
-          </Pressable>
-          <Pressable hitSlop={8} onPress={() => void rate(-1)}>
-            <Ionicons
-              name={rating === -1 ? "thumbs-down" : "thumbs-down-outline"}
-              size={14}
-              color={rating === -1 ? "#b91c1c" : "#9ca3af"}
-            />
-          </Pressable>
-        </View>
+        <ReplyActions
+          text={message.text}
+          messageKey={message.id}
+          feedback={{ propertyId, surface: "task", sessionId: taskId }}
+        />
       ) : null}
     </View>
   );
@@ -296,10 +255,6 @@ const styles = StyleSheet.create({
   },
   userText: { fontSize: 14, lineHeight: 20, color: "#111827" },
   assistant: { gap: 8 },
-  toolRail: { gap: 3 },
-  toolRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  toolText: { fontSize: 12, color: "#6b7280" },
-  feedbackRow: { flexDirection: "row", gap: 12, paddingTop: 2 },
   error: { fontSize: 13, color: "#b91c1c" },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   input: {

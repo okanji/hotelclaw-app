@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Panel } from "@/components/ai-elements/panel";
+import { Panel } from "@/components/workflows/builder/canvas/elements/panel";
 import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
 import { STEPS } from "@/lib/workflows/catalog";
 import type { StepCatalogEntry } from "@/lib/workflows/catalog/types";

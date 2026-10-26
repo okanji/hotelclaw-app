@@ -231,7 +231,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-8 pb-12">
+        <PageShell width="full" className="pt-8 pb-12">
           {has ? (
             <>
               <Toolbar

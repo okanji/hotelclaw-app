@@ -3,7 +3,9 @@ name: ai-elements
 description: Build AI chat interfaces using ai-elements components — conversations, messages, tool displays, prompt inputs, and more. Use when the user wants to build a chatbot, AI assistant UI, or any AI-powered chat interface.
 ---
 
-# AI Elements
+> **Deprecated for this repo (2026-10-26).** Vercel AI Elements is retired at the end of November 2026 and `components/ai-elements/*` no longer exists here. Build AI surfaces on **shadcn/ui AI Elements** (https://ui.shadcn.com/docs/ai-elements — Trace, Code Block, Item, Message, Bubble, Message Scroller) through `apps/web/components/ai/agent-turn/*`, `components/ai/markdown.tsx` and `components/ai/reply-actions.tsx`, with shapes from `@hotelclaw/chat-ui/turn`. See apps/web/AGENTS.md "AI chat surfaces on shadcn/ui AI Elements". Do not run `ai-elements add`.
+
+# AI Elements (Vercel, deprecated)
 
 [AI Elements](https://www.npmjs.com/package/ai-elements) is a component library and custom registry built on top of [shadcn/ui](https://ui.shadcn.com/) to help you build AI-native applications faster. It provides pre-built components like conversations, messages and more.
 

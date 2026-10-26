@@ -163,7 +163,7 @@ export function ActivityView({
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           {view === "workspace" ? (
-            <PageShell className="py-6 sm:py-8">
+            <PageShell width="full" className="py-6 sm:py-8">
               <ActivityLogFeed
                 propertyId={propertyId}
                 scope={{ kind: "property" }}

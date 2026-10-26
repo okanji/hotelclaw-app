@@ -11,8 +11,8 @@ import {
   NodeDescription,
   NodeContent,
   NodeAction,
-} from "@/components/ai-elements/node";
-import { Toolbar } from "@/components/ai-elements/toolbar";
+} from "@/components/workflows/builder/canvas/elements/node";
+import { Toolbar } from "@/components/workflows/builder/canvas/elements/toolbar";
 import { SurfaceBadge, SurfaceLabelBadge } from "@/components/workflows/builder/surface-badge";
 import type { Surface } from "@/lib/workflows/catalog/types";
 import type { GraphNodeData } from "@/lib/workflows/graph";

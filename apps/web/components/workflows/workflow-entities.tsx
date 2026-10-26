@@ -25,7 +25,7 @@ export function WorkflowEntitiesList({ propertyId }: { propertyId: string }) {
       />
       <WorkflowsTabs propertyId={propertyId} />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-10 pb-12">
+        <PageShell width="full" className="pt-10 pb-12">
           <EntitiesClient
             propertyId={propertyId}
             initialTypes={types as Parameters<typeof EntitiesClient>[0]["initialTypes"]}
@@ -58,7 +58,7 @@ export function WorkflowEntityTypeView({
         ]}
       />
       <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-10 pb-12">
+        <PageShell width="full" className="pt-10 pb-12">
           <EntityTypeClient
             propertyId={propertyId}
             type={{

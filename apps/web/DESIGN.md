@@ -339,7 +339,7 @@ numbers that change.
 | Row icon | `12–16px`, `8px` gap to label |
 | Topbar (`PageHeader`) | `44px` tall (`h-11`), `--page-gutter` (24px → 40px from `sm`), **transparent** — no fill, no bottom border |
 | Menu / dropdown item | `28px` tall, `6px` radius, `3px 6px` padding |
-| **Page width** | `PageShell` — `page` **960px** (default, LEFT-anchored) · `prose` **720px** (centred) · `bleed` (none) |
+| **Page width** | `PageShell` — `full` (no cap: index / list / feed / dashboard) · `page` **960px** (default, LEFT-anchored: detail / create / settings) · `prose` **720px** (centred) · `bleed` (none, canvas owns edges) |
 | **Page edge** | `--page-gutter` — one value for topbar, view row, `PageShell` and canvases (`px-(--page-gutter)`) |
 | Table row / header | `37px` / `36px`; cell padding `7.5px 8px` |
 | Board card | `260px` wide, `8px 10px` padding |

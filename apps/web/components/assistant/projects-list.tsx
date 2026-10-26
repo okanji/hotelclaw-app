@@ -75,7 +75,7 @@ export function ProjectsList({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell>
+        <PageShell width="full">
           {projects.length === 0 ? (
             <EmptyState
               icon={FolderOpen}

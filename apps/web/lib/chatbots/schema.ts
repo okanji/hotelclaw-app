@@ -75,6 +75,7 @@ export const ChatbotActionZod = z.discriminatedUnion("type", [
     config: z.object({
       /** Stream channel where escalation cards land. */
       channelId: z.string().optional(),
+      // Full roles only — escalations never reach guests (0118 role).
       notifyRoles: z
         .array(z.enum(["owner", "manager", "staff"]))
         .default(["owner", "manager"]),

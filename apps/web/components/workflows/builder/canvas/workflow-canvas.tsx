@@ -14,10 +14,10 @@ import {
 import { LayoutGrid, Maximize, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useShellSection } from "@/components/shell/shell-section-context";
-import { Canvas } from "@/components/ai-elements/canvas";
-import { Controls } from "@/components/ai-elements/controls";
-import { Panel } from "@/components/ai-elements/panel";
-import { Edge as AiEdges } from "@/components/ai-elements/edge";
+import { Canvas } from "@/components/workflows/builder/canvas/elements/canvas";
+import { Controls } from "@/components/workflows/builder/canvas/elements/controls";
+import { Panel } from "@/components/workflows/builder/canvas/elements/panel";
+import { Edge as AiEdges } from "@/components/workflows/builder/canvas/elements/edge";
 import { AiCopilot } from "@/components/workflows/builder/ai-copilot";
 import type { WorkflowSpec, StepNode } from "@/lib/workflows/spec";
 import {

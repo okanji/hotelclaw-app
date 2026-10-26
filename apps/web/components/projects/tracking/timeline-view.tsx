@@ -1,419 +1,238 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { propertyMilestonesQueryOptions, type PropertyMilestone } from "@/lib/query/milestone-queries";
-import { milestoneTasksQueryOptions } from "@/lib/query/initiative-queries";
-import { milestoneProgress, type MilestoneProgress } from "@/lib/initiatives/planning";
-import { ChevronLeft, ChevronRight, Diamond } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ChevronRight, Diamond, Plus, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProjectTracking } from "@/lib/query/project-queries";
-import type { ProjectStatus } from "@/lib/db/types";
+import type { PropertyMilestone } from "@/lib/query/milestone-queries";
+import { updateProject } from "../actions";
 import {
   COLOR_DOT,
   ContributorStack,
-  PROJECT_STATUS_META,
-  progressPct,
   type ProjectsViewProps,
+  progressPct,
 } from "./tracking-shared";
+import {
+  HealthIcon,
+  OptionMenu,
+  ProjectRowMenu,
+  StatusIcon,
+  type TimelineZoom,
+  effectiveHealth,
+  nextMilestone,
+  useProjectsDisplay,
+} from "./project-display";
 
-const DAY_WIDTH = 36; // px per day
-const ROW_HEIGHT = 44; // px per project row
-const LABEL_WIDTH = 256; // px for the left label pane
-const VISIBLE_WEEKS = 8; // default visible window
-const VISIBLE_DAYS = VISIBLE_WEEKS * 7;
-const MS_PER_DAY = 86_400_000;
+/* -------------------------------------------------------------------------- */
+/* Timeline — Linear's Projects page (its default layout). One canvas: the   */
+/* date header and every row's track run the full width, and the project    */
+/* list is a sticky column laid OVER the canvas's left edge. Groups are      */
+/* tinted bars with a count and a "+"; each bar carries its name above, the */
+/* next milestone + progress at its end, and milestone diamonds on it.       */
+/* Undated projects schedule in one click (a four-week ghost bar).           */
+/* -------------------------------------------------------------------------- */
 
-/** Fill + text classes for a milestone diamond, keyed to project status. */
-const DIAMOND_TONE: Record<ProjectStatus, string> = {
-  planned: "fill-info text-info",
-  active: "fill-success text-success",
-  completed: "fill-pill-violet-ink text-pill-violet-ink",
-  archived: "fill-muted-foreground text-muted-foreground",
-};
+const DAY_MS = 86_400_000;
+const LEFT = 268;
+const ROW_H = 50;
+const GHOST_DAYS = 28;
+const ZOOM_PX: Record<TimelineZoom, number> = { month: 24, quarter: 8, year: 3 };
+const ZOOM_OPTIONS: { id: TimelineZoom; label: string }[] = [
+  { id: "month", label: "Month" },
+  { id: "quarter", label: "Quarter" },
+  { id: "year", label: "Year" },
+];
 
 function startOfDay(d: Date) {
-  const out = new Date(d);
-  out.setHours(0, 0, 0, 0);
-  return out;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
-
-/** Monday of the week containing `d`. */
-function startOfWeek(d: Date) {
-  const out = startOfDay(d);
-  const day = out.getDay();
-  // ISO week: Monday = 1. JS getDay: Sun=0,Mon=1,...,Sat=6.
-  const shift = (day + 6) % 7;
-  out.setDate(out.getDate() - shift);
-  return out;
+/** `date` columns arrive as "YYYY-MM-DD" — parse as LOCAL days (`new Date`
+ *  reads them as UTC midnight and shifts a day west of Greenwich). */
+function parseDay(value: string | null): Date | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 }
-
+function toDay(d: Date) {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 function addDays(d: Date, n: number) {
-  const out = new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 }
-
 function diffDays(a: Date, b: Date) {
-  return Math.round(
-    (startOfDay(a).getTime() - startOfDay(b).getTime()) / MS_PER_DAY,
-  );
-}
-
-type Placed =
-  | { project: ProjectTracking; kind: "bar"; startDay: number; endDay: number }
-  | { project: ProjectTracking; kind: "milestone"; day: number };
-
-/** Decide how a single project renders on the timeline given the visible window. */
-function place(
-  project: ProjectTracking,
-  windowStart: Date,
-  windowEnd: Date,
-): Placed | null {
-  const { start_date, target_date } = project;
-  if (start_date && target_date) {
-    const start = new Date(start_date);
-    const end = new Date(target_date);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-    // Skip ranges that fall entirely outside the visible window.
-    if (end < windowStart || start > windowEnd) return null;
-    const clampedStart = start < windowStart ? windowStart : start;
-    const clampedEnd = end > windowEnd ? windowEnd : end;
-    return {
-      project,
-      kind: "bar",
-      startDay: diffDays(clampedStart, windowStart),
-      endDay: diffDays(clampedEnd, windowStart),
-    };
-  }
-  const single = start_date ?? target_date;
-  if (single) {
-    const d = new Date(single);
-    if (Number.isNaN(d.getTime())) return null;
-    if (d < windowStart || d > windowEnd) return null;
-    return { project, kind: "milestone", day: diffDays(d, windowStart) };
-  }
-  return null;
+  return Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / DAY_MS);
 }
 
 export function ProjectsTimelineView({
   propertyId,
   projects,
   members,
+  groups = [],
+  declared,
+  milestonesByProject,
+  onChanged,
+  onCreate,
 }: ProjectsViewProps) {
-  // Offset (in weeks) from the current week. Current time is derived inside
-  // handlers / render — never at module scope.
-  const [weekOffset, setWeekOffset] = useState(0);
+  const scroller = useRef<HTMLDivElement>(null);
+  const { display, update } = useProjectsDisplay();
+  const px = ZOOM_PX[display.zoom];
 
-  const windowStart = useMemo(
-    () => addDays(startOfWeek(new Date()), weekOffset * 7),
-    [weekOffset],
-  );
-  const windowEnd = addDays(windowStart, VISIBLE_DAYS - 1);
-  const today = startOfDay(new Date());
-  const todayOffset = diffDays(today, windowStart);
-
-  const days = useMemo(
-    () =>
-      Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(windowStart, i)),
-    [windowStart],
-  );
-
-  const { placed, unscheduled } = useMemo(() => {
-    const placedRows: Placed[] = [];
-    const noDate: ProjectTracking[] = [];
+  // Window: two months back to a year ahead, widened to every dated project.
+  const [today] = useState(() => startOfDay(new Date()));
+  const { origin, days, monthXs } = useMemo(() => {
+    let lo = addDays(today, -60);
+    let hi = addDays(today, 365);
     for (const p of projects) {
-      const result = place(p, windowStart, windowEnd);
-      if (result) placedRows.push(result);
-      else if (!p.start_date && !p.target_date) noDate.push(p);
+      for (const d of [parseDay(p.start_date), parseDay(p.target_date)]) {
+        if (!d) continue;
+        if (d < lo) lo = d;
+        if (d > hi) hi = d;
+      }
     }
-    return { placed: placedRows, unscheduled: noDate };
-  }, [projects, windowStart, windowEnd]);
+    const first = new Date(lo.getFullYear(), lo.getMonth(), 1);
+    const last = new Date(hi.getFullYear(), hi.getMonth() + 2, 0);
+    const n = diffDays(last, first) + 1;
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) if (addDays(first, i).getDate() === 1) xs.push(i);
+    return { origin: first, days: n, monthXs: xs };
+  }, [projects, today]);
+  const width = days * px;
+  const todayX = diffDays(today, origin) * px;
 
-  const anyDated = projects.some((p) => p.start_date || p.target_date);
+  function scrollToToday(behavior: ScrollBehavior = "smooth") {
+    const el = scroller.current;
+    if (!el) return;
+    const visible = el.clientWidth - LEFT;
+    el.scrollTo({ left: Math.max(0, todayX - LEFT - visible / 3), behavior });
+  }
+  useEffect(() => {
+    scrollToToday("instant");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [display.zoom, origin]);
 
-  // Milestones (migration 0106) — diamonds on each project's bar, placed by
-  // whole-day offset inside the visible window.
-  const { data: allMilestones = [] } = useQuery(
-    propertyMilestonesQueryOptions(propertyId),
-  );
-  // Task progress per milestone (0111 `tasks.milestone_id`) for the tooltips.
-  const { data: milestoneTasks = [] } = useQuery(milestoneTasksQueryOptions(propertyId));
-  const milestonePct = useMemo(() => milestoneProgress(milestoneTasks), [milestoneTasks]);
-  const milestonesByProject = useMemo(() => {
-    const m = new Map<string, { ms: PropertyMilestone; day: number }[]>();
-    for (const ms of allMilestones) {
-      const [y, mo, d] = ms.due_date.split("-").map(Number);
-      const date = new Date(y!, (mo ?? 1) - 1, d ?? 1);
-      if (date < windowStart || date > windowEnd) continue;
-      const day = diffDays(date, windowStart);
-      m.set(ms.project_id, [...(m.get(ms.project_id) ?? []), { ms, day }]);
-    }
-    return m;
-  }, [allMilestones, windowStart, windowEnd]);
-
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Nav row */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={() => setWeekOffset((w) => w - VISIBLE_WEEKS)}
-            aria-label="Previous weeks"
-          >
-            <ChevronLeft className="size-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={() => setWeekOffset((w) => w + VISIBLE_WEEKS)}
-            aria-label="Next weeks"
-          >
-            <ChevronRight className="size-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={() => setWeekOffset(0)}
-          >
-            Today
-          </Button>
-        </div>
-        <h2 className="text-sm font-medium text-foreground">
-          {windowStart.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          })}{" "}
-          –{" "}
-          {windowEnd.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </h2>
-        <div className="flex items-center gap-3 text-xs text-faint-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="block h-1.5 w-4 rounded-full bg-success/70" />
-            Range
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Diamond className="size-3 fill-muted-foreground text-muted-foreground" />
-            Single date
-          </span>
-        </div>
-      </div>
-
-      {/* Body — left labels + right scrollable timeline */}
-      <div className="flex min-h-0 flex-1 overflow-auto">
-        {/* Left label column */}
-        <div
-          className="sticky left-0 z-20 shrink-0 border-r border-border bg-card"
-          style={{ width: LABEL_WIDTH }}
-        >
-          {/* Header spacer to match the day-header row */}
-          <div className="sticky top-0 z-10 h-12 border-b border-border bg-card" />
-          {placed.length === 0 ? (
-            <div
-              className="flex items-center px-3 text-xs text-faint-foreground"
-              style={{ height: ROW_HEIGHT }}
-            >
-              {anyDated ? "Nothing in this window" : "No dated projects"}
-            </div>
-          ) : (
-            placed.map((row) => (
-              <ProjectLabel
-                key={row.project.id}
-                project={row.project}
-                members={members}
-                propertyId={propertyId}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Right timeline */}
-        <div
-          className="relative shrink-0"
-          style={{ width: VISIBLE_DAYS * DAY_WIDTH }}
-        >
-          {/* Day / week header */}
-          <DayHeader days={days} todayOffset={todayOffset} />
-
-          {/* Body grid + bars */}
-          <div className="relative">
-            {/* Background day grid */}
-            <div
-              className="absolute inset-0"
-              aria-hidden
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px " +
-                  DAY_WIDTH +
-                  "px)",
-                backgroundSize: `${DAY_WIDTH * 7}px 100%`,
-                opacity: 0.3,
-              }}
-            />
-            {/* Weekend tint */}
-            {days.map((d, i) =>
-              d.getDay() === 0 || d.getDay() === 6 ? (
-                <div
-                  key={i}
-                  aria-hidden
-                  className="pointer-events-none absolute top-0 bg-muted"
-                  style={{
-                    left: i * DAY_WIDTH,
-                    width: DAY_WIDTH,
-                    height: "100%",
-                  }}
-                />
-              ) : null,
-            )}
-            {/* Today line */}
-            {todayOffset >= 0 && todayOffset < VISIBLE_DAYS ? (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute top-0 z-10 w-px bg-destructive/60"
-                style={{
-                  left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2,
-                  height: "100%",
-                }}
-              />
-            ) : null}
-
-            {/* Rows */}
-            {placed.length === 0 ? (
-              <div
-                className="flex items-center justify-center text-sm text-muted-foreground"
-                style={{ height: ROW_HEIGHT * 3 }}
-              >
-                {anyDated
-                  ? "No projects fall within this window."
-                  : "No projects have dates yet."}
-              </div>
-            ) : (
-              placed.map((row) => (
-                <TimelineRow
-                  key={row.project.id}
-                  item={row}
-                  propertyId={propertyId}
-                  milestones={milestonesByProject.get(row.project.id) ?? []}
-                  milestonePct={milestonePct}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Unscheduled projects — no dates, plotted nowhere on the axis. */}
-      {unscheduled.length > 0 ? (
-        <div className="shrink-0 border-t border-border bg-muted px-4 py-3">
-          <p className="mb-2 text-xs/[1] font-medium text-faint-foreground">
-            Unscheduled — {unscheduled.length}{" "}
-            {unscheduled.length === 1 ? "project" : "projects"}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {unscheduled.map((p) => (
-              <Link
-                key={p.id}
-                href={`/p/${propertyId}/projects/${p.id}`}
-                className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent-pressed"
-              >
-                <span
-                  className={cn(
-                    "size-1.5 shrink-0 rounded-full",
-                    COLOR_DOT[p.color],
-                  )}
-                  aria-hidden
-                />
-                <span className="max-w-40 truncate">
-                  {p.name || "Untitled project"}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function DayHeader({
-  days,
-  todayOffset,
-}: {
-  days: Date[];
-  todayOffset: number;
-}) {
-  // Group consecutive days under their month label.
-  const months: { label: string; start: number; span: number }[] = [];
-  for (let i = 0; i < days.length; i++) {
-    const d = days[i]!;
-    const label = d.toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
+  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  function toggleGroup(key: string) {
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
     });
-    const last = months[months.length - 1];
-    if (last && last.label === label) last.span += 1;
-    else months.push({ label, start: i, span: 1 });
   }
 
+  async function schedule(p: ProjectTracking, start: Date) {
+    const res = await updateProject(p.id, {
+      start_date: toDay(start),
+      target_date: toDay(addDays(start, GHOST_DAYS - 1)),
+    });
+    if ("error" in res) toast.error(res.error);
+    else onChanged();
+  }
+
+  const grid = (
+    <>
+      {monthXs.map((d) => (
+        <span
+          key={d}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 border-l border-dashed border-border/70"
+          style={{ left: d * px }}
+        />
+      ))}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 w-px bg-primary/60"
+        style={{ left: todayX + px / 2 }}
+      />
+    </>
+  );
+
   return (
-    <div className="sticky top-0 z-10 h-12 border-b border-border bg-card">
-      <div className="relative h-5 border-b border-border">
-        {months.map((m) => (
-          <span
-            key={m.start}
-            // Plain `text-xs`: the `/[1]` here was dead anyway (the inline
-            // `lineHeight: "20px"` below out-specifies it) and reads as a
-            // 12/12 promise this element does not keep.
-            className="absolute top-0 truncate px-2 text-xs font-medium text-faint-foreground"
-            style={{
-              left: m.start * DAY_WIDTH,
-              width: m.span * DAY_WIDTH,
-              lineHeight: "20px",
-            }}
-          >
-            {m.label}
-          </span>
-        ))}
-      </div>
-      <div className="relative h-7">
-        {days.map((d, i) => {
-          const isToday = i === todayOffset;
-          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-          return (
-            <div
-              key={i}
-              className={cn(
-                "absolute top-0 flex h-7 flex-col items-center justify-center text-xs",
-                isWeekend
-                  ? "text-muted-foreground"
-                  : "text-muted-foreground",
-                isToday && "text-destructive",
-              )}
-              style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+    <div ref={scroller} className="relative h-full overflow-auto">
+      <div className="relative" style={{ width }}>
+        {/* Date header — ticks run the full canvas (under the list column,
+            like Linear's); Today + zoom float at the right edge. */}
+        <div className="sticky top-0 z-30 flex h-11 justify-end bg-card">
+          <TimeHeader origin={origin} days={days} px={px} zoom={display.zoom} todayX={todayX} today={today} />
+          <div className="sticky right-0 z-10 flex shrink-0 items-center gap-1 bg-card pr-(--page-gutter) pl-2">
+            <button
+              type="button"
+              onClick={() => scrollToToday()}
+              className="h-7 rounded-md bg-muted px-2 text-sm text-foreground transition-colors hover:bg-accent"
             >
-              <span className="leading-none">
-                {d.toLocaleDateString(undefined, { weekday: "narrow" })}
-              </span>
-              <span
-                className={cn(
-                  "mt-0.5 grid size-5 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday && "bg-destructive text-white",
-                )}
-              >
-                {d.getDate()}
-              </span>
-            </div>
+              Today
+            </button>
+            <OptionMenu
+              label="Zoom"
+              value={display.zoom}
+              options={ZOOM_OPTIONS}
+              onChange={(zoom) => update({ zoom })}
+            />
+          </div>
+        </div>
+
+        {groups.map((g) => {
+          const open = !folded.has(g.key);
+          return (
+            <section key={g.key}>
+              <div className={cn("relative flex h-9 items-center", g.tint)} style={{ width }}>
+                {grid}
+                <div
+                  className="sticky left-0 z-10 flex min-w-0 items-center gap-2 pl-[calc(var(--page-gutter)-0.5rem)]"
+                  style={{ width: LEFT + 200 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(g.key)}
+                    aria-expanded={open}
+                    className="flex h-7 min-w-0 items-center gap-2 rounded-md px-2 text-sm hover:bg-accent"
+                  >
+                    <ChevronRight
+                      className={cn(
+                        "size-3 shrink-0 text-faint-foreground transition-transform",
+                        open && "rotate-90",
+                      )}
+                    />
+                    {g.icon}
+                    <span className="truncate font-medium text-foreground">{g.label}</span>
+                    <span className="text-muted-foreground tabular-nums">{g.rows.length}</span>
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={onCreate}
+                  aria-label="New project"
+                  title="New project"
+                  className="sticky right-[calc(var(--page-gutter)-0.5rem)] z-10 mr-[calc(var(--page-gutter)-0.5rem)] ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+
+              {open
+                ? g.rows.map((p) => (
+                    <ProjectRow
+                      key={p.id}
+                      project={p}
+                      propertyId={propertyId}
+                      members={members}
+                      health={effectiveHealth(p, declared).health}
+                      milestones={milestonesByProject?.get(p.id) ?? []}
+                      origin={origin}
+                      px={px}
+                      width={width}
+                      grid={grid}
+                      onChanged={onChanged}
+                      onSchedule={(d) => void schedule(p, d)}
+                    />
+                  ))
+                : null}
+            </section>
           );
         })}
       </div>
@@ -421,161 +240,207 @@ function DayHeader({
   );
 }
 
-function ProjectLabel({
-  project,
-  members,
-  propertyId,
+function TimeHeader({
+  origin,
+  days,
+  px,
+  zoom,
+  todayX,
+  today,
 }: {
-  project: ProjectTracking;
-  members: ProjectsViewProps["members"];
-  propertyId: string;
+  origin: Date;
+  days: number;
+  px: number;
+  zoom: TimelineZoom;
+  todayX: number;
+  today: Date;
 }) {
-  const pct = progressPct(project.done, project.total);
-  const meta = PROJECT_STATUS_META[project.status];
+  const ticks = useMemo(() => {
+    const months: { x: number; label: string }[] = [];
+    const dates: { x: number; label: string }[] = [];
+    // Date ticks: daily (month zoom), Mondays (quarter), the 1st + 15th (year).
+    for (let i = 0; i < days; i++) {
+      const d = addDays(origin, i);
+      if (d.getDate() === 1) {
+        const mon = d.toLocaleDateString(undefined, { month: "short" }).toUpperCase();
+        months.push({ x: i * px, label: d.getMonth() === 0 ? `${mon} ${d.getFullYear()}` : mon });
+      }
+      const show =
+        zoom === "month" ? true : zoom === "quarter" ? d.getDay() === 1 : d.getDate() === 1 || d.getDate() === 15;
+      if (show) dates.push({ x: i * px, label: String(d.getDate()) });
+    }
+    return { months, dates };
+  }, [origin, days, px, zoom]);
+
   return (
-    <Link
-      href={`/p/${propertyId}/projects/${project.id}`}
-      className="flex items-center gap-2.5 border-b border-border px-3 transition-colors hover:bg-accent"
-      style={{ height: ROW_HEIGHT }}
-    >
+    <div className="absolute inset-0 select-none" style={{ width: days * px }}>
+      {ticks.months.map((m) => (
+        <span
+          key={m.x}
+          className="absolute top-1.5 -translate-x-1/2 text-xs font-medium whitespace-nowrap text-muted-foreground"
+          style={{ left: m.x + px / 2 }}
+        >
+          {m.label}
+        </span>
+      ))}
+      {ticks.dates.map((d) => (
+        <span
+          key={d.x}
+          className="absolute top-[22px] -translate-x-1/2 text-xs text-faint-foreground tabular-nums"
+          style={{ left: d.x + px / 2 }}
+        >
+          {d.label}
+        </span>
+      ))}
       <span
-        className={cn("size-2 shrink-0 rounded-full", COLOR_DOT[project.color])}
-        aria-hidden
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-sm text-foreground">
-          {project.name || "Untitled project"}
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-faint-foreground tabular-nums">
-          <span className={meta.text}>{meta.label}</span>
-          <span aria-hidden>·</span>
-          <span>{pct}%</span>
-        </span>
-      </div>
-      <ContributorStack
-        ids={project.contributorIds}
-        members={members}
-        max={2}
-        size="size-5"
-      />
-    </Link>
+        className="absolute top-[20px] z-10 -translate-x-1/2 rounded-md bg-primary px-1.5 py-px text-xs font-medium whitespace-nowrap text-primary-foreground"
+        style={{ left: todayX + px / 2 }}
+      >
+        {today.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}
+      </span>
+    </div>
   );
 }
 
-/** Diamond tooltip: name · date · reached · "67% of 3" when tasks are tagged. */
-function milestoneTitle(ms: PropertyMilestone, prog: MilestoneProgress | undefined) {
-  const date = new Date(ms.due_date).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  return [
-    ms.name,
-    date,
-    ms.completed_at ? "reached" : null,
-    prog ? `${prog.pct}% of ${prog.total}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function TimelineRow({
-  item,
+function ProjectRow({
+  project: p,
   propertyId,
+  members,
+  health,
   milestones,
-  milestonePct,
+  origin,
+  px,
+  width,
+  grid,
+  onChanged,
+  onSchedule,
 }: {
-  item: Placed;
+  project: ProjectTracking;
   propertyId: string;
-  milestones: { ms: PropertyMilestone; day: number }[];
-  milestonePct: Map<string, MilestoneProgress>;
+  members: ProjectsViewProps["members"];
+  health: ReturnType<typeof effectiveHealth>["health"];
+  milestones: PropertyMilestone[];
+  origin: Date;
+  px: number;
+  width: number;
+  grid: React.ReactNode;
+  onChanged: () => void;
+  onSchedule: (start: Date) => void;
 }) {
-  const { project } = item;
-  const meta = PROJECT_STATUS_META[project.status];
-  const pct = progressPct(project.done, project.total);
-  const href = `/p/${propertyId}/projects/${project.id}`;
+  const href = `/p/${propertyId}/projects/${p.id}`;
+  const start = parseDay(p.start_date);
+  const target = parseDay(p.target_date);
+  const pct = progressPct(p.done, p.total);
+  const next = nextMilestone(milestones);
+  const [ghost, setGhost] = useState<number | null>(null);
+
+  // A lone date is a one-week stub ending / starting there, so it still
+  // reads as a bar rather than vanishing.
+  let bar: { x: number; w: number } | null = null;
+  if (start || target) {
+    const s = start ?? addDays(target!, -6);
+    const e = target ?? addDays(start!, 6);
+    const lo = s <= e ? s : e;
+    const hi = s <= e ? e : s;
+    bar = { x: diffDays(lo, origin) * px, w: Math.max((diffDays(hi, lo) + 1) * px, 8) };
+  }
+  function dayAt(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return Math.max(0, Math.floor((e.clientX - rect.left) / px));
+  }
 
   return (
-    <div
-      className="relative border-b border-border"
-      style={{ height: ROW_HEIGHT }}
-    >
-      {/* Milestone diamonds sit above the bar so a reached/pending date is
-          readable at a glance; the full name + date lives in the tooltip. */}
-      {milestones.map(({ ms, day }) => (
-        <Link
-          key={ms.id}
-          href={href}
-          title={milestoneTitle(ms, milestonePct.get(ms.id))}
-          aria-label={`Milestone ${ms.name}`}
-          className="absolute top-0.5 z-20 flex -translate-x-1/2 items-center"
-          style={{ left: day * DAY_WIDTH + DAY_WIDTH / 2 }}
-        >
-          <Diamond
-            className={cn(
-              "size-3",
-              ms.completed_at
-                ? "fill-success text-success"
-                : "fill-foreground text-foreground",
-            )}
-          />
-        </Link>
-      ))}
-      {item.kind === "bar" ? (
-        (() => {
-          const left = item.startDay * DAY_WIDTH + 2;
-          const width = Math.max(
-            (item.endDay - item.startDay + 1) * DAY_WIDTH - 4,
-            DAY_WIDTH - 4,
-          );
-          return (
+    <div className="group/row relative flex" style={{ width, height: ROW_H }}>
+      {/* Track: the whole row width, BEHIND the sticky list column. */}
+      <div
+        className={cn("absolute inset-0", !bar && "cursor-copy")}
+        onMouseMove={bar ? undefined : (e) => setGhost(dayAt(e))}
+        onMouseLeave={bar ? undefined : () => setGhost(null)}
+        onClick={bar ? undefined : (e) => onSchedule(addDays(origin, dayAt(e)))}
+      >
+        {grid}
+        {bar ? (
+          <>
+            <div
+              className="pointer-events-none absolute top-1.5 flex items-baseline gap-3 whitespace-nowrap"
+              style={{ left: bar.x, minWidth: bar.w }}
+            >
+              <span className="text-sm font-medium text-foreground">{p.name || "Untitled project"}</span>
+              <span className="ml-auto text-xs text-faint-foreground tabular-nums">
+                {next ? `${next.name} · ` : ""}
+                {pct}%
+              </span>
+            </div>
             <Link
               href={href}
-              title={`${project.name || "Untitled project"} — ${meta.label} · ${pct}%`}
-              className={cn(
-                // Hover is a fill-strength change, never the blue FOCUS ring — that
-                // shadow belongs to focus alone (notion-spec §6).
-                "group absolute top-1/2 flex -translate-y-1/2 items-center overflow-hidden rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:shadow-focus",
-                // Tinted track keyed to status.
-                meta.soft,
-              )}
-              style={{
-                left,
-                width,
-                height: ROW_HEIGHT - 16,
-              }}
+              title={`${p.name} · ${pct}% done`}
+              className="absolute top-[26px] h-[18px] overflow-hidden rounded-[5px] border border-border bg-muted transition-colors hover:border-foreground/25"
+              style={{ left: bar.x, width: bar.w }}
             >
-              {/* Completion fill — darker, status-keyed. */}
               <span
-                aria-hidden
-                className={cn("absolute inset-y-0 left-0", meta.dot)}
-                style={{ width: `${pct}%`, opacity: project.status === "archived" ? 0.4 : 0.85 }}
+                className={cn("block h-full opacity-40", COLOR_DOT[p.color])}
+                style={{ width: `${pct}%` }}
               />
-              <span
-                className={cn(
-                  "relative z-10 truncate px-2 text-xs font-medium",
-                  pct >= 55
-                    ? "text-white"
-                    : "text-foreground",
-                )}
-              >
-                {width > 56
-                  ? project.name || "Untitled project"
-                  : `${pct}%`}
-              </span>
             </Link>
+          </>
+        ) : ghost !== null ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-[26px] h-[18px] rounded-[5px] border border-dashed border-foreground/25 bg-muted/50"
+            style={{ left: ghost * px, width: GHOST_DAYS * px }}
+          >
+            <span className="absolute -top-5 left-0 text-xs whitespace-nowrap text-muted-foreground">
+              Click to schedule
+            </span>
+          </span>
+        ) : null}
+        {milestones.map((m) => {
+          const due = parseDay(m.due_date);
+          if (!due) return null;
+          return (
+            <Diamond
+              key={m.id}
+              aria-label={m.name}
+              className={cn(
+                "absolute top-[29px] size-3 -translate-x-1/2",
+                m.completed_at ? "fill-success text-success" : "fill-card text-foreground",
+              )}
+              style={{ left: diffDays(due, origin) * px + px / 2 }}
+            >
+              <title>{m.name}</title>
+            </Diamond>
           );
-        })()
-      ) : (
-        <Link
-          href={href}
-          title={`${project.name || "Untitled project"} — ${meta.label}`}
-          className="absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center"
-          style={{ left: item.day * DAY_WIDTH + DAY_WIDTH / 2 }}
-          aria-label={`${project.name || "Untitled project"} date marker`}
-        >
-          <Diamond className={cn("size-4", DIAMOND_TONE[project.status])} />
+        })}
+      </div>
+
+      {/* List column — sticky over the canvas, Linear's compact row. */}
+      <div
+        className="sticky left-0 z-10 flex shrink-0 items-center gap-2 bg-card pr-3 pl-(--page-gutter) before:absolute before:inset-0 before:-z-10 before:bg-accent before:opacity-0 before:transition-opacity group-hover/row:before:opacity-100"
+        style={{ width: LEFT }}
+      >
+        <Link href={href} className="flex min-w-0 flex-1 items-center gap-2.5 text-sm">
+          {p.icon ? (
+            <span aria-hidden="true" className="w-4 shrink-0 text-center">
+              {p.icon}
+            </span>
+          ) : (
+            <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-[4px]", COLOR_DOT[p.color])} />
+          )}
+          <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+            {p.name || "Untitled project"}
+          </span>
         </Link>
-      )}
+        <HealthIcon health={health} />
+        <StatusIcon status={p.status} pct={pct} />
+        <ProjectRowMenu project={p} href={href} onChanged={onChanged} />
+        {p.lead_user_id ? (
+          <ContributorStack ids={[p.lead_user_id]} members={members} size="size-5" />
+        ) : (
+          <span title="No lead" className="flex size-5 shrink-0 items-center justify-center text-faint-foreground">
+            <UserRound className="size-3.5" />
+          </span>
+        )}
+      </div>
     </div>
   );
 }

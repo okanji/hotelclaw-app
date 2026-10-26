@@ -124,7 +124,7 @@ export function CyclesView({
         }
       />
       <div className="flex-1 overflow-y-auto pb-16">
-        <PageShell className="pt-2">
+        <PageShell width="full" className="pt-2">
           {!enabled ? (
             <EmptyState
               icon={IterationCcw}

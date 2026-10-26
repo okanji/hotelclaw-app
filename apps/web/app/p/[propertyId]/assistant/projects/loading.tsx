@@ -14,7 +14,7 @@ export default function AssistantProjectsLoading() {
       <div className="flex h-11 shrink-0 items-center px-4">
         <Skeleton className="h-4 w-36" />
       </div>
-      <PageShell className="pt-4">
+      <PageShell width="full" className="pt-4">
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="rounded-card bg-card p-4 shadow-card">

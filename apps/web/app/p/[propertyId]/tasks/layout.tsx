@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getServerQueryClient } from "@/lib/query/server";
 import { getTasks } from "@/lib/tasks/queries";
+import { getStatusCatalog } from "@/lib/tasks/status-catalog";
 
 /**
  * Tasks section layout — only does the server-streamed prefetch into the
@@ -30,10 +31,17 @@ export default async function TasksLayout({
   // so a bare `void` prefetch hands the client an empty cache that
   // `useQuery` then has to refetch (or, worse with the old config, hung at
   // `pending`).
-  await queryClient.prefetchQuery({
-    queryKey: ["tasks", propertyId],
-    queryFn: () => getTasks(supabase, propertyId),
-  });
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["tasks", propertyId],
+      queryFn: () => getTasks(supabase, propertyId),
+    }),
+    // Lists + pipelines (0114) — same shape as /api/properties/:id/lists.
+    queryClient.prefetchQuery({
+      queryKey: ["status-catalog", propertyId],
+      queryFn: () => getStatusCatalog(supabase, propertyId),
+    }),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

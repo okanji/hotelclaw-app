@@ -4,6 +4,7 @@ import { z } from "zod";
 import { after } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { removeUserFromChannels } from "@/lib/stream/server";
+import { FULL_ROLES } from "@/lib/auth/roles";
 
 const Schema = z.object({
   propertyId: z.string().uuid(),
@@ -11,7 +12,9 @@ const Schema = z.object({
 });
 
 const RoleSchema = Schema.extend({
-  role: z.enum(["owner", "manager", "staff"]),
+  // A guest's scopes are managed in the guest-access dialog, not by flipping
+  // the role here — promoting/demoting across the guest line is a 0118 flow.
+  role: z.enum(FULL_ROLES),
 });
 
 /**

@@ -170,7 +170,7 @@ export function MyTasks({
 
       {tab === "focus" ? (
         <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-          <PageShell>
+          <PageShell width="full">
             <SectionHeader title={greeting} />
             <FocusTab propertyId={propertyId} userId={userId} />
           </PageShell>
@@ -193,7 +193,7 @@ export function MyTasks({
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-          <PageShell>
+          <PageShell width="full">
             <ActivityLogFeed
               propertyId={propertyId}
               scope={{ kind: "actor", id: userId }}

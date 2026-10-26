@@ -1,14 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import { parseTurnStep, upsertTurnStep, type TurnStep } from "@hotelclaw/chat-ui/turn";
 import { supabase } from "../lib/supabase";
-import {
-  AiElapsed,
-  AiPixelGrid,
-  AiShimmerLabel,
-  fadeUpEntering,
-} from "./AiLoader";
+import { TurnTrace } from "./ai/TurnTrace";
 
 /**
  * "Hotelclaw is thinking…" row for the channel bot — the mobile twin of
@@ -19,12 +13,22 @@ import {
  * the native indicator would vanish mid-turn. `channel_bot_sessions.turn_state`
  * is the truth — `running` the moment the webhook claims the turn, back to
  * `idle` once the reply posts — and Realtime pushes both edges (0078
- * publication + member SELECT RLS). Steps come from `channel_bot_activity`
- * (0096) so a long turn shows the path taken rather than one opaque spinner.
+ * publication + member SELECT RLS). The turn's structured rows
+ * (`channel_bot_activity`, 0113) stream in the same way — an INSERT opens a
+ * step, an UPDATE settles it in place — and render as the same `TurnTrace`
+ * the delivered reply will carry, so the live view and the settled view are
+ * one component.
  *
  * Root conversation only: thread turns deliver into their thread, and `job:`
  * rows run detached for minutes by design.
  */
+type SessionRow = {
+  thread_key?: string;
+  turn_state?: string;
+  turn_activity?: string | null;
+  turn_nonce?: string | null;
+};
+
 export function AiThinkingIndicator({
   streamChannelId,
 }: {
@@ -32,25 +36,21 @@ export function AiThinkingIndicator({
 }) {
   const [thinking, setThinking] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
-  const [steps, setSteps] = useState<string[]>([]);
+  const [nonce, setNonce] = useState<string | null>(null);
+  const [steps, setSteps] = useState<TurnStep[]>([]);
   const [longRunning, setLongRunning] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    const applyRow = (
-      row: {
-        thread_key?: string;
-        turn_state?: string;
-        turn_activity?: string | null;
-      } | null,
-    ) => {
+    const applyRow = (row: SessionRow | null) => {
       if (!row || row.thread_key !== "_root") return;
       const running = row.turn_state === "running";
       // A new turn starts from an empty feed; the delivered reply keeps the
-      // finished turn's steps via its own `eve_steps` field.
+      // finished turn's steps via its own `eve_steps` / `eve_turn` fields.
       if (!running) setSteps([]);
       setThinking(running);
+      setNonce(running ? (row.turn_nonce ?? null) : null);
       setActivity(row.turn_activity?.trim() || null);
       // Every edge (turn start OR end) restarts the long-running clock.
       setLongRunning(false);
@@ -58,18 +58,37 @@ export function AiThinkingIndicator({
 
     void supabase
       .from("channel_bot_sessions")
-      .select("thread_key, turn_state, turn_activity")
+      .select("thread_key, turn_state, turn_activity, turn_nonce")
       .eq("channel_id", streamChannelId)
       .eq("thread_key", "_root")
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) applyRow(data);
+        if (cancelled || !data) return;
+        applyRow(data);
+        // Mount mid-turn: backfill the steps so far; the realtime feed
+        // merges by row id from here on.
+        if (data.turn_state === "running" && data.turn_nonce) {
+          void supabase
+            .from("channel_bot_activity")
+            .select(
+              "id, kind, label, call_id, task_id, tool_name, input, output, detail, status, created_at, settled_at, thread_key",
+            )
+            .eq("channel_id", streamChannelId)
+            .eq("turn_nonce", data.turn_nonce)
+            .order("created_at", { ascending: true })
+            .limit(80)
+            .then(({ data: rows }) => {
+              if (cancelled || !rows) return;
+              setSteps((prev) =>
+                (rows as Record<string, unknown>[])
+                  .filter((r) => r.thread_key === "_root")
+                  .map(parseTurnStep)
+                  .filter((s): s is TurnStep => s !== null)
+                  .reduce((acc, s) => upsertTurnStep(acc, s), prev),
+              );
+            });
+        }
       });
-
-    const pushStep = (label: unknown) => {
-      if (typeof label !== "string" || !label.trim()) return;
-      setSteps((prev) => (prev.at(-1) === label ? prev : [...prev, label]));
-    };
 
     // Unique topic per mount — a shared topic name crashes on double-mount.
     const channel = supabase
@@ -79,18 +98,17 @@ export function AiThinkingIndicator({
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "channel_bot_activity",
           filter: `channel_id=eq.${streamChannelId}`,
         },
         (payload) => {
-          const inserted = payload.new as {
-            thread_key?: string;
-            label?: string;
-          };
-          if (inserted.thread_key !== "_root") return;
-          pushStep(inserted.label);
+          const row = payload.new as Record<string, unknown>;
+          if (row.thread_key !== "_root") return;
+          const step = parseTurnStep(row);
+          if (!step) return;
+          setSteps((prev) => upsertTurnStep(prev, step));
         },
       )
       .on(
@@ -101,14 +119,7 @@ export function AiThinkingIndicator({
           table: "channel_bot_sessions",
           filter: `channel_id=eq.${streamChannelId}`,
         },
-        (payload) =>
-          applyRow(
-            payload.new as {
-              thread_key?: string;
-              turn_state?: string;
-              turn_activity?: string | null;
-            },
-          ),
+        (payload) => applyRow(payload.new as SessionRow),
       )
       .subscribe();
 
@@ -134,35 +145,16 @@ export function AiThinkingIndicator({
       </View>
       <View style={styles.body}>
         <Text style={styles.name}>Hotelclaw</Text>
-        {/* The path taken so far — Beautiful UI detail rail (indented behind
-            a 1px hairline), capped so a 20-tool turn can't push the
-            conversation off screen. Each step fades up as it lands. */}
-        {steps.length > 1 ? (
-          <View style={styles.rail}>
-            {steps
-              .slice(0, -1)
-              .slice(-4)
-              .map((step, i) => (
-                <Animated.View
-                  key={`${step}-${i}`}
-                  entering={fadeUpEntering(0)}
-                  style={styles.stepRow}
-                >
-                  <Ionicons name="checkmark" size={13} color="#9ca3af" />
-                  <Text style={styles.stepDone} numberOfLines={1}>
-                    {step}
-                  </Text>
-                </Animated.View>
-              ))}
-          </View>
-        ) : null}
-        <View style={styles.liveRow}>
-          <AiPixelGrid />
-          <AiShimmerLabel style={styles.liveLabel}>
-            {activity ?? (longRunning ? "Still working on it…" : "Thinking…")}
-          </AiShimmerLabel>
-          <AiElapsed />
-        </View>
+        {/* The turn as a live trace: the summary line is eve's status line —
+            the latest work, never reset to a generic "Thinking" between
+            steps — and it opens into the steps so far, each settling in
+            place as its result lands. */}
+        <TurnTrace
+          key={nonce ?? "turn"}
+          live
+          steps={steps}
+          activity={activity ?? (longRunning ? "Still working on it…" : "Thinking…")}
+        />
       </View>
     </View>
   );
@@ -185,26 +177,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { fontSize: 14, fontWeight: "700", color: "#374151" },
-  body: { flex: 1, minWidth: 0 },
+  body: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontSize: 15, fontWeight: "600" },
-  rail: {
-    marginTop: 2,
-    paddingLeft: 10,
-    borderLeftWidth: 1,
-    borderLeftColor: "#e5e7eb",
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingTop: 2,
-  },
-  stepDone: { fontSize: 13, color: "#9ca3af", flexShrink: 1 },
-  liveRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 4,
-  },
-  liveLabel: { fontSize: 13, flexShrink: 1 },
 });

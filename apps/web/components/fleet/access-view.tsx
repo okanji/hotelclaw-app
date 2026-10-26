@@ -34,7 +34,7 @@ export function AccessView({ propertyId, isOwner }: { propertyId: string; isOwne
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell className="flex flex-col">
+        <PageShell width="full" className="flex flex-col">
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <Eyebrow>Actions API</Eyebrow>

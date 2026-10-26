@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/db/types";
+import { canManage, isFullMember } from "@/lib/auth/roles";
 
 export async function getSessionUser() {
   const supabase = await createClient();
@@ -66,4 +67,40 @@ export async function getMembershipForProperty(propertyId: string) {
     .eq("user_id", user.id)
     .maybeSingle();
   return data;
+}
+
+export type MembershipGate =
+  | { ok: true; role: Role; userId: string }
+  | { ok: false; error: string; status: 401 | 403 };
+
+/**
+ * The server-side role gates every service-client route and action must
+ * pass before it touches data on a property's behalf. RLS alone no longer
+ * suffices once guests exist (0118): a guest's membership row opens the
+ * property, but a service-client write bypasses RLS entirely, so the gate
+ * has to be explicit. `lib/security/__tests__/guest-gates.test.ts` keeps a
+ * baseline of routes that still lack one.
+ */
+export async function requireFullMember(
+  propertyId: string,
+): Promise<MembershipGate> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Unauthorized", status: 401 };
+  const membership = await getMembershipForProperty(propertyId);
+  if (!membership || !isFullMember(membership.role)) {
+    return { ok: false, error: "Not a member of this property", status: 403 };
+  }
+  return { ok: true, role: membership.role, userId: user.id };
+}
+
+/** Owners + managers only (members, invites, org chart, status sets, guest grants). */
+export async function requireManagement(
+  propertyId: string,
+): Promise<MembershipGate> {
+  const gate = await requireFullMember(propertyId);
+  if (!gate.ok) return gate;
+  if (!canManage(gate.role)) {
+    return { ok: false, error: "Only owners and managers can do this", status: 403 };
+  }
+  return gate;
 }

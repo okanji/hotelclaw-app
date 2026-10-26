@@ -167,6 +167,26 @@ export function ProjectsSidebar({
           <Plus />
         </SidebarGroupAction>
         <SidebarGroupContent className={cn(!projectsOpen && "hidden")}>
+          {/* The overview leads the group — ClickUp's "All Tasks" first row
+              under Spaces; Linear's Projects page. Initiatives and Archive
+              live in the More launcher. */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href={`/p/${propertyId}/projects`} />}
+                isActive={pathname === `/p/${propertyId}/projects`}
+                tooltip="All projects"
+              >
+                <FolderKanban />
+                <span className="flex-1">All projects</span>
+                {projects.length > 0 ? (
+                  <span className="shrink-0 text-xs text-faint-foreground tabular-nums">
+                    {projects.length}
+                  </span>
+                ) : null}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
           {projects.length === 0 ? (
             <p className="px-2 py-1.5 text-xs text-pretty text-sidebar-foreground/60">
               No projects yet. Create one to group work across teams.
@@ -198,21 +218,6 @@ export function ProjectsSidebar({
               ))}
             </SidebarMenu>
           )}
-          {/* Footer row (gr8r ends its Projects group the same way).
-              Initiatives and Archive live in the More launcher. */}
-          <SidebarMenu className="mt-1">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`/p/${propertyId}/projects`} />}
-                isActive={pathname === `/p/${propertyId}/projects`}
-                tooltip="All projects"
-                className="text-faint-foreground"
-              >
-                <FolderKanban />
-                <span>All projects</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
       ) : null}
