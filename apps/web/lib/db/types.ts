@@ -3882,6 +3882,12 @@ export interface Database {
         Args: { prop_id: string };
         Returns: boolean;
       };
+      /** The status set a space inherits (its chain's default, else the
+       *  property default). Migration 0114. */
+      space_status_set: {
+        Args: { p_space: string };
+        Returns: string | null;
+      };
       archive_document_tree: {
         Args: { root: string };
         Returns: undefined;

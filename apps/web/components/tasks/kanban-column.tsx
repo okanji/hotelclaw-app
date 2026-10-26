@@ -26,13 +26,13 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { moveTask, updateTask } from "./actions";
-import { PRIORITY_META } from "./kanban";
+import { COLUMN_HUE, PRIORITY_META, type Task } from "./kanban";
 import { cn } from "@/lib/utils";
 import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
-import { COLUMN_PILL_CLASS, type Task } from "./kanban";
+import { isDoneColumn, legacyOf, type ColumnDef } from "@/lib/tasks/statuses";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption } from "@/lib/db/types";
 
 /**
  * Cards rendered per column before the scroll sentinel loads the next page.
@@ -45,13 +45,10 @@ import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
 const COLUMN_PAGE = 25;
 
 type Props = {
-  column: {
-    id: TaskStatus;
-    label: string;
-    dotClass: string;
-    pillTone: keyof typeof COLUMN_PILL_CLASS;
-    wipLimit: number | null;
-  };
+  /** One status of the list's pipeline, or one of the 4 category columns (0114). */
+  column: ColumnDef;
+  /** Where "Mark all done" sends the column — the board's closed status. */
+  doneTarget: string;
   taskIds: string[];
   tasksById: Record<string, Task>;
   assignees: Record<string, AssigneeInfo>;
@@ -65,18 +62,21 @@ type Props = {
   isDropTarget: boolean;
   /** Whether this column should render its body (false when collapsed). */
   collapsed: boolean;
-  onToggleCollapse: (status: TaskStatus) => void;
+  onToggleCollapse: (status: string) => void;
   /** Map of taskId -> name of a teammate dragging it. */
   remoteDragMap: Map<string, string>;
   onChanged: () => void;
   /** Opens the full modal for this column — for "more options" path. */
-  onOpenFullCreate: (status: TaskStatus) => void;
+  onOpenFullCreate: (status: string) => void;
   /** Active team scope (`?space=`), threaded to inline quick-add. */
   scopeSpaceId?: string | null;
+  /** Active list scope (`?list=`), threaded to inline quick-add. */
+  scopeListId?: string | null;
 };
 
 export function KanbanColumn({
   column,
+  doneTarget,
   taskIds,
   tasksById,
   assignees,
@@ -91,6 +91,7 @@ export function KanbanColumn({
   onChanged,
   onOpenFullCreate,
   scopeSpaceId,
+  scopeListId,
 }: Props) {
   const router = useRouter();
   const { setNodeRef } = useDroppable({ id: column.id });
@@ -103,7 +104,7 @@ export function KanbanColumn({
   async function markAllDone() {
     const ids = [...taskIds];
     const results = await Promise.all(
-      ids.map((id) => updateTask({ taskId: id, status: "done" })),
+      ids.map((id) => updateTask({ taskId: id, status: doneTarget })),
     );
     const failed = results.filter((r) => "error" in r).length;
     onChanged();
@@ -175,9 +176,11 @@ export function KanbanColumn({
   }, [taskIds, visibleCount, activeDragId]);
 
   function automateColumn() {
+    // The workflow trigger filters on the legacy literal (`trigger.to`), so
+    // a pipeline column hands over its category's literal, not its uuid.
     const prefill = {
       trigger: "task.status_changed",
-      column: column.id,
+      column: legacyOf({ category: column.category, is_blocked: column.isBlocked }),
       column_label: column.label,
     };
     const goal = `When a task moves to ${column.label}`;
@@ -188,7 +191,8 @@ export function KanbanColumn({
   }
   const overWip =
     column.wipLimit != null && taskIds.length > column.wipLimit;
-  const hue = COLUMN_PILL_CLASS[column.pillTone];
+  const hue = COLUMN_HUE[column.color];
+  const finished = isDoneColumn(column);
 
   if (collapsed) {
     return (
@@ -294,7 +298,7 @@ export function KanbanColumn({
                 <Workflow className="size-3.5" />
                 Automate this column…
               </DropdownMenuItem>
-              {column.id !== "done" && taskIds.length > 0 ? (
+              {!finished && taskIds.length > 0 ? (
                 <DropdownMenuItem onClick={markAllDone}>
                   <CheckCheck className="size-3.5" />
                   Mark all done
@@ -348,6 +352,7 @@ export function KanbanColumn({
             onCreated={onChanged}
             onClose={() => setAdding(false)}
             scopeSpaceId={scopeSpaceId}
+            scopeListId={scopeListId}
           />
         ) : null}
 

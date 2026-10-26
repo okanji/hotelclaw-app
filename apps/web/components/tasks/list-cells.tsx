@@ -20,11 +20,13 @@ import {
 } from "@/components/ui/popover";
 import { LABEL_CHIP, LABEL_DOT } from "@/components/labels/label-tokens";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
-import type { CustomFieldValue, EntityColor, TaskStatus } from "@/lib/db/types";
+import type { CustomFieldValue, EntityColor } from "@/lib/db/types";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import type { PropertyMember } from "@/lib/query/section-queries";
 import type { ResolvedColumn } from "@/lib/tasks/list-columns";
-import { COLUMNS, PRIORITY_IDS, PRIORITY_META, type Task } from "./kanban";
+import { PRIORITY_IDS, PRIORITY_META, type Task } from "./kanban";
+import { statusLabelOf } from "@/lib/tasks/statuses";
+import { useTaskStatusOptions } from "@/lib/query/status-queries";
 import { PriorityBars, StatusIcon } from "./task-icons";
 import { CustomFieldValueEditor } from "./custom-field-value-editor";
 import { addTaskLabel, removeTaskLabel } from "./task-detail-actions";
@@ -170,9 +172,11 @@ function StatusCell({
   ctx: CellContext;
   disabled?: boolean;
 }) {
-  const col = COLUMNS.find((c) => c.id === task.status)!;
-  async function set(status: TaskStatus) {
-    if (status === task.status) return;
+  // The task's own pipeline (0114); category columns until list_id is known.
+  const options = useTaskStatusOptions(ctx.propertyId, task.list_id);
+  const current = task.status_id ?? task.status;
+  async function set(status: string) {
+    if (status === current) return;
     const res = await updateTask({ taskId: task.id, status });
     if ("error" in res) toast.error(res.error);
     ctx.onChanged();
@@ -188,13 +192,22 @@ function StatusCell({
           />
         }
       >
-        <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-        <span className="truncate">{col.label}</span>
+        <StatusIcon task={task} className="size-3.5 shrink-0" />
+        <span className="truncate">{statusLabelOf(task)}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {COLUMNS.map((c) => (
-          <DropdownMenuItem key={c.id} onClick={() => void set(c.id)}>
-            <StatusIcon status={c.id} className="size-3.5" />
+        {options.map((c) => (
+          <DropdownMenuItem
+            key={c.id}
+            onClick={() => void set(c.id)}
+            disabled={c.id === current}
+          >
+            <StatusIcon
+              category={c.category}
+              blocked={c.isBlocked}
+              color={c.color}
+              className="size-3.5"
+            />
             {c.label}
           </DropdownMenuItem>
         ))}

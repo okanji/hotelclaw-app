@@ -37,6 +37,7 @@ import {
 import type { EntityColor } from "@/lib/db/types";
 import { LABEL_INK } from "@/components/labels/label-tokens";
 import { useOpenSpace } from "@/lib/spaces/use-open-space";
+import { useStatusCatalog } from "@/lib/query/status-queries";
 import { useOpenProject } from "@/lib/projects/use-open-project";
 import { useStoredToggle } from "@/components/shell/use-stored-toggle";
 import { CreateEntityDialog } from "./create-entity-dialog";
@@ -70,6 +71,9 @@ export function ProjectsSidebar({
   const openProject = useOpenProject(propertyId);
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
+  // Lists (0114): a team's lists hang under its views, each opening the
+  // board scoped to that list's pipeline.
+  const catalog = useStatusCatalog(propertyId);
   const [dialog, setDialog] = useState<{
     open: boolean;
     kind: "space" | "project";
@@ -149,6 +153,27 @@ export function ProjectsSidebar({
                   expanded={expanded.has(s.id)}
                   onToggle={() => toggleExpanded(s.id)}
                   onOpen={(view) => openSpace(s.id, view)}
+                  extra={catalog.listsOfSpace(s.id).map((l) => (
+                    <SidebarMenuSubItem key={l.id}>
+                      <SidebarMenuSubButton
+                        render={<Link href={`/p/${propertyId}/tasks?list=${l.id}`} />}
+                        isActive={
+                          pathname === `/p/${propertyId}/tasks` &&
+                          searchParams.get("list") === l.id
+                        }
+                      >
+                        {l.icon ? (
+                          <span aria-hidden="true">{l.icon}</span>
+                        ) : (
+                          <span
+                            className={cn("size-2 shrink-0 rounded-[3px]", DOT[l.color])}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="truncate">{l.name}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
                 />
               ))}
             </SidebarMenu>
@@ -270,6 +295,7 @@ function EntityRow({
   expanded,
   onToggle,
   onOpen,
+  extra,
 }: {
   href: string;
   name: string;
@@ -280,6 +306,8 @@ function EntityRow({
   expanded: boolean;
   onToggle: () => void;
   onOpen: (tab?: string) => void;
+  /** Rows appended after the views (a team's lists). */
+  extra?: React.ReactNode;
 }) {
   // The open entity always shows its views, so you can see which one you're on.
   const open = expanded || active;
@@ -343,6 +371,7 @@ function EntityRow({
               </SidebarMenuSubItem>
             );
           })}
+          {extra}
         </SidebarMenuSub>
       ) : null}
     </SidebarMenuItem>

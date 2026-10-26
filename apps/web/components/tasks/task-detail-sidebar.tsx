@@ -41,7 +41,8 @@ import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { COLUMNS, PRIORITY_META } from "./kanban";
+import { PRIORITY_META } from "./kanban";
+import { describeStatus, type ColumnDef } from "@/lib/tasks/statuses";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import { TaskProjectSpacePicker } from "./task-project-space-picker";
 import { TaskCustomFields } from "./task-custom-fields";
@@ -71,6 +72,7 @@ import {
   DueDatePopoverContent,
   PriorityMenuContent,
   StatusMenuContent,
+  type StatusRowFields,
   initials,
 } from "./task-property-menus";
 
@@ -111,6 +113,8 @@ export function TaskDetailSidebar({
   propertyId,
   taskId,
   status,
+  statusOptions,
+  statusRow,
   priority,
   assigneeId,
   assignee,
@@ -137,7 +141,11 @@ export function TaskDetailSidebar({
   className?: string;
   propertyId: string;
   taskId: string;
-  status: TaskStatus;
+  /** A status id or a legacy literal — whatever `updateTask({status})` takes. */
+  status: string;
+  /** The task's list pipeline (0114); omit for the four category columns. */
+  statusOptions?: ColumnDef[];
+  statusRow?: StatusRowFields;
   priority: TaskPriority;
   assigneeId: string | null;
   assignee: { name: string; avatar?: string } | undefined;
@@ -146,7 +154,7 @@ export function TaskDetailSidebar({
   meta: TaskDetailMeta | undefined;
   openers: TaskDetailOpeners;
   removers: TaskDetailRemovers;
-  onStatusChange: (s: TaskStatus) => void;
+  onStatusChange: (s: string) => void;
   onPriorityChange: (p: TaskPriority) => void;
   onAssigneeChange: (id: string | null) => void;
   onDueAtChange: (iso: string | null) => void;
@@ -174,7 +182,12 @@ export function TaskDetailSidebar({
       )}
     >
       <SidebarSection title="Properties" defaultOpen>
-        <StatusPicker status={status} onSelect={onStatusChange} />
+        <StatusPicker
+          status={status}
+          options={statusOptions}
+          row={statusRow}
+          onSelect={onStatusChange}
+        />
         <PriorityPicker priority={priority} onSelect={onPriorityChange} />
         <AssigneePicker
           assignee={assignee}
@@ -289,7 +302,7 @@ export function TaskDetailSidebar({
           label="Add sub-issues"
           onClick={onAddSubIssue}
         />
-        <MarkAsPicker status={status} onSelect={onStatusChange} />
+        <MarkAsPicker status={status} options={statusOptions} onSelect={onStatusChange} />
       </SidebarSection>
 
       <SidebarSection title="Actions" defaultOpen>
@@ -649,13 +662,16 @@ function RelatedTaskRow({
 
 function StatusPicker({
   status,
+  options,
+  row,
   onSelect,
 }: {
-  status: TaskStatus;
-  onSelect: (status: TaskStatus) => void;
+  status: string;
+  options?: ColumnDef[];
+  row?: StatusRowFields;
+  onSelect: (status: string) => void;
 }) {
-  const label =
-    COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
+  const view = describeStatus(options ?? [], status, row);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -665,13 +681,20 @@ function StatusPicker({
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none"
           >
             <SidebarPropertyRow
-              icon={<StatusIcon status={status} className="size-3.5" />}
-              label={label}
+              icon={
+                <StatusIcon
+                  category={view.category}
+                  blocked={view.isBlocked}
+                  color={view.color}
+                  className="size-3.5"
+                />
+              }
+              label={view.label}
             />
           </button>
         }
       />
-      <StatusMenuContent align="end" onSelect={onSelect} />
+      <StatusMenuContent align="end" options={options} current={status} onSelect={onSelect} />
     </DropdownMenu>
   );
 }
@@ -836,10 +859,12 @@ function RecurrencePicker({
 
 function MarkAsPicker({
   status,
+  options,
   onSelect,
 }: {
-  status: TaskStatus;
-  onSelect: (status: TaskStatus) => void;
+  status: string;
+  options?: ColumnDef[];
+  onSelect: (status: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -857,19 +882,7 @@ function MarkAsPicker({
           </button>
         }
       />
-      <DropdownMenuContent align="end" className="w-48">
-        {COLUMNS.map((c) => (
-          <DropdownMenuItem
-            key={c.id}
-            onClick={() => onSelect(c.id)}
-            className="gap-2"
-            disabled={c.id === status}
-          >
-            <StatusIcon status={c.id} className="size-3.5" />
-            {c.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
+      <StatusMenuContent align="end" options={options} current={status} onSelect={onSelect} />
     </DropdownMenu>
   );
 }
@@ -884,7 +897,8 @@ export function SubIssuesPanel({
 }: {
   propertyId: string;
   taskId: string;
-  status: TaskStatus;
+  /** The parent's status (id or literal) — a new sub-issue starts there. */
+  status: string;
   adding: boolean;
   onStartAdd: () => void;
   onCancelAdd: () => void;

@@ -1,29 +1,109 @@
 import { cn } from "@/lib/utils";
 import { PRIORITY_META } from "./kanban";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import { LABEL_INK } from "@/components/labels/label-tokens";
+import type {
+  EntityColor,
+  StatusCategory,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/db/types";
+import type { StatusLike } from "@/lib/tasks/statuses";
 
 /* -------------------------------------------------------------------------- */
 /* Status icon — pixel-tuned Linear-style progress glyph. Custom SVG (rather  */
 /* than Lucide) because Linear's icon set isn't in lucide-react: outlined     */
-/* circle (Todo), outlined ring + amber half-pie (In Progress), outlined ring */
-/* + center bar (Blocked), filled disc + white check (Done).                  */
+/* circle (not started), dashed ring (unstarted / backlog), outlined ring +   */
+/* half-pie (active), outlined ring + center bar (blocked), filled disc +     */
+/* white check (done / closed).                                               */
+/*                                                                            */
+/* Two signatures (0114): the legacy `status` literal, or the pipeline row's  */
+/* `category` + `blocked` + `color` (tinted with the entity ink, the same     */
+/* rung labels and projects spend). `task` takes any status-shaped row and    */
+/* picks whichever it carries. Legacy tints stay what they were.              */
 /* -------------------------------------------------------------------------- */
+
+type Glyph = "circle" | "dashed" | "half" | "bar" | "check";
+
+function glyphFor(category: StatusCategory, blocked: boolean): Glyph {
+  switch (category) {
+    case "open":
+      return "circle";
+    case "unstarted":
+      return "dashed";
+    case "active":
+      return blocked ? "bar" : "half";
+    default:
+      return "check";
+  }
+}
+
+function legacyCategory(status: TaskStatus | string): {
+  category: StatusCategory;
+  blocked: boolean;
+} {
+  switch (status) {
+    case "in_progress":
+      return { category: "active", blocked: false };
+    case "blocked":
+      return { category: "active", blocked: true };
+    case "done":
+      return { category: "closed", blocked: false };
+    default:
+      return { category: "open", blocked: false };
+  }
+}
+
+const LEGACY_TINT: Record<Glyph, string> = {
+  circle: "text-muted-foreground",
+  dashed: "text-muted-foreground",
+  half: "text-warning",
+  bar: "text-warning",
+  check: "text-success",
+};
 
 export function StatusIcon({
   status,
+  category,
+  blocked,
+  color,
+  task,
   className,
 }: {
-  status: TaskStatus;
+  /** Legacy literal — still accepted everywhere a row predates the catalog. */
+  status?: TaskStatus | string;
+  category?: StatusCategory;
+  blocked?: boolean;
+  /** Entity colour of the status row; omitted → the legacy semantic tints. */
+  color?: EntityColor | null;
+  /** Any status-shaped row (a `Task`, a `StatusRow` flattened onto it). */
+  task?: StatusLike & { status_color?: EntityColor | null };
   className?: string;
 }) {
-  const base = "size-4 shrink-0";
-  if (status === "todo") {
+  let cat: StatusCategory;
+  let isBlocked: boolean;
+  let tint: EntityColor | null | undefined = color;
+  if (task) {
+    const fromLegacy = legacyCategory(task.status ?? "todo");
+    cat = task.status_category ?? fromLegacy.category;
+    isBlocked =
+      typeof task.status_blocked === "boolean"
+        ? task.status_blocked
+        : fromLegacy.blocked;
+    tint = tint ?? task.status_color;
+  } else if (category) {
+    cat = category;
+    isBlocked = blocked ?? false;
+  } else {
+    const fromLegacy = legacyCategory(status ?? "todo");
+    cat = fromLegacy.category;
+    isBlocked = fromLegacy.blocked;
+  }
+  const glyph = glyphFor(cat, isBlocked);
+  const base = cn("size-4 shrink-0", tint ? LABEL_INK[tint] : LEGACY_TINT[glyph]);
+
+  if (glyph === "circle" || glyph === "dashed") {
     return (
-      <svg
-        aria-hidden
-        viewBox="0 0 16 16"
-        className={cn(base, "text-muted-foreground", className)}
-      >
+      <svg aria-hidden viewBox="0 0 16 16" className={cn(base, className)}>
         <circle
           cx="8"
           cy="8"
@@ -31,17 +111,14 @@ export function StatusIcon({
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
+          strokeDasharray={glyph === "dashed" ? "2.6 2.2" : undefined}
         />
       </svg>
     );
   }
-  if (status === "in_progress") {
+  if (glyph === "half") {
     return (
-      <svg
-        aria-hidden
-        viewBox="0 0 16 16"
-        className={cn(base, "text-warning", className)}
-      >
+      <svg aria-hidden viewBox="0 0 16 16" className={cn(base, className)}>
         <circle
           cx="8"
           cy="8"
@@ -58,13 +135,9 @@ export function StatusIcon({
       </svg>
     );
   }
-  if (status === "blocked") {
+  if (glyph === "bar") {
     return (
-      <svg
-        aria-hidden
-        viewBox="0 0 16 16"
-        className={cn(base, "text-warning", className)}
-      >
+      <svg aria-hidden viewBox="0 0 16 16" className={cn(base, className)}>
         <circle
           cx="8"
           cy="8"
@@ -85,11 +158,7 @@ export function StatusIcon({
     );
   }
   return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      className={cn(base, "text-success", className)}
-    >
+    <svg aria-hidden viewBox="0 0 16 16" className={cn(base, className)}>
       <circle cx="8" cy="8" r="7" fill="currentColor" />
       <path
         d="M 4.7 8.2 L 7 10.4 L 11.3 5.9"

@@ -5,16 +5,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createTask } from "./actions";
-import type { TaskStatus } from "@/lib/db/types";
 
 type Props = {
   propertyId: string;
-  status: TaskStatus;
+  /** The column's id — a status uuid (list board) or a legacy literal. */
+  status: string;
   onCreated: () => void;
   onClose: () => void;
   /** When the board is scoped to a team (`?space=`), quick-adds land there;
       otherwise omit so the server defaults to the creator's home team. */
   scopeSpaceId?: string | null;
+  /** When the board is scoped to a list (`?list=`), quick-adds land in it. */
+  scopeListId?: string | null;
 };
 
 /**
@@ -27,7 +29,14 @@ type Props = {
  * an empty title cancels; blurring with content submits (mirrors Linear /
  * Notion behavior so casual creators don't lose what they typed).
  */
-export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpaceId }: Props) {
+export function InlineAddCard({
+  propertyId,
+  status,
+  onCreated,
+  onClose,
+  scopeSpaceId,
+  scopeListId,
+}: Props) {
   const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
   // After a successful create we briefly skip the textarea's onBlur side-
@@ -53,6 +62,7 @@ export function InlineAddCard({ propertyId, status, onCreated, onClose, scopeSpa
         // Scoped board → that team; unscoped → omit (server defaults to the
         // creator's home team).
         ...(scopeSpaceId ? { spaceId: scopeSpaceId } : {}),
+        ...(scopeListId ? { listId: scopeListId } : {}),
       });
       if ("error" in result) {
         toast.error(result.error);

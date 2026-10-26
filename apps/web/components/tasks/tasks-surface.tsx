@@ -4,7 +4,6 @@ import { useSurfacePathname } from "@/lib/shell/use-surface-pathname";
 import { TaskRoom } from "./task-room";
 import { TaskCreatePage } from "./task-create";
 import { TasksBoardRoom } from "./board-room";
-import type { TaskStatus } from "@/lib/db/types";
 
 /** Any URL under the tasks section — used to gate the surface OFF other sections. */
 const IN_TASKS = /^\/p\/[^/]+\/tasks(?:\/|$)/;
@@ -48,9 +47,10 @@ export function TasksSurface({
         key="new"
         propertyId={propertyId}
         currentUserId={currentUserId}
-        defaultStatus={(params.get("status") as TaskStatus) ?? "todo"}
+        defaultStatus={params.get("status") ?? "todo"}
         defaultSpaceId={params.get("space")}
         defaultProjectId={params.get("project")}
+        defaultListId={params.get("list")}
       />
     );
   }

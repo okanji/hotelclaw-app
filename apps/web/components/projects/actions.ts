@@ -388,9 +388,45 @@ export async function setTaskSpace(
   const id = Uuid.safeParse(taskId);
   if (!id.success) return { error: "Invalid task" };
   const supabase = await createClient();
+  // 0114: the resolver re-homes the task to the new team's default list (or
+  // "General" for null) and remaps its status by category.
   const { error } = await supabase
     .from("tasks")
     .update({ space_id: spaceId })
+    .eq("id", id.data);
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Move a task into a list (0114). The resolver syncs `space_id` to the
+ * list's team and remaps the status by category when the pipeline differs,
+ * logging `list_changed` + `task.moved_to_list`. Tenancy: the list must be
+ * in the task's property, else the update is refused.
+ */
+export async function setTaskList(
+  taskId: string,
+  listId: string,
+): Promise<{ ok: true } | ActionError> {
+  const id = Uuid.safeParse(taskId);
+  const list = Uuid.safeParse(listId);
+  if (!id.success || !list.success) return { error: "Invalid task or list" };
+  const supabase = await createClient();
+  const [{ data: task }, { data: target }] = await Promise.all([
+    supabase.from("tasks").select("property_id").eq("id", id.data).maybeSingle(),
+    supabase
+      .from("lists")
+      .select("property_id, archived_at")
+      .eq("id", list.data)
+      .maybeSingle(),
+  ]);
+  if (!task || !target || task.property_id !== target.property_id) {
+    return { error: "List not found" };
+  }
+  if (target.archived_at) return { error: "That list is archived" };
+  const { error } = await supabase
+    .from("tasks")
+    .update({ list_id: list.data })
     .eq("id", id.data);
   if (error) return { error: error.message };
   return { ok: true };

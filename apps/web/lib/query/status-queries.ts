@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import {
   buildCatalog,
+  columnsFor,
   EMPTY_CATALOG,
+  type ColumnDef,
   type StatusCatalog,
   type StatusCatalogPayload,
 } from "@/lib/tasks/statuses";
@@ -34,6 +36,22 @@ export function useStatusCatalog(propertyId: string): StatusCatalog {
     select: buildCatalog,
   });
   return data ?? EMPTY_CATALOG;
+}
+
+/**
+ * The rows a status picker shows for ONE task: its list's pipeline, or the
+ * four category columns while the row's `list_id` is unknown (old cache,
+ * catalog still loading). Ids are what `updateTask({status})` takes.
+ */
+export function useTaskStatusOptions(
+  propertyId: string,
+  listId: string | null | undefined,
+): ColumnDef[] {
+  const catalog = useStatusCatalog(propertyId);
+  return useMemo(
+    () => columnsFor(catalog, listId ?? null).columns,
+    [catalog, listId],
+  );
 }
 
 /**

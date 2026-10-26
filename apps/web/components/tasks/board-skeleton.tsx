@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { COLUMNS } from "./kanban";
+import { CATEGORY_COLUMNS } from "@/lib/tasks/statuses";
 
 /** Card counts per column — purely visual, gives the board some texture. */
 const CARDS_PER_COLUMN = [3, 2, 1, 2];
@@ -66,7 +66,7 @@ export function TasksBoardSkeleton() {
       </div>
 
       <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto p-3">
-        {COLUMNS.map((column, i) => (
+        {CATEGORY_COLUMNS.map((column, i) => (
           <section
             key={column.id}
             className="flex w-72 shrink-0 flex-col rounded-md bg-muted"

@@ -8,9 +8,20 @@ import {
 import { PopoverContent } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { COLUMNS, PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
+import { PRIORITY_META, PRIORITY_MENU_ORDER } from "./kanban";
 import { PriorityBars, StatusIcon } from "./task-icons";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import { CATEGORY_COLUMNS, type ColumnDef } from "@/lib/tasks/statuses";
+import type { EntityColor, StatusCategory, TaskPriority, TaskStatus } from "@/lib/db/types";
+
+/** The status row flattened onto a task (0114) — what a chip falls back to
+ *  when its status id isn't in the loaded options yet. */
+export type StatusRowFields = {
+  status: TaskStatus;
+  status_name?: string | null;
+  status_category?: StatusCategory | null;
+  status_color?: EntityColor | null;
+  status_blocked?: boolean | null;
+};
 
 /**
  * Shared menu/popover CONTENT for the task property pickers. The inline
@@ -67,22 +78,40 @@ export function dateInputToIso(value: string) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/**
+ * The status picker's rows. `options` is the task's LIST pipeline (0114,
+ * from `useTaskStatusOptions`); without it the four category columns show,
+ * whose ids are the legacy literals the DB resolves against the task's list.
+ * `onSelect` receives a status id or a legacy literal — both are what
+ * `updateTask({status})` accepts.
+ */
 export function StatusMenuContent({
   align = "start",
+  options = CATEGORY_COLUMNS,
+  current,
   onSelect,
 }: {
   align?: "start" | "end";
-  onSelect: (status: TaskStatus) => void;
+  options?: ColumnDef[];
+  /** Disables the row the task is already in. */
+  current?: string | null;
+  onSelect: (status: string) => void;
 }) {
   return (
     <DropdownMenuContent align={align} className="w-48">
-      {COLUMNS.map((c) => (
+      {options.map((c) => (
         <DropdownMenuItem
           key={c.id}
           onClick={() => onSelect(c.id)}
           className="gap-2"
+          disabled={current != null && current === c.id}
         >
-          <StatusIcon status={c.id} className="size-3.5" />
+          <StatusIcon
+            category={c.category}
+            blocked={c.isBlocked}
+            color={c.color}
+            className="size-3.5"
+          />
           {c.label}
         </DropdownMenuItem>
       ))}

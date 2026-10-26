@@ -1,5 +1,4 @@
 import type { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
-import type { TaskStatus } from "./lib/db/types";
 
 /**
  * Spreadsheet selection coordinate. `colId@rowId` is the LiveMap cell key.
@@ -272,11 +271,13 @@ declare global {
       | { type: "task-invalidate"; taskId: string }
       | { type: "tasks-invalidate" }
       // Broadcast on every Kanban drag so other clients can move the card
-      // optimistically instead of refetching the whole board.
+      // optimistically instead of refetching the whole board. `status` is
+      // the column id: a status uuid on a list-scoped board, a legacy
+      // literal on the category board (0114).
       | {
           type: "task-moved";
           taskId: string;
-          status: TaskStatus;
+          status: string;
           position: number;
         }
       // Calendar: a peer just mutated a meeting / attendee / scheduled task.

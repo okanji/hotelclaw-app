@@ -25,7 +25,8 @@ import {
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { COLUMNS, PRIORITY_META } from "./kanban";
+import { PRIORITY_META } from "./kanban";
+import { describeStatus, type ColumnDef } from "@/lib/tasks/statuses";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import type {
   TaskDetailOpeners,
@@ -36,7 +37,6 @@ import type {
   EntityColor,
   TaskPriority,
   TaskRecurrence,
-  TaskStatus,
 } from "@/lib/db/types";
 import { useQuery } from "@tanstack/react-query";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
@@ -47,6 +47,7 @@ import {
   DueDatePopoverContent,
   PriorityMenuContent,
   StatusMenuContent,
+  type StatusRowFields,
   initials,
   PROPERTY_CHIP_CLASS as CHIP_BASE,
   PropertyChipIcon as ChipIcon,
@@ -90,6 +91,8 @@ function formatTargetDate(iso: string | null) {
 export function TaskDetailInlineProperties({
   propertyId,
   status,
+  statusOptions,
+  statusRow,
   priority,
   assigneeId,
   assignee,
@@ -107,7 +110,11 @@ export function TaskDetailInlineProperties({
   taskId,
 }: {
   propertyId: string;
-  status: TaskStatus;
+  /** A status id or a legacy literal — whatever `updateTask({status})` takes. */
+  status: string;
+  /** The task's list pipeline (0114); omit for the four category columns. */
+  statusOptions?: ColumnDef[];
+  statusRow?: StatusRowFields;
   priority: TaskPriority;
   assigneeId: string | null;
   assignee: { name: string; avatar?: string } | undefined;
@@ -116,7 +123,7 @@ export function TaskDetailInlineProperties({
   meta: TaskDetailMeta | undefined;
   openers: TaskDetailOpeners;
   removers: TaskDetailRemovers;
-  onStatusChange: (s: TaskStatus) => void;
+  onStatusChange: (s: string) => void;
   onPriorityChange: (p: TaskPriority) => void;
   onAssigneeChange: (id: string | null) => void;
   onDueAtChange: (iso: string | null) => void;
@@ -127,8 +134,7 @@ export function TaskDetailInlineProperties({
    *  read + write the task themselves. Omit to hide them. */
   taskId?: string;
 }) {
-  const statusLabel =
-    COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
+  const statusView = describeStatus(statusOptions ?? [], status, statusRow);
   const priorityMuted = priority === "none";
   const priorityLabel = priorityMuted
     ? "No priority"
@@ -151,12 +157,24 @@ export function TaskDetailInlineProperties({
           <DropdownMenuTrigger
             render={
               <button type="button" className={cn(CHIP_BASE, "text-foreground")}>
-                <ChipIcon><StatusIcon status={status} className="size-3.5" /></ChipIcon>
-                <span className="truncate">{statusLabel}</span>
+                <ChipIcon>
+                  <StatusIcon
+                    category={statusView.category}
+                    blocked={statusView.isBlocked}
+                    color={statusView.color}
+                    className="size-3.5"
+                  />
+                </ChipIcon>
+                <span className="truncate">{statusView.label}</span>
               </button>
             }
           />
-          <StatusMenuContent align="start" onSelect={onStatusChange} />
+          <StatusMenuContent
+            align="start"
+            options={statusOptions}
+            current={status}
+            onSelect={onStatusChange}
+          />
         </DropdownMenu>
 
         <DropdownMenu>

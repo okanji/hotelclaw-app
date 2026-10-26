@@ -159,6 +159,21 @@ export function statusCategoryOf(t: StatusLike): StatusCategory {
   return categoryOf(t) ?? "open";
 }
 
+const LEGACY_LABEL: Record<string, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  done: "Done",
+};
+
+/** The status name to print — the pipeline name, else the legacy label. */
+export function statusLabelOf(
+  t: StatusLike & { status_name?: string | null },
+): string {
+  if (t.status_name) return t.status_name;
+  return LEGACY_LABEL[t.status ?? ""] ?? String(t.status ?? "").replace(/_/g, " ");
+}
+
 // ── Set-level resolution (mirrors the SQL helpers) ──────────────────────────
 
 function live(set: StatusRow[]): StatusRow[] {
@@ -373,6 +388,83 @@ export function columnsFor(catalog: StatusCatalog, listId: string | null): Board
     }
   }
   return { scope: "category", listId: null, columns: CATEGORY_COLUMNS };
+}
+
+/**
+ * What a status chip / picker trigger shows for `status` (a status id or a
+ * legacy literal): the matching option of the task's pipeline, else the
+ * flattened row fields the task carries, else the legacy category column.
+ */
+export function describeStatus(
+  options: ColumnDef[],
+  status: string,
+  row?: StatusLike & { status_name?: string | null; status_color?: EntityColor | null },
+): Pick<ColumnDef, "label" | "category" | "isBlocked" | "color"> {
+  const option = options.find((c) => c.id === status);
+  if (option) return option;
+  if (row?.status_category) {
+    return {
+      label: row.status_name ?? statusLabelOf(row),
+      category: row.status_category,
+      isBlocked: row.status_blocked ?? false,
+      color: row.status_color ?? CATEGORY_META[row.status_category].color,
+    };
+  }
+  const legacy = CATEGORY_COLUMNS.find((c) => c.id === status);
+  if (legacy) return legacy;
+  return {
+    label: statusLabelOf({ status }),
+    category: "open",
+    isBlocked: false,
+    color: "slate",
+  };
+}
+
+/** A column that holds finished work (hidden by "Hide done", no "Mark all done"). */
+export function isDoneColumn(c: Pick<ColumnDef, "category">): boolean {
+  return c.category === "done" || c.category === "closed";
+}
+
+/**
+ * Where "Mark all done" sends a column's cards: the list's closed status
+ * (fallback done) in list scope, the legacy literal in category scope.
+ */
+export function doneTargetFor(board: BoardColumns): string {
+  if (board.scope === "list") {
+    return (
+      board.columns.find((c) => c.category === "closed")?.id ??
+      board.columns.find((c) => c.category === "done")?.id ??
+      "done"
+    );
+  }
+  return "done";
+}
+
+/**
+ * The optimistic row patch for a card dropped on `column`, so the card lands
+ * and STAYS in that column until the refetch confirms it: `columnOfTask`
+ * reads `status_id` first in list scope and `status_category` first in
+ * category scope, so both must move together with the legacy literal.
+ */
+export function columnPatch(
+  board: BoardColumns,
+  column: ColumnDef,
+): {
+  status: TaskStatus;
+  status_id?: string;
+  status_name: string;
+  status_category: StatusCategory;
+  status_color: EntityColor;
+  status_blocked: boolean;
+} {
+  const base = {
+    status: legacyOf({ category: column.category, is_blocked: column.isBlocked }),
+    status_name: column.label,
+    status_category: column.category,
+    status_color: column.color,
+    status_blocked: column.isBlocked,
+  };
+  return board.scope === "list" ? { ...base, status_id: column.id } : base;
 }
 
 /** Which column a task sits in. Falls back by category so a stale row still lands. */

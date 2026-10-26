@@ -5,9 +5,20 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useBroadcastEvent } from "@liveblocks/react";
-import { ListChecks, Plus } from "lucide-react";
+import { ListChecks, Plus, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
+import { ListRowMenu } from "./lists/list-row-menu";
+import { ListSettingsDialog } from "./lists/list-settings-dialog";
+import {
+  columnsFor,
+  isDone,
+  isNotStarted,
+} from "@/lib/tasks/statuses";
+import {
+  useStatusCatalog,
+  useStatusCatalogRealtime,
+} from "@/lib/query/status-queries";
 import { PageShell } from "@/components/ui/page-shell";
 import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
@@ -37,7 +48,6 @@ import { TimelineView } from "./timeline-view";
 import { WorkloadView } from "./workload-view";
 import { publishVisibleTaskOrder } from "@/lib/tasks/visible-task-order";
 import { PRIORITY_META, type Task } from "./kanban";
-import type { TaskStatus } from "@/lib/db/types";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
 import {
   projectsQueryOptions,
@@ -60,6 +70,8 @@ export function TasksBoard({
   const mineOnly = searchParams.get("view") === "mine";
   const spaceFilter = searchParams.get("space");
   const projectFilter = searchParams.get("project");
+  // `?list=` (0114): one list → its own pipeline as the columns.
+  const listFilter = searchParams.get("list");
 
   /**
    * Invalidate the local cache AND broadcast to teammates so other clients
@@ -74,6 +86,22 @@ export function TasksBoard({
 
   const { data, isPending } = useQuery(tasksQueryOptions(propertyId));
   const allTasks = data ?? EMPTY_TASKS;
+
+  // Lists + pipelines. Single-list scope → that list's statuses are the
+  // columns; any wider scope → the four category columns (G5 in the plan),
+  // because Temple Point's lists would otherwise put 30+ status columns on
+  // one board.
+  useStatusCatalogRealtime(propertyId);
+  const catalog = useStatusCatalog(propertyId);
+  const boardColumns = useMemo(
+    () => columnsFor(catalog, listFilter),
+    [catalog, listFilter],
+  );
+  const activeList = listFilter ? catalog.listById(listFilter) : undefined;
+  const activeListSpace = activeList?.space_id ?? null;
+  const [listSettings, setListSettings] = useState<
+    "general" | "statuses" | "danger" | null
+  >(null);
 
   // Custom-field definitions and values stream in over Realtime (published
   // in 0101) — a teammate renaming an option or tagging a task shows up
@@ -162,10 +190,11 @@ export function TasksBoard({
   const scopedTasks = useMemo(() => {
     let out = topLevelTasks;
     if (mineOnly) out = out.filter((t) => t.assignee_id === currentUserId);
+    if (listFilter) out = out.filter((t) => t.list_id === listFilter);
     if (spaceFilter) out = out.filter((t) => t.space_id === spaceFilter);
     if (projectFilter) out = out.filter((t) => t.project_id === projectFilter);
     return out;
-  }, [topLevelTasks, mineOnly, currentUserId, spaceFilter, projectFilter]);
+  }, [topLevelTasks, mineOnly, currentUserId, listFilter, spaceFilter, projectFilter]);
 
   // Custom-field values for the whole property, indexed for match time. The
   // query runs while a field filter is active OR the property has any label
@@ -227,7 +256,7 @@ export function TasksBoard({
   // Resolve the active scope's name for the breadcrumb (cheap, cached).
   const { data: spaces = [] } = useQuery({
     ...spacesQueryOptions(propertyId),
-    enabled: !!spaceFilter,
+    enabled: !!spaceFilter || !!activeListSpace,
   });
   const { data: projects = [] } = useQuery({
     ...projectsQueryOptions(propertyId),
@@ -238,6 +267,11 @@ export function TasksBoard({
     : projectFilter
       ? projects.find((p) => p.id === projectFilter)?.name
       : null;
+  // "Tasks › Team › List" for a list board; a property-level list sits
+  // straight under Tasks.
+  const listSpaceName = activeListSpace
+    ? spaces.find((s) => s.id === activeListSpace)?.name
+    : null;
 
   const filteredTasks = useMemo(() => {
     const needle = filters.search.trim().toLowerCase();
@@ -246,10 +280,10 @@ export function TasksBoard({
       // "All" keeps everything; "Active" hides done; "Backlog" shows only
       // todo (the kanban view still renders empty in_progress/blocked
       // columns so cards can be dropped into them).
-      if (filters.statusPreset === "active" && t.status === "done") {
+      if (filters.statusPreset === "active" && isDone(t)) {
         return false;
       }
-      if (filters.statusPreset === "backlog" && t.status !== "todo") {
+      if (filters.statusPreset === "backlog" && !isNotStarted(t)) {
         return false;
       }
       // Additive facet chips (assignee / priority / team / due / …).
@@ -290,9 +324,10 @@ export function TasksBoard({
   // Open the full-page create experience, carrying the column the affordance
   // was triggered from plus any active board scope so the new task inherits it.
   const openCreate = useCallback(
-    (status: TaskStatus) => {
+    (status: string) => {
       const params = new URLSearchParams();
       if (status) params.set("status", status);
+      if (listFilter) params.set("list", listFilter);
       if (spaceFilter) params.set("space", spaceFilter);
       if (projectFilter) params.set("project", projectFilter);
       const qs = params.toString();
@@ -305,7 +340,7 @@ export function TasksBoard({
       // re-derive off the new URL (same channel as task open/close).
       window.dispatchEvent(new Event("hotelclaw:pathname"));
     },
-    [propertyId, spaceFilter, projectFilter],
+    [propertyId, listFilter, spaceFilter, projectFilter],
   );
 
   // Both "Active" and "Backlog" presets hide the Done column in views that
@@ -323,7 +358,7 @@ export function TasksBoard({
     publishVisibleTaskOrder(
       propertyId,
       filteredTasks
-        .filter((t) => !(hideDone && t.status === "done"))
+        .filter((t) => !(hideDone && isDone(t)))
         .map((t) => t.id),
     );
   }, [selfPublishes, filteredTasks, hideDone, propertyId]);
@@ -351,27 +386,76 @@ export function TasksBoard({
                 },
                 { label: "My tasks" },
               ]
-            : scopeName
+            : activeList
               ? [
                   {
                     label: "Tasks",
                     href: `/p/${propertyId}/tasks`,
                     icon: <ListChecks />,
                   },
-                  { label: scopeName },
+                  ...(listSpaceName && activeListSpace
+                    ? [
+                        {
+                          label: listSpaceName,
+                          href: `/p/${propertyId}/tasks?space=${activeListSpace}`,
+                        },
+                      ]
+                    : []),
+                  { label: activeList.name },
                 ]
-              : [{ label: "Tasks", icon: <ListChecks /> }]
+              : scopeName
+                ? [
+                    {
+                      label: "Tasks",
+                      href: `/p/${propertyId}/tasks`,
+                      icon: <ListChecks />,
+                    },
+                    { label: scopeName },
+                  ]
+                : [{ label: "Tasks", icon: <ListChecks /> }]
         }
         actions={
           <>
             <PresenceBar />
-            <Button size="sm" onClick={() => openCreate("todo")}>
+            {activeList ? (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="List settings"
+                  title="List settings — statuses, name, colour"
+                  onClick={() => setListSettings("statuses")}
+                  className="size-7 text-muted-foreground"
+                >
+                  <Settings2 className="size-4" />
+                </Button>
+                <ListRowMenu
+                  propertyId={propertyId}
+                  list={activeList}
+                  onOpenSettings={(tab) => setListSettings(tab)}
+                />
+              </>
+            ) : null}
+            <Button
+              size="sm"
+              onClick={() => openCreate(boardColumns.columns[0]?.id ?? "todo")}
+            >
               <Plus />
               New task
             </Button>
           </>
         }
       />
+      {activeList ? (
+        <ListSettingsDialog
+          open={listSettings !== null}
+          onOpenChange={(o) => !o && setListSettings(null)}
+          propertyId={propertyId}
+          listId={activeList.id}
+          currentUserId={currentUserId}
+          initialTab={listSettings ?? "general"}
+        />
+      ) : null}
       <BoardToolbar
         propertyId={propertyId}
         filters={filters}
@@ -398,11 +482,13 @@ export function TasksBoard({
           <KanbanView
             propertyId={propertyId}
             tasks={filteredTasks}
+            board={boardColumns}
             assignees={assignees}
             cardLabels={cardLabels}
             hideDone={hideDone}
             onOpenFullCreate={openCreate}
             scopeSpaceId={spaceFilter}
+            scopeListId={listFilter}
           />
         ) : (
           <KanbanGroupedView

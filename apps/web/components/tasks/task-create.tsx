@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, ChevronDown, ListChecks, UserRound } from "lucide-react";
+import { CalendarPlus, ChevronDown, List, ListChecks, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createTask } from "./actions";
-import { COLUMNS } from "./kanban";
 import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
+import { describeStatus } from "@/lib/tasks/statuses";
+import { useStatusCatalog } from "@/lib/query/status-queries";
+import { LABEL_DOT } from "@/components/labels/label-tokens";
 import {
   AssigneeMenuContent,
   DueDatePopoverContent,
@@ -36,7 +38,7 @@ import { taskHref } from "@/lib/tasks/task-href";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { orgChartQueryOptions } from "@/lib/query/org-queries";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
-import type { TaskPriority, TaskStatus } from "@/lib/db/types";
+import type { TaskPriority } from "@/lib/db/types";
 
 function formatTargetDate(iso: string | null) {
   if (!iso) return "Target date";
@@ -64,8 +66,10 @@ function surfaceNavigate(href: string) {
  * description) has room up-front. Visually mirrors the task detail reading
  * column so creating and viewing feel like one surface.
  *
- * Defaults come off the URL: `?status=`, `?space=`, `?project=` (set by the
- * board when the "+"/New-task affordances open this page from a scoped view).
+ * Defaults come off the URL: `?status=`, `?list=`, `?space=`, `?project=`
+ * (set by the board when the "+"/New-task affordances open this page from a
+ * scoped view). The status chip offers the chosen LIST's pipeline (0114);
+ * the list follows the team until picked explicitly.
  */
 export function TaskCreatePage({
   propertyId,
@@ -73,17 +77,20 @@ export function TaskCreatePage({
   defaultStatus = "todo",
   defaultSpaceId = null,
   defaultProjectId = null,
+  defaultListId = null,
 }: {
   propertyId: string;
   currentUserId: string;
-  defaultStatus?: TaskStatus;
+  /** A status id or a legacy literal. */
+  defaultStatus?: string;
   defaultSpaceId?: string | null;
   defaultProjectId?: string | null;
+  defaultListId?: string | null;
 }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<TaskStatus>(defaultStatus);
+  const [status, setStatus] = useState<string>(defaultStatus);
   const [priority, setPriority] = useState<TaskPriority>("none");
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueAt, setDueAt] = useState<string | null>(null);
@@ -110,8 +117,39 @@ export function TaskCreatePage({
   const assignees = useAssigneesMap([assigneeId]);
   const assignee = assigneeId ? assignees[assigneeId] : undefined;
 
-  const statusLabel =
-    COLUMNS.find((c) => c.id === status)?.label ?? status.replace("_", " ");
+  // List: an explicit pick wins; otherwise the board's `?list=`, else the
+  // chosen team's default list, else the property's General list. The
+  // status options follow the list, and a status that isn't in the new
+  // list's pipeline snaps back to its open status.
+  const catalog = useStatusCatalog(propertyId);
+  const [listOverride, setListOverride] = useState<string | null>(null);
+  const listId =
+    listOverride ??
+    (defaultListId && catalog.listById(defaultListId)?.space_id === (teamId || null)
+      ? defaultListId
+      : null) ??
+    catalog.defaultListOf(teamId || null)?.id ??
+    catalog.generalList()?.id ??
+    null;
+  const list = listId ? catalog.listById(listId) : undefined;
+  const listOptions = listId
+    ? [...catalog.listsOfSpace(teamId || null), ...(teamId ? catalog.listsOfSpace(null) : [])]
+    : [];
+  const statusOptions = listId
+    ? catalog.statusesOfList(listId).map((s) => ({
+        id: s.id,
+        label: s.name,
+        color: s.color,
+        category: s.category,
+        isBlocked: s.is_blocked,
+        wipLimit: null,
+      }))
+    : [];
+  const effectiveStatus =
+    statusOptions.length > 0 && !statusOptions.some((o) => o.id === status)
+      ? (statusOptions.find((o) => o.category === "open") ?? statusOptions[0]).id
+      : status;
+  const statusView = describeStatus(statusOptions, effectiveStatus);
   const priorityMuted = priority === "none";
   const priorityLabel = priorityMuted ? "No priority" : PRIORITY_META[priority].label;
   const teamName = teamId ? teams.find((t) => t.id === teamId)?.name : null;
@@ -131,12 +169,13 @@ export function TaskCreatePage({
         propertyId,
         title: trimmed,
         description: description.trim() || undefined,
-        status,
+        status: effectiveStatus,
         priority,
         assigneeId: assigneeId ?? undefined,
         // Explicit choice: a team id, or null for "No team".
         spaceId: teamId || null,
         projectId: defaultProjectId ?? null,
+        listId: listId ?? null,
       });
       if ("error" in result) {
         toast.error(result.error);
@@ -231,13 +270,23 @@ export function TaskCreatePage({
                       className={cn(CHIP_BASE, "text-foreground")}
                     >
                       <ChipIcon>
-                        <StatusIcon status={status} className="size-3.5" />
+                        <StatusIcon
+                          category={statusView.category}
+                          blocked={statusView.isBlocked}
+                          color={statusView.color}
+                          className="size-3.5"
+                        />
                       </ChipIcon>
-                      <span className="truncate">{statusLabel}</span>
+                      <span className="truncate">{statusView.label}</span>
                     </button>
                   }
                 />
-                <StatusMenuContent align="start" onSelect={setStatus} />
+                <StatusMenuContent
+                  align="start"
+                  options={statusOptions.length > 0 ? statusOptions : undefined}
+                  current={effectiveStatus}
+                  onSelect={setStatus}
+                />
               </DropdownMenu>
 
               <DropdownMenu>
@@ -356,18 +405,70 @@ export function TaskCreatePage({
                     align="start"
                     className="max-h-64 w-56 overflow-y-auto"
                   >
-                    <DropdownMenuItem onClick={() => setTeamOverride("")}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setTeamOverride("");
+                        setListOverride(null);
+                      }}
+                    >
                       No team
                     </DropdownMenuItem>
                     {teams.map((t) => (
                       <DropdownMenuItem
                         key={t.id}
-                        onClick={() => setTeamOverride(t.id)}
+                        onClick={() => {
+                          setTeamOverride(t.id);
+                          // The list follows the team until picked again.
+                          setListOverride(null);
+                        }}
                       >
                         <span className="truncate">{t.name}</span>
                         {t.id === myPrimaryTeamId ? (
                           <span className="ml-auto text-xs text-faint-foreground">
                             your team
+                          </span>
+                        ) : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+
+              {listOptions.length > 1 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        className={cn(CHIP_BASE, "text-foreground")}
+                      >
+                        <ChipIcon>
+                          {list?.icon ? (
+                            <span aria-hidden="true">{list.icon}</span>
+                          ) : (
+                            <List className="size-3.5" />
+                          )}
+                        </ChipIcon>
+                        <span className="truncate">{list?.name ?? "List"}</span>
+                        <ChevronDown className="size-3 opacity-50" />
+                      </button>
+                    }
+                  />
+                  <DropdownMenuContent
+                    align="start"
+                    className="max-h-64 w-56 overflow-y-auto"
+                  >
+                    {listOptions.map((l) => (
+                      <DropdownMenuItem
+                        key={l.id}
+                        onClick={() => setListOverride(l.id)}
+                        className="gap-2"
+                      >
+                        <span className={cn("size-2.5 rounded-[3px]", LABEL_DOT[l.color])} />
+                        <span className="truncate">{l.name}</span>
+                        {l.space_id === null && teamId ? (
+                          <span className="ml-auto text-xs text-faint-foreground">
+                            property
                           </span>
                         ) : null}
                       </DropdownMenuItem>

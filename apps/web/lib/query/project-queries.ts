@@ -16,6 +16,8 @@ export type SpaceRow = {
   color: EntityColor;
   icon: string | null;
   position: number;
+  /** Sub-team nesting (ClickUp's Folder level); null = top-level. */
+  parent_space_id: string | null;
 };
 
 export type ProjectRow = {
@@ -89,7 +91,7 @@ export function spacesQueryOptions(propertyId: string) {
       const supabase = createBrowserClient();
       const { data, error } = await supabase
         .from("spaces")
-        .select("id, property_id, name, color, icon, position")
+        .select("id, property_id, name, color, icon, position, parent_space_id")
         .eq("property_id", propertyId)
         .is("archived_at", null)
         .order("position", { ascending: true })

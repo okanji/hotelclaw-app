@@ -33,68 +33,62 @@ import { toast } from "sonner";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCardOverlay } from "./task-card";
 import { moveTask } from "./actions";
+import { computePosition, type Task } from "./kanban";
 import {
-  COLUMNS,
-  STATUS_IDS,
-  computePosition,
-  isColumnId,
-  type Task,
-} from "./kanban";
+  columnOfTask,
+  columnPatch,
+  doneTargetFor,
+  isDoneColumn,
+  type BoardColumns,
+  type ColumnDef,
+} from "@/lib/tasks/statuses";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption } from "@/lib/db/types";
 
 type BoardState = {
-  columns: Record<TaskStatus, string[]>;
+  /** Column id → ordered card ids. Keys are the board's column ids (0114:
+   *  status uuids on a list board, legacy literals on the category board). */
+  columns: Record<string, string[]>;
   byId: Record<string, Task>;
 };
 
-/** Group tasks into ordered columns keyed by status. */
-function buildBoard(tasks: Task[]): BoardState {
-  const columns: Record<TaskStatus, string[]> = {
-    todo: [],
-    in_progress: [],
-    blocked: [],
-    done: [],
-  };
+/** Group tasks into ordered columns keyed by the board's column ids. */
+function buildBoard(board: BoardColumns, tasks: Task[]): BoardState {
+  const columns: Record<string, string[]> = {};
+  for (const c of board.columns) columns[c.id] = [];
   const byId: Record<string, Task> = {};
   for (const task of tasks) {
     byId[task.id] = task;
-    columns[task.status]?.push(task.id);
+    columns[columnOfTask(board, task)]?.push(task.id);
   }
   return { columns, byId };
-}
-
-/** Which column an id lives in — a card id, or a column id itself. */
-function columnOf(
-  columns: Record<TaskStatus, string[]>,
-  id: string,
-): TaskStatus | null {
-  if (isColumnId(id)) return id;
-  for (const status of STATUS_IDS) {
-    if (columns[status].includes(id)) return status;
-  }
-  return null;
 }
 
 type Props = {
   propertyId: string;
   /** Already-filtered, already-sorted tasks. */
   tasks: Task[];
+  /** The columns this board shows — one list's pipeline or the 4 categories. */
+  board: BoardColumns;
   assignees: Record<string, AssigneeInfo>;
   /** taskId → label-field chips, resolved board-level. */
   cardLabels: Record<string, CustomFieldOption[]>;
   hideDone: boolean;
-  onOpenFullCreate: (status: TaskStatus) => void;
+  onOpenFullCreate: (status: string) => void;
   /** Active team scope (`?space=`), threaded to inline quick-add. */
   scopeSpaceId?: string | null;
+  /** Active list scope (`?list=`), threaded to inline quick-add. */
+  scopeListId?: string | null;
 };
 
 export function KanbanView({
   propertyId,
   tasks,
+  board,
   assignees,
   cardLabels,
   scopeSpaceId,
+  scopeListId,
   hideDone,
   onOpenFullCreate,
 }: Props) {
@@ -102,32 +96,51 @@ export function KanbanView({
   const broadcast = useBroadcastEvent();
   const updateMyPresence = useUpdateMyPresence();
 
-  const [board, setBoard] = useState<BoardState>(() => buildBoard(tasks));
+  const columnIds = useMemo(
+    () => new Set(board.columns.map((c) => c.id)),
+    [board],
+  );
+  const isColumnId = useCallback((id: string) => columnIds.has(id), [columnIds]);
+  const columnDef = useCallback(
+    (id: string): ColumnDef | undefined => board.columns.find((c) => c.id === id),
+    [board],
+  );
+
+  /** Which column an id lives in — a card id, or a column id itself. */
+  const columnOf = useCallback(
+    (columns: Record<string, string[]>, id: string): string | null => {
+      if (columnIds.has(id)) return id;
+      for (const c of board.columns) {
+        if (columns[c.id]?.includes(id)) return c.id;
+      }
+      return null;
+    },
+    [board, columnIds],
+  );
+
+  const [boardState, setBoard] = useState<BoardState>(() =>
+    buildBoard(board, tasks),
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<TaskStatus, boolean>>({
-    todo: false,
-    in_progress: false,
-    blocked: false,
-    done: false,
-  });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const draggingRef = useRef(false);
   const lastOverId = useRef<string | null>(null);
 
   useEffect(() => {
     if (draggingRef.current) return;
-    setBoard(buildBoard(tasks));
-  }, [tasks]);
+    setBoard(buildBoard(board, tasks));
+  }, [board, tasks]);
 
   // Publish the on-screen order (columns left→right, cards top→bottom,
   // hidden/collapsed columns skipped) so task-detail prev/next follows it.
   useEffect(() => {
     const ids: string[] = [];
-    for (const column of COLUMNS) {
-      if (collapsed[column.id] || (hideDone && column.id === "done")) continue;
-      ids.push(...board.columns[column.id]);
+    for (const column of board.columns) {
+      if (collapsed[column.id] || (hideDone && isDoneColumn(column))) continue;
+      ids.push(...(boardState.columns[column.id] ?? []));
     }
     publishVisibleTaskOrder(propertyId, ids);
-  }, [board.columns, collapsed, hideDone, propertyId]);
+  }, [board, boardState.columns, collapsed, hideDone, propertyId]);
 
   // Teammates dragging cards right now -> { taskId: their name }.
   const othersDragging = useOthersMapped(
@@ -145,16 +158,30 @@ export function KanbanView({
     return map;
   }, [othersDragging]);
 
+  /**
+   * The row patch for a card dropped on a column — both the legacy literal
+   * and the status row fields, so `columnOfTask` keeps the card where it
+   * landed until the refetch confirms. A column id this board doesn't know
+   * (a peer on a differently scoped board) falls back to the bare write.
+   */
+  const patchFor = useCallback(
+    (status: string, position: number): Partial<Task> => {
+      const def = columnDef(status);
+      if (def) return { ...columnPatch(board, def), position };
+      return status.includes("-")
+        ? { status_id: status, position }
+        : { status: status as Task["status"], position };
+    },
+    [board, columnDef],
+  );
+
   useEventListener(({ event }) => {
     if (event.type === "tasks-invalidate" || event.type === "task-invalidate") {
       qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
     } else if (event.type === "task-moved") {
+      const patch = patchFor(event.status, event.position);
       qc.setQueryData<Task[]>(["tasks", propertyId], (old) =>
-        old?.map((t) =>
-          t.id === event.taskId
-            ? { ...t, status: event.status, position: event.position }
-            : t,
-        ),
+        old?.map((t) => (t.id === event.taskId ? { ...t, ...patch } : t)),
       );
     }
   });
@@ -199,7 +226,7 @@ export function KanbanView({
     mutationKey: moveMutationKey,
     mutationFn: async (vars: {
       taskId: string;
-      status: TaskStatus;
+      status: string;
       position: number;
     }) => {
       const result = await moveTask(vars);
@@ -211,12 +238,9 @@ export function KanbanView({
       // update with stale data.
       await qc.cancelQueries({ queryKey: ["tasks", propertyId] });
       const prev = qc.getQueryData<Task[]>(["tasks", propertyId]);
+      const patch = patchFor(vars.status, vars.position);
       qc.setQueryData<Task[]>(["tasks", propertyId], (old) =>
-        old?.map((t) =>
-          t.id === vars.taskId
-            ? { ...t, status: vars.status, position: vars.position }
-            : t,
-        ),
+        old?.map((t) => (t.id === vars.taskId ? { ...t, ...patch } : t)),
       );
       broadcast({
         type: "task-moved",
@@ -243,7 +267,7 @@ export function KanbanView({
   });
 
   const persistMove = useCallback(
-    (taskId: string, status: TaskStatus, position: number) => {
+    (taskId: string, status: string, position: number) => {
       moveMutate({ taskId, status, position });
     },
     [moveMutate],
@@ -269,7 +293,7 @@ export function KanbanView({
       if (overId != null) {
         const overIdStr = String(overId);
         if (isColumnId(overIdStr)) {
-          const cards = board.columns[overIdStr];
+          const cards = boardState.columns[overIdStr] ?? [];
           if (cards.length > 0) {
             const inColumn = closestCenter({
               ...args,
@@ -286,7 +310,7 @@ export function KanbanView({
 
       return lastOverId.current ? [{ id: lastOverId.current }] : [];
     },
-    [board.columns],
+    [boardState.columns, isColumnId],
   );
 
   function handleDragStart(event: DragStartEvent) {
@@ -309,7 +333,7 @@ export function KanbanView({
       const toCol = columnOf(prev.columns, overId);
       if (!fromCol || !toCol || fromCol === toCol) return prev;
 
-      const toItems = prev.columns[toCol];
+      const toItems = prev.columns[toCol] ?? [];
       let insertAt = toItems.length;
       if (!isColumnId(overId)) {
         const overIndex = toItems.indexOf(overId);
@@ -325,7 +349,7 @@ export function KanbanView({
         ...prev,
         columns: {
           ...prev.columns,
-          [fromCol]: prev.columns[fromCol].filter((x) => x !== id),
+          [fromCol]: (prev.columns[fromCol] ?? []).filter((x) => x !== id),
           [toCol]: [
             ...toItems.slice(0, insertAt),
             id,
@@ -343,14 +367,14 @@ export function KanbanView({
     setActiveId(null);
     updateMyPresence({ draggingTaskId: null });
 
-    const column = columnOf(board.columns, id);
+    const column = columnOf(boardState.columns, id);
     if (!over || !column) {
-      setBoard(buildBoard(tasks));
+      setBoard(buildBoard(board, tasks));
       return;
     }
 
     const overId = String(over.id);
-    const items = board.columns[column];
+    const items = boardState.columns[column] ?? [];
     const oldIndex = items.indexOf(id);
     const newIndex = isColumnId(overId)
       ? items.length - 1
@@ -358,8 +382,9 @@ export function KanbanView({
         ? items.indexOf(overId)
         : items.length - 1;
 
-    if (board.byId[id]?.status === column && oldIndex === newIndex) {
-      setBoard(buildBoard(tasks));
+    const task = boardState.byId[id];
+    if (task && columnOfTask(board, task) === column && oldIndex === newIndex) {
+      setBoard(buildBoard(board, tasks));
       return;
     }
 
@@ -374,9 +399,11 @@ export function KanbanView({
     }));
 
     const idx = finalItems.indexOf(id);
-    const before = idx > 0 ? board.byId[finalItems[idx - 1]] : undefined;
+    const before = idx > 0 ? boardState.byId[finalItems[idx - 1]] : undefined;
     const after =
-      idx < finalItems.length - 1 ? board.byId[finalItems[idx + 1]] : undefined;
+      idx < finalItems.length - 1
+        ? boardState.byId[finalItems[idx + 1]]
+        : undefined;
     const position = computePosition(
       before?.position ?? null,
       after?.position ?? null,
@@ -389,19 +416,20 @@ export function KanbanView({
     draggingRef.current = false;
     setActiveId(null);
     updateMyPresence({ draggingTaskId: null });
-    setBoard(buildBoard(tasks));
+    setBoard(buildBoard(board, tasks));
   }
 
   const toggleCollapsed = useCallback(
-    (status: TaskStatus) =>
+    (status: string) =>
       setCollapsed((prev) => ({ ...prev, [status]: !prev[status] })),
     [],
   );
 
-  const activeColumn = activeId ? columnOf(board.columns, activeId) : null;
-  const activeTask = activeId ? board.byId[activeId] : null;
+  const activeColumn = activeId ? columnOf(boardState.columns, activeId) : null;
+  const activeTask = activeId ? boardState.byId[activeId] : null;
   const activeAssignee =
     activeTask?.assignee_id ? assignees[activeTask.assignee_id] : undefined;
+  const doneTarget = doneTargetFor(board);
 
   return (
     <DndContext
@@ -422,17 +450,18 @@ export function KanbanView({
       onDragCancel={handleDragCancel}
     >
       <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto px-(--page-gutter) py-3">
-        {COLUMNS.map((column) => {
-          // Done column can be force-collapsed by the toolbar's "Hide done"
+        {board.columns.map((column) => {
+          // Done columns can be force-collapsed by the toolbar's "Hide done"
           // toggle without touching the per-column collapse state.
           const isCollapsed =
-            collapsed[column.id] || (hideDone && column.id === "done");
+            collapsed[column.id] || (hideDone && isDoneColumn(column));
           return (
             <KanbanColumn
               key={column.id}
               column={column}
-              taskIds={board.columns[column.id]}
-              tasksById={board.byId}
+              doneTarget={doneTarget}
+              taskIds={boardState.columns[column.id] ?? []}
+              tasksById={boardState.byId}
               assignees={assignees}
               cardLabels={cardLabels}
               propertyId={propertyId}
@@ -445,6 +474,7 @@ export function KanbanView({
               onChanged={notifyChanged}
               onOpenFullCreate={onOpenFullCreate}
               scopeSpaceId={scopeSpaceId}
+              scopeListId={scopeListId}
             />
           );
         })}

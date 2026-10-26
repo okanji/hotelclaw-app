@@ -42,6 +42,16 @@ export function TaskRoom({
     title: row.title,
     description: row.description,
     status: row.status,
+    // Lists + pipelines (0114) — the picker shows this list's statuses.
+    listId: row.list_id ?? null,
+    statusId: row.status_id ?? null,
+    statusRow: {
+      status: row.status,
+      status_name: row.status_name ?? null,
+      status_category: row.status_category ?? null,
+      status_color: row.status_color ?? null,
+      status_blocked: row.status_blocked ?? null,
+    },
     priority: row.priority,
     assigneeId: row.assignee_id,
     dueAt: row.due_at,

@@ -120,6 +120,21 @@ export const COLUMN_PILL_CLASS: Record<
   success: { pill: "bg-pill-success text-pill-success-ink", add: "text-muted-foreground hover:bg-pill-success" },
 };
 
+/**
+ * Entity colour → the same two class pairs for a PIPELINE column (0114): the
+ * status row's own colour drives the pill and the inline-add wash, on the
+ * `--pill-<hue>` entity family labels and projects already spend. Static
+ * strings — Tailwind must see them.
+ */
+export const COLUMN_HUE: Record<EntityColor, { pill: string; add: string }> = {
+  slate: { pill: "bg-pill-slate text-pill-slate-ink", add: "text-muted-foreground hover:bg-pill-slate" },
+  blue: { pill: "bg-pill-blue text-pill-blue-ink", add: "text-muted-foreground hover:bg-pill-blue" },
+  green: { pill: "bg-pill-green text-pill-green-ink", add: "text-muted-foreground hover:bg-pill-green" },
+  amber: { pill: "bg-pill-amber text-pill-amber-ink", add: "text-muted-foreground hover:bg-pill-amber" },
+  rose: { pill: "bg-pill-rose text-pill-rose-ink", add: "text-muted-foreground hover:bg-pill-rose" },
+  violet: { pill: "bg-pill-violet text-pill-violet-ink", add: "text-muted-foreground hover:bg-pill-violet" },
+};
+
 export const STATUS_IDS: TaskStatus[] = COLUMNS.map((c) => c.id);
 
 export const PRIORITY_META: Record<

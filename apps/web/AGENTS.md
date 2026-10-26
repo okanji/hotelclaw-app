@@ -452,6 +452,122 @@ initiatives → home.
   one initiative's feed. Not wired yet: mobile screens, bot/catalog tools for
   these entities, workflow triggers.
 
+## Lists + custom statuses — ClickUp parity, Phase 1 (migration 0114, applied 2026-10-26)
+
+Temple Point's ClickUp has per-list status pipelines (Maintenance runs 21
+stages); the plan is `~/.claude/plans/replicated-chasing-nygaard.md` and the
+roles prep (`lib/auth/roles.ts`, `requireFullMember` / `requireManagement`,
+the `lib/security/__tests__/guest-gates.test.ts` drift guard) is Phase 0.
+
+- **Model.** `status_sets` → `statuses` (`category` is ClickUp's five:
+  `open | unstarted | active | done | closed`, plus `is_blocked` on `active`
+  rows; `color` is the EntityColor ramp; exactly one open + one closed per
+  set, names unique per set) and `lists` (`space_id` null = property-level;
+  `status_set_id` + `inherits_statuses`; one `is_default` per space /
+  property). Tasks carry `list_id` + `status_id` (both NOT NULL) and
+  `completed_at`. Every property has a "Default" set + a "General" list;
+  every space gets a "Tasks" list by trigger (`spaces_sync_default_list_aiu`,
+  archived together). `custom_fields.list_id` scopes a field to one list.
+- **The strangler: `tasks.status` is now a PROJECTION.** The legacy
+  `todo | in_progress | blocked | done` column is derived by
+  `tasks_a_resolve_container_status_biu` (BEFORE I/U, sorts first) from the
+  status row's category (`open/unstarted → todo`, `active → in_progress` or
+  `blocked`, `done/closed → done`). Writes work in BOTH directions: a
+  `status_id` write wins; a legacy `status: 'done'` write is resolved to the
+  list's closed status (blocked → first blocked active, etc.); a `list_id`
+  move remaps by category when the new list's set differs; a status id from
+  another set is remapped, never rejected. The same trigger resolves a
+  missing `list_id` (parent → space default → General) and keeps
+  `space_id` ↔ `list_id` consistent (list move syncs the space; a space
+  change re-homes to that space's default list). `completed_at` is stamped
+  on entering done/closed and cleared on leaving — **use it, not
+  `status = 'done'`, for "is finished" in SQL** (the overdue / reminder
+  partial indexes already do; `search_tasks_keyword` returns
+  `status_name, status_category, list_id`).
+- **Side channels restated** (0114 rewrites the FULL bodies of the 0040 +
+  0106 triggers — any later migration touching them must restate the whole
+  function again): `task.status_changed` payload keeps `from`/`to` literals
+  and adds `from/to_status_id`, `from/to_name`, `from/to_category`,
+  `to_blocked`; new event `task.moved_to_list`. Activity verbs `completed`
+  / `reopened` key on `completed_at`, `status_changed` detail carries names +
+  categories, new verb `list_changed`.
+- **Web.** `lib/tasks/statuses.ts` is the pure catalog: predicates
+  **`isDone / isStarted / isBlocked / isNotStarted`** over
+  `{status_category?, status_blocked?, status}` (fall back to the legacy
+  literal for old caches / mobile rows — always use these, never
+  `=== "done"` in new code), `statusForLegacy`, `remapForSet`,
+  `resolveStatusInput` (uuid | name | legacy literal), `buildCatalog` and
+  `columnsFor(catalog, listId)` — a single-list scope gets that list's
+  statuses as columns, any multi-list scope the four category columns
+  (`CATEGORY_COLUMNS`, ids = the legacy literals, so `moveTask({status})`
+  keeps working through the resolver). A tripwire test parses the
+  migration's `legacy_status_of` CASE against `CATEGORY_META`. Data:
+  `GET /api/properties/:id/lists` → `{lists, statusSets, statuses}`
+  (`lib/tasks/status-catalog.ts`), query `["status-catalog", pid]` in
+  `lib/query/status-queries.ts` (`useStatusCatalog`, realtime on the three
+  tables — a `statuses` change also invalidates `["tasks"]` because cards
+  read the flattened `status_name` / `status_category` / `status_color` /
+  `status_blocked` off the task row, which `getTasks` joins), prefetched by
+  `tasks/layout.tsx`. `lib/tasks/mutations.ts` accepts `status` as a uuid OR
+  a legacy literal and `listId` on create / update (property-fenced); the
+  recurrence roll-forward keys on `completed_at` and the next occurrence
+  inherits `list_id` with no status (→ the list's open status).
+- **Verify**: `node --env-file=.env.local --no-network-family-autoselection
+  scripts/lists-statuses-smoke.mjs` (31 assertions over the live DB
+  contract: backfill invariants, both write directions, list ↔ space sync,
+  a 7-status custom pipeline remap, activity / workflow payloads, the
+  delete guard; hard-cleans) + `lib/tasks/__tests__/statuses.test.ts`.
+- **Lists in the shell + the list board (PR 2).** The Tasks node's sidebar
+  (`sections/tasks-section.tsx`) ends in a **Lists** group: property-level
+  lists, then each top-level team (sub-teams nested by `parent_space_id`,
+  now on `spacesQueryOptions`) folding open to its lists + a "New list" row
+  (`lists/create-list-dialog.tsx`); the Teams group appends the same list
+  rows under each team's views. A row opens **`/tasks?list=<id>`**: the
+  board filters to the list, the breadcrumb reads Tasks › Team › List, the
+  header grows a settings gear + "…" (`lists/list-row-menu.tsx`: rename /
+  colour / archive — archiving a list with open tasks asks where they go),
+  and the columns become the list's pipeline (`columnsFor`). The kanban
+  (`kanban-view.tsx` / `kanban-column.tsx`) takes columns as a
+  `BoardColumns` prop with STRING ids: a drop writes the column id through
+  `moveTask` (status uuid or legacy literal — `isUuid` picks the DB column),
+  and the optimistic patch is `columnPatch` (legacy literal + status row
+  fields together, or `columnOfTask` snaps the card back). Column pills use
+  `COLUMN_HUE[color]`; "Mark all done" targets `doneTargetFor(board)`;
+  "Automate this column" hands the workflow prefill the category's legacy
+  literal. Every status picker (`StatusMenuContent`, list cells, task
+  detail rail + inline strip, the create page, sub-issue creation) takes
+  the task's pipeline from `useTaskStatusOptions(propertyId, list_id)` and
+  renders the chip via `describeStatus` + `StatusIcon {category, blocked,
+  color}` (the legacy `status` prop still works for old rows). The task
+  rail has a **List** row (`setTaskList` in `components/projects/actions.ts`,
+  property-fenced). The create page follows `?list=` → the team's default
+  list → General, and a status not in the chosen list's pipeline snaps to
+  its open status.
+- **Status-set editor (PR 3).** `lists/list-settings-dialog.tsx` (gear in
+  the list board header; General / Statuses / Danger): the **Statuses** tab
+  shows where the pipeline comes from ("Using <team>'s statuses — shared by
+  N lists", editing it edits all of them) with a **Use team statuses**
+  switch: off = `forkListStatuses` (copies the set into one the list owns,
+  tasks move to the copy at the same index), on = `inheritListStatuses`
+  (back to `space_status_set` / the property default, tasks remapped by
+  category, the orphaned set archived). Rows: drag to reorder
+  (`reorderStatuses`, 1024-step ladder), inline rename, colour, category,
+  Blocked switch on Active rows, delete (`deleteStatus` moves its tasks to
+  `fallbackFor` — the closest remaining status; the only open / closed
+  status can't go), "+ Add status" by category. All writes are
+  **owner / manager** (`requireManagement` in `lists/status-actions.ts`;
+  the dialog reads the role via `useMyRole` to disable the controls). The
+  pure invariants live in `lib/tasks/status-set-rules.ts` (`validateSet`
+  with friendly `problemMessage`s, `deleteBlocker`, `fallbackFor`,
+  `forkPlan`, `remapPlan`, `ladder`, tested) and run before every write so
+  a person never meets the unique-index error. A category change on a
+  status re-touches its tasks' `status_id` so the resolver refreshes the
+  legacy projection + `completed_at`.
+- **Still to come in this phase**: the sweep of ~93 literal `"done"` sites
+  onto the predicates (PR 4), AI / workflow / mobile exposure of list +
+  status names (PR 5), the status facet in the board filter grouped by
+  list, list chips on the team page's Tasks tab.
+
 ## Page audit vs Linear (2026-10-25) — controls on the page, detail-page parity
 
 - **One page header everywhere — Linear's compact bar.** Every page opens

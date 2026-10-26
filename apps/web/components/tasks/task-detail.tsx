@@ -41,12 +41,18 @@ import { useAssigneesMap } from "@/lib/tasks/use-assignees";
 import { taskHref } from "@/lib/tasks/task-href";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import type { TaskPriority, TaskRecurrence, TaskStatus } from "@/lib/db/types";
+import { useTaskStatusOptions } from "@/lib/query/status-queries";
+import type { StatusRowFields } from "./task-property-menus";
 
 type Task = {
   id: string;
   title: string;
   description: string | null;
   status: TaskStatus;
+  /** Lists + pipelines (0114). Optional so embedded hosts (triage) still compile. */
+  listId?: string | null;
+  statusId?: string | null;
+  statusRow?: StatusRowFields;
   priority: TaskPriority;
   assigneeId: string | null;
   dueAt: string | null;
@@ -101,7 +107,10 @@ export function TaskDetail({
   const { threads } = useThreads();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
-  const [status, setStatus] = useState<TaskStatus>(task.status);
+  // The column id the pickers write: the status row's uuid when the row
+  // carries one, else the legacy literal (the DB resolves either).
+  const [status, setStatus] = useState<string>(task.statusId ?? task.status);
+  const statusOptions = useTaskStatusOptions(propertyId, task.listId);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId);
   const [dueAt, setDueAt] = useState<string | null>(task.dueAt);
@@ -220,7 +229,7 @@ export function TaskDetail({
     );
   }
 
-  function saveStatus(next: TaskStatus) {
+  function saveStatus(next: string) {
     setStatus(next);
     persist({ taskId: task.id, status: next });
   }
@@ -316,6 +325,8 @@ export function TaskDetail({
     propertyId,
     taskId: task.id,
     status,
+    statusOptions,
+    statusRow: task.statusRow,
     priority,
     assigneeId,
     assignee,
@@ -452,6 +463,8 @@ export function TaskDetail({
               propertyId={propertyId}
               taskId={task.id}
               status={status}
+              statusOptions={statusOptions}
+              statusRow={task.statusRow}
               priority={priority}
               assigneeId={assigneeId}
               assignee={assignee}
