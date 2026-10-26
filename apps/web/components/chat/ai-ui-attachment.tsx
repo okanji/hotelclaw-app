@@ -27,6 +27,7 @@ import { documentsTreeQueryOptions } from "@/lib/query/section-queries";
 import { cn } from "@/lib/utils";
 import { useOptionalArtifactPanel } from "./artifact-panel-context";
 import { useOptionalChatUiSend } from "./chat-ui-send-context";
+import { ChatUiChart, ChatUiForm, ChatUiQuestionnaire } from "./ai-ui-generative";
 
 /**
  * Renders the bot's `ai_ui` attachment — a json-render spec over the
@@ -420,6 +421,9 @@ const { registry } = defineRegistry(chatUiCatalog, {
         </div>
       );
     },
+    Chart: ({ props }) => <ChatUiChart props={props} />,
+    Form: ({ props }) => <ChatUiForm props={props} />,
+    Questionnaire: ({ props }) => <ChatUiQuestionnaire props={props} />,
   },
 });
 
@@ -432,7 +436,12 @@ export function AiUiAttachment({
     () => validateChatUiSpec(attachment.spec),
     [attachment.spec],
   );
-  if (!validated.ok) return null;
+  if (!validated.ok) {
+    // A rejected spec renders nothing (the lead-in text still reads); say
+    // why in the console so a catalog/version drift is not silent.
+    if (process.env.NODE_ENV !== "production") console.warn("[ai-ui] spec rejected:", validated.error);
+    return null;
+  }
   return (
     // max-w-4xl (not 2xl): DataTable cells are whitespace-nowrap, so a
     // multi-column table's natural width easily tops 672px and the Status

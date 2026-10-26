@@ -478,8 +478,8 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="sidebar-menu"
       data-sidebar="menu"
-      // 1px vertical gap ⇒ the measured 31px row pitch on a 30px row.
-      className={cn("flex w-full min-w-0 flex-col gap-px", className)}
+      // 3px vertical gap ⇒ a 33px row pitch on a 30px row (a touch airier than Linear's 31px).
+      className={cn("flex w-full min-w-0 flex-col gap-[3px]", className)}
       {...props}
     />
   )
@@ -680,7 +680,7 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
       // the old `border-l` was a visible gray stroke down the panel. Sub rows
       // keep the 1px gap so the 31px pitch carries into the sub-tree.
       className={cn(
-        "mx-3.5 flex min-w-0 flex-col gap-px px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
+        "mx-3.5 flex min-w-0 flex-col gap-[3px] px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
         className
       )}
       {...props}

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   displayUserText,
@@ -6,8 +6,10 @@ import {
   type AssistantItem,
   type TranscriptItem,
 } from "@hotelclaw/chat-ui/transcript";
-import { runningLabel, transcriptTurnSteps } from "@hotelclaw/chat-ui/turn";
+import { artifactsFromToolCalls, runningLabel, transcriptTurnSteps } from "@hotelclaw/chat-ui/turn";
 import { AiUiAttachment } from "../attachments/AiUiAttachment";
+import { ArtifactCard } from "../attachments/ArtifactCard";
+import { ChatUiSendProvider, ChatUiSubmittedProvider, submissionHeading } from "../attachments/chat-ui-send";
 import { AiLoader } from "../AiLoader";
 import { Markdown } from "./Markdown";
 import { ParkControls } from "./ParkControls";
@@ -37,6 +39,7 @@ export function EveTranscript({
   surface,
   sessionId,
   onRespond,
+  onSend,
   workingLabel = "Working on it…",
 }: {
   items: TranscriptItem[];
@@ -46,6 +49,8 @@ export function EveTranscript({
   surface: "assistant" | "agent" | "channel";
   sessionId: string | null;
   onRespond?: Respond;
+  /** Sends a message — Options chips, Forms and Questionnaires reply through it. */
+  onSend?: (text: string) => void | Promise<void>;
   workingLabel?: string;
 }) {
   const last = items[items.length - 1];
@@ -59,7 +64,7 @@ export function EveTranscript({
         last.kind === "assistant" &&
         (last.text.trim() || last.toolCalls.length > 0 || last.reasoning.length > 0)
       ));
-  return (
+  const body = (
     <View style={styles.list}>
       {items.map((item, index) =>
         item.kind === "user" ? (
@@ -72,6 +77,9 @@ export function EveTranscript({
           <AssistantTurn
             key={index}
             item={item}
+            laterUserTexts={items
+              .slice(index + 1)
+              .flatMap((it) => (it.kind === "user" ? [displayUserText(it.text)] : []))}
             live={index === items.length - 1 && (busy || item.streaming)}
             propertyId={propertyId}
             surface={surface}
@@ -91,6 +99,7 @@ export function EveTranscript({
       ) : null}
     </View>
   );
+  return onSend ? <ChatUiSendProvider send={onSend}>{body}</ChatUiSendProvider> : body;
 }
 
 function AssistantTurn({
@@ -101,17 +110,22 @@ function AssistantTurn({
   sessionId,
   messageKey,
   onRespond,
+  laterUserTexts,
 }: {
   item: AssistantItem;
   live: boolean;
+  laterUserTexts: string[];
   propertyId: string;
   surface: "assistant" | "agent" | "channel";
   sessionId: string | null;
   messageKey: string;
   onRespond?: Respond;
 }) {
-  const specs = useMemo(() => renderedSpecs(item.toolCalls), [item.toolCalls]);
-  const steps = useMemo(() => transcriptTurnSteps(item, { running: live }), [item, live]);
+  // No memo on `item` / `item.toolCalls`: the reducer settles a tool call
+  // IN PLACE, so a memo keyed on identity would hide a rendered spec (and
+  // a settled step) until the next reload.
+  const specs = renderedSpecs(item.toolCalls);
+  const steps = transcriptTurnSteps(item, { running: live });
   const hasText = Boolean(item.text.trim());
   const runningStep = live ? steps.find((s) => s.status === "running") : undefined;
   const activity = runningStep
@@ -122,18 +136,31 @@ function AssistantTurn({
       ? "Writing…"
       : "Working on it…";
   const openRequests = item.requests.filter((r) => !r.outcome);
+  // Artifacts — the records this turn wrote — derived from the tool
+  // results and drawn with the channel's ArtifactCard.
+  const artifacts = artifactsFromToolCalls(item.toolCalls);
   return (
     <View style={styles.assistant}>
       {steps.length > 0 || live ? (
         <TurnTrace steps={steps} live={live && !hasText} activity={activity} />
       ) : null}
-      {hasText ? <Markdown>{item.text}</Markdown> : null}
-      {specs.map((entry) => (
-        <AiUiAttachment
-          key={entry.callId}
-          attachment={{ type: "ai_ui", spec: entry.spec } as never}
+      {artifacts.map((artifact, i) => (
+        <ArtifactCard
+          key={`${artifact.kind}-${artifact.document_id ?? artifact.task_id ?? i}`}
+          attachment={artifact}
         />
       ))}
+      {hasText ? <Markdown>{item.text}</Markdown> : null}
+      <ChatUiSubmittedProvider
+        isSubmitted={(title) => laterUserTexts.some((t) => t.startsWith(submissionHeading(title)))}
+      >
+        {specs.map((entry) => (
+          <AiUiAttachment
+            key={entry.callId}
+            attachment={{ type: "ai_ui", spec: entry.spec } as never}
+          />
+        ))}
+      </ChatUiSubmittedProvider>
       {openRequests.length > 0 ? (
         <ParkControls
           requests={openRequests}

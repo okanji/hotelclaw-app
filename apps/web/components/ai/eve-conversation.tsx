@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
+  artifactsFromToolCalls,
   runningLabel,
   transcriptTurnSteps,
   type ParkRequest,
   type TurnStep,
 } from "@hotelclaw/chat-ui/turn";
+import { ArtifactCard } from "@/components/chat/artifact-card";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Message, MessageContent } from "@/components/ui/message";
 import {
@@ -19,7 +21,11 @@ import {
 } from "@/components/ui/message-scroller";
 import { AiLoader } from "@/components/ui/ai-loader";
 import { AiUiAttachment } from "@/components/chat/ai-ui-attachment";
-import { ChatUiSendProvider } from "@/components/chat/chat-ui-send-context";
+import {
+  ChatUiSendProvider,
+  ChatUiSubmittedProvider,
+  submissionHeading,
+} from "@/components/chat/chat-ui-send-context";
 import {
   displayUserText,
   renderedSpecs,
@@ -99,6 +105,10 @@ export function EveConversation({
 }) {
   const isEmpty = items.length === 0 && !resuming;
   const last = items[items.length - 1];
+  // The person's messages AFTER a turn — a Form / Questionnaire in that
+  // turn whose submission heading opens one of them is drawn settled.
+  const laterUserTexts = (all: TranscriptItem[], index: number) =>
+    all.slice(index + 1).flatMap((it) => (it.kind === "user" ? [displayUserText(it.text)] : []));
   // The live turn's trace already says what is happening; the loader only
   // covers the gap before its first event (and a resume).
   const showLoader =
@@ -148,6 +158,7 @@ export function EveConversation({
                       <AssistantTurn
                         item={item}
                         turnIndex={index}
+                        laterUserTexts={laterUserTexts(items, index)}
                         scale={scale}
                         mono={mono}
                         showReasoning={showReasoning}
@@ -190,9 +201,11 @@ function AssistantTurn({
   onRespond,
   feedback,
   live,
+  laterUserTexts,
 }: {
   item: AssistantItem;
   turnIndex: number;
+  laterUserTexts: string[];
   scale: "page" | "compact";
   mono: boolean;
   showReasoning: boolean;
@@ -200,14 +213,15 @@ function AssistantTurn({
   feedback?: EveFeedbackScope | null;
   live: boolean;
 }) {
-  const steps = useMemo(() => {
-    let rows: TurnStep[] = transcriptTurnSteps(item, { running: live });
-    if (!showReasoning) rows = rows.filter((s) => s.kind !== "reasoning");
-    // Transparency surfaces show the raw tool name as the row label; the
-    // payload is in the disclosure either way.
-    if (mono) rows = rows.map((s) => (s.toolName ? { ...s, label: s.toolName } : s));
-    return rows;
-  }, [item, live, showReasoning, mono]);
+  // No memo on `item` / `item.toolCalls`: the reducer settles a tool call
+  // IN PLACE (call.done / call.output) without replacing the arrays, so a
+  // memo keyed on identity would keep showing the pre-result view for the
+  // whole live turn (a rendered spec never appeared until reload).
+  let steps: TurnStep[] = transcriptTurnSteps(item, { running: live });
+  if (!showReasoning) steps = steps.filter((s) => s.kind !== "reasoning");
+  // Transparency surfaces show the raw tool name as the row label; the
+  // payload is in the disclosure either way.
+  if (mono) steps = steps.map((s) => (s.toolName ? { ...s, label: s.toolName } : s));
   const runningStep = live ? steps.find((s) => s.status === "running") : undefined;
   const activity = runningStep
     ? runningStep.kind === "reasoning"
@@ -218,6 +232,10 @@ function AssistantTurn({
       : "Working on it…";
   const openRequests: ParkRequest[] = item.requests.filter((r) => !r.outcome);
   const hasBody = Boolean(item.text.trim());
+  // Artifacts — the records this turn wrote — derived from the tool
+  // results and drawn with the channel's ArtifactCard (opens the split
+  // panel: a document being written streams in live).
+  const artifacts = artifactsFromToolCalls(item.toolCalls);
 
   return (
     <Message>
@@ -229,6 +247,13 @@ function AssistantTurn({
             activity={activity}
             className={cn(mono && "[&_[data-slot=trace-title]]:font-mono [&_[data-slot=trace-title]]:text-xs")}
           />
+        ) : null}
+        {artifacts.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {artifacts.map((artifact, i) => (
+              <ArtifactCard key={`${artifact.kind}-${artifact.document_id ?? artifact.task_id ?? i}`} attachment={artifact} />
+            ))}
+          </div>
         ) : null}
         {hasBody ? (
           <Markdown
@@ -242,7 +267,11 @@ function AssistantTurn({
             {item.text}
           </Markdown>
         ) : null}
-        <RenderedViews calls={item.toolCalls} />
+        <ChatUiSubmittedProvider
+          isSubmitted={(title) => laterUserTexts.some((t) => t.startsWith(submissionHeading(title)))}
+        >
+          <RenderedViews calls={item.toolCalls} />
+        </ChatUiSubmittedProvider>
         {openRequests.length > 0 ? (
           <ParkControls
             requests={openRequests}
@@ -280,7 +309,8 @@ function AssistantTurn({
  * the assistant draws it.
  */
 function RenderedViews({ calls }: { calls: ToolCall[] }) {
-  const specs = useMemo(() => renderedSpecs(calls), [calls]);
+  // Not memoized — see AssistantTurn: the calls settle in place.
+  const specs = renderedSpecs(calls);
   if (specs.length === 0) return null;
   return (
     <div className="flex w-full flex-col gap-3">

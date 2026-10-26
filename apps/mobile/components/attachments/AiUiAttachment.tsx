@@ -10,6 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Animated from "react-native-reanimated";
 import { useChannelContext, useMessageContext } from "stream-chat-expo";
+import { ChartView, FormView, QuestionnaireView } from "./AiUiGenerative";
+import { useOptionalChatUiSend } from "./chat-ui-send";
 import { fadeUpEntering, statusFadeIn } from "../AiLoader";
 import {
   validateChatUiSpec,
@@ -240,7 +242,10 @@ function OptionsView({
   // CustomAttachments' MessageContentBottomView.
   const { channel } = useChannelContext();
   const { message } = useMessageContext();
-  const parentId = message.parent_id;
+  // Outside a channel (the Assistant transcript) the surface supplies the
+  // sender; inside one the reply travels as the person's own message.
+  const sendOverride = useOptionalChatUiSend();
+  const parentId = message?.parent_id;
   const [sentIndex, setSentIndex] = React.useState<number | null>(null);
   const [sending, setSending] = React.useState(false);
 
@@ -249,11 +254,14 @@ function OptionsView({
     const option = props.options[index];
     setSending(true);
     try {
-      await channel.sendMessage({
-        text: option.value ?? option.label,
-        // A bot message living in a thread gets its reply in that thread.
-        ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
-      });
+      const text = option.value ?? option.label;
+      if (sendOverride) await sendOverride(text);
+      else
+        await channel.sendMessage({
+          text,
+          // A bot message living in a thread gets its reply in that thread.
+          ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
+        });
       setSentIndex(index);
     } catch {
       Alert.alert("Couldn't send", "That reply didn't go through — try again.");
@@ -366,6 +374,12 @@ function renderElement(spec: ChatUiSpec, key: string): React.ReactElement | null
       return <StatView props={el.props as React.ComponentProps<typeof StatView>["props"]} />;
     case "Options":
       return <OptionsView props={el.props as React.ComponentProps<typeof OptionsView>["props"]} />;
+    case "Chart":
+      return <ChartView props={el.props as React.ComponentProps<typeof ChartView>["props"]} />;
+    case "Form":
+      return <FormView props={el.props as React.ComponentProps<typeof FormView>["props"]} />;
+    case "Questionnaire":
+      return <QuestionnaireView props={el.props as React.ComponentProps<typeof QuestionnaireView>["props"]} />;
     default:
       return null;
   }

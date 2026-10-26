@@ -134,6 +134,7 @@ function Chat({ propertyId, row, prefill }: { propertyId: string; row: ChatRow; 
           surface="assistant"
           sessionId={session.sessionId}
           onRespond={(requestId, answer) => void session.respond(requestId, answer)}
+          onSend={(text) => void session.send(text)}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>

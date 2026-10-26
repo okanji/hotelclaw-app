@@ -19,7 +19,8 @@
  * Subagent row or a settled park reads the same in a channel reply, the
  * Assistant, an agent chat, the fleet viewer, the task panel and the phone.
  */
-import type { AssistantItem, InputRequest } from "./transcript";
+import type { AppArtifactAttachment } from "./index";
+import type { AssistantItem, InputRequest, ToolCall } from "./transcript";
 
 // ---------------------------------------------------------------------------
 // Steps
@@ -707,6 +708,87 @@ export function contextUsage(usage: TurnUsage): ContextUsage {
 }
 
 // ---------------------------------------------------------------------------
+// Artifacts: the records a turn wrote (documents, sheets, tasks)
+// ---------------------------------------------------------------------------
+
+const ARTIFACT_TOOLS: Record<
+  string,
+  { kind: AppArtifactAttachment["kind"]; action: string }
+> = {
+  create_document: { kind: "document", action: "created" },
+  update_document: { kind: "document", action: "updated" },
+  rename_document: { kind: "document", action: "updated" },
+  restore_document_revision: { kind: "document", action: "updated" },
+  update_sheet_cells: { kind: "sheet", action: "updated" },
+  create_task: { kind: "task", action: "created" },
+  update_task: { kind: "task", action: "updated" },
+};
+
+const PROPERTY_FROM_HREF = /^\/p\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\//i;
+
+/**
+ * The channel bot posts an `app_artifact` card the moment a write tool
+ * starts (so people can watch the doc being written). An eve transcript
+ * has no Stream to post to, so the same cards are DERIVED from the tool
+ * results: a finished write that returned a record id + url becomes a
+ * "done" artifact, and a write still running becomes a "writing" one —
+ * the Assistant and the phone draw them with the same ArtifactCard.
+ */
+export function artifactsFromToolCalls(calls: ToolCall[]): AppArtifactAttachment[] {
+  const out: AppArtifactAttachment[] = [];
+  for (const call of calls) {
+    const meta = ARTIFACT_TOOLS[call.toolName];
+    if (!meta) continue;
+    const input = (call.input ?? {}) as Record<string, unknown>;
+    const output = (call.done && call.output && typeof call.output === "object"
+      ? call.output
+      : {}) as Record<string, unknown>;
+    if (call.done && (call.error || typeof output.error === "string")) continue;
+    const task = output.task as Record<string, unknown> | undefined;
+    const href =
+      typeof output.url === "string"
+        ? output.url
+        : typeof output.href === "string"
+          ? output.href
+          : null;
+    const propertyId = href ? PROPERTY_FROM_HREF.exec(href)?.[1] : null;
+    if (!propertyId) continue;
+    const documentId =
+      typeof output.document_id === "string"
+        ? output.document_id
+        : typeof input.document_id === "string"
+          ? input.document_id
+          : undefined;
+    const taskId =
+      typeof output.task_id === "string"
+        ? output.task_id
+        : task && typeof task.id === "string"
+          ? task.id
+          : typeof input.task_id === "string"
+            ? input.task_id
+            : undefined;
+    const title =
+      (typeof output.title === "string" && output.title) ||
+      (task && typeof task.title === "string" && task.title) ||
+      (typeof input.title === "string" && input.title) ||
+      (typeof input.new_title === "string" && input.new_title) ||
+      (meta.kind === "task" ? "Task" : meta.kind === "sheet" ? "Spreadsheet" : "Document");
+    out.push({
+      type: "app_artifact",
+      kind: meta.kind,
+      status: call.done ? "done" : "writing",
+      title,
+      property_id: propertyId,
+      action: meta.action,
+      ...(documentId ? { document_id: documentId } : {}),
+      ...(taskId ? { task_id: taskId } : {}),
+      ...(href ? { href } : {}),
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Adapters: transcript items and panel-bot parts → steps
 // ---------------------------------------------------------------------------
 
@@ -772,7 +854,9 @@ export function transcriptTurnSteps(
     });
   });
   for (const call of item.toolCalls) {
-    if (options.hideSilent !== false && SILENT_TOOLS.has(call.toolName)) continue;
+    // A silent tool (render_ui) hides only when it WORKED — a failed call
+    // is the one row the reader needs to see.
+    if (options.hideSilent !== false && SILENT_TOOLS.has(call.toolName) && !call.error) continue;
     steps.push({
       id: call.callId,
       kind: /^(eve__skill|load_skill)$/.test(call.toolName) ? "skill" : "tool",
@@ -853,7 +937,7 @@ export function panelTurnSteps(
     });
   });
   for (const part of tools) {
-    if (options.hideSilent !== false && SILENT_TOOLS.has(part.toolName)) continue;
+    if (options.hideSilent !== false && SILENT_TOOLS.has(part.toolName) && part.state !== "output-error") continue;
     steps.push({
       id: part.toolCallId,
       kind: "tool",

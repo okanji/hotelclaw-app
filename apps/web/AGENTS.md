@@ -26,9 +26,12 @@ account menu in the footer.
 **Pins + launcher (the Slack / ClickUp / Linear model, re-planned 2026-10-25).**
 Every app is declared once in `nav-apps.ts` (`NAV_APPS`: id, label, icon,
 path, optional shell `section`, tint, group). The Workspace group shows ONLY
-the person's pinned apps — default Home, Tasks, Planner (`DEFAULT_PINS`) — and ends in **More**, Linear's
-menu (`app-launcher.tsx`): a small dropdown under the row listing only the
-apps NOT pinned (with badges), then **Customize sidebar** (pin / unpin /
+the person's pinned apps — default Home, Tasks, Planner (`DEFAULT_PINS`) — and ends in **More**
+(`app-launcher.tsx`): a popover beside the row with EVERY app as a tile,
+grouped Work / Build & automate / Admin (ClickUp's More grid — a pinned
+app's tile carries a small pin; a Linear-style dropdown of only the
+unpinned apps was tried on 2026-10-26 and reverted the same day, the grid
+is the one people recognised), then **Customize sidebar** (pin / unpin /
 reorder apps; show or hide Favorites, Teams, Projects). The "Workspace" label
 folds the group like Favorites / Teams (`hotelclaw:workspace-open`). Prefs are
 per device in localStorage via the `useNavPrefs` external store
@@ -199,6 +202,26 @@ This app has a **two-tier AI architecture** (plan: `~/.claude/plans/breezy-noodl
 
 Many lightweight, purpose-specific bots, each scoped to a single feature surface:
 - **Channel bot** — `lib/stream/ai-reply.ts` (built — auto mode's classifier (`lib/stream/ai-auto-classifier.ts`) has two sensitivity-independent ALWAYS-respond rules: the message continues a conversation with the bot, or it asks for something on the bot's capability list. **Both are schema fields answered before the verdict and then ENFORCED IN CODE** (2026-08-03): asked for one boolean, Haiku would name the rule and decline anyway ("rule A applies, but I already answered that"), so every auto-mode follow-up silently needed a fresh @-mention. The capability list rule B is judged against lives in `lib/stream/ai-capability-map.ts` and is drift-guarded against the runtime's real grants — a tool the blurb doesn't advertise is a thing auto mode won't volunteer. Replies can carry **rich UI** via the `render_ui` tool (`lib/ai/tools/render-ui.ts`): the model emits a @json-render spec over the house catalog in `lib/ai/chat-ui/catalog.ts` (Stack / DataTable / CardGrid / Card / StatRow / Stat — zod-validated + size-capped server-side), posted as Stream attachment `{type:"ai_ui", spec}` and rendered by `components/chat/ai-ui-attachment.tsx` (json-render's `Renderer` MUST be wrapped in `JSONUIProvider` even for static specs). **Deep links**: the model attaches entity refs (`Card.link` / `DataTable.rowLinks` = `{kind: task|project|document|meeting|form|space, id}` — ids come from tool results, which return `id` for this purpose), and the tool validates each id against the property (batched per kind) and rewrites refs into `/p/<pid>/<section>/<id>` hrefs before the spec is stored; the stored-spec `href` fields must match `INTERNAL_HREF_RX`, so nothing external/scripted can render. Clickable rows/cards navigate via next/link. @json-render is pinned exact (pre-1.0 churn); we deliberately don't use `catalog.prompt()` — the compact tool description in the catalog file is the model's manual. Markdown tables that still slip through get fallback styling in `app/stream-chat-overrides.css`.)
+  **Generative UI (2026-10-26):** the catalog grew three interactive
+  elements, documented to the model in `CHAT_UI_TOOL_DESCRIPTION` and drawn
+  by `components/chat/ai-ui-generative.tsx` (web) / `apps/mobile/components/
+  attachments/AiUiGenerative.tsx` (phone): **Chart** (bar / line / area /
+  pie over the documents' chart data model — recharts on the web, svg on the
+  phone, the `--series-*` ramp), **Form** (an inline chat form over the
+  house Field / Input / NativeSelect / Checkbox — the AI SDK "generative UI"
+  idea: the model asks for several details at once) and **Questionnaire**
+  (the shadcn/ui Questionnaire primitive, `components/ui/questionnaire.tsx`:
+  one question per step, choices, optional free text, progress, letter
+  shortcuts). Both forms submit through the surface's `ChatUiSendProvider`
+  as the person's OWN next message in the fixed `formatFormSubmission`
+  shape ("Title — answers:" then "- label: value" lines) and settle to one
+  "answers sent" line, so the model reads answers back from the transcript
+  and a form never renders live twice. **Artifacts outside the channel:**
+  the Assistant / Agents / fleet transcripts and the phone's `EveTranscript`
+  derive `app_artifact` cards from write-tool RESULTS
+  (`artifactsFromToolCalls` in `@hotelclaw/chat-ui/turn` — create/update/
+  rename document, sheet cells, create/update task → `ArtifactCard`, which
+  opens the split panel; a call still running shows as "writing").
 - **Liveblocks comment bot** — `lib/ai/bot-scaffold.ts` (built — property-scoped replies run through `runBot()` (2026-07-19), so memory + delegate inject like every Tier-1 bot; only the no-property fallback stays a bare `generateText`)
 - **Task detail bot** — `lib/ai/bots/task-bot.ts` + `app/api/properties/[propertyId]/tasks/[taskId]/ai/route.ts` + `components/tasks/task-ai-panel.tsx` (built)
 - **Document bot** — `lib/ai/bots/doc-bot.ts` + `app/api/properties/[propertyId]/documents/[documentId]/ai/route.ts` + `components/documents/document-ai-panel.tsx` (built — Q&A + inline write via `propose_document_content`, with the bot's HTML output covering paragraph, headings, lists, blockquote, code, tables, callouts. Floating-toolbar inline rewrite is wired separately via Liveblocks's `AiToolbar` + the `resolveContextualPrompt` endpoint at `/api/properties/[propertyId]/documents/[documentId]/ai/contextual`.)
@@ -659,6 +682,13 @@ exception like Agents.
     conversation…" forever.
   - Strip the `[Now: …]` framing line before rendering the user's own message
     back to them.
+  - `assistant-workspace.tsx` hosts the chat's `ArtifactSidePanel` beside the
+    panes (2026-10-26): an artifact card in a transcript (a task the
+    assistant created, a doc it wrote) opens the split panel instead of
+    navigating away. `EveConversation` also marks a Form / Questionnaire
+    SETTLED when a later user message opens with its submission heading
+    (`ChatUiSubmittedProvider`) — the "answers sent" state is otherwise
+    client memory and a reload would bring a submitted form back live.
 ### Project schedules — "Scheduled" on a project (2026-08-14)
 
 Claude's Scheduled card, wired to the app's real automation engine. A schedule
@@ -793,6 +823,12 @@ CLI, so never run `ai-elements add`.
   `turn.waiting {on:"input"}` as the park boundary (`on:"tasks"` is not).
   `mono` (fleet) shows raw tool names as row labels; `showReasoning=false`
   drops Thought rows. Tests: `lib/fleet/__tests__/transcript.test.ts`.
+  **Never memoize on `item` / `item.toolCalls` identity here** (web AND the
+  phone's `EveTranscript`): the reducer settles a tool call IN PLACE
+  (`call.done` / `call.output`) without replacing the arrays, so a
+  `useMemo` keyed on them kept the pre-result view for the whole live turn
+  — a `render_ui` chart never appeared until reload (caught 2026-10-26).
+  Derive steps / specs / artifacts on every render; they are cheap.
 - **`hooks/use-eve-session.ts`** — the transport both chats used to duplicate
   (and had drifted on): headers, create/resume by session id, replay-from-0
   consume with turn counting, `respond(requestId, {optionId|text})` via

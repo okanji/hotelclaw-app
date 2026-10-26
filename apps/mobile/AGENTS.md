@@ -269,6 +269,18 @@ and it draws an AI turn exactly the way the web does, over the same shapes.
     italic / strike / inline code, links: `/p/<pid>/tasks|documents/<id>`
     navigates natively, other internal paths open the web app, absolute
     URLs open the browser).
+- **Generative UI** (`components/attachments/AiUiGenerative.tsx`, wired into
+  `AiUiAttachment`'s switch): `Chart` (bar / line / area / pie with
+  react-native-svg, measured via `onLayout`), `Form` (TextInput / chips /
+  Switch) and `Questionnaire` (stepped, radio or checkbox rows, optional
+  free text) — the twins of web's `ai-ui-generative.tsx` over the same
+  catalog props. They send through `components/attachments/chat-ui-send.tsx`
+  (`ChatUiSendProvider` — the Assistant transcript wraps itself with
+  `session.send`) and fall back to `channel.sendMessage` inside a channel;
+  Options chips use the same rule. Submissions use the shared
+  `formatFormSubmission` text shape and settle to one "answers sent" line.
+  Artifacts (documents / sheets / tasks a turn wrote) render in the
+  Assistant through `ArtifactCard` from `artifactsFromToolCalls`.
 - **`components/ai/EveTranscript.tsx`** composes them over the reducer items
   in the Chat-pattern order: user bubble; then per agent turn
   `TurnTrace(transcriptTurnSteps(item))` → `Markdown` → `render_ui` cards

@@ -38,3 +38,39 @@ export function ChatUiSendProvider({
 export function useOptionalChatUiSend(): ChatUiSend | null {
   return useContext(ChatUiSendContext);
 }
+
+/**
+ * Whether a rendered Form / Questionnaire was already answered. The settled
+ * "answers sent" state is client memory, so after a reload a submitted form
+ * would come back live (and could be sent twice). A transcript surface that
+ * can see the LATER user messages provides this predicate — a form whose
+ * submission heading (`formatFormSubmission`) opens a later message is
+ * drawn settled. Optional: without it the form is live, as before.
+ */
+export type ChatUiSubmitted = (title: string | undefined) => boolean;
+
+const ChatUiSubmittedContext = createContext<ChatUiSubmitted | null>(null);
+
+export function ChatUiSubmittedProvider({
+  isSubmitted,
+  children,
+}: {
+  isSubmitted: ChatUiSubmitted;
+  children: ReactNode;
+}) {
+  return (
+    <ChatUiSubmittedContext.Provider value={isSubmitted}>
+      {children}
+    </ChatUiSubmittedContext.Provider>
+  );
+}
+
+export function useChatUiSubmitted(title: string | undefined): boolean {
+  const predicate = useContext(ChatUiSubmittedContext);
+  return predicate ? predicate(title) : false;
+}
+
+/** The heading a submission of this form opens with (see formatFormSubmission). */
+export function submissionHeading(title: string | undefined): string {
+  return title ? `${title} — answers:` : "Answers:";
+}

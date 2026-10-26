@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, FileText, Folder, Sparkles, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -106,12 +106,27 @@ export function AssistantComposer({
   // only ever get taller; floor at the resting height so a hero composer
   // doesn't collapse to one line the moment you type.
   const restingHeight = size === "hero" ? 88 : 24;
+  const grow = useCallback(() => {
+    const el = textareaRef.current;
+    // Hidden (an inactive assistant tab's pane is `display: none`) the
+    // textarea measures a scrollHeight of 0, and the floor would clip the
+    // placeholder once the pane shows — so never size from a hidden box.
+    if (!el || el.offsetParent === null) return;
+    el.style.height = "auto";
+    const next = `${Math.min(Math.max(el.scrollHeight, restingHeight), 320)}px`;
+    if (el.style.height !== next) el.style.height = next;
+  }, [restingHeight]);
+  useEffect(grow, [value, grow]);
+  // The pane can mount hidden and become visible later without `value`
+  // changing (switching assistant tabs, a conversation opened from the
+  // list) — the first real layout is what should size the box.
   useEffect(() => {
     const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, restingHeight), 320)}px`;
-  }, [value, restingHeight]);
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => grow());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [grow]);
 
   // ── Reference picker state ───────────────────────────────────────────
   // The caret has to be tracked (onChange + onSelect) because the @token is

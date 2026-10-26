@@ -17,6 +17,7 @@ import {
 import { asTint, type AssistantChat } from "@/lib/assistant/types";
 import { TintIcon } from "@/components/ui/tint-card";
 import { cn } from "@/lib/utils";
+import { ArtifactSidePanel } from "@/components/chat/artifact-side-panel";
 import { AssistantChat as ChatPane } from "./assistant-chat";
 import { AssistantComposer } from "./assistant-composer";
 import { ChatTabs, type ChatTab } from "./chat-tabs";
@@ -298,6 +299,10 @@ export function AssistantWorkspace({
         />
       ) : null}
 
+      {/* The panes and the artifact side panel share one row: an artifact
+          card (a document the assistant wrote, a task it created) opens the
+          same split panel the channel uses, beside the conversation. */}
+      <div className="flex min-h-0 flex-1">
       {/* Every open conversation stays mounted; only the active one is shown,
           so a turn running in a background tab keeps streaming. */}
       {openIds.map((id) => {
@@ -347,6 +352,8 @@ export function AssistantWorkspace({
           onOpenChat={(chatId) => openChat(chatId)}
         />
       ) : null}
+      <ArtifactSidePanel propertyId={propertyId} />
+      </div>
 
       {/* A quiet way back to the home screen while tabs are open. */}
       {activeId !== null && openIds.length > 0 ? (

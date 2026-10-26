@@ -124,7 +124,7 @@ export function AssistantChat({
 
   return (
     <div
-      className={cn("min-h-0 flex-1 flex-col", active ? "flex" : "hidden")}
+      className={cn("min-h-0 min-w-0 flex-1 flex-col", active ? "flex" : "hidden")}
       // Inactive panes stay mounted (streaming keeps running) but are taken
       // out of the a11y tree and the tab order along with the visual hide.
       aria-hidden={!active}

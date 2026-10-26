@@ -3291,6 +3291,9 @@ function handlePipeResult(left, next, ctx) {
 		issues: left.issues
 	}, ctx);
 }
+const $ZodPreprocess = $constructor("$ZodPreprocess", (inst, def) => {
+	$ZodPipe.init(inst, def);
+});
 const $ZodReadonly = $constructor("$ZodReadonly", (inst, def) => {
 	$ZodType.init(inst, def);
 	defineLazyInternal(inst, "propValues", (zod) => zod.def.innerType._zod.propValues);
@@ -6243,6 +6246,10 @@ function pipe(in_, out) {
 		out
 	});
 }
+const ZodPreprocess = $constructor("ZodPreprocess", (inst, def) => {
+	ZodPipe.init(inst, def);
+	$ZodPreprocess.init(inst, def);
+});
 const ZodReadonly = $constructor("ZodReadonly", (inst, def) => {
 	$ZodReadonly.init(inst, def);
 	ZodType.init(inst, def);
@@ -6318,6 +6325,13 @@ function json$1(params) {
 		]);
 	});
 	return jsonSchema;
+}
+function preprocess(fn, schema) {
+	return new ZodPreprocess({
+		type: "pipe",
+		in: transform(fn),
+		out: schema
+	});
 }
 function datetime(params) {
 	return _isoDateTime(ZodISODateTime, params);
@@ -67217,6 +67231,13 @@ function chatUiPathFor(propertyId, ref) {
 	return `/p/${propertyId}/${LINK_SECTIONS[ref.kind]}/${ref.id}`;
 }
 const InternalHref = string().regex(INTERNAL_HREF_RX);
+const FieldId = preprocess((v) => typeof v === "string" ? v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "field" : v, string().min(1).max(40));
+const Cell = preprocess((v) => typeof v === "number" || typeof v === "boolean" ? String(v) : v, string().max(40));
+const Choice = preprocess((v) => typeof v === "string" || typeof v === "number" ? { label: String(v) } : v, object({
+	label: string().max(80),
+	value: string().max(60).optional(),
+	description: string().max(120).optional()
+}));
 const CHAT_UI_PROPS = {
 	Stack: object({}),
 	DataTable: object({
@@ -67252,6 +67273,52 @@ const CHAT_UI_PROPS = {
 			value: string().max(200).optional(),
 			description: string().max(120).optional()
 		})).min(2).max(6)
+	}),
+	Chart: object({
+		title: string().max(120).optional(),
+		kind: _enum([
+			"bar",
+			"line",
+			"area",
+			"pie"
+		]),
+		headers: array(string().max(40)).min(2).max(5),
+		rows: array(array(Cell).min(2).max(5)).min(1).max(24),
+		caption: string().max(160).optional()
+	}),
+	Form: object({
+		title: string().max(120).optional(),
+		description: string().max(200).optional(),
+		submitLabel: string().max(30).optional(),
+		fields: array(object({
+			id: FieldId,
+			label: string().max(80),
+			type: _enum([
+				"text",
+				"textarea",
+				"number",
+				"date",
+				"time",
+				"select",
+				"multiselect",
+				"checkbox"
+			]),
+			placeholder: string().max(80).optional(),
+			required: boolean().optional(),
+			options: array(Choice).max(12).optional()
+		})).min(1).max(8)
+	}),
+	Questionnaire: object({
+		title: string().max(120).optional(),
+		questions: array(object({
+			id: FieldId,
+			prompt: string().max(200),
+			description: string().max(160).optional(),
+			required: boolean().optional(),
+			multiple: boolean().optional(),
+			choices: array(Choice).min(2).max(8),
+			allowOther: boolean().optional()
+		})).min(1).max(6)
 	})
 };
 defineCatalog(schema, {
@@ -67286,6 +67353,18 @@ defineCatalog(schema, {
 		Options: {
 			props: CHAT_UI_PROPS.Options,
 			description: "Tappable quick-reply chips; a tap sends the option as the user's message."
+		},
+		Chart: {
+			props: CHAT_UI_PROPS.Chart,
+			description: "A bar / line / area / pie chart over a small data table."
+		},
+		Form: {
+			props: CHAT_UI_PROPS.Form,
+			description: "An inline form; submitting sends the answers as the user's message."
+		},
+		Questionnaire: {
+			props: CHAT_UI_PROPS.Questionnaire,
+			description: "A guided multi-step questionnaire; submitting sends the answers."
 		}
 	},
 	actions: {}
@@ -67381,6 +67460,9 @@ const CHAT_UI_TOOL_DESCRIPTION = [
 	"- StatRow — container for Stat children; props {}.",
 	"- Stat — props { label, value, hint? } — one headline number.",
 	"- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS EVERY time your reply asks the user to decide anything: pick one of N, yes/no, this-or-that, and EVERY confirmation — a reply ending \"say go and I'll build it\" MUST carry Options like [\"Go ahead — build it\", \"Adjust something first\"]. Tapping sends the option as the user's next message, IN THEIR NAME: `value` is the exact message sent and defaults to label — leave it out, or keep it identical to the label; never a sentence the user did not write. Make each label a complete, self-contained reply (\"Go ahead as-is\", not \"1\") that you can act on immediately — never an option whose only effect is that you ask another question. The chips ARE the list of choices: NEVER also write the choices in your text as a numbered/bulleted list, and never write \"reply with a number\", \"tap an option below\" or \"pick one above\" (they render BELOW your text) — end your text with the question itself, once, and let the chips carry the choices. The user can always type their own answer instead, so don't add a catch-all \"something else\" option.",
+	"- Chart — props { title?, kind: \"bar\"|\"line\"|\"area\"|\"pie\", headers: string[] (2-5: the first is the category axis, the rest are numeric series), rows: string[][] (≤24; row[0] = category label, the rest numbers as strings), caption? }. USE THIS for trends, comparisons and breakdowns (tasks per week, bookings by day, workload per person) — a picture beats a table of numbers. Pie wants ONE series.",
+	"- Form — props { title?, description?, submitLabel?, fields: [{ id (snake_case), label, type: \"text\"|\"textarea\"|\"number\"|\"date\"|\"time\"|\"select\"|\"multiselect\"|\"checkbox\", placeholder?, required?, options?: [{label, value?}] (select/multiselect) }] (1-8) }. USE THIS when you need SEVERAL details at once before you can act (a booking: name, party size, date, time; a task: title, owner, due date) — one form beats a question per turn. The person fills it in and the answers arrive as their next message, one \"- label: value\" line per field, so read them back from there and act; never ask again for a field they filled.",
+	"- Questionnaire — props { title?, questions: [{ id, prompt, description?, required?, multiple?, choices: [{label, value?, description?}] (2-8), allowOther? }] (1-6) } — a guided one-question-per-step survey with fixed choices (preferences, a quick audit, triage). Answers arrive like Form. Use Options for ONE quick choice, Questionnaire for several.",
 	"Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: \"task\"|\"project\"|\"document\"|\"meeting\"|\"form\"|\"space\", id: \"<uuid>\" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.",
 	"Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
 	"Placement: the rendered spec appears directly BELOW your message text, so write your reply to read into it (context and question last when using Options). Call at most once per reply — a second call replaces the first. Never repeat rendered data in your text: for tables/cards/stats keep the text to a one-line lead-in; for Options write your reply normally and end with the question."
@@ -68081,35 +68163,43 @@ function toMessageRequest(request) {
 }
 async function settleRequests(row, resolutions) {
 	if (resolutions.length === 0) return;
-	for (const r of resolutions) {
-		const status = r.outcome === "answered" || r.outcome === "approved" ? "completed" : r.outcome === "denied" || r.outcome === "cancelled" ? "rejected" : "cancelled";
-		await settleStep(row, { callId: `request:${r.requestId}` }, {
-			status,
-			detail: r.response?.text?.trim() || (r.response?.optionId ? `Chose ${r.response.optionId}` : r.outcome)
-		});
-	}
-	const messageId = row.question_message_id;
-	if (!messageId) return;
 	const server = streamServer();
+	const touched = /* @__PURE__ */ new Map();
+	for (const r of resolutions) {
+		const { data: park } = await serviceClient().from("channel_bot_activity").select("id, turn_nonce").eq("channel_id", row.channel_id).eq("thread_key", row.thread_key).eq("call_id", `request:${r.requestId}`).order("created_at", { ascending: false }).limit(1).maybeSingle();
+		if (!park) continue;
+		const status = r.outcome === "answered" || r.outcome === "approved" ? "completed" : r.outcome === "denied" || r.outcome === "cancelled" ? "rejected" : "cancelled";
+		await serviceClient().from("channel_bot_activity").update({
+			status,
+			settled_at: (/* @__PURE__ */ new Date()).toISOString(),
+			detail: r.response?.text?.trim() || (r.response?.optionId ? `Chose ${r.response.optionId}` : r.outcome)
+		}).eq("id", park.id);
+		const list = touched.get(park.turn_nonce) ?? [];
+		list.push(r);
+		touched.set(park.turn_nonce, list);
+	}
 	if (!server) return;
-	try {
-		const { message } = await server.getMessage(messageId);
-		const stamped = message.eve_requests;
-		const existing = Array.isArray(stamped) ? stamped : [];
-		if (existing.length === 0) return;
-		const next = existing.map((req) => {
-			const hit = resolutions.find((r) => r.requestId === req.requestId);
-			if (!hit) return req;
-			const chosen = hit.response?.optionId ? req.options.find((o) => o.id === hit.response?.optionId)?.label ?? hit.response.optionId : hit.response?.text ?? null;
-			return {
-				...req,
-				outcome: hit.outcome,
-				answer: chosen
-			};
-		});
-		await server.partialUpdateMessage(messageId, { set: { eve_requests: next } }, botUserId());
-	} catch (err) {
-		console.error("[channel-delivery] request settle failed", err);
+	for (const [nonce, batch] of touched) {
+		const messageId = `eve-${nonce}`;
+		try {
+			const { message } = await server.getMessage(messageId);
+			const stamped = message.eve_requests;
+			const existing = Array.isArray(stamped) ? stamped : [];
+			if (existing.length === 0) continue;
+			const next = existing.map((req) => {
+				const hit = batch.find((r) => r.requestId === req.requestId);
+				if (!hit) return req;
+				const chosen = hit.response?.optionId ? req.options.find((o) => o.id === hit.response?.optionId)?.label ?? hit.response.optionId : hit.response?.text ?? null;
+				return {
+					...req,
+					outcome: hit.outcome,
+					answer: chosen
+				};
+			});
+			await server.partialUpdateMessage(messageId, { set: { eve_requests: next } }, botUserId());
+		} catch (err) {
+			console.error("[channel-delivery] request settle failed", { messageId }, err);
+		}
 	}
 }
 async function deliverFailure(row, reason) {
@@ -89065,7 +89155,7 @@ async function error_handler_default(error, event) {
 		console.error(error);
 	}
 }
-installWorkflowDeploymentId("eve_a98e980362f0ea201562a19bff8ebba5");
+installWorkflowDeploymentId("eve_2104121e8aa61d90895e12f726659549");
 applyLocalWorkflowWorldDeliveryTimeoutDefaults();
 const workflowWorld = authenticateLocalWorkflowDeliveries(await aa({
 	dataDir: resolveLocalWorkflowWorldDataDirectory(process.cwd()),

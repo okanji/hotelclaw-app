@@ -85,6 +85,29 @@ const InternalHref = z.string().regex(INTERNAL_HREF_RX);
  * Prop schemas per component. Caps keep specs within Stream's custom-data
  * budget (~5KB/message) and keep the rendered UI scannable in a chat column.
  */
+/** A field / question id — any short string, normalised to snake_case. */
+const FieldId = z.preprocess(
+  (v) =>
+    typeof v === "string"
+      ? v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "field"
+      : v,
+  z.string().min(1).max(40),
+);
+/** A chart cell: the model writes numbers and strings alike. */
+const Cell = z.preprocess(
+  (v) => (typeof v === "number" || typeof v === "boolean" ? String(v) : v),
+  z.string().max(40),
+);
+/** A select / questionnaire choice: a bare label or an object. */
+const Choice = z.preprocess(
+  (v) => (typeof v === "string" || typeof v === "number" ? { label: String(v) } : v),
+  z.object({
+    label: z.string().max(80),
+    value: z.string().max(60).optional(),
+    description: z.string().max(120).optional(),
+  }),
+);
+
 export const CHAT_UI_PROPS = {
   Stack: z.object({}),
   DataTable: z.object({
@@ -130,7 +153,124 @@ export const CHAT_UI_PROPS = {
       .min(2)
       .max(6),
   }),
+  /**
+   * Data visualization — the documents' chart block's data model (first
+   * header = the category axis, the rest = numeric series), drawn with
+   * recharts on the web and react-native-svg on the phone.
+   */
+  Chart: z.object({
+    title: z.string().max(120).optional(),
+    kind: z.enum(["bar", "line", "area", "pie"]),
+    headers: z.array(z.string().max(40)).min(2).max(5),
+    // Cells arrive as numbers as often as strings — coerce, never reject.
+    rows: z
+      .array(z.array(Cell).min(2).max(5))
+      .min(1)
+      .max(24),
+    /** Shown under the chart ("Source: tasks, last 8 weeks"). */
+    caption: z.string().max(160).optional(),
+  }),
+  /**
+   * Inline chat form — several details collected at once (name, date,
+   * count…) instead of a question per turn. Submitting sends the answers
+   * as the user's next message in a fixed shape (`formatFormSubmission`).
+   */
+  Form: z.object({
+    title: z.string().max(120).optional(),
+    description: z.string().max(200).optional(),
+    submitLabel: z.string().max(30).optional(),
+    fields: z
+      .array(
+        z.object({
+          id: FieldId,
+          label: z.string().max(80),
+          type: z.enum([
+            "text",
+            "textarea",
+            "number",
+            "date",
+            "time",
+            "select",
+            "multiselect",
+            "checkbox",
+          ]),
+          placeholder: z.string().max(80).optional(),
+          required: z.boolean().optional(),
+          /** select / multiselect choices — "Label" or { label, value? }. */
+          options: z.array(Choice).max(12).optional(),
+        }),
+      )
+      .min(1)
+      .max(8),
+  }),
+  /**
+   * A guided multi-step questionnaire (the shadcn/ui Questionnaire
+   * primitive): one question per step with fixed choices, optional free
+   * text, progress + keyboard shortcuts. Submits like Form.
+   */
+  Questionnaire: z.object({
+    title: z.string().max(120).optional(),
+    questions: z
+      .array(
+        z.object({
+          id: FieldId,
+          prompt: z.string().max(200),
+          description: z.string().max(160).optional(),
+          required: z.boolean().optional(),
+          /** Checkboxes instead of radios. */
+          multiple: z.boolean().optional(),
+          choices: z.array(Choice).min(2).max(8),
+          /** Adds a free-text "something else" answer. */
+          allowOther: z.boolean().optional(),
+        }),
+      )
+      .min(1)
+      .max(6),
+  }),
 } as const;
+
+export type ChatUiFormField = z.infer<(typeof CHAT_UI_PROPS)["Form"]>["fields"][number];
+export type ChatUiQuestion = z.infer<
+  (typeof CHAT_UI_PROPS)["Questionnaire"]
+>["questions"][number];
+export type ChatUiChartProps = z.infer<(typeof CHAT_UI_PROPS)["Chart"]>;
+
+/**
+ * The message a submitted Form / Questionnaire sends as the user. One fixed
+ * shape on every client so the model can read it back reliably: a heading
+ * line, then "label: value" per answer; empty answers are omitted.
+ */
+export function formatFormSubmission(
+  title: string | undefined,
+  entries: Array<{ label: string; value: string | string[] | boolean | null | undefined }>,
+): string {
+  const lines = entries
+    .map(({ label, value }) => {
+      if (value === null || value === undefined || value === "") return null;
+      if (Array.isArray(value)) return value.length ? `- ${label}: ${value.join(", ")}` : null;
+      if (typeof value === "boolean") return `- ${label}: ${value ? "yes" : "no"}`;
+      return `- ${label}: ${value}`;
+    })
+    .filter((l): l is string => l !== null);
+  const heading = title ? `${title} — answers:` : "Answers:";
+  return lines.length ? `${heading}\n${lines.join("\n")}` : `${heading}\n- (nothing filled in)`;
+}
+
+/** Numeric view of a Chart's rows (strings → numbers, blanks → 0). */
+export function chartSeries(props: ChatUiChartProps): {
+  categories: string[];
+  series: Array<{ name: string; values: number[] }>;
+} {
+  const categories = props.rows.map((r) => r[0] ?? "");
+  const series = props.headers.slice(1).map((name, i) => ({
+    name,
+    values: props.rows.map((r) => {
+      const n = Number(r[i + 1] ?? "");
+      return Number.isFinite(n) ? n : 0;
+    }),
+  }));
+  return { categories, series };
+}
 
 export type ChatUiOption = z.infer<
   (typeof CHAT_UI_PROPS)["Options"]
@@ -175,6 +315,18 @@ export const chatUiCatalog = defineCatalog(schema, {
       props: CHAT_UI_PROPS.Options,
       description:
         "Tappable quick-reply chips; a tap sends the option as the user's message.",
+    },
+    Chart: {
+      props: CHAT_UI_PROPS.Chart,
+      description: "A bar / line / area / pie chart over a small data table.",
+    },
+    Form: {
+      props: CHAT_UI_PROPS.Form,
+      description: "An inline form; submitting sends the answers as the user's message.",
+    },
+    Questionnaire: {
+      props: CHAT_UI_PROPS.Questionnaire,
+      description: "A guided multi-step questionnaire; submitting sends the answers.",
     },
   },
   actions: {},
@@ -365,6 +517,9 @@ export const CHAT_UI_TOOL_DESCRIPTION = [
   '- StatRow — container for Stat children; props {}.',
   '- Stat — props { label, value, hint? } — one headline number.',
   '- Options — props { prompt?, options: [{ label, value?, description? }] (2-6) } — tappable quick-reply buttons. USE THIS EVERY time your reply asks the user to decide anything: pick one of N, yes/no, this-or-that, and EVERY confirmation — a reply ending "say go and I\'ll build it" MUST carry Options like ["Go ahead — build it", "Adjust something first"]. Tapping sends the option as the user\'s next message, IN THEIR NAME: `value` is the exact message sent and defaults to label — leave it out, or keep it identical to the label; never a sentence the user did not write. Make each label a complete, self-contained reply ("Go ahead as-is", not "1") that you can act on immediately — never an option whose only effect is that you ask another question. The chips ARE the list of choices: NEVER also write the choices in your text as a numbered/bulleted list, and never write "reply with a number", "tap an option below" or "pick one above" (they render BELOW your text) — end your text with the question itself, once, and let the chips carry the choices. The user can always type their own answer instead, so don\'t add a catch-all "something else" option.',
+  '- Chart — props { title?, kind: "bar"|"line"|"area"|"pie", headers: string[] (2-5: the first is the category axis, the rest are numeric series), rows: string[][] (≤24; row[0] = category label, the rest numbers as strings), caption? }. USE THIS for trends, comparisons and breakdowns (tasks per week, bookings by day, workload per person) — a picture beats a table of numbers. Pie wants ONE series.',
+  '- Form — props { title?, description?, submitLabel?, fields: [{ id (snake_case), label, type: "text"|"textarea"|"number"|"date"|"time"|"select"|"multiselect"|"checkbox", placeholder?, required?, options?: [{label, value?}] (select/multiselect) }] (1-8) }. USE THIS when you need SEVERAL details at once before you can act (a booking: name, party size, date, time; a task: title, owner, due date) — one form beats a question per turn. The person fills it in and the answers arrive as their next message, one "- label: value" line per field, so read them back from there and act; never ask again for a field they filled.',
+  '- Questionnaire — props { title?, questions: [{ id, prompt, description?, required?, multiple?, choices: [{label, value?, description?}] (2-8), allowOther? }] (1-6) } — a guided one-question-per-step survey with fixed choices (preferences, a quick audit, triage). Answers arrive like Form. Use Options for ONE quick choice, Questionnaire for several.',
   'Deep links: when a row or card corresponds to a record the user can open, ALWAYS attach a link ref { kind: "task"|"project"|"document"|"meeting"|"form"|"space", id: "<uuid>" }. The id MUST be a real id copied from a tool result in this conversation — never invented. Invalid ids are silently dropped; valid ones become clickable rows/cards.',
   "Example: {\"root\":\"t\",\"elements\":{\"t\":{\"type\":\"DataTable\",\"props\":{\"columns\":[\"Task\",\"Status\"],\"rows\":[[\"Fix fridge\",\"In progress\"]],\"rowLinks\":[{\"kind\":\"task\",\"id\":\"<uuid from tool result>\"}]}}}}",
   "Placement: the rendered spec appears directly BELOW your message text, so write your reply to read into it (context and question last when using Options). Call at most once per reply — a second call replaces the first. Never repeat rendered data in your text: for tables/cards/stats keep the text to a one-line lead-in; for Options write your reply normally and end with the question.",
