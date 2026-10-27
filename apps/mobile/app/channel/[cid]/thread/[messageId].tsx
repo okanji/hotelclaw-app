@@ -7,9 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-// SDK 56: import react-navigation APIs via expo-router, not @react-navigation/*
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StackHeader, useStackHeaderHeight } from "../../../../components/StackHeader";
 import { Channel, Thread, useChatContext } from "stream-chat-expo";
 import { formatMessage, type Channel as ChannelType } from "stream-chat";
 import { useAppContext } from "../../../../contexts/AppContext";
@@ -34,7 +33,7 @@ export default function ThreadScreen() {
     contextChannel?.cid === cid ? contextChannel : undefined,
   );
   const [error, setError] = useState<string | null>(null);
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStackHeaderHeight();
 
   useEffect(() => {
     if (channel || !cid) return;
@@ -89,7 +88,7 @@ export default function ThreadScreen() {
   if (error) {
     return (
       <>
-        <Stack.Screen options={{ title: "Thread" }} />
+        <StackHeader title="Thread" />
         <View style={styles.center}>
           <Text style={styles.title}>Can&apos;t open this thread</Text>
           <Text style={styles.body}>{error}</Text>
@@ -104,7 +103,7 @@ export default function ThreadScreen() {
   if (!channel || !thread) {
     return (
       <>
-        <Stack.Screen options={{ title: "Thread" }} />
+        <StackHeader title="Thread" />
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -114,13 +113,22 @@ export default function ThreadScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Thread" }} />
+      <StackHeader title="Thread" />
       {/* Same custom attachment renderers as the channel screen. */}
       <CustomAttachmentProvider>
       <Channel
         channel={channel}
-        keyboardVerticalOffset={headerHeight}
+        // The header is drawn in-screen (StackHeader), so the keyboard view's
+        // measured y already includes it — an offset would double-count and
+        // float the composer far above the keyboard. topInset still bounds
+        // the attachment picker below the header.
+        keyboardVerticalOffset={0}
         topInset={headerHeight}
+        // Channel's keyboard wrapper is unstyled and its body is
+        // height:'100%', which resolves to the whole screen — fine under a
+        // native header, but under the in-screen header it pushes the
+        // composer off the bottom. flex:1 sizes it to the space below.
+        additionalKeyboardAvoidingViewProps={{ style: styles.screen }}
         thread={thread}
         threadList
         // Threads cluster the same way as the main list (web does this for its
@@ -149,6 +157,9 @@ export default function ThreadScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: "center",

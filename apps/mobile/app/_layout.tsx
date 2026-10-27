@@ -45,8 +45,17 @@ function AuthedStack() {
                 name="(tabs)"
                 options={{ headerShown: false, title: "" }}
               />
-              <Stack.Screen name="channel/[cid]" />
-              <Stack.Screen name="channel/[cid]/thread/[messageId]" />
+              {/* Chat screens draw their own compact header (StackHeader) —
+                  Android's default native-stack bar is 64dp with a 22sp
+                  title. */}
+              <Stack.Screen
+                name="channel/[cid]"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="channel/[cid]/thread/[messageId]"
+                options={{ headerShown: false }}
+              />
               <Stack.Screen name="task/[taskId]" />
               <Stack.Screen name="documents" />
               <Stack.Screen name="document/[documentId]" />

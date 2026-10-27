@@ -123,8 +123,11 @@ export function ReplyActions({
           </>
         ) : null}
         {children ? <View style={styles.extra}>{children}</View> : null}
-        {saved ? <Text style={styles.savedText}>{"Saved — I'll remember that."}</Text> : null}
       </View>
+      {/* Its own line, not a flex item in the icon row: a long Text in a
+          wrapping row is measured at the row's full width and then placed
+          after the icons, so it ran past the bubble edge and got clipped. */}
+      {saved ? <Text style={styles.savedText}>{"Saved — I'll remember that."}</Text> : null}
       {noteOpen ? (
         <View style={styles.noteRow}>
           <TextInput
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 2, flexWrap: "wrap" },
   iconButton: { padding: 4 },
   extra: { marginLeft: 6 },
-  savedText: { fontSize: 12, color: "#6b7280", marginLeft: 6 },
+  savedText: { fontSize: 12, color: "#6b7280", paddingHorizontal: 4 },
   noteRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   noteInput: {
     flex: 1,

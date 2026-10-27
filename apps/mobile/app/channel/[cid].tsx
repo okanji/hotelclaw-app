@@ -7,9 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-// SDK 56: import react-navigation APIs via expo-router, not @react-navigation/*
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StackHeader, useStackHeaderHeight } from "../../components/StackHeader";
 import {
   Channel,
   MessageComposer,
@@ -51,7 +50,7 @@ export default function ChannelScreen() {
   );
   const [error, setError] = useState<string | null>(null);
   const [aiSheetOpen, setAiSheetOpen] = useState(false);
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useStackHeaderHeight();
 
   // If we land here via a cold deep-link (no channel handed through context),
   // recreate the Channel instance from the cid param — per Stream's navigation
@@ -117,7 +116,7 @@ export default function ChannelScreen() {
   if (error || outsideTenant) {
     return (
       <>
-        <Stack.Screen options={{ title: "Unavailable" }} />
+        <StackHeader title="Unavailable" />
         <View style={styles.center}>
           <Text style={styles.title}>Can&apos;t open this channel</Text>
           <Text style={styles.body}>
@@ -147,7 +146,7 @@ export default function ChannelScreen() {
   if (!channel) {
     return (
       <>
-        <Stack.Screen options={{ title: "" }} />
+        <StackHeader title="" />
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -156,22 +155,20 @@ export default function ChannelScreen() {
   }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: channel.data?.name ?? "Channel",
-          // Channel-wide AI reply settings (mode + sensitivity) — the mobile
-          // counterpart of web's channel-header AI button.
-          headerRight: () => (
-            <Pressable
-              onPress={() => setAiSheetOpen(true)}
-              hitSlop={10}
-              accessibilityLabel="AI assistant settings"
-            >
-              <Ionicons name="sparkles-outline" size={20} color="#111827" />
-            </Pressable>
-          ),
-        }}
+    <View style={styles.screen}>
+      <StackHeader
+        title={channel.data?.name ?? "Channel"}
+        // Channel-wide AI reply settings (mode + sensitivity) — the mobile
+        // counterpart of web's channel-header AI button.
+        right={
+          <Pressable
+            onPress={() => setAiSheetOpen(true)}
+            hitSlop={10}
+            accessibilityLabel="AI assistant settings"
+          >
+            <Ionicons name="sparkles-outline" size={20} color="#111827" />
+          </Pressable>
+        }
       />
       <AiModeSheet
         channel={channel}
@@ -183,8 +180,17 @@ export default function ChannelScreen() {
       <CustomAttachmentProvider>
       <Channel
         channel={channel}
-        keyboardVerticalOffset={headerHeight}
+        // The header is drawn in-screen (StackHeader), so the keyboard view's
+        // measured y already includes it — an offset would double-count and
+        // float the composer far above the keyboard. topInset still bounds
+        // the attachment picker below the header.
+        keyboardVerticalOffset={0}
         topInset={headerHeight}
+        // Channel's keyboard wrapper is unstyled and its body is
+        // height:'100%', which resolves to the whole screen — fine under a
+        // native header, but under the in-screen header it pushes the
+        // composer off the bottom. flex:1 sizes it to the space below.
+        additionalKeyboardAvoidingViewProps={{ style: styles.screen }}
         thread={thread}
         // Same clustering as web — shared rules, not a reimplementation.
         getMessageGroupStyle={slackGetMessageGroupStyle}
@@ -227,11 +233,14 @@ export default function ChannelScreen() {
         <MessageComposer TextInputComponent={MentionTextInput} />
       </Channel>
       </CustomAttachmentProvider>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: "center",
