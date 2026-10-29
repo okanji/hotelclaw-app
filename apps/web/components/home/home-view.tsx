@@ -17,13 +17,13 @@ import {
 } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   Check,
   Eye,
   FolderPlus,
   Home as HomeIcon,
   Plus,
   RotateCcw,
-  Sparkles,
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { InviteDialog } from "@/components/shell/invite-dialog";
 import { CreateEntityDialog } from "@/components/projects/create-entity-dialog";
 import { Gi } from "@/components/gr8r/icon";
-import { HomeOverview } from "@/components/gr8r/home-overview";
-import { QuickAccessRow } from "./quick-access";
+import { HomeStats } from "@/components/gr8r/home-overview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,15 +45,11 @@ import { cn } from "@/lib/utils";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { insightsMetricsQueryOptions } from "@/lib/query/insights-queries";
 import { useNotifications } from "@/components/shell/use-notifications";
-import {
-  DASHBOARD_WIDGETS,
-  DASHBOARD_WIDGET_IDS,
-  WIDGETS_BY_ID,
-} from "./dashboard-registry";
+import { DASHBOARD_WIDGETS, WIDGETS_BY_ID } from "./dashboard-registry";
 import { useDashboardLayout } from "./use-dashboard-layout";
 import Link from "next/link";
 import { CustomizeMenu, HiddenTray } from "./editorial-section";
-import { DocumentSection, SectionHeading } from "./document-section";
+import { DocumentSection } from "./document-section";
 import {
   DashboardFilterMenu,
   DashboardFilterProvider,
@@ -63,47 +58,31 @@ import {
 import {
   asHomeRole,
   DASHBOARD_PRESETS,
-  heroFor,
   roleWeightedOrder,
   type HomeLens,
   type HomeRole,
 } from "./role-order";
-import { ShiftBriefWidget } from "./widgets/shift-brief-widget";
-import { AttentionWidget } from "./widgets/attention-widget";
-import { IntelligenceBriefWidget } from "./widgets/intelligence-brief-widget";
 
 /**
- * Property "Home" — a role-adaptive **home document**, not a dashboard.
+ * Property "Home" — a role-adaptive, rearrangeable page.
  *
- * Structure (notion-spec-v2 §3): the whole page is ONE `PageShell` column —
- * `page` (960px), the app-wide default, so the masthead and every section
- * below it share one left edge. (Home was briefly a 720px prose column; its
- * content is list rows with right-aligned metadata, not prose, and those rows
- * read better with the extra measure.) The page chrome is the app-wide
- * compact `PageHeader` ("Home" + the view-as / filter / customize controls);
- * the greeting is page CONTENT at the section tier, then the metrics line,
- * then content. There is deliberately **no boxed KPI
- * strip under the title**: the role-tuned numbers are a single quiet inline
- * metrics line (12px faint labels beside 24px weight-600 tabular values,
- * separated by whitespace, no card chrome), because they are heterogeneous
- * signals that each belong to a *different* section below — folding them into
- * those sections would scatter the at-a-glance read that the role weighting
- * exists to give. The only page-like cards are the four quick-access
- * destinations, which really are pages.
+ * Structure: the app-wide compact `PageHeader` ("Home" + the view-as / filter
+ * / customize controls), then gr8r's `.page` column: a greeting masthead
+ * (date + the role-tuned metrics on one quiet line, the page actions on the
+ * right), the four headline numbers (`HomeStats` — pastel-chipped stat
+ * cards, pinned under the masthead because they are the page's at-a-glance
+ * read, not a section), then ONE sortable two-column grid holding every
+ * section in the registry (`dashboard-registry.tsx`): gr8r's My tasks /
+ * Projects / Upcoming deadlines / Recent activity panels and ours (the
+ * brief, attention, shift brief, pulse…) alike. Every section is draggable
+ * and hideable; `span: "full"` sections take both columns. There is no
+ * special "hero" band any more — the role seed simply puts that lens's
+ * "today" section first.
  *
- * Below the masthead the page is a stack of **document sections** — a 24px
- * weight-600 heading, a 12px faint caption, then the content, separated by
- * whitespace — instead of the old two-column masonry of bordered tiles. The
- * per-user reorder/hide arrangement survives untouched: the grip just moved to
- * the block gutter to the left of the column (see `DocumentSection`).
- *
- * Role still drives the ordering: one widget registry, re-weighted by the
- * viewer's property role — the metrics line, the single promoted "today"
- * section, and the stack's first-render order all key off whether you're an
- * owner, a manager, or staff. The role seed only changes what you START with;
- * the saved on-device arrangement wins, and an unknown role degrades to the
- * persona-blind registry default. The personal activity feed lives in the
- * second sidebar (HomeSection).
+ * Role drives the ordering: one registry re-weighted by the viewer's
+ * property role (`roleWeightedOrder`). The role seed only changes what you
+ * START with; the saved on-device arrangement wins, and an unknown role
+ * degrades to the registry default.
  */
 export function HomeView({
   propertyId,
@@ -123,7 +102,7 @@ export function HomeView({
 
   // Role drives the lens. `viewAs` lets an owner/manager preview another
   // persona's Home; it never changes data scope (the APIs stay role-shaped) —
-  // only the ordering + hero + masthead copy.
+  // only the ordering + masthead copy.
   const { data: members } = useQuery(propertyMembersQueryOptions(propertyId));
   const realRole = useMemo<HomeRole | null>(
     () => asHomeRole(members?.find((m) => m.id === userId)?.role),
@@ -145,6 +124,18 @@ export function HomeView({
   const canManage = realRole === "owner" || realRole === "manager";
   const effectiveUserId = viewAsUser?.id ?? userId;
 
+  // The brief is owner/manager content (the metrics endpoint is role-shaped
+  // and the widget renders nothing on the staff shape), so the staff lens
+  // never lists it.
+  const available = useMemo(
+    () =>
+      DASHBOARD_WIDGETS.filter((w) =>
+        role === "staff" ? w.id !== "intelligence" : true,
+      ),
+    [role],
+  );
+  const availableIds = useMemo(() => available.map((w) => w.id), [available]);
+
   const {
     order,
     visible,
@@ -155,29 +146,22 @@ export function HomeView({
     reset,
     applyLayout,
   } = useDashboardLayout(
-      propertyId,
-      userId,
-      DASHBOARD_WIDGET_IDS,
-      "home-layout",
-      roleWeightedOrder(role),
-    );
+    propertyId,
+    userId,
+    availableIds,
+    // v2 (2026-10-29): the registry gained the gr8r panels, the brief and
+    // quick access, and rows gained spans — reseed once from the role default
+    // rather than appending five new sections to the end of every saved order.
+    "home-layout-v2",
+    roleWeightedOrder(role).filter((id) => availableIds.includes(id)),
+  );
 
   const { unseenCount } = useNotifications(effectiveUserId);
   const metrics = useHomeMetrics(role, unseenCount, propertyId);
 
-  // The one signal lifted out of the masonry into the "Today" hero for this
-  // lens. `intelligence` is hero-only (not a registry tile); the others are
-  // real widgets filtered out of the grid below so they aren't shown twice.
-  const heroId = heroFor(role);
-  const showHero =
-    heroId !== null &&
-    (heroId === "intelligence" || !isHidden(heroId)) &&
-    !(viewAsUser && !IMPERSONATION_SAFE_WIDGETS.has(heroId));
-  const hero = heroId ? HERO_META[heroId] : null;
   const gridIds = visible.filter(
     (id) =>
-      id !== heroId &&
-      !GR8R_COVERED.has(id) &&
+      availableIds.includes(id) &&
       (!viewAsUser || IMPERSONATION_SAFE_WIDGETS.has(id)),
   );
 
@@ -193,6 +177,8 @@ export function HomeView({
     if (from === -1 || to === -1) return;
     setOrder(arrayMove(order, from, to));
   }
+
+  const base = `/p/${propertyId}`;
 
   return (
     <DashboardFilterProvider value={filter}>
@@ -234,10 +220,8 @@ export function HomeView({
               onChange={setFilter}
             />
             <CustomizeMenu
-              items={STACK_WIDGETS}
-              visibleCount={
-                visible.filter((id) => !GR8R_COVERED.has(id)).length
-              }
+              items={available}
+              visibleCount={gridIds.length}
               isHidden={isHidden}
               onToggle={toggleHidden}
               onReset={reset}
@@ -253,16 +237,14 @@ export function HomeView({
         }
       />
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="page">
-        <div className="ph">
+      <div className="page home-page">
+        <div className="ph home-ph">
           <div>
             <h1>{greeting}</h1>
-            <p>
+            <p className="home-sub">
               {today ? <span className="num">{today}</span> : null}
-              {today ? " · " : null}
-              Here&apos;s what&apos;s happening across your workspace.
+              <MetricsLine items={metrics} />
             </p>
-            <MetricsLine items={metrics} />
           </div>
           <div className="acts">
             {canManage ? (
@@ -272,7 +254,7 @@ export function HomeView({
                 onClick={() => setInviteOpen(true)}
               >
                 <Gi icon={UserPlus} size={14} />
-                Invite member
+                Invite
               </button>
             ) : null}
             <button
@@ -286,7 +268,7 @@ export function HomeView({
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => router.push(`/p/${propertyId}/tasks/new`)}
+              onClick={() => router.push(`${base}/tasks/new`)}
             >
               <Gi icon={Plus} size={14} />
               New task
@@ -295,23 +277,14 @@ export function HomeView({
         </div>
 
         {viewAsUser ? (
-          <div
-            className="panel row"
-            style={{
-              marginBottom: 16,
-              padding: "10px 14px",
-              gap: 10,
-              flexWrap: "wrap",
-              background: "var(--g8-amber-soft)",
-            }}
-          >
+          <div className="panel row home-viewas">
             <Gi icon={Eye} size={15} />
             <span>
               Viewing as <b>{viewAsUser.name}</b> ({ROLE_LABEL[viewAsUser.role]})
             </span>
             <span className="muted" style={{ fontSize: "var(--g8-fs-xs)" }}>
-              Read-only preview — personal sections (shift brief, notifications)
-              are hidden; anything you click still acts as you.
+              Read-only preview — personal sections are hidden; anything you
+              click still acts as you.
             </span>
             <button
               type="button"
@@ -324,32 +297,13 @@ export function HomeView({
           </div>
         ) : null}
 
-        <HomeOverview propertyId={propertyId} userId={effectiveUserId} />
+        <HomeStats propertyId={propertyId} userId={effectiveUserId} />
 
-        {/* Below gr8r's dashboard: the promoted AI "today" panel, then every
-            other Home section as a gr8r panel in a reorderable grid. */}
-        <div className="stack" style={{ marginTop: 16 }}>
-          {showHero && hero ? (
-            <section className="panel min-w-0">
-              <SectionHeading title={hero.title} subLabel={hero.kicker}>
-                <Gi icon={Sparkles} size={14} className="faint" />
-              </SectionHeading>
-              <div className="panel-b min-w-0">
-                <HeroBody heroId={heroId!} propertyId={propertyId} />
-              </div>
-            </section>
-          ) : null}
-
-          <QuickAccessRow propertyId={propertyId} />
-
+        <div className="home-body">
           {gridIds.length === 0 ? (
             <div className="panel">
               <div className="empty-state sm">
-                <p>
-                  {showHero
-                    ? "Everything else is hidden — bring a section back from the tray below."
-                    : "Every section is hidden — bring one back from the tray below."}
-                </p>
+                <p>Every section is hidden — bring one back from the tray below.</p>
                 <button
                   type="button"
                   className="btn btn-sm btn-secondary"
@@ -367,15 +321,7 @@ export function HomeView({
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={gridIds} strategy={rectSortingStrategy}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fill, minmax(min(100%, 380px), 1fr))",
-                    gap: 16,
-                    alignItems: "start",
-                  }}
-                >
+                <div className="home-grid">
                   {gridIds.map((id) => {
                     const def = WIDGETS_BY_ID.get(id);
                     if (!def) return null;
@@ -386,7 +332,22 @@ export function HomeView({
                         id={id}
                         title={def.title}
                         subLabel={def.kicker}
+                        icon={def.icon}
+                        tone={def.tone}
+                        span={def.span}
+                        flush={def.flush}
                         onHide={() => toggleHidden(id)}
+                        headerRight={
+                          def.link ? (
+                            <Link
+                              href={def.link.href(base)}
+                              className="btn btn-sm btn-ghost home-link"
+                            >
+                              {def.link.label}
+                              <Gi icon={ArrowUpRight} size={13} />
+                            </Link>
+                          ) : null
+                        }
                       >
                         <Component
                           propertyId={propertyId}
@@ -401,11 +362,7 @@ export function HomeView({
           )}
         </div>
 
-        <HiddenTray
-          items={STACK_WIDGETS}
-          hidden={hidden}
-          onRestore={toggleHidden}
-        />
+        <HiddenTray items={available} hidden={hidden} onRestore={toggleHidden} />
       </div>
     </div>
     </div>
@@ -441,21 +398,15 @@ type HomeMetric = {
 };
 
 /**
- * The role-tuned signals gr8r's 4-stat strip doesn't carry (insight
- * attention, unread) — a quiet line of links under the
- * page-head subtitle, each a deep link to its surface.
+ * The role-tuned signals the stat cards don't carry (insight attention,
+ * unread) — quiet inline links on the masthead's date line.
  */
 function MetricsLine({ items }: { items: HomeMetric[] }) {
   if (items.length === 0) return null;
   return (
-    <p className="row" style={{ flexWrap: "wrap", gap: "2px 14px" }}>
+    <>
       {items.map((item) => (
-        <Link
-          key={item.label}
-          href={item.href}
-          className="muted"
-          style={{ fontSize: "var(--g8-fs-sm)" }}
-        >
+        <Link key={item.label} href={item.href} className="muted home-metric">
           <span
             className="num"
             style={{
@@ -471,12 +422,12 @@ function MetricsLine({ items }: { items: HomeMetric[] }) {
           {item.label}
         </Link>
       ))}
-    </p>
+    </>
   );
 }
 
 /** Role-tuned extra numbers. Owners get the risk figure beside
- *  unread; everyone else just unread (open / due work is in the stat strip).
+ *  unread; everyone else just unread (open / due work is in the stat cards).
  *  All values come from queries the sections below already fetch. */
 function useHomeMetrics(
   role: HomeLens,
@@ -507,46 +458,18 @@ function useHomeMetrics(
   return [unreadMetric];
 }
 
-/** Registry sections gr8r's dashboard above already covers ("My tasks",
- *  "Recent activity") — kept out of the panel grid so they don't render
- *  twice. Their saved hidden/order state is untouched. */
-const GR8R_COVERED = new Set(["your-tasks", "workspace-activity"]);
-const STACK_WIDGETS = DASHBOARD_WIDGETS.filter((w) => !GR8R_COVERED.has(w.id));
-
-/* ── The promoted "today" section ──────────────────────────────────────────── */
-
-const HERO_META: Record<string, { kicker: string; title: string }> = {
-  intelligence: { kicker: "Today · Where things stand", title: "The brief" },
-  attention: { kicker: "Today · Needs you", title: "Attention" },
-  "shift-brief": { kicker: "Today · Your shift", title: "Shift brief" },
-};
-
-function HeroBody({
-  heroId,
-  propertyId,
-}: {
-  heroId: string;
-  propertyId: string;
-}) {
-  switch (heroId) {
-    case "intelligence":
-      return <IntelligenceBriefWidget propertyId={propertyId} />;
-    case "attention":
-      return <AttentionWidget propertyId={propertyId} />;
-    case "shift-brief":
-      return <ShiftBriefWidget propertyId={propertyId} />;
-    default:
-      return null;
-  }
-}
-
 /** Widgets that are safe to render for an impersonated user: their data is
  *  property-readable and keyed by the userId PROP. Widgets backed by
  *  personal-RLS tables or session-derived APIs (shift brief, morning
  *  check-in, notifications, personal pins, calendar day) would silently show
  *  the OWNER's data — hidden instead. */
 const IMPERSONATION_SAFE_WIDGETS = new Set([
+  "intelligence",
   "your-tasks",
+  "deadlines",
+  "project-progress",
+  "workspace-activity",
+  "quick-access",
   "team",
   "property-pulse",
   "attention",
@@ -557,10 +480,9 @@ const IMPERSONATION_SAFE_WIDGETS = new Set([
 
 /* ── "Viewing as" lens preview ─────────────────────────────────────────────── */
 
-/** Lets an owner/manager preview how Home looks for each role — which signal
- *  leads the "Today" hero and how the sections are ordered. A preview only, NOT
- *  a permission switch: data stays scoped to the real role; just the ordering,
- *  hero, and masthead copy change. */
+/** Lets an owner/manager preview how Home looks for each role — how the
+ *  sections are ordered. A preview only, NOT a permission switch: data stays
+ *  scoped to the real role; just the ordering and masthead copy change. */
 function ViewAsMenu({
   realRole,
   viewAs,

@@ -1,28 +1,41 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { EyeOff, GripVertical } from "lucide-react";
+import { EyeOff, GripVertical, type LucideIcon } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { cn } from "@/lib/utils";
+import type { WidgetTone } from "./dashboard-registry";
 
 /**
- * A Home section as a gr8r `.panel` (gr8r-studio's panel-h / panel-b): the
- * title + a faint caption in the head, the widget in the body. The reorder
- * grip and the hide button sit in the head and reveal on hover / focus; the
- * per-user arrangement (`useDashboardLayout`) is unchanged.
+ * A Home section as a gr8r `.panel`: a pastel icon chip, the title and a
+ * faint kicker in the head, the widget in the body. Every section is a
+ * dnd-kit sortable item in Home's two-column grid — `span="full"` takes
+ * both columns — and the reorder grip + hide button reveal on hover / focus.
+ * The per-user arrangement (`useDashboardLayout`) is unchanged.
  */
 export function DocumentSection({
   id,
   title,
   subLabel,
+  icon,
+  tone = "gray",
+  span,
+  flush = false,
   onHide,
   headerRight,
   children,
 }: {
   id: string;
   title: string;
-  /** Sentence-case 12px faint caption under the heading. */
+  /** Sentence-case 12px faint caption beside the heading. */
   subLabel?: string;
+  icon?: LucideIcon;
+  tone?: WidgetTone;
+  span?: "full";
+  /** The body draws its own edge-to-edge rows (lists, tables). */
+  flush?: boolean;
   onHide: () => void;
   headerRight?: React.ReactNode;
   children: React.ReactNode;
@@ -40,10 +53,14 @@ export function DocumentSection({
   return (
     <section
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        gridColumn: span === "full" ? "1 / -1" : undefined,
+      }}
       className={cn(
-        "panel group/section relative min-w-0",
-        isDragging && "opacity-60",
+        "panel home-section group/section relative min-w-0",
+        isDragging && "is-dragging",
       )}
     >
       <div className="panel-h">
@@ -52,16 +69,26 @@ export function DocumentSection({
           type="button"
           aria-label={`Reorder ${title}`}
           title="Drag to reorder"
-          className="ibtn ibtn-sm opacity-0 transition-opacity group-hover/section:opacity-100 focus-visible:opacity-100"
-          style={{ cursor: "grab", touchAction: "none", marginLeft: -6 }}
+          className="ibtn ibtn-sm home-grip"
           {...attributes}
           {...listeners}
         >
           <GripVertical size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>
+        {icon ? (
+          <span
+            className="picon home-chip"
+            style={
+              { "--g8-c": `var(--g8-${tone})`, "--g8-sz": "24px" } as CSSProperties
+            }
+            aria-hidden="true"
+          >
+            <Gi icon={icon} size={13} />
+          </span>
+        ) : null}
         <h2 className="trunc">{title}</h2>
         {subLabel ? (
-          <span className="faint trunc" style={{ fontSize: "var(--g8-fs-xs)" }}>
+          <span className="faint trunc hide-m" style={{ fontSize: "var(--g8-fs-xs)" }}>
             {subLabel}
           </span>
         ) : null}
@@ -69,7 +96,7 @@ export function DocumentSection({
           {headerRight}
           <button
             type="button"
-            className="ibtn ibtn-sm opacity-0 transition-opacity group-hover/section:opacity-100 focus-visible:opacity-100"
+            className="ibtn ibtn-sm home-hide"
             aria-label={`Hide ${title}`}
             title="Hide"
             onClick={onHide}
@@ -78,33 +105,7 @@ export function DocumentSection({
           </button>
         </div>
       </div>
-      <div className="panel-b min-w-0">{children}</div>
+      <div className={flush ? "min-w-0" : "panel-b min-w-0"}>{children}</div>
     </section>
-  );
-}
-
-/**
- * A gr8r panel head for a non-draggable panel (the promoted "today" panel).
- * Children are right-aligned controls.
- */
-export function SectionHeading({
-  title,
-  subLabel,
-  children,
-}: {
-  title: string;
-  subLabel?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="panel-h">
-      <h2 className="trunc">{title}</h2>
-      {subLabel ? (
-        <span className="faint trunc" style={{ fontSize: "var(--g8-fs-xs)" }}>
-          {subLabel}
-        </span>
-      ) : null}
-      {children ? <div className="acts">{children}</div> : null}
-    </div>
   );
 }

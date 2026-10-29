@@ -107,6 +107,21 @@ progress log: `~/.claude/plans/gr8r-ui-port.md`.
   `.bottomnav` (in `mobile-top-bar.tsx`). Appearance prefs (accent / density
   / motion, Settings → Appearance) are `data-*` on the `.g8` root via
   `<AppearancePrefs />`.
+- **Home is one sortable grid (2026-10-29).** `components/home/home-view.tsx`
+  = masthead (greeting, date · role metrics) › `HomeStats` (four stat
+  cards with pastel `.picon` chips, pinned) › `.home-grid`, a two-column
+  dnd-kit grid of EVERY section in `components/home/dashboard-registry.tsx`
+  — gr8r's My tasks / Projects / Upcoming deadlines / Recent activity
+  (`components/gr8r/home-overview.tsx` exports them as widget bodies) AND
+  ours (the brief, attention, shift brief, pulse, quick access…) — each a
+  `DocumentSection` (gr8r `.panel` + tinted icon chip + hover grip/hide).
+  `WidgetDef` carries `icon`, `tone`, `span: "full"` (both columns: the
+  brief, My tasks, Projects, Quick access, Shift brief, Resources),
+  `flush` (edge-to-edge rows) and `link` (the head's "View all"). No hero
+  band: the role seed (`role-order.ts`) just puts the lens's "today"
+  section first; `intelligence` is dropped from the staff lens. Layout
+  storage key is `home-layout-v2` (reseeded once). CSS: the "Home" block at
+  the end of `app/gr8r-ext.css`.
 - **Pages ported** (`components/gr8r/*`): Home (`home-overview`), Inbox
   (`inbox-view`, two-pane; task rows embed TaskRoom ≥1280),
   My Tasks (`my-tasks-view`: Blocked / Overdue / Today / Upcoming / Completed,

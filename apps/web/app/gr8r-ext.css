@@ -1845,16 +1845,25 @@
     transform: none;
     pointer-events: auto;
   }
+  /* The header tools' glyphs sit one step lighter than body ink (user,
+     2026-10-29: "a little lighter") — text-3, with full ink on hover. */
   .g8 .side-tools .ibtn {
     width: 26px;
     height: 26px;
-    color: var(--g8-text-2);
+    color: var(--g8-text-3);
+  }
+  .g8 .side-tools .ibtn:hover {
+    color: var(--g8-text);
   }
   .g8 .btn.side-create {
     height: 30px;
     padding: 0 5px 0 6px;
     gap: 3px;
     border-radius: 8px;
+    color: var(--g8-text-3);
+  }
+  .g8 .btn.side-create:hover {
+    color: var(--g8-text);
   }
   /* ClickUp's selected sidebar row: a flat gray pill — no white card,
      ring or shadow (gr8r's `.sitem.on`) — r 8px, the icon at full ink.
@@ -1890,5 +1899,265 @@
      mobile drawer). */
   .g8 {
     --g8-bg-side: #f9f9f9;
+  }
+}
+
+@layer components {
+  /* ── Home (components/home/home-view.tsx) ──────────────────────────────
+     The rearrangeable Home: pastel-chipped stat cards under the masthead,
+     then ONE sortable two-column grid of gr8r panels (`DocumentSection`),
+     full-width rows spanning both columns. Colour is used sparingly: a soft
+     tinted chip per section / stat (the gr8r `.picon` recipe), pale tile
+     fills on Quick access, nothing else. */
+  .g8 .home-ph {
+    margin-bottom: 22px;
+  }
+  .g8 .home-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 0;
+    margin-top: 6px;
+  }
+  .g8 .home-sub > * + *::before {
+    content: "·";
+    margin: 0 8px;
+    color: var(--g8-text-4);
+  }
+  .g8 .home-metric {
+    color: var(--g8-text-2);
+    font-size: var(--g8-fs-sm);
+  }
+  .g8 .home-metric:hover {
+    color: var(--g8-text);
+  }
+  .g8 .home-viewas {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: var(--g8-amber-soft);
+  }
+
+  /* headline numbers — four soft cards */
+  .g8 .home-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .g8 .home-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px 13px;
+    background: var(--g8-surface);
+    border: 1px solid var(--g8-border);
+    border-radius: var(--g8-r-lg);
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition:
+      border-color var(--g8-dur),
+      box-shadow var(--g8-dur),
+      transform var(--g8-dur);
+  }
+  .g8 .home-stat:hover {
+    border-color: var(--g8-border-strong);
+    box-shadow: var(--g8-shadow-sm);
+  }
+  .g8 .home-stat:focus-visible {
+    outline: 2px solid var(--g8-accent-line);
+    outline-offset: 2px;
+  }
+  .g8 .hs-k {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--g8-fs-sm);
+    color: var(--g8-text-2);
+  }
+  .g8 .hs-v {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .hs-v.bad {
+    color: var(--g8-red);
+  }
+  .g8 .hs-d {
+    font-size: var(--g8-fs-xs);
+    color: var(--g8-text-3);
+  }
+  .g8 .hs-d.up {
+    color: var(--g8-green);
+  }
+  .g8 .hs-d.bad {
+    color: var(--g8-red);
+  }
+
+  /* the sortable grid */
+  .g8 .home-body {
+    container-type: inline-size;
+  }
+  .g8 .home-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  @container (max-width: 700px) {
+    .g8 .home-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 760px) {
+    .g8 .home-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* section chrome: chip + hover-only grip / hide */
+  .g8 .home-section {
+    transition: box-shadow var(--g8-dur), opacity var(--g8-dur);
+  }
+  .g8 .home-section.is-dragging {
+    opacity: 0.65;
+    box-shadow: var(--g8-shadow-drag);
+    z-index: 2;
+  }
+  .g8 .home-section > .panel-h {
+    padding: 11px 12px 9px 10px;
+    gap: 9px;
+  }
+  .g8 .home-section > .panel-h h2 {
+    font-size: var(--g8-fs-md);
+    letter-spacing: -0.01em;
+  }
+  .g8 .home-chip {
+    border-radius: 7px;
+  }
+  .g8 .home-grip {
+    cursor: grab;
+    touch-action: none;
+    margin-right: -4px;
+  }
+  .g8 .home-grip:active {
+    cursor: grabbing;
+  }
+  .g8 .home-grip,
+  .g8 .home-hide {
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .home-section:hover .home-grip,
+  .g8 .home-section:hover .home-hide,
+  .g8 .home-grip:focus-visible,
+  .g8 .home-hide:focus-visible,
+  .g8 .home-section:focus-within .home-grip {
+    opacity: 1;
+  }
+  .g8 .home-link {
+    color: var(--g8-text-2);
+  }
+  .g8 .home-link:hover {
+    color: var(--g8-text);
+  }
+
+  /* My tasks: the tab row above the flush rows */
+  .g8 .home-tabs {
+    padding: 0 14px 10px;
+  }
+
+  /* Upcoming deadlines */
+  .g8 .home-deadlines {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 2px;
+  }
+  .g8 .home-dl-h {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--g8-fs-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--g8-text-3);
+    margin-bottom: 2px;
+  }
+  .g8 .home-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--g8-r-full);
+    background: var(--g8-surface-3);
+    color: var(--g8-text-3);
+    font-size: var(--g8-fs-2xs);
+    font-weight: 600;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .home-count.on {
+    background: var(--g8-amber-soft);
+    color: var(--g8-amber);
+  }
+  .g8 .home-dl-row {
+    height: 32px;
+    gap: 8px;
+    margin: 0 -8px;
+    padding: 0 8px;
+    border-radius: var(--g8-r-sm);
+    font-size: var(--g8-fs);
+    color: inherit;
+  }
+  .g8 .home-dl-row:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .home-dl-more {
+    font-size: var(--g8-fs-xs);
+    padding: 2px 0 0 16px;
+  }
+  .g8 .home-dl-empty {
+    font-size: var(--g8-fs-sm);
+    padding: 2px 0;
+  }
+
+  /* Quick access: pale tinted tiles */
+  .g8 .home-quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  @container (max-width: 700px) {
+    .g8 .home-quick {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .g8 .home-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: var(--g8-r-lg);
+    background: color-mix(in srgb, var(--g8-c) 7%, var(--g8-surface));
+    border: 1px solid color-mix(in srgb, var(--g8-c) 16%, var(--g8-border));
+    color: inherit;
+    transition: background var(--g8-dur), border-color var(--g8-dur);
+  }
+  .g8 .home-tile:hover {
+    background: color-mix(in srgb, var(--g8-c) 12%, var(--g8-surface));
+    border-color: color-mix(in srgb, var(--g8-c) 32%, var(--g8-border));
+  }
+  .g8 .home-tile .picon {
+    background: color-mix(in srgb, var(--g8-c) 16%, transparent);
   }
 }

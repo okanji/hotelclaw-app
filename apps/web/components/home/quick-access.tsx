@@ -3,26 +3,23 @@ import {
   CalendarDays,
   FileText,
   ListChecks,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { Gi } from "@/components/gr8r/icon";
 
 /**
- * Quick access to the main workspaces, sitting under the Home masthead like
- * Notion's "recently visited" strip: four **page-like cards** — the one place
- * on Home that legitimately takes `rounded-card` + `shadow-card`, because each
- * card stands for a destination page (notion-spec-v2 §5). Content is stacked —
- * tinted icon chip, then the destination name at the **content rung**
- * (`16px / 24px` weight 400, not a 14px UI label), then a 12px faint line —
- * which is what lets four of them sit inside the 720px document column without
- * truncating. Colour lives only in the icon chip, never the fill.
+ * Quick access to the main workspaces — a Home section (registry id
+ * `quick-access`, full width) of four soft pastel tiles, each a destination
+ * page. Colour is a light tint of the tile's tone: the only place on Home
+ * that fills a surface with colour, kept pale so the page stays calm.
  */
 type QuickTile = {
   label: string;
   sub: string;
   href: (base: string) => string;
   icon: LucideIcon;
-  /** gr8r palette token for the icon tile. */
+  /** gr8r palette token for the tile tint. */
   tone: string;
 };
 
@@ -48,23 +45,27 @@ const TILES: QuickTile[] = [
     icon: FileText,
     tone: "var(--g8-violet)",
   },
+  {
+    label: "Chat",
+    sub: "Channels & DMs",
+    href: (b) => `${b}/chat`,
+    icon: MessageSquare,
+    tone: "var(--g8-orange)",
+  },
 ];
 
-export function QuickAccessRow({ propertyId }: { propertyId: string }) {
+export function QuickAccessWidget({ propertyId }: { propertyId: string }) {
   const base = `/p/${propertyId}`;
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="home-quick">
       {TILES.map((t) => (
         <Link
           key={t.label}
           href={t.href(base)}
-          className="panel row min-w-0"
-          style={{ padding: "10px 12px", gap: 10, color: "inherit" }}
+          className="home-tile"
+          style={{ "--g8-c": t.tone } as React.CSSProperties}
         >
-          <span
-            className="picon"
-            style={{ "--g8-c": t.tone } as React.CSSProperties}
-          >
+          <span className="picon" style={{ "--g8-sz": "30px" } as React.CSSProperties}>
             <Gi icon={t.icon} size={15} />
           </span>
           <span className="min-w-0">

@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  ArrowUpRight,
   Bot,
-  Calendar,
   CircleCheck,
   CircleDashed,
   ClockAlert,
@@ -62,10 +60,14 @@ import {
 } from "@/components/home/dashboard-filter";
 
 /**
- * gr8r-studio's `pageHome` (src/pages/home.js) over our data: the 4-stat
- * strip, then `.grid2` — My tasks + Project progress on the left, Upcoming
- * deadlines + Recent activity on the right. The `.ph` page head (greeting,
- * date, actions) is rendered by the caller so it can carry Home's own extras.
+ * gr8r-studio's `pageHome` (src/pages/home.js) over our data, split into
+ * pieces so Home can arrange them: `HomeStats` (the four headline numbers,
+ * pinned under the masthead) and four widget BODIES — `MyTasksPanel`,
+ * `ProjectProgressPanel`, `DeadlinesPanel`, `RecentActivityPanel` — that
+ * live in the Home registry (`components/home/dashboard-registry.tsx`) and
+ * render inside a `DocumentSection`, so they reorder / hide like every other
+ * section. Each body reads the shared react-query caches, so mounting them
+ * independently costs no extra requests.
  */
 
 type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
@@ -169,23 +171,15 @@ function CountUp({ value, ready }: { value: number; ready: boolean }) {
   return <>{shown ?? value}</>;
 }
 
-type HomeTab = "upcoming" | "overdue" | "completed";
+/* ── Shared data ─────────────────────────────────────────────────────────── */
 
-export function HomeOverview({
-  propertyId,
-  userId,
-}: {
-  propertyId: string;
-  /** Whose "My tasks" this is — the viewer, or the person being viewed as. */
-  userId: string;
-}) {
-  const router = useRouter();
-  const qc = useQueryClient();
-  const openProject = useOpenProject(propertyId);
+/** The task / project / member caches every Home piece reads, narrowed by
+ *  the Home scope filter. react-query dedupes, so each panel calling this
+ *  costs nothing extra. */
+function useHomeData(propertyId: string) {
   const now = useNow();
   const today = startOfDay(new Date(now));
   const filter = useDashboardFilter();
-  const base = `/p/${propertyId}`;
 
   const { data: allTasks = [], isSuccess: tasksReady } = useQuery(
     tasksQueryOptions(propertyId),
@@ -211,6 +205,10 @@ export function HomeOverview({
     const m = memberById.get(id);
     return m ? { id: m.id, name: m.name, avatarUrl: m.avatarUrl } : null;
   };
+  const projectColor = (id: string | null | undefined): string => {
+    const p = id ? projectById.get(id) : null;
+    return G8_COLOR[(p?.color ?? "slate") as EntityColor] ?? G8_COLOR.slate;
+  };
 
   // Top-level work only, narrowed by the Home scope filter.
   const tasks = useMemo(
@@ -218,10 +216,93 @@ export function HomeOverview({
     [allTasks, filter],
   );
   const open = useMemo(() => tasks.filter((t) => !isDone(t)), [tasks]);
-  const mine = useMemo(
-    () => tasks.filter((t) => isAssignedTo(t, userId)),
-    [tasks, userId],
+  const activeProjects = useMemo(() => {
+    const scoped =
+      filter.kind === "project"
+        ? tracking.filter((p) => p.id === filter.id)
+        : tracking;
+    return scoped.filter(
+      (p) => p.status !== "completed" && p.status !== "archived",
+    );
+  }, [tracking, filter]);
+
+  return {
+    now,
+    today,
+    tasks,
+    open,
+    activeProjects,
+    projectById,
+    toAv,
+    projectColor,
+    ready: tasksReady && projectsReady,
+  };
+}
+
+/* ── Headline numbers ────────────────────────────────────────────────────── */
+
+type Tone = "blue" | "violet" | "green" | "red" | "amber";
+
+function StatCard({
+  icon,
+  tone,
+  label,
+  value,
+  ready,
+  detail,
+  detailTone,
+  attention,
+  href,
+}: {
+  icon: typeof FolderKanban;
+  tone: Tone;
+  label: string;
+  value: number;
+  ready: boolean;
+  detail: string;
+  detailTone?: "up" | "bad";
+  attention?: boolean;
+  href: string;
+}) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      className="home-stat"
+      onClick={() => router.push(href)}
+    >
+      <span className="hs-k">
+        <span
+          className="picon"
+          style={{ "--g8-c": `var(--g8-${tone})`, "--g8-sz": "26px" } as CSSVars}
+        >
+          <Gi icon={icon} size={14} />
+        </span>
+        {label}
+      </span>
+      <span className={attention ? "hs-v bad" : "hs-v"}>
+        <CountUp value={value} ready={ready} />
+      </span>
+      <span className={detailTone ? `hs-d ${detailTone}` : "hs-d"}>
+        {detail}
+      </span>
+    </button>
   );
+}
+
+/** The four headline numbers under the masthead — each a soft card with a
+ *  pastel icon chip, each a deep link to the surface it counts. */
+export function HomeStats({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
+  const base = `/p/${propertyId}`;
+  const { now, today, tasks, open, activeProjects, ready } =
+    useHomeData(propertyId);
+
   const over = useMemo(
     () => tasks.filter((t) => isOverdue(t, today)),
     [tasks, today],
@@ -235,22 +316,88 @@ export function HomeOverview({
       }),
     [tasks, now],
   );
-
-  const activeProjects = useMemo(() => {
-    const scoped =
-      filter.kind === "project"
-        ? tracking.filter((p) => p.id === filter.id)
-        : tracking;
-    return scoped.filter(
-      (p) => p.status !== "completed" && p.status !== "archived",
-    );
-  }, [tracking, filter]);
-  const atRisk = (p: ProjectTracking) => {
+  const atRisk = activeProjects.filter((p) => {
     const h = projectHealth(p, now);
     return h === "at_risk" || h === "overdue";
-  };
+  }).length;
+  const mineOpen = open.filter((t) => isAssignedTo(t, userId)).length;
 
-  /* ── My tasks ── */
+  return (
+    <div className="home-stats">
+      <StatCard
+        icon={FolderKanban}
+        tone="blue"
+        label="Active projects"
+        value={activeProjects.length}
+        ready={ready}
+        detail={atRisk ? `${atRisk} at risk` : "all on pace"}
+        detailTone={atRisk ? "bad" : undefined}
+        href={`${base}/projects`}
+      />
+      <StatCard
+        icon={CircleDashed}
+        tone="violet"
+        label="Open tasks"
+        value={open.length}
+        ready={ready}
+        detail={`${mineOpen} assigned to you`}
+        href={`${base}/tasks`}
+      />
+      <StatCard
+        icon={CircleCheck}
+        tone="green"
+        label="Completed"
+        value={doneWk.length}
+        ready={ready}
+        detail="this week"
+        detailTone="up"
+        href={`${base}/tasks`}
+      />
+      <StatCard
+        icon={ClockAlert}
+        tone={over.length ? "red" : "amber"}
+        label="Overdue"
+        value={over.length}
+        ready={ready}
+        detail={over.length ? "need attention" : "all on track"}
+        detailTone={over.length ? "bad" : undefined}
+        attention={over.length > 0}
+        href={`${base}/my-tasks`}
+      />
+    </div>
+  );
+}
+
+/* ── My tasks ────────────────────────────────────────────────────────────── */
+
+type HomeTab = "upcoming" | "overdue" | "completed";
+
+const TABS: readonly (readonly [HomeTab, string])[] = [
+  ["upcoming", "Upcoming"],
+  ["overdue", "Overdue"],
+  ["completed", "Completed"],
+];
+
+/** gr8r's My tasks list: Upcoming / Overdue / Completed tabs over the
+ *  viewer's own work, one-tap complete, 7 rows then "View all". Renders
+ *  flush (the rows draw their own dividers). */
+export function MyTasksPanel({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const base = `/p/${propertyId}`;
+  const { today, tasks, projectById, projectColor } = useHomeData(propertyId);
+  const go = (href: string) => router.push(href);
+
+  const mine = useMemo(
+    () => tasks.filter((t) => isAssignedTo(t, userId)),
+    [tasks, userId],
+  );
   const [tab, setTab] = useState<HomeTab>("upcoming");
   const lists = useMemo(() => {
     const byDue = (a: Task, b: Task) => {
@@ -296,421 +443,139 @@ export function HomeOverview({
     void qc.invalidateQueries({ queryKey: ["projects-tracking", propertyId] });
   }
 
-  const projectColor = (id: string | null | undefined): string => {
-    const p = id ? projectById.get(id) : null;
-    return G8_COLOR[(p?.color ?? "slate") as EntityColor] ?? G8_COLOR.slate;
-  };
-
-  /* ── Upcoming deadlines ── */
-  const deadlineGroups = useMemo(() => {
-    const group = (lab: string, a: number, b: number) => ({
-      lab,
-      ts: open
-        .filter((t) => {
-          if (!t.due_at) return false;
-          const n = dayDiff(t.due_at, today);
-          return n >= a && n <= b;
-        })
-        .sort((x, y) => priorityWeight(y.priority) - priorityWeight(x.priority)),
-    });
-    return [
-      group("Today", 0, 0),
-      group("Tomorrow", 1, 1),
-      group("This week", 2, 7),
-    ];
-  }, [open, today]);
-
-  /* ── Recent activity ── */
-  const lookup = useActivityLookup(propertyId, userId);
-  useActivityLogRealtime(propertyId);
-  const { data: activity = [], isPending: activityPending } = useQuery(
-    activityLogQueryOptions(propertyId, { kind: "property" }, 7),
-  );
-
-  const statsReady = tasksReady && projectsReady;
-  const go = (href: string) => router.push(href);
-
   return (
     <>
-      <div className="stats" style={{ marginBottom: 16 }}>
+      <div className="home-tabs">
+        <div className="seg" role="tablist">
+          {TABS.map(([k, n]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              className={tab === k ? "on" : ""}
+              onClick={() => setTab(k)}
+            >
+              {n} <span className="faint">{lists[k].length}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {cur.length ? (
+        cur.map((t) => {
+          const done = isDone(t);
+          const pName =
+            t.project_name ??
+            (t.project_id ? projectById.get(t.project_id)?.name : null);
+          const n = t.due_at ? dayDiff(t.due_at, today) : null;
+          const dueCls =
+            done || n === null ? "" : n < 0 ? "over" : n <= 1 ? "soon" : "";
+          return (
+            <div
+              key={t.id}
+              className={done ? "mini done" : "mini"}
+              role="button"
+              tabIndex={0}
+              onClick={() => go(taskHref(propertyId, t.id))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") go(taskHref(propertyId, t.id));
+              }}
+            >
+              <input
+                type="checkbox"
+                className="check round"
+                checked={done}
+                aria-label={`Complete ${t.title}`}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => void toggleDone(t)}
+              />
+              <span title={t.status_name ?? undefined}>
+                <StIcon task={t} />
+              </span>
+              <span className="tt">{t.title}</span>
+              {pName ? (
+                <span className="pj hide-m">
+                  <span
+                    className="pdot"
+                    style={{ "--g8-c": projectColor(t.project_id) } as CSSVars}
+                  />
+                  <span className="trunc">{pName}</span>
+                </span>
+              ) : null}
+              <span title={`${PR_NAME[t.priority ?? "none"]} priority`}>
+                <PrIcon priority={t.priority} />
+              </span>
+              <span
+                style={{ width: 74, textAlign: "right" }}
+                className="hide-m"
+              >
+                {t.due_at ? (
+                  <span className={dueCls ? `due ${dueCls}` : "due"}>
+                    {relDate(t.due_at, today)}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          );
+        })
+      ) : (
+        <div className="empty-state sm">
+          <div className="glyph">
+            <Gi icon={tab === "overdue" ? CircleCheck : ListChecks} size={20} />
+          </div>
+          <h3 className="es-h">
+            {tab === "overdue" ? "Nothing overdue" : "No tasks here"}
+          </h3>
+          <p>
+            {tab === "overdue"
+              ? "Every task assigned to you is on schedule."
+              : "Add a task to get things moving."}
+          </p>
+        </div>
+      )}
+      {lists[tab].length > 7 ? (
         <button
           type="button"
-          className="stat"
-          onClick={() => go(`${base}/projects`)}
-        >
-          <span className="k">
-            <Gi icon={FolderKanban} size={14} />
-            Active projects
-          </span>
-          <span className="v">
-            <CountUp value={activeProjects.length} ready={statsReady} />
-          </span>
-          <span className="d">
-            {activeProjects.filter(atRisk).length} at risk
-          </span>
-        </button>
-        <button
-          type="button"
-          className="stat"
-          onClick={() => go(`${base}/tasks`)}
-        >
-          <span className="k">
-            <Gi icon={CircleDashed} size={14} />
-            Open tasks
-          </span>
-          <span className="v">
-            <CountUp value={open.length} ready={statsReady} />
-          </span>
-          <span className="d">
-            {open.filter((t) => isAssignedTo(t, userId)).length} assigned to you
-          </span>
-        </button>
-        <button
-          type="button"
-          className="stat"
-          onClick={() => go(`${base}/tasks`)}
-        >
-          <span className="k">
-            <Gi icon={CircleCheck} size={14} />
-            Completed
-          </span>
-          <span className="v">
-            <CountUp value={doneWk.length} ready={statsReady} />
-          </span>
-          <span className="d up">this week</span>
-        </button>
-        <button
-          type="button"
-          className="stat"
+          className="addrow"
+          style={{
+            paddingLeft: 14,
+            borderTop: "1px solid var(--g8-divider)",
+            borderBottom: 0,
+          }}
           onClick={() => go(`${base}/my-tasks`)}
         >
-          <span className="k">
-            <Gi icon={ClockAlert} size={14} />
-            Overdue
-          </span>
-          <span
-            className="v"
-            style={over.length ? { color: "var(--g8-red)" } : undefined}
-          >
-            <CountUp value={over.length} ready={statsReady} />
-          </span>
-          <span className={over.length ? "d bad" : "d"}>
-            {over.length ? "need attention" : "all on track"}
-          </span>
+          View all {lists[tab].length} tasks <Gi icon={ArrowRight} size={13} />
         </button>
-      </div>
-
-      <div className="grid2">
-        <div className="stack">
-          <section className="panel" aria-labelledby="h-mytasks">
-            <div className="panel-h">
-              <h2 id="h-mytasks">My tasks</h2>
-              <div className="acts">
-                <div className="seg" role="tablist">
-                  {(
-                    [
-                      ["upcoming", "Upcoming"],
-                      ["overdue", "Overdue"],
-                      ["completed", "Completed"],
-                    ] as const
-                  ).map(([k, n]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === k}
-                      className={tab === k ? "on" : ""}
-                      onClick={() => setTab(k)}
-                    >
-                      {n} <span className="faint">{lists[k].length}</span>
-                    </button>
-                  ))}
-                </div>
-                <Link
-                  href={`${base}/my-tasks`}
-                  className="ibtn ibtn-sm"
-                  title="Open My Tasks"
-                  aria-label="Open My Tasks"
-                >
-                  <Gi icon={ArrowUpRight} size={15} />
-                </Link>
-              </div>
-            </div>
-            {cur.length ? (
-              cur.map((t) => {
-                const done = isDone(t);
-                const pName =
-                  t.project_name ??
-                  (t.project_id ? projectById.get(t.project_id)?.name : null);
-                const n = t.due_at ? dayDiff(t.due_at, today) : null;
-                const dueCls =
-                  done || n === null ? "" : n < 0 ? "over" : n <= 1 ? "soon" : "";
-                return (
-                  <div
-                    key={t.id}
-                    className={done ? "mini done" : "mini"}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => go(taskHref(propertyId, t.id))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") go(taskHref(propertyId, t.id));
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      className="check round"
-                      checked={done}
-                      aria-label={`Complete ${t.title}`}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={() => void toggleDone(t)}
-                    />
-                    <span title={t.status_name ?? undefined}>
-                      <StIcon task={t} />
-                    </span>
-                    <span className="tt">{t.title}</span>
-                    {pName ? (
-                      <span className="pj hide-m">
-                        <span
-                          className="pdot"
-                          style={{ "--g8-c": projectColor(t.project_id) } as CSSVars}
-                        />
-                        <span className="trunc">{pName}</span>
-                      </span>
-                    ) : null}
-                    <span title={`${PR_NAME[t.priority ?? "none"]} priority`}>
-                      <PrIcon priority={t.priority} />
-                    </span>
-                    <span
-                      style={{ width: 74, textAlign: "right" }}
-                      className="hide-m"
-                    >
-                      {t.due_at ? (
-                        <span className={dueCls ? `due ${dueCls}` : "due"}>
-                          {relDate(t.due_at, today)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="empty-state sm">
-                <div className="glyph">
-                  <Gi
-                    icon={tab === "overdue" ? CircleCheck : ListChecks}
-                    size={20}
-                  />
-                </div>
-                <h3 className="es-h">
-                  {tab === "overdue" ? "Nothing overdue" : "No tasks here"}
-                </h3>
-                <p>
-                  {tab === "overdue"
-                    ? "Every task assigned to you is on schedule."
-                    : "Add a task to get things moving."}
-                </p>
-              </div>
-            )}
-            {lists[tab].length > 7 ? (
-              <button
-                type="button"
-                className="addrow"
-                style={{
-                  paddingLeft: 14,
-                  borderTop: "1px solid var(--g8-divider)",
-                  borderBottom: 0,
-                }}
-                onClick={() => go(`${base}/my-tasks`)}
-              >
-                View all {lists[tab].length} tasks{" "}
-                <Gi icon={ArrowRight} size={13} />
-              </button>
-            ) : null}
-          </section>
-
-          <section className="panel">
-            <div className="panel-h">
-              <h2>Project progress</h2>
-              <div className="acts">
-                <Link href={`${base}/projects`} className="btn btn-sm btn-ghost">
-                  All projects
-                </Link>
-              </div>
-            </div>
-            {activeProjects.length ? (
-              <ProjectTable
-                projects={activeProjects}
-                now={now}
-                toAv={toAv}
-                onOpen={(id) => openProject(id)}
-              />
-            ) : (
-              <div className="empty-state sm">
-                <div className="glyph">
-                  <Gi icon={FolderKanban} size={20} />
-                </div>
-                <h3 className="es-h">No active projects</h3>
-                <p>Projects you start will show their progress here.</p>
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="stack">
-          <section className="panel">
-            <div className="panel-h">
-              <h2>Upcoming deadlines</h2>
-              <div className="acts">
-                <Link href={`${base}/calendar`} className="btn btn-sm btn-ghost">
-                  <Gi icon={Calendar} size={13} />
-                  Calendar
-                </Link>
-              </div>
-            </div>
-            <div className="panel-b" style={{ paddingBottom: 6 }}>
-              {deadlineGroups.map((g) => (
-                <div key={g.lab} style={{ marginBottom: 10 }}>
-                  <div
-                    className="row"
-                    style={{
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      color: "var(--g8-text-2)",
-                      marginBottom: 4,
-                    }}
-                  >
-                    {g.lab}
-                    <span className="faint" style={{ fontWeight: 500 }}>
-                      {g.ts.length}
-                    </span>
-                  </div>
-                  {g.ts.length ? (
-                    <>
-                      {g.ts.slice(0, 4).map((t) => (
-                        <Link
-                          key={t.id}
-                          href={taskHref(propertyId, t.id)}
-                          className="row"
-                          style={{
-                            height: 30,
-                            gap: 8,
-                            fontSize: 13,
-                            color: "inherit",
-                          }}
-                        >
-                          <span
-                            className="pdot"
-                            style={
-                              { "--g8-c": projectColor(t.project_id) } as CSSVars
-                            }
-                          />
-                          <span className="trunc grow">{t.title}</span>
-                          <PrIcon priority={t.priority} size={13} />
-                          <Av member={toAv(taskAssigneeIds(t)[0])} />
-                        </Link>
-                      ))}
-                      {g.ts.length > 4 ? (
-                        <div
-                          className="faint"
-                          style={{ fontSize: 11.5, paddingLeft: 16 }}
-                        >
-                          +{g.ts.length - 4} more
-                        </div>
-                      ) : null}
-                    </>
-                  ) : (
-                    <div
-                      className="faint"
-                      style={{ fontSize: 12.5, padding: "4px 0 2px" }}
-                    >
-                      Nothing due
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-h">
-              <h2>Recent activity</h2>
-              <div className="acts">
-                <Link
-                  href={`${base}/activity?view=workspace`}
-                  className="btn btn-sm btn-ghost"
-                >
-                  View all
-                </Link>
-              </div>
-            </div>
-            <div className="panel-b feed lined">
-              {activity.length === 0 ? (
-                <div className="faint" style={{ fontSize: 12.5, padding: "4px 0" }}>
-                  {activityPending
-                    ? "Loading activity…"
-                    : "Nothing has changed yet — task and project updates will show here."}
-                </div>
-              ) : (
-                activity.map((row) => {
-                  const desc = describeActivity(row, lookup);
-                  const Glyph = row.actor_kind === "workflow" ? Zap : Bot;
-                  return (
-                    <div key={row.id} className="fitem">
-                      {desc.actorMember ? (
-                        <Av
-                          member={{
-                            id: desc.actorMember.id,
-                            name: desc.actorMember.name,
-                            avatarUrl: desc.actorMember.avatarUrl,
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className="av sm"
-                          style={{ "--g8-c": "var(--g8-gray)" } as CSSVars}
-                          aria-hidden="true"
-                        >
-                          <Gi icon={Glyph} size={11} />
-                        </span>
-                      )}
-                      <div className="grow">
-                        <b>{desc.actor}</b>{" "}
-                        <span className="muted">{desc.verb}</span>{" "}
-                        {desc.object ? (
-                          desc.object.href ? (
-                            <Link
-                              href={desc.object.href}
-                              className="obj"
-                              style={{ color: "inherit" }}
-                            >
-                              {desc.object.label}
-                            </Link>
-                          ) : (
-                            <span className="obj">{desc.object.label}</span>
-                          )
-                        ) : null}{" "}
-                        {desc.extra ? (
-                          <span className="muted">{desc.extra}</span>
-                        ) : null}
-                        {desc.project && row.entity_kind !== "project" ? (
-                          <span className="faint"> in {desc.project.name}</span>
-                        ) : null}
-                      </div>
-                      <time
-                        dateTime={row.created_at}
-                        title={new Date(row.created_at).toLocaleString()}
-                      >
-                        {ago(row.created_at, now)}
-                      </time>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
+      ) : null}
     </>
+  );
+}
+
+/* ── Project progress ────────────────────────────────────────────────────── */
+
+/** gr8r's project table: status pill, progress bar, due, team. Flush. */
+export function ProjectProgressPanel({ propertyId }: { propertyId: string }) {
+  const openProject = useOpenProject(propertyId);
+  const { now, activeProjects, toAv } = useHomeData(propertyId);
+
+  if (!activeProjects.length) {
+    return (
+      <div className="empty-state sm">
+        <div className="glyph">
+          <Gi icon={FolderKanban} size={20} />
+        </div>
+        <h3 className="es-h">No active projects</h3>
+        <p>Projects you start will show their progress here.</p>
+      </div>
+    );
+  }
+  return (
+    <ProjectTable
+      projects={activeProjects}
+      now={now}
+      toAv={toAv}
+      onOpen={(id) => openProject(id)}
+    />
   );
 }
 
@@ -743,10 +608,10 @@ function ProjectTable({
             const h = projectHealth(p, now);
             const risk = h === "at_risk" || h === "overdue";
             const status = risk
-              ? { name: "At Risk", c: "var(--g8-red)" }
+              ? { name: "At risk", c: "var(--g8-red)" }
               : p.status === "planned"
                 ? { name: "Planning", c: "var(--g8-gray)" }
-                : { name: "In Progress", c: "var(--g8-blue)" };
+                : { name: "In progress", c: "var(--g8-blue)" };
             const team = p.contributorIds
               .map(toAv)
               .filter((m): m is AvMember => m !== null);
@@ -797,6 +662,152 @@ function ProjectTable({
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ── Upcoming deadlines ──────────────────────────────────────────────────── */
+
+/** Open work due Today / Tomorrow / This week, by priority. */
+export function DeadlinesPanel({ propertyId }: { propertyId: string }) {
+  const { today, open, toAv, projectColor } = useHomeData(propertyId);
+  const groups = useMemo(() => {
+    const group = (lab: string, a: number, b: number) => ({
+      lab,
+      ts: open
+        .filter((t) => {
+          if (!t.due_at) return false;
+          const n = dayDiff(t.due_at, today);
+          return n >= a && n <= b;
+        })
+        .sort((x, y) => priorityWeight(y.priority) - priorityWeight(x.priority)),
+    });
+    return [
+      group("Today", 0, 0),
+      group("Tomorrow", 1, 1),
+      group("This week", 2, 7),
+    ];
+  }, [open, today]);
+
+  return (
+    <div className="home-deadlines">
+      {groups.map((g) => (
+        <div key={g.lab} className="home-dl-group">
+          <div className="home-dl-h">
+            {g.lab}
+            <span className={g.ts.length ? "home-count on" : "home-count"}>
+              {g.ts.length}
+            </span>
+          </div>
+          {g.ts.length ? (
+            <>
+              {g.ts.slice(0, 4).map((t) => (
+                <Link
+                  key={t.id}
+                  href={taskHref(propertyId, t.id)}
+                  className="row home-dl-row"
+                >
+                  <span
+                    className="pdot"
+                    style={{ "--g8-c": projectColor(t.project_id) } as CSSVars}
+                  />
+                  <span className="trunc grow">{t.title}</span>
+                  <PrIcon priority={t.priority} size={13} />
+                  <Av member={toAv(taskAssigneeIds(t)[0])} />
+                </Link>
+              ))}
+              {g.ts.length > 4 ? (
+                <div className="faint home-dl-more">+{g.ts.length - 4} more</div>
+              ) : null}
+            </>
+          ) : (
+            <div className="faint home-dl-empty">Nothing due</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Recent activity ─────────────────────────────────────────────────────── */
+
+/** The last few `activity_log` rows across the property — who did what. */
+export function RecentActivityPanel({
+  propertyId,
+  userId,
+}: {
+  propertyId: string;
+  userId: string;
+}) {
+  const now = useNow();
+  const lookup = useActivityLookup(propertyId, userId);
+  useActivityLogRealtime(propertyId);
+  const { data: activity = [], isPending } = useQuery(
+    activityLogQueryOptions(propertyId, { kind: "property" }, 7),
+  );
+
+  if (activity.length === 0) {
+    return (
+      <div className="faint" style={{ fontSize: 12.5, padding: "4px 0" }}>
+        {isPending
+          ? "Loading activity…"
+          : "Nothing has changed yet — task and project updates will show here."}
+      </div>
+    );
+  }
+  return (
+    <div className="feed lined">
+      {activity.map((row) => {
+        const desc = describeActivity(row, lookup);
+        const Glyph = row.actor_kind === "workflow" ? Zap : Bot;
+        return (
+          <div key={row.id} className="fitem">
+            {desc.actorMember ? (
+              <Av
+                member={{
+                  id: desc.actorMember.id,
+                  name: desc.actorMember.name,
+                  avatarUrl: desc.actorMember.avatarUrl,
+                }}
+              />
+            ) : (
+              <span
+                className="av sm"
+                style={{ "--g8-c": "var(--g8-gray)" } as CSSVars}
+                aria-hidden="true"
+              >
+                <Gi icon={Glyph} size={11} />
+              </span>
+            )}
+            <div className="grow">
+              <b>{desc.actor}</b> <span className="muted">{desc.verb}</span>{" "}
+              {desc.object ? (
+                desc.object.href ? (
+                  <Link
+                    href={desc.object.href}
+                    className="obj"
+                    style={{ color: "inherit" }}
+                  >
+                    {desc.object.label}
+                  </Link>
+                ) : (
+                  <span className="obj">{desc.object.label}</span>
+                )
+              ) : null}{" "}
+              {desc.extra ? <span className="muted">{desc.extra}</span> : null}
+              {desc.project && row.entity_kind !== "project" ? (
+                <span className="faint"> in {desc.project.name}</span>
+              ) : null}
+            </div>
+            <time
+              dateTime={row.created_at}
+              title={new Date(row.created_at).toLocaleString()}
+            >
+              {ago(row.created_at, now)}
+            </time>
+          </div>
+        );
+      })}
     </div>
   );
 }
